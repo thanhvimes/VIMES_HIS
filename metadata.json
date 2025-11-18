@@ -1,0 +1,7 @@
+{
+  "name": "Clinic Management System",
+  "description": "A comprehensive, professional, and beautiful software system for managing clinic operations, including patient reception, consultations with AI assistance, billing, lab results, and pharmacy inventory.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
