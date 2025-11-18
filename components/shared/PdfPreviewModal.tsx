@@ -20,7 +20,7 @@ import {
 } from '../Icons';
 
 // Configure the PDF.js worker. This is essential for the library to work.
-pdfjs.GlobalWorkerOptions.workerSrc = 'https://aistudiocdn.com/pdfjs-dist@^4.4.168/build/pdf.worker.min.mjs';
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 interface PdfPreviewModalProps {
   isOpen: boolean;

@@ -122,16 +122,34 @@ export interface NavItemType {
   icon: React.ReactElement<any>;
 }
 
+export type SignaturePlacementBox = {
+  pageNumber: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 export interface Signature {
+  dataUrl: string; // The base64 PNG data URL from signature_pad
+  placement: SignaturePlacementBox;
   signerName: string;
   signerTitle: string;
   signedAt: Date;
-  dataUrl: string;
-  placement: {
-    pageNumber: number;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  email: string;
+  address: string;
+}
+
+export interface Bill {
+  id: string;
+  customerId: string;
+  date: string; // Format: YYYY-MM
+  consumption: number; // in kWh
+  cost: number; // in VND
+  status: 'paid' | 'unpaid';
 }
