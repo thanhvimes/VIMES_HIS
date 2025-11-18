@@ -1,128 +1,468 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { 
     UserPlusIcon, 
     PencilIcon, 
     TrashIcon, 
     SaveIcon, 
     BanIcon, 
-    PrinterIcon 
+    PrinterIcon,
+    SearchIcon,
+    QrcodeIcon,
+    ShieldCheckIcon,
+    XIcon
 } from '../../../components/Icons';
 import ActionButton from '../../../components/shared/ActionButton';
 import { FormInput, FormSelect } from '../../../components/shared/forms';
+import { Patient, ExaminationRecord } from '../../../types';
+import { mockPatients } from '../data';
+
+const emptyPatient: Patient = {
+  id: '', recordNumber: '', name: '', dob: '', age: 0, gender: 'Nam',
+  ethnicity: 'Kinh', occupation: '', address: '', phone: '', lastVisit: new Date().toLocaleDateString('vi-VN'),
+  patientType: 'Dịch vụ',
+  history: [],
+};
+
+interface ExamInfo {
+    patientStatus: string;
+    examDate: string;
+    ticketNumber: string;
+    examType: string;
+    examRoom: string;
+    symptoms: string;
+    patientType: 'Dịch vụ' | 'Bảo hiểm';
+    insuranceNumber?: string;
+}
+
+const emptyExamInfo: ExamInfo = {
+    patientStatus: 'Không khỏe',
+    examDate: new Date().toLocaleDateString('vi-VN', {day: '2-digit', month: '2-digit', year: 'numeric'}),
+    ticketNumber: '',
+    examType: 'Khám Phụ sản',
+    examRoom: 'Phòng Khám Sản - Phụ Khoa',
+    symptoms: '',
+    patientType: 'Dịch vụ',
+    insuranceNumber: '',
+};
+
+type ToastType = { message: string; type: 'success' | 'error' | 'info' };
+
+const Toast: React.FC<{ toast: ToastType; onClose: () => void }> = ({ toast, onClose }) => (
+    <div className="fixed top-20 right-5 z-50">
+        <div className={`flex items-center p-4 rounded-lg shadow-lg text-white ${
+            toast.type === 'success' ? 'bg-green-500' : 
+            toast.type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+        }`}>
+            <span className="flex-grow">{toast.message}</span>
+            <button onClick={onClose} className="ml-4">
+                <XIcon className="w-5 h-5"/>
+            </button>
+        </div>
+    </div>
+);
+
 
 const RegistrationView: React.FC = () => {
-    // Mock API event handlers
-    const handleAdd = () => console.log('API Call: Add new record initialized.');
-    const handleEdit = () => console.log('API Call: Edit mode enabled for record.');
-    const handleDelete = () => console.log('API Call: Delete record.');
-    const handleSave = () => console.log('API Call: Save record.');
-    const handleCancel = () => console.log('API Call: Action cancelled.');
-    const handlePrint = () => console.log('API Call: Print record.');
+    const { patientId } = useParams<{ patientId: string }>();
+    const navigate = useNavigate();
+
+    const [patient, setPatient] = useState<Patient | null>(null);
+    const [formData, setFormData] = useState<Patient>(emptyPatient);
+    const [initialFormData, setInitialFormData] = useState<Patient>(emptyPatient);
+    const [examInfo, setExamInfo] = useState<ExamInfo>(emptyExamInfo);
+    const [initialExamInfo, setInitialExamInfo] = useState<ExamInfo>(emptyExamInfo);
+    const [mode, setMode] = useState<'VIEW' | 'EDIT' | 'ADD'>('VIEW');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
+    const [toast, setToast] = useState<ToastType | null>(null);
+
+    useEffect(() => {
+        if (toast) {
+            const timer = setTimeout(() => setToast(null), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [toast]);
+    
+    useEffect(() => {
+        if (patientId) {
+            const foundPatient = mockPatients.find(p => p.id === patientId);
+            if (foundPatient) {
+                setPatient(foundPatient);
+                setFormData(foundPatient);
+                setInitialFormData(foundPatient);
+                
+                if (foundPatient.history && foundPatient.history.length > 0) {
+                    handleHistoryRowClick(foundPatient.history[0], foundPatient);
+                } else {
+                    const defaultExam = {...emptyExamInfo, patientType: foundPatient.patientType || 'Dịch vụ'};
+                    setExamInfo(defaultExam); 
+                    setInitialExamInfo(defaultExam);
+                    setSelectedExamId(null);
+                }
+                setMode('VIEW');
+            } else {
+                setToast({ message: 'Không tìm thấy bệnh nhân.', type: 'error' });
+                navigate('/reception/list');
+            }
+        } else {
+            setPatient(null);
+            setFormData(emptyPatient);
+            setInitialFormData(emptyPatient);
+            setExamInfo(emptyExamInfo);
+            setInitialExamInfo(emptyExamInfo);
+            setMode('ADD');
+            setSelectedExamId(null);
+        }
+    }, [patientId, navigate]);
+
+    const calculateAge = useCallback((dob: string) => {
+        if (!dob || !/^\d{2}\/\d{2}\/\d{4}$/.test(dob)) return 0;
+        const [day, month, year] = dob.split('/').map(Number);
+        const birthDate = new Date(year, month - 1, day);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        return age > 0 ? age : 0;
+    }, []);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        const newFormData = { ...formData, [name]: value };
+
+        if (name === 'dob') {
+            const age = calculateAge(value);
+            newFormData.age = age;
+        }
+
+        setFormData(newFormData);
+    };
+
+    const handleExamInfoChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const { name, value } = e.target;
+      setExamInfo(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleHistoryRowClick = (record: ExaminationRecord, currentPatient: Patient) => {
+        setSelectedExamId(record.id);
+        const selectedExamInfo: ExamInfo = {
+            patientStatus: record.patientStatus,
+            examDate: record.examDate,
+            ticketNumber: record.ticketNumber,
+            examType: record.examType,
+            examRoom: record.clinic,
+            symptoms: record.symptoms,
+            patientType: currentPatient.patientType || 'Dịch vụ',
+            insuranceNumber: '',
+        };
+        setExamInfo(selectedExamInfo);
+        setInitialExamInfo(selectedExamInfo);
+        setMode('VIEW');
+    };
+
+    const handleSearch = () => {
+        if (!searchQuery) return;
+        const foundPatient = mockPatients.find(p => p.id.toLowerCase() === searchQuery.toLowerCase() || p.phone === searchQuery || p.recordNumber === searchQuery);
+        if (foundPatient) {
+            setToast({ message: `Đã tìm thấy bệnh nhân: ${foundPatient.name}`, type: 'success'});
+            navigate(`/reception/register/${foundPatient.id}`);
+        } else {
+            setToast({ message: 'Không tìm thấy bệnh nhân.', type: 'error' });
+        }
+    };
+    
+    const handleAdd = () => {
+        setSelectedExamId(null);
+        navigate('/reception/register');
+    };
+
+    const handleEdit = () => {
+        if (patient) {
+            setSelectedExamId(null);
+            const defaultExam = {...emptyExamInfo, patientType: formData.patientType || 'Dịch vụ'};
+            setExamInfo(defaultExam);
+            setInitialExamInfo(defaultExam);
+            setMode('EDIT');
+        }
+    };
+
+    const handleDelete = () => {
+        if (patient && window.confirm(`Bạn có chắc chắn muốn xóa bệnh nhân ${patient.name}?`)) {
+            console.log(`API Call: Deleting patient with ID ${patient.id}...`);
+            setTimeout(() => {
+                setToast({ message: 'Xóa bệnh nhân thành công!', type: 'success' });
+                navigate('/reception/list');
+            }, 500);
+        }
+    };
+
+    const handleSave = () => {
+        if (!formData.name || !formData.dob) {
+            setToast({ message: 'Vui lòng nhập Tên bệnh nhân và Năm sinh.', type: 'error' });
+            return;
+        }
+
+        if (mode === 'ADD') {
+            console.log('API Call: Creating new patient...', { patientData: formData, examData: examInfo });
+            setTimeout(() => {
+                const newPatientId = `P${Date.now()}`;
+                const newRecordNumber = `${new Date().getFullYear().toString().slice(-2)}${Math.floor(100000 + Math.random() * 900000)}`;
+                const newPatient = { ...formData, id: newPatientId, recordNumber: newRecordNumber, patientType: examInfo.patientType };
+                
+                mockPatients.push(newPatient);
+                setToast({ message: 'Thêm mới bệnh nhân thành công!', type: 'success' });
+                navigate(`/reception/register/${newPatientId}`, { replace: true });
+            }, 500);
+        } else if (mode === 'EDIT' && patient) {
+            console.log(`API Call: Updating patient with ID ${patient.id}...`, { patientData: formData, examData: examInfo });
+            setTimeout(() => {
+                const updatedPatientData = {...formData, patientType: examInfo.patientType};
+                setToast({ message: 'Cập nhật thông tin thành công!', type: 'success' });
+                setMode('VIEW');
+                setFormData(updatedPatientData);
+                setInitialFormData(updatedPatientData);
+                setInitialExamInfo(examInfo);
+                const index = mockPatients.findIndex(p => p.id === patient.id);
+                if (index !== -1) mockPatients[index] = updatedPatientData;
+            }, 500);
+        }
+    };
+
+    const handleCancel = () => {
+        setFormData(initialFormData);
+        setExamInfo(initialExamInfo);
+        setMode('VIEW');
+    };
+
+    const handlePrint = () => window.print();
+
+    const handleCheckInBHYT = () => {
+        if (examInfo.patientType === 'Bảo hiểm') {
+            setToast({ message: 'Đang kiểm tra thông tin BHYT...', type: 'info' });
+            setTimeout(() => {
+                const isSuccess = Math.random() > 0.2;
+                if (isSuccess) {
+                    setToast({ message: 'CheckIn BHYT thành công! Thẻ hợp lệ.', type: 'success' });
+                } else {
+                    setToast({ message: 'CheckIn BHYT thất bại! Thẻ không hợp lệ.', type: 'error' });
+                }
+            }, 1500);
+        }
+    };
+    
+    const isEditing = mode === 'EDIT' || mode === 'ADD';
+    const isReadOnly = mode === 'VIEW';
+    const formGroupClass = isEditing ? 'ring-2 ring-blue-400 dark:ring-blue-500' : 'border-slate-200/50 dark:border-slate-700';
 
     return (
         <div className="flex flex-col h-full">
-            <div className="flex-grow space-y-4">
-                <div className="grid grid-cols-12 gap-4">
-                    {/* Main form section */}
-                    <div className="col-span-12 lg:col-span-9 space-y-3">
-                        {/* Patient Info */}
-                        <div className="bg-surface dark:bg-dark-surface p-4 rounded-lg shadow border border-slate-200/50 dark:border-slate-700">
-                             <p className="font-semibold text-primary dark:text-dark-primary mb-3">Thông tin bệnh nhân</p>
-                             <div className="grid grid-cols-1 md:grid-cols-4 gap-x-4 gap-y-3">
-                                <div className="md:col-span-2 grid grid-cols-3 gap-x-2">
-                                    <FormInput label="Mã BN" value="20025251" readOnly/>
-                                    <FormInput label="Số hồ sơ" value="21024067" labelClassName="text-red-500"/>
-                                    <FormSelect label="Thẻ"><option>...</option></FormSelect>
+            {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
+
+            {/* --- MAIN INTERACTIVE VIEW (Hidden on Print) --- */}
+            <div className="print:hidden flex flex-col h-full">
+                {/* Action Toolbar */}
+                <div className="flex-shrink-0 bg-surface dark:bg-dark-surface p-3 rounded-lg shadow-md border border-slate-200/50 dark:border-slate-700 mb-4">
+                    <div className="flex items-center flex-wrap gap-3">
+                        <ActionButton label="Thêm" icon={<UserPlusIcon className="w-4 h-4"/>} onClick={handleAdd} className="bg-blue-500 hover:bg-blue-600 text-white" disabled={isEditing}/>
+                        <ActionButton label="Sửa" icon={<PencilIcon className="w-4 h-4"/>} onClick={handleEdit} className="bg-yellow-500 hover:bg-yellow-600 text-white" disabled={isEditing || !patient}/>
+                        <ActionButton label="Xóa" icon={<TrashIcon className="w-4 h-4"/>} onClick={handleDelete} className="bg-red-500 hover:bg-red-600 text-white" disabled={isEditing || !patient}/>
+                        <ActionButton label="Lưu" icon={<SaveIcon className="w-4 h-4"/>} onClick={handleSave} className="bg-green-500 hover:bg-green-600 text-white" disabled={!isEditing}/>
+                        <ActionButton label="Hủy" icon={<BanIcon className="w-4 h-4"/>} onClick={handleCancel} className="bg-slate-500 hover:bg-slate-600 text-white" disabled={!isEditing}/>
+                        <ActionButton label="In" icon={<PrinterIcon className="w-4 h-4"/>} onClick={handlePrint} className="bg-gray-500 hover:bg-gray-600 text-white" disabled={!patient}/>
+                        <ActionButton label="CheckIn BHYT" icon={<ShieldCheckIcon className="w-4 h-4"/>} onClick={handleCheckInBHYT} className="bg-cyan-600 hover:bg-cyan-700 text-white" disabled={!patient || examInfo.patientType !== 'Bảo hiểm'}/>
+                    </div>
+                </div>
+
+                <div className="flex-grow space-y-4 overflow-y-auto pr-2 pb-2">
+                    {/* Scan/Search Section */}
+                    <div className="bg-surface dark:bg-dark-surface p-3 rounded-lg shadow border border-slate-200/50 dark:border-slate-700">
+                        <div className="flex items-end gap-2">
+                            <div className="flex-grow">
+                                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                                    <QrcodeIcon className="w-4 h-4 inline-block mr-1"/>
+                                    Quét thẻ CCCD/BHYT hoặc tìm kiếm (Thử P001 hoặc P004)
+                                </label>
+                                <input
+                                    name="search"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Nhập mã bệnh nhân, SĐT..."
+                                    className="w-full text-sm p-1.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-500 rounded-md focus:ring-1 focus:ring-primary focus:border-primary"
+                                />
+                            </div>
+                            <button onClick={handleSearch} className="px-4 py-1.5 bg-primary text-white font-semibold rounded-md hover:bg-primary-dark h-[35px] flex items-center">
+                                <SearchIcon className="w-4 h-4 mr-2"/>
+                                Tìm
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Patient Info */}
+                    <div className={`bg-surface dark:bg-dark-surface p-4 rounded-lg shadow border transition-all duration-300 ${formGroupClass}`}>
+                        <p className="font-semibold text-primary dark:text-dark-primary mb-3">Thông tin bệnh nhân</p>
+                        <div className="grid grid-cols-1 md:grid-cols-6 gap-x-4 gap-y-3">
+                            <FormInput label="Mã BN" name="id" value={formData.id} readOnly className="!text-lg !font-bold !text-primary dark:!text-dark-primary" />
+                            <FormInput label="Số hồ sơ" name="recordNumber" value={formData.recordNumber} readOnly className="!text-lg !font-bold !text-primary dark:!text-dark-primary" />
+                            <FormInput label="Tên bệnh nhân" name="name" value={formData.name} onChange={handleChange} readOnly={isReadOnly} required containerClassName="md:col-span-2" className="!text-lg !font-bold !text-primary dark:!text-dark-primary"/>
+                            <FormInput label="Năm sinh" name="dob" value={formData.dob} onChange={handleChange} readOnly={isReadOnly} placeholder="dd/mm/yyyy" required />
+                            <FormInput label="Tuổi" name="age" value={formData.age ? `${formData.age} Tuổi` : ''} readOnly />
+                            
+                            <FormSelect label="Giới" name="gender" value={formData.gender} onChange={handleChange} disabled={isReadOnly}>
+                                <option>Nam</option> <option>Nữ</option> <option>Khác</option>
+                            </FormSelect>
+                            <FormSelect label="Dân tộc" name="ethnicity" value={formData.ethnicity} onChange={handleChange} disabled={isReadOnly}><option>Kinh</option><option>Khác</option></FormSelect>
+                            <FormSelect label="Nghề nghiệp" name="occupation" value={formData.occupation} onChange={handleChange} disabled={isReadOnly} containerClassName="md:col-span-2">
+                                <option></option><option>Văn phòng</option><option>Giáo viên</option><option>Kỹ sư</option><option>Sinh viên</option><option>Khác</option>
+                            </FormSelect>
+                            <FormInput label="Số điện thoại" name="phone" value={formData.phone} onChange={handleChange} readOnly={isReadOnly} containerClassName="md:col-span-2" />
+                            
+                            <FormInput label="Thẻ căn cước" name="identityCard" value={formData.identityCard || ''} onChange={handleChange} readOnly={isReadOnly} containerClassName="md:col-span-2" />
+                            <FormInput label="Người thân" name="relativeInfo" value={formData.relativeInfo || ''} onChange={handleChange} readOnly={isReadOnly} containerClassName="md:col-span-2" />
+                            <FormSelect label="Tỉnh/TP" name="province" value={formData.province || ''} onChange={handleChange} disabled={isReadOnly} containerClassName="md:col-span-2"><option>...</option></FormSelect>
+                            
+                            <FormSelect label="Phường/Xã" name="ward" value={formData.ward || ''} onChange={handleChange} disabled={isReadOnly} containerClassName="md:col-span-2"><option>...</option></FormSelect>
+                            <FormInput label="Địa chỉ chi tiết" name="address" value={formData.address} onChange={handleChange} readOnly={isReadOnly} containerClassName="md:col-span-4"/>
+                        </div>
+                    </div>
+
+                    {/* Examination Info */}
+                    <div className={`bg-surface dark:bg-dark-surface p-4 rounded-lg shadow border transition-all duration-300 ${formGroupClass}`}>
+                        <div className="flex items-center justify-between mb-3">
+                            <p className="font-semibold text-primary dark:text-dark-primary">Thông tin khám</p>
+                            <div className="flex items-center space-x-4 text-sm">
+                                <div className="flex items-center">
+                                    <input id="nationality" type="checkbox" className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" disabled={isReadOnly}/>
+                                    <label htmlFor="nationality" className="ml-2 text-slate-600 dark:text-slate-300">Quốc tịch</label>
                                 </div>
-                                <FormInput className="md:col-span-2" label="Tên bệnh nhân" value="Trương Thị Hồng Vân"/>
-                                
-                                <FormInput label="Tuổi" value="22 Tuổi" readOnly/>
-                                <FormInput label="Năm sinh" value="01/01/1999" />
-                                <FormSelect label="Giới"><option>Nữ</option></FormSelect>
-                                <FormSelect label="Dân tộc"><option>Kinh</option></FormSelect>
-                                
-                                <FormSelect className="md:col-span-2" label="Nghề nghiệp"><option>Cung ứng và phân phối</option></FormSelect>
-                                <FormInput className="md:col-span-2" label="Giấy" />
-
-                                <FormSelect label="Tỉnh"><option>...</option></FormSelect>
-                                <FormSelect label="Phường / Xã"><option>...</option></FormSelect>
-                                <FormInput className="md:col-span-2" label="Địa chỉ chi tiết" value="thôn 7"/>
-
-                                <FormInput className="md:col-span-2" label="Số điện thoại" value="0978856402"/>
-                                <FormSelect className="md:col-span-1" label="Người GT"><option>...</option></FormSelect>
-                                <FormInput className="md:col-span-1" label="Thẻ căn cước" value="//"/>
-                                
-                                <FormInput className="md:col-span-4" label="Người thân"/>
-                             </div>
-                        </div>
-                        {/* Patient Type */}
-                        <div className="bg-surface dark:bg-dark-surface p-4 rounded-lg shadow border border-slate-200/50 dark:border-slate-700">
-                             <p className="font-semibold text-primary dark:text-dark-primary mb-3">Đối tượng bệnh nhân</p>
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2">
-                                <FormSelect label="Đối tượng"><option>Dịch vụ</option></FormSelect>
-                                <FormSelect label="Số thẻ"><option>...</option></FormSelect>
-                             </div>
-                        </div>
-
-                         {/* Examination Info */}
-                        <div className="bg-surface dark:bg-dark-surface p-4 rounded-lg shadow border border-slate-200/50 dark:border-slate-700">
-                             <p className="font-semibold text-primary dark:text-dark-primary mb-3">Thông tin khám</p>
-                             <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2">
-                                <FormSelect label="T/trạng BN"><option>Không khỏe</option></FormSelect>
-                                <FormInput label="Ngày" value="17/11/2021"/>
-                                <FormInput label="Số phiếu" value="6.1"/>
-                                
-                                <FormSelect label="Kiểu khám"><option>Khám Phụ sản</option></FormSelect>
-                                <FormSelect label="Phòng"><option>Phòng Khám Sản - Phụ Khoa</option></FormSelect>
-                                <FormInput className="md:col-span-3" label="Triệu chứng"/>
-                             </div>
-                        </div>
-
-                        {/* Examination History */}
-                        <div className="bg-surface dark:bg-dark-surface p-4 rounded-lg shadow border border-slate-200/50 dark:border-slate-700 flex-grow">
-                            <div className="flex items-center space-x-4 mb-2">
-                                <p className="font-semibold text-primary dark:text-dark-primary">Thông tin phiếu khám</p>
-                                <div className="flex items-center"><input type="checkbox" className="h-4 w-4 rounded"/><span className="text-sm ml-2">Quốc tịch</span></div>
-                                <div className="flex items-center"><input type="checkbox" className="h-4 w-4 rounded"/><span className="text-sm ml-2">Hẹn khám lại</span></div>
-                            </div>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm whitespace-nowrap">
-                                    <thead className="bg-slate-100 dark:bg-slate-800">
-                                        <tr>
-                                            {['Số HS', 'Ngày khám', 'Phòng khám', 'Số phiếu', 'Bác sĩ', 'Trạng thái', 'Chẩn đoán'].map(h => <th key={h} className="p-2 font-medium text-left">{h}</th>)}
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                                        <tr><td className="p-2">23011618</td><td className="p-2">09/05/2023</td><td className="p-2">Phòng Khám Sản -...</td><td className="p-2">9</td><td className="p-2">lvduong</td><td className="p-2">Đã kết t...</td><td className="p-2">Viêm lộ tuyến cổ t...</td></tr>
-                                        <tr><td className="p-2">21024067</td><td className="p-2">17/11/2021</td><td className="p-2">Phòng Khám Sản -...</td><td className="p-2">1</td><td className="p-2">ntthien</td><td className="p-2">Đã kết t...</td><td className="p-2">Theo dõi thai cổ n...</td></tr>
-                                    </tbody>
-                                </table>
+                                <div className="flex items-center">
+                                    <input id="reexam" type="checkbox" className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary" disabled={isReadOnly}/>
+                                    <label htmlFor="reexam" className="ml-2 text-slate-600 dark:text-slate-300">Hẹn khám lại</label>
+                                </div>
                             </div>
                         </div>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-x-4 gap-y-3">
+                            <FormSelect label="Đối tượng" name="patientType" value={examInfo.patientType} onChange={handleExamInfoChange} disabled={isReadOnly}>
+                                <option>Dịch vụ</option><option>Bảo hiểm</option>
+                            </FormSelect>
+                            <FormInput label="Số thẻ" name="insuranceNumber" value={examInfo.insuranceNumber || ''} onChange={handleExamInfoChange} readOnly={isReadOnly || examInfo.patientType !== 'Bảo hiểm'} />
+                            <FormSelect label="T/trạng BN" name="patientStatus" value={examInfo.patientStatus} onChange={handleExamInfoChange} disabled={isReadOnly}>
+                                <option>Không khỏe</option><option>Bình thường</option>
+                            </FormSelect>
+                            <FormInput label="Ngày" name="examDate" value={examInfo.examDate} onChange={handleExamInfoChange} readOnly={isReadOnly} />
+                            
+                            <FormInput label="Số phiếu" name="ticketNumber" value={examInfo.ticketNumber} onChange={handleExamInfoChange} readOnly={isReadOnly} />
+                            <FormSelect label="Kiểu khám" name="examType" value={examInfo.examType} onChange={handleExamInfoChange} disabled={isReadOnly}>
+                                <option>Khám Phụ sản</option><option>Khám Nội</option><option>Khám Nhi</option><option>Khám thai</option>
+                            </FormSelect>
+                            <FormSelect label="Phòng" name="examRoom" value={examInfo.examRoom} onChange={handleExamInfoChange} disabled={isReadOnly} containerClassName="md:col-span-2">
+                                <option>Phòng Khám Sản - Phụ Khoa</option><option>PK Nội</option><option>PK Nhi</option>
+                            </FormSelect>
+                            
+                            <FormInput label="Triệu chứng" name="symptoms" value={examInfo.symptoms} onChange={handleExamInfoChange} readOnly={isReadOnly} containerClassName="md:col-span-4"/>
+                        </div>
                     </div>
-
-                    {/* Side Info */}
-                    <div className="col-span-12 lg:col-span-3">
-                         <div className="bg-surface dark:bg-dark-surface p-4 rounded-lg shadow border border-slate-200/50 dark:border-slate-700">
-                             <p className="font-semibold text-primary dark:text-dark-primary mb-2">Thông tin các phòng khám</p>
-                             <table className="w-full text-sm">
-                                <thead className="text-left font-medium text-slate-600 dark:text-slate-300"><tr><th className="p-1.5">Phòng</th><th className="p-1.5">Tổng</th><th className="p-1.5">BH</th><th className="p-1.5">Đã khám</th></tr></thead>
-                                <tbody><tr className="text-slate-500 dark:text-slate-400"><td className="p-1.5">Tổng số</td><td className="p-1.5">0</td><td className="p-1.5">0</td><td className="p-1.5">0</td></tr></tbody>
-                             </table>
-                         </div>
-                    </div>
+                    
+                    {/* Examination History List */}
+                    {patient && (
+                        <div className="bg-surface dark:bg-dark-surface p-4 rounded-lg shadow border border-slate-200/50 dark:border-slate-700">
+                            <p className="font-semibold text-primary dark:text-dark-primary mb-3">Danh sách phiếu khám</p>
+                            {patient.history && patient.history.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm whitespace-nowrap">
+                                        <thead className="bg-slate-100 dark:bg-slate-800">
+                                            <tr>
+                                                {['Số HS', 'Ngày khám', 'Phòng khám', 'Số phiếu', 'Bác sĩ', 'Trạng thái', 'Chẩn đoán'].map(h =>
+                                                    <th key={h} className="p-2 font-semibold text-left text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">{h}</th>
+                                                )}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                                            {patient.history.map((exam) => (
+                                                <tr 
+                                                key={exam.id} 
+                                                onClick={() => handleHistoryRowClick(exam, patient)} 
+                                                className={`hover:bg-primary/5 dark:hover:bg-dark-primary/10 transition-colors duration-150 cursor-pointer ${selectedExamId === exam.id ? 'bg-primary/10 dark:bg-dark-primary/20' : ''}`}>
+                                                    <td className="p-2">{exam.recordNumber}</td>
+                                                    <td className="p-2">{exam.examDate}</td>
+                                                    <td className="p-2">{exam.clinic}</td>
+                                                    <td className="p-2">{exam.ticketNumber}</td>
+                                                    <td className="p-2">{exam.doctor}</td>
+                                                    <td className="p-2">{exam.status}</td>
+                                                    <td className="p-2 truncate max-w-xs">{exam.diagnosis}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="text-center py-4 text-slate-500 dark:text-slate-400">
+                                    Bệnh nhân chưa có lịch sử khám.
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* Action Toolbar */}
-            <div className="flex-shrink-0 mt-4 bg-surface dark:bg-dark-surface p-3 rounded-lg shadow-md border border-slate-200/50 dark:border-slate-700">
-                <div className="flex items-center flex-wrap gap-3">
-                    <ActionButton label="Thêm" icon={<UserPlusIcon className="w-4 h-4"/>} onClick={handleAdd} className="bg-blue-500 hover:bg-blue-600 text-white"/>
-                    <ActionButton label="Sửa" icon={<PencilIcon className="w-4 h-4"/>} onClick={handleEdit} className="bg-yellow-500 hover:bg-yellow-600 text-white"/>
-                    <ActionButton label="Xóa" icon={<TrashIcon className="w-4 h-4"/>} onClick={handleDelete} className="bg-red-500 hover:bg-red-600 text-white"/>
-                    <ActionButton label="Lưu" icon={<SaveIcon className="w-4 h-4"/>} onClick={handleSave} className="bg-green-500 hover:bg-green-600 text-white"/>
-                    <ActionButton label="Hủy" icon={<BanIcon className="w-4 h-4"/>} onClick={handleCancel} className="bg-slate-500 hover:bg-slate-600 text-white"/>
-                    <ActionButton label="In" icon={<PrinterIcon className="w-4 h-4"/>} onClick={handlePrint} className="bg-gray-500 hover:bg-gray-600 text-white"/>
+            {/* --- DEDICATED PRINT VIEW (Hidden on Screen) --- */}
+            <div className="hidden print:block p-8 font-sans text-black">
+                <div className="text-center mb-8">
+                    <h1 className="text-xl font-bold">PHÒNG KHÁM ĐA KHOA CLINICMS</h1>
+                    <p className="text-sm">123 Đường Sức Khỏe, Quận 1, TP. HCM</p>
+                    <p className="text-sm">ĐT: (028) 1234 5678</p>
+                    <hr className="my-4 border-black" />
+                    <h2 className="text-2xl font-bold mt-4">PHIẾU THÔNG TIN HÀNH CHÍNH</h2>
+                </div>
+                
+                <div className="space-y-4 text-base">
+                    <div className="grid grid-cols-3 gap-x-4">
+                        <p className="font-bold col-span-1">MÃ BỆNH NHÂN:</p>
+                        <p className="font-bold text-xl col-span-2">{formData.id}</p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-x-4">
+                        <p className="font-bold col-span-1">SỐ HỒ SƠ:</p>
+                        <p className="font-bold text-xl col-span-2">{formData.recordNumber}</p>
+                    </div>
+                     <div className="grid grid-cols-3 gap-x-4">
+                        <p className="font-bold col-span-1">HỌ VÀ TÊN:</p>
+                        <p className="font-bold text-xl uppercase col-span-2">{formData.name}</p>
+                    </div>
+                     <div className="grid grid-cols-3 gap-x-4">
+                        <p className="font-bold col-span-1">Năm sinh:</p>
+                        <p className="col-span-2">{formData.dob} ({formData.age} tuổi)</p>
+                    </div>
+                     <div className="grid grid-cols-3 gap-x-4">
+                        <p className="font-bold col-span-1">Giới tính:</p>
+                        <p className="col-span-2">{formData.gender}</p>
+                    </div>
+                     <div className="grid grid-cols-3 gap-x-4">
+                        <p className="font-bold col-span-1">Số điện thoại:</p>
+                        <p className="col-span-2">{formData.phone}</p>
+                    </div>
+                     <div className="grid grid-cols-3 gap-x-4">
+                        <p className="font-bold col-span-1">Địa chỉ:</p>
+                        <p className="col-span-2">{formData.address}</p>
+                    </div>
+                     <div className="grid grid-cols-3 gap-x-4">
+                        <p className="font-bold col-span-1">Đối tượng:</p>
+                        <p className="col-span-2">{examInfo.patientType}</p>
+                    </div>
+                </div>
+
+                <div className="mt-24 flex justify-around text-center">
+                    <div>
+                        <p className="font-bold">Bệnh nhân</p>
+                        <p className="italic">(Ký và ghi rõ họ tên)</p>
+                        <div className="mt-20"></div>
+                    </div>
+                    <div>
+                        <p className="font-bold">Nhân viên tiếp nhận</p>
+                        <p className="italic">(Ký và ghi rõ họ tên)</p>
+                        <div className="mt-20"></div>
+                    </div>
                 </div>
             </div>
         </div>

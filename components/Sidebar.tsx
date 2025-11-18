@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { ClipboardListIcon, XIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon } from './Icons';
@@ -48,7 +49,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen, isCollap
 
       {/* Sidebar */}
       <aside
-        className={`flex flex-col bg-surface text-onSurface dark:bg-dark-surface dark:text-dark-onSurface shadow-lg fixed lg:relative lg:translate-x-0 h-full z-40 transition-all duration-300 ease-in-out ${
+        className={`flex flex-col bg-surface text-onSurface dark:bg-dark-surface dark:text-dark-onSurface shadow-lg fixed lg:relative lg:translate-x-0 h-full z-40 transition-all duration-300 ease-in-out no-print ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         } ${
           isCollapsed ? 'lg:w-20' : 'lg:w-64'

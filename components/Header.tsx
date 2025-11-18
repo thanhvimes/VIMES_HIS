@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { MenuIcon, BellIcon, LogoutIcon, ClipboardListIcon } from './Icons';
 import ThemeSwitcher from './ThemeSwitcher';
@@ -15,7 +16,7 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
     const [isDropdownOpen, setDropdownOpen] = useState(false);
 
     return (
-        <header className="flex items-center justify-between h-[65px] bg-surface dark:bg-dark-surface border-b border-slate-200 dark:border-slate-700 px-4 sm:px-6 lg:px-8 sticky top-0 z-20">
+        <header className="flex items-center justify-between h-[65px] bg-surface dark:bg-dark-surface border-b border-slate-200 dark:border-slate-700 px-4 sm:px-6 lg:px-8 sticky top-0 z-20 no-print">
             {/* Left side */}
             <div className="flex items-center">
                 {showSidebarToggle && (

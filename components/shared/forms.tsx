@@ -1,22 +1,36 @@
 import React from 'react';
 
-export const FormInput: React.FC<{ label: string; value?: string; className?: string; readOnly?: boolean; labelClassName?: string }> = 
-    ({ label, value, className = '', readOnly = false, labelClassName = '' }) => (
-    <div className={className}>
+interface FormInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+    label: string;
+    labelClassName?: string;
+    containerClassName?: string;
+}
+
+export const FormInput: React.FC<FormInputProps> = ({ label, labelClassName = '', containerClassName = '', ...props }) => (
+    <div className={containerClassName}>
         <label className={`block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1 ${labelClassName}`}>{label}</label>
-        <input 
-            type="text" 
-            defaultValue={value} 
-            readOnly={readOnly}
-            className="w-full text-sm p-1.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-500 rounded-md focus:ring-1 focus:ring-primary focus:border-primary" 
+        <input
+            {...props}
+            className={`w-full text-sm p-1.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-500 rounded-md focus:ring-1 focus:ring-primary focus:border-primary read-only:bg-slate-100 read-only:cursor-not-allowed dark:read-only:bg-slate-600 ${props.className || ''}`}
         />
     </div>
 );
 
-export const FormSelect: React.FC<{ label: string; children: React.ReactNode; className?: string }> = ({ label, children, className='' }) => (
-    <div className={className}>
-        <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">{label}</label>
-        <select className="w-full text-sm p-1.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-500 rounded-md focus:ring-1 focus:ring-primary focus:border-primary">
+
+interface FormSelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+    label: string;
+    labelClassName?: string;
+    containerClassName?: string;
+    children: React.ReactNode;
+}
+
+export const FormSelect: React.FC<FormSelectProps> = ({ label, children, labelClassName = '', containerClassName = '', ...props }) => (
+    <div className={containerClassName}>
+        <label className={`block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1 ${labelClassName}`}>{label}</label>
+        <select
+            {...props}
+            className={`w-full text-sm p-1.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-500 rounded-md focus:ring-1 focus:ring-primary focus:border-primary disabled:bg-slate-100 disabled:cursor-not-allowed dark:disabled:bg-slate-600 ${props.className || ''}`}
+        >
             {children}
         </select>
     </div>

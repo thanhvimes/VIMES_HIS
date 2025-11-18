@@ -1,13 +1,40 @@
 import React from 'react';
 
-export interface Patient {
-  id: string;
-  name: string;
-  age: number;
-  gender: 'Male' | 'Female' | 'Other';
-  contact: string;
-  lastVisit: string;
+export interface ExaminationRecord {
+  id: string; // Unique ID for the examination
+  recordNumber: string; // Số HS
+  examDate: string; // Ngày khám
+  clinic: string; // Phòng khám
+  ticketNumber: string; // Số phiếu
+  doctor: string; // Bác sĩ
+  status: string; // Trạng thái
+  diagnosis: string; // Chẩn đoán
+  // Details for the form
+  patientStatus: string;
+  examType: string;
+  symptoms: string;
 }
+
+export interface Patient {
+  id: string; // Mã BN
+  recordNumber: string; // Số hồ sơ
+  name: string;
+  dob: string; // Năm sinh
+  age: number;
+  gender: 'Nam' | 'Nữ' | 'Khác';
+  ethnicity: string; // Dân tộc
+  occupation: string; // Nghề nghiệp
+  address: string; // Địa chỉ chi tiết
+  phone: string;
+  identityCard?: string; // Thẻ căn cước
+  relativeInfo?: string; // Người thân
+  lastVisit: string;
+  province?: string;
+  ward?: string;
+  patientType?: 'Dịch vụ' | 'Bảo hiểm';
+  history?: ExaminationRecord[];
+}
+
 
 export enum AppointmentStatus {
   Scheduled = 'Scheduled',
@@ -19,7 +46,8 @@ export enum AppointmentStatus {
 
 export interface Appointment {
   id: string;
-  patient: Patient;
+  patientName: string;
+  patientId: string;
   time: string;
   doctor: string;
   reason: string;
@@ -41,6 +69,7 @@ export interface Drug {
     name: string;
     dosage: string;
     stock: number;
+    expiryDate?: string;
 }
 
 export interface Invoice {

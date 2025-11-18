@@ -3,13 +3,19 @@ import { Patient, ConsultationRecord, AISuggestion } from '../../../types';
 import { SparklesIcon } from '../../../components/Icons';
 import { getAISuggestions } from '../../../services/geminiService';
 
+// FIX: Updated mockPatient to conform to the Patient interface, fixing gender and contact info.
 const mockPatient: Patient = {
   id: 'P003',
   name: 'Lê Hoàng Cường',
   age: 45,
-  gender: 'Male',
-  contact: '0987654321',
+  gender: 'Nam',
+  phone: '0987654321',
   lastVisit: '2023-09-15',
+  recordNumber: '21024067',
+  dob: '1978-02-10',
+  ethnicity: 'Kinh',
+  occupation: 'Kỹ sư',
+  address: '456 Đường Minh Khai, Hoàng Mai, Hà Nội',
 };
 
 const mockHistory: ConsultationRecord[] = [
@@ -59,7 +65,8 @@ const ConsultationView: React.FC = () => {
                 <div><span className="font-semibold text-onSurface dark:text-dark-onSurface">Tên:</span> {patient.name}</div>
                 <div><span className="font-semibold text-onSurface dark:text-dark-onSurface">Tuổi:</span> {patient.age}</div>
                 <div><span className="font-semibold text-onSurface dark:text-dark-onSurface">Giới tính:</span> {patient.gender}</div>
-                <div><span className="font-semibold text-onSurface dark:text-dark-onSurface">Liên hệ:</span> {patient.contact}</div>
+                {/* FIX: Changed patient.contact to patient.phone to match the Patient interface. */}
+                <div><span className="font-semibold text-onSurface dark:text-dark-onSurface">Liên hệ:</span> {patient.phone}</div>
              </div>
           </div>
 

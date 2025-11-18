@@ -207,3 +207,21 @@ export const ChevronDoubleRightIcon: React.FC<React.SVGProps<SVGSVGElement>> = (
     <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
   </svg>
 );
+
+export const QrcodeIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M5 5h3v3H5V5zm0 8h3v3H5v-3zm8-8h3v3h-3V5zm0 8h3v3h-3v-3zM9 9v6H3V9h6zm8 0v6h-6V9h6zM9 3h6v2H9V3zM3 9V3h2v6H3zm12 0V3h2v6h-2zm-6 8h6v2H9v-2zm-6 0v-6H3v2h2v4H3zm12 0v-6h-2v6h2z" />
+  </svg>
+);
+
+export const ShieldCheckIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 20.955a12.02 12.02 0 009 3.001 12.02 12.02 0 009-3.001 12.02 12.02 0 00-2.382-9.011z" />
+  </svg>
+);
+
+export const DocumentArrowDownIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625a1.875 1.875 0 00-1.875 1.875v17.25a1.875 1.875 0 001.875 1.875h12.75a1.875 1.875 0 001.875-1.875V11.25a1.875 1.875 0 00-1.875-1.875h-3.75z" />
+  </svg>
+);

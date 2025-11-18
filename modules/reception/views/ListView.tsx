@@ -1,58 +1,117 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { mockPatients } from '../data';
+import { Patient } from '../../../types';
+import { SearchIcon } from '../../../components/Icons';
+
+const ITEMS_PER_PAGE = 10;
 
 const ListView: React.FC = () => {
-    // Mock data based on image
-    const mockListData = [
-        {soHoSo: '21024061', tenBenhNhan: 'Nguyễn Thị Ngọ', tuoi: 78, gioi: 'Nữ', diaChi: '', ngayKham: '17/11/2021 07:16', trangThai: 'T', doiTuong: 'Bảo hiểm', nguoiTa: 'dtthao'},
-        {soHoSo: '21024062', tenBenhNhan: 'Nguyễn Huỳnh Th...', tuoi: 3, gioi: 'Nam', diaChi: '', ngayKham: '17/11/2021 07:08', trangThai: 'O', doiTuong: 'Dịch vụ', nguoiTa: 'dtthao'},
-    ];
+    const [searchTerm, setSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const navigate = useNavigate();
 
-    const handleLoadData = () => console.log('API Call: Loading data based on filters.');
+    const handleRowClick = (patientId: string) => {
+        navigate(`/reception/register/${patientId}`);
+    };
+
+    const filteredPatients = useMemo(() => 
+        mockPatients.filter(patient =>
+            patient.name.toLowerCase().includes(searchTerm.toLowerCase())
+        ), 
+        [searchTerm]
+    );
+
+    const totalPages = Math.ceil(filteredPatients.length / ITEMS_PER_PAGE);
+    const paginatedPatients = useMemo(() => 
+        filteredPatients.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
+        [filteredPatients, currentPage]
+    );
+
+    const handlePageChange = (page: number) => {
+        if (page > 0 && page <= totalPages) {
+            setCurrentPage(page);
+        }
+    };
 
     return (
         <div className="flex flex-col h-full bg-surface dark:bg-dark-surface p-4 rounded-lg shadow border border-slate-200/50 dark:border-slate-700">
             {/* Filter Bar */}
             <div className="flex-shrink-0 flex flex-wrap items-center gap-4 p-3 mb-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg">
-                 <div className="flex items-center space-x-2">
+                <div className="relative flex-grow min-w-[250px]">
+                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                    <input
+                        type="text"
+                        placeholder="Tìm theo tên bệnh nhân..."
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setCurrentPage(1); // Reset to first page on search
+                        }}
+                        className="w-full p-1.5 pl-10 text-sm bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md"
+                    />
+                </div>
+                <div className="flex items-center space-x-2">
                     <label className="text-sm font-medium text-slate-600 dark:text-slate-300">Từ ngày</label>
-                    <input type="date" className="p-1.5 text-sm bg-inherit border border-slate-300 dark:border-slate-600 rounded-md" defaultValue="2021-11-17"/>
-                 </div>
-                 <div className="flex items-center space-x-2">
+                    <input type="date" className="p-1.5 text-sm bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md" defaultValue="2023-01-01" />
+                </div>
+                <div className="flex items-center space-x-2">
                     <label className="text-sm font-medium text-slate-600 dark:text-slate-300">Đến ngày</label>
-                    <input type="date" className="p-1.5 text-sm bg-inherit border border-slate-300 dark:border-slate-600 rounded-md" defaultValue="2021-11-17"/>
-                 </div>
-                 <select className="p-1.5 text-sm bg-inherit border border-slate-300 dark:border-slate-600 rounded-md"><option>Phòng khám</option></select>
-                 <input type="text" placeholder="Tên bệnh nhân" className="p-1.5 text-sm bg-inherit border border-slate-300 dark:border-slate-600 rounded-md flex-grow min-w-[200px]"/>
-                 <button onClick={handleLoadData} className="px-6 py-1.5 text-sm bg-primary text-white font-semibold rounded-md hover:bg-primary-dark">Nạp</button>
+                    <input type="date" className="p-1.5 text-sm bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md" defaultValue={new Date().toISOString().slice(0, 10)} />
+                </div>
+                <button className="px-6 py-1.5 text-sm bg-primary text-white font-semibold rounded-md hover:bg-primary-dark">Nạp</button>
             </div>
 
             {/* Data Table */}
             <div className="flex-grow overflow-auto">
-                 <table className="w-full text-sm whitespace-nowrap">
+                <table className="w-full text-sm whitespace-nowrap">
                     <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0">
                         <tr>
-                            {['Số hồ sơ', 'Tên bệnh nhân', 'Tuổi', 'Giới', 'Địa chỉ', 'Ngày khám', 'Trạng thái', 'Đối tượng', 'Người tạo'].map(h => 
+                            {['Số hồ sơ', 'Tên bệnh nhân', 'Tuổi', 'Giới', 'Địa chỉ', 'Ngày khám gần nhất', 'Đối tượng'].map(h =>
                                 <th key={h} className="p-3 font-semibold text-left text-slate-600 dark:text-slate-300 border-b-2 border-slate-200 dark:border-slate-700">{h}</th>
                             )}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                        {mockListData.concat(mockListData).concat(mockListData).concat(mockListData).map((row, index) => (
-                            <tr key={index} className="hover:bg-primary/5 dark:hover:bg-dark-primary/10 transition-colors duration-150">
-                                <td className="p-3">{row.soHoSo}</td>
-                                <td className="p-3">{row.tenBenhNhan}</td>
-                                <td className="p-3">{row.tuoi}</td>
-                                <td className="p-3">{row.gioi}</td>
-                                <td className="p-3">{row.diaChi}</td>
-                                <td className="p-3">{row.ngayKham}</td>
-                                <td className="p-3">{row.trangThai}</td>
-                                <td className="p-3">{row.doiTuong}</td>
-                                <td className="p-3">{row.nguoiTa}</td>
+                        {paginatedPatients.map((patient: Patient) => (
+                            <tr key={patient.id} onClick={() => handleRowClick(patient.id)} className="hover:bg-primary/5 dark:hover:bg-dark-primary/10 transition-colors duration-150 cursor-pointer">
+                                <td className="p-3 text-primary dark:text-dark-primary font-mono">{patient.recordNumber}</td>
+                                <td className="p-3 font-semibold">{patient.name}</td>
+                                <td className="p-3">{patient.age}</td>
+                                <td className="p-3">{patient.gender}</td>
+                                <td className="p-3 truncate max-w-xs">{patient.address}</td>
+                                <td className="p-3">{patient.lastVisit}</td>
+                                <td className="p-3">{patient.patientType}</td>
                             </tr>
                         ))}
                     </tbody>
-                 </table>
+                </table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="flex-shrink-0 flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
+                    <span className="text-sm text-slate-500 dark:text-slate-400">
+                        Trang <strong>{currentPage}</strong> trên <strong>{totalPages}</strong>
+                    </span>
+                    <div className="flex items-center space-x-2">
+                        <button
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1 text-sm rounded-md bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50"
+                        >
+                            Trước
+                        </button>
+                        <button
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1 text-sm rounded-md bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50"
+                        >
+                            Sau
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
