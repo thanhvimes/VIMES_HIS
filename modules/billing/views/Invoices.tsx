@@ -4,7 +4,6 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { Bill, Customer, Signature } from '../../../types';
-// FIX: Changed icon import to use the main icon library, resolving conflicts.
 import { TrashIcon, PlusIcon, DownloadIcon, ReceiptIcon, DocumentReportIcon, ShareIcon, SignatureIcon } from '../../../components/Icons';
 import Card from '../../../components/shared/Card';
 import ConfirmationModal from '../../../components/shared/ConfirmationModal';
@@ -107,5 +106,78 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 // --- 1. OVERVIEW COMPONENT ---
 export const Overview: React.FC<PageProps> = ({ bills, customers }) => {
     const sortedBills = useMemo(() => [...bills].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()), [bills]);
+    
     const summaryStats = useMemo(() => {
-        
+        const totalConsumption = bills.reduce((acc, bill) => acc + bill.consumption, 0);
+        const totalCost = bills.reduce((acc, bill) => acc + bill.cost, 0);
+        const unpaidBills = bills.filter(bill => bill.status === 'unpaid').length;
+        return { totalConsumption, totalCost, unpaidBills };
+    }, [bills]);
+
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
+                     <h3 className="text-slate-500 dark:text-slate-400 font-medium">Tổng tiêu thụ</h3>
+                     <p className="text-3xl font-bold text-cyan-500">{summaryStats.totalConsumption} kWh</p>
+                </div>
+                <div className="bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
+                     <h3 className="text-slate-500 dark:text-slate-400 font-medium">Tổng doanh thu</h3>
+                     <p className="text-3xl font-bold text-emerald-500">{summaryStats.totalCost.toLocaleString('vi-VN')} đ</p>
+                </div>
+                <div className="bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
+                     <h3 className="text-slate-500 dark:text-slate-400 font-medium">Chưa thanh toán</h3>
+                     <p className="text-3xl font-bold text-amber-500">{summaryStats.unpaidBills}</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
+                    <h3 className="text-lg font-bold mb-4">Biểu đồ Chi phí</h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={sortedBills}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="date" />
+                            <YAxis />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Legend />
+                            <Bar dataKey="cost" fill="#10b981" name="Chi phí (VND)" radius={[4, 4, 0, 0]}/>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+                 <div className="bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
+                    <h3 className="text-lg font-bold mb-4">Danh sách Hóa đơn</h3>
+                    <div className="overflow-y-auto max-h-[300px]">
+                         <table className="w-full text-left text-sm">
+                            <thead>
+                                <tr className="border-b border-slate-200 dark:border-slate-700">
+                                    <th className="p-2">Ngày</th>
+                                    <th className="p-2">Khách hàng</th>
+                                    <th className="p-2 text-right">Số tiền</th>
+                                    <th className="p-2 text-center">TT</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {sortedBills.map(bill => {
+                                    const customer = customers.find(c => c.id === bill.customerId);
+                                    return (
+                                        <tr key={bill.id} className="border-b border-slate-100 dark:border-slate-700">
+                                            <td className="p-2">{bill.date}</td>
+                                            <td className="p-2">{customer?.name || bill.customerId}</td>
+                                            <td className="p-2 text-right">{bill.cost.toLocaleString('vi-VN')}</td>
+                                            <td className="p-2 text-center">
+                                                <span className={`px-2 py-1 rounded-full text-xs ${bill.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                    {bill.status === 'paid' ? 'Đã thu' : 'Chưa thu'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};

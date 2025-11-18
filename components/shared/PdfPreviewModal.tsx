@@ -501,6 +501,11 @@ const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({ isOpen, onClose, pdfU
                                 zIndex: 20,
                                 }}
                             >
+                                <img 
+                                    src={sig.dataUrl} 
+                                    alt="Signature" 
+                                    className="w-full h-full object-contain"
+                                />
                                 <div className="absolute top-0 right-0 -mt-2 -mr-2 opacity-0 group-hover:opacity-100 flex gap-1 bg-slate-100 dark:bg-slate-700 p-1 rounded-md shadow-lg transition-opacity duration-200">
                                 <button
                                     onClick={() => setViewingSignature(sig)}
