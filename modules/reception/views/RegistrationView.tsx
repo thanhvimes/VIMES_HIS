@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
     UserPlusIcon, 
     PencilIcon, 
@@ -374,7 +374,7 @@ const RegistrationView: React.FC = () => {
                                     <table className="w-full text-sm whitespace-nowrap">
                                         <thead className="bg-slate-100 dark:bg-slate-800">
                                             <tr>
-                                                {['Số HS', 'Ngày khám', 'Phòng khám', 'Số phiếu', 'Bác sĩ', 'Trạng thái', 'Chẩn đoán'].map(h =>
+                                                {['Số HS', 'Ngày khám', 'Phòng khám', 'Số phiếu', 'Bác sĩ', 'Trạng thái', 'Chẩn đoán', 'Hành động'].map(h =>
                                                     <th key={h} className="p-2 font-semibold text-left text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">{h}</th>
                                                 )}
                                             </tr>
@@ -392,6 +392,11 @@ const RegistrationView: React.FC = () => {
                                                     <td className="p-2">{exam.doctor}</td>
                                                     <td className="p-2">{exam.status}</td>
                                                     <td className="p-2 truncate max-w-xs">{exam.diagnosis}</td>
+                                                    <td className="p-2 text-center">
+                                                        <Link to={`/documents/view/${exam.id}`} className="text-primary dark:text-dark-primary hover:underline text-xs font-semibold">
+                                                            Xem PDF
+                                                        </Link>
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>

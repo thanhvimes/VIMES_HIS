@@ -22,6 +22,7 @@ import Admin from './modules/admin/index';
 import { ADMIN_NAV_ITEMS } from './modules/admin/constants';
 import ManagementReporting from './modules/management-reporting/index';
 import { MGMT_REPORTING_NAV_ITEMS } from './modules/management-reporting/constants';
+import Documents from './modules/documents/index';
 
 import { SIDEBAR_NAV_ITEMS } from './constants/navigation';
 
@@ -35,6 +36,7 @@ const moduleConfig: { [key: string]: { title: string; nav: any[] } } = {
   pharmacy: { title: 'Dược & Vật tư', nav: PHARMACY_NAV_ITEMS },
   admin: { title: 'Quản trị Hệ thống', nav: ADMIN_NAV_ITEMS },
   'management-reporting': { title: 'Báo cáo Quản trị', nav: MGMT_REPORTING_NAV_ITEMS },
+  documents: { title: 'Xem tài liệu', nav: [] },
   reports: { title: 'Báo cáo', nav: [] },
   settings: { title: 'Cài đặt', nav: [] },
 };
@@ -139,6 +141,7 @@ const App: React.FC = () => {
         <Route path="/pharmacy/*" element={<Pharmacy />} />
         <Route path="/admin/*" element={<Admin />} />
         <Route path="/management-reporting/*" element={<ManagementReporting />} />
+        <Route path="/documents/*" element={<Documents />} />
         <Route path="/reports" element={<div className="text-center text-slate-500 dark:text-slate-400">Trang Báo cáo đang trong quá trình phát triển.</div>} />
         <Route path="/settings" element={<div className="text-center text-slate-500 dark:text-slate-400">Trang Cài đặt đang trong quá trình phát triển.</div>} />
       </Route>
