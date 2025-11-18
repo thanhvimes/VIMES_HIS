@@ -121,3 +121,17 @@ export interface NavItemType {
   path: string;
   icon: React.ReactElement<any>;
 }
+
+export interface Signature {
+  signerName: string;
+  signerTitle: string;
+  signedAt: Date;
+  dataUrl: string;
+  placement: {
+    pageNumber: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}
