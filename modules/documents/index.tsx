@@ -6,6 +6,7 @@ const Documents: React.FC = () => {
   return (
     <Routes>
       <Route path="view/:documentId" element={<DocumentView />} />
+      <Route path="preview/:template" element={<DocumentView />} />
     </Routes>
   );
 };

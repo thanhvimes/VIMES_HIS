@@ -35,6 +35,17 @@ export interface Patient {
   history?: ExaminationRecord[];
 }
 
+export interface ExamInfo {
+    patientStatus: string;
+    examDate: string;
+    ticketNumber: string;
+    examType: string;
+    examRoom: string;
+    symptoms: string;
+    patientType: 'Dịch vụ' | 'Bảo hiểm';
+    insuranceNumber?: string;
+}
+
 
 export enum AppointmentStatus {
   Scheduled = 'Scheduled',

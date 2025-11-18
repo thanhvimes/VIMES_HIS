@@ -14,7 +14,7 @@ import {
 } from '../../../components/Icons';
 import ActionButton from '../../../components/shared/ActionButton';
 import { FormInput, FormSelect } from '../../../components/shared/forms';
-import { Patient, ExaminationRecord } from '../../../types';
+import { Patient, ExaminationRecord, ExamInfo } from '../../../types';
 import { mockPatients } from '../data';
 
 const emptyPatient: Patient = {
@@ -23,17 +23,6 @@ const emptyPatient: Patient = {
   patientType: 'Dịch vụ',
   history: [],
 };
-
-interface ExamInfo {
-    patientStatus: string;
-    examDate: string;
-    ticketNumber: string;
-    examType: string;
-    examRoom: string;
-    symptoms: string;
-    patientType: 'Dịch vụ' | 'Bảo hiểm';
-    insuranceNumber?: string;
-}
 
 const emptyExamInfo: ExamInfo = {
     patientStatus: 'Không khỏe',
@@ -237,7 +226,13 @@ const RegistrationView: React.FC = () => {
         setMode('VIEW');
     };
 
-    const handlePrint = () => window.print();
+    const handlePrint = () => {
+       if (patient) {
+         navigate('/documents/preview/registration', { state: { patient: formData, exam: examInfo } });
+       } else {
+         setToast({ message: 'Vui lòng chọn hoặc lưu bệnh nhân trước khi in.', type: 'error' });
+       }
+    };
 
     const handleCheckInBHYT = () => {
         if (examInfo.patientType === 'Bảo hiểm') {
@@ -262,7 +257,7 @@ const RegistrationView: React.FC = () => {
             {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
 
             {/* --- MAIN INTERACTIVE VIEW (Hidden on Print) --- */}
-            <div className="print:hidden flex flex-col h-full">
+            <div className="flex flex-col h-full">
                 {/* Action Toolbar */}
                 <div className="flex-shrink-0 bg-surface dark:bg-dark-surface p-3 rounded-lg shadow-md border border-slate-200/50 dark:border-slate-700 mb-4">
                     <div className="flex items-center flex-wrap gap-3">
@@ -409,65 +404,6 @@ const RegistrationView: React.FC = () => {
                             )}
                         </div>
                     )}
-                </div>
-            </div>
-
-            {/* --- DEDICATED PRINT VIEW (Hidden on Screen) --- */}
-            <div className="hidden print:block p-8 font-sans text-black">
-                <div className="text-center mb-8">
-                    <h1 className="text-xl font-bold">PHÒNG KHÁM ĐA KHOA CLINICMS</h1>
-                    <p className="text-sm">123 Đường Sức Khỏe, Quận 1, TP. HCM</p>
-                    <p className="text-sm">ĐT: (028) 1234 5678</p>
-                    <hr className="my-4 border-black" />
-                    <h2 className="text-2xl font-bold mt-4">PHIẾU THÔNG TIN HÀNH CHÍNH</h2>
-                </div>
-                
-                <div className="space-y-4 text-base">
-                    <div className="grid grid-cols-3 gap-x-4">
-                        <p className="font-bold col-span-1">MÃ BỆNH NHÂN:</p>
-                        <p className="font-bold text-xl col-span-2">{formData.id}</p>
-                    </div>
-                    <div className="grid grid-cols-3 gap-x-4">
-                        <p className="font-bold col-span-1">SỐ HỒ SƠ:</p>
-                        <p className="font-bold text-xl col-span-2">{formData.recordNumber}</p>
-                    </div>
-                     <div className="grid grid-cols-3 gap-x-4">
-                        <p className="font-bold col-span-1">HỌ VÀ TÊN:</p>
-                        <p className="font-bold text-xl uppercase col-span-2">{formData.name}</p>
-                    </div>
-                     <div className="grid grid-cols-3 gap-x-4">
-                        <p className="font-bold col-span-1">Năm sinh:</p>
-                        <p className="col-span-2">{formData.dob} ({formData.age} tuổi)</p>
-                    </div>
-                     <div className="grid grid-cols-3 gap-x-4">
-                        <p className="font-bold col-span-1">Giới tính:</p>
-                        <p className="col-span-2">{formData.gender}</p>
-                    </div>
-                     <div className="grid grid-cols-3 gap-x-4">
-                        <p className="font-bold col-span-1">Số điện thoại:</p>
-                        <p className="col-span-2">{formData.phone}</p>
-                    </div>
-                     <div className="grid grid-cols-3 gap-x-4">
-                        <p className="font-bold col-span-1">Địa chỉ:</p>
-                        <p className="col-span-2">{formData.address}</p>
-                    </div>
-                     <div className="grid grid-cols-3 gap-x-4">
-                        <p className="font-bold col-span-1">Đối tượng:</p>
-                        <p className="col-span-2">{examInfo.patientType}</p>
-                    </div>
-                </div>
-
-                <div className="mt-24 flex justify-around text-center">
-                    <div>
-                        <p className="font-bold">Bệnh nhân</p>
-                        <p className="italic">(Ký và ghi rõ họ tên)</p>
-                        <div className="mt-20"></div>
-                    </div>
-                    <div>
-                        <p className="font-bold">Nhân viên tiếp nhận</p>
-                        <p className="italic">(Ký và ghi rõ họ tên)</p>
-                        <div className="mt-20"></div>
-                    </div>
                 </div>
             </div>
         </div>
