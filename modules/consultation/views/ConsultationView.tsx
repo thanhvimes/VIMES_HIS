@@ -127,7 +127,7 @@ const ConsultationView: React.FC = () => {
 
            <div className="bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
                 <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 border-b dark:border-slate-600 pb-2 mb-3">Lịch sử khám</h3>
-                <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
+                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
                     {history.map(rec => (
                         <div key={rec.id} className="text-sm border-b border-slate-100 dark:border-slate-700 pb-2">
                             <p className="font-semibold text-slate-600 dark:text-slate-300">{rec.date} - {rec.doctor}</p>

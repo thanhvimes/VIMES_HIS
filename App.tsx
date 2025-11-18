@@ -1,5 +1,4 @@
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, Outlet, Link } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -41,7 +40,22 @@ const moduleConfig: { [key: string]: { title: string; nav: any[] } } = {
 };
 
 const WorkspaceLayout: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
+  // State for mobile sidebar overlay
+  const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  
+  // State for desktop sidebar collapse, persisted in localStorage
+  const [isSidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('sidebarCollapsed') || 'false');
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', JSON.stringify(isSidebarCollapsed));
+  }, [isSidebarCollapsed]);
+
   const location = useLocation();
 
   const { pageTitle, moduleNavItems } = useMemo(() => {
@@ -59,14 +73,16 @@ const WorkspaceLayout: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   return (
     <div className="flex h-screen bg-background dark:bg-dark-background">
       <Sidebar 
-        isOpen={isSidebarOpen} 
-        setIsOpen={setSidebarOpen}
+        isMobileOpen={isMobileSidebarOpen} 
+        setMobileOpen={setMobileSidebarOpen}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!isSidebarCollapsed)}
         moduleNavItems={moduleNavItems}
       />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header 
             pageTitle={pageTitle} 
-            onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)}
+            onToggleSidebar={() => setMobileSidebarOpen(!isMobileSidebarOpen)}
             onLogout={onLogout}
             showSidebarToggle={true}
         />

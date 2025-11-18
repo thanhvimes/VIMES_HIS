@@ -28,7 +28,7 @@ const DashboardView: React.FC = () => {
 
        <div className="bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
             <h2 className="text-xl font-bold text-slate-700 dark:text-slate-200 mb-4">Danh sách chờ khám</h2>
-            <div className="space-y-3 max-h-80 overflow-y-auto">
+            <div className="space-y-3 max-h-[300px] overflow-y-auto">
                 <div className="flex justify-between items-center text-sm p-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <p className="font-medium text-onSurface dark:text-dark-onSurface">Lê Hoàng Cường</p>
                     <p className="text-slate-500 dark:text-slate-400">Lý do: Đau đầu, chóng mặt</p>

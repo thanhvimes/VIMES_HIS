@@ -195,3 +195,15 @@ export const MegaphoneIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) =>
     <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.136A1.76 1.76 0 015.882 11H1.76a1.76 1.76 0 01-1.76-1.76V8.76c0-.97.79-1.76 1.76-1.76h4.122a1.76 1.76 0 011.636 1.24l2.147 6.136a1.76 1.76 0 01-1.636 2.28H11v-2.282a1.76 1.76 0 011.636-1.24l2.147-6.136A1.76 1.76 0 0116.118 5H20.24a1.76 1.76 0 011.76 1.76v2.48a1.76 1.76 0 01-1.76 1.76h-4.122a1.76 1.76 0 01-1.636-1.24L12.33 6.124A1.76 1.76 0 0111 5.882z" />
   </svg>
 );
+
+export const ChevronDoubleLeftIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+  </svg>
+);
+
+export const ChevronDoubleRightIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+  </svg>
+);
