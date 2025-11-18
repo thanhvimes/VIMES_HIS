@@ -14,7 +14,7 @@
     "@google/genai": "^1.29.1",
     "recharts": "^3.4.1",
     "react-router-dom": "^7.9.6",
-    "react-pdf": "^9.1.0",
+    "react-pdf": "^8.0.0",
     "signature_pad": "^5.0.2"
   },
   "devDependencies": {

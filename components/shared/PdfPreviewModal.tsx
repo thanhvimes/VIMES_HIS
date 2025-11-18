@@ -20,7 +20,7 @@ import {
 } from '../Icons';
 
 // Configure the PDF.js worker. This is essential for the library to work.
-pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = 'pdfjs-dist/build/pdf.worker.min.mjs';
 
 interface PdfPreviewModalProps {
   isOpen: boolean;
@@ -542,7 +542,7 @@ const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({ isOpen, onClose, pdfU
                 <p><strong>Title:</strong> {viewingSignature.signerTitle}</p>
                 <p><strong>Date Signed:</strong> {viewingSignature.signedAt.toLocaleString('vi-VN')}</p>
             </div>
-            <button onClick={() => setViewingSignature(null)} className="mt-6 w-full px-4 py-2 bg-primary text-white font-semibold rounded-md hover:bg-secondary transition-colors">
+            <button onClick={() => setViewingSignature(null)} className="mt-6 w-full px-4 py-2 bg-brand-primary text-white font-semibold rounded-md hover:bg-secondary transition-colors">
                 Close
             </button>
             </div>
