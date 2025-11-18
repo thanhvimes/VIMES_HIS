@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Routes, Route, Navigate, useLocation, Outlet, Link } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
@@ -6,21 +7,21 @@ import Login from './modules/login/Login';
 import Dashboard from './modules/dashboard/Dashboard';
 
 // Import module entry points and constants
-import Reception from './modules/reception';
+import Reception from './modules/reception/index';
 import { RECEPTION_NAV_ITEMS } from './modules/reception/constants';
-import Consultation from './modules/consultation';
+import Consultation from './modules/consultation/index';
 import { CONSULTATION_NAV_ITEMS } from './modules/consultation/constants';
-import Billing from './modules/billing';
+import Billing from './modules/billing/index';
 import { BILLING_NAV_ITEMS } from './modules/billing/constants';
-import LabResults from './modules/lab-results';
+import LabResults from './modules/lab-results/index';
 import { LAB_RESULTS_NAV_ITEMS } from './modules/lab-results/constants';
-import ImagingResults from './modules/imaging-results';
+import ImagingResults from './modules/imaging-results/index';
 import { IMAGING_RESULTS_NAV_ITEMS } from './modules/imaging-results/constants';
-import Pharmacy from './modules/pharmacy';
+import Pharmacy from './modules/pharmacy/index';
 import { PHARMACY_NAV_ITEMS } from './modules/pharmacy/constants';
-import Admin from './modules/admin';
+import Admin from './modules/admin/index';
 import { ADMIN_NAV_ITEMS } from './modules/admin/constants';
-import ManagementReporting from './modules/management-reporting';
+import ManagementReporting from './modules/management-reporting/index';
 import { MGMT_REPORTING_NAV_ITEMS } from './modules/management-reporting/constants';
 
 import { SIDEBAR_NAV_ITEMS } from './constants/navigation';

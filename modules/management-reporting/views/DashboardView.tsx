@@ -1,8 +1,8 @@
 import React from 'react';
 import { CurrencyDollarIcon, UserGroupIcon, CalendarIcon, HeartIcon } from '../../../components/Icons';
 
-// FIX: Changed the type of the 'icon' prop to React.ReactElement to fix the cloneElement type error.
-const DashboardCard: React.FC<{title: string; value: string; icon: React.ReactElement; color: string; note?: string}> = ({title, value, icon, color, note}) => (
+// FIX: Explicitly typed the 'icon' prop as React.ReactElement<any> to allow adding props with React.cloneElement, resolving the type error.
+const DashboardCard: React.FC<{title: string; value: string; icon: React.ReactElement<any>; color: string; note?: string}> = ({title, value, icon, color, note}) => (
     <div className="bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
         <div className="flex justify-between items-start">
             <div>
