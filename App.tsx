@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, Outlet, Link } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
@@ -60,6 +61,9 @@ const WorkspaceLayout: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
 
   const location = useLocation();
 
+  // Logic to determine if the current page should be full width (no padding)
+  const isFullWidthPage = location.pathname.includes('/consultation/record') || location.pathname.includes('/documents');
+
   const { pageTitle, moduleNavItems } = useMemo(() => {
     const currentModuleRoot = location.pathname.split('/')[1];
     const config = moduleConfig[currentModuleRoot];
@@ -88,7 +92,7 @@ const WorkspaceLayout: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
             onLogout={onLogout}
             showSidebarToggle={true}
         />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <main className={`flex-1 overflow-x-hidden overflow-y-auto ${isFullWidthPage ? '' : 'p-4 sm:p-6 lg:p-8'}`}>
           <Outlet />
         </main>
       </div>
