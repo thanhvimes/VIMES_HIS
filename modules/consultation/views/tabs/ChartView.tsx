@@ -8,9 +8,10 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 interface ChartViewProps {
     initialVitals: any;
+    patientRecord: any;
 }
 
-const ChartView: React.FC<ChartViewProps> = ({ initialVitals }) => {
+const ChartView: React.FC<ChartViewProps> = ({ initialVitals, patientRecord }) => {
     const [vitals, setVitals] = useState(initialVitals);
     const [isEditingVitals, setIsEditingVitals] = useState(false);
 
@@ -31,6 +32,23 @@ const ChartView: React.FC<ChartViewProps> = ({ initialVitals }) => {
         }
         setVitals(newVitals);
     };
+
+    // Combine history and current vitals for the chart
+    const historyData = patientRecord?.bpHistory 
+        ? patientRecord.bpHistory.map((entry: any) => ({
+            name: entry.date,
+            Systolic: entry.systolic,
+            Diastolic: entry.diastolic
+          }))
+        : [];
+
+    const currentData = { 
+        name: 'Current', 
+        Systolic: vitals.bpSys, 
+        Diastolic: vitals.bpDia 
+    };
+
+    const chartData = [...historyData, currentData];
 
     return (
         <div className="space-y-4">
@@ -109,7 +127,7 @@ const ChartView: React.FC<ChartViewProps> = ({ initialVitals }) => {
                     <div className="h-64 w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart
-                                data={[{ name: 'Current', Systolic: vitals.bpSys, Diastolic: vitals.bpDia }]}
+                                data={chartData}
                                 barSize={20}
                             >
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />

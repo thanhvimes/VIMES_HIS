@@ -10,11 +10,10 @@ import {
     CreditCardIcon, 
     FolderIcon,
     ChevronLeftIcon,
-    CheckIcon,
-    FolderIcon as FolderSolidIcon // Using FolderIcon for "Giấy chuyển" as placeholder
 } from '../../../components/Icons';
 import ChartView from './tabs/ChartView';
 import ExamineView from './tabs/ExamineView';
+import LabView from './tabs/LabView';
 
 // Mock Data for the specific patient from the image
 const mockPatientRecord = {
@@ -106,38 +105,20 @@ const PatientRecordView: React.FC = () => {
 
             {/* 3. MAIN CONTENT AREA */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {/* Patient Detail Summary Card */}
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
-                    <div className="flex flex-col md:flex-row justify-between gap-4">
-                        <div className="space-y-2 text-sm text-slate-700 dark:text-slate-300">
-                            <p className="flex items-center gap-2"><span className="font-bold text-cyan-600 dark:text-cyan-400">👤 {mockPatientRecord.name}</span> - Tuổi: {mockPatientRecord.age}, Giới tính: {mockPatientRecord.gender}, Ngày sinh: {mockPatientRecord.dob}</p>
-                            <p>📍 Địa chỉ: {mockPatientRecord.address}</p>
-                            <p>💳 Số thẻ BHYT: <span className="italic text-slate-500">Chưa có thông tin</span>, Hạn: - , Mức hưởng: -</p>
-                        </div>
-                        <div className="flex flex-col gap-2 justify-center">
-                            <button className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase rounded shadow transition-transform active:scale-95 flex items-center justify-center gap-2">
-                                <CheckIcon className="w-4 h-4"/> Kiểm tra thẻ
-                            </button>
-                            <button className="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold uppercase rounded shadow transition-transform active:scale-95 flex items-center justify-center gap-2">
-                                <FolderSolidIcon className="w-4 h-4"/> Giấy chuyển
-                            </button>
-                        </div>
-                    </div>
-                     <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 text-sm">
-                        <p className="font-bold text-blue-700 dark:text-blue-400">🏥 [E11] Bệnh đái tháo đường không phụ thuộc insuline</p>
-                    </div>
-                </div>
-
                 {/* CONTENT RENDERER BASED ON ACTIVE TAB */}
                 {activeTab === 'chart' && (
-                    <ChartView initialVitals={mockPatientRecord.vitalSigns} />
+                    <ChartView initialVitals={mockPatientRecord.vitalSigns} patientRecord={mockPatientRecord} />
                 )}
 
                 {activeTab === 'examine' && (
                     <ExamineView />
                 )}
+
+                {activeTab === 'lab' && (
+                    <LabView />
+                )}
                 
-                {activeTab !== 'chart' && activeTab !== 'examine' && (
+                {activeTab !== 'chart' && activeTab !== 'examine' && activeTab !== 'lab' && (
                     <div className="flex flex-col items-center justify-center h-64 text-slate-400">
                         <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-full mb-3">
                              {activeTabInfo && React.createElement(activeTabInfo.icon, { className: "w-8 h-8" })}
