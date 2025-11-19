@@ -181,3 +181,32 @@ export interface ClinicalRecord {
   conclusion: string; // Kết luận
   treatmentPlan: string; // Hướng điều trị/Lời dặn
 }
+
+// --- NEW TYPES FOR OPERATION MODULE ---
+
+export interface OperationRecord {
+    id: string;
+    serviceName: string; // Tên dịch vụ
+    requestDate: string;
+    type: 'PT' | 'TT'; // Phẫu thuật | Thủ thuật
+    
+    // Info
+    operationType: string; // Loại phẫu thuật (e.g., Cắt bỏ khối u)
+    operationDate: string;
+    room: string;
+    startTime: string;
+    endTime: string;
+
+    // Team
+    mainSurgeon: string;
+    assistantSurgeons: string; // Comma separated or multiline
+    anesthesiologist: string;
+    nurses: string;
+    technicians: string;
+
+    // Details
+    method: string; // Phương pháp PT
+    steps: string; // Các bước tiến hành
+    instruments: string; // Dụng cụ
+    medications: string; // Thuốc sử dụng
+}
