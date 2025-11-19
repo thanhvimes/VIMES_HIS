@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export interface ExaminationRecord {
@@ -152,4 +153,31 @@ export interface Bill {
   consumption: number; // in kWh
   cost: number; // in VND
   status: 'paid' | 'unpaid';
+}
+
+// --- NEW TYPES FOR EXAMINATION MODULE ---
+
+export interface ICD10 {
+  code: string;
+  name: string;
+}
+
+export interface ClinicalRecord {
+  id: string;
+  patientId: string;
+  examDate: string;
+  doctorName: string;
+  
+  // Tab 1: Clinical Process
+  history: string; // Quá trình bệnh lý
+  clinicalExam: string; // Khám lâm sàng
+  
+  // Tab 2: Diagnosis
+  initialDiagnosis: string; // Chẩn đoán ban đầu
+  mainDisease?: ICD10; // Bệnh chính
+  subDiseases?: ICD10[]; // Bệnh kèm theo
+  
+  // Tab 3: Conclusion
+  conclusion: string; // Kết luận
+  treatmentPlan: string; // Hướng điều trị/Lời dặn
 }
