@@ -1,5 +1,7 @@
+
 import React from 'react';
 import { HeartIcon, UserGroupIcon, SparklesIcon } from '../../../components/Icons';
+import { useNavigate } from 'react-router-dom';
 
 const DashboardCard: React.FC<{title: string; value: string; icon: React.ReactNode; color: string}> = ({title, value, icon, color}) => (
     <div className="bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
@@ -16,6 +18,12 @@ const DashboardCard: React.FC<{title: string; value: string; icon: React.ReactNo
 );
 
 const DashboardView: React.FC = () => {
+  const navigate = useNavigate();
+
+  const handleStartExam = (patientId: string) => {
+      navigate(`/consultation/record/${patientId}`);
+  };
+
   return (
     <div className="space-y-6">
       <p className="text-slate-500 dark:text-slate-400 -mt-2">Tổng quan hoạt động khám và chẩn đoán trong ngày.</p>
@@ -32,12 +40,22 @@ const DashboardView: React.FC = () => {
                 <div className="flex justify-between items-center text-sm p-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <p className="font-medium text-onSurface dark:text-dark-onSurface">Lê Hoàng Cường</p>
                     <p className="text-slate-500 dark:text-slate-400">Lý do: Đau đầu, chóng mặt</p>
-                    <button className="text-sm bg-primary text-white px-3 py-1 rounded-md hover:bg-primary-dark">Bắt đầu khám</button>
+                    <button 
+                        onClick={() => handleStartExam('P003')}
+                        className="text-sm bg-primary text-white px-3 py-1 rounded-md hover:bg-primary-dark"
+                    >
+                        Bắt đầu khám
+                    </button>
                 </div>
                  <div className="flex justify-between items-center text-sm p-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <p className="font-medium text-onSurface dark:text-dark-onSurface">Phạm Thị Dung</p>
                     <p className="text-slate-500 dark:text-slate-400">Lý do: Tái khám định kỳ</p>
-                    <button className="text-sm bg-primary text-white px-3 py-1 rounded-md hover:bg-primary-dark">Bắt đầu khám</button>
+                    <button 
+                        onClick={() => handleStartExam('P004')}
+                        className="text-sm bg-primary text-white px-3 py-1 rounded-md hover:bg-primary-dark"
+                    >
+                        Bắt đầu khám
+                    </button>
                 </div>
             </div>
         </div>
