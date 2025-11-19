@@ -1,19 +1,20 @@
 
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-    PresentationChartLineIcon, 
-    ClipboardListIcon, 
-    BeakerIcon, 
-    ScissorsIcon, 
-    ArchiveIcon, 
-    CreditCardIcon, 
+import {
+    PresentationChartLineIcon,
+    ClipboardListIcon,
+    BeakerIcon,
+    ScissorsIcon,
+    ArchiveIcon,
+    CreditCardIcon,
     FolderIcon,
     ChevronLeftIcon,
 } from '../../../components/Icons';
 import ChartView from './tabs/ChartView';
 import ExamineView from './tabs/ExamineView';
 import LabView from './tabs/LabView';
+import OperationView from './tabs/OperationView';
 
 // Mock Data for the specific patient from the image
 const mockPatientRecord = {
@@ -55,7 +56,7 @@ const PatientRecordView: React.FC = () => {
     const { patientId } = useParams<{ patientId: string }>();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('chart'); // Default to 'chart' as requested content moved there
-    
+
     const activeTabInfo = tabs.find(t => t.id === activeTab);
 
     return (
@@ -79,7 +80,7 @@ const PatientRecordView: React.FC = () => {
                     </div>
                     <div className="hidden md:flex flex-col items-end">
                         <div className="text-sm font-bold bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
-                             {mockPatientRecord.diagnosis}
+                            {mockPatientRecord.diagnosis}
                         </div>
                     </div>
                 </div>
@@ -90,11 +91,10 @@ const PatientRecordView: React.FC = () => {
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`flex flex-col items-center justify-center py-2 px-6 min-w-[90px] rounded-t-lg transition-all duration-200 border-b-4 ${
-                                activeTab === tab.id
+                            className={`flex flex-col items-center justify-center py-2 px-6 min-w-[90px] rounded-t-lg transition-all duration-200 border-b-4 ${activeTab === tab.id
                                     ? 'bg-white text-cyan-700 border-amber-500 translate-y-[1px] shadow-inner font-bold'
                                     : 'bg-cyan-700 text-cyan-100 border-transparent hover:bg-cyan-600 hover:text-white opacity-90'
-                            }`}
+                                }`}
                         >
                             <tab.icon className={`w-5 h-5 mb-1 ${activeTab === tab.id ? 'text-cyan-600' : 'text-cyan-200'}`} />
                             <span className="text-xs uppercase tracking-wide">{tab.label}</span>
@@ -117,11 +117,14 @@ const PatientRecordView: React.FC = () => {
                 {activeTab === 'lab' && (
                     <LabView />
                 )}
-                
-                {activeTab !== 'chart' && activeTab !== 'examine' && activeTab !== 'lab' && (
+
+                {activeTab === 'operation' && (
+                    <OperationView />
+                )}
+                {activeTab !== 'chart' && activeTab !== 'examine' && activeTab !== 'lab' && activeTab !== 'operation' && (
                     <div className="flex flex-col items-center justify-center h-64 text-slate-400">
                         <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-full mb-3">
-                             {activeTabInfo && React.createElement(activeTabInfo.icon, { className: "w-8 h-8" })}
+                            {activeTabInfo && React.createElement(activeTabInfo.icon, { className: "w-8 h-8" })}
                         </div>
                         <p>Tab <strong>{activeTabInfo?.label}</strong> đang được xây dựng.</p>
                     </div>

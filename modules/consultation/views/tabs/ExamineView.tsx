@@ -8,7 +8,9 @@ import {
     PrinterIcon, 
     CheckIcon,
     DocumentTextIcon,
-    PlusIcon
+    PlusIcon,
+    SearchIcon,
+    XIcon
 } from '../../../../components/Icons';
 import { ClinicalRecord, ICD10 } from '../../../../types';
 import { consultationService } from '../../../../services/consultationService';
@@ -28,7 +30,11 @@ const ExamineView: React.FC = () => {
     const [mode, setMode] = useState<'VIEW' | 'EDIT_CLINICAL' | 'EDIT_CONCLUSION'>('VIEW');
     const [isLoading, setIsLoading] = useState(false);
     const [record, setRecord] = useState<ClinicalRecord | null>(null);
+    
+    // ICD10 Search State
+    const [isIcdModalOpen, setIsIcdModalOpen] = useState(false);
     const [icdQuery, setIcdQuery] = useState('');
+    const [icdSearchResults, setIcdSearchResults] = useState<ICD10[]>([]);
 
     // Load data on mount
     useEffect(() => {
@@ -87,6 +93,26 @@ const ExamineView: React.FC = () => {
         }
     };
 
+    // ICD10 Search Logic
+    const handleSearchICD = async (query: string) => {
+        setIcdQuery(query);
+        if (query.length > 1) {
+             const results = await consultationService.searchICD10(query);
+             setIcdSearchResults(results);
+        } else {
+             setIcdSearchResults([]);
+        }
+    };
+
+    const handleSelectICD = (icd: ICD10) => {
+        if (record) {
+            setRecord({ ...record, mainDisease: icd });
+        }
+        setIsIcdModalOpen(false);
+        setIcdQuery('');
+        setIcdSearchResults([]);
+    };
+
     if (!record) return <div className="p-8 text-center">Đang tải dữ liệu...</div>;
 
     const isEditable = mode !== 'VIEW';
@@ -94,7 +120,7 @@ const ExamineView: React.FC = () => {
     const isConclusionEditable = mode === 'EDIT_CONCLUSION';
 
     return (
-        <div className="flex flex-col h-full gap-4">
+        <div className="flex flex-col h-full gap-4 relative">
             {/* MAIN CONTENT GRID */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
                 
@@ -107,12 +133,12 @@ const ExamineView: React.FC = () => {
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs text-slate-500 mb-1">Ngày khám</label>
-                                <input type="text" value={new Date(record.examDate).toLocaleString('vi-VN')} readOnly className="w-full p-2 bg-slate-100 dark:bg-slate-900 border border-slate-300 rounded text-sm"/>
+                                <label className="block text-sm font-bold text-slate-500 mb-1">Ngày khám</label>
+                                <input type="text" value={new Date(record.examDate).toLocaleString('vi-VN')} readOnly className="w-full p-2 bg-slate-100 dark:bg-slate-900 border border-slate-300 rounded text-base"/>
                             </div>
                             <div>
-                                <label className="block text-xs text-slate-500 mb-1">Bác sĩ</label>
-                                <input type="text" value={record.doctorName} readOnly className="w-full p-2 bg-slate-100 dark:bg-slate-900 border border-slate-300 rounded text-sm"/>
+                                <label className="block text-sm font-bold text-slate-500 mb-1">Bác sĩ</label>
+                                <input type="text" value={record.doctorName} readOnly className="w-full p-2 bg-slate-100 dark:bg-slate-900 border border-slate-300 rounded text-base"/>
                             </div>
                         </div>
                     </div>
@@ -124,24 +150,24 @@ const ExamineView: React.FC = () => {
                         </div>
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Quá trình bệnh lý</label>
+                                <label className="block text-sm font-bold text-slate-600 dark:text-slate-300 mb-1">Quá trình bệnh lý</label>
                                 <textarea 
                                     rows={3} 
                                     value={record.history} 
                                     onChange={(e) => handleInputChange('history', e.target.value)}
                                     disabled={!isClinicalEditable}
-                                    className="w-full p-2 text-sm border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                                    className="w-full p-2 text-base border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
                                     placeholder="Mô tả diễn biến bệnh..."
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Khám lâm sàng</label>
+                                <label className="block text-sm font-bold text-slate-600 dark:text-slate-300 mb-1">Khám lâm sàng</label>
                                 <textarea 
                                     rows={3}
                                     value={record.clinicalExam}
                                     onChange={(e) => handleInputChange('clinicalExam', e.target.value)}
                                     disabled={!isClinicalEditable}
-                                    className="w-full p-2 text-sm border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                                    className="w-full p-2 text-base border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
                                     placeholder="Mô tả triệu chứng thực thể..."
                                 />
                             </div>
@@ -155,17 +181,17 @@ const ExamineView: React.FC = () => {
                         </div>
                         <div className="space-y-4">
                              <div>
-                                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Chẩn đoán ban đầu</label>
+                                <label className="block text-sm font-bold text-slate-600 dark:text-slate-300 mb-1">Chẩn đoán ban đầu</label>
                                 <input 
                                     type="text" 
                                     value={record.initialDiagnosis}
                                     onChange={(e) => handleInputChange('initialDiagnosis', e.target.value)}
                                     disabled={!isClinicalEditable}
-                                    className="w-full p-2 text-sm border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                                    className="w-full p-2 text-base border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Bệnh chính (ICD10)</label>
+                                <label className="block text-sm font-bold text-slate-600 dark:text-slate-300 mb-1">Bệnh chính (ICD10)</label>
                                 <div className="flex gap-2">
                                     <input 
                                         type="text" 
@@ -173,15 +199,20 @@ const ExamineView: React.FC = () => {
                                         readOnly
                                         placeholder="Chưa chọn bệnh chính"
                                         disabled={!isClinicalEditable}
-                                        className="flex-1 p-2 text-sm border border-slate-300 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-900 disabled:text-slate-500"
+                                        className="flex-1 p-2 text-base border border-slate-300 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-900 disabled:text-slate-500"
                                     />
-                                    {/* Placeholder for ICD10 Search Modal trigger */}
-                                    <button disabled={!isClinicalEditable} className="px-3 py-1 bg-slate-200 hover:bg-slate-300 rounded text-xs font-bold disabled:opacity-50">Chọn</button>
+                                    <button 
+                                        disabled={!isClinicalEditable} 
+                                        onClick={() => setIsIcdModalOpen(true)}
+                                        className="px-4 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-sm font-bold disabled:opacity-50 disabled:bg-slate-200 disabled:text-slate-500 transition-colors"
+                                    >
+                                        <SearchIcon className="w-5 h-5"/>
+                                    </button>
                                 </div>
                             </div>
                              <div>
-                                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Bệnh kèm theo</label>
-                                <div className="p-2 min-h-[40px] border border-slate-300 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-900 text-sm text-slate-500 italic">
+                                <label className="block text-sm font-bold text-slate-600 dark:text-slate-300 mb-1">Bệnh kèm theo</label>
+                                <div className="p-2 min-h-[40px] border border-slate-300 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-900 text-base text-slate-500 italic">
                                     Chưa có bệnh kèm theo
                                 </div>
                             </div>
@@ -195,23 +226,23 @@ const ExamineView: React.FC = () => {
                         </div>
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Kết luận</label>
+                                <label className="block text-sm font-bold text-slate-600 dark:text-slate-300 mb-1">Kết luận</label>
                                 <textarea 
                                     rows={2} 
                                     value={record.conclusion}
                                     onChange={(e) => handleInputChange('conclusion', e.target.value)}
                                     disabled={!isConclusionEditable}
-                                    className="w-full p-2 text-sm border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-500 font-bold text-blue-700"
+                                    className="w-full p-2 text-base border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-500 font-bold text-blue-700"
                                 />
                             </div>
                              <div>
-                                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Lời dặn / Hướng điều trị</label>
+                                <label className="block text-sm font-bold text-slate-600 dark:text-slate-300 mb-1">Lời dặn / Hướng điều trị</label>
                                 <textarea 
                                     rows={3} 
                                     value={record.treatmentPlan}
                                     onChange={(e) => handleInputChange('treatmentPlan', e.target.value)}
                                     disabled={!isConclusionEditable}
-                                    className="w-full p-2 text-sm border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                                    className="w-full p-2 text-base border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
                                 />
                             </div>
                         </div>
@@ -225,11 +256,11 @@ const ExamineView: React.FC = () => {
                             <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span> 
                             Chỉ số sinh tồn (Mới nhất)
                         </h4>
-                        <div className="grid grid-cols-2 gap-y-2 text-sm">
-                            <span className="text-slate-500">Mạch:</span> <span className="font-bold">80 bpm</span>
-                            <span className="text-slate-500">Nhiệt độ:</span> <span className="font-bold">36.5 °C</span>
-                            <span className="text-slate-500">Huyết áp:</span> <span className="font-bold text-red-600">120/80</span>
-                            <span className="text-slate-500">BMI:</span> <span className="font-bold">22.9</span>
+                        <div className="grid grid-cols-2 gap-y-3 text-sm">
+                            <span className="text-slate-500">Mạch:</span> <span className="font-bold text-base">80 bpm</span>
+                            <span className="text-slate-500">Nhiệt độ:</span> <span className="font-bold text-base">36.5 °C</span>
+                            <span className="text-slate-500">Huyết áp:</span> <span className="font-bold text-red-600 text-base">120/80</span>
+                            <span className="text-slate-500">BMI:</span> <span className="font-bold text-base">22.9</span>
                         </div>
                      </div>
 
@@ -245,7 +276,7 @@ const ExamineView: React.FC = () => {
             </div>
 
             {/* BOTTOM ACTION BAR */}
-            <div className="flex-shrink-0 bg-white dark:bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 flex justify-end gap-3">
+            <div className="flex-shrink-0 bg-white dark:bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 flex justify-end gap-3 sticky bottom-0 z-10">
                 {!isEditable ? (
                     <>
                         <button onClick={handleUpdate} className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded font-bold text-sm transition-all active:scale-95">
@@ -269,6 +300,53 @@ const ExamineView: React.FC = () => {
                     </>
                 )}
             </div>
+
+            {/* ICD10 SEARCH MODAL */}
+            {isIcdModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl w-full max-w-md flex flex-col max-h-[80vh] animate-fade-in-up">
+                        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-700 rounded-t-lg">
+                            <h3 className="font-bold text-lg text-slate-800 dark:text-white">Tìm kiếm ICD10</h3>
+                            <button onClick={() => setIsIcdModalOpen(false)} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-full transition-colors">
+                                <XIcon className="w-6 h-6 text-slate-500"/>
+                            </button>
+                        </div>
+                        <div className="p-4 border-b border-slate-100 dark:border-slate-700">
+                            <div className="relative">
+                                <SearchIcon className="absolute left-3 top-2.5 w-5 h-5 text-slate-400"/>
+                                <input 
+                                    type="text" 
+                                    placeholder="Nhập mã hoặc tên bệnh..." 
+                                    className="w-full pl-10 p-2 text-base border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-slate-700 dark:border-slate-600 dark:text-white"
+                                    value={icdQuery}
+                                    onChange={(e) => handleSearchICD(e.target.value)}
+                                    autoFocus
+                                />
+                            </div>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-2 bg-slate-50 dark:bg-slate-900/50">
+                            {icdSearchResults.length > 0 ? (
+                                icdSearchResults.map(icd => (
+                                    <button 
+                                        key={icd.code}
+                                        onClick={() => handleSelectICD(icd)}
+                                        className="w-full text-left p-3 hover:bg-blue-50 dark:hover:bg-slate-700 rounded-lg border-b border-slate-100 dark:border-slate-700 last:border-0 transition-colors group"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-blue-600 bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 rounded text-sm group-hover:bg-blue-200 transition-colors">{icd.code}</span>
+                                            <span className="text-slate-700 dark:text-slate-200 font-medium">{icd.name}</span>
+                                        </div>
+                                    </button>
+                                ))
+                            ) : (
+                                <div className="text-center text-slate-500 py-8">
+                                    {icdQuery.length > 1 ? 'Không tìm thấy bệnh phù hợp.' : 'Nhập từ khóa để tìm kiếm...'}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
