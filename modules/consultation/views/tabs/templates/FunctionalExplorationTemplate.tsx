@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { ActivityIcon, PrinterIcon } from '../../../../../../components/Icons';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ServiceRequest } from '../LabView';
+import { usePdfPreview } from '../../../../../../contexts/PdfPreviewContext';
+
+const DEMO_PDF_URL = 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf';
 
 interface FunctionalExplorationTemplateProps {
     data: ServiceRequest;
@@ -17,14 +20,17 @@ const InfoBlock = ({ label, value }: { label: string, value?: string }) => (
 );
 
 const FunctionalExplorationTemplate: React.FC<FunctionalExplorationTemplateProps> = ({ data }) => {
-    const navigate = useNavigate();
+    const { openPdf } = usePdfPreview();
     const { functionalData, specimen } = data;
 
     if (!functionalData) return <div className="text-center text-slate-400 p-10">Chưa có dữ liệu kết quả chi tiết.</div>;
 
     const handlePrint = () => {
-        // Navigate to the document viewer with a demo PDF URL
-        navigate(`/documents/view/functional-result-${data.id}`);
+        openPdf({
+            url: DEMO_PDF_URL,
+            fileName: `FuncResult_${data.id}.pdf`,
+            isSignable: true
+        });
     };
 
     return (

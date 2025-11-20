@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
     PresentationChartLineIcon,
     ClipboardListIcon,
@@ -55,7 +55,12 @@ const tabs = [
 const PatientRecordView: React.FC = () => {
     const { patientId } = useParams<{ patientId: string }>();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('chart'); // Default to 'chart' as requested content moved there
+    const [searchParams, setSearchParams] = useSearchParams();
+    const activeTab = searchParams.get('tab') || 'chart';
+
+    const setActiveTab = (tabId: string) => {
+        setSearchParams({ tab: tabId }, { replace: true });
+    };
 
     const activeTabInfo = tabs.find(t => t.id === activeTab);
 

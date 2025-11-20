@@ -10,7 +10,7 @@ import {
 } from '../../../../../components/Icons';
 import { OperationRecord } from '../../../../../types';
 import ImageGalleryUpload from './ImageGalleryUpload';
-import Combobox from '../../../../../components/shared/Combobox';
+import Combobox, { ComboboxColumn } from '../../../../../components/shared/Combobox';
 import { doctorOptions, procedureOptions, CatalogItem, DoctorItem } from '../../../data/catalogs';
 
 interface ProcedureFormProps {
@@ -28,7 +28,7 @@ const SectionHeader = ({ icon: Icon, title }: { icon: any, title: string }) => (
 
 const InputGroup = ({ label, name, value, onChange, type = 'text', required = false, fullWidth = false, colSpan = 1, placeholder = '' }: any) => (
     <div className={`${fullWidth ? 'col-span-full' : `col-span-full md:col-span-${colSpan}`}`}>
-        <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">
+        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">
             {label} {required && <span className="text-red-500">*</span>}
         </label>
         <input
@@ -38,21 +38,21 @@ const InputGroup = ({ label, name, value, onChange, type = 'text', required = fa
             onChange={onChange}
             required={required}
             placeholder={placeholder}
-            className="w-full p-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent shadow-sm"
+            className="w-full p-2.5 text-base border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent shadow-sm"
         />
     </div>
 );
 
 const TextareaGroup = ({ label, name, value, onChange, rows = 3, placeholder = '' }: any) => (
     <div className="col-span-full">
-        <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">{label}</label>
+        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">{label}</label>
         <textarea
             name={name}
             rows={rows}
             value={value || ''}
             onChange={onChange}
             placeholder={placeholder}
-            className="w-full p-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-y shadow-sm"
+            className="w-full p-2.5 text-base border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-y shadow-sm"
         />
     </div>
 );
@@ -63,22 +63,18 @@ const ProcedureForm: React.FC<ProcedureFormProps> = ({ formData, onChange, onIma
         onChange({ target: { name, value } });
     };
 
-    // --- Custom Renderers ---
-    const renderCatalogItem = (item: CatalogItem, isSelected: boolean) => (
-        <div className="flex justify-between items-center">
-            <div className="flex flex-col">
-                <span className="font-semibold">{item.name}</span>
-                <span className={`text-xs ${isSelected ? 'text-teal-100' : 'text-slate-400'}`}>{item.group}</span>
-            </div>
-        </div>
-    );
+    // Column Definitions
+    const procedureColumns: ComboboxColumn<CatalogItem>[] = [
+        { key: 'code', label: 'Mã', width: '15%', className: 'font-mono text-xs text-slate-500' },
+        { key: 'name', label: 'Tên thủ thuật', width: '60%', className: 'font-medium' },
+        { key: 'group', label: 'Nhóm', width: '25%', className: 'text-xs text-teal-600 dark:text-teal-400' },
+    ];
 
-    const renderDoctorItem = (item: DoctorItem, isSelected: boolean) => (
-        <div>
-            <div className="font-medium">{item.name}</div>
-            <div className={`text-xs ${isSelected ? 'text-teal-100' : 'text-slate-500'}`}>{item.role}</div>
-        </div>
-    );
+    const doctorColumns: ComboboxColumn<DoctorItem>[] = [
+        { key: 'name', label: 'Họ tên', width: '55%', className: 'font-bold' },
+        { key: 'department', label: 'Khoa', width: '25%', className: 'text-xs text-slate-500' },
+        { key: 'role', label: 'Chức vụ', width: '20%', className: 'text-xs italic' },
+    ];
 
     return (
         <>
@@ -92,15 +88,15 @@ const ProcedureForm: React.FC<ProcedureFormProps> = ({ formData, onChange, onIma
                         value={formData.serviceName} 
                         onChange={handleComboChange('serviceName')} 
                         options={procedureOptions}
+                        columns={procedureColumns}
                         required 
                         placeholder="Tìm kiếm tên thủ thuật..."
                         displayValue={item => item.name}
-                        renderItem={renderCatalogItem}
                     />
                 </div>
                 <div className="col-span-1">
-                        <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Loại hình</label>
-                        <div className="p-2.5 text-sm font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 rounded-lg border border-teal-100 dark:border-teal-800 flex items-center gap-2 h-[42px]">
+                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Loại hình</label>
+                        <div className="p-2.5 text-base font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 rounded-lg border border-teal-100 dark:border-teal-800 flex items-center gap-2 h-[46px]">
                             <ActivityIcon className="w-4 h-4"/> Thủ thuật
                         </div>
                 </div>
@@ -121,10 +117,10 @@ const ProcedureForm: React.FC<ProcedureFormProps> = ({ formData, onChange, onIma
                     value={formData.mainSurgeon} 
                     onChange={handleComboChange('mainSurgeon')}
                     options={doctorOptions}
+                    columns={doctorColumns}
                     required
                     placeholder="Chọn người thực hiện..."
                     displayValue={item => item.name}
-                    renderItem={renderDoctorItem}
                 />
                 <InputGroup label="Người phụ / Hỗ trợ" name="nurses" value={formData.nurses} onChange={onChange} placeholder="Họ tên điều dưỡng phụ..."/>
             </div>

@@ -19,9 +19,11 @@ import {
 import { OperationRecord } from '../../../../types';
 import { consultationService } from '../../../../services/consultationService';
 import OperationFormModal from './OperationFormModal';
+import { usePdfPreview } from '../../../../contexts/PdfPreviewContext';
 
 // Mock Data Context
 const mockPatientId = 'P003';
+const DEMO_PDF_URL = 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf';
 
 const emptyOperation: OperationRecord = {
     id: '', serviceName: '', requestDate: new Date().toLocaleDateString('vi-VN'),
@@ -33,6 +35,7 @@ const emptyOperation: OperationRecord = {
 
 const OperationView: React.FC = () => {
     const navigate = useNavigate();
+    const { openPdf } = usePdfPreview();
     const [operations, setOperations] = useState<OperationRecord[]>([]);
     const [selectedOp, setSelectedOp] = useState<OperationRecord | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -129,8 +132,12 @@ const OperationView: React.FC = () => {
 
     const handlePrint = () => {
         if(selectedOp) {
-            // Simulate API call by navigating to the document viewer with a demo PDF
-            navigate(`/documents/view/operation-${selectedOp.id}`);
+            // Open PDF in global modal
+            openPdf({
+                url: DEMO_PDF_URL,
+                fileName: `Operation_${selectedOp.id}.pdf`,
+                isSignable: true
+            });
         }
     };
 

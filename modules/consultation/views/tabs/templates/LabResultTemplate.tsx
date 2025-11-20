@@ -3,6 +3,9 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BeakerIcon, PrinterIcon } from '../../../../../../components/Icons';
 import { ServiceRequest } from '../LabView';
+import { usePdfPreview } from '../../../../../../contexts/PdfPreviewContext';
+
+const DEMO_PDF_URL = 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf';
 
 interface LabResultTemplateProps {
     data: ServiceRequest;
@@ -16,14 +19,17 @@ const InfoBlock = ({ label, value }: { label: string, value?: string }) => (
 );
 
 const LabResultTemplate: React.FC<LabResultTemplateProps> = ({ data }) => {
-    const navigate = useNavigate();
+    const { openPdf } = usePdfPreview();
     const { labData, specimen } = data;
 
     if (!labData) return <div className="text-center text-slate-400 p-10">Chưa có dữ liệu kết quả chi tiết.</div>;
 
     const handlePrint = () => {
-        // Navigate to the document viewer with a demo PDF URL for this lab result
-        navigate(`/documents/view/lab-result-${data.id}`);
+        openPdf({
+            url: DEMO_PDF_URL,
+            fileName: `LabResult_${data.id}.pdf`,
+            isSignable: true
+        });
     };
 
     return (

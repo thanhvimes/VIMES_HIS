@@ -1,4 +1,5 @@
 
+
 // Catalog Types
 export interface CatalogItem {
     code: string;
@@ -73,16 +74,31 @@ export const procedureOptions: CatalogItem[] = [
     { code: 'TT009', name: 'Cắt chỉ', group: 'Điều dưỡng' }
 ];
 
+// Dữ liệu ICD10 phong phú hơn
 export const diagnosisOptions: CatalogItem[] = [
+    { code: 'A09', name: 'Tiêu chảy và viêm dạ dày ruột nguồn gốc nhiễm trùng', group: 'Tiêu hóa' },
+    { code: 'E10', name: 'Bệnh đái tháo đường phụ thuộc insuline', group: 'Nội tiết' },
+    { code: 'E11', name: 'Bệnh đái tháo đường không phụ thuộc insuline', group: 'Nội tiết' },
+    { code: 'E78', name: 'Rối loạn chuyển hóa lipoprotein và tình trạng tăng lipid máu khác', group: 'Nội tiết' },
+    { code: 'I10', name: 'Bệnh tăng huyết áp vô căn (nguyên phát)', group: 'Tim mạch' },
+    { code: 'I20', name: 'Cơn đau thắt ngực', group: 'Tim mạch' },
+    { code: 'I21', name: 'Nhồi máu cơ tim cấp', group: 'Tim mạch' },
+    { code: 'J00', name: 'Viêm mũi họng cấp tính [Cảm lạnh]', group: 'Hô hấp' },
+    { code: 'J02', name: 'Viêm họng cấp tính', group: 'Hô hấp' },
+    { code: 'J06', name: 'Nhiễm trùng đường hô hấp trên cấp tính ở nhiều vị trí', group: 'Hô hấp' },
+    { code: 'J18', name: 'Viêm phổi, tác nhân không xác định', group: 'Hô hấp' },
+    { code: 'J20', name: 'Viêm phế quản cấp tính', group: 'Hô hấp' },
+    { code: 'K21', name: 'Bệnh trào ngược dạ dày - thực quản', group: 'Tiêu hóa' },
+    { code: 'K29', name: 'Viêm dạ dày và tá tràng', group: 'Tiêu hóa' },
     { code: 'K35', name: 'Viêm ruột thừa cấp', group: 'Tiêu hóa' },
     { code: 'K80', name: 'Sỏi mật', group: 'Tiêu hóa' },
+    { code: 'M54', name: 'Đau lưng', group: 'Cơ xương khớp' },
+    { code: 'N10', name: 'Viêm thận - bể thận cấp', group: 'Tiết niệu' },
+    { code: 'N30', name: 'Viêm bàng quang', group: 'Tiết niệu' },
+    { code: 'R51', name: 'Đau đầu', group: 'Thần kinh' },
+    { code: 'S01', name: 'Vết thương hở ở đầu', group: 'Chấn thương' },
     { code: 'S72', name: 'Gãy xương đùi', group: 'Chấn thương' },
-    { code: 'K40', name: 'Thoát vị bẹn', group: 'Ngoại chung' },
-    { code: 'I84', name: 'Trĩ nội', group: 'Hậu môn' },
-    { code: 'O82', name: 'Mổ lấy thai', group: 'Sản khoa' },
-    { code: 'S83', name: 'Tổn thương dây chằng đầu gối', group: 'Chấn thương' },
-    { code: 'K29', name: 'Viêm dạ dày', group: 'Tiêu hóa' },
-    { code: 'S01', name: 'Vết thương hở ở đầu', group: 'Chấn thương' }
+    { code: 'S83', name: 'Tổn thương dây chằng đầu gối', group: 'Chấn thương' }
 ];
 
 // --- Lab & Imaging Data ---

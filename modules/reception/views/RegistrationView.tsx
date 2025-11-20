@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { 
     UserPlusIcon, 
     PencilIcon, 
@@ -11,13 +11,16 @@ import {
     SearchIcon,
     QrcodeIcon,
     ShieldCheckIcon,
-    XIcon
+    XIcon,
+    DocumentTextIcon
 } from '../../../components/Icons';
 import ActionButton from '../../../components/shared/ActionButton';
 import ConfirmationModal from '../../../components/shared/ConfirmationModal';
 import { FormInput, FormSelect } from '../../../components/shared/forms';
 import { Patient, ExaminationRecord, ExamInfo } from '../../../types';
 import { mockPatients } from '../data';
+import { usePdfPreview } from '../../../contexts/PdfPreviewContext';
+import jsPDF from 'jspdf';
 
 const emptyPatient: Patient = {
   id: '', recordNumber: '', name: '', dob: '', age: 0, gender: 'Nam',
@@ -57,6 +60,7 @@ const Toast: React.FC<{ toast: ToastType; onClose: () => void }> = ({ toast, onC
 const RegistrationView: React.FC = () => {
     const { patientId } = useParams<{ patientId: string }>();
     const navigate = useNavigate();
+    const { openPdf } = usePdfPreview();
 
     const [patient, setPatient] = useState<Patient | null>(null);
     const [formData, setFormData] = useState<Patient>(emptyPatient);
@@ -239,12 +243,81 @@ const RegistrationView: React.FC = () => {
         setMode('VIEW');
     };
 
+    const generateRegistrationPdf = (patientData: Patient, examData: ExamInfo) => {
+        const doc = new jsPDF();
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(18);
+        doc.text("PHIEU TIEP NHAN BENH NHAN", 105, 20, { align: "center" });
+        
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "normal");
+        let y = 40;
+        const lineHeight = 10;
+
+        doc.text(`Ma Benh Nhan: ${patientData.id}`, 20, y);
+        doc.text(`So Ho So: ${patientData.recordNumber}`, 120, y);
+        y += lineHeight;
+
+        doc.text(`Ho Ten: ${patientData.name.toUpperCase()}`, 20, y);
+        y += lineHeight;
+        
+        doc.text(`Nam Sinh: ${patientData.dob}`, 20, y);
+        doc.text(`Gioi Tinh: ${patientData.gender}`, 80, y);
+        doc.text(`Tuoi: ${patientData.age}`, 140, y);
+        y += lineHeight;
+
+        doc.text(`Dia Chi: ${patientData.address}`, 20, y);
+        y += lineHeight;
+
+        doc.text(`Dien Thoai: ${patientData.phone}`, 20, y);
+        y += lineHeight * 2;
+
+        doc.setFont("helvetica", "bold");
+        doc.text("THONG TIN KHAM:", 20, y);
+        y += lineHeight;
+        doc.setFont("helvetica", "normal");
+
+        doc.text(`Ngay Kham: ${examData.examDate}`, 20, y);
+        doc.text(`So Phieu: ${examData.ticketNumber || '---'}`, 120, y);
+        y += lineHeight;
+
+        doc.text(`Phong Kham: ${examData.examRoom}`, 20, y);
+        doc.text(`Loai Kham: ${examData.examType}`, 120, y);
+        y += lineHeight;
+
+        doc.text(`Doi Tuong: ${examData.patientType}`, 20, y);
+        if (examData.patientType === 'Bảo hiểm') {
+            doc.text(`So The BHYT: ${examData.insuranceNumber}`, 120, y);
+        }
+        y += lineHeight;
+
+        doc.text(`Trieu Chung: ${examData.symptoms}`, 20, y);
+        
+        const blob = doc.output('blob');
+        return URL.createObjectURL(blob);
+    };
+
     const handlePrint = () => {
        if (patient) {
-         navigate('/documents/preview/registration', { state: { patient: formData, exam: examInfo } });
+         const url = generateRegistrationPdf(formData, examInfo);
+         openPdf({
+            url: url,
+            fileName: `Registration_${patient.id}.pdf`,
+            isSignable: true
+         });
        } else {
          setToast({ message: 'Vui lòng chọn hoặc lưu bệnh nhân trước khi in.', type: 'error' });
        }
+    };
+    
+    const handleViewHistoryPdf = (e: React.MouseEvent, examId: string) => {
+        e.stopPropagation();
+        // Use demo PDF for history items
+        openPdf({
+            url: 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf',
+            fileName: `History_${examId}.pdf`,
+            isSignable: false
+        });
     };
 
     const handleCheckInBHYT = () => {
@@ -401,9 +474,13 @@ const RegistrationView: React.FC = () => {
                                                     <td className="p-2">{exam.status}</td>
                                                     <td className="p-2 truncate max-w-xs">{exam.diagnosis}</td>
                                                     <td className="p-2 text-center">
-                                                        <Link to={`/documents/view/${exam.id}`} className="text-primary dark:text-dark-primary hover:underline text-xs font-semibold">
+                                                        <button 
+                                                            onClick={(e) => handleViewHistoryPdf(e, exam.id)}
+                                                            className="flex items-center justify-center text-primary dark:text-dark-primary hover:underline text-xs font-semibold"
+                                                        >
+                                                            <DocumentTextIcon className="w-4 h-4 mr-1"/>
                                                             Xem PDF
-                                                        </Link>
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -432,4 +509,3 @@ const RegistrationView: React.FC = () => {
 };
 
 export default RegistrationView;
-    

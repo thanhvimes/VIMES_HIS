@@ -10,13 +10,16 @@ import {
     DocumentTextIcon,
     PlusIcon,
     SearchIcon,
-    XIcon
+    ListBulletIcon
 } from '../../../../components/Icons';
 import { ClinicalRecord, ICD10 } from '../../../../types';
 import { consultationService } from '../../../../services/consultationService';
-import { useNavigate } from 'react-router-dom';
+import { usePdfPreview } from '../../../../contexts/PdfPreviewContext';
+import Combobox, { ComboboxColumn } from '../../../../components/shared/Combobox';
+import { doctorOptions, diagnosisOptions, DoctorItem, CatalogItem } from '../../data/catalogs';
+import SubDiagnosisModal from './modals/SubDiagnosisModal';
 
-// Placeholder data until we integrate real context
+// Placeholder data
 const mockPatientInfo = {
     id: 'P003',
     name: 'PHÙNG THANH VIỆT',
@@ -25,18 +28,17 @@ const mockPatientInfo = {
     address: 'Chưa có địa chỉ',
 };
 
+const DEMO_PDF_URL = 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf';
+
 const ExamineView: React.FC = () => {
-    const navigate = useNavigate();
+    const { openPdf } = usePdfPreview();
     const [mode, setMode] = useState<'VIEW' | 'EDIT_CLINICAL' | 'EDIT_CONCLUSION'>('VIEW');
     const [isLoading, setIsLoading] = useState(false);
     const [record, setRecord] = useState<ClinicalRecord | null>(null);
     
-    // ICD10 Search State
-    const [isIcdModalOpen, setIsIcdModalOpen] = useState(false);
-    const [icdQuery, setIcdQuery] = useState('');
-    const [icdSearchResults, setIcdSearchResults] = useState<ICD10[]>([]);
+    // Modal State for Sub Diseases
+    const [isSubDiagModalOpen, setIsSubDiagModalOpen] = useState(false);
 
-    // Load data on mount
     useEffect(() => {
         const loadData = async () => {
             setIsLoading(true);
@@ -58,7 +60,6 @@ const ExamineView: React.FC = () => {
     const handleCancel = () => {
         if (window.confirm("Hủy bỏ thay đổi? Dữ liệu chưa lưu sẽ bị mất.")) {
             setMode('VIEW');
-            // Reload original data ideally
         }
     };
 
@@ -68,7 +69,6 @@ const ExamineView: React.FC = () => {
         try {
             await consultationService.saveClinicalRecord(record);
             setMode('VIEW');
-            alert("Lưu phiếu khám thành công!");
         } catch (error) {
             alert("Lỗi khi lưu dữ liệu.");
         } finally {
@@ -78,40 +78,52 @@ const ExamineView: React.FC = () => {
 
     const handlePrint = () => {
         if (!record) return;
-        // Navigate to document preview with state
-        navigate('/documents/preview/examination', { 
-            state: { 
-                patient: mockPatientInfo, // Pass patient info
-                record: record 
-            } 
+        openPdf({
+            url: DEMO_PDF_URL,
+            fileName: `Exam_${record.id}.pdf`,
+            isSignable: true
         });
     };
 
-    const handleInputChange = (field: keyof ClinicalRecord, value: string) => {
+    const handleInputChange = (field: keyof ClinicalRecord, value: any) => {
         if (record) {
             setRecord({ ...record, [field]: value });
         }
     };
+    
+    // Combobox Handlers
+    const handleDoctorChange = (value: string, item?: DoctorItem) => {
+        if (item) handleInputChange('doctorName', item.name);
+        else handleInputChange('doctorName', value);
+    };
 
-    // ICD10 Search Logic
-    const handleSearchICD = async (query: string) => {
-        setIcdQuery(query);
-        if (query.length > 1) {
-             const results = await consultationService.searchICD10(query);
-             setIcdSearchResults(results);
+    const handleMainDiseaseChange = (value: string, item?: CatalogItem) => {
+        if (item) {
+            handleInputChange('mainDisease', { code: item.code, name: item.name });
+            // Auto-fill diagnosis text if empty
+            if (!record?.initialDiagnosis) {
+                handleInputChange('initialDiagnosis', item.name);
+            }
         } else {
-             setIcdSearchResults([]);
+             // Handle free text input if needed, though mainDisease expects ICD10 object
         }
     };
 
-    const handleSelectICD = (icd: ICD10) => {
-        if (record) {
-            setRecord({ ...record, mainDisease: icd });
-        }
-        setIsIcdModalOpen(false);
-        setIcdQuery('');
-        setIcdSearchResults([]);
+    const handleSaveSubDiseases = (diseases: ICD10[]) => {
+        handleInputChange('subDiseases', diseases);
     };
+
+    // Columns Configuration for Comboboxes
+    const doctorColumns: ComboboxColumn<DoctorItem>[] = [
+        { key: 'name', label: 'Họ tên', width: '50%', className: 'font-bold' },
+        { key: 'department', label: 'Khoa', width: '30%' },
+        { key: 'role', label: 'Chức vụ', width: '20%', className: 'text-xs italic text-slate-500' },
+    ];
+
+    const icdColumns: ComboboxColumn<CatalogItem>[] = [
+        { key: 'code', label: 'Mã ICD', width: '20%', className: 'font-mono font-bold text-blue-600' },
+        { key: 'name', label: 'Tên bệnh', width: '80%' },
+    ];
 
     if (!record) return <div className="p-8 text-center">Đang tải dữ liệu...</div>;
 
@@ -121,232 +133,234 @@ const ExamineView: React.FC = () => {
 
     return (
         <div className="flex flex-col h-full gap-4 relative">
-            {/* MAIN CONTENT GRID */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
+            
+            {/* MAIN LAYOUT: 3 Columns (Left 75%, Right 25%) */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-0">
                 
-                {/* LEFT COLUMN: INPUT FORM (70%) */}
-                <div className="lg:col-span-2 space-y-4 overflow-y-auto pr-2 pb-2">
-                    {/* 1. General Info - Always Readonly */}
+                {/* LEFT COLUMN: CLINICAL INPUTS (75%) */}
+                <div className="lg:col-span-3 space-y-4 overflow-y-auto pr-1 pb-2 custom-scrollbar">
+                    
+                    {/* 1. Header Info */}
                     <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
-                         <div className="flex items-center gap-2 mb-3 text-primary dark:text-primary-light font-bold uppercase text-sm border-b border-slate-100 pb-2">
-                            <ClipboardListIcon className="w-4 h-4"/> Phiếu Khám
+                         <div className="flex items-center gap-2 mb-4 text-primary dark:text-primary-light font-bold uppercase text-base border-b border-slate-100 dark:border-slate-700 pb-2">
+                            <ClipboardListIcon className="w-5 h-5"/> Thông tin Phiếu Khám
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-bold text-slate-500 mb-1">Ngày khám</label>
-                                <input type="text" value={new Date(record.examDate).toLocaleString('vi-VN')} readOnly className="w-full p-2 bg-slate-100 dark:bg-slate-900 border border-slate-300 rounded text-base"/>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                             <div>
+                                <Combobox<DoctorItem>
+                                    label="Bác sĩ khám"
+                                    value={record.doctorName}
+                                    onChange={handleDoctorChange}
+                                    options={doctorOptions}
+                                    columns={doctorColumns}
+                                    disabled={!isClinicalEditable}
+                                    placeholder="Chọn bác sĩ..."
+                                    displayValue={(item) => item.name}
+                                />
                             </div>
                             <div>
-                                <label className="block text-sm font-bold text-slate-500 mb-1">Bác sĩ</label>
-                                <input type="text" value={record.doctorName} readOnly className="w-full p-2 bg-slate-100 dark:bg-slate-900 border border-slate-300 rounded text-base"/>
+                                <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1.5">Ngày khám</label>
+                                <input type="datetime-local" value={record.examDate.substring(0, 16)} readOnly className="w-full p-2.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-base text-slate-500"/>
                             </div>
                         </div>
                     </div>
 
-                    {/* 2. Clinical Process & Exam */}
-                    <div className={`bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border transition-colors ${isClinicalEditable ? 'border-blue-400 ring-1 ring-blue-400' : 'border-slate-200 dark:border-slate-700'}`}>
-                        <div className="flex items-center gap-2 mb-3 text-slate-700 dark:text-slate-200 font-bold text-sm">
-                            <DocumentTextIcon className="w-4 h-4"/> Quá trình bệnh lý & Khám lâm sàng
+                    {/* 2. Clinical Exam (Expanded) */}
+                    <div className={`bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border transition-all duration-300 ${isClinicalEditable ? 'border-blue-400 ring-1 ring-blue-400' : 'border-slate-200 dark:border-slate-700'}`}>
+                        <div className="flex items-center gap-2 mb-3 text-slate-800 dark:text-slate-100 font-bold text-base">
+                            <DocumentTextIcon className="w-5 h-5 text-blue-600"/> Khám Lâm Sàng
                         </div>
-                        <div className="space-y-4">
+                        <div className="grid grid-cols-1 gap-4">
                             <div>
-                                <label className="block text-sm font-bold text-slate-600 dark:text-slate-300 mb-1">Quá trình bệnh lý</label>
+                                <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1.5">Quá trình bệnh lý</label>
                                 <textarea 
                                     rows={3} 
                                     value={record.history} 
                                     onChange={(e) => handleInputChange('history', e.target.value)}
                                     disabled={!isClinicalEditable}
-                                    className="w-full p-2 text-base border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                                    className="w-full p-3 text-base border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 dark:disabled:bg-slate-800 disabled:text-slate-600"
                                     placeholder="Mô tả diễn biến bệnh..."
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-bold text-slate-600 dark:text-slate-300 mb-1">Khám lâm sàng</label>
+                                <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1.5">Khám lâm sàng (Triệu chứng thực thể)</label>
                                 <textarea 
-                                    rows={3}
+                                    rows={5} // Taller for more details
                                     value={record.clinicalExam}
                                     onChange={(e) => handleInputChange('clinicalExam', e.target.value)}
                                     disabled={!isClinicalEditable}
-                                    className="w-full p-2 text-base border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
-                                    placeholder="Mô tả triệu chứng thực thể..."
+                                    className="w-full p-3 text-base border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 dark:disabled:bg-slate-800 disabled:text-slate-600"
+                                    placeholder="Mô tả các dấu hiệu khám thấy..."
                                 />
                             </div>
                         </div>
                     </div>
 
-                    {/* 3. Diagnosis */}
-                    <div className={`bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border transition-colors ${isClinicalEditable ? 'border-blue-400 ring-1 ring-blue-400' : 'border-slate-200 dark:border-slate-700'}`}>
-                         <div className="flex items-center gap-2 mb-3 text-slate-700 dark:text-slate-200 font-bold text-sm">
-                            <PlusIcon className="w-4 h-4"/> Chẩn đoán
+                    {/* 3. Diagnosis (ICD10 with Sub-Diseases) */}
+                    <div className={`bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border transition-all duration-300 ${isClinicalEditable ? 'border-blue-400 ring-1 ring-blue-400' : 'border-slate-200 dark:border-slate-700'}`}>
+                         <div className="flex items-center gap-2 mb-3 text-slate-800 dark:text-slate-100 font-bold text-base">
+                            <PlusIcon className="w-5 h-5 text-red-500"/> Chẩn Đoán
                         </div>
                         <div className="space-y-4">
+                            <Combobox<CatalogItem>
+                                label="Bệnh chính (ICD10)"
+                                value={record.mainDisease ? `${record.mainDisease.code} - ${record.mainDisease.name}` : ''}
+                                onChange={handleMainDiseaseChange}
+                                options={diagnosisOptions}
+                                columns={icdColumns}
+                                disabled={!isClinicalEditable}
+                                placeholder="Nhập mã hoặc tên bệnh..."
+                                displayValue={(item) => `${item.code} - ${item.name}`}
+                                className="w-full"
+                            />
+                            
+                            <div className="flex items-start gap-2">
+                                <div className="flex-1">
+                                    <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1.5">Bệnh kèm theo</label>
+                                    <div className="min-h-[46px] p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 flex flex-wrap gap-2">
+                                        {record.subDiseases && record.subDiseases.length > 0 ? (
+                                            record.subDiseases.map((d, idx) => (
+                                                <span key={idx} className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                                    <span className="font-bold mr-1">{d.code}</span> {d.name}
+                                                </span>
+                                            ))
+                                        ) : (
+                                            <span className="text-slate-400 italic pt-1 pl-1">Chưa có bệnh kèm theo</span>
+                                        )}
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => setIsSubDiagModalOpen(true)}
+                                    disabled={!isClinicalEditable}
+                                    className="mt-8 p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm"
+                                    title="Thêm bệnh kèm theo"
+                                >
+                                    <ListBulletIcon className="w-5 h-5" />
+                                </button>
+                            </div>
+
                              <div>
-                                <label className="block text-sm font-bold text-slate-600 dark:text-slate-300 mb-1">Chẩn đoán ban đầu</label>
+                                <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1.5">Chẩn đoán sơ bộ (Text)</label>
                                 <input 
                                     type="text" 
                                     value={record.initialDiagnosis}
                                     onChange={(e) => handleInputChange('initialDiagnosis', e.target.value)}
                                     disabled={!isClinicalEditable}
-                                    className="w-full p-2 text-base border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                                    className="w-full p-2.5 text-base border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-600"
                                 />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-slate-600 dark:text-slate-300 mb-1">Bệnh chính (ICD10)</label>
-                                <div className="flex gap-2">
-                                    <input 
-                                        type="text" 
-                                        value={record.mainDisease ? `[${record.mainDisease.code}] ${record.mainDisease.name}` : ''}
-                                        readOnly
-                                        placeholder="Chưa chọn bệnh chính"
-                                        disabled={!isClinicalEditable}
-                                        className="flex-1 p-2 text-base border border-slate-300 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-900 disabled:text-slate-500"
-                                    />
-                                    <button 
-                                        disabled={!isClinicalEditable} 
-                                        onClick={() => setIsIcdModalOpen(true)}
-                                        className="px-4 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-sm font-bold disabled:opacity-50 disabled:bg-slate-200 disabled:text-slate-500 transition-colors"
-                                    >
-                                        <SearchIcon className="w-5 h-5"/>
-                                    </button>
-                                </div>
-                            </div>
-                             <div>
-                                <label className="block text-sm font-bold text-slate-600 dark:text-slate-300 mb-1">Bệnh kèm theo</label>
-                                <div className="p-2 min-h-[40px] border border-slate-300 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-900 text-base text-slate-500 italic">
-                                    Chưa có bệnh kèm theo
-                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* 4. Conclusion */}
-                    <div className={`bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border transition-colors ${isConclusionEditable ? 'border-blue-400 ring-1 ring-blue-400' : 'border-slate-200 dark:border-slate-700'}`}>
-                         <div className="flex items-center gap-2 mb-3 text-slate-700 dark:text-slate-200 font-bold text-sm">
-                            <CheckIcon className="w-4 h-4"/> Kết luận & Hướng điều trị
+                    {/* 4. Conclusion & Treatment (Compact) */}
+                    <div className={`bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border transition-all duration-300 ${isConclusionEditable ? 'border-blue-400 ring-1 ring-blue-400' : 'border-slate-200 dark:border-slate-700'}`}>
+                         <div className="flex items-center gap-2 mb-3 text-slate-800 dark:text-slate-100 font-bold text-base">
+                            <CheckIcon className="w-5 h-5 text-green-600"/> Kết Luận & Hướng Điều Trị
                         </div>
-                        <div className="space-y-4">
+                        <div className="grid grid-cols-1 gap-4">
                             <div>
-                                <label className="block text-sm font-bold text-slate-600 dark:text-slate-300 mb-1">Kết luận</label>
+                                <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1.5">Kết luận</label>
                                 <textarea 
                                     rows={2} 
                                     value={record.conclusion}
                                     onChange={(e) => handleInputChange('conclusion', e.target.value)}
                                     disabled={!isConclusionEditable}
-                                    className="w-full p-2 text-base border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-500 font-bold text-blue-700"
+                                    className="w-full p-3 text-base font-semibold text-blue-800 dark:text-blue-300 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-700"
+                                    placeholder="Kết luận bệnh..."
                                 />
                             </div>
                              <div>
-                                <label className="block text-sm font-bold text-slate-600 dark:text-slate-300 mb-1">Lời dặn / Hướng điều trị</label>
+                                <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1.5">Lời dặn / Hướng điều trị</label>
                                 <textarea 
                                     rows={3} 
                                     value={record.treatmentPlan}
                                     onChange={(e) => handleInputChange('treatmentPlan', e.target.value)}
                                     disabled={!isConclusionEditable}
-                                    className="w-full p-2 text-base border border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-500"
+                                    className="w-full p-3 text-base border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-600"
+                                    placeholder="Dặn dò bệnh nhân..."
                                 />
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* RIGHT COLUMN: SUMMARY & HISTORY (30%) */}
-                <div className="space-y-4">
-                     <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
-                        <h4 className="font-bold text-red-500 text-sm mb-3 flex items-center gap-2">
+                {/* RIGHT COLUMN: VITAL SIGNS & SUMMARY (25%) */}
+                <div className="lg:col-span-1 space-y-4">
+                     {/* Compact Vital Signs Card */}
+                     <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        <div className="bg-red-50 dark:bg-red-900/20 px-4 py-3 border-b border-red-100 dark:border-red-800 flex items-center gap-2">
                             <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span> 
-                            Chỉ số sinh tồn (Mới nhất)
-                        </h4>
-                        <div className="grid grid-cols-2 gap-y-3 text-sm">
-                            <span className="text-slate-500">Mạch:</span> <span className="font-bold text-base">80 bpm</span>
-                            <span className="text-slate-500">Nhiệt độ:</span> <span className="font-bold text-base">36.5 °C</span>
-                            <span className="text-slate-500">Huyết áp:</span> <span className="font-bold text-red-600 text-base">120/80</span>
-                            <span className="text-slate-500">BMI:</span> <span className="font-bold text-base">22.9</span>
+                            <h4 className="font-bold text-red-600 dark:text-red-400 text-sm uppercase tracking-wide">Sinh tồn (Mới nhất)</h4>
+                        </div>
+                        <div className="p-4 grid grid-cols-2 gap-y-4 gap-x-2">
+                            <div className="flex flex-col">
+                                <span className="text-xs text-slate-500 uppercase">Mạch</span>
+                                <span className="text-xl font-bold text-slate-800 dark:text-slate-100">80 <span className="text-xs font-normal text-slate-400">bpm</span></span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-xs text-slate-500 uppercase">Nhiệt độ</span>
+                                <span className="text-xl font-bold text-slate-800 dark:text-slate-100">36.5 <span className="text-xs font-normal text-slate-400">°C</span></span>
+                            </div>
+                            <div className="flex flex-col col-span-2 bg-slate-50 dark:bg-slate-700/50 p-2 rounded-lg border border-slate-100 dark:border-slate-600">
+                                <span className="text-xs text-slate-500 uppercase">Huyết áp</span>
+                                <span className="text-2xl font-extrabold text-red-600 dark:text-red-400">120/80 <span className="text-sm font-medium text-slate-500">mmHg</span></span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-xs text-slate-500 uppercase">BMI</span>
+                                <span className="text-lg font-bold text-slate-800 dark:text-slate-100">22.9</span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-xs text-slate-500 uppercase">SpO2</span>
+                                <span className="text-lg font-bold text-slate-800 dark:text-slate-100">98%</span>
+                            </div>
                         </div>
                      </div>
 
-                     <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
-                        <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm mb-3">Tiền sử bệnh</h4>
-                        <ul className="text-sm space-y-2 text-slate-600 dark:text-slate-300">
-                            <li>- Tiểu đường type 2 (5 năm)</li>
-                            <li>- Tăng huyết áp (Mẹ)</li>
-                            <li>- Dị ứng: Penicillin</li>
+                     {/* History Summary */}
+                     <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+                        <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm mb-3 uppercase tracking-wide border-b border-slate-100 pb-2">Tiền sử bệnh</h4>
+                        <ul className="text-sm space-y-2 text-slate-600 dark:text-slate-300 pl-1">
+                            <li className="flex items-start gap-2"><span className="text-blue-500">•</span> Tiểu đường type 2 (5 năm)</li>
+                            <li className="flex items-start gap-2"><span className="text-blue-500">•</span> Tăng huyết áp (Mẹ)</li>
+                            <li className="flex items-start gap-2"><span className="text-red-500 font-bold">•</span> Dị ứng: Penicillin</li>
                         </ul>
                      </div>
                 </div>
             </div>
 
             {/* BOTTOM ACTION BAR */}
-            <div className="flex-shrink-0 bg-white dark:bg-slate-800 p-3 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 flex justify-end gap-3 sticky bottom-0 z-10">
+            <div className="flex-shrink-0 bg-white dark:bg-slate-800 p-3 rounded-xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] border border-slate-200 dark:border-slate-700 flex justify-end gap-3 sticky bottom-0 z-20">
                 {!isEditable ? (
                     <>
-                        <button onClick={handleUpdate} className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded font-bold text-sm transition-all active:scale-95">
-                            <PencilIcon className="w-4 h-4"/> Cập nhật
+                        <button onClick={handleUpdate} className="flex items-center gap-2 px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold text-base shadow transition-transform active:scale-95">
+                            <PencilIcon className="w-5 h-5"/> Khám
                         </button>
-                        <button onClick={handleConclude} className="flex items-center gap-2 px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded font-bold text-sm transition-all active:scale-95">
-                            <CheckIcon className="w-4 h-4"/> Kết luận
+                        <button onClick={handleConclude} className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-base shadow transition-transform active:scale-95">
+                            <CheckIcon className="w-5 h-5"/> Kết luận
                         </button>
-                        <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded font-bold text-sm transition-all active:scale-95">
-                            <PrinterIcon className="w-4 h-4"/> In
+                        <button onClick={handlePrint} className="flex items-center gap-2 px-5 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg font-bold text-base shadow transition-transform active:scale-95">
+                            <PrinterIcon className="w-5 h-5"/> In
                         </button>
                     </>
                 ) : (
                     <>
-                         <button onClick={handleSave} disabled={isLoading} className="flex items-center gap-2 px-6 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded font-bold text-sm transition-all active:scale-95 disabled:opacity-70">
-                            {isLoading ? 'Đang lưu...' : <><SaveIcon className="w-4 h-4"/> Lưu</>}
+                         <button onClick={handleSave} disabled={isLoading} className="flex items-center gap-2 px-8 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-base shadow-lg transition-transform active:scale-95 disabled:opacity-70">
+                            {isLoading ? 'Đang lưu...' : <><SaveIcon className="w-5 h-5"/> Lưu Lại</>}
                         </button>
-                        <button onClick={handleCancel} disabled={isLoading} className="flex items-center gap-2 px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded font-bold text-sm transition-all active:scale-95 disabled:opacity-70">
-                            <BanIcon className="w-4 h-4"/> Hủy
+                        <button onClick={handleCancel} disabled={isLoading} className="flex items-center gap-2 px-6 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg font-bold text-base transition-transform active:scale-95 disabled:opacity-70">
+                            <BanIcon className="w-5 h-5"/> Hủy
                         </button>
                     </>
                 )}
             </div>
 
-            {/* ICD10 SEARCH MODAL */}
-            {isIcdModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl w-full max-w-md flex flex-col max-h-[80vh] animate-fade-in-up">
-                        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-700 rounded-t-lg">
-                            <h3 className="font-bold text-lg text-slate-800 dark:text-white">Tìm kiếm ICD10</h3>
-                            <button onClick={() => setIsIcdModalOpen(false)} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-full transition-colors">
-                                <XIcon className="w-6 h-6 text-slate-500"/>
-                            </button>
-                        </div>
-                        <div className="p-4 border-b border-slate-100 dark:border-slate-700">
-                            <div className="relative">
-                                <SearchIcon className="absolute left-3 top-2.5 w-5 h-5 text-slate-400"/>
-                                <input 
-                                    type="text" 
-                                    placeholder="Nhập mã hoặc tên bệnh..." 
-                                    className="w-full pl-10 p-2 text-base border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-                                    value={icdQuery}
-                                    onChange={(e) => handleSearchICD(e.target.value)}
-                                    autoFocus
-                                />
-                            </div>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-2 bg-slate-50 dark:bg-slate-900/50">
-                            {icdSearchResults.length > 0 ? (
-                                icdSearchResults.map(icd => (
-                                    <button 
-                                        key={icd.code}
-                                        onClick={() => handleSelectICD(icd)}
-                                        className="w-full text-left p-3 hover:bg-blue-50 dark:hover:bg-slate-700 rounded-lg border-b border-slate-100 dark:border-slate-700 last:border-0 transition-colors group"
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-bold text-blue-600 bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 rounded text-sm group-hover:bg-blue-200 transition-colors">{icd.code}</span>
-                                            <span className="text-slate-700 dark:text-slate-200 font-medium">{icd.name}</span>
-                                        </div>
-                                    </button>
-                                ))
-                            ) : (
-                                <div className="text-center text-slate-500 py-8">
-                                    {icdQuery.length > 1 ? 'Không tìm thấy bệnh phù hợp.' : 'Nhập từ khóa để tìm kiếm...'}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* MODALS */}
+            <SubDiagnosisModal 
+                isOpen={isSubDiagModalOpen}
+                onClose={() => setIsSubDiagModalOpen(false)}
+                initialDiseases={record.subDiseases || []}
+                onSave={handleSaveSubDiseases}
+            />
         </div>
     );
 };

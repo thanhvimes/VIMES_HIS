@@ -26,6 +26,7 @@ import { MGMT_REPORTING_NAV_ITEMS } from './modules/management-reporting/constan
 import Documents from './modules/documents/index';
 
 import { SIDEBAR_NAV_ITEMS } from './constants/navigation';
+import { PdfPreviewProvider } from './contexts/PdfPreviewContext';
 
 // Module configuration map for dynamic routing and layout
 const moduleConfig: { [key: string]: { title: string; nav: any[] } } = {
@@ -134,23 +135,25 @@ const App: React.FC = () => {
   }
   
   return (
-    <Routes>
-      <Route path="/" element={<DashboardLayout onLogout={handleLogout} />} />
-      <Route element={<WorkspaceLayout onLogout={handleLogout} />}>
-        <Route path="/reception/*" element={<Reception />} />
-        <Route path="/consultation/*" element={<Consultation />} />
-        <Route path="/billing/*" element={<Billing />} />
-        <Route path="/lab-results/*" element={<LabResults />} />
-        <Route path="/imaging-results/*" element={<ImagingResults />} />
-        <Route path="/pharmacy/*" element={<Pharmacy />} />
-        <Route path="/admin/*" element={<Admin />} />
-        <Route path="/management-reporting/*" element={<ManagementReporting />} />
-        <Route path="/documents/*" element={<Documents />} />
-        <Route path="/reports" element={<div className="text-center text-slate-500 dark:text-slate-400">Trang Báo cáo đang trong quá trình phát triển.</div>} />
-        <Route path="/settings" element={<div className="text-center text-slate-500 dark:text-slate-400">Trang Cài đặt đang trong quá trình phát triển.</div>} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <PdfPreviewProvider>
+      <Routes>
+        <Route path="/" element={<DashboardLayout onLogout={handleLogout} />} />
+        <Route element={<WorkspaceLayout onLogout={handleLogout} />}>
+          <Route path="/reception/*" element={<Reception />} />
+          <Route path="/consultation/*" element={<Consultation />} />
+          <Route path="/billing/*" element={<Billing />} />
+          <Route path="/lab-results/*" element={<LabResults />} />
+          <Route path="/imaging-results/*" element={<ImagingResults />} />
+          <Route path="/pharmacy/*" element={<Pharmacy />} />
+          <Route path="/admin/*" element={<Admin />} />
+          <Route path="/management-reporting/*" element={<ManagementReporting />} />
+          <Route path="/documents/*" element={<Documents />} />
+          <Route path="/reports" element={<div className="text-center text-slate-500 dark:text-slate-400">Trang Báo cáo đang trong quá trình phát triển.</div>} />
+          <Route path="/settings" element={<div className="text-center text-slate-500 dark:text-slate-400">Trang Cài đặt đang trong quá trình phát triển.</div>} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </PdfPreviewProvider>
   );
 };
 

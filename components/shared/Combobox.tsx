@@ -1,200 +1,203 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ChevronRightIcon, SearchIcon, XIcon } from '../Icons';
+import { ChevronRightIcon, SearchIcon, XIcon, CheckIcon } from '../Icons';
 
-// Generic interface để Combobox có thể làm việc với cả string[] hoặc Object[]
+// Component highlight từ khóa tìm kiếm
+const HighlightedText = ({ text, highlight }: { text: string; highlight: string }) => {
+    if (!highlight || !highlight.trim()) {
+        return <span>{text}</span>;
+    }
+    const regex = new RegExp(`(${highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    return (
+        <span>
+            {parts.map((part, i) =>
+                regex.test(part) ? (
+                    <span key={i} className="bg-yellow-200 dark:bg-yellow-900/60 text-slate-900 dark:text-white font-semibold rounded-[1px]">
+                        {part}
+                    </span>
+                ) : (
+                    <span key={i}>{part}</span>
+                )
+            )}
+        </span>
+    );
+};
+
+export interface ComboboxColumn<T> {
+    key: keyof T | string;
+    label: string;
+    width?: string;
+    className?: string;
+    render?: (item: T) => React.ReactNode;
+}
+
 interface ComboboxProps<T> {
     label?: string;
-    value?: string; // Giá trị hiển thị trong ô input
-    onChange: (value: string, item?: T) => void; // Trả về string cho input và cả object gốc (nếu cần)
+    value?: string; // Giá trị hiển thị trong input
+    onChange: (value: string, item?: T) => void;
     options: T[];
     placeholder?: string;
     className?: string;
     required?: boolean;
     name?: string;
+    disabled?: boolean;
+    autoFocus?: boolean;
     
-    // Các props tùy chỉnh nâng cao
-    displayValue?: (item: T) => string; // Hàm lấy giá trị hiển thị từ object (VD: item => item.name)
-    filterFunction?: (item: T, query: string) => boolean; // Hàm lọc tùy chỉnh
-    renderItem?: (item: T, isSelected: boolean) => React.ReactNode; // Hàm render giao diện từng dòng (hiển thị nhiều cột)
-    keyExtractor?: (item: T) => string | number; // Hàm lấy key unique
+    // Configuration
+    displayValue?: (item: T) => string; // Hàm lấy giá trị hiển thị khi chọn
+    filterFunction?: (item: T, query: string) => boolean;
+    
+    // Multi-column mode
+    columns?: ComboboxColumn<T>[]; 
 }
 
-function Combobox<T extends string | Record<string, any>>({ 
+function Combobox<T extends Record<string, any>>({ 
     label, 
     value = '', 
     onChange, 
     options = [], 
-    placeholder = 'Chọn hoặc nhập...', 
+    placeholder = 'Chọn...', 
     className = '',
     required = false,
     name,
+    disabled = false,
+    autoFocus = false,
     displayValue,
     filterFunction,
-    renderItem,
-    keyExtractor
+    columns
 }: ComboboxProps<T>) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState(value);
-    const [activeIndex, setActiveIndex] = useState(-1); // Index của mục đang được highlight
+    const [activeIndex, setActiveIndex] = useState(0); // Mặc định highlight dòng đầu tiên
+    
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const listRef = useRef<HTMLUListElement>(null);
 
-    // Đồng bộ state khi prop value thay đổi từ bên ngoài
+    // Đồng bộ searchTerm khi value từ props thay đổi (reset form, chọn item)
     useEffect(() => {
         setSearchTerm(value);
     }, [value]);
 
-    // Xử lý logic mặc định nếu không truyền props tùy chỉnh
     const getDisplayValue = (item: T): string => {
         if (displayValue) return displayValue(item);
-        if (typeof item === 'string') return item;
-        return (item as any).label || (item as any).name || JSON.stringify(item);
+        return item.name || item.label || item.code || JSON.stringify(item);
     };
 
-    const getKey = (item: T, index: number): string | number => {
-        if (keyExtractor) return keyExtractor(item);
-        if (typeof item === 'string') return item;
-        return (item as any).id || (item as any).code || index;
-    };
-
-    const defaultFilter = (item: T, query: string) => {
-        const text = getDisplayValue(item).toLowerCase();
-        return text.includes(query.toLowerCase());
-    };
-
-    // Filter options
+    // Filter logic
     const filteredOptions = useMemo(() => {
-        const filterFn = filterFunction || defaultFilter;
-        // Nếu ô input trống, hiển thị tất cả (hoặc giới hạn 20 mục đầu tiên để đỡ lag)
-        if (!searchTerm && isOpen) return options; 
-        return options.filter(opt => filterFn(opt, searchTerm));
-    }, [searchTerm, options, filterFunction, isOpen]);
+        if (!searchTerm && !isOpen) return options; // Khi đóng, không filter
+        // Khi mở nhưng chưa nhập gì, hiện hết. Khi nhập, filter.
+        
+        // Custom filter hoặc default filter tìm trên tất cả các cột
+        const query = searchTerm.toLowerCase();
+        
+        if (filterFunction) {
+            return options.filter(opt => filterFunction(opt, query));
+        }
 
-    // Reset active index khi danh sách lọc thay đổi
+        return options.filter(item => {
+            // Nếu đang hiển thị text khớp hoàn toàn giá trị item, coi như đã chọn, hiển thị full list gợi ý khác
+            if (displayValue && displayValue(item) === searchTerm) return true;
+
+            if (columns) {
+                return columns.some(col => {
+                    const val = item[col.key as keyof T];
+                    return String(val || '').toLowerCase().includes(query);
+                });
+            }
+            // Fallback
+            return getDisplayValue(item).toLowerCase().includes(query);
+        });
+    }, [searchTerm, options, filterFunction, columns, isOpen]);
+
+    // Reset active index khi danh sách thay đổi
     useEffect(() => {
-        setActiveIndex(filteredOptions.length > 0 ? 0 : -1);
+        setActiveIndex(0);
     }, [filteredOptions.length]);
 
-    // Click outside để đóng
+    // Click outside to close
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
                 setIsOpen(false);
-                // Khi click ra ngoài, nếu text hiện tại khớp chính xác với 1 option thì giữ nguyên
-                // Nếu không khớp, vẫn giữ text (cho phép free-text)
+                // Nếu text hiện tại không khớp item nào (đang gõ dở), có thể muốn reset về value cũ hoặc giữ nguyên tùy logic.
+                // Ở đây giữ nguyên text người dùng nhập (cho trường hợp free-text) hoặc reset nếu bắt buộc chọn.
+                // Hiện tại giữ nguyên để linh hoạt.
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Scroll mục active vào vùng nhìn thấy
+    // Auto-scroll to active item
     useEffect(() => {
-        if (isOpen && listRef.current && activeIndex >= 0) {
-            const listNode = listRef.current;
-            const activeNode = listNode.children[activeIndex] as HTMLElement;
-            if (activeNode) {
-                const listTop = listNode.scrollTop;
-                const listBottom = listTop + listNode.clientHeight;
-                const nodeTop = activeNode.offsetTop;
-                const nodeBottom = nodeTop + activeNode.clientHeight;
-
-                if (nodeTop < listTop) {
-                    listNode.scrollTop = nodeTop;
-                } else if (nodeBottom > listBottom) {
-                    listNode.scrollTop = nodeBottom - listNode.clientHeight;
-                }
-            }
+        if (isOpen && listRef.current && activeIndex >= 0 && listRef.current.children[activeIndex]) {
+            (listRef.current.children[activeIndex] as HTMLElement).scrollIntoView({
+                block: 'nearest',
+                behavior: 'smooth'
+            });
         }
     }, [activeIndex, isOpen]);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newValue = e.target.value;
-        setSearchTerm(newValue);
-        onChange(newValue, undefined); // Báo ra ngoài là text đã đổi, chưa có object cụ thể
-        setIsOpen(true);
-    };
 
     const handleSelect = (item: T) => {
         const display = getDisplayValue(item);
         setSearchTerm(display);
-        onChange(display, item); // Báo ra ngoài cả text và object đầy đủ
+        onChange(display, item);
         setIsOpen(false);
     };
 
-    const handleClear = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setSearchTerm('');
-        onChange('', undefined);
-        inputRef.current?.focus();
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchTerm(e.target.value);
+        setIsOpen(true);
+        onChange(e.target.value, undefined); // Báo ra ngoài là đang gõ (item = undefined)
     };
 
-    // Xử lý bàn phím "Thần thánh"
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (!isOpen) {
-            if (e.key === 'ArrowDown' || e.key === 'Enter') {
-                setIsOpen(true);
-                e.preventDefault();
-            }
-            return;
-        }
+        if (disabled) return;
 
-        switch (e.key) {
-            case 'ArrowDown':
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (!isOpen) setIsOpen(true);
+            else setActiveIndex(prev => (prev < filteredOptions.length - 1 ? prev + 1 : prev));
+        } 
+        else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (!isOpen) setIsOpen(true);
+            else setActiveIndex(prev => (prev > 0 ? prev - 1 : prev));
+        } 
+        else if (e.key === 'Enter') {
+            if (isOpen && filteredOptions.length > 0) {
                 e.preventDefault();
-                setActiveIndex(prev => (prev < filteredOptions.length - 1 ? prev + 1 : prev));
-                break;
-            case 'ArrowUp':
-                e.preventDefault();
-                setActiveIndex(prev => (prev > 0 ? prev - 1 : prev));
-                break;
-            case 'Enter':
-                e.preventDefault();
-                if (activeIndex >= 0 && activeIndex < filteredOptions.length) {
-                    handleSelect(filteredOptions[activeIndex]);
-                } else if (filteredOptions.length === 1) {
-                    // Nếu chỉ có 1 kết quả duy nhất thì chọn luôn dù chưa highlight
-                    handleSelect(filteredOptions[0]);
-                } else {
-                     // Enter khi không chọn gì -> đóng dropdown
-                     setIsOpen(false);
-                }
-                break;
-            case 'Tab':
-                // Tab hoạt động giống Enter nếu đang có item active
-                if (activeIndex >= 0 && activeIndex < filteredOptions.length) {
-                    handleSelect(filteredOptions[activeIndex]);
-                    // Không preventDefault để Tab vẫn chuyển focus sang input kế tiếp
-                } else {
-                    setIsOpen(false);
-                }
-                break;
-            case 'Escape':
-                setIsOpen(false);
-                break;
-            default:
-                break;
+                handleSelect(filteredOptions[activeIndex]);
+            }
+            // Nếu đóng mà Enter -> submit form (mặc định)
+        } 
+        else if (e.key === 'Tab') {
+            // Tab hành xử giống Enter nếu đang mở dropdown: Chọn item đang highlight rồi chuyển focus
+            if (isOpen && filteredOptions.length > 0) {
+                handleSelect(filteredOptions[activeIndex]);
+                // Không preventDefault để focus vẫn di chuyển sang field tiếp theo
+            }
+            setIsOpen(false);
+        }
+        else if (e.key === 'Escape') {
+            e.preventDefault();
+            setIsOpen(false);
         }
     };
 
     return (
         <div className={`relative ${className}`} ref={containerRef}>
             {label && (
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex justify-between">
-                    <span>{label} {required && <span className="text-red-500">*</span>}</span>
-                    {/* Hiển thị hint nhỏ nếu đang focus */}
-                    {isOpen && filteredOptions.length > 0 && (
-                        <span className="text-[10px] font-normal text-slate-400 animate-pulse">
-                            Dùng phím mũi tên ⇵ và Enter để chọn
-                        </span>
-                    )}
+                <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    {label} {required && <span className="text-red-500">*</span>}
                 </label>
             )}
             <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-                    <SearchIcon className="h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <SearchIcon className="h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
                 </div>
                 <input
                     ref={inputRef}
@@ -206,65 +209,100 @@ function Combobox<T extends string | Record<string, any>>({
                     onKeyDown={handleKeyDown}
                     placeholder={placeholder}
                     required={required}
+                    disabled={disabled}
+                    autoFocus={autoFocus}
                     autoComplete="off"
-                    className="w-full pl-9 pr-8 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:ring-2 focus:ring-primary focus:border-transparent transition-all placeholder-slate-400"
+                    className={`w-full pl-10 pr-8 py-2.5 text-base border rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition-all placeholder-slate-400
+                        ${isOpen ? 'ring-2 ring-primary border-transparent' : 'border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-primary focus:border-transparent'}
+                        ${disabled ? 'bg-slate-100 dark:bg-slate-800 cursor-not-allowed opacity-75' : ''}
+                    `}
                 />
-                {searchTerm && (
+                
+                {searchTerm && !disabled && (
                     <div 
-                        className="absolute inset-y-0 right-6 flex items-center px-1 cursor-pointer text-slate-400 hover:text-red-500"
-                        onClick={handleClear}
-                        title="Xóa nội dung"
+                        className="absolute inset-y-0 right-8 flex items-center px-2 cursor-pointer text-slate-400 hover:text-red-500"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setSearchTerm('');
+                            onChange('', undefined);
+                            inputRef.current?.focus();
+                        }}
                     >
                         <XIcon className="w-4 h-4" />
                     </div>
                 )}
                 <div 
-                    className="absolute inset-y-0 right-0 flex items-center px-2 cursor-pointer text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    className={`absolute inset-y-0 right-0 flex items-center px-2 cursor-pointer text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ${disabled ? 'pointer-events-none' : ''}`}
                     onClick={() => {
-                        if (!isOpen) inputRef.current?.focus();
-                        setIsOpen(!isOpen);
+                        if (!disabled) {
+                            if (!isOpen) inputRef.current?.focus();
+                            setIsOpen(!isOpen);
+                        }
                     }}
                 >
-                    <ChevronRightIcon className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`} />
+                    <ChevronRightIcon className={`w-5 h-5 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`} />
                 </div>
             </div>
             
-            {/* Dropdown List */}
-            {isOpen && (
-                <ul 
-                    ref={listRef}
-                    className="absolute z-[100] w-full mt-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl max-h-72 overflow-auto focus:outline-none animate-fade-in custom-scrollbar ring-1 ring-black/5"
-                >
-                    {filteredOptions.length > 0 ? (
-                        filteredOptions.map((option, index) => {
-                            const isActive = index === activeIndex;
-                            return (
-                                <li
-                                    key={getKey(option, index)}
-                                    className={`px-3 py-2.5 text-sm cursor-pointer border-b border-slate-50 dark:border-slate-700/50 last:border-0 transition-colors duration-75
-                                        ${isActive 
-                                            ? 'bg-blue-50 dark:bg-blue-900/40 text-primary dark:text-primary-light' 
-                                            : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'
-                                        }
-                                    `}
-                                    onClick={() => handleSelect(option)}
-                                    onMouseEnter={() => setActiveIndex(index)} // Mouse hover updates active index for hybrid usage
-                                >
-                                    {renderItem ? (
-                                        renderItem(option, isActive)
-                                    ) : (
-                                        // Default render: highlight matched text if simple string
-                                        <span className="block truncate">{getDisplayValue(option)}</span>
-                                    )}
-                                </li>
-                            );
-                        })
-                    ) : (
-                        <li className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400 italic text-center">
-                            {searchTerm ? 'Không tìm thấy kết quả nào.' : 'Bắt đầu nhập để tìm kiếm...'}
-                        </li>
+            {/* Dropdown Menu */}
+            {isOpen && !disabled && (
+                <div className="absolute z-[100] w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl overflow-hidden ring-1 ring-black/5 animate-fade-in">
+                    {/* Header Row for Columns */}
+                    {columns && filteredOptions.length > 0 && (
+                        <div className="flex items-center bg-slate-100 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-600 px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                             {columns.map((col, idx) => (
+                                <div key={idx} style={{ width: col.width || 'flex-1', flex: col.width ? 'none' : 1 }} className={`px-2 ${col.className || ''}`}>
+                                    {col.label}
+                                </div>
+                            ))}
+                        </div>
                     )}
-                </ul>
+
+                    <ul ref={listRef} className="max-h-80 overflow-auto custom-scrollbar">
+                        {filteredOptions.length > 0 ? (
+                            filteredOptions.map((option, index) => {
+                                const isActive = index === activeIndex;
+                                return (
+                                    <li
+                                        key={index}
+                                        className={`px-3 py-2.5 text-base cursor-pointer border-b border-slate-50 dark:border-slate-700/30 last:border-0 transition-colors duration-75
+                                            ${isActive 
+                                                ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-100' 
+                                                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                            }
+                                        `}
+                                        onClick={() => handleSelect(option)}
+                                        onMouseEnter={() => setActiveIndex(index)}
+                                    >
+                                        {columns ? (
+                                            <div className="flex items-center w-full">
+                                                {columns.map((col, colIdx) => (
+                                                    <div 
+                                                        key={colIdx} 
+                                                        style={{ width: col.width || 'flex-1', flex: col.width ? 'none' : 1 }}
+                                                        className={`px-2 overflow-hidden text-ellipsis whitespace-nowrap ${col.className || ''}`}
+                                                    >
+                                                        {col.render ? col.render(option) : (
+                                                            <HighlightedText text={String(option[col.key as keyof T] || '')} highlight={searchTerm} />
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <span className="block truncate">
+                                                <HighlightedText text={getDisplayValue(option)} highlight={searchTerm} />
+                                            </span>
+                                        )}
+                                    </li>
+                                );
+                            })
+                        ) : (
+                            <li className="px-4 py-6 text-sm text-slate-500 dark:text-slate-400 italic text-center">
+                                {searchTerm ? 'Không tìm thấy kết quả phù hợp.' : 'Nhập từ khóa để tìm kiếm...'}
+                            </li>
+                        )}
+                    </ul>
+                </div>
             )}
         </div>
     );
