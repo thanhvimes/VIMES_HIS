@@ -166,6 +166,7 @@ export interface ClinicalRecord {
   id: string;
   patientId: string;
   examDate: string;
+  endTime?: string; // Giờ kết thúc
   doctorName: string;
   
   // Tab 1: Clinical Process
@@ -212,4 +213,40 @@ export interface OperationRecord {
     
     // Images
     images?: string[]; // Array of base64 strings or URLs
+}
+
+// --- NEW TYPES FOR MEDICATION MODULE ---
+
+export interface DrugItem {
+  code: string;
+  name: string;
+  unit: string;
+  price: number;
+  usageRoute: string; // Đường dùng (Uống, Tiêm...)
+  activeIngredient?: string; // Hoạt chất
+  stock?: number;
+}
+
+export interface PrescriptionItem {
+  id: string;
+  drug: DrugItem;
+  quantity: number;
+  morning: string; // Sáng
+  noon: string;    // Trưa
+  afternoon: string; // Chiều
+  night: string;   // Tối
+  usageNote: string; // Cách dùng (Sau ăn, trước ăn...)
+  totalPrice: number;
+}
+
+export interface Prescription {
+  id: string;
+  date: string; // Date of creation
+  doctorName: string;
+  diagnosis: string;
+  status: 'draft' | 'confirmed' | 'completed';
+  warehouse: string; // Kho thuốc
+  items: PrescriptionItem[];
+  totalAmount: number;
+  note?: string;
 }

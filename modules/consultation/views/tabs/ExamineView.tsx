@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
     ClipboardListIcon, 
     PencilIcon, 
@@ -7,10 +7,10 @@ import {
     BanIcon, 
     PrinterIcon, 
     CheckIcon,
-    DocumentTextIcon,
     PlusIcon,
-    SearchIcon,
-    ListBulletIcon
+    ListBulletIcon,
+    ClockIcon,
+    ActivityIcon
 } from '../../../../components/Icons';
 import { ClinicalRecord, ICD10 } from '../../../../types';
 import { consultationService } from '../../../../services/consultationService';
@@ -35,6 +35,7 @@ const ExamineView: React.FC = () => {
     const [mode, setMode] = useState<'VIEW' | 'EDIT_CLINICAL' | 'EDIT_CONCLUSION'>('VIEW');
     const [isLoading, setIsLoading] = useState(false);
     const [record, setRecord] = useState<ClinicalRecord | null>(null);
+    const [originalRecord, setOriginalRecord] = useState<ClinicalRecord | null>(null); // Backup for Cancel
     
     // Modal State for Sub Diseases
     const [isSubDiagModalOpen, setIsSubDiagModalOpen] = useState(false);
@@ -44,7 +45,14 @@ const ExamineView: React.FC = () => {
             setIsLoading(true);
             try {
                 const data = await consultationService.getClinicalRecord(mockPatientInfo.id);
+                // Ensure endTime is set, default to current time if empty
+                if (!data.endTime) {
+                    const now = new Date();
+                    const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+                    data.endTime = timeString;
+                }
                 setRecord(data);
+                setOriginalRecord(JSON.parse(JSON.stringify(data))); // Deep copy for backup
             } catch (error) {
                 console.error("Failed to load record", error);
             } finally {
@@ -56,19 +64,50 @@ const ExamineView: React.FC = () => {
 
     const handleUpdate = () => setMode('EDIT_CLINICAL');
     const handleConclude = () => setMode('EDIT_CONCLUSION');
-    
+
     const handleCancel = () => {
-        if (window.confirm("Hủy bỏ thay đổi? Dữ liệu chưa lưu sẽ bị mất.")) {
+        if (isEditable && originalRecord) {
+            if (window.confirm("Hủy bỏ thay đổi? Dữ liệu chưa lưu sẽ quay về trạng thái cũ.")) {
+                setRecord(JSON.parse(JSON.stringify(originalRecord))); // Restore backup
+                setMode('VIEW');
+            }
+        } else {
             setMode('VIEW');
         }
     };
 
+    const validateRecord = (): boolean => {
+        if (!record) return false;
+        if (!record.doctorName) {
+            alert("Vui lòng chọn Bác sĩ khám.");
+            return false;
+        }
+        if (!record.examDate) {
+            alert("Vui lòng nhập Ngày khám.");
+            return false;
+        }
+        if (!record.endTime) {
+            alert("Vui lòng nhập Giờ kết thúc.");
+            return false;
+        }
+        if (!record.mainDisease) {
+            alert("Vui lòng chọn Bệnh chính (Chẩn đoán ICD10).");
+            return false;
+        }
+        return true;
+    };
+
     const handleSave = async () => {
         if (!record) return;
+        
+        if (!validateRecord()) return;
+
         setIsLoading(true);
         try {
-            await consultationService.saveClinicalRecord(record);
-            setMode('VIEW');
+            const savedRecord = await consultationService.saveClinicalRecord(record);
+            setRecord(savedRecord);
+            setOriginalRecord(JSON.parse(JSON.stringify(savedRecord))); // Update backup
+            setMode('VIEW'); // Close edit mode
         } catch (error) {
             alert("Lỗi khi lưu dữ liệu.");
         } finally {
@@ -105,7 +144,7 @@ const ExamineView: React.FC = () => {
                 handleInputChange('initialDiagnosis', item.name);
             }
         } else {
-             // Handle free text input if needed, though mainDisease expects ICD10 object
+             // Handle free text input if needed
         }
     };
 
@@ -128,155 +167,164 @@ const ExamineView: React.FC = () => {
     if (!record) return <div className="p-8 text-center">Đang tải dữ liệu...</div>;
 
     const isEditable = mode !== 'VIEW';
-    const isClinicalEditable = mode === 'EDIT_CLINICAL';
-    const isConclusionEditable = mode === 'EDIT_CONCLUSION';
 
     return (
-        <div className="flex flex-col h-full gap-4 relative">
+        <div className="flex flex-col h-full gap-3 relative">
             
-            {/* MAIN LAYOUT: 3 Columns (Left 75%, Right 25%) */}
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-0">
+            {/* MAIN LAYOUT: Flex container taking full height */}
+            <div className="flex flex-col lg:grid lg:grid-cols-4 gap-3 flex-1 min-h-0 overflow-hidden">
                 
                 {/* LEFT COLUMN: CLINICAL INPUTS (75%) */}
-                <div className="lg:col-span-3 space-y-4 overflow-y-auto pr-1 pb-2 custom-scrollbar">
+                <div className="lg:col-span-3 flex flex-col gap-3 h-full overflow-y-auto order-1 pr-1">
                     
-                    {/* 1. Header Info */}
-                    <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
-                         <div className="flex items-center gap-2 mb-4 text-primary dark:text-primary-light font-bold uppercase text-base border-b border-slate-100 dark:border-slate-700 pb-2">
-                            <ClipboardListIcon className="w-5 h-5"/> Thông tin Phiếu Khám
+                    {/* 1. GROUP: LÂM SÀNG (CLINICAL) */}
+                    <div className={`flex-shrink-0 bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border transition-all duration-300 ${isEditable ? 'border-blue-400 ring-1 ring-blue-400' : 'border-slate-200 dark:border-slate-700'}`}>
+                         <div className="flex items-center gap-2 mb-3 text-primary dark:text-primary-light font-bold uppercase text-sm border-b border-slate-100 dark:border-slate-700 pb-1.5">
+                            <ClipboardListIcon className="w-4 h-4"/> Lâm Sàng
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                             <div>
-                                <Combobox<DoctorItem>
-                                    label="Bác sĩ khám"
-                                    value={record.doctorName}
-                                    onChange={handleDoctorChange}
-                                    options={doctorOptions}
-                                    columns={doctorColumns}
-                                    disabled={!isClinicalEditable}
-                                    placeholder="Chọn bác sĩ..."
-                                    displayValue={(item) => item.name}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1.5">Ngày khám</label>
-                                <input type="datetime-local" value={record.examDate.substring(0, 16)} readOnly className="w-full p-2.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-base text-slate-500"/>
-                            </div>
-                        </div>
-                    </div>
 
-                    {/* 2. Clinical Exam (Expanded) */}
-                    <div className={`bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border transition-all duration-300 ${isClinicalEditable ? 'border-blue-400 ring-1 ring-blue-400' : 'border-slate-200 dark:border-slate-700'}`}>
-                        <div className="flex items-center gap-2 mb-3 text-slate-800 dark:text-slate-100 font-bold text-base">
-                            <DocumentTextIcon className="w-5 h-5 text-blue-600"/> Khám Lâm Sàng
-                        </div>
-                        <div className="grid grid-cols-1 gap-4">
-                            <div>
-                                <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1.5">Quá trình bệnh lý</label>
+                         {/* Row 1: Admin Info */}
+                         <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-3">
+                                <div className="md:col-span-3">
+                                    <Combobox<DoctorItem>
+                                        label="Bác sĩ khám"
+                                        value={record.doctorName}
+                                        onChange={handleDoctorChange}
+                                        options={doctorOptions}
+                                        columns={doctorColumns}
+                                        disabled={!isEditable}
+                                        required
+                                        placeholder="Chọn bác sĩ..."
+                                        displayValue={(item) => item.name}
+                                    />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                                        Ngày khám <span className="text-red-500">*</span>
+                                    </label>
+                                    <input 
+                                        type="datetime-local" 
+                                        value={record.examDate.substring(0, 16)} 
+                                        onChange={(e) => handleInputChange('examDate', e.target.value)}
+                                        readOnly={!isEditable} 
+                                        className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-base focus:ring-2 focus:ring-primary"
+                                    />
+                                </div>
+                                <div className="md:col-span-1">
+                                    <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                                        Giờ kết thúc <span className="text-red-500">*</span>
+                                    </label>
+                                    <div className="relative">
+                                        <input 
+                                            type="time" 
+                                            value={record.endTime} 
+                                            onChange={(e) => handleInputChange('endTime', e.target.value)}
+                                            readOnly={!isEditable} 
+                                            className="w-full p-2.5 pl-8 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-base focus:ring-2 focus:ring-primary"
+                                        />
+                                        <ClockIcon className="w-4 h-4 absolute left-2.5 top-3.5 text-slate-400 pointer-events-none"/>
+                                    </div>
+                                </div>
+                         </div>
+
+                         {/* Row 2: Clinical Textareas */}
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="flex flex-col">
+                                <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1">Quá trình bệnh lý</label>
                                 <textarea 
-                                    rows={3} 
                                     value={record.history} 
                                     onChange={(e) => handleInputChange('history', e.target.value)}
-                                    disabled={!isClinicalEditable}
-                                    className="w-full p-3 text-base border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 dark:disabled:bg-slate-800 disabled:text-slate-600"
+                                    disabled={!isEditable}
+                                    rows={4}
+                                    className="flex-1 w-full p-2.5 text-base border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 dark:disabled:bg-slate-800 disabled:text-slate-600 resize-y"
                                     placeholder="Mô tả diễn biến bệnh..."
                                 />
                             </div>
-                            <div>
-                                <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1.5">Khám lâm sàng (Triệu chứng thực thể)</label>
+                            <div className="flex flex-col">
+                                <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1">Khám lâm sàng</label>
                                 <textarea 
-                                    rows={5} // Taller for more details
                                     value={record.clinicalExam}
                                     onChange={(e) => handleInputChange('clinicalExam', e.target.value)}
-                                    disabled={!isClinicalEditable}
-                                    className="w-full p-3 text-base border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 dark:disabled:bg-slate-800 disabled:text-slate-600"
+                                    disabled={!isEditable}
+                                    rows={4}
+                                    className="flex-1 w-full p-2.5 text-base border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 dark:disabled:bg-slate-800 disabled:text-slate-600 resize-y"
                                     placeholder="Mô tả các dấu hiệu khám thấy..."
                                 />
                             </div>
                         </div>
                     </div>
 
-                    {/* 3. Diagnosis (ICD10 with Sub-Diseases) */}
-                    <div className={`bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border transition-all duration-300 ${isClinicalEditable ? 'border-blue-400 ring-1 ring-blue-400' : 'border-slate-200 dark:border-slate-700'}`}>
-                         <div className="flex items-center gap-2 mb-3 text-slate-800 dark:text-slate-100 font-bold text-base">
-                            <PlusIcon className="w-5 h-5 text-red-500"/> Chẩn Đoán
+                    {/* 2. GROUP: CHẨN ĐOÁN (DIAGNOSIS) */}
+                    <div className={`flex-shrink-0 bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border transition-all duration-300 ${isEditable ? 'border-blue-400 ring-1 ring-blue-400' : 'border-slate-200 dark:border-slate-700'}`}>
+                         <div className="flex items-center gap-2 mb-3 text-amber-600 dark:text-amber-400 font-bold uppercase text-sm border-b border-slate-100 dark:border-slate-700 pb-1.5">
+                            <ActivityIcon className="w-4 h-4"/> Chẩn Đoán
                         </div>
-                        <div className="space-y-4">
-                            <Combobox<CatalogItem>
-                                label="Bệnh chính (ICD10)"
-                                value={record.mainDisease ? `${record.mainDisease.code} - ${record.mainDisease.name}` : ''}
-                                onChange={handleMainDiseaseChange}
-                                options={diagnosisOptions}
-                                columns={icdColumns}
-                                disabled={!isClinicalEditable}
-                                placeholder="Nhập mã hoặc tên bệnh..."
-                                displayValue={(item) => `${item.code} - ${item.name}`}
-                                className="w-full"
-                            />
-                            
-                            <div className="flex items-start gap-2">
-                                <div className="flex-1">
-                                    <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1.5">Bệnh kèm theo</label>
-                                    <div className="min-h-[46px] p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 flex flex-wrap gap-2">
-                                        {record.subDiseases && record.subDiseases.length > 0 ? (
-                                            record.subDiseases.map((d, idx) => (
-                                                <span key={idx} className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                                                    <span className="font-bold mr-1">{d.code}</span> {d.name}
-                                                </span>
-                                            ))
-                                        ) : (
-                                            <span className="text-slate-400 italic pt-1 pl-1">Chưa có bệnh kèm theo</span>
-                                        )}
-                                    </div>
-                                </div>
-                                <button 
-                                    onClick={() => setIsSubDiagModalOpen(true)}
-                                    disabled={!isClinicalEditable}
-                                    className="mt-8 p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm"
-                                    title="Thêm bệnh kèm theo"
-                                >
-                                    <ListBulletIcon className="w-5 h-5" />
-                                </button>
-                            </div>
-
-                             <div>
-                                <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1.5">Chẩn đoán sơ bộ (Text)</label>
-                                <input 
-                                    type="text" 
-                                    value={record.initialDiagnosis}
-                                    onChange={(e) => handleInputChange('initialDiagnosis', e.target.value)}
-                                    disabled={!isClinicalEditable}
-                                    className="w-full p-2.5 text-base border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-600"
+                         <div className="grid grid-cols-1 gap-3">
+                                <Combobox<CatalogItem>
+                                    label="Bệnh chính (ICD10)"
+                                    value={record.mainDisease ? `${record.mainDisease.code} - ${record.mainDisease.name}` : ''}
+                                    onChange={handleMainDiseaseChange}
+                                    options={diagnosisOptions}
+                                    columns={icdColumns}
+                                    disabled={!isEditable}
+                                    required
+                                    placeholder="Nhập mã hoặc tên bệnh..."
+                                    displayValue={(item) => `${item.code} - ${item.name}`}
+                                    className="w-full"
                                 />
-                            </div>
-                        </div>
+                                
+                                <div className="flex items-start gap-2">
+                                    <div className="flex-1">
+                                        <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1.5">Bệnh kèm theo</label>
+                                        <div className="min-h-[42px] p-1.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 flex flex-wrap gap-1.5 items-center">
+                                            {record.subDiseases && record.subDiseases.length > 0 ? (
+                                                record.subDiseases.map((d, idx) => (
+                                                    <span key={idx} className="inline-flex items-center px-2 py-1 rounded text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border border-blue-200 dark:border-blue-800">
+                                                        <span className="font-bold mr-1">{d.code}</span> {d.name}
+                                                    </span>
+                                                ))
+                                            ) : (
+                                                <span className="text-slate-400 italic pl-1 text-sm">Chưa có bệnh kèm theo</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => setIsSubDiagModalOpen(true)}
+                                        disabled={!isEditable}
+                                        className="mt-8 p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm"
+                                        title="Thêm bệnh kèm theo"
+                                    >
+                                        <ListBulletIcon className="w-5 h-5" />
+                                    </button>
+                                </div>
+                         </div>
                     </div>
 
-                    {/* 4. Conclusion & Treatment (Compact) */}
-                    <div className={`bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border transition-all duration-300 ${isConclusionEditable ? 'border-blue-400 ring-1 ring-blue-400' : 'border-slate-200 dark:border-slate-700'}`}>
-                         <div className="flex items-center gap-2 mb-3 text-slate-800 dark:text-slate-100 font-bold text-base">
-                            <CheckIcon className="w-5 h-5 text-green-600"/> Kết Luận & Hướng Điều Trị
+                    {/* 3. GROUP: KẾT LUẬN & ĐIỀU TRỊ (CONCLUSION) */}
+                    <div className={`flex-shrink-0 bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border transition-all duration-300 flex flex-col ${isEditable ? 'border-blue-400 ring-1 ring-blue-400' : 'border-slate-200 dark:border-slate-700'}`}>
+                         <div className="flex items-center gap-2 mb-2 text-green-600 dark:text-green-400 font-bold text-sm flex-shrink-0 border-b border-slate-100 dark:border-slate-700 pb-1.5">
+                            <CheckIcon className="w-4 h-4"/> Kết Luận & Điều Trị
                         </div>
-                        <div className="grid grid-cols-1 gap-4">
-                            <div>
-                                <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1.5">Kết luận</label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1 h-full">
+                            <div className="flex flex-col h-full">
+                                <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1">Kết luận</label>
                                 <textarea 
-                                    rows={2} 
                                     value={record.conclusion}
                                     onChange={(e) => handleInputChange('conclusion', e.target.value)}
-                                    disabled={!isConclusionEditable}
-                                    className="w-full p-3 text-base font-semibold text-blue-800 dark:text-blue-300 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-700"
+                                    disabled={!isEditable}
+                                    rows={3}
+                                    className="flex-1 w-full p-2.5 text-base font-semibold text-blue-800 dark:text-blue-300 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-700 resize-none"
                                     placeholder="Kết luận bệnh..."
                                 />
                             </div>
-                             <div>
-                                <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1.5">Lời dặn / Hướng điều trị</label>
+                             <div className="flex flex-col h-full">
+                                <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1">Lời dặn / Hướng điều trị</label>
                                 <textarea 
-                                    rows={3} 
                                     value={record.treatmentPlan}
                                     onChange={(e) => handleInputChange('treatmentPlan', e.target.value)}
-                                    disabled={!isConclusionEditable}
-                                    className="w-full p-3 text-base border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-600"
+                                    disabled={!isEditable}
+                                    rows={3}
+                                    className="flex-1 w-full p-2.5 text-base border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary bg-white dark:bg-slate-900 disabled:bg-slate-50 disabled:text-slate-600 resize-none"
                                     placeholder="Dặn dò bệnh nhân..."
                                 />
                             </div>
@@ -285,41 +333,41 @@ const ExamineView: React.FC = () => {
                 </div>
 
                 {/* RIGHT COLUMN: VITAL SIGNS & SUMMARY (25%) */}
-                <div className="lg:col-span-1 space-y-4">
+                <div className="lg:col-span-1 space-y-3 overflow-y-auto h-full order-2">
                      {/* Compact Vital Signs Card */}
                      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-200 dark:border-slate-700 overflow-hidden">
-                        <div className="bg-red-50 dark:bg-red-900/20 px-4 py-3 border-b border-red-100 dark:border-red-800 flex items-center gap-2">
+                        <div className="bg-red-50 dark:bg-red-900/20 px-3 py-2 border-b border-red-100 dark:border-red-800 flex items-center gap-2">
                             <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span> 
                             <h4 className="font-bold text-red-600 dark:text-red-400 text-sm uppercase tracking-wide">Sinh tồn (Mới nhất)</h4>
                         </div>
-                        <div className="p-4 grid grid-cols-2 gap-y-4 gap-x-2">
-                            <div className="flex flex-col">
-                                <span className="text-xs text-slate-500 uppercase">Mạch</span>
-                                <span className="text-xl font-bold text-slate-800 dark:text-slate-100">80 <span className="text-xs font-normal text-slate-400">bpm</span></span>
+                        <div className="p-3 grid grid-cols-2 gap-y-3 gap-x-2">
+                            <div className="flex flex-col bg-slate-50 dark:bg-slate-700/30 p-1.5 rounded border border-slate-100 dark:border-slate-600">
+                                <span className="text-[10px] text-slate-500 uppercase">Mạch</span>
+                                <span className="text-lg font-bold text-slate-800 dark:text-slate-100">80 <span className="text-[10px] font-normal text-slate-400">bpm</span></span>
                             </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs text-slate-500 uppercase">Nhiệt độ</span>
-                                <span className="text-xl font-bold text-slate-800 dark:text-slate-100">36.5 <span className="text-xs font-normal text-slate-400">°C</span></span>
+                            <div className="flex flex-col bg-slate-50 dark:bg-slate-700/30 p-1.5 rounded border border-slate-100 dark:border-slate-600">
+                                <span className="text-[10px] text-slate-500 uppercase">Nhiệt độ</span>
+                                <span className="text-lg font-bold text-slate-800 dark:text-slate-100">36.5 <span className="text-[10px] font-normal text-slate-400">°C</span></span>
                             </div>
-                            <div className="flex flex-col col-span-2 bg-slate-50 dark:bg-slate-700/50 p-2 rounded-lg border border-slate-100 dark:border-slate-600">
-                                <span className="text-xs text-slate-500 uppercase">Huyết áp</span>
-                                <span className="text-2xl font-extrabold text-red-600 dark:text-red-400">120/80 <span className="text-sm font-medium text-slate-500">mmHg</span></span>
+                            <div className="flex flex-col col-span-2 bg-red-50 dark:bg-red-900/10 p-2 rounded border border-red-100 dark:border-red-900/30">
+                                <span className="text-[10px] text-red-500 uppercase font-bold">Huyết áp</span>
+                                <span className="text-2xl font-extrabold text-red-600 dark:text-red-400">120/80 <span className="text-xs font-medium text-red-400">mmHg</span></span>
                             </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs text-slate-500 uppercase">BMI</span>
-                                <span className="text-lg font-bold text-slate-800 dark:text-slate-100">22.9</span>
+                            <div className="flex flex-col bg-slate-50 dark:bg-slate-700/30 p-1.5 rounded border border-slate-100 dark:border-slate-600">
+                                <span className="text-[10px] text-slate-500 uppercase">BMI</span>
+                                <span className="text-base font-bold text-slate-800 dark:text-slate-100">22.9</span>
                             </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs text-slate-500 uppercase">SpO2</span>
-                                <span className="text-lg font-bold text-slate-800 dark:text-slate-100">98%</span>
+                            <div className="flex flex-col bg-slate-50 dark:bg-slate-700/30 p-1.5 rounded border border-slate-100 dark:border-slate-600">
+                                <span className="text-[10px] text-slate-500 uppercase">SpO2</span>
+                                <span className="text-base font-bold text-slate-800 dark:text-slate-100">98%</span>
                             </div>
                         </div>
                      </div>
 
                      {/* History Summary */}
-                     <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-                        <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm mb-3 uppercase tracking-wide border-b border-slate-100 pb-2">Tiền sử bệnh</h4>
-                        <ul className="text-sm space-y-2 text-slate-600 dark:text-slate-300 pl-1">
+                     <div className="bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+                        <h4 className="font-bold text-slate-700 dark:text-slate-200 text-xs mb-2 uppercase tracking-wide border-b border-slate-100 pb-1">Tiền sử bệnh</h4>
+                        <ul className="text-sm space-y-1 text-slate-600 dark:text-slate-300 pl-1">
                             <li className="flex items-start gap-2"><span className="text-blue-500">•</span> Tiểu đường type 2 (5 năm)</li>
                             <li className="flex items-start gap-2"><span className="text-blue-500">•</span> Tăng huyết áp (Mẹ)</li>
                             <li className="flex items-start gap-2"><span className="text-red-500 font-bold">•</span> Dị ứng: Penicillin</li>

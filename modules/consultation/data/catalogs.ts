@@ -1,4 +1,5 @@
 
+import { DrugItem } from '../../../types';
 
 // Catalog Types
 export interface CatalogItem {
@@ -176,4 +177,19 @@ export const serviceTemplates: ServiceTemplate[] = [
         description: 'XN cần thiết trước khi mổ',
         serviceIds: ['S_001', 'S_002', 'S_003', 'S_015', 'S_017', 'S_004', 'S_005', 'S_006', 'S_019', 'S_023']
     }
+];
+
+// --- DRUG CATALOG ---
+
+export const drugList: DrugItem[] = [
+    { code: 'D001', name: 'Paracetamol 500mg', unit: 'Viên', price: 500, usageRoute: 'Uống', activeIngredient: 'Paracetamol', stock: 1000 },
+    { code: 'D002', name: 'Amoxicillin 500mg', unit: 'Viên', price: 1200, usageRoute: 'Uống', activeIngredient: 'Amoxicillin', stock: 500 },
+    { code: 'D003', name: 'Ibuprofen 400mg', unit: 'Viên', price: 1500, usageRoute: 'Uống', activeIngredient: 'Ibuprofen', stock: 300 },
+    { code: 'D004', name: 'Omeprazol 20mg', unit: 'Viên', price: 2000, usageRoute: 'Uống', activeIngredient: 'Omeprazole', stock: 400 },
+    { code: 'D005', name: 'Metformin 500mg', unit: 'Viên', price: 1800, usageRoute: 'Uống', activeIngredient: 'Metformin', stock: 600 },
+    { code: 'D006', name: 'Amlodipine 5mg', unit: 'Viên', price: 1000, usageRoute: 'Uống', activeIngredient: 'Amlodipine', stock: 700 },
+    { code: 'D007', name: 'Vitamin C 500mg', unit: 'Viên', price: 800, usageRoute: 'Uống', activeIngredient: 'Ascorbic Acid', stock: 1200 },
+    { code: 'D008', name: 'Natri Clorid 0.9% 10ml', unit: 'Lọ', price: 5000, usageRoute: 'Nhỏ mắt/mũi', activeIngredient: 'NaCl', stock: 200 },
+    { code: 'D009', name: 'Berberin 100mg', unit: 'Viên', price: 500, usageRoute: 'Uống', activeIngredient: 'Berberine', stock: 500 },
+    { code: 'D010', name: 'Oresol 27.9g', unit: 'Gói', price: 3000, usageRoute: 'Uống', activeIngredient: 'Glucose, Salts', stock: 300 },
 ];
