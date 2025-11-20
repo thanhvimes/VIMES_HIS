@@ -209,4 +209,7 @@ export interface OperationRecord {
     steps: string; // Các bước tiến hành
     instruments: string; // Dụng cụ
     medications: string; // Thuốc sử dụng
+    
+    // Images
+    images?: string[]; // Array of base64 strings or URLs
 }

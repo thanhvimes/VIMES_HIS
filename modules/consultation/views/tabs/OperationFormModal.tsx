@@ -32,6 +32,10 @@ const OperationFormModal: React.FC<OperationFormModalProps> = ({ isOpen, onClose
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const handleImagesChange = (newImages: string[]) => {
+        setFormData(prev => ({ ...prev, images: newImages }));
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -85,9 +89,17 @@ const OperationFormModal: React.FC<OperationFormModalProps> = ({ isOpen, onClose
                     <input type="hidden" name="type" value={formData.type} />
 
                     {isSurgery ? (
-                        <SurgeryForm formData={formData} onChange={handleChange} />
+                        <SurgeryForm 
+                            formData={formData} 
+                            onChange={handleChange} 
+                            onImagesChange={handleImagesChange} 
+                        />
                     ) : (
-                        <ProcedureForm formData={formData} onChange={handleChange} />
+                        <ProcedureForm 
+                            formData={formData} 
+                            onChange={handleChange} 
+                            onImagesChange={handleImagesChange} 
+                        />
                     )}
                 </form>
 

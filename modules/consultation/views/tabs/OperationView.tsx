@@ -12,7 +12,9 @@ import {
     BeakerIcon,
     SearchIcon,
     ChevronLeftIcon,
-    ActivityIcon
+    ActivityIcon,
+    CameraIcon,
+    XIcon
 } from '../../../../components/Icons';
 import { OperationRecord } from '../../../../types';
 import { consultationService } from '../../../../services/consultationService';
@@ -26,7 +28,7 @@ const emptyOperation: OperationRecord = {
     type: 'PT', operationType: '', operationDate: new Date().toISOString().split('T')[0],
     room: '', startTime: '', endTime: '', mainSurgeon: '', assistantSurgeons: '',
     anesthesiologist: '', nurses: '', technicians: '', method: '', steps: '',
-    instruments: '', medications: ''
+    instruments: '', medications: '', images: []
 };
 
 const OperationView: React.FC = () => {
@@ -37,6 +39,7 @@ const OperationView: React.FC = () => {
     const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
     const [isLoading, setIsLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [viewImage, setViewImage] = useState<string | null>(null);
     
     // --- Data Loading ---
     useEffect(() => {
@@ -379,6 +382,33 @@ const OperationView: React.FC = () => {
                                     </div>
                                 </dl>
                             </div>
+
+                             {/* Card 5: Hình ảnh đính kèm */}
+                             {selectedOp.images && selectedOp.images.length > 0 && (
+                                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-4 lg:p-6 border border-gray-200 dark:border-slate-700">
+                                    <SectionTitle icon={CameraIcon} title="Hình ảnh đính kèm" />
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                        {selectedOp.images.map((img, idx) => (
+                                            <div 
+                                                key={idx} 
+                                                className="relative aspect-square bg-slate-100 dark:bg-slate-900 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 cursor-pointer group"
+                                                onClick={() => setViewImage(img)}
+                                            >
+                                                <img 
+                                                    src={img} 
+                                                    alt={`Evidence ${idx}`} 
+                                                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
+                                                />
+                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                                                    <span className="opacity-0 group-hover:opacity-100 bg-black/50 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm transition-opacity">
+                                                        Xem
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -391,6 +421,24 @@ const OperationView: React.FC = () => {
                 initialData={selectedOp || emptyOperation}
                 onSubmit={handleFormSubmit}
             />
+            
+            {/* ===== IMAGE LIGHTBOX ===== */}
+            {viewImage && (
+                <div className="fixed inset-0 z-[70] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in" onClick={() => setViewImage(null)}>
+                    <button 
+                        className="absolute top-4 right-4 p-2 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full transition-colors z-10"
+                        onClick={() => setViewImage(null)}
+                    >
+                        <XIcon className="w-6 h-6" />
+                    </button>
+                    <img 
+                        src={viewImage} 
+                        alt="Full size" 
+                        className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" 
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>
+            )}
         </div>
     );
 };

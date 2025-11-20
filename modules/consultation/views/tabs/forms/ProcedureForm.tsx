@@ -5,13 +5,18 @@ import {
     UserGroupIcon, 
     DocumentTextIcon, 
     BeakerIcon,
-    ActivityIcon
+    ActivityIcon,
+    CameraIcon
 } from '../../../../../components/Icons';
 import { OperationRecord } from '../../../../../types';
+import ImageGalleryUpload from './ImageGalleryUpload';
+import Combobox from '../../../../../components/shared/Combobox';
+import { doctorOptions, procedureOptions } from '../../../data/catalogs';
 
 interface ProcedureFormProps {
     formData: OperationRecord;
-    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement> | { target: { name: string; value: string } }) => void;
+    onImagesChange: (images: string[]) => void;
 }
 
 const SectionHeader = ({ icon: Icon, title }: { icon: any, title: string }) => (
@@ -52,27 +57,32 @@ const TextareaGroup = ({ label, name, value, onChange, rows = 3, placeholder = '
     </div>
 );
 
-const ProcedureForm: React.FC<ProcedureFormProps> = ({ formData, onChange }) => {
+const ProcedureForm: React.FC<ProcedureFormProps> = ({ formData, onChange, onImagesChange }) => {
+    
+    // Helper to adapt Combobox string value to event-like object
+    const handleComboChange = (name: string) => (value: string) => {
+        onChange({ target: { name, value } });
+    };
+
     return (
         <>
             {/* Section 1: General Info */}
             <SectionHeader icon={ClockIcon} title="Thông tin thủ thuật" />
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="col-span-1 md:col-span-3">
-                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Tên thủ thuật <span className="text-red-500">*</span></label>
-                    <input 
-                        type="text" 
-                        name="serviceName" 
+                    <Combobox 
+                        label="Tên thủ thuật" 
+                        name="serviceName"
                         value={formData.serviceName} 
-                        onChange={onChange} 
+                        onChange={handleComboChange('serviceName')} 
+                        options={procedureOptions}
                         required 
-                        className="w-full p-2 text-sm border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 font-semibold text-teal-700 dark:text-teal-300"
-                        placeholder="Ví dụ: Khâu vết thương phần mềm..."
+                        placeholder="Tìm kiếm hoặc nhập tên thủ thuật..."
                     />
                 </div>
                 <div className="col-span-1">
                         <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Loại hình</label>
-                        <div className="p-2 text-sm font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 rounded border border-teal-100 dark:border-teal-800 flex items-center gap-2">
+                        <div className="p-2 text-sm font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 rounded border border-teal-100 dark:border-teal-800 flex items-center gap-2 h-[38px]">
                             <ActivityIcon className="w-4 h-4"/> Thủ thuật
                         </div>
                 </div>
@@ -87,7 +97,15 @@ const ProcedureForm: React.FC<ProcedureFormProps> = ({ formData, onChange }) => 
             {/* Section 2: Team - Simplified for Procedure */}
             <SectionHeader icon={UserGroupIcon} title="Người thực hiện" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InputGroup label="Bác sĩ / Người thực hiện chính" name="mainSurgeon" value={formData.mainSurgeon} onChange={onChange} required placeholder="Họ tên người làm..."/>
+                <Combobox 
+                    label="Bác sĩ / Người thực hiện chính"
+                    name="mainSurgeon" 
+                    value={formData.mainSurgeon} 
+                    onChange={handleComboChange('mainSurgeon')}
+                    options={doctorOptions}
+                    required
+                    placeholder="Chọn người thực hiện..."
+                />
                 <InputGroup label="Người phụ / Hỗ trợ" name="nurses" value={formData.nurses} onChange={onChange} placeholder="Họ tên điều dưỡng phụ..."/>
             </div>
 
@@ -103,6 +121,15 @@ const ProcedureForm: React.FC<ProcedureFormProps> = ({ formData, onChange }) => 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <TextareaGroup label="Vật tư tiêu hao (Bông, băng, gạc...)" name="instruments" value={formData.instruments} onChange={onChange} rows={2} placeholder="Liệt kê vật tư..." />
                 <TextareaGroup label="Thuốc (Thuốc tê, sát khuẩn...)" name="medications" value={formData.medications} onChange={onChange} rows={2} placeholder="Liệt kê thuốc..." />
+            </div>
+
+             {/* Section 5: Images */}
+             <SectionHeader icon={CameraIcon} title="Hình ảnh đính kèm" />
+            <div className="col-span-full">
+                 <ImageGalleryUpload 
+                    images={formData.images || []} 
+                    onImagesChange={onImagesChange} 
+                />
             </div>
         </>
     );

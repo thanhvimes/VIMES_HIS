@@ -5,13 +5,18 @@ import {
     UserGroupIcon, 
     DocumentTextIcon, 
     BeakerIcon,
-    ScissorsIcon
+    ScissorsIcon,
+    CameraIcon
 } from '../../../../../components/Icons';
 import { OperationRecord } from '../../../../../types';
+import ImageGalleryUpload from './ImageGalleryUpload';
+import Combobox from '../../../../../components/shared/Combobox';
+import { doctorOptions, surgeryOptions, diagnosisOptions } from '../../../data/catalogs';
 
 interface SurgeryFormProps {
     formData: OperationRecord;
-    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement> | { target: { name: string; value: string } }) => void;
+    onImagesChange: (images: string[]) => void;
 }
 
 const SectionHeader = ({ icon: Icon, title }: { icon: any, title: string }) => (
@@ -52,27 +57,32 @@ const TextareaGroup = ({ label, name, value, onChange, rows = 3, placeholder = '
     </div>
 );
 
-const SurgeryForm: React.FC<SurgeryFormProps> = ({ formData, onChange }) => {
+const SurgeryForm: React.FC<SurgeryFormProps> = ({ formData, onChange, onImagesChange }) => {
+    
+    // Helper to adapt Combobox string value to event-like object expected by parent onChange
+    const handleComboChange = (name: string) => (value: string) => {
+        onChange({ target: { name, value } });
+    };
+
     return (
         <>
             {/* Section 1: General Info */}
             <SectionHeader icon={ClockIcon} title="Thông tin hành chính (Phẫu thuật)" />
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="col-span-1 md:col-span-3">
-                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Tên phẫu thuật <span className="text-red-500">*</span></label>
-                    <input 
-                        type="text" 
-                        name="serviceName" 
+                    <Combobox 
+                        label="Tên phẫu thuật" 
+                        name="serviceName"
                         value={formData.serviceName} 
-                        onChange={onChange} 
+                        onChange={handleComboChange('serviceName')} 
+                        options={surgeryOptions}
                         required 
-                        className="w-full p-2 text-sm border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 font-semibold text-blue-700 dark:text-blue-300"
-                        placeholder="Ví dụ: Phẫu thuật nội soi cắt ruột thừa..."
+                        placeholder="Tìm kiếm hoặc nhập tên phẫu thuật..."
                     />
                 </div>
                 <div className="col-span-1">
                         <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Loại hình</label>
-                        <div className="p-2 text-sm font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded border border-blue-100 dark:border-blue-800 flex items-center gap-2">
+                        <div className="p-2 text-sm font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded border border-blue-100 dark:border-blue-800 flex items-center gap-2 h-[38px]">
                             <ScissorsIcon className="w-4 h-4"/> Phẫu thuật
                         </div>
                 </div>
@@ -84,13 +94,12 @@ const SurgeryForm: React.FC<SurgeryFormProps> = ({ formData, onChange }) => {
                 <InputGroup label="Giờ bắt đầu" name="startTime" type="time" value={formData.startTime} onChange={onChange} />
                 <InputGroup label="Giờ kết thúc" name="endTime" type="time" value={formData.endTime} onChange={onChange} />
                 <div className="col-span-1 md:col-span-2">
-                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Chẩn đoán trước/sau mổ</label>
-                    <input 
-                        type="text" 
+                    <Combobox 
+                        label="Chẩn đoán trước/sau mổ"
                         name="operationType" 
                         value={formData.operationType} 
-                        onChange={onChange} 
-                        className="w-full p-2 text-sm border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700"
+                        onChange={handleComboChange('operationType')}
+                        options={diagnosisOptions}
                         placeholder="Nhập chẩn đoán..."
                     />
                 </div>
@@ -99,8 +108,23 @@ const SurgeryForm: React.FC<SurgeryFormProps> = ({ formData, onChange }) => {
             {/* Section 2: Team */}
             <SectionHeader icon={UserGroupIcon} title="Kíp phẫu thuật" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InputGroup label="Phẫu thuật viên chính" name="mainSurgeon" value={formData.mainSurgeon} onChange={onChange} required placeholder="Họ tên BS chính..."/>
-                <InputGroup label="Bác sĩ gây mê" name="anesthesiologist" value={formData.anesthesiologist} onChange={onChange} placeholder="Họ tên BS gây mê..."/>
+                <Combobox 
+                    label="Phẫu thuật viên chính"
+                    name="mainSurgeon" 
+                    value={formData.mainSurgeon} 
+                    onChange={handleComboChange('mainSurgeon')}
+                    options={doctorOptions}
+                    required
+                    placeholder="Chọn bác sĩ..."
+                />
+                <Combobox 
+                    label="Bác sĩ gây mê"
+                    name="anesthesiologist" 
+                    value={formData.anesthesiologist} 
+                    onChange={handleComboChange('anesthesiologist')}
+                    options={doctorOptions}
+                    placeholder="Chọn bác sĩ..."
+                />
                 <TextareaGroup label="Phụ mổ" name="assistantSurgeons" value={formData.assistantSurgeons} onChange={onChange} rows={2} placeholder="Danh sách các BS phụ mổ..."/>
                 <TextareaGroup label="Dụng cụ viên / Điều dưỡng" name="nurses" value={formData.nurses} onChange={onChange} rows={2} placeholder="Điều dưỡng vòng trong/ngoài..."/>
                 <TextareaGroup label="Kỹ thuật viên / Hỗ trợ khác" name="technicians" value={formData.technicians} onChange={onChange} rows={1} placeholder="KTV hỗ trợ..."/>
@@ -118,6 +142,15 @@ const SurgeryForm: React.FC<SurgeryFormProps> = ({ formData, onChange }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <TextareaGroup label="Dụng cụ phẫu thuật" name="instruments" value={formData.instruments} onChange={onChange} rows={3} placeholder="Dao, kéo, chỉ khâu..." />
                 <TextareaGroup label="Thuốc sử dụng trong mổ" name="medications" value={formData.medications} onChange={onChange} rows={3} placeholder="Kháng sinh, thuốc mê..." />
+            </div>
+
+             {/* Section 5: Images */}
+             <SectionHeader icon={CameraIcon} title="Hình ảnh đính kèm" />
+            <div className="col-span-full">
+                 <ImageGalleryUpload 
+                    images={formData.images || []} 
+                    onImagesChange={onImagesChange} 
+                />
             </div>
         </>
     );
