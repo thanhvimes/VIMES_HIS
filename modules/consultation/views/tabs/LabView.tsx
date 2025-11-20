@@ -12,6 +12,9 @@ import {
 import LabResultTemplate from './templates/LabResultTemplate';
 import ImagingResultTemplate from './templates/ImagingResultTemplate';
 import FunctionalExplorationTemplate from './templates/FunctionalExplorationTemplate';
+import ServiceCatalogModal from './modals/ServiceCatalogModal';
+import ServiceTemplateModal from './modals/ServiceTemplateModal';
+import { ServiceItem, serviceCategories } from '../../data/catalogs';
 
 type ServiceType = 'XN' | 'HA' | 'TD';
 
@@ -96,7 +99,6 @@ const mockRequests: ServiceRequest[] = [
         resultDate: '18/11/2023 09:20',
         readingDoctor: 'BS. Chẩn Đoán Hình Ảnh',
         approvingDoctor: 'BS. Trưởng Khoa HA',
-        // Imaging often doesn't have specimen, but can strictly imply patient prep
         specimen: {
             collectionTime: '18/11/2023 09:10',
             collector: 'KTV. X-Quang',
@@ -143,27 +145,17 @@ const mockRequests: ServiceRequest[] = [
                 { name: 'V4', value: 20 }, { name: 'V5', value: 15 }, { name: 'V6', value: 12 }
             ]
         }
-    },
-    { 
-        id: 'XN002', 
-        name: 'Sinh hóa máu cơ bản', 
-        type: 'XN',
-        status: 'pending',
-        orderingDoctor: 'BS. Nguyễn Văn A',
-        orderingDate: '18/11/2023 08:45',
-        specimen: {
-            collectionTime: '18/11/2023 08:50',
-            collector: 'ĐD. Phạm Thị D',
-            type: 'Huyết thanh',
-            condition: 'Đang xử lý'
-        }
-    },
+    }
 ];
 
 const LabView: React.FC = () => {
     const [requests, setRequests] = useState<ServiceRequest[]>(mockRequests);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    
+    // Modal States
+    const [isCatalogModalOpen, setIsCatalogModalOpen] = useState(false);
+    const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
 
     const selectedRequest = useMemo(() => requests.find(r => r.id === selectedId), [requests, selectedId]);
 
@@ -182,14 +174,35 @@ const LabView: React.FC = () => {
         }
     }, []);
 
-    const handleAdd = () => {
-        alert("Chức năng Thêm chỉ định đang được phát triển.");
-    };
-
     const handleDelete = () => {
         if (selectedRequest && window.confirm(`Bạn có chắc chắn muốn xóa phiếu ${selectedRequest.name}?`)) {
             setRequests(prev => prev.filter(r => r.id !== selectedRequest.id));
             setSelectedId(null);
+        }
+    };
+
+    const handleServiceAdd = (items: ServiceItem[]) => {
+        const now = new Date();
+        const dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes()}`;
+        
+        const newRequests: ServiceRequest[] = items.map((item, index) => {
+            const category = serviceCategories.find(c => c.id === item.categoryId);
+            const type: ServiceType = category?.type === 'CDHA' ? 'HA' : category?.type === 'TDCN' ? 'TD' : 'XN';
+            
+            return {
+                id: `REQ-${Date.now()}-${index}`,
+                name: item.name,
+                type: type,
+                status: 'pending',
+                orderingDoctor: 'BS. Current User', // Should come from auth context
+                orderingDate: dateStr,
+                // Pending requests don't have results or specimen info yet
+            };
+        });
+
+        setRequests(prev => [...newRequests, ...prev]); // Add new items to top
+        if (newRequests.length > 0 && window.innerWidth >= 1024) {
+            setSelectedId(newRequests[0].id);
         }
     };
 
@@ -221,26 +234,38 @@ const LabView: React.FC = () => {
                 ${selectedId ? 'hidden' : 'flex w-full'}
             `}>
                 {/* Header with Search & Add */}
-                <div className="p-3 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 flex gap-2">
-                    <div className="relative flex-grow">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <SearchIcon className="h-4 w-4 text-gray-400" />
+                <div className="p-3 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 flex flex-col gap-2">
+                    <div className="flex gap-2">
+                        <div className="relative flex-grow">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <SearchIcon className="h-4 w-4 text-gray-400" />
+                            </div>
+                            <input
+                                type="text"
+                                className="block w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg leading-5 bg-white dark:bg-slate-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out"
+                                placeholder="Tìm phiếu..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
                         </div>
-                        <input
-                            type="text"
-                            className="block w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg leading-5 bg-white dark:bg-slate-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out"
-                            placeholder="Tìm phiếu..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
                     </div>
-                    <button 
-                        onClick={handleAdd}
-                        className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm flex-shrink-0"
-                        title="Thêm chỉ định"
-                    >
-                        <PlusIcon className="w-5 h-5" />
-                    </button>
+                    
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => setIsCatalogModalOpen(true)}
+                            className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm text-sm font-bold flex items-center justify-center gap-1"
+                            title="Thêm chỉ định lẻ"
+                        >
+                            <PlusIcon className="w-4 h-4" />
+                        </button>
+                        <button 
+                            onClick={() => setIsTemplateModalOpen(true)}
+                            className="flex-1 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition shadow-sm text-sm font-bold flex items-center justify-center gap-1"
+                            title="Thêm theo gói (Template)"
+                        >
+                            <span className="text-xs font-extrabold">+G</span>
+                        </button>
+                    </div>
                 </div>
 
                 {/* List Content */}
@@ -351,6 +376,18 @@ const LabView: React.FC = () => {
                     </>
                 )}
             </div>
+
+            {/* ===== MODALS ===== */}
+            <ServiceCatalogModal 
+                isOpen={isCatalogModalOpen} 
+                onClose={() => setIsCatalogModalOpen(false)} 
+                onSelect={handleServiceAdd} 
+            />
+            <ServiceTemplateModal 
+                isOpen={isTemplateModalOpen} 
+                onClose={() => setIsTemplateModalOpen(false)} 
+                onSelect={handleServiceAdd} 
+            />
         </div>
     );
 };

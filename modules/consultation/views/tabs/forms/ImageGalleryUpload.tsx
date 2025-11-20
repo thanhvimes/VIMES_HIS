@@ -29,7 +29,7 @@ const ImageGalleryUpload: React.FC<ImageGalleryUploadProps> = ({ images = [], on
                         onImagesChange([...images, ...newImages]);
                     }
                 };
-                reader.readAsDataURL(file);
+                reader.readAsDataURL(file as Blob);
             });
         }
         // Reset input value to allow selecting the same file again if needed

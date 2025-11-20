@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
@@ -13,6 +14,7 @@ import {
     XIcon
 } from '../../../components/Icons';
 import ActionButton from '../../../components/shared/ActionButton';
+import ConfirmationModal from '../../../components/shared/ConfirmationModal';
 import { FormInput, FormSelect } from '../../../components/shared/forms';
 import { Patient, ExaminationRecord, ExamInfo } from '../../../types';
 import { mockPatients } from '../data';
@@ -65,6 +67,7 @@ const RegistrationView: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
     const [toast, setToast] = useState<ToastType | null>(null);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
     useEffect(() => {
         if (toast) {
@@ -179,10 +182,20 @@ const RegistrationView: React.FC = () => {
     };
 
     const handleDelete = () => {
-        if (patient && window.confirm(`Bạn có chắc chắn muốn xóa bệnh nhân ${patient.name}?`)) {
+        if (patient) {
+            setIsDeleteModalOpen(true);
+        }
+    };
+
+    const confirmDelete = () => {
+        if (patient) {
             console.log(`API Call: Deleting patient with ID ${patient.id}...`);
             setTimeout(() => {
+                const index = mockPatients.findIndex(p => p.id === patient.id);
+                if (index !== -1) mockPatients.splice(index, 1);
+
                 setToast({ message: 'Xóa bệnh nhân thành công!', type: 'success' });
+                setIsDeleteModalOpen(false);
                 navigate('/reception/list');
             }, 500);
         }
@@ -406,8 +419,17 @@ const RegistrationView: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="Xóa bệnh nhân"
+                message={`Bạn có chắc chắn muốn xóa bệnh nhân ${patient?.name}? Hành động này không thể hoàn tác.`}
+            />
         </div>
     );
 };
 
 export default RegistrationView;
+    

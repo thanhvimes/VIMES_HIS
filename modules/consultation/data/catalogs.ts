@@ -14,6 +14,29 @@ export interface DoctorItem {
     department: string;
 }
 
+// --- New Types for Lab Ordering ---
+export interface ServiceCategory {
+    id: string;
+    name: string;
+    type: 'XN' | 'CDHA' | 'TDCN'; // Xét nghiệm | Chẩn đoán hình ảnh | Thăm dò chức năng
+}
+
+export interface ServiceItem {
+    id: string;
+    code: string;
+    name: string;
+    categoryId: string;
+    price: number;
+    unit: string;
+}
+
+export interface ServiceTemplate {
+    id: string;
+    name: string;
+    description: string;
+    serviceIds: string[]; // IDs of ServiceItems included in this template
+}
+
 // Mock Data
 export const doctorOptions: DoctorItem[] = [
     { id: 'BS001', name: 'BS. Nguyễn Văn A', role: 'Trưởng khoa', department: 'Ngoại tổng quát' },
@@ -60,4 +83,81 @@ export const diagnosisOptions: CatalogItem[] = [
     { code: 'S83', name: 'Tổn thương dây chằng đầu gối', group: 'Chấn thương' },
     { code: 'K29', name: 'Viêm dạ dày', group: 'Tiêu hóa' },
     { code: 'S01', name: 'Vết thương hở ở đầu', group: 'Chấn thương' }
+];
+
+// --- Lab & Imaging Data ---
+
+export const serviceCategories: ServiceCategory[] = [
+    { id: 'CAT_HH', name: 'Xét nghiệm huyết học', type: 'XN' },
+    { id: 'CAT_SH', name: 'Xét nghiệm hóa sinh', type: 'XN' },
+    { id: 'CAT_MD', name: 'Xét nghiệm miễn dịch', type: 'XN' },
+    { id: 'CAT_VS', name: 'Xét nghiệm vi sinh', type: 'XN' },
+    { id: 'CAT_NUOC', name: 'Xét nghiệm nước tiểu', type: 'XN' },
+    { id: 'CAT_XQ', name: 'X-Quang kỹ thuật số', type: 'CDHA' },
+    { id: 'CAT_SA', name: 'Siêu âm chẩn đoán', type: 'CDHA' },
+    { id: 'CAT_DT', name: 'Điện tim - Điện não', type: 'TDCN' },
+];
+
+export const serviceList: ServiceItem[] = [
+    // Huyết học
+    { id: 'S_001', code: 'HH01', name: 'Tổng phân tích tế bào máu ngoại vi', categoryId: 'CAT_HH', price: 110000, unit: 'Lần' },
+    { id: 'S_002', code: 'HH02', name: 'Định nhóm máu hệ ABO', categoryId: 'CAT_HH', price: 80000, unit: 'Lần' },
+    { id: 'S_003', code: 'HH03', name: 'Đông máu cơ bản (PT, APTT, Fibrinogen)', categoryId: 'CAT_HH', price: 250000, unit: 'Lần' },
+    
+    // Hóa sinh
+    { id: 'S_004', code: 'SH01', name: 'Định lượng Glucose [Máu]', categoryId: 'CAT_SH', price: 30000, unit: 'Lần' },
+    { id: 'S_005', code: 'SH02', name: 'Định lượng Urea [Máu]', categoryId: 'CAT_SH', price: 30000, unit: 'Lần' },
+    { id: 'S_006', code: 'SH03', name: 'Định lượng Creatinine [Máu]', categoryId: 'CAT_SH', price: 30000, unit: 'Lần' },
+    { id: 'S_007', code: 'SH04', name: 'Định lượng AST (GOT) [Máu]', categoryId: 'CAT_SH', price: 30000, unit: 'Lần' },
+    { id: 'S_008', code: 'SH05', name: 'Định lượng ALT (GPT) [Máu]', categoryId: 'CAT_SH', price: 30000, unit: 'Lần' },
+    { id: 'S_009', code: 'SH06', name: 'Định lượng Cholesterol toàn phần', categoryId: 'CAT_SH', price: 40000, unit: 'Lần' },
+    { id: 'S_010', code: 'SH07', name: 'Định lượng Triglyceride', categoryId: 'CAT_SH', price: 40000, unit: 'Lần' },
+    { id: 'S_011', code: 'SH08', name: 'Định lượng Acid Uric [Máu]', categoryId: 'CAT_SH', price: 30000, unit: 'Lần' },
+    { id: 'S_012', code: 'SH09', name: 'Định lượng Bilirubin toàn phần', categoryId: 'CAT_SH', price: 30000, unit: 'Lần' },
+    { id: 'S_013', code: 'SH10', name: 'Định lượng Bilirubin trực tiếp', categoryId: 'CAT_SH', price: 30000, unit: 'Lần' },
+    { id: 'S_014', code: 'SH11', name: 'Điện giải đồ (Na, K, Cl)', categoryId: 'CAT_SH', price: 90000, unit: 'Lần' },
+
+    // Miễn dịch
+    { id: 'S_015', code: 'MD01', name: 'HBsAg (Test nhanh)', categoryId: 'CAT_MD', price: 80000, unit: 'Test' },
+    { id: 'S_016', code: 'MD02', name: 'HCV Ab (Test nhanh)', categoryId: 'CAT_MD', price: 80000, unit: 'Test' },
+    { id: 'S_017', code: 'MD03', name: 'HIV Ab (Test nhanh)', categoryId: 'CAT_MD', price: 100000, unit: 'Test' },
+    { id: 'S_018', code: 'MD04', name: 'Định lượng T3, T4, TSH', categoryId: 'CAT_MD', price: 350000, unit: 'Lần' },
+
+    // X-Quang
+    { id: 'S_019', code: 'XQ01', name: 'Chụp X-quang ngực thẳng', categoryId: 'CAT_XQ', price: 150000, unit: 'Lần' },
+    { id: 'S_020', code: 'XQ02', name: 'Chụp X-quang cột sống thắt lưng', categoryId: 'CAT_XQ', price: 180000, unit: 'Lần' },
+    
+    // Siêu âm
+    { id: 'S_021', code: 'SA01', name: 'Siêu âm ổ bụng tổng quát', categoryId: 'CAT_SA', price: 120000, unit: 'Lần' },
+    { id: 'S_022', code: 'SA02', name: 'Siêu âm tuyến giáp', categoryId: 'CAT_SA', price: 120000, unit: 'Lần' },
+
+    // Điện tim
+    { id: 'S_023', code: 'DT01', name: 'Điện tâm đồ thường', categoryId: 'CAT_DT', price: 80000, unit: 'Lần' },
+];
+
+export const serviceTemplates: ServiceTemplate[] = [
+    {
+        id: 'TMP_01',
+        name: 'Khám sức khỏe tổng quát (Cơ bản)',
+        description: 'Gói xét nghiệm máu, nước tiểu và X-quang ngực',
+        serviceIds: ['S_001', 'S_004', 'S_005', 'S_006', 'S_007', 'S_008', 'S_019', 'S_021']
+    },
+    {
+        id: 'TMP_02',
+        name: 'Tầm soát Đái tháo đường - Mỡ máu',
+        description: 'Bộ mỡ máu 4 chỉ số và đường huyết',
+        serviceIds: ['S_004', 'S_009', 'S_010']
+    },
+    {
+        id: 'TMP_03',
+        name: 'Kiểm tra chức năng Gan - Thận',
+        description: 'Men gan và chức năng thận',
+        serviceIds: ['S_005', 'S_006', 'S_007', 'S_008']
+    },
+    {
+        id: 'TMP_04',
+        name: 'Tiền phẫu thuật (Cơ bản)',
+        description: 'XN cần thiết trước khi mổ',
+        serviceIds: ['S_001', 'S_002', 'S_003', 'S_015', 'S_017', 'S_004', 'S_005', 'S_006', 'S_019', 'S_023']
+    }
 ];
