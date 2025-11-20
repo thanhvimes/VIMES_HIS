@@ -1,206 +1,354 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
-    PlusIcon, 
-    TrashIcon, 
-    PrinterIcon, 
-    CheckIcon,
     SearchIcon,
-    PhotographIcon
+    BeakerIcon,
+    PhotographIcon,
+    ActivityIcon,
+    ChevronLeftIcon,
+    PlusIcon,
+    TrashIcon
 } from '../../../../components/Icons';
+import LabResultTemplate from './templates/LabResultTemplate';
+import ImagingResultTemplate from './templates/ImagingResultTemplate';
+import FunctionalExplorationTemplate from './templates/FunctionalExplorationTemplate';
 
-interface LabRequest {
+type ServiceType = 'XN' | 'HA' | 'TD';
+
+export interface ServiceRequest {
     id: string;
     name: string;
-    requestDate: string;
+    type: ServiceType;
     status: 'completed' | 'pending';
-    doctor: string;
-    performer: string;
-    executionTime?: string;
     
-    // Result fields
-    technique?: string;
-    findings?: string;
-    result?: string;
-    conclusion?: string;
-    note?: string;
+    // Order Info
+    orderingDoctor: string;
+    orderingDate: string;
+    
+    // Result Info
+    resultDate?: string;
+    readingDoctor?: string;
+    approvingDoctor?: string;
+
+    // Specimen Info (Optional, mostly for Lab)
+    specimen?: {
+        collectionTime: string;
+        collector: string;
+        type: string;
+        condition: string;
+    };
+
+    // Specific Data Containers
+    labData?: {
+        items: Array<{ name: string, result: string, unit: string, normalRange: string, isAbnormal: boolean }>;
+        device: string;
+    };
+    imagingData?: {
+        technique: string;
+        findings: string;
+        conclusion: string;
+        imageUrl: string;
+    };
+    functionalData?: {
+        technique: string;
+        findings: string;
+        conclusion: string;
+        metrics: Record<string, string>;
+        chartData?: any[];
+    };
 }
 
-const mockRequests: LabRequest[] = [
+const mockRequests: ServiceRequest[] = [
     { 
-        id: '702946', 
-        name: 'XQuang ngực thẳng', 
-        requestDate: '2025-11-18 01:02:50', 
-        status: 'completed', 
-        doctor: 'nccuong', 
-        performer: 'ptdung',
-        executionTime: '2025-11-18 01:12:00',
-        technique: 'Chụp XQuang kỹ thuật số',
-        findings: 'Hình ảnh tim phổi bình thường.',
-        result: 'Không phát hiện bất thường',
-        conclusion: 'Tim phổi bình thường',
-        note: ''
+        id: 'XN001', 
+        name: 'Tổng phân tích tế bào máu', 
+        type: 'XN',
+        status: 'completed',
+        orderingDoctor: 'BS. Nguyễn Văn A',
+        orderingDate: '18/11/2023 08:00',
+        resultDate: '18/11/2023 09:30',
+        readingDoctor: 'KTV. Trần Thị B',
+        approvingDoctor: 'BS. Lê Văn C',
+        specimen: {
+            collectionTime: '18/11/2023 08:15',
+            collector: 'ĐD. Phạm Thị D',
+            type: 'Máu toàn phần (EDTA)',
+            condition: 'Đạt yêu cầu'
+        },
+        labData: {
+            device: 'Sysmex XN-1000',
+            items: [
+                { name: 'RBC (Số lượng hồng cầu)', result: '4.50', unit: 'T/L', normalRange: '3.8 - 5.3', isAbnormal: false },
+                { name: 'HGB (Lượng huyết sắc tố)', result: '135', unit: 'g/L', normalRange: '120 - 160', isAbnormal: false },
+                { name: 'HCT (Dung tích hồng cầu)', result: '0.41', unit: 'L/L', normalRange: '0.35 - 0.47', isAbnormal: false },
+                { name: 'WBC (Số lượng bạch cầu)', result: '12.5', unit: 'G/L', normalRange: '4.0 - 10.0', isAbnormal: true },
+                { name: 'PLT (Số lượng tiểu cầu)', result: '250', unit: 'G/L', normalRange: '150 - 450', isAbnormal: false },
+            ]
+        }
     },
     { 
-        id: '702947', 
-        name: 'Siêu âm ổ bụng', 
-        requestDate: '2025-11-18 01:05:10', 
-        status: 'pending', 
-        doctor: 'nccuong', 
-        performer: '',
-        executionTime: '',
-        technique: '',
-        findings: '',
-        result: '',
-        conclusion: '',
-        note: ''
-    }
+        id: 'HA001', 
+        name: 'X-Quang Ngực thẳng', 
+        type: 'HA',
+        status: 'completed',
+        orderingDoctor: 'BS. Nguyễn Văn A',
+        orderingDate: '18/11/2023 09:00',
+        resultDate: '18/11/2023 09:20',
+        readingDoctor: 'BS. Chẩn Đoán Hình Ảnh',
+        approvingDoctor: 'BS. Trưởng Khoa HA',
+        // Imaging often doesn't have specimen, but can strictly imply patient prep
+        specimen: {
+            collectionTime: '18/11/2023 09:10',
+            collector: 'KTV. X-Quang',
+            type: 'Không áp dụng',
+            condition: 'Bệnh nhân đứng thẳng'
+        },
+        imagingData: {
+            technique: 'Chụp X-Quang kỹ thuật số (DR)',
+            findings: '- Lồng ngực cân đối, không gù vẹo.\n- Nhu mô phổi sáng đều hai bên.\n- Không thấy hình ảnh tổn thương khu trú.\n- Bóng tim không to.\n- Góc sườn hoành hai bên sáng.',
+            conclusion: 'Hình ảnh tim phổi bình thường.',
+            imageUrl: 'https://prod-images-static.radiopaedia.org/images/54766339/9d0de6367f802d672324f4a844e2e211f95d83115f67b6f250d472e532402273_gallery.jpeg'
+        }
+    },
+    { 
+        id: 'TD001', 
+        name: 'Điện tâm đồ (ECG)', 
+        type: 'TD',
+        status: 'completed',
+        orderingDoctor: 'BS. Nguyễn Văn A',
+        orderingDate: '18/11/2023 09:15',
+        resultDate: '18/11/2023 09:30',
+        readingDoctor: 'BS. Tim Mạch',
+        approvingDoctor: 'BS. Tim Mạch',
+        specimen: {
+            collectionTime: '18/11/2023 09:20',
+            collector: 'ĐD. Tim Mạch',
+            type: 'Ghi tại giường',
+            condition: 'Bệnh nhân nằm yên'
+        },
+        functionalData: {
+            technique: 'Ghi điện tim bề mặt 12 chuyển đạo',
+            findings: '- Nhịp xoang đều, tần số 80 lần/phút.\n- Trục trung gian.\n- Không thấy dấu hiệu phì đại thất.\n- ST-T bình thường.',
+            conclusion: 'Điện tâm đồ trong giới hạn bình thường.',
+            metrics: {
+                'Nhịp tim': '80 bpm',
+                'Khoảng PR': '0.14 s',
+                'QRS': '0.08 s',
+                'QTc': '0.40 s'
+            },
+            chartData: [
+                { name: 'I', value: 10 }, { name: 'II', value: 15 }, { name: 'III', value: 5 }, 
+                { name: 'aVR', value: -10 }, { name: 'aVL', value: 8 }, { name: 'aVF', value: 12 },
+                { name: 'V1', value: -5 }, { name: 'V2', value: 8 }, { name: 'V3', value: 18 }, 
+                { name: 'V4', value: 20 }, { name: 'V5', value: 15 }, { name: 'V6', value: 12 }
+            ]
+        }
+    },
+    { 
+        id: 'XN002', 
+        name: 'Sinh hóa máu cơ bản', 
+        type: 'XN',
+        status: 'pending',
+        orderingDoctor: 'BS. Nguyễn Văn A',
+        orderingDate: '18/11/2023 08:45',
+        specimen: {
+            collectionTime: '18/11/2023 08:50',
+            collector: 'ĐD. Phạm Thị D',
+            type: 'Huyết thanh',
+            condition: 'Đang xử lý'
+        }
+    },
 ];
 
 const LabView: React.FC = () => {
-    const [requests, setRequests] = useState<LabRequest[]>(mockRequests);
-    const [selectedId, setSelectedId] = useState<string>(mockRequests[0].id);
-    const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+    const [requests, setRequests] = useState<ServiceRequest[]>(mockRequests);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
-    const selectedRequest = requests.find(r => r.id === selectedId);
+    const selectedRequest = useMemo(() => requests.find(r => r.id === selectedId), [requests, selectedId]);
 
-    const handleCheck = (id: string) => {
-        const newChecked = new Set(checkedIds);
-        if (newChecked.has(id)) newChecked.delete(id);
-        else newChecked.add(id);
-        setCheckedIds(newChecked);
+    const filteredRequests = useMemo(() => {
+        if (!searchTerm) return requests;
+        return requests.filter(r => 
+            r.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            r.id.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [requests, searchTerm]);
+
+    // Initialize selection on desktop
+    React.useEffect(() => {
+        if (window.innerWidth >= 1024 && requests.length > 0 && !selectedId) {
+            setSelectedId(requests[0].id);
+        }
+    }, []);
+
+    const handleAdd = () => {
+        alert("Chức năng Thêm chỉ định đang được phát triển.");
     };
 
-    const handleSelect = (id: string) => {
-        setSelectedId(id);
+    const handleDelete = () => {
+        if (selectedRequest && window.confirm(`Bạn có chắc chắn muốn xóa phiếu ${selectedRequest.name}?`)) {
+            setRequests(prev => prev.filter(r => r.id !== selectedRequest.id));
+            setSelectedId(null);
+        }
     };
 
-    const handleInputChange = (field: keyof LabRequest, value: string) => {
-        if (!selectedId) return;
-        setRequests(prev => prev.map(req => 
-            req.id === selectedId ? { ...req, [field]: value } : req
-        ));
+    const getTypeBadge = (type: ServiceType) => {
+        switch(type) {
+            case 'XN': return <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-blue-100 text-blue-700 border border-blue-200">XN</span>;
+            case 'HA': return <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-purple-100 text-purple-700 border border-purple-200">HA</span>;
+            case 'TD': return <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-orange-100 text-orange-700 border border-orange-200">TD</span>;
+            default: return null;
+        }
+    };
+
+    const getTypeIcon = (type: ServiceType) => {
+        switch(type) {
+            case 'XN': return <BeakerIcon className="w-4 h-4" />;
+            case 'HA': return <PhotographIcon className="w-4 h-4" />;
+            case 'TD': return <ActivityIcon className="w-4 h-4" />;
+            default: return null;
+        }
     };
 
     return (
-        <div className="flex h-full gap-4 items-stretch">
-            {/* LEFT COLUMN: REQUEST LIST */}
-            <div className="w-1/3 flex flex-col bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                {/* Header */}
-                <div className="bg-blue-600 text-white px-4 py-3 font-bold text-sm flex justify-between items-center">
-                    <span>Danh sách chỉ định xét nghiệm</span>
-                    <span className="bg-blue-500 px-2 py-0.5 rounded text-xs">{requests.length}</span>
-                </div>
-                
-                {/* Table Header */}
-                <div className="flex bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 p-2 text-xs font-bold text-slate-600 dark:text-slate-300">
-                    <div className="w-8 text-center">-</div>
-                    <div className="w-20">Số phiếu</div>
-                    <div className="flex-1">Tên</div>
-                    <div className="w-24">Ngày YC</div>
-                </div>
-
-                {/* List */}
-                <div className="flex-1 overflow-y-auto">
-                    {requests.map(req => (
-                        <div 
-                            key={req.id}
-                            onClick={() => handleSelect(req.id)}
-                            className={`flex items-center p-2 text-sm border-b border-slate-100 dark:border-slate-700 cursor-pointer transition-colors ${
-                                selectedId === req.id 
-                                    ? 'bg-blue-50 dark:bg-blue-900/20' 
-                                    : 'hover:bg-slate-50 dark:hover:bg-slate-800'
-                            }`}
-                        >
-                            <div className="w-8 flex justify-center" onClick={(e) => { e.stopPropagation(); handleCheck(req.id); }}>
-                                <input 
-                                    type="checkbox" 
-                                    checked={checkedIds.has(req.id)} 
-                                    onChange={() => {}}
-                                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                />
-                            </div>
-                            <div className={`w-20 font-mono ${selectedId === req.id ? 'font-bold text-blue-600' : ''}`}>{req.id}</div>
-                            <div className="flex-1 truncate font-medium">{req.name}</div>
-                            <div className="w-24 text-xs text-slate-500 truncate">{req.requestDate.split(' ')[0]}</div>
+        <div className="flex flex-col lg:flex-row h-full bg-gray-100 dark:bg-slate-900 rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700 relative">
+            
+            {/* ===== LEFT SIDEBAR: LIST ===== */}
+            <div className={`
+                flex-col h-full border-r border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 
+                lg:w-80 lg:flex flex-shrink-0 
+                ${selectedId ? 'hidden' : 'flex w-full'}
+            `}>
+                {/* Header with Search & Add */}
+                <div className="p-3 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 flex gap-2">
+                    <div className="relative flex-grow">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <SearchIcon className="h-4 w-4 text-gray-400" />
                         </div>
-                    ))}
+                        <input
+                            type="text"
+                            className="block w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg leading-5 bg-white dark:bg-slate-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out"
+                            placeholder="Tìm phiếu..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <button 
+                        onClick={handleAdd}
+                        className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm flex-shrink-0"
+                        title="Thêm chỉ định"
+                    >
+                        <PlusIcon className="w-5 h-5" />
+                    </button>
                 </div>
 
-                {/* Bottom Actions */}
-                <div className="p-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex gap-2">
-                    <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1">
-                        <PlusIcon className="w-3 h-3" /> Thêm mới
-                    </button>
-                    <button className="flex-1 bg-red-500 hover:bg-red-600 text-white py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1">
-                        <TrashIcon className="w-3 h-3" /> Xóa
-                    </button>
-                    <button className="flex-1 bg-green-600 hover:bg-green-700 text-white py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1">
-                        <PrinterIcon className="w-3 h-3" /> In
-                    </button>
+                {/* List Content */}
+                <div className="overflow-y-auto flex-1 p-2 space-y-2">
+                    {filteredRequests.length === 0 ? (
+                         <div className="p-8 text-center text-gray-400 dark:text-slate-500 text-sm">
+                             Không tìm thấy phiếu.
+                         </div>
+                    ) : (
+                        filteredRequests.map(req => (
+                            <div
+                                key={req.id}
+                                onClick={() => setSelectedId(req.id)}
+                                className={`p-3 rounded-lg cursor-pointer transition border relative ${
+                                    selectedId === req.id 
+                                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 shadow-sm ring-1 ring-blue-200 dark:ring-blue-800' 
+                                    : 'bg-white dark:bg-slate-800 border-transparent hover:bg-gray-50 dark:hover:bg-slate-700/50 hover:border-gray-200 dark:hover:border-slate-600'
+                                }`}
+                            >
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-start gap-2">
+                                        <div className={`mt-0.5 text-slate-400 ${selectedId === req.id ? 'text-blue-500' : ''}`}>
+                                            {getTypeIcon(req.type)}
+                                        </div>
+                                        <div>
+                                            <div className={`font-semibold text-sm ${selectedId === req.id ? 'text-blue-700 dark:text-blue-300' : 'text-gray-800 dark:text-slate-200'}`}>
+                                                {req.name}
+                                            </div>
+                                            <div className="text-xs text-gray-400 dark:text-slate-500 mt-0.5 font-mono">
+                                                #{req.id}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {getTypeBadge(req.type)}
+                                </div>
+                                <div className="mt-2 flex justify-between items-end">
+                                    <span className="text-xs text-gray-500 dark:text-slate-400">
+                                        {req.orderingDate.split(' ')[0]}
+                                    </span>
+                                    <span className={`text-[10px] font-bold uppercase ${req.status === 'completed' ? 'text-green-600' : 'text-amber-500'}`}>
+                                        {req.status === 'completed' ? 'Đã xong' : 'Chờ KQ'}
+                                    </span>
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
 
-            {/* RIGHT COLUMN: DETAILS & RESULTS */}
-            <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-1">
-                {selectedRequest ? (
-                    <>
-                        {/* Top: Request Info */}
-                        <div className="bg-blue-50 dark:bg-slate-800/50 rounded-lg border border-blue-100 dark:border-slate-700 p-4 relative shadow-sm">
-                            <div className="absolute top-3 right-3">
-                                <button className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded flex items-center gap-1 shadow-sm">
-                                    <PhotographIcon className="w-4 h-4" /> Xem ảnh
-                                </button>
-                            </div>
-                            <h3 className="text-blue-700 dark:text-blue-400 font-bold text-base mb-3 border-b border-blue-200 dark:border-slate-600 pb-1">
-                                Thông tin phiếu
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-y-2 gap-x-4 text-sm">
-                                <div><span className="font-semibold text-slate-700 dark:text-slate-300">Số phiếu:</span> {selectedRequest.id}</div>
-                                <div><span className="font-semibold text-slate-700 dark:text-slate-300">Trạng thái:</span> {selectedRequest.status === 'completed' ? 'Đã có kết quả' : 'Chờ thực hiện'}</div>
-                                <div><span className="font-semibold text-slate-700 dark:text-slate-300">Ngày yêu cầu:</span> {selectedRequest.requestDate}</div>
-                                
-                                <div><span className="font-semibold text-slate-700 dark:text-slate-300">BS chỉ định:</span> {selectedRequest.doctor}</div>
-                                <div><span className="font-semibold text-slate-700 dark:text-slate-300">Thời gian TH:</span> {selectedRequest.executionTime || '--'}</div>
-                                <div><span className="font-semibold text-slate-700 dark:text-slate-300">Người thực hiện:</span> {selectedRequest.performer || '--'}</div>
-                                
-                                <div><span className="font-semibold text-slate-700 dark:text-slate-300">Ngày kết quả:</span> {selectedRequest.executionTime?.split(' ')[0] || '--'}</div>
-                                <div><span className="font-semibold text-slate-700 dark:text-slate-300">Bác sĩ đọc:</span> {selectedRequest.performer || '--'}</div>
-                            </div>
-                        </div>
-
-                        {/* Bottom: Results Form */}
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 flex-1 p-4 flex flex-col">
-                            <h3 className="text-blue-700 dark:text-blue-400 font-bold text-base mb-4">
-                                Thông tin kết quả
-                            </h3>
-                            <div className="space-y-4 flex-1">
-                                {[
-                                    { label: 'Kỹ thuật thực hiện', key: 'technique' },
-                                    { label: 'Nhận xét', key: 'findings' },
-                                    { label: 'Kết quả', key: 'result' },
-                                    { label: 'Kết luận', key: 'conclusion' },
-                                    { label: 'Ghi chú', key: 'note' },
-                                ].map((field) => (
-                                    <div key={field.key} className="relative group">
-                                        <label className="absolute -top-2.5 left-3 bg-white dark:bg-slate-800 px-1 text-xs font-bold text-blue-600 dark:text-blue-400">
-                                            {field.label}
-                                        </label>
-                                        <textarea 
-                                            rows={field.key === 'findings' ? 3 : 2}
-                                            value={selectedRequest[field.key as keyof LabRequest] || ''}
-                                            onChange={(e) => handleInputChange(field.key as keyof LabRequest, e.target.value)}
-                                            className="w-full p-3 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-transparent transition-all"
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </>
-                ) : (
-                    <div className="flex items-center justify-center h-full text-slate-400">
-                        Chọn một phiếu chỉ định để xem chi tiết
+            {/* ===== RIGHT CONTENT: RESULT DETAIL ===== */}
+            <div className={`
+                flex-col h-full overflow-hidden bg-gray-100 dark:bg-slate-900 flex-1 p-4
+                ${selectedId ? 'flex w-full fixed inset-0 z-[40] lg:static lg:z-auto' : 'hidden lg:flex'}
+            `}>
+                {/* Mobile Back Header */}
+                <div className="lg:hidden flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <button onClick={() => setSelectedId(null)} className="p-2 -ml-2 text-gray-600 dark:text-slate-300 hover:bg-slate-200 rounded-full">
+                            <ChevronLeftIcon className="w-6 h-6" />
+                        </button>
+                        <h2 className="font-bold text-lg">Chi tiết kết quả</h2>
                     </div>
+                    {selectedRequest && (
+                        <button onClick={handleDelete} className="p-2 text-red-500 hover:bg-red-50 rounded-full">
+                            <TrashIcon className="w-5 h-5" />
+                        </button>
+                    )}
+                </div>
+
+                {/* Desktop Header Action (Hidden on Mobile) */}
+                <div className="hidden lg:flex justify-end mb-2">
+                     {selectedRequest && (
+                        <button 
+                            onClick={handleDelete}
+                            className="flex items-center gap-2 px-3 py-1.5 text-sm text-red-600 bg-white dark:bg-slate-800 border border-red-200 dark:border-red-900/30 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                        >
+                            <TrashIcon className="w-4 h-4" /> Xóa phiếu
+                        </button>
+                    )}
+                </div>
+
+                {!selectedRequest ? (
+                    <div className="flex flex-col h-full items-center justify-center text-gray-400 dark:text-slate-500">
+                        <BeakerIcon className="w-16 h-16 mb-4 opacity-20" />
+                        <p className="text-center">Vui lòng chọn một phiếu để xem kết quả</p>
+                    </div>
+                ) : (
+                    <>
+                        {selectedRequest.status === 'pending' ? (
+                            <div className="flex flex-col h-full items-center justify-center bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
+                                <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+                                <p className="text-slate-500 font-medium">Kết quả đang chờ xử lý...</p>
+                                {/* Show Info even if pending */}
+                                <div className="mt-8 w-full max-w-2xl px-6">
+                                    <div className="grid grid-cols-2 gap-4 text-sm text-slate-600 dark:text-slate-400 bg-gray-50 dark:bg-slate-900 p-4 rounded-lg">
+                                        <p><strong>Ngày chỉ định:</strong> {selectedRequest.orderingDate}</p>
+                                        <p><strong>BS chỉ định:</strong> {selectedRequest.orderingDoctor}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="h-full flex flex-col">
+                                {selectedRequest.type === 'XN' && <LabResultTemplate data={selectedRequest} />}
+                                {selectedRequest.type === 'HA' && <ImagingResultTemplate data={selectedRequest} />}
+                                {selectedRequest.type === 'TD' && <FunctionalExplorationTemplate data={selectedRequest} />}
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </div>
