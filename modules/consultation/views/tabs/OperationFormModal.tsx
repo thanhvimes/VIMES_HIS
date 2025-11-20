@@ -12,7 +12,7 @@ import {
 } from '../../../../components/Icons';
 import { OperationRecord } from '../../../../types';
 import { consultationService } from '../../../../services/consultationService';
-import OperationFormModal from './OperationFormModal'; // Import Modal mới tạo
+
 
 // Mock Data & Initial State
 const mockPatientId = 'P003';
@@ -287,15 +287,7 @@ const OperationView: React.FC = () => {
                         </div>
                     )}
                 </div>
-            </div>
-
-            {/* ===== MODAL FORM ===== */}
-            <OperationFormModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                initialData={modalMode === 'create' ? emptyOperation : (selectedOp || emptyOperation)}
-                onSubmit={handleFormSubmit}
-            />
+            </div>           
         </div>
     );
 };
