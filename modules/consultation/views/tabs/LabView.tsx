@@ -208,18 +208,18 @@ const LabView: React.FC = () => {
 
     const getTypeBadge = (type: ServiceType) => {
         switch(type) {
-            case 'XN': return <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-blue-100 text-blue-700 border border-blue-200">XN</span>;
-            case 'HA': return <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-purple-100 text-purple-700 border border-purple-200">HA</span>;
-            case 'TD': return <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-orange-100 text-orange-700 border border-orange-200">TD</span>;
+            case 'XN': return <span className="px-2 py-0.5 text-xs font-bold rounded bg-blue-100 text-blue-700 border border-blue-200">XN</span>;
+            case 'HA': return <span className="px-2 py-0.5 text-xs font-bold rounded bg-purple-100 text-purple-700 border border-purple-200">HA</span>;
+            case 'TD': return <span className="px-2 py-0.5 text-xs font-bold rounded bg-orange-100 text-orange-700 border border-orange-200">TD</span>;
             default: return null;
         }
     };
 
     const getTypeIcon = (type: ServiceType) => {
         switch(type) {
-            case 'XN': return <BeakerIcon className="w-4 h-4" />;
-            case 'HA': return <PhotographIcon className="w-4 h-4" />;
-            case 'TD': return <ActivityIcon className="w-4 h-4" />;
+            case 'XN': return <BeakerIcon className="w-5 h-5" />;
+            case 'HA': return <PhotographIcon className="w-5 h-5" />;
+            case 'TD': return <ActivityIcon className="w-5 h-5" />;
             default: return null;
         }
     };
@@ -271,7 +271,7 @@ const LabView: React.FC = () => {
                 {/* List Content */}
                 <div className="overflow-y-auto flex-1 p-2 space-y-2">
                     {filteredRequests.length === 0 ? (
-                         <div className="p-8 text-center text-gray-400 dark:text-slate-500 text-sm">
+                         <div className="p-8 text-center text-gray-400 dark:text-slate-500 text-base">
                              Không tìm thấy phiếu.
                          </div>
                     ) : (
@@ -291,10 +291,10 @@ const LabView: React.FC = () => {
                                             {getTypeIcon(req.type)}
                                         </div>
                                         <div>
-                                            <div className={`font-semibold text-sm ${selectedId === req.id ? 'text-blue-700 dark:text-blue-300' : 'text-gray-800 dark:text-slate-200'}`}>
+                                            <div className={`font-bold text-base ${selectedId === req.id ? 'text-blue-700 dark:text-blue-300' : 'text-gray-800 dark:text-slate-200'}`}>
                                                 {req.name}
                                             </div>
-                                            <div className="text-xs text-gray-400 dark:text-slate-500 mt-0.5 font-mono">
+                                            <div className="text-sm text-gray-500 dark:text-slate-400 mt-0.5 font-mono">
                                                 #{req.id}
                                             </div>
                                         </div>
@@ -302,10 +302,10 @@ const LabView: React.FC = () => {
                                     {getTypeBadge(req.type)}
                                 </div>
                                 <div className="mt-2 flex justify-between items-end">
-                                    <span className="text-xs text-gray-500 dark:text-slate-400">
+                                    <span className="text-sm text-gray-600 dark:text-slate-300">
                                         {req.orderingDate.split(' ')[0]}
                                     </span>
-                                    <span className={`text-[10px] font-bold uppercase ${req.status === 'completed' ? 'text-green-600' : 'text-amber-500'}`}>
+                                    <span className={`text-xs font-bold uppercase ${req.status === 'completed' ? 'text-green-600' : 'text-amber-500'}`}>
                                         {req.status === 'completed' ? 'Đã xong' : 'Chờ KQ'}
                                     </span>
                                 </div>
@@ -350,17 +350,17 @@ const LabView: React.FC = () => {
                 {!selectedRequest ? (
                     <div className="flex flex-col h-full items-center justify-center text-gray-400 dark:text-slate-500">
                         <BeakerIcon className="w-16 h-16 mb-4 opacity-20" />
-                        <p className="text-center">Vui lòng chọn một phiếu để xem kết quả</p>
+                        <p className="text-center text-lg">Vui lòng chọn một phiếu để xem kết quả</p>
                     </div>
                 ) : (
                     <>
                         {selectedRequest.status === 'pending' ? (
                             <div className="flex flex-col h-full items-center justify-center bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
                                 <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                                <p className="text-slate-500 font-medium">Kết quả đang chờ xử lý...</p>
+                                <p className="text-slate-500 font-medium text-lg">Kết quả đang chờ xử lý...</p>
                                 {/* Show Info even if pending */}
                                 <div className="mt-8 w-full max-w-2xl px-6">
-                                    <div className="grid grid-cols-2 gap-4 text-sm text-slate-600 dark:text-slate-400 bg-gray-50 dark:bg-slate-900 p-4 rounded-lg">
+                                    <div className="grid grid-cols-2 gap-4 text-base text-slate-600 dark:text-slate-400 bg-gray-50 dark:bg-slate-900 p-4 rounded-lg">
                                         <p><strong>Ngày chỉ định:</strong> {selectedRequest.orderingDate}</p>
                                         <p><strong>BS chỉ định:</strong> {selectedRequest.orderingDoctor}</p>
                                     </div>

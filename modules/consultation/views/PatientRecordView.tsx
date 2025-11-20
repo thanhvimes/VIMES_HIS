@@ -16,6 +16,7 @@ import ExamineView from './tabs/ExamineView';
 import LabView from './tabs/LabView';
 import OperationView from './tabs/OperationView';
 import MedicationView from './tabs/MedicationView';
+import FeeView from './tabs/FeeView';
 
 // Mock Data for the specific patient from the image
 const mockPatientRecord = {
@@ -132,7 +133,11 @@ const PatientRecordView: React.FC = () => {
                     <MedicationView />
                 )}
 
-                {activeTab !== 'chart' && activeTab !== 'examine' && activeTab !== 'lab' && activeTab !== 'operation' && activeTab !== 'medication' && (
+                {activeTab === 'fee' && (
+                    <FeeView />
+                )}
+
+                {activeTab !== 'chart' && activeTab !== 'examine' && activeTab !== 'lab' && activeTab !== 'operation' && activeTab !== 'medication' && activeTab !== 'fee' && (
                     <div className="flex flex-col items-center justify-center h-64 text-slate-400">
                         <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-full mb-3">
                             {activeTabInfo && React.createElement(activeTabInfo.icon, { className: "w-8 h-8" })}

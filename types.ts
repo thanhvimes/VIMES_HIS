@@ -250,3 +250,18 @@ export interface Prescription {
   totalAmount: number;
   note?: string;
 }
+
+// --- NEW TYPES FOR FEE MODULE ---
+
+export interface FeeItem {
+  id: string;
+  name: string;
+  category: string; // e.g., "KHÁM BỆNH", "XÉT NGHIỆM", "THUỐC"
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  insurancePaid: number; // Amount paid by insurance
+  patientPaid: number; // Amount paid by patient
+  surcharge: number; // Tiền chênh lệch/Phụ thu
+}
