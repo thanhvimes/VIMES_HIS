@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -37,6 +36,63 @@
       }
     </script>
     <style>
+      /* --- Global Professional Scrollbar --- */
+      
+      /* 1. Firefox Standards */
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 transparent; /* Thumb | Track */
+      }
+      
+      .dark * {
+        scrollbar-color: #475569 transparent;
+      }
+
+      /* 2. WebKit Browsers (Chrome, Safari, Edge) */
+      ::-webkit-scrollbar {
+        width: 8px;  /* Width of vertical scrollbar */
+        height: 8px; /* Height of horizontal scrollbar */
+      }
+
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      /* Transparent corner where scrollbars meet */
+      ::-webkit-scrollbar-corner {
+        background: transparent;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background-color: #cbd5e1; /* slate-300 */
+        border-radius: 6px;
+        border: 2px solid transparent; /* Creates the 'floating' padding effect */
+        background-clip: content-box;  /* Paints background only inside border */
+        transition: background-color 0.2s ease-in-out;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background-color: #94a3b8; /* slate-400 */
+      }
+      
+      ::-webkit-scrollbar-thumb:active {
+        background-color: #64748b; /* slate-500 */
+      }
+
+      /* Dark Mode Overrides */
+      .dark ::-webkit-scrollbar-thumb {
+        background-color: #334155; /* slate-700 */
+      }
+
+      .dark ::-webkit-scrollbar-thumb:hover {
+        background-color: #475569; /* slate-600 */
+      }
+
+      .dark ::-webkit-scrollbar-thumb:active {
+        background-color: #64748b; /* slate-500 */
+      }
+
+      /* Print Styles */
       @media print {
         .no-print {
           display: none !important;
@@ -52,6 +108,13 @@
         .printable-area {
           box-shadow: none !important;
           border: none !important;
+        }
+        /* Hide scrollbars in print */
+        ::-webkit-scrollbar {
+          display: none;
+        }
+        * {
+            scrollbar-width: none !important;
         }
       }
     </style>

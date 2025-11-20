@@ -258,7 +258,7 @@ function Combobox<T extends Record<string, any>>({
                         </div>
                     )}
 
-                    <ul ref={listRef} className="max-h-80 overflow-auto custom-scrollbar">
+                    <ul ref={listRef} className="max-h-80 overflow-auto">
                         {filteredOptions.length > 0 ? (
                             filteredOptions.map((option, index) => {
                                 const isActive = index === activeIndex;

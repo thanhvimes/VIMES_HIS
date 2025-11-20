@@ -134,8 +134,102 @@ const FeeView: React.FC = () => {
     return (
         <div className="flex flex-col lg:flex-row h-full gap-4 bg-slate-100 dark:bg-slate-900/50 rounded-lg overflow-hidden">
             
-            {/* --- LEFT COLUMN: PAYMENT SUMMARY & ACTIONS (25%) --- */}
-            <div className="lg:w-1/4 flex flex-col gap-4 h-full overflow-y-auto">
+            {/* --- LEFT COLUMN: DETAILED FEE LIST (75%) --- */}
+            <div className="lg:w-3/4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden order-2 lg:order-1">
+                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                     <h3 className="font-bold text-slate-700 dark:text-slate-200 text-lg flex items-center gap-2">
+                        <DocumentTextIcon className="w-6 h-6 text-blue-600"/>
+                        Danh sách các mục phí
+                    </h3>
+                    <div className="text-sm text-slate-500">
+                        Tổng số mục: <strong>{items.length}</strong>
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-auto">
+                    <table className="w-full text-sm text-left border-collapse">
+                        <thead className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 sticky top-0 z-10 shadow-sm border-b-2 border-blue-500">
+                            <tr>
+                                <th className="p-3 font-bold border-r border-slate-200 dark:border-slate-600 w-12 text-center">STT</th>
+                                <th className="p-3 font-bold border-r border-slate-200 dark:border-slate-600 min-w-[200px]">Diễn giải (Tên dịch vụ)</th>
+                                <th className="p-3 font-bold border-r border-slate-200 dark:border-slate-600 text-right w-24">Đơn giá</th>
+                                <th className="p-3 font-bold border-r border-slate-200 dark:border-slate-600 text-center w-16">SL</th>
+                                <th className="p-3 font-bold border-r border-slate-200 dark:border-slate-600 text-right w-24">Đơn giá giao</th>
+                                <th className="p-3 font-bold border-r border-slate-200 dark:border-slate-600 text-right w-24">Thành tiền</th>
+                                <th className="p-3 font-bold border-r border-slate-200 dark:border-slate-600 text-right w-24">TT chênh lệch</th>
+                                <th className="p-3 font-bold border-r border-slate-200 dark:border-slate-600 text-right w-24">Nguồn TT</th>
+                                <th className="p-3 font-bold border-r border-slate-200 dark:border-slate-600 text-right w-24">Chênh lệch</th>
+                                <th className="p-3 font-bold border-r border-slate-200 dark:border-slate-600 text-right w-24">Cùng chi trả</th>
+                                <th className="p-3 font-bold text-right w-24">Nguồn khác</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                            {Object.entries(groupedItems).map(([category, catItems], groupIdx) => {
+                                const groupTotal = catItems.reduce((acc, item) => ({
+                                    qty: acc.qty + item.quantity,
+                                    totalPrice: acc.totalPrice + item.totalPrice,
+                                }), { qty: 0, totalPrice: 0 });
+
+                                return (
+                                    <React.Fragment key={category}>
+                                        {/* Group Header */}
+                                        <tr className="bg-[#eef2ff] dark:bg-blue-900/20 font-bold text-slate-800 dark:text-slate-200 text-xs uppercase">
+                                            <td className="p-3 border-r border-blue-100 dark:border-slate-700"></td>
+                                            <td className="p-3 border-r border-blue-100 dark:border-slate-700">{category}</td>
+                                            <td className="p-3 border-r border-blue-100 dark:border-slate-700 text-right"></td>
+                                            <td className="p-3 border-r border-blue-100 dark:border-slate-700 text-center">{groupTotal.qty}</td>
+                                            <td className="p-3 border-r border-blue-100 dark:border-slate-700 text-right"></td>
+                                            <td className="p-3 border-r border-blue-100 dark:border-slate-700 text-right text-blue-700 dark:text-blue-400">{formatCurrency(groupTotal.totalPrice)}</td>
+                                            <td className="p-3 border-r border-blue-100 dark:border-slate-700 text-right">0</td>
+                                            <td className="p-3 border-r border-blue-100 dark:border-slate-700 text-right"></td>
+                                            <td className="p-3 border-r border-blue-100 dark:border-slate-700 text-right"></td>
+                                            <td className="p-3 border-r border-blue-100 dark:border-slate-700 text-right">0</td>
+                                            <td className="p-3 text-right">{formatCurrency(groupTotal.totalPrice)}</td>
+                                        </tr>
+                                        {/* Items */}
+                                        {catItems.map((item, idx) => (
+                                            <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group">
+                                                <td className="p-3 text-center text-slate-500 text-xs border-r border-slate-100 dark:border-slate-700">{idx + 1}</td>
+                                                <td className="p-3 font-medium text-slate-800 dark:text-slate-200 border-r border-slate-100 dark:border-slate-700">
+                                                    {item.name}
+                                                </td>
+                                                <td className="p-3 text-right text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-700">{formatCurrency(item.unitPrice)}</td>
+                                                <td className="p-3 text-center font-semibold border-r border-slate-100 dark:border-slate-700">{item.quantity}</td>
+                                                <td className="p-3 text-right text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-700">{formatCurrency(item.unitPrice)}</td>
+                                                <td className="p-3 text-right font-semibold text-slate-700 dark:text-slate-300 border-r border-slate-100 dark:border-slate-700">{formatCurrency(item.totalPrice)}</td>
+                                                <td className="p-3 text-right text-slate-500 border-r border-slate-100 dark:border-slate-700">0</td>
+                                                <td className="p-3 text-right text-slate-500 border-r border-slate-100 dark:border-slate-700"></td>
+                                                <td className="p-3 text-right text-slate-500 border-r border-slate-100 dark:border-slate-700"></td>
+                                                <td className="p-3 text-right text-slate-500 border-r border-slate-100 dark:border-slate-700">0</td>
+                                                <td className="p-3 text-right font-bold text-slate-800 dark:text-white">
+                                                    {formatCurrency(item.totalPrice)}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </React.Fragment>
+                                );
+                            })}
+                            
+                            {/* Grand Total Row */}
+                            <tr className="bg-blue-50 dark:bg-blue-900/20 font-bold text-slate-800 dark:text-slate-100 border-t-2 border-blue-200 dark:border-blue-800">
+                                <td colSpan={2} className="p-4 uppercase text-xs tracking-wider">Tổng cộng</td>
+                                <td className="p-4 text-right"></td>
+                                <td className="p-4 text-center">{items.reduce((s, i) => s + i.quantity, 0)}</td>
+                                <td className="p-4 text-right"></td>
+                                <td className="p-4 text-right text-blue-700 dark:text-blue-400">{formatCurrency(summary.total)}</td>
+                                <td className="p-4 text-right">0</td>
+                                <td className="p-4 text-right"></td>
+                                <td className="p-4 text-right">0</td>
+                                <td className="p-4 text-right">0</td>
+                                <td className="p-4 text-right text-lg text-red-600 dark:text-red-400">{formatCurrency(summary.total)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* --- RIGHT COLUMN: PAYMENT SUMMARY & ACTIONS (25%) --- */}
+            <div className="lg:w-1/4 flex flex-col gap-4 h-full overflow-y-auto order-1 lg:order-2">
                 {/* Summary Card */}
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-0 overflow-hidden">
                     <div className="p-4 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
@@ -195,86 +289,6 @@ const FeeView: React.FC = () => {
                     >
                         <PrinterIcon className="w-5 h-5" /> In bảng kê chi phí
                     </button>
-                </div>
-            </div>
-
-            {/* --- RIGHT COLUMN: DETAILED FEE LIST (75%) --- */}
-            <div className="lg:w-3/4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
-                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                     <h3 className="font-bold text-slate-700 dark:text-slate-200 text-lg flex items-center gap-2">
-                        <DocumentTextIcon className="w-6 h-6 text-slate-500"/>
-                        Danh sách các mục phí
-                    </h3>
-                    <div className="text-sm text-slate-500">
-                        Tổng số mục: <strong>{items.length}</strong>
-                    </div>
-                </div>
-
-                <div className="flex-1 overflow-auto">
-                    <table className="w-full text-sm text-left border-collapse">
-                        <thead className="bg-blue-600 text-white sticky top-0 z-10 font-bold">
-                            <tr>
-                                <th className="p-3 border-r border-blue-500 w-12 text-center">STT</th>
-                                <th className="p-3 border-r border-blue-500">Diễn giải</th>
-                                <th className="p-3 border-r border-blue-500 text-right w-24">Đơn giá</th>
-                                <th className="p-3 border-r border-blue-500 text-center w-16">SL</th>
-                                <th className="p-3 border-r border-blue-500 text-right w-24">Đơn giá giao</th>
-                                <th className="p-3 border-r border-blue-500 text-right w-24">Thành tiền</th>
-                                <th className="p-3 border-r border-blue-500 text-right w-24">Thành tiền chênh lệch</th>
-                                <th className="p-3 border-r border-blue-500 text-right w-24">Nguồn thanh toán</th>
-                                <th className="p-3 border-r border-blue-500 text-right w-24">Chênh lệch</th>
-                                <th className="p-3 border-r border-blue-500 text-right w-24">Cùng chi trả</th>
-                                <th className="p-3 text-right w-24">Nguồn khác</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                            {Object.entries(groupedItems).map(([category, catItems], groupIdx) => (
-                                <React.Fragment key={category}>
-                                    {/* Group Header */}
-                                    <tr className="bg-slate-100 dark:bg-slate-900/60">
-                                        <td colSpan={11} className="px-3 py-2 font-bold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wider border-y border-slate-200 dark:border-slate-700">
-                                            {category}
-                                            <span className="ml-2 font-normal text-slate-500">{catItems.reduce((s, i) => s + i.totalPrice, 0).toLocaleString('vi-VN')}</span>
-                                        </td>
-                                    </tr>
-                                    {/* Items */}
-                                    {catItems.map((item, idx) => (
-                                        <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group">
-                                            <td className="p-3 text-center text-slate-500 text-xs border-r border-slate-100 dark:border-slate-700">{idx + 1}</td>
-                                            <td className="p-3 font-medium text-slate-800 dark:text-slate-200 border-r border-slate-100 dark:border-slate-700">
-                                                {item.name}
-                                            </td>
-                                            <td className="p-3 text-right text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-700">{formatCurrency(item.unitPrice)}</td>
-                                            <td className="p-3 text-center font-semibold border-r border-slate-100 dark:border-slate-700">{item.quantity}</td>
-                                            <td className="p-3 text-right text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-700">{formatCurrency(item.unitPrice)}</td>
-                                            <td className="p-3 text-right font-semibold text-slate-700 dark:text-slate-300 border-r border-slate-100 dark:border-slate-700">{formatCurrency(item.totalPrice)}</td>
-                                            <td className="p-3 text-right text-slate-500 border-r border-slate-100 dark:border-slate-700">0</td>
-                                            <td className="p-3 text-right text-slate-500 border-r border-slate-100 dark:border-slate-700"></td>
-                                            <td className="p-3 text-right text-slate-500 border-r border-slate-100 dark:border-slate-700"></td>
-                                            <td className="p-3 text-right text-slate-500 border-r border-slate-100 dark:border-slate-700">0</td>
-                                            <td className="p-3 text-right font-bold text-slate-800 dark:text-white">
-                                                {formatCurrency(item.totalPrice)}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </React.Fragment>
-                            ))}
-                            
-                            {/* Grand Total Row */}
-                            <tr className="bg-slate-100 dark:bg-slate-800 font-bold text-slate-800 dark:text-slate-100 border-t-2 border-slate-300 dark:border-slate-600">
-                                <td colSpan={2} className="p-4 uppercase text-xs tracking-wider">Tổng cộng</td>
-                                <td className="p-4 text-right">{formatCurrency(summary.total)}</td>
-                                <td className="p-4 text-center">{items.reduce((s, i) => s + i.quantity, 0)}</td>
-                                <td className="p-4 text-right">{formatCurrency(summary.total)}</td>
-                                <td className="p-4 text-right">{formatCurrency(summary.total)}</td>
-                                <td className="p-4 text-right">0</td>
-                                <td className="p-4 text-right"></td>
-                                <td className="p-4 text-right">0</td>
-                                <td className="p-4 text-right">0</td>
-                                <td className="p-4 text-right text-lg">{formatCurrency(summary.total)}</td>
-                            </tr>
-                        </tbody>
-                    </table>
                 </div>
             </div>
 
