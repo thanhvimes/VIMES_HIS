@@ -2,6 +2,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ResultsListView from './views/ResultsListView';
+import ResultDetailView from './views/ResultDetailView';
 import UploadView from './views/UploadView';
 import DashboardView from './views/DashboardView';
 import WorklistView from './views/WorklistView';
@@ -17,6 +18,7 @@ const ImagingResults: React.FC = () => {
       <Route path="reading" element={<ReadingView />} />
       <Route path="reading/:requestId" element={<ReadingView />} />
       <Route path="list" element={<ResultsListView />} />
+      <Route path="detail/:requestId" element={<ResultDetailView />} />
       <Route path="upload" element={<UploadView />} />
       <Route path="config" element={<ConfigurationView />} />
     </Routes>

@@ -42,6 +42,7 @@ export const mockRequests: ImagingRequest[] = [
         technician: 'KTV. Nguyễn Văn Tú',
         radiologist: 'BS. Trần Thanh',
         room: 'P. XQ 01',
+        // Chest X-Ray
         imageUrl: 'https://prod-images-static.radiopaedia.org/images/54766339/9d0de6367f802d672324f4a844e2e211f95d83115f67b6f250d472e532402273_gallery.jpeg',
         report: 'Kỹ thuật: Chụp X-quang ngực thẳng đứng.\n\nMô tả hình ảnh:\n- Lồng ngực cân đối.\n- Nhu mô phổi sáng đều hai bên.\n- Không thấy đám mờ khu trú.\n- Góc sườn hoành hai bên nhọn.\n- Bóng tim không to.\n\nKết luận: Hình ảnh tim phổi bình thường.'
     },
@@ -56,7 +57,12 @@ export const mockRequests: ImagingRequest[] = [
         bodyPart: 'Abdomen',
         requestDate: '2023-11-15 09:00',
         priority: 'Urgent',
-        status: 'Scheduled',
+        status: 'Reported',
+        technician: 'BS. Lê Văn Siêu',
+        room: 'P. SA 02',
+        // Ultrasound Abdomen
+        imageUrl: 'https://prod-images-static.radiopaedia.org/images/51503620/0a1f9c6a534838c43993a341939f50_gallery.jpeg',
+        report: 'GAN: Kích thước không lớn, bờ đều, nhu mô đồng nhất. Không thấy khối khu trú.\nĐƯỜNG MẬT: Không giãn, không sỏi.\nTÚI MẬT: Thành mỏng, không sỏi.\nTỤY: Bình thường.\nLÁCH: Kích thước bình thường.\nTHẬN: Hai thận không sỏi, không ứ nước.\n\nKẾT LUẬN: Hình ảnh siêu âm bụng chưa phát hiện bất thường.'
     },
     {
         id: 'REQ-003',
@@ -72,6 +78,7 @@ export const mockRequests: ImagingRequest[] = [
         status: 'Acquired',
         technician: 'KTV. Lê Thị Mai',
         room: 'P. CT 01',
+        // Brain CT
         imageUrl: 'https://prod-images-static.radiopaedia.org/images/29533634/689467c9c8e563d796306e34564f96_gallery.jpeg'
     },
     {
@@ -85,9 +92,28 @@ export const mockRequests: ImagingRequest[] = [
         bodyPart: 'Extremity',
         requestDate: '2023-11-15 10:00',
         priority: 'Urgent',
-        status: 'Processing',
+        status: 'Acquired',
         technician: 'KTV. Nguyễn Văn Tú',
-        room: 'P. XQ 02'
+        room: 'P. XQ 02',
+        // Forearm X-Ray (fracture)
+        imageUrl: 'https://prod-images-static.radiopaedia.org/images/13868444/2a6902693226707332027205270697_gallery.jpeg'
+    },
+    {
+        id: 'REQ-005',
+        patientId: 'P002',
+        patientName: 'Trần Thị Bích',
+        age: 31,
+        gender: 'Nữ',
+        serviceName: 'MRI Cột sống thắt lưng',
+        modality: 'MRI',
+        bodyPart: 'Spine',
+        requestDate: '2023-11-15 11:00',
+        priority: 'Normal',
+        status: 'Acquired',
+        technician: 'KTV. Trần Văn M',
+        room: 'P. MRI 01',
+        // Spine MRI
+        imageUrl: 'https://prod-images-static.radiopaedia.org/images/3439437/3065205765c076c4a13577378f3294_gallery.jpeg'
     }
 ];
 

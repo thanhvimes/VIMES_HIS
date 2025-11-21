@@ -46,7 +46,11 @@ const mockOperations: OperationRecord[] = [
         method: 'Phẫu thuật nội soi với gây mê toàn thân',
         steps: '1. Gây mê toàn thân\n2. Đặt nội khí quản\n3. Tiến hành nội soi và cắt bỏ khối u\n4. Kiểm tra và khâu vết mổ',
         instruments: '- Nội soi dạ dày\n- Kéo phẫu thuật\n- Kim khâu\n- Máy hút dịch',
-        medications: '- Propofol\n- Fentanyl\n- Rocuronium'
+        medications: '- Propofol\n- Fentanyl\n- Rocuronium',
+        images: [
+            'https://images.unsplash.com/photo-1551601651-2a8555f1a136?auto=format&fit=crop&w=800&q=80',
+            'https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=800&q=80'
+        ]
     },
     {
         id: 'TT002',
@@ -66,7 +70,10 @@ const mockOperations: OperationRecord[] = [
         method: 'Nong mạch và đặt stent',
         steps: '1. Gây tê tại chỗ\n2. Luồn ống thông\n3. Nong mạch\n4. Đặt stent',
         instruments: 'Stent phủ thuốc',
-        medications: 'Heparin, Aspirin'
+        medications: 'Heparin, Aspirin',
+        images: [
+            'https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&w=800&q=80'
+        ]
     }
 ];
 
