@@ -10,14 +10,17 @@ import {
     PlusIcon,
     ListBulletIcon,
     ClockIcon,
-    ActivityIcon
+    ActivityIcon,
+    SparklesIcon
 } from '../../../../components/Icons';
-import { ClinicalRecord, ICD10 } from '../../../../types';
+import { ClinicalRecord, ICD10, AISuggestion } from '../../../../types';
 import { consultationService } from '../../../../services/consultationService';
+import { getAISuggestions } from '../../../../services/geminiService';
 import { usePdfPreview } from '../../../../contexts/PdfPreviewContext';
 import Combobox, { ComboboxColumn } from '../../../../components/shared/Combobox';
 import { doctorOptions, diagnosisOptions, DoctorItem, CatalogItem } from '../../data/catalogs';
 import SubDiagnosisModal from './modals/SubDiagnosisModal';
+import AIAnalysisModal from './modals/AIAnalysisModal';
 
 // Placeholder data
 const mockPatientInfo = {
@@ -39,6 +42,12 @@ const ExamineView: React.FC = () => {
     
     // Modal State for Sub Diseases
     const [isSubDiagModalOpen, setIsSubDiagModalOpen] = useState(false);
+
+    // AI State
+    const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+    const [isAILoading, setIsAILoading] = useState(false);
+    const [aiResult, setAiResult] = useState<AISuggestion | null>(null);
+    const [aiError, setAiError] = useState<string | null>(null);
 
     useEffect(() => {
         const loadData = async () => {
@@ -152,6 +161,37 @@ const ExamineView: React.FC = () => {
         handleInputChange('subDiseases', diseases);
     };
 
+    // AI Assistant Logic
+    const handleAskAI = async () => {
+        if (!record) return;
+        const symptoms = record.history || '';
+        const notes = record.clinicalExam || '';
+
+        if (!symptoms && !notes) {
+            alert('Vui lòng nhập "Quá trình bệnh lý" hoặc "Khám lâm sàng" trước khi hỏi AI.');
+            return;
+        }
+
+        setIsAIModalOpen(true);
+        setIsAILoading(true);
+        setAiError(null);
+        setAiResult(null);
+
+        try {
+            // Map mock patient info to the structure expected by the service
+            const patientContext = {
+                age: mockPatientInfo.age,
+                gender: mockPatientInfo.gender
+            };
+            const result = await getAISuggestions(symptoms, notes, patientContext);
+            setAiResult(result);
+        } catch (err) {
+            setAiError('Không thể kết nối với trợ lý AI. Vui lòng thử lại sau.');
+        } finally {
+            setIsAILoading(false);
+        }
+    };
+
     // Columns Configuration for Comboboxes
     const doctorColumns: ComboboxColumn<DoctorItem>[] = [
         { key: 'name', label: 'Họ tên', width: '50%', className: 'font-bold' },
@@ -256,8 +296,18 @@ const ExamineView: React.FC = () => {
 
                     {/* 2. GROUP: CHẨN ĐOÁN (DIAGNOSIS) */}
                     <div className={`flex-shrink-0 bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border transition-all duration-300 ${isEditable ? 'border-blue-400 ring-1 ring-blue-400' : 'border-slate-200 dark:border-slate-700'}`}>
-                         <div className="flex items-center gap-2 mb-3 text-amber-600 dark:text-amber-400 font-bold uppercase text-sm border-b border-slate-100 dark:border-slate-700 pb-1.5">
-                            <ActivityIcon className="w-4 h-4"/> Chẩn Đoán
+                         <div className="flex items-center justify-between mb-3 border-b border-slate-100 dark:border-slate-700 pb-1.5">
+                            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold uppercase text-sm">
+                                <ActivityIcon className="w-4 h-4"/> Chẩn Đoán
+                            </div>
+                            <button 
+                                onClick={handleAskAI}
+                                disabled={!isEditable}
+                                className="flex items-center gap-1.5 px-3 py-1 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50 rounded-full text-xs font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Gợi ý chẩn đoán từ AI"
+                            >
+                                <SparklesIcon className="w-3.5 h-3.5"/> Hỏi AI
+                            </button>
                         </div>
                          <div className="grid grid-cols-1 gap-3">
                                 <Combobox<CatalogItem>
@@ -408,6 +458,14 @@ const ExamineView: React.FC = () => {
                 onClose={() => setIsSubDiagModalOpen(false)}
                 initialDiseases={record.subDiseases || []}
                 onSave={handleSaveSubDiseases}
+            />
+            
+            <AIAnalysisModal 
+                isOpen={isAIModalOpen}
+                onClose={() => setIsAIModalOpen(false)}
+                isLoading={isAILoading}
+                data={aiResult}
+                error={aiError}
             />
         </div>
     );

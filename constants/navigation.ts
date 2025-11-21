@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { 
   UserGroupIcon, 
@@ -10,6 +11,7 @@ import {
   ChartBarIcon,
   CogIcon,
   PresentationChartLineIcon,
+  HospitalIcon
 } from '../components/Icons';
 import { NavItemType } from '../types';
 
@@ -18,6 +20,8 @@ export const MODULE_ITEMS: NavItemType[] = [
   { name: 'Tiếp nhận', path: '/reception', icon: React.createElement(UserGroupIcon, { className: "h-6 w-6" }) },
   // FIX: Replaced JSX with React.createElement to be valid in a .ts file
   { name: 'Khám bệnh', path: '/consultation', icon: React.createElement(HeartIcon, { className: "h-6 w-6" }) },
+  // FIX: Replaced JSX with React.createElement to be valid in a .ts file
+  { name: 'Điều trị nội trú', path: '/inpatient-treatment', icon: React.createElement(HospitalIcon, { className: "h-6 w-6" }) },
   // FIX: Replaced JSX with React.createElement to be valid in a .ts file
   { name: 'Viện phí', path: '/billing', icon: React.createElement(CurrencyDollarIcon, { className: "h-6 w-6" }) },
   // FIX: Replaced JSX with React.createElement to be valid in a .ts file

@@ -4,10 +4,10 @@ import {
     PrinterIcon, 
     PlusIcon, 
     TrashIcon, 
-    CurrencyDollarIcon,
-    DocumentTextIcon,
-    CheckIcon,
-    XIcon
+    CurrencyDollarIcon, 
+    DocumentTextIcon, 
+    CheckIcon, 
+    XIcon 
 } from '../../../../components/Icons';
 import { FeeItem } from '../../../../types';
 import { usePdfPreview } from '../../../../contexts/PdfPreviewContext';
@@ -166,7 +166,7 @@ const FeeView: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                            {Object.entries(groupedItems).map(([category, catItems], groupIdx) => {
+                            {Object.entries(groupedItems).map(([category, catItems]: [string, FeeItem[]], groupIdx) => {
                                 const groupTotal = catItems.reduce((acc, item) => ({
                                     qty: acc.qty + item.quantity,
                                     totalPrice: acc.totalPrice + item.totalPrice,

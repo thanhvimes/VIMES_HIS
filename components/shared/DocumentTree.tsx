@@ -30,10 +30,22 @@ interface TreeItemProps {
     onSelect: (node: TreeNode) => void;
 }
 
+// Helper function to recursively count files
+const getFileCount = (node: TreeNode): number => {
+    if (node.type === 'file') return 1;
+    if (node.children) {
+        return node.children.reduce((acc, child) => acc + getFileCount(child), 0);
+    }
+    return 0;
+};
+
 const TreeItem: React.FC<TreeItemProps> = ({ node, level, expandedNodes, selectedId, onToggle, onSelect }) => {
     const isExpanded = expandedNodes.has(node.id);
     const isSelected = selectedId === node.id;
     const hasChildren = node.children && node.children.length > 0;
+
+    // Calculate file count for folders
+    const fileCount = useMemo(() => getFileCount(node), [node]);
 
     const getIcon = () => {
         if (node.type === 'folder') return <FolderIcon className={`w-5 h-5 ${isExpanded ? 'text-yellow-500' : 'text-yellow-400'}`} />;
@@ -67,9 +79,19 @@ const TreeItem: React.FC<TreeItemProps> = ({ node, level, expandedNodes, selecte
                     ) : <div className="w-3.5" />}
                 </div>
                 <div className="mr-2 flex-shrink-0">{getIcon()}</div>
-                <div className="flex-1 min-w-0">
-                    <p className="truncate">{node.label}</p>
-                    {node.date && <p className="text-[10px] text-slate-400 dark:text-slate-500">{node.date}</p>}
+                
+                <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                    <div className="min-w-0 overflow-hidden">
+                        <p className="truncate">{node.label}</p>
+                        {node.date && <p className="text-[10px] text-slate-400 dark:text-slate-500">{node.date}</p>}
+                    </div>
+                    
+                    {/* File Count Badge for Folders */}
+                    {node.type === 'folder' && fileCount > 0 && (
+                        <span className="flex-shrink-0 text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                            {fileCount}
+                        </span>
+                    )}
                 </div>
             </div>
             {isExpanded && node.children && (

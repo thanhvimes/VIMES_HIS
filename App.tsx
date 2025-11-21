@@ -11,6 +11,8 @@ import Reception from './modules/reception/index';
 import { RECEPTION_NAV_ITEMS } from './modules/reception/constants';
 import Consultation from './modules/consultation/index';
 import { CONSULTATION_NAV_ITEMS } from './modules/consultation/constants';
+import InpatientTreatment from './modules/inpatient-treatment/index';
+import { INPATIENT_NAV_ITEMS } from './modules/inpatient-treatment/constants';
 import Billing from './modules/billing/index';
 import { BILLING_NAV_ITEMS } from './modules/billing/constants';
 import LabResults from './modules/lab-results/index';
@@ -32,6 +34,7 @@ import { PdfPreviewProvider } from './contexts/PdfPreviewContext';
 const moduleConfig: { [key: string]: { title: string; nav: any[] } } = {
   reception: { title: 'Tiếp nhận', nav: RECEPTION_NAV_ITEMS },
   consultation: { title: 'Khám bệnh', nav: CONSULTATION_NAV_ITEMS },
+  'inpatient-treatment': { title: 'Điều trị nội trú', nav: INPATIENT_NAV_ITEMS },
   billing: { title: 'Viện phí', nav: BILLING_NAV_ITEMS },
   'lab-results': { title: 'KQ Xét nghiệm', nav: LAB_RESULTS_NAV_ITEMS },
   'imaging-results': { title: 'KQ Hình ảnh', nav: IMAGING_RESULTS_NAV_ITEMS },
@@ -63,7 +66,9 @@ const WorkspaceLayout: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   const location = useLocation();
 
   // Logic to determine if the current page should be full width (no padding)
-  const isFullWidthPage = location.pathname.includes('/consultation/record') || location.pathname.includes('/documents');
+  const isFullWidthPage = location.pathname.includes('/consultation/record') || 
+                          location.pathname.includes('/inpatient-treatment/record') ||
+                          location.pathname.includes('/documents');
 
   const { pageTitle, moduleNavItems } = useMemo(() => {
     const currentModuleRoot = location.pathname.split('/')[1];
@@ -141,6 +146,7 @@ const App: React.FC = () => {
         <Route element={<WorkspaceLayout onLogout={handleLogout} />}>
           <Route path="/reception/*" element={<Reception />} />
           <Route path="/consultation/*" element={<Consultation />} />
+          <Route path="/inpatient-treatment/*" element={<InpatientTreatment />} />
           <Route path="/billing/*" element={<Billing />} />
           <Route path="/lab-results/*" element={<LabResults />} />
           <Route path="/imaging-results/*" element={<ImagingResults />} />

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import SignatureModal from './SignatureModal';
@@ -6,7 +7,7 @@ import { Signature } from '../../types';
 import { 
   XIcon, 
   ShareIcon, 
-  PrintIcon, 
+  PrinterIcon, 
   ChevronLeftIcon, 
   ChevronRightIcon, 
   ZoomInIcon, 
@@ -16,7 +17,8 @@ import {
   FitToPageIcon,
   HandIcon,
   InfoIcon,
-  TrashIcon
+  TrashIcon,
+  DownloadIcon
 } from '../Icons';
 
 // Configure the PDF.js worker. This is essential for the library to work.
@@ -395,8 +397,9 @@ const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({ isOpen, onClose, pdfU
                       <SignatureIcon/>
                   </button>
               )}
+              <button onClick={handleDownloadFallback} disabled={isLoading} className="p-2 rounded-full disabled:text-slate-400 disabled:bg-transparent disabled:cursor-not-allowed hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" title="Download"><DownloadIcon className="w-5 h-5"/></button>
               <button onClick={handleShare} disabled={isLoading} className="p-2 rounded-full disabled:text-slate-400 disabled:bg-transparent disabled:cursor-not-allowed hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" title="Share"><ShareIcon/></button>
-              <button onClick={handlePrint} disabled={isLoading} className="p-2 rounded-full disabled:text-slate-400 disabled:bg-transparent disabled:cursor-not-allowed hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" title="Print"><PrintIcon/></button>
+              <button onClick={handlePrint} disabled={isLoading} className="p-2 rounded-full disabled:text-slate-400 disabled:bg-transparent disabled:cursor-not-allowed hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" title="Print"><PrinterIcon/></button>
             </div>
           </div>
 

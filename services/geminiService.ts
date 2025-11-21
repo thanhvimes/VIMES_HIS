@@ -4,34 +4,38 @@ import { Patient, AISuggestion } from '../types';
 const getAISuggestions = async (
   symptoms: string,
   notes: string,
-  patient: Patient
+  patient: Patient | { age: number; gender: string }
 ): Promise<AISuggestion> => {
   // The API key is securely managed as an environment variable (process.env.API_KEY)
   // and is directly used by the GoogleGenAI constructor.
-  // This ensures the key is not exposed in the frontend code.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const prompt = `
-    You are an expert medical assistant AI. Your role is to analyze clinical notes and provide structured suggestions to a qualified physician. DO NOT provide a definitive diagnosis.
+    You are an expert medical assistant AI. Your role is to analyze clinical notes and provide structured suggestions to a qualified physician. 
+    
+    IMPORTANT: This is for a simulation/educational context. DO NOT provide a definitive diagnosis. Always suggest referencing clinical guidelines.
 
-    Analyze the following information for a ${patient.age}-year-old ${patient.gender.toLowerCase()} patient.
+    Analyze the following information for a ${patient.age}-year-old ${patient.gender} patient.
 
-    Patient Symptoms:
+    Patient Symptoms / History (Quá trình bệnh lý):
     ---
     ${symptoms || 'Not provided.'}
     ---
 
-    Physician's Examination Notes:
+    Physician's Clinical Exam Notes (Khám lâm sàng):
     ---
     ${notes || 'Not provided.'}
     ---
 
-    Based on the information, provide a concise summary, a list of potential diagnoses for the physician to consider, and a list of suggested next steps (like specific tests or lifestyle recommendations).
+    Based on the information, provide:
+    1. A concise summary of the case.
+    2. A list of potential diagnoses (ICD-10 style if possible) for the physician to consider.
+    3. A list of suggested next steps (specific lab tests, imaging, or immediate treatments).
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: "gemini-3-pro-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -58,7 +62,7 @@ const getAISuggestions = async (
       },
     });
 
-    const jsonText = response.text.trim();
+    const jsonText = response.text || "{}";
     const parsedResponse: AISuggestion = JSON.parse(jsonText);
     return parsedResponse;
   } catch (error) {
