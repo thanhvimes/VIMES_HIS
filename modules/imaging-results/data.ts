@@ -6,7 +6,7 @@ export interface ImagingRequest {
     age: number;
     gender: string;
     serviceName: string;
-    modality: 'X-Ray' | 'CT' | 'MRI' | 'Ultrasound';
+    modality: 'X-Ray' | 'CT' | 'MRI' | 'Ultrasound' | 'Endoscopy'; // Added Endoscopy
     bodyPart: string;
     requestDate: string;
     priority: 'Normal' | 'Urgent';
@@ -22,11 +22,28 @@ export interface ImagingRequest {
 export interface ReportTemplate {
     id: string;
     name: string;
-    modality: 'X-Ray' | 'CT' | 'MRI' | 'Ultrasound';
+    modality: 'X-Ray' | 'CT' | 'MRI' | 'Ultrasound' | 'Endoscopy';
     content: string;
 }
 
 export const mockRequests: ImagingRequest[] = [
+    {
+        id: 'REQ-NS-001',
+        patientId: 'P003',
+        patientName: 'Lê Hoàng Cường',
+        age: 45,
+        gender: 'Nam',
+        serviceName: 'Nội soi Dạ dày - Tá tràng (Gây mê)',
+        modality: 'Endoscopy',
+        bodyPart: 'Stomach',
+        requestDate: '2023-11-16 08:15',
+        priority: 'Normal',
+        status: 'Processing',
+        technician: 'ĐD. Nguyễn Thị B',
+        radiologist: 'BS. Phạm Văn Soi',
+        room: 'P. Nội Soi 01',
+        imageUrl: '' // No single image, will simulate capture gallery
+    },
     {
         id: 'REQ-001',
         patientId: 'P003',
@@ -42,8 +59,8 @@ export const mockRequests: ImagingRequest[] = [
         technician: 'KTV. Nguyễn Văn Tú',
         radiologist: 'BS. Trần Thanh',
         room: 'P. XQ 01',
-        // Chest X-Ray
-        imageUrl: 'https://prod-images-static.radiopaedia.org/images/54766339/9d0de6367f802d672324f4a844e2e211f95d83115f67b6f250d472e532402273_gallery.jpeg',
+        // Chest X-Ray (Normal)
+        imageUrl: 'https://prod-images-static.radiopaedia.org/images/31521/0a8d37d7996342775b761094577303_jumbo.jpeg',
         report: 'Kỹ thuật: Chụp X-quang ngực thẳng đứng.\n\nMô tả hình ảnh:\n- Lồng ngực cân đối.\n- Nhu mô phổi sáng đều hai bên.\n- Không thấy đám mờ khu trú.\n- Góc sườn hoành hai bên nhọn.\n- Bóng tim không to.\n\nKết luận: Hình ảnh tim phổi bình thường.'
     },
     {
@@ -60,8 +77,8 @@ export const mockRequests: ImagingRequest[] = [
         status: 'Reported',
         technician: 'BS. Lê Văn Siêu',
         room: 'P. SA 02',
-        // Ultrasound Abdomen
-        imageUrl: 'https://prod-images-static.radiopaedia.org/images/51503620/0a1f9c6a534838c43993a341939f50_gallery.jpeg',
+        // Ultrasound Liver/Kidney
+        imageUrl: 'https://prod-images-static.radiopaedia.org/images/6057290/93d9667d9266733660227072365724_jumbo.jpg',
         report: 'GAN: Kích thước không lớn, bờ đều, nhu mô đồng nhất. Không thấy khối khu trú.\nĐƯỜNG MẬT: Không giãn, không sỏi.\nTÚI MẬT: Thành mỏng, không sỏi.\nTỤY: Bình thường.\nLÁCH: Kích thước bình thường.\nTHẬN: Hai thận không sỏi, không ứ nước.\n\nKẾT LUẬN: Hình ảnh siêu âm bụng chưa phát hiện bất thường.'
     },
     {
@@ -78,8 +95,8 @@ export const mockRequests: ImagingRequest[] = [
         status: 'Acquired',
         technician: 'KTV. Lê Thị Mai',
         room: 'P. CT 01',
-        // Brain CT
-        imageUrl: 'https://prod-images-static.radiopaedia.org/images/29533634/689467c9c8e563d796306e34564f96_gallery.jpeg'
+        // Brain CT (Normal Axial)
+        imageUrl: 'https://prod-images-static.radiopaedia.org/images/2296062/c6c702c3e7c03a765f59049603e22e_jumbo.jpg'
     },
     {
         id: 'REQ-004',
@@ -95,8 +112,8 @@ export const mockRequests: ImagingRequest[] = [
         status: 'Acquired',
         technician: 'KTV. Nguyễn Văn Tú',
         room: 'P. XQ 02',
-        // Forearm X-Ray (fracture)
-        imageUrl: 'https://prod-images-static.radiopaedia.org/images/13868444/2a6902693226707332027205270697_gallery.jpeg'
+        // Forearm X-Ray (Greenstick Fracture)
+        imageUrl: 'https://prod-images-static.radiopaedia.org/images/130629/20b977c70967402366936033320026_jumbo.jpg'
     },
     {
         id: 'REQ-005',
@@ -112,12 +129,75 @@ export const mockRequests: ImagingRequest[] = [
         status: 'Acquired',
         technician: 'KTV. Trần Văn M',
         room: 'P. MRI 01',
-        // Spine MRI
-        imageUrl: 'https://prod-images-static.radiopaedia.org/images/3439437/3065205765c076c4a13577378f3294_gallery.jpeg'
+        // MRI Lumbar Spine (Sagittal T2)
+        imageUrl: 'https://prod-images-static.radiopaedia.org/images/523822/75b32f560343670853330762066550_jumbo.jpg'
+    },
+    {
+        id: 'REQ-006',
+        patientId: 'P003',
+        patientName: 'Lê Hoàng Cường',
+        age: 45,
+        gender: 'Nam',
+        serviceName: 'MRI Sọ não',
+        modality: 'MRI',
+        bodyPart: 'Head',
+        requestDate: '2023-11-16 08:00',
+        priority: 'Normal',
+        status: 'Processing',
+        technician: 'KTV. Trần Văn M',
+        room: 'P. MRI 01',
+        // MRI Brain (Normal Axial)
+        imageUrl: 'https://prod-images-static.radiopaedia.org/images/157210/332498af42e8d265020d556e900d9a_jumbo.jpg'
+    },
+    {
+        id: 'REQ-007',
+        patientId: 'P001',
+        patientName: 'Nguyễn Văn An',
+        age: 35,
+        gender: 'Nam',
+        serviceName: 'CT Ngực (Có cản quang)',
+        modality: 'CT',
+        bodyPart: 'Chest',
+        requestDate: '2023-11-16 09:30',
+        priority: 'Urgent',
+        status: 'Acquired',
+        technician: 'KTV. Lê Thị Mai',
+        room: 'P. CT 01',
+        // CT Pulmonary Angiogram (Embolism)
+        imageUrl: 'https://prod-images-static.radiopaedia.org/images/54524293/d977529652c824095f654f7c352761_jumbo.jpg'
+    },
+    {
+        id: 'REQ-008',
+        patientId: 'P004',
+        patientName: 'Phạm Thị Dung',
+        age: 22,
+        gender: 'Nữ',
+        serviceName: 'X-Quang Khớp gối thẳng/nghiêng',
+        modality: 'X-Ray',
+        bodyPart: 'Extremity',
+        requestDate: '2023-11-16 10:45',
+        priority: 'Normal',
+        status: 'Scheduled',
+        technician: 'KTV. Nguyễn Văn Tú',
+        room: 'P. XQ 01',
+        // Knee X-Ray (Normal)
+        imageUrl: 'https://prod-images-static.radiopaedia.org/images/51665203/233d35423207068736406926750671_jumbo.jpeg'
     }
 ];
 
 export const mockTemplates: ReportTemplate[] = [
+    {
+        id: 'TPL-NS-01',
+        name: 'Nội soi Dạ dày (Viêm sung huyết)',
+        modality: 'Endoscopy',
+        content: "THỰC QUẢN: Niêm mạc hồng nhẵn, không loét, nhu động bình thường.\n\nTT VỊ: Niêm mạc phù nề nhẹ.\n\nDẠ DÀY:\n- Phình vị: Niêm mạc bình thường.\n- Thân vị: Niêm mạc hồng, dịch trong.\n- Hang vị: Niêm mạc sung huyết đỏ rải rác, không thấy ổ loét.\n- Môn vị: Tròn, co bóp tốt.\n\nHÀNH TÁ TRÀNG: Niêm mạc viêm đỏ nhẹ.\n\nTÁ TRÀNG D2: Bình thường.\n\nCLO-TEST: Âm tính (-)\n\nKẾT LUẬN: Viêm sung huyết hang vị dạ dày mức độ nhẹ."
+    },
+    {
+        id: 'TPL-NS-02',
+        name: 'Nội soi Đại tràng (Polyp)',
+        modality: 'Endoscopy',
+        content: "HẬU MÔN: Không có trĩ ngoại, cơ vòng co thắt tốt.\n\nTRỰC TRÀNG: Niêm mạc hồng, mạch máu rõ.\n\nĐẠI TRÀNG XIGMA: Niêm mạc hồng nhẵn.\n\nĐẠI TRÀNG XUỐNG: Niêm mạc hồng.\n\nĐẠI TRÀNG NGANG: Niêm mạc hồng.\n\nĐẠI TRÀNG LÊN: Tại vị trí gần góc gan có 01 polyp kích thước ~0.5cm, bề mặt trơn láng, có cuống (0-Ip). Đã tiến hành cắt polyp bằng thòng lọng (snare).\n\nMANH TRÀNG & VAN BAUGHIN: Bình thường.\n\nKẾT LUẬN: Polyp đại tràng lên (Đã cắt qua nội soi)."
+    },
     {
         id: 'TPL-XQ-01',
         name: 'X-Quang Ngực Thẳng (Bình thường)',

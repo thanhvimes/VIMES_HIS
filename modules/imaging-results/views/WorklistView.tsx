@@ -34,8 +34,12 @@ const WorklistView: React.FC = () => {
         ));
     };
 
-    const handleOpenReading = (id: string) => {
-        navigate(`/imaging-results/reading/${id}`);
+    const handleOpenExam = (req: ImagingRequest) => {
+        if (req.modality === 'Endoscopy' || req.modality === 'Ultrasound') {
+            navigate(`/imaging-results/capture/${req.id}`);
+        } else {
+            navigate(`/imaging-results/reading/${req.id}`);
+        }
     };
 
     // --- Filtering ---
@@ -62,6 +66,7 @@ const WorklistView: React.FC = () => {
             case 'CT': return <div className="w-8 h-8 rounded bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">CT</div>;
             case 'MRI': return <div className="w-8 h-8 rounded bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-xs">MR</div>;
             case 'Ultrasound': return <div className="w-8 h-8 rounded bg-pink-100 text-pink-600 flex items-center justify-center font-bold text-xs"><ActivityIcon className="w-5 h-5"/></div>;
+            case 'Endoscopy': return <div className="w-8 h-8 rounded bg-teal-100 text-teal-600 flex items-center justify-center font-bold text-xs"><ScannerIcon className="w-5 h-5"/></div>;
             default: return <div className="w-8 h-8 rounded bg-gray-100 text-gray-600 flex items-center justify-center font-bold text-xs"><PhotographIcon className="w-5 h-5"/></div>;
         }
     };
@@ -99,7 +104,7 @@ const WorklistView: React.FC = () => {
                     <div className="hidden md:block h-6 w-px bg-slate-300 dark:bg-slate-600"></div>
                     
                     <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
-                        {['All', 'X-Ray', 'CT', 'MRI', 'Ultrasound'].map(m => (
+                        {['All', 'X-Ray', 'CT', 'MRI', 'Ultrasound', 'Endoscopy'].map(m => (
                             <button
                                 key={m}
                                 onClick={() => setModalityFilter(m)}
@@ -153,7 +158,7 @@ const WorklistView: React.FC = () => {
                                 filteredRequests.map(req => (
                                     <tr 
                                         key={req.id} 
-                                        onClick={() => handleOpenReading(req.id)}
+                                        onClick={() => handleOpenExam(req)}
                                         className={`group hover:bg-blue-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer ${req.priority === 'Urgent' ? 'bg-red-50/30 dark:bg-red-900/10' : ''}`}
                                     >
                                         <td className="p-4 flex justify-center">
@@ -207,7 +212,7 @@ const WorklistView: React.FC = () => {
                                             )}
                                             {['Acquired', 'Reported', 'Approved'].includes(req.status) && (
                                                 <button 
-                                                    onClick={() => handleOpenReading(req.id)}
+                                                    onClick={() => handleOpenExam(req)}
                                                     className="inline-flex items-center px-3 py-1.5 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded transition-colors"
                                                 >
                                                     Open <ChevronRightIcon className="w-3 h-3 ml-1"/>
