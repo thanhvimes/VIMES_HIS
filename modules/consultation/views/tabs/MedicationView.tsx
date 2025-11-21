@@ -17,6 +17,7 @@ import Combobox, { ComboboxColumn } from '../../../../components/shared/Combobox
 import { drugList } from '../../data/catalogs';
 import { Prescription, PrescriptionItem, DrugItem } from '../../../../types';
 import { usePdfPreview } from '../../../../contexts/PdfPreviewContext';
+import { useTheme } from '../../../../contexts/ThemeContext';
 
 // --- Mock Data for History ---
 const mockPrescriptionHistory: Prescription[] = [
@@ -92,10 +93,10 @@ const emptyPrescription: Prescription = {
 const UsageChip = ({ label, onClick, active = false }: { label: string, onClick: () => void, active?: boolean }) => (
     <button 
         onClick={onClick}
-        className={`px-2 py-1 text-[10px] font-semibold rounded border transition-colors ${
+        className={`px-2 py-0.5 text-[10px] font-medium rounded border transition-colors whitespace-nowrap ${
             active 
             ? 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700'
-            : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-blue-50 hover:border-blue-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-600'
+            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-600'
         }`}
         title="Áp dụng nhanh liều dùng"
     >
@@ -105,6 +106,7 @@ const UsageChip = ({ label, onClick, active = false }: { label: string, onClick:
 
 const MedicationView: React.FC = () => {
     const { openPdf } = usePdfPreview();
+    const { fontSettings } = useTheme();
     const [history, setHistory] = useState<Prescription[]>(mockPrescriptionHistory);
     const [currentPrescription, setCurrentPrescription] = useState<Prescription>(emptyPrescription);
     const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
@@ -146,7 +148,7 @@ const MedicationView: React.FC = () => {
             id: `ITEM-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
         }));
 
-        // Filter out duplicates if needed, currently assuming append is fine or user manages it
+        // Filter out duplicates based on drug code
         const existingCodes = new Set(currentPrescription.items.map(i => i.drug.code));
         const uniqueNewItems = newItems.filter(i => !existingCodes.has(i.drug.code));
 
@@ -161,7 +163,6 @@ const MedicationView: React.FC = () => {
             items: combinedItems,
             totalAmount: calculateTotal(combinedItems)
         }));
-        alert('Đã sao chép thuốc thành công!');
     };
 
     const handleAddDrug = (drugName: string, drug?: DrugItem) => {
@@ -234,12 +235,13 @@ const MedicationView: React.FC = () => {
         });
     };
 
-    const handleQuickUsage = (itemId: string, type: '1-0-1' | '1-1-1' | '0-0-1' | '2-0-2') => {
+    const handleQuickUsage = (itemId: string, type: string) => {
         let update: Partial<PrescriptionItem> = {};
         switch (type) {
             case '1-0-1': update = { morning: '1', noon: '0', afternoon: '0', night: '1' }; break;
             case '1-1-1': update = { morning: '1', noon: '1', afternoon: '1', night: '0' }; break;
             case '0-0-1': update = { morning: '0', noon: '0', afternoon: '0', night: '1' }; break;
+            case '1-0-0': update = { morning: '1', noon: '0', afternoon: '0', night: '0' }; break;
             case '2-0-2': update = { morning: '2', noon: '0', afternoon: '0', night: '2' }; break;
         }
         const updatedItems = currentPrescription.items.map(item => 
@@ -283,7 +285,7 @@ const MedicationView: React.FC = () => {
     return (
         <div className="flex flex-col lg:flex-row h-full gap-4 h-[calc(100vh-180px)] min-h-[500px]">
             
-            {/* --- LEFT COLUMN: HISTORY LIST (25%) --- */}
+            {/* --- LEFT COLUMN: HISTORY LIST (25%) - Primary List --- */}
             <div className="lg:w-1/4 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
                 <div className="p-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center">
                     <h3 className="font-bold text-blue-700 dark:text-blue-400 text-sm uppercase flex items-center gap-2">
@@ -305,10 +307,19 @@ const MedicationView: React.FC = () => {
                             }`}
                         >
                             <div className="flex justify-between items-center mb-1">
-                                <span className="font-bold text-sm text-slate-800 dark:text-slate-200">{p.date}</span>
-                                <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
-                                    p.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
-                                }`}>{p.status}</span>
+                                <span className={`font-bold ${fontSettings.listPrimary} text-slate-800 dark:text-slate-200`}>{p.date}</span>
+                                <div className="flex items-center gap-2">
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleCopyPrescription(p); }}
+                                        className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700 dark:text-slate-500 rounded transition-colors"
+                                        title="Sao chép toàn bộ đơn này"
+                                    >
+                                        <DocumentPlusIcon className="w-4 h-4" />
+                                    </button>
+                                    <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                                        p.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                                    }`}>{p.status}</span>
+                                </div>
                             </div>
                             <div className="text-sm text-slate-700 dark:text-slate-300 font-medium line-clamp-1 mb-1">{p.diagnosis}</div>
                             <div className="text-xs text-slate-500 dark:text-slate-400 flex justify-between">
@@ -378,7 +389,7 @@ const MedicationView: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Drug Table */}
+                {/* Drug Table - Secondary List */}
                 <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900/20">
                     {currentPrescription.items.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full text-slate-400">
@@ -388,7 +399,7 @@ const MedicationView: React.FC = () => {
                     ) : (
                         <div className="divide-y divide-slate-200 dark:divide-slate-700">
                             {currentPrescription.items.map((item, idx) => (
-                                <div key={item.id} className="p-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group">
+                                <div key={item.id} className={`p-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group ${fontSettings.listSecondary}`}>
                                     {/* Row 1: Name & Remove */}
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="flex items-center gap-2">
@@ -396,13 +407,13 @@ const MedicationView: React.FC = () => {
                                                 {idx + 1}
                                             </span>
                                             <div>
-                                                <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm">{item.drug.name}</h4>
+                                                <h4 className="font-bold text-slate-800 dark:text-slate-200">{item.drug.name}</h4>
                                                 <p className="text-xs text-slate-500">{item.drug.activeIngredient} - {item.drug.usageRoute}</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-4">
                                             <div className="text-right">
-                                                <div className="font-bold text-sm text-blue-600 dark:text-blue-400">
+                                                <div className="font-bold text-blue-600 dark:text-blue-400">
                                                     {(item.totalPrice).toLocaleString('vi-VN')} đ
                                                 </div>
                                                 <div className="text-xs text-slate-400">
@@ -415,7 +426,7 @@ const MedicationView: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Row 2: Controls (Qty, Schedule, Note) */}
+                                    {/* Row 2: Controls (Qty, Schedule, Note) - These are inputs, so they use fontSettings.controls */}
                                     <div className="grid grid-cols-12 gap-3 items-end">
                                         {/* Quantity Control */}
                                         <div className="col-span-3 sm:col-span-2">
@@ -432,7 +443,7 @@ const MedicationView: React.FC = () => {
                                                     min="1"
                                                     value={item.quantity}
                                                     onChange={(e) => handleUpdateItem(item.id, 'quantity', e.target.value)}
-                                                    className="w-full h-full text-center text-sm border-y border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 font-bold appearance-none"
+                                                    className={`w-full h-full text-center border-y border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 font-bold appearance-none ${fontSettings.controls}`}
                                                 />
                                                 <button 
                                                     onClick={() => handleQuantityAdjust(item.id, 1)}
@@ -447,10 +458,11 @@ const MedicationView: React.FC = () => {
                                         <div className="col-span-9 sm:col-span-6">
                                             <div className="flex justify-between items-center mb-1">
                                                 <label className="text-[10px] uppercase font-bold text-slate-500">Sáng - Trưa - Chiều - Tối</label>
-                                                <div className="flex gap-1">
-                                                    <UsageChip label="1-0-1" onClick={() => handleQuickUsage(item.id, '1-0-1')} />
+                                                <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar">
+                                                    <UsageChip label="1-1" onClick={() => handleQuickUsage(item.id, '1-0-1')} />
                                                     <UsageChip label="1-1-1" onClick={() => handleQuickUsage(item.id, '1-1-1')} />
-                                                    <UsageChip label="0-0-1" onClick={() => handleQuickUsage(item.id, '0-0-1')} />
+                                                    <UsageChip label="Sáng 1" onClick={() => handleQuickUsage(item.id, '1-0-0')} />
+                                                    <UsageChip label="Tối 1" onClick={() => handleQuickUsage(item.id, '0-0-1')} />
                                                 </div>
                                             </div>
                                             <div className="grid grid-cols-4 gap-1">
@@ -461,7 +473,7 @@ const MedicationView: React.FC = () => {
                                                         placeholder="0"
                                                         value={item[time as keyof PrescriptionItem] as string}
                                                         onChange={(e) => handleUpdateItem(item.id, time as any, e.target.value)}
-                                                        className="w-full h-[34px] text-center text-sm font-semibold border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                        className={`w-full h-[34px] text-center font-semibold border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${fontSettings.controls}`}
                                                     />
                                                 ))}
                                             </div>
@@ -474,7 +486,7 @@ const MedicationView: React.FC = () => {
                                                 type="text" 
                                                 value={item.usageNote}
                                                 onChange={(e) => handleUpdateItem(item.id, 'usageNote', e.target.value)}
-                                                className="w-full h-[34px] px-2 text-sm border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                className={`w-full h-[34px] px-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${fontSettings.controls}`}
                                                 placeholder="VD: Uống sau ăn..."
                                             />
                                         </div>
@@ -494,13 +506,13 @@ const MedicationView: React.FC = () => {
                         </span>
                     </div>
                     <div className="flex gap-2 justify-end">
-                        <button onClick={handleCreateNew} className="px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 font-medium text-sm flex items-center gap-2 shadow-sm">
+                        <button onClick={handleCreateNew} className={`px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 font-medium flex items-center gap-2 shadow-sm ${fontSettings.controls}`}>
                             <BanIcon className="w-4 h-4"/> Hủy/Làm mới
                         </button>
-                        <button onClick={handlePrint} className="px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 font-medium text-sm flex items-center gap-2 shadow-sm">
+                        <button onClick={handlePrint} className={`px-4 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-600 font-medium flex items-center gap-2 shadow-sm ${fontSettings.controls}`}>
                             <PrinterIcon className="w-4 h-4"/> In đơn
                         </button>
-                        <button onClick={handleSave} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm flex items-center gap-2 shadow-md transition-transform transform active:scale-95">
+                        <button onClick={handleSave} className={`px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold flex items-center gap-2 shadow-md transition-transform transform active:scale-95 ${fontSettings.controls}`}>
                             <SaveIcon className="w-4 h-4"/> Lưu đơn thuốc
                         </button>
                     </div>

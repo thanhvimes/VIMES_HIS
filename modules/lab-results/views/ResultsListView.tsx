@@ -1,5 +1,7 @@
+
 import React, { useState } from 'react';
 import { LabResult } from '../../../types';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 const mockLabResults: LabResult[] = [
   { id: 'LR001', patientName: 'Lê Hoàng Cường', testName: 'Công thức máu', date: '2023-10-26', status: 'Completed', resultUrl: '#' },
@@ -9,6 +11,7 @@ const mockLabResults: LabResult[] = [
 ];
 
 const ResultsListView: React.FC = () => {
+  const { fontSettings } = useTheme();
   const [results] = useState<LabResult[]>(mockLabResults);
 
   return (
@@ -17,7 +20,7 @@ const ResultsListView: React.FC = () => {
       
       <div className="bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className={`w-full text-left ${fontSettings.listPrimary}`}>
             <thead className="border-b-2 border-slate-200 dark:border-slate-700 text-sm text-slate-500 dark:text-slate-400">
               <tr>
                 <th className="p-3">Mã XN</th>

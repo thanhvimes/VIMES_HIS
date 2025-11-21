@@ -1,8 +1,10 @@
+
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { mockPatients } from '../data';
 import { Patient } from '../../../types';
 import { SearchIcon } from '../../../components/Icons';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -10,6 +12,7 @@ const ListView: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const navigate = useNavigate();
+    const { fontSettings } = useTheme();
 
     const handleRowClick = (patientId: string) => {
         navigate(`/reception/register/${patientId}`);
@@ -48,23 +51,23 @@ const ListView: React.FC = () => {
                             setSearchTerm(e.target.value);
                             setCurrentPage(1); // Reset to first page on search
                         }}
-                        className="w-full p-1.5 pl-10 text-sm bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md"
+                        className={`w-full p-1.5 pl-10 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md ${fontSettings.controls}`}
                     />
                 </div>
                 <div className="flex items-center space-x-2">
-                    <label className="text-sm font-medium text-slate-600 dark:text-slate-300">Từ ngày</label>
-                    <input type="date" className="p-1.5 text-sm bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md" defaultValue="2023-01-01" />
+                    <label className={`font-medium text-slate-600 dark:text-slate-300 ${fontSettings.controls}`}>Từ ngày</label>
+                    <input type="date" className={`p-1.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md ${fontSettings.controls}`} defaultValue="2023-01-01" />
                 </div>
                 <div className="flex items-center space-x-2">
-                    <label className="text-sm font-medium text-slate-600 dark:text-slate-300">Đến ngày</label>
-                    <input type="date" className="p-1.5 text-sm bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md" defaultValue={new Date().toISOString().slice(0, 10)} />
+                    <label className={`font-medium text-slate-600 dark:text-slate-300 ${fontSettings.controls}`}>Đến ngày</label>
+                    <input type="date" className={`p-1.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md ${fontSettings.controls}`} defaultValue={new Date().toISOString().slice(0, 10)} />
                 </div>
-                <button className="px-6 py-1.5 text-sm bg-primary text-white font-semibold rounded-md hover:bg-primary-dark">Nạp</button>
+                <button className={`px-6 py-1.5 bg-primary text-white font-semibold rounded-md hover:bg-primary-dark ${fontSettings.controls}`}>Nạp</button>
             </div>
 
             {/* Data Table */}
             <div className="flex-grow overflow-auto">
-                <table className="w-full text-sm whitespace-nowrap">
+                <table className={`w-full whitespace-nowrap ${fontSettings.listPrimary}`}>
                     <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0">
                         <tr>
                             {['Số hồ sơ', 'Tên bệnh nhân', 'Tuổi', 'Giới', 'Địa chỉ', 'Ngày khám gần nhất', 'Đối tượng'].map(h =>
@@ -91,21 +94,21 @@ const ListView: React.FC = () => {
             {/* Pagination Controls */}
             {totalPages > 1 && (
                 <div className="flex-shrink-0 flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
-                    <span className="text-sm text-slate-500 dark:text-slate-400">
+                    <span className={`text-slate-500 dark:text-slate-400 ${fontSettings.controls}`}>
                         Trang <strong>{currentPage}</strong> trên <strong>{totalPages}</strong>
                     </span>
                     <div className="flex items-center space-x-2">
                         <button
                             onClick={() => handlePageChange(currentPage - 1)}
                             disabled={currentPage === 1}
-                            className="px-3 py-1 text-sm rounded-md bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50"
+                            className={`px-3 py-1 rounded-md bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50 ${fontSettings.controls}`}
                         >
                             Trước
                         </button>
                         <button
                             onClick={() => handlePageChange(currentPage + 1)}
                             disabled={currentPage === totalPages}
-                            className="px-3 py-1 text-sm rounded-md bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50"
+                            className={`px-3 py-1 rounded-md bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50 ${fontSettings.controls}`}
                         >
                             Sau
                         </button>

@@ -1,5 +1,7 @@
+
 import React, { useState } from 'react';
 import { Drug } from '../../../types';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 const mockDrugs: Drug[] = [
   { id: 'D01', name: 'Ginkgo Biloba 120mg', dosage: 'Viên', stock: 150 },
@@ -10,6 +12,7 @@ const mockDrugs: Drug[] = [
 ];
 
 const InventoryView: React.FC = () => {
+  const { fontSettings } = useTheme();
   const [drugs] = useState<Drug[]>(mockDrugs);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -27,9 +30,9 @@ const InventoryView: React.FC = () => {
                 placeholder="Tìm kiếm thuốc..." 
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full sm:w-64 p-2 bg-inherit border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                className={`w-full sm:w-64 p-2 bg-inherit border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary ${fontSettings.controls}`}
             />
-            <button className="bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105">
+            <button className={`bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105 ${fontSettings.controls}`}>
                 Thêm mới
             </button>
         </div>
@@ -37,8 +40,8 @@ const InventoryView: React.FC = () => {
       
       <div className="bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="border-b-2 border-slate-200 dark:border-slate-700 text-sm text-slate-500 dark:text-slate-400">
+          <table className={`w-full text-left ${fontSettings.listPrimary}`}>
+            <thead className="border-b-2 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
               <tr>
                 <th className="p-3">Mã Thuốc</th>
                 <th className="p-3">Tên thuốc</th>

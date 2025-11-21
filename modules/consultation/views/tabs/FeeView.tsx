@@ -11,6 +11,7 @@ import {
 } from '../../../../components/Icons';
 import { FeeItem } from '../../../../types';
 import { usePdfPreview } from '../../../../contexts/PdfPreviewContext';
+import { useTheme } from '../../../../contexts/ThemeContext';
 
 // --- Mock Data ---
 const mockFeeItems: FeeItem[] = [
@@ -88,6 +89,7 @@ const AddFeeModal = ({ isOpen, onClose, onAdd }: { isOpen: boolean; onClose: () 
 
 const FeeView: React.FC = () => {
     const { openPdf } = usePdfPreview();
+    const { fontSettings } = useTheme();
     const [items, setItems] = useState<FeeItem[]>(mockFeeItems);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
@@ -147,7 +149,7 @@ const FeeView: React.FC = () => {
                 </div>
 
                 <div className="flex-1 overflow-auto">
-                    <table className="w-full text-sm text-left border-collapse">
+                    <table className={`w-full text-left border-collapse ${fontSettings.listSecondary}`}>
                         <thead className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 sticky top-0 z-10 shadow-sm border-b-2 border-blue-500">
                             <tr>
                                 <th className="p-3 font-bold border-r border-slate-200 dark:border-slate-600 w-12 text-center">STT</th>
@@ -272,20 +274,20 @@ const FeeView: React.FC = () => {
                     <div className="grid grid-cols-2 gap-3">
                          <button 
                             onClick={() => setIsAddModalOpen(true)}
-                            className="py-2 px-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold text-sm flex items-center justify-center gap-1 transition active:scale-95"
+                            className={`py-2 px-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold flex items-center justify-center gap-1 transition active:scale-95 ${fontSettings.controls}`}
                         >
                             <PlusIcon className="w-4 h-4" /> Thêm
                         </button>
-                        <button className="py-2 px-3 bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-300 rounded-lg font-semibold text-sm flex items-center justify-center gap-1 transition active:scale-95">
+                        <button className={`py-2 px-3 bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-300 rounded-lg font-semibold flex items-center justify-center gap-1 transition active:scale-95 ${fontSettings.controls}`}>
                             <TrashIcon className="w-4 h-4" /> Xóa
                         </button>
                     </div>
-                    <button className="w-full py-2 px-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold text-sm shadow-sm flex items-center justify-center gap-1 transition active:scale-95">
+                    <button className={`w-full py-2 px-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold shadow-sm flex items-center justify-center gap-1 transition active:scale-95 ${fontSettings.controls}`}>
                         <XIcon className="w-4 h-4" /> Bỏ xác nhận
                     </button>
                     <button 
                         onClick={handlePrint}
-                        className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md flex items-center justify-center gap-2 transition-transform active:scale-95"
+                        className={`w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md flex items-center justify-center gap-2 transition-transform active:scale-95 ${fontSettings.controls}`}
                     >
                         <PrinterIcon className="w-5 h-5" /> In bảng kê chi phí
                     </button>

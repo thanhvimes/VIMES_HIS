@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SearchIcon, UserGroupIcon, ClockIcon, CheckIcon, PlayIcon } from '../../../components/Icons';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 // Mock data specific for Consultation List
 const mockConsultationList = [
@@ -14,6 +15,7 @@ const mockConsultationList = [
 
 const PatientListView: React.FC = () => {
   const navigate = useNavigate();
+  const { fontSettings } = useTheme();
   const [activeTab, setActiveTab] = useState<'waiting' | 'processing' | 'completed'>('waiting');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -62,7 +64,7 @@ const PatientListView: React.FC = () => {
             </div>
             <input
                 type="text"
-                className="block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg leading-5 bg-white dark:bg-slate-700 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary sm:text-sm transition duration-150 ease-in-out"
+                className={`block w-full pl-10 pr-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg leading-5 bg-white dark:bg-slate-700 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary transition duration-150 ease-in-out ${fontSettings.controls}`}
                 placeholder="Tìm tên hoặc mã BN..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -76,7 +78,7 @@ const PatientListView: React.FC = () => {
         <div className="flex border-b border-slate-200 dark:border-slate-700">
             <button
                 onClick={() => setActiveTab('waiting')}
-                className={`flex-1 py-4 text-sm font-medium text-center transition-colors relative ${
+                className={`flex-1 py-4 font-medium text-center transition-colors relative ${fontSettings.controls} ${
                     activeTab === 'waiting' 
                     ? 'text-primary dark:text-dark-primary' 
                     : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
@@ -93,7 +95,7 @@ const PatientListView: React.FC = () => {
             </button>
             <button
                 onClick={() => setActiveTab('processing')}
-                className={`flex-1 py-4 text-sm font-medium text-center transition-colors relative ${
+                className={`flex-1 py-4 font-medium text-center transition-colors relative ${fontSettings.controls} ${
                     activeTab === 'processing' 
                     ? 'text-blue-600 dark:text-blue-400' 
                     : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
@@ -110,7 +112,7 @@ const PatientListView: React.FC = () => {
             </button>
             <button
                 onClick={() => setActiveTab('completed')}
-                className={`flex-1 py-4 text-sm font-medium text-center transition-colors relative ${
+                className={`flex-1 py-4 font-medium text-center transition-colors relative ${fontSettings.controls} ${
                     activeTab === 'completed' 
                     ? 'text-green-600 dark:text-green-400' 
                     : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
@@ -129,7 +131,7 @@ const PatientListView: React.FC = () => {
 
         {/* Table */}
         <div className="flex-1 overflow-auto p-0">
-            <table className="w-full text-left border-collapse">
+            <table className={`w-full text-left border-collapse ${fontSettings.listPrimary}`}>
                 <thead className="bg-slate-50 dark:bg-slate-800/50 sticky top-0 z-10 text-xs uppercase text-slate-500 dark:text-slate-400 font-semibold">
                     <tr>
                         <th className="p-4">Mã BN</th>
@@ -141,7 +143,7 @@ const PatientListView: React.FC = () => {
                         <th className="p-4 text-right">Hành động</th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-slate-700 text-sm">
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                     {filteredList.length > 0 ? (
                         filteredList.map((patient) => (
                             <tr key={patient.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">

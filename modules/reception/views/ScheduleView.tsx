@@ -1,6 +1,8 @@
+
 import React, { useState } from 'react';
 import { Appointment, AppointmentStatus } from '../../../types';
 import { CalendarIcon, UserPlusIcon } from '../../../components/Icons';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 const mockAppointments: Appointment[] = [
     { id: 'A001', patientName: 'Trần Thị Bích', patientId: 'P002', time: '09:00', doctor: 'Dr. Minh', reason: 'Khám thai định kỳ', status: AppointmentStatus.Completed },
@@ -20,6 +22,7 @@ const getStatusClass = (status: AppointmentStatus) => {
 };
 
 const ScheduleView: React.FC = () => {
+    const { fontSettings } = useTheme();
     const [appointments, setAppointments] = useState(mockAppointments);
     const [currentDate, setCurrentDate] = useState(new Date().toISOString().slice(0, 10));
 
@@ -33,11 +36,11 @@ const ScheduleView: React.FC = () => {
                         type="date"
                         value={currentDate}
                         onChange={(e) => setCurrentDate(e.target.value)}
-                        className="p-2 text-sm bg-inherit border border-slate-300 dark:border-slate-600 rounded-md"
+                        className={`p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-inherit ${fontSettings.controls}`}
                     />
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
+                    <table className={`w-full text-left ${fontSettings.listPrimary}`}>
                         <thead>
                             <tr className="border-b-2 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
                                 <th className="p-3">Giờ</th>
@@ -75,18 +78,18 @@ const ScheduleView: React.FC = () => {
                  </h2>
                  <form className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Tìm bệnh nhân</label>
-                        <input type="text" placeholder="Nhập tên hoặc SĐT..." className="w-full p-2 bg-inherit border border-slate-300 dark:border-slate-600 rounded-md focus:ring-2 focus:ring-primary focus:border-primary" />
+                        <label className={`block font-medium text-slate-600 dark:text-slate-300 mb-1 ${fontSettings.controls}`}>Tìm bệnh nhân</label>
+                        <input type="text" placeholder="Nhập tên hoặc SĐT..." className={`w-full p-2 bg-inherit border border-slate-300 dark:border-slate-600 rounded-md focus:ring-2 focus:ring-primary focus:border-primary ${fontSettings.controls}`} />
                     </div>
                      <div>
-                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Giờ hẹn</label>
-                        <input type="time" className="w-full p-2 bg-inherit border border-slate-300 dark:border-slate-600 rounded-md focus:ring-2 focus:ring-primary focus:border-primary" />
+                        <label className={`block font-medium text-slate-600 dark:text-slate-300 mb-1 ${fontSettings.controls}`}>Giờ hẹn</label>
+                        <input type="time" className={`w-full p-2 bg-inherit border border-slate-300 dark:border-slate-600 rounded-md focus:ring-2 focus:ring-primary focus:border-primary ${fontSettings.controls}`} />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Lý do khám</label>
-                        <textarea rows={3} className="w-full p-2 bg-inherit border border-slate-300 dark:border-slate-600 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"></textarea>
+                        <label className={`block font-medium text-slate-600 dark:text-slate-300 mb-1 ${fontSettings.controls}`}>Lý do khám</label>
+                        <textarea rows={3} className={`w-full p-2 bg-inherit border border-slate-300 dark:border-slate-600 rounded-md focus:ring-2 focus:ring-primary focus:border-primary ${fontSettings.controls}`}></textarea>
                     </div>
-                    <button type="submit" className="w-full bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105 flex items-center justify-center">
+                    <button type="submit" className={`w-full bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105 flex items-center justify-center ${fontSettings.controls}`}>
                         <CalendarIcon className="w-5 h-5 mr-2"/>
                         Đặt lịch
                     </button>

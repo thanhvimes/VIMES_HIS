@@ -20,6 +20,7 @@ import { OperationRecord } from '../../../../types';
 import { consultationService } from '../../../../services/consultationService';
 import OperationFormModal from './OperationFormModal';
 import { usePdfPreview } from '../../../../contexts/PdfPreviewContext';
+import { useTheme } from '../../../../contexts/ThemeContext';
 
 // Mock Data Context
 const mockPatientId = 'P003';
@@ -36,6 +37,7 @@ const emptyOperation: OperationRecord = {
 const OperationView: React.FC = () => {
     const navigate = useNavigate();
     const { openPdf } = usePdfPreview();
+    const { fontSettings } = useTheme();
     const [operations, setOperations] = useState<OperationRecord[]>([]);
     const [selectedOp, setSelectedOp] = useState<OperationRecord | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -180,7 +182,7 @@ const OperationView: React.FC = () => {
                         </div>
                         <input
                             type="text"
-                            className="block w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg leading-5 bg-white dark:bg-slate-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out"
+                            className={`block w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg leading-5 bg-white dark:bg-slate-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out ${fontSettings.controls}`}
                             placeholder="Tìm kiếm phiếu..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -189,14 +191,14 @@ const OperationView: React.FC = () => {
                     <div className="flex gap-2">
                         <button
                             onClick={() => handleAddNew('PT')}
-                            className="flex-1 py-2 px-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded shadow-sm flex items-center justify-center gap-1 transition"
+                            className={`flex-1 py-2 px-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded shadow-sm flex items-center justify-center gap-1 transition ${fontSettings.controls}`}
                         >
                             <ScissorsIcon className="w-4 h-4" />
                             Thêm PT
                         </button>
                         <button
                             onClick={() => handleAddNew('TT')}
-                            className="flex-1 py-2 px-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold rounded shadow-sm flex items-center justify-center gap-1 transition"
+                            className={`flex-1 py-2 px-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded shadow-sm flex items-center justify-center gap-1 transition ${fontSettings.controls}`}
                         >
                             <ActivityIcon className="w-4 h-4" />
                             Thêm TT
@@ -231,7 +233,7 @@ const OperationView: React.FC = () => {
                                         }`}>
                                             {op.type}
                                         </span>
-                                        <div className={`font-bold text-base pr-2 line-clamp-1 ${selectedOp?.id === op.id ? 'text-blue-700 dark:text-blue-300' : 'text-gray-800 dark:text-slate-200'}`}>
+                                        <div className={`font-bold pr-2 line-clamp-1 ${fontSettings.listPrimary} ${selectedOp?.id === op.id ? 'text-blue-700 dark:text-blue-300' : 'text-gray-800 dark:text-slate-200'}`}>
                                             {op.serviceName || 'Phiếu chưa đặt tên'}
                                         </div>
                                     </div>

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ChevronRightIcon, SearchIcon, XIcon, CheckIcon } from '../Icons';
+import { useTheme } from '../../contexts/ThemeContext';
 
 // Component highlight từ khóa tìm kiếm
 const HighlightedText = ({ text, highlight }: { text: string; highlight: string }) => {
@@ -67,6 +68,7 @@ function Combobox<T extends Record<string, any>>({
     filterFunction,
     columns
 }: ComboboxProps<T>) {
+    const { fontSettings } = useTheme();
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState(value);
     const [activeIndex, setActiveIndex] = useState(0); // Mặc định highlight dòng đầu tiên
@@ -122,9 +124,6 @@ function Combobox<T extends Record<string, any>>({
         const handleClickOutside = (event: MouseEvent) => {
             if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
                 setIsOpen(false);
-                // Nếu text hiện tại không khớp item nào (đang gõ dở), có thể muốn reset về value cũ hoặc giữ nguyên tùy logic.
-                // Ở đây giữ nguyên text người dùng nhập (cho trường hợp free-text) hoặc reset nếu bắt buộc chọn.
-                // Hiện tại giữ nguyên để linh hoạt.
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -172,13 +171,10 @@ function Combobox<T extends Record<string, any>>({
                 e.preventDefault();
                 handleSelect(filteredOptions[activeIndex]);
             }
-            // Nếu đóng mà Enter -> submit form (mặc định)
         } 
         else if (e.key === 'Tab') {
-            // Tab hành xử giống Enter nếu đang mở dropdown: Chọn item đang highlight rồi chuyển focus
             if (isOpen && filteredOptions.length > 0) {
                 handleSelect(filteredOptions[activeIndex]);
-                // Không preventDefault để focus vẫn di chuyển sang field tiếp theo
             }
             setIsOpen(false);
         }
@@ -191,7 +187,7 @@ function Combobox<T extends Record<string, any>>({
     return (
         <div className={`relative ${className}`} ref={containerRef}>
             {label && (
-                <label className="block text-base font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                <label className={`block font-bold text-slate-700 dark:text-slate-300 mb-1.5 ${fontSettings.controls}`}>
                     {label} {required && <span className="text-red-500">*</span>}
                 </label>
             )}
@@ -212,9 +208,10 @@ function Combobox<T extends Record<string, any>>({
                     disabled={disabled}
                     autoFocus={autoFocus}
                     autoComplete="off"
-                    className={`w-full pl-10 pr-8 py-2.5 text-base border rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition-all placeholder-slate-400
+                    className={`w-full pl-10 pr-8 py-2.5 border rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition-all placeholder-slate-400
                         ${isOpen ? 'ring-2 ring-primary border-transparent' : 'border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-primary focus:border-transparent'}
                         ${disabled ? 'bg-slate-100 dark:bg-slate-800 cursor-not-allowed opacity-75' : ''}
+                        ${fontSettings.controls}
                     `}
                 />
                 
@@ -249,7 +246,7 @@ function Combobox<T extends Record<string, any>>({
                 <div className="absolute z-[100] w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl overflow-hidden ring-1 ring-black/5 animate-fade-in">
                     {/* Header Row for Columns */}
                     {columns && filteredOptions.length > 0 && (
-                        <div className="flex items-center bg-slate-100 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-600 px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        <div className={`flex items-center bg-slate-100 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-600 px-3 py-2 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ${fontSettings.listSecondary}`}>
                              {columns.map((col, idx) => (
                                 <div key={idx} style={{ width: col.width || 'flex-1', flex: col.width ? 'none' : 1 }} className={`px-2 ${col.className || ''}`}>
                                     {col.label}
@@ -258,14 +255,14 @@ function Combobox<T extends Record<string, any>>({
                         </div>
                     )}
 
-                    <ul ref={listRef} className="max-h-80 overflow-auto">
+                    <ul ref={listRef} className={`max-h-80 overflow-auto ${fontSettings.listSecondary}`}>
                         {filteredOptions.length > 0 ? (
                             filteredOptions.map((option, index) => {
                                 const isActive = index === activeIndex;
                                 return (
                                     <li
                                         key={index}
-                                        className={`px-3 py-2.5 text-base cursor-pointer border-b border-slate-50 dark:border-slate-700/30 last:border-0 transition-colors duration-75
+                                        className={`px-3 py-2.5 cursor-pointer border-b border-slate-50 dark:border-slate-700/30 last:border-0 transition-colors duration-75
                                             ${isActive 
                                                 ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-100' 
                                                 : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'
@@ -297,7 +294,7 @@ function Combobox<T extends Record<string, any>>({
                                 );
                             })
                         ) : (
-                            <li className="px-4 py-6 text-sm text-slate-500 dark:text-slate-400 italic text-center">
+                            <li className="px-4 py-6 italic text-center text-slate-500 dark:text-slate-400">
                                 {searchTerm ? 'Không tìm thấy kết quả phù hợp.' : 'Nhập từ khóa để tìm kiếm...'}
                             </li>
                         )}

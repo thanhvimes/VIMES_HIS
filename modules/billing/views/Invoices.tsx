@@ -10,6 +10,7 @@ import Card from '../../../components/shared/Card';
 import ConfirmationModal from '../../../components/shared/ConfirmationModal';
 import PdfPreviewModal from '../../../components/shared/PdfPreviewModal';
 import SignatureModal from '../../../components/shared/SignatureModal';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 // --- PDF HELPER FUNCTIONS ---
 const SIGNATURE_BOX = { x: 40, y: 700, width: 150, height: 50 }; 
@@ -106,6 +107,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 // --- 1. OVERVIEW COMPONENT ---
 export const Overview: React.FC<PageProps> = ({ bills, customers }) => {
+    const { fontSettings } = useTheme();
     const sortedBills = useMemo(() => [...bills].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()), [bills]);
     
     const summaryStats = useMemo(() => {
@@ -149,7 +151,7 @@ export const Overview: React.FC<PageProps> = ({ bills, customers }) => {
                  <div className="bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
                     <h3 className="text-lg font-bold mb-4">Danh sách Hóa đơn</h3>
                     <div className="overflow-y-auto max-h-[300px]">
-                         <table className="w-full text-left text-sm">
+                         <table className={`w-full text-left ${fontSettings.listSecondary}`}>
                             <thead>
                                 <tr className="border-b border-slate-200 dark:border-slate-700">
                                     <th className="p-2">Ngày</th>
@@ -190,6 +192,7 @@ interface BillsManagerProps extends PageProps, BillMutations {
 }
   
 export const BillsManager: React.FC<BillsManagerProps> = ({ bills, customers, addBill, deleteBill, updateBillStatus, filter, clearFilter }) => {
+      const { fontSettings } = useTheme();
       const [date, setDate] = useState('');
       const [consumption, setConsumption] = useState('');
       const [cost, setCost] = useState('');
@@ -590,14 +593,14 @@ export const BillsManager: React.FC<BillsManagerProps> = ({ bills, customers, ad
                           </h2>
                           <div className="flex items-center gap-2">
                               {filter.customerId && (
-                                  <button onClick={clearFilter} className="text-sm bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-md transition-colors">
+                                  <button onClick={clearFilter} className={`bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded-md transition-colors ${fontSettings.controls}`}>
                                       Show All Bills
                                   </button>
                               )}
-                              <button onClick={handleExportCsv} className="text-sm bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors">
+                              <button onClick={handleExportCsv} className={`bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors ${fontSettings.controls}`}>
                                   <DownloadIcon className="w-4 h-4" /> Export CSV
                               </button>
-                              <button onClick={() => setShowAddForm(!showAddForm)} className="text-sm bg-primary hover:bg-primary-dark text-white flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors">
+                              <button onClick={() => setShowAddForm(!showAddForm)} className={`bg-primary hover:bg-primary-dark text-white flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors ${fontSettings.controls}`}>
                                   <PlusIcon className="w-4 h-4" /> {showAddForm ? 'Cancel' : 'Add New Bill'}
                               </button>
                           </div>
@@ -608,25 +611,25 @@ export const BillsManager: React.FC<BillsManagerProps> = ({ bills, customers, ad
                               <h3 className="text-xl font-bold mb-4 text-cyan-500 dark:text-cyan-300">Add New Bill</h3>
                               <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                                   <div>
-                                      <label className="block text-sm font-medium text-slate-600 dark:text-slate-400">Customer</label>
-                                      <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} required className="w-full mt-1 p-2 bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary">
+                                      <label className={`block font-medium text-slate-600 dark:text-slate-400 ${fontSettings.controls}`}>Customer</label>
+                                      <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} required className={`w-full mt-1 p-2 bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary ${fontSettings.controls}`}>
                                           <option value="">Select a customer</option>
                                           {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                       </select>
                                   </div>
                                   <div>
-                                      <label className="block text-sm font-medium text-slate-600 dark:text-slate-400">Month (YYYY-MM)</label>
-                                      <input type="month" value={date} onChange={(e) => setDate(e.target.value)} required className="w-full mt-1 p-2 bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"/>
+                                      <label className={`block font-medium text-slate-600 dark:text-slate-400 ${fontSettings.controls}`}>Month (YYYY-MM)</label>
+                                      <input type="month" value={date} onChange={(e) => setDate(e.target.value)} required className={`w-full mt-1 p-2 bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary ${fontSettings.controls}`}/>
                                   </div>
                                   <div>
-                                      <label className="block text-sm font-medium text-slate-600 dark:text-slate-400">Consumption (kWh)</label>
-                                      <input type="number" value={consumption} onChange={(e) => setConsumption(e.target.value)} required className="w-full mt-1 p-2 bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"/>
+                                      <label className={`block font-medium text-slate-600 dark:text-slate-400 ${fontSettings.controls}`}>Consumption (kWh)</label>
+                                      <input type="number" value={consumption} onChange={(e) => setConsumption(e.target.value)} required className={`w-full mt-1 p-2 bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary ${fontSettings.controls}`}/>
                                   </div>
                                   <div>
-                                      <label className="block text-sm font-medium text-slate-600 dark:text-slate-400">Cost (VND)</label>
-                                      <input type="number" value={cost} onChange={(e) => setCost(e.target.value)} required className="w-full mt-1 p-2 bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary"/>
+                                      <label className={`block font-medium text-slate-600 dark:text-slate-400 ${fontSettings.controls}`}>Cost (VND)</label>
+                                      <input type="number" value={cost} onChange={(e) => setCost(e.target.value)} required className={`w-full mt-1 p-2 bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary ${fontSettings.controls}`}/>
                                   </div>
-                                  <button type="submit" className="w-full md:col-span-4 flex justify-center items-center gap-2 bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-md transition-colors">
+                                  <button type="submit" className={`w-full md:col-span-4 flex justify-center items-center gap-2 bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-md transition-colors ${fontSettings.controls}`}>
                                       Save Bill
                                   </button>
                               </form>
@@ -634,7 +637,7 @@ export const BillsManager: React.FC<BillsManagerProps> = ({ bills, customers, ad
                       )}
   
                       <div className="overflow-x-auto">
-                          <table className="w-full text-left">
+                          <table className={`w-full text-left ${fontSettings.listPrimary}`}>
                               <thead className="border-b border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400">
                                   <tr>
                                       <th className="p-3">Customer</th>
@@ -740,6 +743,7 @@ export const BillsManager: React.FC<BillsManagerProps> = ({ bills, customers, ad
   }
   
   export const Payments: React.FC<PaymentsProps> = ({ bills, customers, updateBillStatus }) => {
+      const { fontSettings } = useTheme();
       const [pdfPreview, setPdfPreview] = useState<{url: string; name: string; bill: Bill; customer: Customer} | null>(null);
       const unpaidBills = useMemo(() => bills.filter(b => b.status === 'unpaid').sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()), [bills]);
       const paidBills = useMemo(() => bills.filter(b => b.status === 'paid').sort((a, b) => new Date(b.date).getTime() - new Date(b.date).getTime()).slice(0, 10), [bills]);
@@ -823,7 +827,7 @@ export const BillsManager: React.FC<BillsManagerProps> = ({ bills, customers, ad
               <Card>
                   <h2 className="text-2xl font-bold mb-4 text-cyan-500 dark:text-cyan-300">Pending Payments</h2>
                   <div className="overflow-x-auto">
-                      <table className="w-full text-left">
+                      <table className={`w-full text-left ${fontSettings.listPrimary}`}>
                           <thead className="border-b border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400">
                               <tr>
                                   <th className="p-3">Customer</th>
@@ -839,7 +843,7 @@ export const BillsManager: React.FC<BillsManagerProps> = ({ bills, customers, ad
                                       <td className="p-3">{bill.date}</td>
                                       <td className="p-3 font-semibold text-amber-600 dark:text-amber-400">{bill.cost.toLocaleString('vi-VN')} VND</td>
                                       <td className="p-3 text-right">
-                                          <button onClick={() => updateBillStatus(bill.id, 'paid')} className="px-3 py-1 text-sm bg-green-600 hover:bg-green-500 text-white font-semibold rounded-md transition-colors">
+                                          <button onClick={() => updateBillStatus(bill.id, 'paid')} className={`px-3 py-1 bg-green-600 hover:bg-green-500 text-white font-semibold rounded-md transition-colors ${fontSettings.controls}`}>
                                               Mark as Paid
                                           </button>
                                       </td>
@@ -855,7 +859,7 @@ export const BillsManager: React.FC<BillsManagerProps> = ({ bills, customers, ad
                   <h2 className="text-2xl font-bold mb-4 text-cyan-500 dark:text-cyan-300">Recent Payment History</h2>
                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 -mt-2">Showing last 10 paid bills.</p>
                   <div className="overflow-x-auto">
-                       <table className="w-full text-left">
+                       <table className={`w-full text-left ${fontSettings.listSecondary}`}>
                           <thead className="border-b border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400">
                               <tr>
                                   <th className="p-3">Customer</th>
@@ -900,6 +904,7 @@ export const BillsManager: React.FC<BillsManagerProps> = ({ bills, customers, ad
   
   // --- 4. REPORTS COMPONENT ---
   export const Reports: React.FC<PageProps> = ({ bills, customers }) => {
+      const { fontSettings } = useTheme();
       const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
       const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
       const [pdfPreview, setPdfPreview] = useState<{url: string; name: string; customer: Customer; bills: Bill[]; signatures: Signature[]} | null>(null);
@@ -1209,8 +1214,8 @@ export const BillsManager: React.FC<BillsManagerProps> = ({ bills, customers, ad
                   <h2 className="text-2xl font-bold mb-4 text-cyan-500 dark:text-cyan-300">Generate Report</h2>
                   <div className="space-y-4 max-w-md">
                       <div>
-                          <label className="block text-sm font-medium text-slate-600 dark:text-slate-400">Select Customer</label>
-                          <select value={selectedCustomerId} onChange={(e) => setSelectedCustomerId(e.target.value)} required className="w-full mt-1 p-2 bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary">
+                          <label className={`block font-medium text-slate-600 dark:text-slate-400 ${fontSettings.controls}`}>Select Customer</label>
+                          <select value={selectedCustomerId} onChange={(e) => setSelectedCustomerId(e.target.value)} required className={`w-full mt-1 p-2 bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md focus:ring-primary focus:border-primary ${fontSettings.controls}`}>
                               <option value="">Select a customer to generate a report</option>
                               {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                           </select>
@@ -1218,7 +1223,7 @@ export const BillsManager: React.FC<BillsManagerProps> = ({ bills, customers, ad
                       <button 
                           onClick={handleGenerateAndPreviewPdf} 
                           disabled={isGeneratingPdf || !selectedCustomerId}
-                          className="text-sm bg-secondary hover:bg-emerald-600 text-white disabled:bg-slate-400 dark:disabled:bg-slate-600 disabled:cursor-not-allowed flex items-center justify-center gap-2 px-4 py-2 rounded-md transition-colors w-full"
+                          className={`bg-secondary hover:bg-emerald-600 text-white disabled:bg-slate-400 dark:disabled:bg-slate-600 disabled:cursor-not-allowed flex items-center justify-center gap-2 px-4 py-2 rounded-md transition-colors w-full ${fontSettings.controls}`}
                       >
                           {isGeneratingPdf ? (
                               <>
