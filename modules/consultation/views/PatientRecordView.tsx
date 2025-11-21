@@ -10,6 +10,7 @@ import {
     CreditCardIcon,
     FolderIcon,
     ChevronLeftIcon,
+    ClockIcon
 } from '../../../components/Icons';
 import ChartView from './tabs/ChartView';
 import ExamineView from './tabs/ExamineView';
@@ -17,6 +18,8 @@ import LabView from './tabs/LabView';
 import OperationView from './tabs/OperationView';
 import MedicationView from './tabs/MedicationView';
 import FeeView from './tabs/FeeView';
+import DocumentsView from './tabs/DocumentsView';
+import HistorySidebar from './components/HistorySidebar';
 
 // Mock Data for the specific patient from the image
 const mockPatientRecord = {
@@ -58,6 +61,7 @@ const PatientRecordView: React.FC = () => {
     const { patientId } = useParams<{ patientId: string }>();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const activeTab = searchParams.get('tab') || 'chart';
 
     const setActiveTab = (tabId: string) => {
@@ -67,7 +71,7 @@ const PatientRecordView: React.FC = () => {
     const activeTabInfo = tabs.find(t => t.id === activeTab);
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden">
+        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden relative">
             {/* 1. TOP BAR - Patient Info & Navigation */}
             <div className="flex-shrink-0 bg-gradient-to-r from-cyan-600 to-cyan-500 text-white shadow-md z-20">
                 <div className="flex items-center justify-between px-4 py-2">
@@ -85,7 +89,14 @@ const PatientRecordView: React.FC = () => {
                             </p>
                         </div>
                     </div>
-                    <div className="hidden md:flex flex-col items-end">
+                    <div className="hidden md:flex items-center gap-3">
+                        <button 
+                            onClick={() => setIsHistoryOpen(true)}
+                            className="flex items-center gap-1 bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full backdrop-blur-sm transition-colors text-sm font-semibold"
+                        >
+                            <ClockIcon className="w-4 h-4" />
+                            Lịch sử khám
+                        </button>
                         <div className="text-sm font-bold bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
                             {mockPatientRecord.diagnosis}
                         </div>
@@ -137,7 +148,11 @@ const PatientRecordView: React.FC = () => {
                     <FeeView />
                 )}
 
-                {activeTab !== 'chart' && activeTab !== 'examine' && activeTab !== 'lab' && activeTab !== 'operation' && activeTab !== 'medication' && activeTab !== 'fee' && (
+                {activeTab === 'documents' && (
+                    <DocumentsView />
+                )}
+
+                {activeTab !== 'chart' && activeTab !== 'examine' && activeTab !== 'lab' && activeTab !== 'operation' && activeTab !== 'medication' && activeTab !== 'fee' && activeTab !== 'documents' && (
                     <div className="flex flex-col items-center justify-center h-64 text-slate-400">
                         <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-full mb-3">
                             {activeTabInfo && React.createElement(activeTabInfo.icon, { className: "w-8 h-8" })}
@@ -146,6 +161,13 @@ const PatientRecordView: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* 4. HISTORY SIDEBAR */}
+            <HistorySidebar 
+                isOpen={isHistoryOpen} 
+                onClose={() => setIsHistoryOpen(false)} 
+                patientId={patientId || 'UNKNOWN'}
+            />
         </div>
     );
 };
