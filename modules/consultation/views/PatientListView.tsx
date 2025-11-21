@@ -131,7 +131,7 @@ const PatientListView: React.FC = () => {
 
         {/* Table */}
         <div className="flex-1 overflow-auto p-0">
-            <table className={`w-full text-left border-collapse ${fontSettings.listPrimary}`}>
+            <table className={`w-full text-left border-collapse ${fontSettings.listSecondary}`}>
                 <thead className="bg-slate-50 dark:bg-slate-800/50 sticky top-0 z-10 text-xs uppercase text-slate-500 dark:text-slate-400 font-semibold">
                     <tr>
                         <th className="p-4">Mã BN</th>

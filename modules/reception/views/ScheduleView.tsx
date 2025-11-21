@@ -40,7 +40,7 @@ const ScheduleView: React.FC = () => {
                     />
                 </div>
                 <div className="overflow-x-auto">
-                    <table className={`w-full text-left ${fontSettings.listPrimary}`}>
+                    <table className={`w-full text-left ${fontSettings.listSecondary}`}>
                         <thead>
                             <tr className="border-b-2 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
                                 <th className="p-3">Giờ</th>

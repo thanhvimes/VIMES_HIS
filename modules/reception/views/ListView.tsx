@@ -67,7 +67,7 @@ const ListView: React.FC = () => {
 
             {/* Data Table */}
             <div className="flex-grow overflow-auto">
-                <table className={`w-full whitespace-nowrap ${fontSettings.listPrimary}`}>
+                <table className={`w-full whitespace-nowrap ${fontSettings.listSecondary}`}>
                     <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0">
                         <tr>
                             {['Số hồ sơ', 'Tên bệnh nhân', 'Tuổi', 'Giới', 'Địa chỉ', 'Ngày khám gần nhất', 'Đối tượng'].map(h =>

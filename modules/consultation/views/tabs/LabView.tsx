@@ -15,6 +15,7 @@ import FunctionalExplorationTemplate from './templates/FunctionalExplorationTemp
 import ServiceCatalogModal from './modals/ServiceCatalogModal';
 import ServiceTemplateModal from './modals/ServiceTemplateModal';
 import { ServiceItem, serviceCategories } from '../../data/catalogs';
+import { useTheme } from '../../../../contexts/ThemeContext';
 
 type ServiceType = 'XN' | 'HA' | 'TD';
 
@@ -149,6 +150,7 @@ const mockRequests: ServiceRequest[] = [
 ];
 
 const LabView: React.FC = () => {
+    const { fontSettings } = useTheme();
     const [requests, setRequests] = useState<ServiceRequest[]>(mockRequests);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -242,7 +244,7 @@ const LabView: React.FC = () => {
                             </div>
                             <input
                                 type="text"
-                                className="block w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg leading-5 bg-white dark:bg-slate-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out"
+                                className={`block w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg leading-5 bg-white dark:bg-slate-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out ${fontSettings.controls}`}
                                 placeholder="Tìm phiếu..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -253,14 +255,14 @@ const LabView: React.FC = () => {
                     <div className="flex gap-2">
                         <button 
                             onClick={() => setIsCatalogModalOpen(true)}
-                            className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm text-sm font-bold flex items-center justify-center gap-1"
+                            className={`flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm font-bold flex items-center justify-center gap-1 ${fontSettings.controls}`}
                             title="Thêm chỉ định lẻ"
                         >
                             <PlusIcon className="w-4 h-4" />
                         </button>
                         <button 
                             onClick={() => setIsTemplateModalOpen(true)}
-                            className="flex-1 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition shadow-sm text-sm font-bold flex items-center justify-center gap-1"
+                            className={`flex-1 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition shadow-sm font-bold flex items-center justify-center gap-1 ${fontSettings.controls}`}
                             title="Thêm theo gói (Template)"
                         >
                             <span className="text-xs font-extrabold">+G</span>
@@ -291,10 +293,10 @@ const LabView: React.FC = () => {
                                             {getTypeIcon(req.type)}
                                         </div>
                                         <div>
-                                            <div className={`font-bold text-base ${selectedId === req.id ? 'text-blue-700 dark:text-blue-300' : 'text-gray-800 dark:text-slate-200'}`}>
+                                            <div className={`font-bold ${fontSettings.listPrimary} ${selectedId === req.id ? 'text-blue-700 dark:text-blue-300' : 'text-gray-800 dark:text-slate-200'}`}>
                                                 {req.name}
                                             </div>
-                                            <div className="text-sm text-gray-500 dark:text-slate-400 mt-0.5 font-mono">
+                                            <div className="text-xs text-gray-500 dark:text-slate-400 mt-0.5 font-mono">
                                                 #{req.id}
                                             </div>
                                         </div>
@@ -302,7 +304,7 @@ const LabView: React.FC = () => {
                                     {getTypeBadge(req.type)}
                                 </div>
                                 <div className="mt-2 flex justify-between items-end">
-                                    <span className="text-sm text-gray-600 dark:text-slate-300">
+                                    <span className="text-xs text-gray-600 dark:text-slate-300">
                                         {req.orderingDate.split(' ')[0]}
                                     </span>
                                     <span className={`text-xs font-bold uppercase ${req.status === 'completed' ? 'text-green-600' : 'text-amber-500'}`}>
@@ -340,7 +342,7 @@ const LabView: React.FC = () => {
                      {selectedRequest && (
                         <button 
                             onClick={handleDelete}
-                            className="flex items-center gap-2 px-3 py-1.5 text-sm text-red-600 bg-white dark:bg-slate-800 border border-red-200 dark:border-red-900/30 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                            className={`flex items-center gap-2 px-3 py-1.5 text-red-600 bg-white dark:bg-slate-800 border border-red-200 dark:border-red-900/30 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition ${fontSettings.controls}`}
                         >
                             <TrashIcon className="w-4 h-4" /> Xóa phiếu
                         </button>
@@ -367,7 +369,7 @@ const LabView: React.FC = () => {
                                 </div>
                             </div>
                         ) : (
-                            <div className="h-full flex flex-col">
+                            <div className={`h-full flex flex-col ${fontSettings.listSecondary}`}>
                                 {selectedRequest.type === 'XN' && <LabResultTemplate data={selectedRequest} />}
                                 {selectedRequest.type === 'HA' && <ImagingResultTemplate data={selectedRequest} />}
                                 {selectedRequest.type === 'TD' && <FunctionalExplorationTemplate data={selectedRequest} />}
