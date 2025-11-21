@@ -21,6 +21,8 @@ import ImagingResults from './modules/imaging-results/index';
 import { IMAGING_RESULTS_NAV_ITEMS } from './modules/imaging-results/constants';
 import Pharmacy from './modules/pharmacy/index';
 import { PHARMACY_NAV_ITEMS } from './modules/pharmacy/constants';
+import RecordStorage from './modules/record-storage/index';
+import { RECORD_STORAGE_NAV_ITEMS } from './modules/record-storage/constants';
 import Admin from './modules/admin/index';
 import { ADMIN_NAV_ITEMS } from './modules/admin/constants';
 import ManagementReporting from './modules/management-reporting/index';
@@ -39,6 +41,7 @@ const moduleConfig: { [key: string]: { title: string; nav: any[] } } = {
   'lab-results': { title: 'KQ Xét nghiệm', nav: LAB_RESULTS_NAV_ITEMS },
   'imaging-results': { title: 'KQ Hình ảnh', nav: IMAGING_RESULTS_NAV_ITEMS },
   pharmacy: { title: 'Dược & Vật tư', nav: PHARMACY_NAV_ITEMS },
+  'record-storage': { title: 'Lưu trữ hồ sơ', nav: RECORD_STORAGE_NAV_ITEMS },
   admin: { title: 'Quản trị Hệ thống', nav: ADMIN_NAV_ITEMS },
   'management-reporting': { title: 'Báo cáo Quản trị', nav: MGMT_REPORTING_NAV_ITEMS },
   documents: { title: 'Xem tài liệu', nav: [] },
@@ -151,6 +154,7 @@ const App: React.FC = () => {
           <Route path="/lab-results/*" element={<LabResults />} />
           <Route path="/imaging-results/*" element={<ImagingResults />} />
           <Route path="/pharmacy/*" element={<Pharmacy />} />
+          <Route path="/record-storage/*" element={<RecordStorage />} />
           <Route path="/admin/*" element={<Admin />} />
           <Route path="/management-reporting/*" element={<ManagementReporting />} />
           <Route path="/documents/*" element={<Documents />} />
