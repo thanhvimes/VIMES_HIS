@@ -10,10 +10,8 @@ import {
     PhotographIcon, 
     ActivityIcon,
     ScannerIcon,
-    ExclamationCircleIcon,
-    FilterIcon,
-    RefreshIcon,
-    ChevronRightIcon
+    ChevronRightIcon,
+    DocumentTextIcon
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
@@ -34,12 +32,8 @@ const WorklistView: React.FC = () => {
         ));
     };
 
-    const handleOpenExam = (req: ImagingRequest) => {
-        if (req.modality === 'Endoscopy' || req.modality === 'Ultrasound') {
-            navigate(`/imaging-results/capture/${req.id}`);
-        } else {
-            navigate(`/imaging-results/reading/${req.id}`);
-        }
+    const handleOpenReport = (req: ImagingRequest) => {
+        navigate(`/imaging-results/report/${req.id}`);
     };
 
     // --- Filtering ---
@@ -99,16 +93,16 @@ const WorklistView: React.FC = () => {
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                     <h1 className="text-xl font-bold text-slate-800 dark:text-white whitespace-nowrap mr-2 flex items-center gap-2">
                         <UserGroupIcon className="w-6 h-6 text-blue-600"/>
-                        Worklist
+                        Danh sách Chỉ định
                     </h1>
                     <div className="hidden md:block h-6 w-px bg-slate-300 dark:bg-slate-600"></div>
                     
-                    <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+                    <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1 overflow-x-auto max-w-[300px] sm:max-w-none">
                         {['All', 'X-Ray', 'CT', 'MRI', 'Ultrasound', 'Endoscopy'].map(m => (
                             <button
                                 key={m}
                                 onClick={() => setModalityFilter(m)}
-                                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
+                                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors whitespace-nowrap ${
                                     modalityFilter === m 
                                     ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-300 shadow-sm' 
                                     : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
@@ -124,7 +118,7 @@ const WorklistView: React.FC = () => {
                     <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"/>
                     <input 
                         type="text" 
-                        placeholder="Search Patient, ID, Acc..." 
+                        placeholder="Tìm BN, Mã, Dịch vụ..." 
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                         className={`w-full pl-9 p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 focus:ring-2 focus:ring-blue-500 text-sm ${fontSettings.controls}`}
@@ -138,27 +132,27 @@ const WorklistView: React.FC = () => {
                     <table className={`w-full text-left border-collapse ${fontSettings.listPrimary}`}>
                         <thead className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs uppercase font-bold sticky top-0 z-10">
                             <tr>
-                                <th className="p-4 w-20 text-center">Type</th>
-                                <th className="p-4 w-32">Accession</th>
-                                <th className="p-4">Patient Information</th>
-                                <th className="p-4">Procedure</th>
-                                <th className="p-4 w-32">Room</th>
-                                <th className="p-4 text-center w-32">Workflow</th>
-                                <th className="p-4 text-right w-40">Actions</th>
+                                <th className="p-4 w-20 text-center">Loại</th>
+                                <th className="p-4 w-32">SID/Acc</th>
+                                <th className="p-4">Bệnh nhân</th>
+                                <th className="p-4">Dịch vụ</th>
+                                <th className="p-4 w-32">Phòng</th>
+                                <th className="p-4 text-center w-32">Trạng thái</th>
+                                <th className="p-4 text-right w-40">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                             {filteredRequests.length === 0 ? (
                                 <tr>
                                     <td colSpan={7} className="p-8 text-center text-slate-400 dark:text-slate-500 italic">
-                                        No orders found.
+                                        Không tìm thấy chỉ định nào.
                                     </td>
                                 </tr>
                             ) : (
                                 filteredRequests.map(req => (
                                     <tr 
                                         key={req.id} 
-                                        onClick={() => handleOpenExam(req)}
+                                        onClick={() => handleOpenReport(req)}
                                         className={`group hover:bg-blue-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer ${req.priority === 'Urgent' ? 'bg-red-50/30 dark:bg-red-900/10' : ''}`}
                                     >
                                         <td className="p-4 flex justify-center">
@@ -173,10 +167,10 @@ const WorklistView: React.FC = () => {
                                         <td className="p-4">
                                             <div className="flex items-center gap-2">
                                                 <div className="font-bold text-slate-800 dark:text-white">{req.patientName}</div>
-                                                {req.priority === 'Urgent' && <span className="bg-red-100 text-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded">URGENT</span>}
+                                                {req.priority === 'Urgent' && <span className="bg-red-100 text-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded">GẤP</span>}
                                             </div>
                                             <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                                <span className="font-mono">{req.patientId}</span> • {req.gender}, {req.age}Y
+                                                <span className="font-mono">{req.patientId}</span> • {req.gender}, {req.age}T
                                             </div>
                                         </td>
                                         <td className="p-4">
@@ -194,30 +188,12 @@ const WorklistView: React.FC = () => {
                                             </div>
                                         </td>
                                         <td className="p-4 text-right" onClick={e => e.stopPropagation()}>
-                                            {req.status === 'Scheduled' && (
-                                                <button 
-                                                    onClick={(e) => handleStatusChange(e, req.id, 'Processing')}
-                                                    className="inline-flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded shadow-sm transition-transform active:scale-95"
-                                                >
-                                                    <PlayIcon className="w-3 h-3 mr-1.5"/> Start
-                                                </button>
-                                            )}
-                                            {req.status === 'Processing' && (
-                                                <button 
-                                                    onClick={(e) => handleStatusChange(e, req.id, 'Acquired')}
-                                                    className="inline-flex items-center px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded shadow-sm transition-transform active:scale-95"
-                                                >
-                                                    <CheckIcon className="w-3 h-3 mr-1.5"/> Finish
-                                                </button>
-                                            )}
-                                            {['Acquired', 'Reported', 'Approved'].includes(req.status) && (
-                                                <button 
-                                                    onClick={() => handleOpenExam(req)}
-                                                    className="inline-flex items-center px-3 py-1.5 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded transition-colors"
-                                                >
-                                                    Open <ChevronRightIcon className="w-3 h-3 ml-1"/>
-                                                </button>
-                                            )}
+                                            <button 
+                                                onClick={() => handleOpenReport(req)}
+                                                className="inline-flex items-center px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-xs font-bold rounded transition-colors shadow-sm"
+                                            >
+                                                <DocumentTextIcon className="w-3 h-3 mr-1.5"/> Kết quả
+                                            </button>
                                         </td>
                                     </tr>
                                 ))
