@@ -265,3 +265,72 @@ export interface FeeItem {
   patientPaid: number; // Amount paid by patient
   surcharge: number; // Tiền chênh lệch/Phụ thu
 }
+
+// --- SURGERY MODULE TYPES ---
+
+export interface SurgerySchedule {
+  id: string;
+  patientName: string;
+  patientId: string;
+  procedureName: string;
+  surgeonName: string;
+  roomId: string; // ID of the operating room
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+  date: string; // YYYY-MM-DD
+  status: 'scheduled' | 'in-progress' | 'completed' | 'emergency';
+  notes?: string;
+}
+
+export interface SurgeryResource {
+  id: string;
+  name: string;
+  type: 'OR' | 'Recovery';
+}
+
+export interface SafetyChecklist {
+  signIn: Record<string, boolean>; // Before Anesthesia
+  timeOut: Record<string, boolean>; // Before Incision
+  signOut: Record<string, boolean>; // Before Leaving OR
+}
+
+export interface ConsumableUsage {
+  id: string;
+  itemId: string;
+  itemName: string;
+  quantity: number;
+  unit: string;
+}
+
+// --- MEDICAL EQUIPMENT MODULE TYPES ---
+
+export type EquipmentStatus = 'active' | 'maintenance' | 'broken' | 'disposed' | 'inactive';
+
+export interface MedicalEquipment {
+  id: string; // Asset ID / Barcode
+  name: string;
+  model: string;
+  serialNumber: string;
+  manufacturer: string;
+  supplier: string;
+  purchaseDate: string;
+  warrantyExpiry: string;
+  department: string; // Khoa/Phòng sử dụng
+  status: EquipmentStatus;
+  category: string; // e.g., Imaging, Life Support, Lab
+  image?: string;
+  maintenanceSchedule?: 'Monthly' | 'Quarterly' | 'Yearly';
+  nextMaintenanceDate?: string;
+}
+
+export interface MaintenanceTask {
+  id: string;
+  equipmentId: string;
+  equipmentName: string;
+  type: 'Preventive' | 'Corrective' | 'Calibration';
+  description: string;
+  status: 'Scheduled' | 'In Progress' | 'Completed';
+  assignedTo: string; // Technician
+  scheduledDate: string;
+  completionDate?: string;
+}

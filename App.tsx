@@ -28,6 +28,11 @@ import { ADMIN_NAV_ITEMS } from './modules/admin/constants';
 import ManagementReporting from './modules/management-reporting/index';
 import { MGMT_REPORTING_NAV_ITEMS } from './modules/management-reporting/constants';
 import Documents from './modules/documents/index';
+// New Modules
+import Surgery from './modules/surgery/index';
+import { SURGERY_NAV_ITEMS } from './modules/surgery/constants';
+import Equipment from './modules/equipment/index';
+import { EQUIPMENT_NAV_ITEMS } from './modules/equipment/constants';
 
 import { SIDEBAR_NAV_ITEMS } from './constants/navigation';
 import { PdfPreviewProvider } from './contexts/PdfPreviewContext';
@@ -37,6 +42,8 @@ const moduleConfig: { [key: string]: { title: string; nav: any[] } } = {
   reception: { title: 'Tiếp nhận', nav: RECEPTION_NAV_ITEMS },
   consultation: { title: 'Khám bệnh', nav: CONSULTATION_NAV_ITEMS },
   'inpatient-treatment': { title: 'Điều trị nội trú', nav: INPATIENT_NAV_ITEMS },
+  surgery: { title: 'Quản lý Phẫu thuật', nav: SURGERY_NAV_ITEMS },
+  equipment: { title: 'Trang thiết bị Y tế', nav: EQUIPMENT_NAV_ITEMS },
   billing: { title: 'Viện phí', nav: BILLING_NAV_ITEMS },
   'lab-results': { title: 'KQ Xét nghiệm', nav: LAB_RESULTS_NAV_ITEMS },
   'imaging-results': { title: 'KQ Hình ảnh', nav: IMAGING_RESULTS_NAV_ITEMS },
@@ -150,6 +157,8 @@ const App: React.FC = () => {
           <Route path="/reception/*" element={<Reception />} />
           <Route path="/consultation/*" element={<Consultation />} />
           <Route path="/inpatient-treatment/*" element={<InpatientTreatment />} />
+          <Route path="/surgery/*" element={<Surgery />} />
+          <Route path="/equipment/*" element={<Equipment />} />
           <Route path="/billing/*" element={<Billing />} />
           <Route path="/lab-results/*" element={<LabResults />} />
           <Route path="/imaging-results/*" element={<ImagingResults />} />
