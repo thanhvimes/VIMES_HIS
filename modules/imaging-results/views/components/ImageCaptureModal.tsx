@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
     XIcon, 
@@ -375,7 +374,7 @@ const ImageCaptureModal: React.FC<ImageCaptureModalProps> = ({ isOpen, onClose, 
                         setTempImages(prev => [...prev, newImg]);
                     }
                 };
-                reader.readAsDataURL(file);
+                reader.readAsDataURL(file as Blob);
             });
         }
         e.target.value = '';
