@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { 
   UserPlusIcon,
@@ -6,6 +7,7 @@ import {
   ChartBarIcon,
   CogIcon,
   HomeIcon,
+  TvIcon
 } from '../../components/Icons';
 import { NavItemType } from '../../types';
 
@@ -18,6 +20,8 @@ export const RECEPTION_NAV_ITEMS: NavItemType[] = [
     { name: 'Danh sách', path: '/reception/list', icon: React.createElement(ListBulletIcon, { className: "w-5 h-5" }) },
     // FIX: Replaced JSX with React.createElement to be valid in a .ts file
     { name: 'Hẹn khám', path: '/reception/schedule', icon: React.createElement(CalendarIcon, { className: "w-5 h-5" }) },
+    // NEW: Queue Management
+    { name: 'Hàng đợi & Gọi số', path: '/reception/queue', icon: React.createElement(TvIcon, { className: "w-5 h-5" }) },
     // FIX: Replaced JSX with React.createElement to be valid in a .ts file
     { name: 'Báo cáo', path: '/reception/reports', icon: React.createElement(ChartBarIcon, { className: "w-5 h-5" }) },
     // FIX: Replaced JSX with React.createElement to be valid in a .ts file
