@@ -223,7 +223,7 @@ const QueueManagementView: React.FC = () => {
     return (
         <div className="h-full flex flex-col space-y-4">
             {/* Header */}
-            <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                         <MegaphoneIcon className="w-8 h-8 text-blue-600"/>
@@ -233,14 +233,14 @@ const QueueManagementView: React.FC = () => {
                 </div>
                 <button 
                     onClick={() => setIsTvMode(true)}
-                    className="px-5 py-2.5 bg-slate-900 hover:bg-black text-white rounded-lg font-bold shadow-lg flex items-center gap-2 transition transform hover:scale-105"
+                    className="w-full sm:w-auto px-5 py-2.5 bg-slate-900 hover:bg-black text-white rounded-lg font-bold shadow-lg flex items-center justify-center gap-2 transition transform hover:scale-105"
                 >
                     <TvIcon className="w-5 h-5"/> Mở màn hình TV
                 </button>
             </div>
 
             {/* Queue Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 flex-1 overflow-y-auto pb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 flex-1 overflow-y-auto pb-4">
                 {queues.map(queue => {
                     const currentPatient = queue.patients.find(p => p.status === 'called' || p.status === 'serving');
                     const waitingPatients = queue.patients.filter(p => p.status === 'waiting');
@@ -288,7 +288,7 @@ const QueueManagementView: React.FC = () => {
                                 <button 
                                     onClick={() => handleCallNext(queue.id)}
                                     disabled={!nextPatient}
-                                    className="col-span-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm shadow disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center"
+                                    className="col-span-1 py-3 md:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm shadow disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center active:scale-95 transition-transform"
                                 >
                                     <ChevronRightIcon className="w-5 h-5"/>
                                     <span>Gọi số tiếp</span>
@@ -296,7 +296,7 @@ const QueueManagementView: React.FC = () => {
                                 <button 
                                     onClick={() => handleRecall(queue.id)}
                                     disabled={!currentPatient}
-                                    className="col-span-1 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold text-sm shadow disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center"
+                                    className="col-span-1 py-3 md:py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold text-sm shadow disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center active:scale-95 transition-transform"
                                 >
                                     <RefreshIcon className="w-5 h-5"/>
                                     <span>Gọi lại</span>
@@ -304,7 +304,7 @@ const QueueManagementView: React.FC = () => {
                                 <button 
                                     onClick={() => handleSkip(queue.id)}
                                     disabled={!currentPatient}
-                                    className="col-span-1 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg font-bold text-sm shadow disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center"
+                                    className="col-span-1 py-3 md:py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg font-bold text-sm shadow disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center active:scale-95 transition-transform"
                                 >
                                     <XIcon className="w-5 h-5"/>
                                     <span>Vắng mặt</span>

@@ -40,8 +40,8 @@ const ListView: React.FC = () => {
     return (
         <div className="flex flex-col h-full bg-surface dark:bg-dark-surface p-4 rounded-lg shadow border border-slate-200/50 dark:border-slate-700">
             {/* Filter Bar */}
-            <div className="flex-shrink-0 flex flex-wrap items-center gap-4 p-3 mb-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg">
-                <div className="relative flex-grow min-w-[250px]">
+            <div className="flex-shrink-0 flex flex-col md:flex-row items-stretch md:items-center gap-4 p-3 mb-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg">
+                <div className="relative flex-grow">
                     <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                     <input
                         type="text"
@@ -54,15 +54,17 @@ const ListView: React.FC = () => {
                         className={`w-full p-1.5 pl-10 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md ${fontSettings.controls}`}
                     />
                 </div>
-                <div className="flex items-center space-x-2">
-                    <label className={`font-medium text-slate-600 dark:text-slate-300 ${fontSettings.controls}`}>Từ ngày</label>
-                    <input type="date" className={`p-1.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md ${fontSettings.controls}`} defaultValue="2023-01-01" />
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex items-center space-x-2">
+                        <label className={`font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap ${fontSettings.controls}`}>Từ ngày</label>
+                        <input type="date" className={`w-full sm:w-auto p-1.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md ${fontSettings.controls}`} defaultValue="2023-01-01" />
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <label className={`font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap ${fontSettings.controls}`}>Đến ngày</label>
+                        <input type="date" className={`w-full sm:w-auto p-1.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md ${fontSettings.controls}`} defaultValue={new Date().toISOString().slice(0, 10)} />
+                    </div>
+                    <button className={`w-full sm:w-auto px-6 py-1.5 bg-primary text-white font-semibold rounded-md hover:bg-primary-dark ${fontSettings.controls}`}>Nạp</button>
                 </div>
-                <div className="flex items-center space-x-2">
-                    <label className={`font-medium text-slate-600 dark:text-slate-300 ${fontSettings.controls}`}>Đến ngày</label>
-                    <input type="date" className={`p-1.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md ${fontSettings.controls}`} defaultValue={new Date().toISOString().slice(0, 10)} />
-                </div>
-                <button className={`px-6 py-1.5 bg-primary text-white font-semibold rounded-md hover:bg-primary-dark ${fontSettings.controls}`}>Nạp</button>
             </div>
 
             {/* Data Table */}
@@ -82,7 +84,7 @@ const ListView: React.FC = () => {
                                 <td className="p-3 font-semibold">{patient.name}</td>
                                 <td className="p-3">{patient.age}</td>
                                 <td className="p-3">{patient.gender}</td>
-                                <td className="p-3 truncate max-w-xs">{patient.address}</td>
+                                <td className="p-3 truncate max-w-xs" title={patient.address}>{patient.address}</td>
                                 <td className="p-3">{patient.lastVisit}</td>
                                 <td className="p-3">{patient.patientType}</td>
                             </tr>

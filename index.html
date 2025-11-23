@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -31,6 +32,37 @@
                 primary: '#22d3ee', // cyan-400
               }
             },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
+              },
+              fadeInUp: {
+                '0%': { opacity: '0', transform: 'translateY(10px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              slideInUp: {
+                '0%': { transform: 'translateY(100%)', opacity: '0' },
+                '100%': { transform: 'translateY(0)', opacity: '1' },
+              },
+              bounceIn: {
+                '0%': { transform: 'translate(-50%, 100%) scale(0.5)', opacity: '0' },
+                '50%': { transform: 'translate(-50%, -10%) scale(1.05)' },
+                '70%': { transform: 'translate(-50%, 5%) scale(0.95)' },
+                '100%': { transform: 'translate(-50%, 0) scale(1)', opacity: '1' },
+              },
+              pulseSlow: {
+                '0%, 100%': { opacity: '1' },
+                '50%': { opacity: '0.6' },
+              }
+            },
+            animation: {
+              'fade-in': 'fadeIn 0.3s ease-out',
+              'fade-in-up': 'fadeInUp 0.4s ease-out',
+              'slide-in-up': 'slideInUp 0.4s ease-out forwards',
+              'bounce-in': 'bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards',
+              'pulse-slow': 'pulseSlow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            }
           },
         },
       }
@@ -50,8 +82,8 @@
 
       /* 2. WebKit Browsers (Chrome, Safari, Edge) */
       ::-webkit-scrollbar {
-        width: 8px;  /* Width of vertical scrollbar */
-        height: 8px; /* Height of horizontal scrollbar */
+        width: 6px;  /* Thinner scrollbar */
+        height: 6px;
       }
 
       ::-webkit-scrollbar-track {
@@ -65,9 +97,9 @@
 
       ::-webkit-scrollbar-thumb {
         background-color: #cbd5e1; /* slate-300 */
-        border-radius: 6px;
-        border: 2px solid transparent; /* Creates the 'floating' padding effect */
-        background-clip: content-box;  /* Paints background only inside border */
+        border-radius: 10px;
+        border: 1px solid transparent;
+        background-clip: content-box;
         transition: background-color 0.2s ease-in-out;
       }
 
@@ -75,10 +107,6 @@
         background-color: #94a3b8; /* slate-400 */
       }
       
-      ::-webkit-scrollbar-thumb:active {
-        background-color: #64748b; /* slate-500 */
-      }
-
       /* Dark Mode Overrides */
       .dark ::-webkit-scrollbar-thumb {
         background-color: #334155; /* slate-700 */
@@ -88,8 +116,45 @@
         background-color: #475569; /* slate-600 */
       }
 
-      .dark ::-webkit-scrollbar-thumb:active {
-        background-color: #64748b; /* slate-500 */
+      /* --- Input Autofill Fixes --- */
+      /* Light Mode */
+      input:-webkit-autofill,
+      input:-webkit-autofill:hover, 
+      input:-webkit-autofill:focus, 
+      input:-webkit-autofill:active {
+          -webkit-box-shadow: 0 0 0 30px white inset !important;
+          -webkit-text-fill-color: #1e293b !important;
+          transition: background-color 5000s ease-in-out 0s;
+      }
+      
+      /* Dark Mode */
+      .dark input:-webkit-autofill,
+      .dark input:-webkit-autofill:hover, 
+      .dark input:-webkit-autofill:focus, 
+      .dark input:-webkit-autofill:active {
+          -webkit-box-shadow: 0 0 0 30px #334155 inset !important; /* Slate-700 to match inputs */
+          -webkit-text-fill-color: white !important;
+          caret-color: white;
+      }
+
+      /* --- Utility Utilities --- */
+      .no-scrollbar::-webkit-scrollbar {
+          display: none;
+      }
+      .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+      }
+
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: #cbd5e1;
+        border-radius: 4px;
+      }
+      .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: #475569;
       }
 
       /* Print Styles */
@@ -104,6 +169,7 @@
         }
         body {
           background-color: white !important;
+          color: black !important;
         }
         .printable-area {
           box-shadow: none !important;
@@ -137,7 +203,7 @@
 }
 </script>
 </head>
-  <body class="bg-background text-onSurface dark:bg-dark-background dark:text-dark-onSurface transition-colors duration-300">
+  <body class="bg-background text-onSurface dark:bg-dark-background dark:text-dark-onSurface transition-colors duration-300 font-sans antialiased">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

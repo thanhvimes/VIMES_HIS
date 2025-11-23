@@ -6,7 +6,7 @@ import {
     PencilIcon, 
     SaveIcon, 
     BanIcon, 
-    PrinterIcon,
+    PrinterIcon, 
     QrcodeIcon,
     UserGroupIcon,
     ClockIcon,
@@ -14,10 +14,7 @@ import {
     CheckCircleIcon,
     ExclamationCircleIcon,
     XIcon,
-    ShieldCheckIcon,
-    CreditCardIcon,
-    RefreshIcon,
-    CheckIcon
+    CreditCardIcon
 } from '../../../components/Icons';
 import ActionButton from '../../../components/shared/ActionButton';
 import { FormInput, FormSelect } from '../../../components/shared/forms';
@@ -70,24 +67,6 @@ const wardOptions: CatalogItem[] = [
     { code: '20202', name: 'Xã Đoàn Kết' },
 ];
 
-// --- MOCK DATA: HOSPITALS (For Insurance) ---
-interface HospitalItem {
-    code: string;
-    name: string;
-}
-const hospitalOptions: HospitalItem[] = [
-    { code: '01001', name: 'Bệnh viện Bạch Mai' },
-    { code: '01002', name: 'Bệnh viện Hữu Nghị' },
-    { code: '01003', name: 'Bệnh viện E' },
-    { code: '01004', name: 'Bệnh viện Đa khoa Xanh Pôn' },
-    { code: '79024', name: 'Bệnh viện Chợ Rẫy' },
-    { code: '79035', name: 'Bệnh viện Nhân Dân 115' },
-    { code: '47001', name: 'Bệnh viện Đa khoa Huyện Bù Đăng' }, 
-    { code: '47002', name: 'Trung tâm Y tế Thị xã Phước Long' },
-    { code: '01-816', name: 'Phòng khám Đa khoa (Mẫu)' },
-    { code: '816', name: 'Phòng khám Đa khoa (Mã tắt)' },
-];
-
 // --- UTILITY: TOAST NOTIFICATION ---
 interface ToastMessage {
     id: number;
@@ -122,34 +101,68 @@ const Toast: React.FC<{ toast: ToastMessage | null, onClose: () => void }> = ({ 
     );
 };
 
-// --- UTILITY: HEX DECODER (For BHYT Name/Address) ---
-const hexToUtf8 = (hex: string): string => {
+// --- UTILITY: ROBUST HEX DECODER (UTF-8) ---
+const decodeHex = (hex: string): string => {
+    if (!hex) return '';
+    
     try {
+        // 1. Clean the string: remove whitespace
         const cleanHex = hex.replace(/\s+/g, '');
-        const percentEncoded = cleanHex.replace(/[0-9a-fA-F]{2}/g, '%$&');
+        
+        // 2. Validate: Must be even length and only hex chars
+        if (cleanHex.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(cleanHex)) {
+            // Return as is if it doesn't look like hex (sometimes QR sends plain text in these fields if systems vary)
+            return hex;
+        }
+
+        // 3. Encode for URI component: Insert % before every 2 chars
+        // e.g., "C3A0" -> "%C3%A0"
+        const percentEncoded = cleanHex.replace(/(.{2})/g, '%$1');
+        
+        // 4. Decode UTF-8
         return decodeURIComponent(percentEncoded);
     } catch (e) {
-        console.error("Error decoding Hex:", e);
-        return hex; 
+        console.error("Hex decode error:", e);
+        return hex; // Fail gracefuly by returning original string
     }
 };
 
-const convertDate = (dateStr: string): string => {
-    if (!dateStr || dateStr === '-') return '';
+// --- UTILITY: DATE FORMATTER (DD/MM/YYYY or DDMMYYYY -> YYYY-MM-DD) ---
+const formatDateForInput = (dateStr: string) => {
+    if (!dateStr || dateStr === '-' || dateStr.trim() === '') return '';
     
-    // Input: DD/MM/YYYY -> Output: YYYY-MM-DD
+    // Handle DD/MM/YYYY
     if (dateStr.includes('/')) {
         const parts = dateStr.split('/');
         if (parts.length === 3) {
-            return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            // Ensure parts are padded (e.g. 1/1/2023 -> 01/01/2023)
+            const day = parts[0].padStart(2, '0');
+            const month = parts[1].padStart(2, '0');
+            const year = parts[2];
+            return `${year}-${month}-${day}`;
         }
+    } 
+    // Handle DDMMYYYY (often found in CCCD raw data)
+    else if (dateStr.length === 8 && !isNaN(Number(dateStr))) {
+        const day = dateStr.slice(0, 2);
+        const month = dateStr.slice(2, 4);
+        const year = dateStr.slice(4, 8);
+        return `${year}-${month}-${day}`;
     }
     
-    // Input: DDMMYYYY (CCCD style)
-    if (dateStr.length === 8 && !isNaN(Number(dateStr))) {
-        return `${dateStr.slice(4, 8)}-${dateStr.slice(2, 4)}-${dateStr.slice(0, 2)}`;
-    }
     return '';
+};
+
+// --- UTILITY: BENEFIT RATE ---
+const getBenefitRate = (benefitCode: string) => {
+    switch (benefitCode) {
+        case '1': return '100';
+        case '2': return '100';
+        case '3': return '95';
+        case '4': return '80';
+        case '5': return '100';
+        default: return '';
+    }
 };
 
 // --- UTILITY: QR CODE PARSER ---
@@ -157,82 +170,95 @@ const parseScannedData = (rawData: string) => {
     if (!rawData) return null;
     const parts = rawData.split('|');
 
-    // 1. BHYT Pattern (VssID / QR Code)
-    // Sample: CH4010253700019|486FC3...|24/01/1989|1|42C3...|01 - 816|01/09/2015|31/12/2015|...
-    if (parts.length >= 10) {
-         const isHexName = /^[0-9A-Fa-f]+$/.test(parts[1].replace(/\s/g, ''));
-         
-         if (isHexName) {
-             const fullCardNo = parts[0]; 
-             const name = hexToUtf8(parts[1]); 
-             const dob = convertDate(parts[2]);
-             const genderCode = parts[3]; // 1 (Nam)
-             const address = hexToUtf8(parts[4]); 
-             let clinicCode = parts[5]; 
-             const validFrom = convertDate(parts[6]);
-             const validTo = convertDate(parts[7]);
-             const fiveYearDate = (parts[12] && parts[12] !== '-') ? convertDate(parts[12]) : '';
+    // 1. BHYT Pattern (VssID/QRCode)
+    // Min length check. Standard has ~15 fields.
+    // Format: SoThe|HoTen(Hex)|NgaySinh|GioiTinh|DiaChi(Hex)|MaKCB|TuNgay|DenNgay|...
+    if (parts.length >= 10 && parts[0].length === 15 && /^[A-Z]{2}\d{13}$/.test(parts[0])) {
+        try {
+            const insuranceNumber = parts[0];
+            const name = decodeHex(parts[1]);
+            const dob = formatDateForInput(parts[2]);
+            
+            // Gender: 1=Nam, 2=Nữ (BHXH standard)
+            const genderCode = parts[3];
+            const gender = genderCode === '1' ? 'Nam' : genderCode === '2' ? 'Nữ' : 'Khác';
+            
+            const address = decodeHex(parts[4]);
+            const placeCode = parts[5].replace(' - ', ' - '); // Sometimes spaces vary
+            const validFrom = formatDateForInput(parts[6]);
+            const validTo = formatDateForInput(parts[7]);
+            const fiveYearDate = formatDateForInput(parts[12]);
 
-             const insuranceCode = fullCardNo.substring(0, 2); 
-             const insuranceBenefit = fullCardNo.substring(2, 3); 
-             const insuranceRegion = fullCardNo.substring(3, 5); 
+            // Breakdown Insurance Number
+            const code = insuranceNumber.substring(0, 2); // e.g., CH
+            const benefitCode = insuranceNumber.substring(2, 3); // e.g., 4
+            const benefitRate = getBenefitRate(benefitCode);
+            
+            // Area code isn't explicitly in the new string usually, but we can infer or leave blank.
+            // Some cards format it inside placeCode or elsewhere. We'll leave it for manual or lookup.
+            
+            const currentYear = new Date().getFullYear();
+            const birthYear = parseInt(dob.split('-')[0] || '0');
+            const age = birthYear > 0 ? currentYear - birthYear : 0;
 
-             return {
-                 type: 'BHYT',
-                 data: {
-                     insuranceNumber: fullCardNo,
-                     insuranceCode: insuranceCode,
-                     insuranceBenefit: parseBenefitRate(insuranceBenefit),
-                     insurancePlaceCode: clinicCode,
-                     insuranceRegDate: validFrom,
-                     insuranceExp: validTo,
-                     insurance5Year: fiveYearDate,
-                     insuranceArea: insuranceRegion,
-                     
-                     name: name,
-                     dob: dob,
-                     gender: (genderCode === '1' ? 'Nam' : 'Nữ') as 'Nam' | 'Nữ' | 'Khác',
-                     address: address,
-                     patientType: 'Bảo hiểm' as 'Bảo hiểm',
-                     age: new Date().getFullYear() - parseInt(dob.split('-')[0] || '0'),
-                     workplace: address 
-                 }
-             };
-         }
+            return {
+                type: 'BHYT',
+                data: {
+                    name: name,
+                    dob: dob,
+                    gender: gender as 'Nam' | 'Nữ' | 'Khác',
+                    workplace: address, // BHYT Address is often workplace/agency
+                    address: address, 
+                    age: age,
+                    patientType: 'Bảo hiểm',
+                    
+                    // Insurance Fields
+                    insuranceNumber: insuranceNumber,
+                    insuranceCode: code,
+                    insuranceBenefit: benefitRate,
+                    insurancePlace: placeCode,
+                    insuranceRegDate: validFrom,
+                    insuranceExp: validTo,
+                    insurance5Year: fiveYearDate
+                }
+            };
+        } catch (e) {
+            console.error("BHYT Parse Error", e);
+            return null;
+        }
     }
 
-    // 2. CCCD Pattern (Chip ID)
-    // Format: ID|OLD_ID|Name|DOB(ddmmyyyy)|Gender|Address|IssueDate
-    if (parts.length >= 5 && !rawData.startsWith('DN') && !rawData.startsWith('GD') && !rawData.startsWith('CH')) {
-        const dobRaw = parts[3]; 
-        const dobDate = convertDate(dobRaw);
-        
-        // Index 6 is Issue Date (Ngày cấp)
-        const issueDateRaw = parts[6];
-        const issueDate = issueDateRaw ? convertDate(issueDateRaw) : '';
-        
-        return {
-            type: 'CCCD',
-            data: {
-                identityCard: parts[0],
-                name: parts[2],
-                dob: dobDate,
-                gender: (parts[4] === 'Nam' || parts[4] === '1' ? 'Nam' : 'Nữ') as 'Nam' | 'Nữ' | 'Khác',
-                address: parts[5],
-                identityIssueDate: issueDate, // New Field
-                age: new Date().getFullYear() - parseInt(dobDate.split('-')[0] || '0')
-            }
-        };
+    // 2. CCCD Pattern (Old & New Chip ID)
+    // Format: ID|OLD_ID|Name|DOB|Gender|Address|IssueDate
+    // New Chip ID usually starts with ID number (12 digits)
+    if (parts.length >= 6) {
+        // Check first part: Should be 12 digits for CCCD
+        if (/^\d{12}$/.test(parts[0])) {
+            const dobDate = formatDateForInput(parts[3]);
+            const issueDate = formatDateForInput(parts[6]);
+            const genderStr = parts[4];
+            
+            let gender: 'Nam' | 'Nữ' | 'Khác' = 'Khác';
+            if (genderStr.toLowerCase() === 'nam') gender = 'Nam';
+            else if (genderStr.toLowerCase() === 'nữ') gender = 'Nữ';
+
+            return {
+                type: 'CCCD',
+                data: {
+                    identityCard: parts[0],
+                    name: parts[2],
+                    dob: dobDate,
+                    gender: gender,
+                    address: parts[5],
+                    identityIssueDate: issueDate,
+                    age: new Date().getFullYear() - parseInt(dobDate.split('-')[0] || '0'),
+                    patientType: 'Dịch vụ' // Default to service unless BHYT scanned later
+                }
+            };
+        }
     }
-    
+
     return null;
-};
-
-const parseBenefitRate = (code: string): string => {
-    if (['1', '2'].includes(code)) return '100';
-    if (['3'].includes(code)) return '95';
-    if (['4'].includes(code)) return '80';
-    return '';
 };
 
 // --- API SIMULATION ---
@@ -245,24 +271,6 @@ const mockSavePatientAPI = async (data: any): Promise<boolean> => {
                 resolve(true);
             }
         }, 800);
-    });
-};
-
-const mockCheckInsuranceAPI = async (cardNo: string): Promise<any> => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve({
-                isValid: true,
-                status: "Đang tham gia",
-                benefit: "80",
-                placeCode: "01-816",
-                placeName: "Phòng khám Đa khoa (Mẫu)",
-                expDate: "2026-09-30",
-                regDate: "2025-10-01",
-                fiveYear: "2025-01-01",
-                area: "01"
-            });
-        }, 1500);
     });
 };
 
@@ -285,16 +293,14 @@ interface ExtendedFormData extends Patient {
     
     // Insurance Details
     insuranceNumber?: string;
-    insuranceRegDate?: string; 
-    insuranceExp?: string; 
-    insuranceCode?: string; 
-    insuranceBenefit?: string; 
-    insurancePlace?: string; 
-    insurancePlaceCode?: string; 
-    insuranceArea?: string; 
-    insurance5Year?: string; 
-    insuranceExempt?: string; 
-    insuranceRoute?: string; 
+    insuranceRegDate?: string; // Ngày đăng ký
+    insuranceExp?: string; // Ngày hết hạn
+    insuranceCode?: string; // Mã (GD, DN...)
+    insuranceBenefit?: string; // Mức hưởng (80%, 95%, 100%)
+    insurancePlace?: string; // Nơi đăng ký KCB
+    insuranceArea?: string; // Khu vực (K1, K2...)
+    insurance5Year?: string; // Thời điểm đủ 5 năm
+    insuranceExempt?: string; // Miễn cùng chi trả
 
     // Registration Session Data
     regDate?: string;
@@ -302,6 +308,12 @@ interface ExtendedFormData extends Patient {
     regRoom?: string;
     regReason?: string;
     regPriority?: boolean;
+    
+    // Transfer Info
+    isTransfer?: boolean;
+    transferHospital?: string;
+    transferDiagnosis?: string;
+    transferFile?: string;
 }
 
 const RegistrationView: React.FC = () => {
@@ -309,7 +321,7 @@ const RegistrationView: React.FC = () => {
     const navigate = useNavigate();
     const { openPdf } = usePdfPreview();
     
-    const initialFormState: ExtendedFormData = {
+    const [formData, setFormData] = useState<ExtendedFormData>({
         ...emptyPatient,
         regDate: new Date().toISOString().slice(0, 10),
         regDepartment: 'Khoa Khám Bệnh',
@@ -318,16 +330,14 @@ const RegistrationView: React.FC = () => {
         regPriority: false,
         id: `BN${Date.now().toString().slice(-6)}`,
         recordNumber: `REC${Date.now().toString().slice(-6)}`,
-        identityIssueDate: ''
-    };
-
-    const [formData, setFormData] = useState<ExtendedFormData>(initialFormState);
-    const [originalData, setOriginalData] = useState<ExtendedFormData | null>(null);
+        identityIssueDate: '',
+        isTransfer: false
+    });
     
     const [mode, setMode] = useState<'VIEW' | 'EDIT' | 'ADD'>('ADD');
     const [searchQuery, setSearchQuery] = useState('');
     const [isSaving, setIsSaving] = useState(false);
-    const [isCheckingCard, setIsCheckingCard] = useState(false);
+    const [originalData, setOriginalData] = useState<ExtendedFormData | null>(null);
     
     const [toast, setToast] = useState<ToastMessage | null>(null);
     const showToast = (type: 'success'|'error'|'info', message: string) => {
@@ -339,7 +349,7 @@ const RegistrationView: React.FC = () => {
             const found = mockPatients.find(p => p.id === patientId);
             if (found) {
                 const [d, m, y] = found.dob.split('/');
-                const loadedData: ExtendedFormData = {
+                const loadedData = {
                     ...found,
                     dob: `${y}-${m}-${d}`,
                     email: 'example@email.com',
@@ -347,37 +357,35 @@ const RegistrationView: React.FC = () => {
                     province: 'Thành phố Hà Nội',
                     ward: 'Phường Đồng Tâm',
                     identityIssueDate: '2021-05-01', // Mock data
-                    workplace: found.occupation === 'Văn phòng' ? 'Công ty ABC' : '',
                     
+                    // Mock Insurance Data if type is Insurance
                     insuranceNumber: found.patientType === 'Bảo hiểm' ? 'GD475702196755770003' : '',
                     insuranceCode: found.patientType === 'Bảo hiểm' ? 'GD' : '',
                     insuranceBenefit: found.patientType === 'Bảo hiểm' ? '80' : '',
                     insuranceRegDate: found.patientType === 'Bảo hiểm' ? '2025-10-01' : '',
                     insuranceExp: found.patientType === 'Bảo hiểm' ? '2026-09-30' : '',
-                    insurancePlace: found.patientType === 'Bảo hiểm' ? 'Bệnh viện Đa khoa Huyện Bù Đăng' : '',
-                    insurancePlaceCode: found.patientType === 'Bảo hiểm' ? '47001' : '',
+                    insurancePlace: found.patientType === 'Bảo hiểm' ? 'Bệnh viện đa khoa Huyện Bù Đăng' : '',
                     insuranceArea: found.patientType === 'Bảo hiểm' ? 'K2' : '',
-                    insuranceRoute: found.patientType === 'Bảo hiểm' ? 'Đúng tuyến' : '',
-                    insurance5Year: found.patientType === 'Bảo hiểm' ? '01/01/2025' : '',
                     
                     regDate: new Date().toISOString().slice(0, 10),
                     regReason: '',
-                    regDepartment: 'Khoa Khám Bệnh'
+                    regDepartment: 'Khoa Khám Bệnh',
+                    isTransfer: false
                 };
                 setFormData(loadedData);
-                setOriginalData(JSON.parse(JSON.stringify(loadedData))); 
+                setOriginalData(JSON.parse(JSON.stringify(loadedData)));
                 setMode('VIEW');
             }
         } else {
-            setFormData(initialFormState);
-            setOriginalData(null);
             setMode('ADD');
+            setOriginalData(null);
         }
     }, [patientId]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        const { name, value, type } = e.target;
+        const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
+        setFormData(prev => ({ ...prev, [name]: val }));
     };
 
     // Validate CCCD on Blur
@@ -387,6 +395,13 @@ const RegistrationView: React.FC = () => {
             if (!/^\d{12}$/.test(val)) {
                 showToast('error', 'CCCD phải đúng 12 chữ số');
             }
+        }
+    };
+
+    const handleIdentityInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value.replace(/\D/g, ''); // Only numbers
+        if (val.length <= 12) {
+            setFormData(prev => ({ ...prev, identityCard: val }));
         }
     };
 
@@ -401,13 +416,17 @@ const RegistrationView: React.FC = () => {
     const handleWardChange = (val: string) => {
         setFormData(prev => ({ ...prev, ward: val }));
     };
-
-    const handleHospitalChange = (val: string, item?: HospitalItem) => {
-        setFormData(prev => ({ 
-            ...prev, 
-            insurancePlace: val,
-            insurancePlaceCode: item?.code || prev.insurancePlaceCode 
-        }));
+    
+    const handleInsurancePlaceChange = (val: string) => {
+        setFormData(prev => ({ ...prev, insurancePlace: val }));
+    };
+    
+    const handleInsuranceAreaChange = (val: string) => {
+        setFormData(prev => ({ ...prev, insuranceArea: val }));
+    };
+    
+    const handleTransferHospitalChange = (val: string) => {
+        setFormData(prev => ({ ...prev, transferHospital: val }));
     };
 
     const handleDobChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -428,27 +447,26 @@ const RegistrationView: React.FC = () => {
             const parsed = parseScannedData(rawString);
             
             if (parsed) {
-                const { insuranceNumber, workplace, identityIssueDate, ...pData } = parsed.data as any;
+                // Use type assertion carefully here.
+                // We're telling TS that parsed.data matches parts of ExtendedFormData
+                const { insuranceNumber, identityIssueDate, ...pData } = parsed.data as any;
                 
-                const mergedData = {
-                    ...formData,
+                setFormData(prev => ({
+                    ...prev,
                     ...pData,
-                    workplace: workplace || formData.workplace,
-                    identityIssueDate: identityIssueDate || formData.identityIssueDate,
-                    id: mode === 'ADD' ? formData.id : formData.id, 
-                    recordNumber: mode === 'ADD' ? formData.recordNumber : formData.recordNumber,
-                    insuranceNumber: insuranceNumber || formData.insuranceNumber
-                };
-
-                setFormData(mergedData);
+                    identityIssueDate: identityIssueDate || prev.identityIssueDate,
+                    insuranceNumber: insuranceNumber || prev.insuranceNumber
+                }));
                 
                 setSearchQuery('');
                 showToast('success', `Đã quét thành công thẻ ${parsed.type}!`);
                 
                 if (mode === 'VIEW') {
-                    setMode('EDIT'); 
+                    setOriginalData(JSON.parse(JSON.stringify(formData))); // Backup current before edit
+                    setMode('EDIT'); // Switch to edit if we scanned new data
                 }
             } else {
+                // Fallback: Search in mock DB
                 const found = mockPatients.find(p => 
                     p.id.toLowerCase() === rawString.toLowerCase() || 
                     p.phone === rawString ||
@@ -486,73 +504,83 @@ const RegistrationView: React.FC = () => {
             setIsSaving(false);
         }
     };
-
+    
     const handleCancel = () => {
         if (mode === 'ADD') {
-            setFormData(initialFormState);
-            showToast('info', 'Đã hủy thêm mới.');
-        } else {
-            if (originalData) {
-                setFormData(JSON.parse(JSON.stringify(originalData)));
-                showToast('info', 'Đã hủy bỏ thay đổi.');
-            }
+            // Clear form
+            setFormData({
+                ...emptyPatient,
+                regDate: new Date().toISOString().slice(0, 10),
+                regDepartment: 'Khoa Khám Bệnh',
+                regRoom: '',
+                regReason: '',
+                regPriority: false,
+                id: `BN${Date.now().toString().slice(-6)}`,
+                recordNumber: `REC${Date.now().toString().slice(-6)}`,
+                identityIssueDate: '',
+                isTransfer: false
+            });
+        } else if (mode === 'EDIT' && originalData) {
+            // Restore original
+            setFormData(originalData);
+            setMode('VIEW');
         }
-        setMode('VIEW');
     };
-
-    const handleCheckInsurance = async () => {
+    
+    const handleCheckIn = () => {
         if (!formData.insuranceNumber) {
-            showToast('error', 'Vui lòng nhập số thẻ BHYT');
+            showToast('error', 'Vui lòng nhập số thẻ BHYT để kiểm tra.');
             return;
         }
-        setIsCheckingCard(true);
-        try {
-            const data = await mockCheckInsuranceAPI(formData.insuranceNumber);
+        
+        setIsSaving(true);
+        setTimeout(() => {
+            setIsSaving(false);
+            showToast('success', 'Thẻ hợp lệ. Đang tham gia BHYT.');
+            // Simulate updating some info from portal
             setFormData(prev => ({
                 ...prev,
-                insuranceBenefit: data.benefit,
-                insurancePlaceCode: data.placeCode,
-                insurancePlace: data.placeName,
-                insuranceExp: data.expDate,
-                insuranceRegDate: data.regDate,
-                insurance5Year: data.fiveYear,
-                insuranceArea: data.area,
-                insuranceCode: formData.insuranceNumber?.substring(0, 2)
+                insuranceRegDate: '2023-01-01',
+                insuranceExp: '2023-12-31',
+                insurance5Year: '2020-05-01'
             }));
-            showToast('success', `Đã kiểm tra: ${data.status}`);
-        } catch (e) {
-            showToast('error', 'Lỗi kết nối cổng BHXH');
-        } finally {
-            setIsCheckingCard(false);
-        }
-    };
-
-    const handleUpdateInsurance = () => {
-        showToast('success', 'Đã cập nhật thông tin thẻ BHYT');
+        }, 1000);
     };
 
     const commonColumns: ComboboxColumn<CatalogItem>[] = [
         { key: 'code', label: 'Mã', width: '30%', className: 'font-mono text-xs text-slate-500' },
         { key: 'name', label: 'Tên', width: '70%', className: 'font-medium' },
     ];
-
-    const hospitalColumns: ComboboxColumn<HospitalItem>[] = [
-        { key: 'code', label: 'Mã', width: '25%', className: 'font-mono text-xs font-bold text-blue-600' },
-        { key: 'name', label: 'Tên cơ sở KCB', width: '75%' },
+    
+    const hospitalColumns: ComboboxColumn<CatalogItem>[] = [
+        { key: 'code', label: 'Mã', width: '20%', className: 'font-mono text-xs text-slate-500' },
+        { key: 'name', label: 'Tên bệnh viện', width: '80%', className: 'font-medium' },
+    ];
+    
+    const hospitalOptions: CatalogItem[] = [
+        { code: '47001', name: 'Bệnh viện đa khoa Huyện Bù Đăng' },
+        { code: '01001', name: 'Bệnh viện Bạch Mai' },
+        { code: '79021', name: 'Bệnh viện Chợ Rẫy' },
+    ];
+    
+    const areaOptions: CatalogItem[] = [
+        { code: 'K1', name: 'K1 - Khu vực đặc biệt khó khăn' },
+        { code: 'K2', name: 'K2 - Khu vực đặc biệt khó khăn' },
+        { code: 'K3', name: 'K3 - Khu vực sinh sống' },
     ];
 
     const isEditable = mode !== 'VIEW';
 
     return (
-        <div className="flex flex-col h-full gap-4">
+        <div className="flex flex-col h-full gap-4 pb-10">
             <Toast toast={toast} onClose={() => setToast(null)} />
 
             {/* --- TOP ACTION BAR --- */}
-            <div className="flex-shrink-0 bg-white dark:bg-slate-800 px-6 py-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-wrap justify-between items-center gap-4">
-                <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 bg-white dark:bg-slate-800 px-4 py-4 md:px-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
                     <h1 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                         <UserPlusIcon className="w-7 h-7 text-blue-600"/>
-                        {mode === 'ADD' ? 'Đăng ký mới' : 'Hồ sơ bệnh nhân'}
+                        <span className="hidden sm:inline">{mode === 'ADD' ? 'Đăng ký mới' : 'Hồ sơ bệnh nhân'}</span>
                     </h1>
                     {formData.patientType && (
                         <span className={`px-3 py-1 rounded-full text-sm font-bold border ${formData.patientType === 'Bảo hiểm' ? 'bg-green-100 text-green-700 border-green-300' : 'bg-slate-100 text-slate-700 border-slate-300'}`}>
@@ -561,7 +589,7 @@ const RegistrationView: React.FC = () => {
                     )}
                 </div>
 
-                <div className="flex-1 max-w-lg relative group">
+                <div className="flex-1 w-full md:max-w-lg relative group order-3 md:order-2">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <QrcodeIcon className={`h-6 w-6 ${searchQuery ? 'text-blue-500 animate-pulse' : 'text-slate-400'}`} />
                     </div>
@@ -579,7 +607,7 @@ const RegistrationView: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex gap-3 w-full md:w-auto justify-end order-2 md:order-3">
                     {isEditable ? (
                         <>
                             <ActionButton 
@@ -598,19 +626,19 @@ const RegistrationView: React.FC = () => {
                         </>
                     ) : (
                         <>
-                            <ActionButton label="Thêm mới" icon={<UserPlusIcon className="w-5 h-5"/>} onClick={() => {navigate('/reception/register'); setMode('ADD'); setFormData(initialFormState);}} className="bg-green-600 hover:bg-green-700 text-white py-2"/>
+                            <ActionButton label="Thêm mới" icon={<UserPlusIcon className="w-5 h-5"/>} onClick={() => {navigate('/reception/register'); setMode('ADD');}} className="bg-green-600 hover:bg-green-700 text-white py-2"/>
                             <ActionButton label="Sửa" icon={<PencilIcon className="w-5 h-5"/>} onClick={() => setMode('EDIT')} className="bg-amber-500 hover:bg-amber-600 text-white py-2"/>
-                            <ActionButton label="In" icon={<PrinterIcon className="w-5 h-5"/>} onClick={() => {}} className="bg-slate-600 hover:bg-slate-700 text-white py-2"/>
+                            <ActionButton label="In" icon={<PrinterIcon className="w-5 h-5"/>} onClick={() => {}} className="bg-slate-600 hover:bg-slate-700 text-white py-2 hidden sm:flex"/>
                         </>
                     )}
                 </div>
             </div>
 
             <div className="flex-1 overflow-hidden">
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-full">
                     
                     {/* --- LEFT COLUMN: INFO FORM (75%) --- */}
-                    <div className="lg:col-span-3 flex flex-col h-full overflow-y-auto pr-2 pb-20 custom-scrollbar">
+                    <div className="lg:col-span-3 flex flex-col h-full overflow-y-auto pr-1 pb-40 custom-scrollbar">
                         
                         <div className={`bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 relative space-y-6 ${isEditable ? 'ring-2 ring-blue-100 dark:ring-blue-900' : ''}`}>
                             
@@ -619,22 +647,22 @@ const RegistrationView: React.FC = () => {
                                 <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4 border-b pb-2 flex items-center gap-2 text-base uppercase tracking-wide">
                                     <UserGroupIcon className="w-5 h-5 text-blue-500"/> Thông tin Hành chính
                                 </h3>
-                                <div className="grid grid-cols-6 gap-x-6 gap-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                                     {/* Row 1 */}
-                                    <div className="col-span-1">
+                                    <div className="col-span-1 md:col-span-1">
                                         <FormInput label="Mã Bệnh nhân" name="id" value={formData.id} readOnly className="bg-slate-100 font-mono font-bold text-slate-600 text-sm h-10"/>
                                     </div>
-                                    <div className="col-span-1">
+                                    <div className="col-span-1 md:col-span-1">
                                         <FormInput label="Mã Hồ sơ" name="recordNumber" value={formData.recordNumber} readOnly className="bg-slate-100 font-mono font-bold text-red-600 text-sm h-10"/>
                                     </div>
-                                    <div className="col-span-2">
+                                    <div className="col-span-1 md:col-span-2">
                                         <FormInput label="Họ và tên" name="name" value={formData.name} onChange={handleInputChange} readOnly={!isEditable} className="font-bold uppercase text-blue-700 h-10"/>
                                     </div>
-                                    <div className="col-span-1">
+                                    <div className="col-span-1 md:col-span-1">
                                         <FormInput label="Ngày sinh" name="dob" type="date" value={formData.dob} onChange={handleDobChange} readOnly={!isEditable} className="h-10"/>
                                     </div>
-                                    <div className="col-span-1 flex gap-2">
-                                        <div className="w-20">
+                                    <div className="col-span-1 md:col-span-1 flex gap-2">
+                                        <div className="w-16 md:w-20">
                                             <FormInput label="Tuổi" name="age" value={formData.age} readOnly className="bg-slate-100 font-bold text-center h-10"/>
                                         </div>
                                         <div className="flex-1">
@@ -646,28 +674,29 @@ const RegistrationView: React.FC = () => {
                                     </div>
 
                                     {/* Row 2: CCCD + Issue Date */}
-                                    <div className="col-span-2">
+                                    <div className="col-span-1 md:col-span-2">
                                         <FormInput 
                                             label="CCCD/CMND" 
                                             name="identityCard" 
                                             value={formData.identityCard} 
-                                            onChange={handleInputChange} 
+                                            onChange={handleIdentityInput} 
                                             onBlur={handleIdentityBlur}
                                             readOnly={!isEditable} 
-                                            className="font-mono h-10 font-bold text-blue-700"
+                                            className="font-mono h-10 font-bold text-lg text-blue-700 uppercase"
                                             maxLength={12}
                                         />
                                     </div>
-                                    <div className="col-span-1">
+                                    <div className="col-span-1 md:col-span-1">
                                         <FormInput label="Ngày cấp" name="identityIssueDate" type="date" value={formData.identityIssueDate} onChange={handleInputChange} readOnly={!isEditable} className="h-10"/>
                                     </div>
-                                    <div className="col-span-1">
+                                    <div className="col-span-1 md:col-span-1">
                                         <FormSelect label="Dân tộc" name="ethnicity" value={formData.ethnicity} onChange={handleInputChange} disabled={!isEditable} className="h-10">
                                             <option value="Kinh">Kinh</option>
                                             <option value="Khác">Khác</option>
                                         </FormSelect>
                                     </div>
-                                    <div className="col-span-2 relative z-20">
+                                    
+                                    <div className="col-span-1 md:col-span-1 relative z-20">
                                         <Combobox<CatalogItem>
                                             label="Nghề nghiệp"
                                             value={formData.occupation}
@@ -675,17 +704,17 @@ const RegistrationView: React.FC = () => {
                                             options={occupationOptions}
                                             columns={commonColumns}
                                             disabled={!isEditable}
-                                            placeholder="Chọn nghề..."
+                                            placeholder="Chọn..."
                                             className="h-10"
                                             displayValue={item => item.name}
                                         />
                                     </div>
-
-                                    {/* Row 3: Address (Comboboxes) */}
-                                    <div className="col-span-1">
+                                    <div className="col-span-1 md:col-span-1">
                                         <FormInput label="Điện thoại" name="phone" value={formData.phone} onChange={handleInputChange} readOnly={!isEditable} className="h-10"/>
                                     </div>
-                                    <div className="col-span-2 relative z-10">
+
+                                    {/* Row 3: Address (Comboboxes) */}
+                                    <div className="col-span-1 md:col-span-2 relative z-10">
                                         <Combobox<CatalogItem>
                                             label="Tỉnh / TP"
                                             value={formData.province}
@@ -698,7 +727,7 @@ const RegistrationView: React.FC = () => {
                                             displayValue={item => item.name}
                                         />
                                     </div>
-                                    <div className="col-span-2 relative z-10">
+                                    <div className="col-span-1 md:col-span-2 relative z-10">
                                         <Combobox<CatalogItem>
                                             label="Phường / Xã"
                                             value={formData.ward}
@@ -711,14 +740,16 @@ const RegistrationView: React.FC = () => {
                                             displayValue={item => item.name}
                                         />
                                     </div>
-                                    {/* Removed District col */}
-                                    
-                                    {/* Row 4: Detail Address & Relative */}
-                                    <div className="col-span-3">
+                                    <div className="col-span-1 md:col-span-2">
                                         <FormInput label="Địa chỉ chi tiết" name="address" value={formData.address} onChange={handleInputChange} readOnly={!isEditable} className="h-10"/>
                                     </div>
-                                    <div className="col-span-3">
-                                        <FormInput label="Người thân (Tên - SĐT)" name="relativeInfo" value={formData.relativeInfo} onChange={handleInputChange} readOnly={!isEditable} placeholder="Người liên hệ khi cần" className="h-10"/>
+                                    
+                                    {/* Row 4: Relative */}
+                                    <div className="col-span-1 md:col-span-4">
+                                        <FormInput label="Họ tên người thân" name="relativeInfo" value={formData.relativeInfo} onChange={handleInputChange} readOnly={!isEditable} placeholder="Người liên hệ khi cần" className="h-10"/>
+                                    </div>
+                                    <div className="col-span-1 md:col-span-2">
+                                        <FormInput label="SĐT người thân" name="relativePhone" value={formData.relativePhone} onChange={handleInputChange} readOnly={!isEditable} placeholder="09..." className="h-10"/>
                                     </div>
                                 </div>
                             </div>
@@ -728,18 +759,18 @@ const RegistrationView: React.FC = () => {
                                 <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2 text-base uppercase tracking-wide">
                                     <DocumentTextIcon className="w-5 h-5 text-green-500"/> Thông tin Đăng ký khám
                                 </h3>
-                                <div className="grid grid-cols-6 gap-x-6 gap-y-4">
-                                    <div className="col-span-2">
+                                <div className="grid grid-cols-1 md:grid-cols-6 gap-x-4 gap-y-4">
+                                    <div className="col-span-1 md:col-span-2">
                                         <FormSelect label="Đối tượng" name="patientType" value={formData.patientType} onChange={handleInputChange} disabled={!isEditable} className="h-10 font-bold text-blue-700">
                                             <option value="Dịch vụ">Dịch vụ</option>
                                             <option value="Bảo hiểm">Bảo hiểm Y tế</option>
                                             <option value="Ưu tiên">Ưu tiên (Người già, TE)</option>
                                         </FormSelect>
                                     </div>
-                                    <div className="col-span-1">
+                                    <div className="col-span-1 md:col-span-1">
                                         <FormInput label="Ngày đăng ký" name="regDate" type="date" value={formData.regDate} onChange={handleInputChange} readOnly={!isEditable} className="h-10"/>
                                     </div>
-                                    <div className="col-span-3">
+                                    <div className="col-span-1 md:col-span-3">
                                         <FormSelect label="Khoa / Phòng khám" name="regDepartment" value={formData.regDepartment} onChange={handleInputChange} disabled={!isEditable} className="h-10">
                                             <option>Khoa Khám Bệnh - PK Nội TQ</option>
                                             <option>Khoa Khám Bệnh - PK Ngoại</option>
@@ -750,7 +781,7 @@ const RegistrationView: React.FC = () => {
                                         </FormSelect>
                                     </div>
 
-                                    <div className="col-span-6 mt-2">
+                                    <div className="col-span-1 md:col-span-6 mt-2">
                                         <label className="block font-bold text-slate-700 dark:text-slate-300 mb-2 text-sm">Lý do khám / Triệu chứng ban đầu</label>
                                         <textarea 
                                             name="regReason"
@@ -764,6 +795,51 @@ const RegistrationView: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
+                            
+                            {/* SECTION 3: TRANSFER INFO (Conditional) */}
+                            {formData.patientType === 'Bảo hiểm' && (
+                                <div className={`pt-4 border-t border-dashed border-slate-300 dark:border-slate-600 transition-all ${formData.isTransfer ? 'bg-blue-50 dark:bg-slate-900/50 p-4 rounded-lg mt-4 border border-blue-200 dark:border-blue-900' : ''}`}>
+                                    <div 
+                                        className="flex items-center gap-2 mb-4 cursor-pointer"
+                                        onClick={() => isEditable && setFormData(prev => ({ ...prev, isTransfer: !prev.isTransfer }))}
+                                    >
+                                        <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${formData.isTransfer ? 'bg-blue-600 border-blue-600' : 'border-slate-400 bg-white'}`}>
+                                            {formData.isTransfer && <CheckCircleIcon className="w-4 h-4 text-white"/>}
+                                        </div>
+                                        <h3 className={`font-bold text-base uppercase tracking-wide select-none ${formData.isTransfer ? 'text-blue-700 dark:text-blue-400' : 'text-slate-500'}`}>
+                                            Thông tin chuyển tuyến (Nếu có giấy)
+                                        </h3>
+                                    </div>
+                                    
+                                    {formData.isTransfer && (
+                                        <div className="grid grid-cols-1 md:grid-cols-6 gap-x-4 gap-y-4 animate-fade-in">
+                                            <div className="col-span-1 md:col-span-3">
+                                                <Combobox<CatalogItem>
+                                                    label="Bệnh viện chuyển đến"
+                                                    value={formData.transferHospital}
+                                                    onChange={handleTransferHospitalChange}
+                                                    options={hospitalOptions}
+                                                    columns={hospitalColumns}
+                                                    disabled={!isEditable}
+                                                    placeholder="Chọn bệnh viện..."
+                                                    displayValue={item => item.name}
+                                                    className="h-10"
+                                                />
+                                            </div>
+                                            <div className="col-span-1 md:col-span-3">
+                                                <FormInput label="Chẩn đoán nơi chuyển" name="transferDiagnosis" value={formData.transferDiagnosis} onChange={handleInputChange} readOnly={!isEditable} className="h-10"/>
+                                            </div>
+                                            <div className="col-span-1 md:col-span-6">
+                                                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1.5 text-sm">Giấy chuyển viện (Đính kèm)</label>
+                                                <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-4 flex flex-col items-center justify-center bg-white dark:bg-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer">
+                                                    <CloudUploadIcon className="w-8 h-8 mb-2 text-blue-400"/>
+                                                    <span className="text-sm">Kéo thả hoặc click để tải lên (Ảnh/PDF)</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -785,7 +861,7 @@ const RegistrationView: React.FC = () => {
                                         <label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase">Số thẻ</label>
                                         <div className="flex gap-2">
                                             <input 
-                                                className="w-full font-mono font-bold text-lg text-blue-700 bg-white border border-blue-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                                className="w-full font-mono font-bold text-base text-blue-700 bg-white border border-blue-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
                                                 value={formData.insuranceNumber} 
                                                 readOnly={!isEditable}
                                                 onChange={e => handleInputChange({...e, target: {...e.target, name: 'insuranceNumber'}})}
@@ -793,74 +869,76 @@ const RegistrationView: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <div>
-                                            <label className="text-xs text-slate-600 block">Mã</label>
-                                            <input className="w-full border border-slate-300 bg-white rounded px-2 py-1 font-bold text-slate-800" value={formData.insuranceCode} readOnly={!isEditable} name="insuranceCode" onChange={handleInputChange} />
+                                    <div className="grid grid-cols-5 gap-2">
+                                        <div className="col-span-1">
+                                            <label className="text-xs text-slate-600 block font-bold">Mã</label>
+                                            <input className="w-full text-sm border border-slate-300 bg-white rounded px-1 py-1 font-bold text-slate-800" value={formData.insuranceCode} readOnly={!isEditable} name="insuranceCode" onChange={handleInputChange} />
                                         </div>
-                                        <div>
-                                            <label className="text-xs text-slate-600 block">Mức hưởng</label>
+                                        <div className="col-span-1">
+                                            <label className="text-xs text-slate-600 block font-bold">Hưởng</label>
                                             <div className="relative">
-                                                <input className="w-full border border-slate-300 bg-white rounded px-2 py-1 font-bold text-right pr-4 text-slate-800" value={formData.insuranceBenefit} readOnly={!isEditable} name="insuranceBenefit" onChange={handleInputChange} />
-                                                <span className="absolute right-1 top-1 text-xs text-slate-500">%</span>
+                                                <input className="w-full text-sm border border-slate-300 bg-white rounded px-1 py-1 font-bold text-center text-slate-800" value={formData.insuranceBenefit} readOnly={!isEditable} name="insuranceBenefit" onChange={handleInputChange} />
+                                                <span className="absolute right-0.5 top-1 text-[8px] text-slate-500">%</span>
                                             </div>
                                         </div>
-                                        <div>
-                                            <label className="text-xs text-slate-600 block">Khu vực</label>
-                                            <input className="w-full border border-slate-300 bg-white rounded px-2 py-1 font-bold text-center text-slate-800" value={formData.insuranceArea} readOnly={!isEditable} name="insuranceArea" onChange={handleInputChange} />
+                                        <div className="col-span-3">
+                                            <label className="text-xs text-slate-600 block font-bold">Khu vực</label>
+                                            <div className="relative">
+                                                <Combobox<CatalogItem>
+                                                    value={formData.insuranceArea}
+                                                    onChange={handleInsuranceAreaChange}
+                                                    options={areaOptions}
+                                                    disabled={!isEditable}
+                                                    placeholder="K1/K2/K3"
+                                                    className="h-[30px]" // Compact
+                                                    displayValue={item => item.code}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
                                             <label className="text-xs text-slate-600 block">Ngày đăng ký</label>
-                                            <input type="date" className="w-full border border-slate-300 bg-white rounded px-1 py-1 text-xs text-slate-800" value={formData.insuranceRegDate} readOnly={!isEditable} name="insuranceRegDate" onChange={handleInputChange} />
+                                            <input className="w-full text-sm border border-slate-300 bg-white rounded px-1 py-1 text-slate-800" value={formData.insuranceRegDate} readOnly={!isEditable} name="insuranceRegDate" onChange={handleInputChange} placeholder="yyyy-mm-dd" />
                                         </div>
                                         <div>
                                             <label className="text-xs text-slate-600 block">Ngày hết hạn</label>
-                                            <input type="date" className="w-full border border-slate-300 bg-white rounded px-1 py-1 text-xs text-slate-800" value={formData.insuranceExp} readOnly={!isEditable} name="insuranceExp" onChange={handleInputChange} />
+                                            <input className="w-full text-sm border border-slate-300 bg-white rounded px-1 py-1 text-slate-800" value={formData.insuranceExp} readOnly={!isEditable} name="insuranceExp" onChange={handleInputChange} placeholder="yyyy-mm-dd" />
                                         </div>
                                     </div>
 
-                                    <div className="relative z-20">
-                                        <label className="text-xs font-bold text-slate-600 uppercase block mb-1">Nơi đăng ký KCB Ban đầu</label>
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-slate-600 block">Nơi đăng ký KCB Ban đầu</label>
                                         <div className="flex gap-2">
-                                            <input className="w-16 border border-slate-300 bg-white rounded px-2 py-1 font-bold text-blue-700 text-center" value={formData.insurancePlaceCode} readOnly={!isEditable} name="insurancePlaceCode" onChange={handleInputChange} placeholder="Mã"/>
-                                            <Combobox<HospitalItem>
-                                                options={hospitalOptions}
-                                                columns={hospitalColumns}
-                                                value={formData.insurancePlace}
-                                                onChange={handleHospitalChange}
-                                                displayValue={item => item.name}
-                                                placeholder="Tìm bệnh viện..."
-                                                disabled={!isEditable}
-                                                className="bg-white rounded flex-1"
-                                            />
+                                            <input className="w-16 text-sm border border-slate-300 bg-white rounded px-1 py-1 font-bold text-blue-700 text-center" value="47001" readOnly/>
+                                            <div className="flex-1 relative">
+                                                <Combobox<CatalogItem>
+                                                    value={formData.insurancePlace}
+                                                    onChange={handleInsurancePlaceChange}
+                                                    options={hospitalOptions}
+                                                    columns={hospitalColumns}
+                                                    disabled={!isEditable}
+                                                    placeholder="Tên bệnh viện..."
+                                                    displayValue={item => item.name}
+                                                    className="h-[30px]"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                     
                                     <div className="space-y-1">
-                                        <label className="text-xs text-slate-600 block">Nơi làm việc</label>
-                                        <input className="w-full border border-slate-300 bg-white rounded px-2 py-1 text-slate-800" value={formData.workplace} readOnly={!isEditable} name="workplace" onChange={handleInputChange} placeholder="Tên cơ quan/đơn vị..." />
+                                        <label className="text-xs text-slate-600 block">Nơi làm việc (Nếu có)</label>
+                                        <input className="w-full text-sm border border-slate-300 bg-white rounded px-2 py-1 text-slate-800" value={formData.workplace} readOnly={!isEditable} name="workplace" onChange={handleInputChange} placeholder="Tên cơ quan/đơn vị..." />
                                     </div>
 
                                     <div className="space-y-2 pt-2 border-t border-blue-200">
                                         <div className="flex items-center gap-2">
                                             <label className="text-xs font-bold text-slate-600 w-24">Tuyến:</label>
                                             <div className="flex-1 flex gap-2">
-                                                {['Đúng tuyến', 'Trái tuyến', 'Cấp cứu'].map(opt => (
-                                                    <label key={opt} className="flex items-center gap-1 text-xs cursor-pointer">
-                                                        <input 
-                                                            type="radio" 
-                                                            name="insuranceRoute" 
-                                                            value={opt} 
-                                                            checked={formData.insuranceRoute === opt} 
-                                                            onChange={handleInputChange}
-                                                            disabled={!isEditable}
-                                                        />
-                                                        {opt}
-                                                    </label>
-                                                ))}
+                                                <label className="flex items-center gap-1 text-xs"><input type="radio" name="route" checked readOnly/> Đúng tuyến</label>
+                                                <label className="flex items-center gap-1 text-xs"><input type="radio" name="route" disabled/> Trái tuyến</label>
+                                                <label className="flex items-center gap-1 text-xs"><input type="radio" name="route" disabled/> Cấp cứu</label>
                                             </div>
                                         </div>
                                         
@@ -877,38 +955,28 @@ const RegistrationView: React.FC = () => {
                                                 <input type="checkbox" checked={!!formData.insurance5Year} readOnly={!isEditable} />
                                                 <div className="flex flex-col w-full">
                                                     <span className="text-[10px] leading-tight text-slate-600">Đủ 5 năm</span>
-                                                    <input type="date" className="w-full border border-slate-300 bg-white rounded px-1 py-0.5 text-[10px] text-slate-800" value={formData.insurance5Year} readOnly={!isEditable} name="insurance5Year" onChange={handleInputChange} />
+                                                    <input type="text" className="w-full border border-slate-300 bg-white rounded px-1 py-0.5 text-[10px] text-slate-800" placeholder="yyyy-mm-dd" value={formData.insurance5Year} readOnly={!isEditable} name="insurance5Year" onChange={handleInputChange} />
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 <input type="checkbox" checked={!!formData.insuranceExempt} readOnly={!isEditable} />
                                                 <div className="flex flex-col w-full">
                                                     <span className="text-[10px] leading-tight text-slate-600">Miễn CTT</span>
-                                                    <input type="text" className="w-full border border-slate-300 bg-white rounded px-1 py-0.5 text-[10px] text-slate-800" placeholder="dd/mm/yyyy" value={formData.insuranceExempt} readOnly={!isEditable} name="insuranceExempt" onChange={handleInputChange} />
+                                                    <input type="text" className="w-full border border-slate-300 bg-white rounded px-1 py-0.5 text-[10px] text-slate-800" placeholder="yyyy-mm-dd" value={formData.insuranceExempt} readOnly={!isEditable} name="insuranceExempt" onChange={handleInputChange} />
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                     
-                                    {/* ACTION BUTTONS FOR INSURANCE */}
-                                    {isEditable && (
-                                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-blue-200 mt-2">
-                                            <button 
-                                                onClick={handleCheckInsurance}
-                                                disabled={isCheckingCard}
-                                                className="px-3 py-2 bg-teal-600 text-white text-xs font-bold rounded shadow hover:bg-teal-700 flex items-center justify-center gap-1"
-                                            >
-                                                {isCheckingCard ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <CheckIcon className="w-3 h-3"/>}
-                                                Check In (Cổng BH)
-                                            </button>
-                                            <button 
-                                                onClick={handleUpdateInsurance}
-                                                className="px-3 py-2 bg-white border border-blue-600 text-blue-600 text-xs font-bold rounded shadow-sm hover:bg-blue-50 flex items-center justify-center gap-1"
-                                            >
-                                                <RefreshIcon className="w-3 h-3"/> Cập nhật
-                                            </button>
-                                        </div>
-                                    )}
+                                    {/* Actions */}
+                                    <div className="grid grid-cols-2 gap-2 mt-2">
+                                        <button onClick={handleCheckIn} disabled={!isEditable || isSaving} className="bg-blue-600 hover:bg-blue-700 text-white py-1.5 rounded text-xs font-bold shadow transition">
+                                            Check-In (BHXH)
+                                        </button>
+                                        <button disabled={!isEditable} className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 py-1.5 rounded text-xs font-bold shadow-sm transition">
+                                            Cập nhật
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -966,5 +1034,12 @@ const RegistrationView: React.FC = () => {
         </div>
     );
 };
+
+// Icon for Upload (Helper)
+const CloudUploadIcon = ({className}: {className?: string}) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+    </svg>
+);
 
 export default RegistrationView;
