@@ -70,6 +70,25 @@ const QueueManagementView: React.FC = () => {
     const [isTvMode, setIsTvMode] = useState(false);
     const [flashMessage, setFlashMessage] = useState<string | null>(null);
 
+    // --- UTILS ---
+    const speak = (text: string) => {
+        if ('speechSynthesis' in window) {
+            // Cancel any existing utterance to prevent overlap
+            window.speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'vi-VN';
+            utterance.rate = 0.9; // Slightly slower for clarity
+            
+            // Try to find a Vietnamese voice
+            const voices = window.speechSynthesis.getVoices();
+            const vnVoice = voices.find(v => v.lang.includes('vi'));
+            if (vnVoice) utterance.voice = vnVoice;
+
+            window.speechSynthesis.speak(utterance);
+        }
+    };
+
     // --- ACTIONS ---
 
     const handleCallNext = (queueId: string) => {
@@ -92,10 +111,14 @@ const QueueManagementView: React.FC = () => {
                     status: 'called' as const 
                 };
                 const nextNumber = newPatients[nextPatientIndex].number;
+                const patientName = newPatients[nextPatientIndex].name;
                 
-                // Trigger Flash Message
-                setFlashMessage(`Mời số ${nextNumber} - ${newPatients[nextPatientIndex].name} vào ${q.name}`);
-                setTimeout(() => setFlashMessage(null), 5000);
+                // Trigger Flash Message & Sound
+                const message = `Mời số ${nextNumber}, bệnh nhân ${patientName}, vào ${q.name}`;
+                setFlashMessage(`Mời số ${nextNumber} - ${patientName} vào ${q.name}`);
+                speak(message);
+                
+                setTimeout(() => setFlashMessage(null), 8000);
 
                 return { ...q, currentNumber: nextNumber, patients: newPatients };
             }
@@ -109,8 +132,10 @@ const QueueManagementView: React.FC = () => {
         if (queue && queue.currentNumber) {
             const patient = queue.patients.find(p => p.number === queue.currentNumber);
             if (patient) {
+                const message = `Mời lại số ${patient.number}, bệnh nhân ${patient.name}, vào ${queue.name}`;
                 setFlashMessage(`Mời lại số ${patient.number} - ${patient.name} vào ${queue.name}`);
-                setTimeout(() => setFlashMessage(null), 5000);
+                speak(message);
+                setTimeout(() => setFlashMessage(null), 8000);
             }
         }
     };
@@ -136,7 +161,7 @@ const QueueManagementView: React.FC = () => {
     // --- TV MODE RENDER ---
     if (isTvMode) {
         return (
-            <div className="fixed inset-0 z-[100] bg-slate-900 text-white flex flex-col overflow-hidden">
+            <div className="fixed inset-0 z-[100] bg-slate-900 text-white flex flex-col overflow-hidden font-sans">
                 {/* Header */}
                 <div className="flex justify-between items-center px-8 py-4 bg-slate-800 border-b border-slate-700 shadow-lg">
                     <div className="flex items-center gap-4">
@@ -149,28 +174,30 @@ const QueueManagementView: React.FC = () => {
                         <p className="text-2xl font-mono font-bold text-yellow-400">{new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}</p>
                         <p className="text-sm text-slate-400">{new Date().toLocaleDateString('vi-VN')}</p>
                     </div>
-                    <button onClick={() => setIsTvMode(false)} className="absolute top-4 right-4 opacity-0 hover:opacity-100 p-2 bg-white/10 rounded">
+                    <button onClick={() => setIsTvMode(false)} className="absolute top-4 right-4 opacity-0 hover:opacity-100 p-2 bg-white/10 rounded transition-opacity">
                         <XIcon className="w-6 h-6"/>
                     </button>
                 </div>
 
                 {/* Main Display Area */}
-                <div className="flex-1 p-8 flex gap-8">
+                <div className="flex-1 p-8 flex gap-8 overflow-hidden">
                     {/* Left: Currently Calling (Big Cards) */}
                     <div className="w-2/3 flex flex-col gap-6">
-                        <h2 className="text-2xl font-bold uppercase text-blue-400 mb-2 border-b border-blue-500/30 pb-2">Đang mời vào khám</h2>
-                        <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+                        <h2 className="text-2xl font-bold uppercase text-blue-400 mb-2 border-b border-blue-500/30 pb-2 flex items-center gap-3">
+                            <MegaphoneIcon className="w-6 h-6"/> Đang mời vào khám
+                        </h2>
+                        <div className="flex-1 overflow-y-auto space-y-4 pr-2 pb-4">
                             {queues.map(q => {
                                 const current = q.patients.find(p => p.status === 'called' || p.status === 'serving');
                                 if (!current) return null;
                                 return (
-                                    <div key={q.id} className={`bg-slate-800 rounded-2xl p-6 border-l-8 shadow-2xl flex justify-between items-center animate-fade-in-up ${current.status === 'called' ? 'border-green-500 bg-slate-800' : 'border-blue-500 bg-slate-800/50'}`}>
+                                    <div key={q.id} className={`rounded-2xl p-6 border-l-8 shadow-2xl flex justify-between items-center animate-fade-in-up transition-all ${current.status === 'called' ? 'border-green-500 bg-slate-700 ring-2 ring-green-500/50' : 'border-blue-500 bg-slate-800/50'}`}>
                                         <div>
                                             <h3 className="text-3xl font-bold text-white mb-2">{q.name}</h3>
                                             <p className="text-xl text-slate-400">{q.doctor}</p>
                                         </div>
                                         <div className="text-right">
-                                            <div className="text-6xl font-black text-yellow-400 font-mono">{current.number}</div>
+                                            <div className="text-6xl font-black text-yellow-400 font-mono tracking-tighter">{current.number}</div>
                                             <div className="text-2xl text-white font-semibold mt-2">{current.name}</div>
                                             {current.status === 'called' && <div className="mt-2 text-green-400 font-bold uppercase animate-pulse">Đang gọi...</div>}
                                         </div>
@@ -182,22 +209,24 @@ const QueueManagementView: React.FC = () => {
 
                     {/* Right: Waiting Lists (Compact) */}
                     <div className="w-1/3 bg-slate-800/50 rounded-2xl p-6 border border-slate-700 flex flex-col">
-                        <h2 className="text-xl font-bold uppercase text-slate-400 mb-4 border-b border-slate-600 pb-2">Hàng đợi tiếp theo</h2>
-                        <div className="flex-1 overflow-y-auto space-y-6 custom-scrollbar">
+                        <h2 className="text-xl font-bold uppercase text-slate-400 mb-4 border-b border-slate-600 pb-2 flex items-center gap-3">
+                            <UserGroupIcon className="w-6 h-6"/> Hàng đợi tiếp theo
+                        </h2>
+                        <div className="flex-1 overflow-y-auto space-y-6 custom-scrollbar pr-2">
                             {queues.map(q => {
                                 const waiting = q.patients.filter(p => p.status === 'waiting');
                                 if (waiting.length === 0) return null;
                                 return (
-                                    <div key={q.id}>
-                                        <h4 className="font-bold text-blue-300 mb-2 text-lg">{q.name}</h4>
+                                    <div key={q.id} className="bg-slate-800/30 p-4 rounded-xl">
+                                        <h4 className="font-bold text-blue-300 mb-3 text-lg border-b border-slate-700 pb-1">{q.name}</h4>
                                         <div className="space-y-2">
                                             {waiting.slice(0, 5).map(p => (
-                                                <div key={p.id} className="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg">
+                                                <div key={p.id} className="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg border border-slate-600/30">
                                                     <span className="font-mono font-bold text-xl text-white">{p.number}</span>
-                                                    <span className="text-slate-300">{p.name}</span>
+                                                    <span className="text-slate-300 font-medium">{p.name}</span>
                                                 </div>
                                             ))}
-                                            {waiting.length > 5 && <div className="text-center text-slate-500 italic">...và {waiting.length - 5} người khác</div>}
+                                            {waiting.length > 5 && <div className="text-center text-slate-500 italic text-sm mt-2">...và {waiting.length - 5} người khác</div>}
                                         </div>
                                     </div>
                                 );
@@ -208,10 +237,10 @@ const QueueManagementView: React.FC = () => {
 
                 {/* Flash Overlay */}
                 {flashMessage && (
-                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-10 py-6 rounded-2xl shadow-2xl z-50 animate-bounce-in">
-                        <div className="text-4xl font-bold flex items-center gap-4">
-                            <MegaphoneIcon className="w-12 h-12"/>
-                            {flashMessage}
+                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-12 py-8 rounded-2xl shadow-[0_0_50px_rgba(37,99,235,0.5)] z-50 animate-bounce-in border-4 border-blue-400">
+                        <div className="text-4xl font-bold flex items-center gap-6">
+                            <MegaphoneIcon className="w-16 h-16 animate-pulse"/>
+                            <span className="text-center leading-tight">{flashMessage}</span>
                         </div>
                     </div>
                 )}
@@ -229,7 +258,7 @@ const QueueManagementView: React.FC = () => {
                         <MegaphoneIcon className="w-8 h-8 text-blue-600"/>
                         Điều phối Hàng đợi
                     </h1>
-                    <p className="text-slate-500 text-sm">Quản lý gọi số và phân luồng bệnh nhân.</p>
+                    <p className="text-slate-500 text-sm mt-1">Quản lý gọi số và phân luồng bệnh nhân tại phòng khám.</p>
                 </div>
                 <button 
                     onClick={() => setIsTvMode(true)}
@@ -247,37 +276,37 @@ const QueueManagementView: React.FC = () => {
                     const nextPatient = waitingPatients[0];
 
                     return (
-                        <div key={queue.id} className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden h-[450px]">
+                        <div key={queue.id} className="bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden h-[500px] transition-all hover:shadow-lg">
                             {/* Card Header */}
                             <div className="p-4 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
                                 <h3 className="font-bold text-lg text-slate-800 dark:text-white truncate" title={queue.name}>{queue.name}</h3>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-1">
                                     <UserGroupIcon className="w-4 h-4"/> {queue.doctor}
                                 </p>
                             </div>
 
                             {/* Current Status (Big Area) */}
-                            <div className="p-6 text-center border-b border-slate-200 dark:border-slate-700 bg-blue-50/50 dark:bg-blue-900/10 flex-shrink-0">
-                                <p className="text-xs font-bold uppercase text-slate-400 mb-1">Đang khám / Đang gọi</p>
+                            <div className="p-6 text-center border-b border-slate-200 dark:border-slate-700 bg-blue-50/50 dark:bg-blue-900/10 flex-shrink-0 min-h-[160px] flex flex-col justify-center">
+                                <p className="text-xs font-bold uppercase text-slate-400 mb-2">Đang khám / Đang gọi</p>
                                 {currentPatient ? (
-                                    <>
-                                        <div className="text-5xl font-black text-blue-600 dark:text-blue-400 font-mono mb-2">
+                                    <div className="animate-fade-in">
+                                        <div className="text-6xl font-black text-blue-600 dark:text-blue-400 font-mono mb-2 tracking-tight">
                                             {currentPatient.number}
                                         </div>
-                                        <div className="text-xl font-bold text-slate-800 dark:text-slate-100 line-clamp-1">
+                                        <div className="text-xl font-bold text-slate-800 dark:text-slate-100 line-clamp-1 px-2">
                                             {currentPatient.name}
                                         </div>
-                                        <div className={`inline-flex items-center gap-1 mt-2 px-3 py-1 rounded-full text-xs font-bold uppercase ${
+                                        <div className={`inline-flex items-center gap-1 mt-2 px-3 py-1 rounded-full text-xs font-bold uppercase shadow-sm ${
                                             currentPatient.status === 'called' 
-                                            ? 'bg-green-100 text-green-700 animate-pulse' 
-                                            : 'bg-blue-100 text-blue-700'
+                                            ? 'bg-green-100 text-green-700 animate-pulse border border-green-200' 
+                                            : 'bg-blue-100 text-blue-700 border border-blue-200'
                                         }`}>
                                             {currentPatient.status === 'called' ? 'Đang gọi...' : 'Đang khám'}
                                         </div>
-                                    </>
+                                    </div>
                                 ) : (
                                     <div className="py-4 text-slate-400">
-                                        <div className="text-4xl font-bold opacity-30">--</div>
+                                        <div className="text-5xl font-bold opacity-20 mb-2">--</div>
                                         <p>Chưa có bệnh nhân</p>
                                     </div>
                                 )}
@@ -288,26 +317,29 @@ const QueueManagementView: React.FC = () => {
                                 <button 
                                     onClick={() => handleCallNext(queue.id)}
                                     disabled={!nextPatient}
-                                    className="col-span-1 py-3 md:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm shadow disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center active:scale-95 transition-transform"
+                                    className="col-span-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm shadow disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center active:scale-95 transition-transform"
+                                    title="Gọi số tiếp theo"
                                 >
-                                    <ChevronRightIcon className="w-5 h-5"/>
-                                    <span>Gọi số tiếp</span>
+                                    <ChevronRightIcon className="w-5 h-5 mb-1"/>
+                                    <span>Gọi số</span>
                                 </button>
                                 <button 
                                     onClick={() => handleRecall(queue.id)}
                                     disabled={!currentPatient}
-                                    className="col-span-1 py-3 md:py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold text-sm shadow disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center active:scale-95 transition-transform"
+                                    className="col-span-1 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-bold text-sm shadow disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center active:scale-95 transition-transform"
+                                    title="Gọi lại bệnh nhân hiện tại"
                                 >
-                                    <RefreshIcon className="w-5 h-5"/>
+                                    <RefreshIcon className="w-5 h-5 mb-1"/>
                                     <span>Gọi lại</span>
                                 </button>
                                 <button 
                                     onClick={() => handleSkip(queue.id)}
                                     disabled={!currentPatient}
-                                    className="col-span-1 py-3 md:py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg font-bold text-sm shadow disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center active:scale-95 transition-transform"
+                                    className="col-span-1 py-3 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg font-bold text-sm shadow disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center active:scale-95 transition-transform"
+                                    title="Đánh dấu vắng mặt"
                                 >
-                                    <XIcon className="w-5 h-5"/>
-                                    <span>Vắng mặt</span>
+                                    <XIcon className="w-5 h-5 mb-1"/>
+                                    <span>Vắng</span>
                                 </button>
                             </div>
 
@@ -321,7 +353,7 @@ const QueueManagementView: React.FC = () => {
                                         <p className="text-center text-sm text-slate-400 italic py-4">Hết hàng đợi.</p>
                                     ) : (
                                         waitingPatients.map(p => (
-                                            <div key={p.id} className="flex justify-between items-center bg-white dark:bg-slate-800 p-2 rounded border border-slate-200 dark:border-slate-700 shadow-sm">
+                                            <div key={p.id} className="flex justify-between items-center bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow transition-shadow">
                                                 <div className="flex items-center gap-3">
                                                     <span className="font-mono font-bold text-lg text-blue-600 dark:text-blue-400 w-8 text-center">{p.number}</span>
                                                     <div>
@@ -329,7 +361,7 @@ const QueueManagementView: React.FC = () => {
                                                         <p className="text-xs text-slate-400">{p.arrivalTime}</p>
                                                     </div>
                                                 </div>
-                                                <span className="text-xs bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-slate-500">Chờ</span>
+                                                <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-500 px-2 py-1 rounded uppercase">Chờ</span>
                                             </div>
                                         ))
                                     )}

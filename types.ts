@@ -334,3 +334,40 @@ export interface MaintenanceTask {
   scheduledDate: string;
   completionDate?: string;
 }
+
+// --- LIS (LABORATORY INFORMATION SYSTEM) TYPES ---
+
+export type LisProtocol = 'HL7' | 'ASTM' | 'Serial' | 'TCP/IP';
+export type ConnectionMode = 'Unidirectional' | 'Bidirectional';
+export type MachineStatus = 'Online' | 'Offline' | 'Error' | 'Sending' | 'Receiving';
+
+export interface LisMachineConfig {
+    id: string;
+    name: string;
+    protocol: LisProtocol;
+    ip: string;
+    port: string;
+    comPort?: string; // For Serial
+    baudRate?: number; // For Serial
+    mode: ConnectionMode;
+    status: MachineStatus;
+    autoSendOrder: boolean; // Tự động đẩy chỉ định khi có mới
+    lastActive: string;
+}
+
+export interface LisLogEntry {
+    id: string;
+    timestamp: string;
+    direction: 'IN' | 'OUT'; // IN: Từ máy về HIS, OUT: Từ HIS xuống máy
+    message: string; // Raw message content
+    type: 'DATA' | 'ACK' | 'NAK' | 'ENQ' | 'EOT'; // Message type
+    parsedData?: any; // Object đã parse (nếu có)
+}
+
+export interface LisResultData {
+    testCode: string;
+    value: string;
+    unit: string;
+    flag: string; // H, L, N
+    refRange: string;
+}

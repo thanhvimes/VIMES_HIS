@@ -6,7 +6,8 @@ import LabReceptionView from './views/LabReceptionView';
 import LabProcessingView from './views/LabProcessingView';
 import LabQCView from './views/LabQCView';
 import LabDictionaryView from './views/LabDictionaryView';
-import ReportsView from './views/ReportsView'; // Reuse existing simple report placeholder or create new
+import ReportsView from './views/ReportsView';
+import LabConnectionView from './views/LabConnectionView';
 
 const LabResults: React.FC = () => {
   return (
@@ -16,8 +17,9 @@ const LabResults: React.FC = () => {
       <Route path="reception" element={<LabReceptionView />} />
       <Route path="processing" element={<LabProcessingView />} />
       <Route path="qc" element={<LabQCView />} />
+      <Route path="connections" element={<LabConnectionView />} />
       <Route path="dictionary" element={<LabDictionaryView />} />
-      <Route path="reports" element={<div className="text-center p-8">Báo cáo thống kê xét nghiệm đang được xây dựng.</div>} />
+      <Route path="reports" element={<ReportsView />} />
     </Routes>
   );
 };

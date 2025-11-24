@@ -7,7 +7,8 @@ import {
   DesktopComputerIcon,
   CheckBadgeIcon,
   ChartBarIcon,
-  CogIcon
+  CogIcon,
+  ServerStackIcon
 } from '../../components/Icons';
 import { NavItemType } from '../../types';
 
@@ -16,6 +17,7 @@ export const LAB_RESULTS_NAV_ITEMS: NavItemType[] = [
     { name: 'Tiếp nhận & Lấy mẫu', path: '/lab-results/reception', icon: React.createElement(ClipboardListIcon, { className: "w-5 h-5" }) },
     { name: 'Thực hiện & Duyệt KQ', path: '/lab-results/processing', icon: React.createElement(MicroscopeIcon, { className: "w-5 h-5" }) },
     { name: 'Kiểm chuẩn (QC)', path: '/lab-results/qc', icon: React.createElement(CheckBadgeIcon, { className: "w-5 h-5" }) },
+    { name: 'Kết nối LIS', path: '/lab-results/connections', icon: React.createElement(ServerStackIcon, { className: "w-5 h-5" }) },
     { name: 'Báo cáo', path: '/lab-results/reports', icon: React.createElement(ChartBarIcon, { className: "w-5 h-5" }) },
     { name: 'Danh mục & Cấu hình', path: '/lab-results/dictionary', icon: React.createElement(CogIcon, { className: "w-5 h-5" }) },
 ];
