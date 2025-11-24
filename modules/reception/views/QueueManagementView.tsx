@@ -215,7 +215,7 @@ const QueueManagementView: React.FC = () => {
                                             <p className="text-xl text-slate-400">{q.doctor}</p>
                                         </div>
                                         <div className="text-right">
-                                            <div className="text-6xl font-black text-yellow-400 font-mono tracking-tighter">{current.number}</div>
+                                            <div className={`text-6xl font-black font-mono tracking-tighter ${current.status === 'called' ? 'text-green-400 animate-pulse' : 'text-yellow-400'}`}>{current.number}</div>
                                             <div className="text-2xl text-white font-semibold mt-2">{current.name}</div>
                                             {current.status === 'called' && <div className="mt-2 text-green-400 font-bold uppercase animate-pulse">Đang gọi...</div>}
                                         </div>
@@ -308,17 +308,18 @@ const QueueManagementView: React.FC = () => {
                                 <p className="text-xs font-bold uppercase text-slate-400 mb-2">Đang khám / Đang gọi</p>
                                 {currentPatient ? (
                                     <div className="animate-fade-in">
-                                        <div className="text-6xl font-black text-blue-600 dark:text-blue-400 font-mono mb-2 tracking-tight">
+                                        <div className={`text-6xl font-black font-mono mb-2 tracking-tight ${currentPatient.status === 'called' ? 'text-green-600 dark:text-green-400 animate-pulse' : 'text-blue-600 dark:text-blue-400'}`}>
                                             {currentPatient.number}
                                         </div>
                                         <div className="text-xl font-bold text-slate-800 dark:text-slate-100 line-clamp-1 px-2">
                                             {currentPatient.name}
                                         </div>
-                                        <div className={`inline-flex items-center gap-1 mt-2 px-3 py-1 rounded-full text-xs font-bold uppercase shadow-sm ${
+                                        <div className={`inline-flex items-center gap-2 mt-2 px-3 py-1 rounded-full text-xs font-bold uppercase shadow-sm ${
                                             currentPatient.status === 'called' 
                                             ? 'bg-green-100 text-green-700 animate-pulse border border-green-200' 
                                             : 'bg-blue-100 text-blue-700 border border-blue-200'
                                         }`}>
+                                            {currentPatient.status === 'called' && <MegaphoneIcon className="w-3 h-3"/>}
                                             {currentPatient.status === 'called' ? 'Đang gọi...' : 'Đang khám'}
                                         </div>
                                     </div>
