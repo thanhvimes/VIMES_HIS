@@ -1,7 +1,7 @@
 
-import { LisLogEntry, LisResultData } from '../types';
+import { LisLogEntry, LisResultData, LisMachineType } from '../types';
 
-// --- HELPERS ---
+// --- CONSTANTS (ASCII Control Characters) ---
 const STX = '\x02';
 const ETX = '\x03';
 const EOT = '\x04';
@@ -11,134 +11,267 @@ const NAK = '\x15';
 const CR = '\r';
 const LF = '\n';
 
+// --- TYPES FOR PARSED OUPUT ---
+export interface ParsedSample {
+    sampleId: string;
+    patientName?: string;
+    results: LisResultData[];
+    rawMessage: string;
+    protocol: string;
+}
+
 export const lisService = {
     
-    // --- 1. PARSING LOGIC (Core) ---
+    // --- 1. PUBLIC API: RECEIVE & PROCESS ---
 
     /**
-     * Parse an HL7 ORU^R01 message (Result)
+     * Main entry point to process incoming data stream from Machine
+     * This function orchestrates Parsing -> Saving to DB
      */
-    parseHL7Result: (rawMessage: string): LisResultData[] => {
-        const segments = rawMessage.split(CR).filter(s => s.trim() !== '');
+    processMessage: async (protocol: string, rawMessage: string): Promise<{ log: LisLogEntry, parsed?: ParsedSample }> => {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString();
+        
+        let parsedData: ParsedSample | null = null;
+
+        // 1. Identify Protocol & Parse
+        try {
+            if (protocol === 'HL7') {
+                parsedData = lisService.parseHL7(rawMessage);
+            } else if (protocol === 'ASTM' || protocol === 'Serial') {
+                parsedData = lisService.parseASTM(rawMessage);
+            }
+        } catch (e) {
+            console.error("Parsing Error:", e);
+        }
+
+        // 2. If parsed successfully, simulate saving to HIS Database (API Call)
+        if (parsedData && parsedData.results.length > 0) {
+            await lisService.saveResultsToHIS(parsedData);
+        }
+
+        // 3. Return Log Entry for UI
+        return {
+            log: {
+                id: Date.now().toString(),
+                timestamp: timeStr,
+                direction: 'IN',
+                message: rawMessage,
+                type: 'DATA', // Assuming data frame
+                parsedData: parsedData?.results // Attach results for UI preview
+            },
+            parsed: parsedData || undefined
+        };
+    },
+
+    // --- 2. PARSING ENGINES ---
+
+    /**
+     * Parse HL7 (Health Level 7) Messages
+     * Focus on PID (Patient), OBR (Order), and OBX (Results) segments
+     */
+    parseHL7: (rawMessage: string): ParsedSample => {
+        const segments = rawMessage.split(CR).map(s => s.trim()).filter(s => s !== '');
+        
+        let sampleId = 'UNKNOWN';
+        let patientName = '';
         const results: LisResultData[] = [];
 
         segments.forEach(segment => {
-            if (segment.startsWith('OBX')) {
+            const fields = segment.split('|');
+            const segmentType = fields[0];
+
+            // Parse Sample ID from OBR (Observation Request) - usually OBR-2 or OBR-3
+            if (segmentType === 'OBR') {
+                // OBR|1|SID1234|...
+                sampleId = fields[2] || fields[3] || 'UNKNOWN'; 
+            }
+
+            // Parse Patient Name from PID
+            if (segmentType === 'PID') {
+                // PID|1|||Nguyen Van A||...
+                patientName = fields[5] ? fields[5].replace('^', ' ') : '';
+            }
+
+            // Parse Results from OBX
+            if (segmentType === 'OBX') {
                 // Example: OBX|1|NM|WBC^White Blood Cell||7.5|10*9/L|4.0-10.0|N|||F
-                const fields = segment.split('|');
-                // HL7 indices are 1-based, array is 0-based.
-                // OBX-3: Observation Identifier (Test Code)
-                // OBX-5: Observation Value (Result)
+                // OBX-3: Test Code (Identifier)
+                // OBX-5: Result Value
                 // OBX-6: Units
-                // OBX-7: References Range
-                // OBX-8: Abnormal Flags
-                
+                // OBX-7: Reference Range
+                // OBX-8: Abnormal Flag (H, L, N)
+
                 const testIdPart = fields[3] || '';
+                // Handle cases where test code is "WBC^White Blood Cell" -> extract "WBC"
                 const testCode = testIdPart.split('^')[0];
                 
-                results.push({
-                    testCode: testCode,
-                    value: fields[5] || '',
-                    unit: fields[6] || '',
-                    refRange: fields[7] || '',
-                    flag: fields[8] || 'N'
-                });
+                const value = fields[5] || '';
+                const unit = fields[6] || '';
+                const refRange = fields[7] || '';
+                const flag = fields[8] || 'N';
+
+                if (testCode && value) {
+                    results.push({
+                        testCode: testCode,
+                        value: value,
+                        unit: unit.replace('^', ''),
+                        refRange: refRange,
+                        flag: flag
+                    });
+                }
             }
         });
-        return results;
+
+        return {
+            sampleId,
+            patientName,
+            results,
+            rawMessage,
+            protocol: 'HL7'
+        };
     },
 
     /**
-     * Parse an ASTM Result Frame (Record Type R)
+     * Parse ASTM (E1381/E1394) Messages
+     * Frame based: H (Header), P (Patient), O (Order), R (Result), L (Terminator)
      */
-    parseASTMResult: (rawMessage: string): LisResultData[] => {
-        // ASTM records usually start with a record type identifier (H, P, O, R, L, T)
-        // Example R record: R|1|^^^WBC|7.5|10*9/L|4.0-10.0|N||F||||20231117090000
+    parseASTM: (rawMessage: string): ParsedSample => {
+        // Normalize line endings (ASTM usually uses CR+LF or just CR)
+        const lines = rawMessage.split(/[\r\n]+/).filter(l => l.trim() !== '');
         
-        const lines = rawMessage.split(LF).map(l => l.trim()).filter(l => l !== '');
+        let sampleId = 'UNKNOWN';
+        let patientName = '';
         const results: LisResultData[] = [];
 
         lines.forEach(line => {
-            // Strip framing characters (STX, ETX, checksums) if present for easier parsing logic
-            const cleanLine = line.replace(/[\x02\x03]/g, '');
+            // Remove framing characters (STX, ETX, Frame Number) if present
+            // Simple regex to extract content between potential frame numbers and CR/LF
+            // Real world: needs checksum validation handling. Here we strip control chars.
+            const cleanLine = line.replace(/[\x02\x03\x04\x05]/g, '');
             
-            if (cleanLine.startsWith('R|')) {
-                const fields = cleanLine.split('|');
-                // ASTM fields vary by vendor, but commonly:
-                // Field 2: Test ID (^^^Code)
-                // Field 3: Result
-                // Field 4: Unit
-                // Field 5: Ref Range
-                // Field 6: Flag
+            // ASTM records usually start with Record Type ID (H, P, O, R, L, C)
+            // We look for the pipe '|' delimiter logic.
+            // Note: Sometimes the first char is the frame number (e.g. "1H|..."), we need to handle that.
+            
+            const recordTypeChar = cleanLine.replace(/^[0-9]/, '').charAt(0); // Get first non-digit char
+            
+            // Extract fields. Note: ASTM delimiters can be configured in Header, but | is standard.
+            const fields = cleanLine.substring(cleanLine.indexOf(recordTypeChar)).split('|');
+
+            if (recordTypeChar === 'P') {
+                // P|1|||Patient Name||...
+                // Field 5 usually Name
+                patientName = fields[5] ? fields[5].replace('^', ' ') : '';
+            }
+
+            if (recordTypeChar === 'O') {
+                // O|1|SID1234||...
+                // Field 2 or 3 is Sample ID
+                sampleId = fields[2] || 'UNKNOWN';
+            }
+
+            if (recordTypeChar === 'R') {
+                // R|1|^^^WBC|7.5|10*9/L|4.0-10.0|N||F
+                // Field 2: Universal Test ID (^^^Code)
+                // Field 3: Data Value
+                // Field 4: Units
+                // Field 5: Reference Range
+                // Field 6: Result Flag
                 
                 const testPart = fields[2] || '';
-                const testCode = testPart.replace(/\^/g, ''); // Simple cleanup
+                const testCode = testPart.replace(/\^/g, ''); // Remove ^^^
                 
-                results.push({
-                    testCode: testCode,
-                    value: fields[3] || '',
-                    unit: fields[4] || '',
-                    refRange: fields[5] || '',
-                    flag: fields[6] || 'N'
-                });
+                const value = fields[3] || '';
+                const unit = fields[4] || '';
+                const refRange = fields[5] || '';
+                const flag = fields[6] || 'N';
+
+                if (testCode && value) {
+                    results.push({
+                        testCode: testCode,
+                        value: value,
+                        unit: unit,
+                        refRange: refRange,
+                        flag: flag
+                    });
+                }
             }
         });
-        return results;
+
+        return {
+            sampleId,
+            patientName,
+            results,
+            rawMessage,
+            protocol: 'ASTM'
+        };
     },
 
-    // --- 2. GENERATION LOGIC (Sending Orders) ---
+    // --- 3. API SIMULATION (The "Backend" Logic) ---
 
     /**
-     * Generate an HL7 ORM^O01 message (Order)
+     * Simulate sending parsed results to the HIS/EMR Backend
      */
-    generateHL7Order: (sampleId: string, patientName: string, tests: string[]): string => {
-        const now = new Date().toISOString().replace(/[-T:Z.]/g, '').slice(0, 14); // YYYYMMDDHHMMSS
-        const msgControlId = `MSG${Date.now()}`;
+    saveResultsToHIS: async (data: ParsedSample): Promise<boolean> => {
+        console.log(">>> [MOCK API CALL] Sending LIS Results to HIS Database...");
+        console.log(`    SampleID: ${data.sampleId}`);
+        console.log(`    Items: ${data.results.length}`);
         
+        // Mock API payload structure
+        const payload = {
+            endpoint: '/api/lis/results/update',
+            method: 'POST',
+            body: {
+                sid: data.sampleId,
+                machine_protocol: data.protocol,
+                results: data.results.map(r => ({
+                    code: r.testCode,
+                    result_value: r.value,
+                    unit: r.unit,
+                    abnormal_flag: r.flag
+                }))
+            }
+        };
+
+        // Simulate network delay
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                console.log(">>> [MOCK API] Success: Database updated.", payload);
+                resolve(true);
+            }, 500);
+        });
+    },
+
+    // --- 4. DATA GENERATORS (For Simulation / Testing) ---
+
+    generateHL7Order: (sampleId: string, patientName: string, tests: string[]): string => {
+        const now = new Date().toISOString().replace(/[-T:Z.]/g, '').slice(0, 14);
+        const msgControlId = `MSG${Date.now()}`;
         let msg = `MSH|^~\\&|HIS|CLINIC|ANALYZER|LAB|${now}||ORM^O01|${msgControlId}|P|2.3${CR}`;
         msg += `PID|1||${sampleId}||${patientName}|||M${CR}`;
         msg += `PV1|1|O|OPD^^^|${CR}`;
         msg += `ORC|NW|${sampleId}|||||1^Once${CR}`;
-        
-        // OBR Segment
-        // OBR|1|SID123||^CBC^Complete Blood Count|||...
-        const testString = tests.map(t => `^^^${t}`).join('~'); // Tách nhau bằng dấu ngã ~ trong HL7
+        const testString = tests.map(t => `^^^${t}`).join('~'); 
         msg += `OBR|1|${sampleId}||${testString}|||${now}||||||||${CR}`;
-        
         return msg;
     },
 
-    /**
-     * Generate an ASTM Order (Record Type O)
-     */
     generateASTMOrder: (sampleId: string, patientName: string, tests: string[]): string => {
-        // Simplified ASTM Frame
         const now = new Date().toISOString().replace(/[-T:Z.]/g, '').slice(0, 14);
-        
-        let msg = `${STX}1H|\\^&|||HIS||||||||1${CR}${ETX}X${CR}${LF}`; // Header
-        msg += `${STX}2P|1||${sampleId}||${patientName}|||M${CR}${ETX}X${CR}${LF}`; // Patient
-        
-        // Order Record
-        // O|1|SID123||^^^WBC\^^^RBC|R|...
-        const testString = tests.map(t => `^^^${t}`).join('\\'); // ASTM repeat delimiter often \
-        msg += `${STX}3O|1|${sampleId}||${testString}|R||||||N||||||||||||||O${CR}${ETX}X${CR}${LF}`;
-        
-        msg += `${STX}4L|1|N${CR}${ETX}X${CR}${LF}`; // Terminator
-        
+        let msg = `${STX}1H|\\^&|||HIS||||||||1${CR}${LF}`;
+        msg += `${STX}2P|1||${sampleId}||${patientName}|||M${CR}${LF}`;
+        const testString = tests.map(t => `^^^${t}`).join('\\');
+        msg += `${STX}3O|1|${sampleId}||${testString}|R||||||N||||||||||||||O${CR}${LF}`;
+        msg += `${STX}4L|1|N${CR}${LF}${EOT}`;
         return msg;
     },
 
-    // --- 3. SIMULATION LOGIC (The "Mock Machine") ---
-
-    /**
-     * Simulate machine response based on protocol
-     */
     simulateMachineResponse: (protocol: string, inputMessage: string): LisLogEntry[] => {
         const logs: LisLogEntry[] = [];
         const now = new Date().toLocaleTimeString();
 
         if (protocol === 'HL7') {
-            // HL7 usually ACKs immediately
             if (inputMessage.includes('MSH')) {
                 const ackMsg = `MSH|^~\\&|ANALYZER|LAB|HIS|CLINIC|${new Date().toISOString()}||ACK^O01|ACK${Date.now()}|P|2.3${CR}MSA|AA|${Date.now()}`;
                 logs.push({
@@ -150,8 +283,6 @@ export const lisService = {
                 });
             }
         } else if (protocol === 'ASTM') {
-            // ASTM uses ENQ -> ACK -> STX... -> ACK -> EOT flow
-            // We simulate a simple ACK here for the "Order" sent
             logs.push({
                 id: Date.now().toString(),
                 timestamp: now,
@@ -160,46 +291,85 @@ export const lisService = {
                 type: 'ACK'
             });
         }
-
         return logs;
     },
 
-    /**
-     * Simulate random incoming result from a machine
-     */
-    simulateIncomingData: (protocol: string): { log: LisLogEntry, parsed?: LisResultData[] } => {
+    simulateIncomingData: (protocol: string, machineType: LisMachineType = 'Hematology'): { log: LisLogEntry, parsed?: LisResultData[] } => {
         const now = new Date();
         const timeStr = now.toLocaleTimeString();
         const timestamp = now.toISOString().replace(/[-T:Z.]/g, '').slice(0, 14);
+        const sampleId = `SID${Date.now().toString().slice(-4)}`;
         
         let message = '';
-        let type: 'DATA' = 'DATA';
         let parsed: LisResultData[] = [];
 
-        // Randomize values
-        const wbc = (Math.random() * 6 + 4).toFixed(1); // 4-10
-        const rbc = (Math.random() * 2 + 3.5).toFixed(2); // 3.5-5.5
-        const hgb = Math.floor(Math.random() * 40 + 120).toString(); // 120-160
+        // Define Data Profile based on Machine Type
+        let testResults: {code: string, val: string, unit: string, range: string, flag: string}[] = [];
 
+        if (machineType === 'Hematology') {
+            const wbc = (Math.random() * 6 + 4).toFixed(1);
+            const rbc = (Math.random() * 2 + 3.5).toFixed(2);
+            const hgb = Math.floor(Math.random() * 40 + 120).toString();
+            const plt = Math.floor(Math.random() * 200 + 150).toString();
+            testResults = [
+                { code: 'WBC', val: wbc, unit: '10*9/L', range: '4.0-10.0', flag: 'N' },
+                { code: 'RBC', val: rbc, unit: '10*12/L', range: '3.8-5.8', flag: 'N' },
+                { code: 'HGB', val: hgb, unit: 'g/L', range: '120-160', flag: 'N' },
+                { code: 'PLT', val: plt, unit: '10*9/L', range: '150-450', flag: 'N' }
+            ];
+        } else if (machineType === 'Biochemistry') {
+            const glu = (Math.random() * 5 + 3.5).toFixed(1);
+            const ure = (Math.random() * 6 + 2).toFixed(1);
+            const cre = Math.floor(Math.random() * 60 + 50).toString();
+            const alt = Math.floor(Math.random() * 30 + 10).toString();
+            testResults = [
+                { code: 'GLU', val: glu, unit: 'mmol/L', range: '3.9-6.4', flag: parseFloat(glu) > 6.4 ? 'H' : 'N' },
+                { code: 'URE', val: ure, unit: 'mmol/L', range: '2.5-7.5', flag: 'N' },
+                { code: 'CRE', val: cre, unit: 'umol/L', range: '62-106', flag: 'N' },
+                { code: 'ALT', val: alt, unit: 'U/L', range: '< 40', flag: 'N' }
+            ];
+        } else if (machineType === 'Immunology') {
+            const tsh = (Math.random() * 4 + 0.4).toFixed(2);
+            const ft4 = (Math.random() * 10 + 12).toFixed(1);
+            const hbsag = Math.random() > 0.9 ? 'POSITIVE' : 'NEGATIVE'; // 10% pos
+            testResults = [
+                { code: 'TSH', val: tsh, unit: 'uIU/mL', range: '0.4-4.0', flag: 'N' },
+                { code: 'FT4', val: ft4, unit: 'pmol/L', range: '12.0-22.0', flag: 'N' },
+                { code: 'HBsAg', val: hbsag, unit: 'Qual', range: 'Neg', flag: hbsag === 'POSITIVE' ? 'A' : 'N' }
+            ];
+        } else if (machineType === 'Urine') {
+             testResults = [
+                { code: 'GLU', val: 'Neg', unit: 'mg/dL', range: 'Neg', flag: 'N' },
+                { code: 'PRO', val: 'Neg', unit: 'mg/dL', range: 'Neg', flag: 'N' },
+                { code: 'LEU', val: Math.random() > 0.8 ? '25' : 'Neg', unit: 'Leu/uL', range: 'Neg', flag: 'N' }
+            ];
+        }
+
+        // BUILD MESSAGE PROTOCOLS
         if (protocol === 'HL7') {
-            message = `MSH|^~\\&|SYSMEX|LAB|HIS|CLINIC|${timestamp}||ORU^R01|MSG${Date.now()}|P|2.3${CR}`;
-            message += `PID|1||123456||NGUYEN VAN A|||M${CR}`;
-            message += `OBR|1|SID${Date.now().toString().slice(-4)}||00001^AUTOMATED COUNT|||${timestamp}${CR}`;
-            message += `OBX|1|NM|WBC||${wbc}|10*9/L|4.0-10.0|N|||F${CR}`;
-            message += `OBX|2|NM|RBC||${rbc}|10*12/L|3.8-5.8|N|||F${CR}`;
-            message += `OBX|3|NM|HGB||${hgb}|g/L|120-160|N|||F${CR}`;
+            message = `MSH|^~\\&|ANALYZER|LAB|HIS|CLINIC|${timestamp}||ORU^R01|MSG${Date.now()}|P|2.3${CR}`;
+            message += `PID|1||123456||DEMO PATIENT|||M${CR}`;
+            message += `OBR|1|${sampleId}||00001^AUTOMATED TEST|||${timestamp}${CR}`;
             
-            parsed = lisService.parseHL7Result(message);
+            testResults.forEach((t, idx) => {
+                message += `OBX|${idx + 1}|NM|${t.code}||${t.val}|${t.unit}|${t.range}|${t.flag}|||F${CR}`;
+            });
+            
+            // Use internal parser
+            parsed = lisService.parseHL7(message).results;
 
-        } else if (protocol === 'ASTM') {
-            message = `${STX}1H|\\^&|||SYSMEX||||||||1${CR}${LF}`;
-            message += `${STX}2P|1||123456||NGUYEN VAN A|||M${CR}${LF}`;
-            message += `${STX}3O|1|SID${Date.now().toString().slice(-4)}||^^^CBC|R${CR}${LF}`;
-            message += `${STX}4R|1|^^^WBC|${wbc}|10*9/L|4.0-10.0|N${CR}${LF}`;
-            message += `${STX}5R|2|^^^RBC|${rbc}|10*12/L|3.8-5.8|N${CR}${LF}`;
-            message += `${STX}6L|1|N${CR}${LF}`; // Terminator
+        } else if (protocol === 'ASTM' || protocol === 'Serial') {
+            message = `${STX}1H|\\^&|||ANALYZER||||||||1${CR}${LF}`;
+            message += `${STX}2P|1||123456||DEMO PATIENT|||M${CR}${LF}`;
+            message += `${STX}3O|1|${sampleId}||^^^ALL|R${CR}${LF}`;
             
-            parsed = lisService.parseASTMResult(message);
+            testResults.forEach((t, idx) => {
+                message += `${STX}${idx + 4}R|${idx + 1}|^^^${t.code}|${t.val}|${t.unit}|${t.range}|${t.flag}${CR}${LF}`;
+            });
+            
+            message += `${STX}${testResults.length + 4}L|1|N${CR}${LF}${EOT}`;
+            
+            parsed = lisService.parseASTM(message).results;
         }
 
         return {
@@ -208,7 +378,7 @@ export const lisService = {
                 timestamp: timeStr,
                 direction: 'IN',
                 message: message,
-                type: type,
+                type: 'DATA',
                 parsedData: parsed
             },
             parsed: parsed

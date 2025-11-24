@@ -340,6 +340,7 @@ export interface MaintenanceTask {
 export type LisProtocol = 'HL7' | 'ASTM' | 'Serial' | 'TCP/IP';
 export type ConnectionMode = 'Unidirectional' | 'Bidirectional';
 export type MachineStatus = 'Online' | 'Offline' | 'Error' | 'Sending' | 'Receiving';
+export type LisMachineType = 'Hematology' | 'Biochemistry' | 'Immunology' | 'Urine' | 'Microbiology';
 
 export interface LisMachineConfig {
     id: string;
@@ -351,6 +352,7 @@ export interface LisMachineConfig {
     baudRate?: number; // For Serial
     mode: ConnectionMode;
     status: MachineStatus;
+    type: LisMachineType; // Loại máy: Huyết học, Sinh hóa...
     autoSendOrder: boolean; // Tự động đẩy chỉ định khi có mới
     lastActive: string;
 }

@@ -14,15 +14,16 @@ import {
     PlusIcon, 
     ArrowUpTrayIcon 
 } from '../../../components/Icons';
-import { LisMachineConfig, LisLogEntry, LisResultData } from '../../../types';
+import { LisMachineConfig, LisLogEntry, LisResultData, LisMachineType } from '../../../types';
 import { lisService } from '../../../services/lisService';
 import Combobox from '../../../components/shared/Combobox';
 
 // --- MOCK DATA FOR MACHINES ---
 const initialMachines: LisMachineConfig[] = [
-    { id: 'M01', name: 'Sysmex XN-1000 (Huyết học)', protocol: 'HL7', ip: '192.168.1.101', port: '5001', mode: 'Bidirectional', status: 'Online', autoSendOrder: true, lastActive: 'Just now' },
-    { id: 'M02', name: 'Cobas 6000 (Sinh hóa)', protocol: 'ASTM', ip: '192.168.1.102', port: '5002', mode: 'Bidirectional', status: 'Online', autoSendOrder: false, lastActive: '1 min ago' },
-    { id: 'M03', name: 'UriSys 2400 (Nước tiểu)', protocol: 'Serial', ip: 'COM1', port: '9600', mode: 'Unidirectional', status: 'Offline', autoSendOrder: false, lastActive: '2 hours ago' },
+    { id: 'M01', name: 'Sysmex XN-1000', protocol: 'HL7', ip: '192.168.1.101', port: '5001', mode: 'Bidirectional', status: 'Online', type: 'Hematology', autoSendOrder: true, lastActive: 'Just now' },
+    { id: 'M02', name: 'Cobas 6000', protocol: 'ASTM', ip: '192.168.1.102', port: '5002', mode: 'Bidirectional', status: 'Online', type: 'Biochemistry', autoSendOrder: false, lastActive: '1 min ago' },
+    { id: 'M03', name: 'Abbott Architect i2000SR', protocol: 'ASTM', ip: '192.168.1.103', port: '5003', mode: 'Bidirectional', status: 'Online', type: 'Immunology', autoSendOrder: false, lastActive: 'Just now' },
+    { id: 'M04', name: 'UriSys 2400', protocol: 'Serial', ip: 'COM1', port: '9600', mode: 'Unidirectional', status: 'Offline', type: 'Urine', autoSendOrder: false, lastActive: '2 hours ago' },
 ];
 
 // --- MODAL COMPONENT: MACHINE CONFIG ---
@@ -41,6 +42,7 @@ const MachineConfigModal = ({
         protocol: 'HL7',
         mode: 'Bidirectional',
         status: 'Offline',
+        type: 'Hematology',
         autoSendOrder: false
     });
 
@@ -51,6 +53,7 @@ const MachineConfigModal = ({
                 protocol: 'HL7',
                 mode: 'Bidirectional',
                 status: 'Offline',
+                type: 'Hematology',
                 autoSendOrder: false
             });
         }
@@ -80,6 +83,22 @@ const MachineConfigModal = ({
                             placeholder="VD: Sysmex XN-1000"
                         />
                     </div>
+                    
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Loại máy (Chuyên khoa)</label>
+                        <select 
+                            className="w-full p-2 border rounded dark:bg-slate-700 dark:border-slate-600"
+                            value={formData.type}
+                            onChange={e => handleChange('type', e.target.value)}
+                        >
+                            <option value="Hematology">Huyết học (Hematology)</option>
+                            <option value="Biochemistry">Sinh hóa (Biochemistry)</option>
+                            <option value="Immunology">Miễn dịch (Immunology)</option>
+                            <option value="Urine">Nước tiểu (Urine)</option>
+                            <option value="Microbiology">Vi sinh (Microbiology)</option>
+                        </select>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Giao thức</label>
@@ -205,7 +224,7 @@ const LabConnectionView: React.FC = () => {
 
             // Random chance to receive data (simulate inbound traffic)
             if (Math.random() > 0.7) {
-                const simResult = lisService.simulateIncomingData(selectedMachine.protocol);
+                const simResult = lisService.simulateIncomingData(selectedMachine.protocol, selectedMachine.type);
                 
                 setLogs(prev => [...prev.slice(-99), simResult.log]); // Keep last 100 logs
                 
@@ -294,6 +313,16 @@ const LabConnectionView: React.FC = () => {
         }, 500);
     };
 
+    const getTypeBadge = (type: LisMachineType) => {
+        switch(type) {
+            case 'Hematology': return <span className="bg-red-50 text-red-700 border-red-100 px-1.5 rounded">HH</span>;
+            case 'Biochemistry': return <span className="bg-blue-50 text-blue-700 border-blue-100 px-1.5 rounded">SH</span>;
+            case 'Immunology': return <span className="bg-purple-50 text-purple-700 border-purple-100 px-1.5 rounded">MD</span>;
+            case 'Urine': return <span className="bg-yellow-50 text-yellow-700 border-yellow-100 px-1.5 rounded">NT</span>;
+            default: return null;
+        }
+    }
+
     return (
         <div className="h-full flex flex-col space-y-4">
             {/* Header */}
@@ -335,7 +364,10 @@ const LabConnectionView: React.FC = () => {
                             <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${m.status === 'Online' ? 'bg-green-500' : m.status === 'Offline' ? 'bg-slate-400' : 'bg-red-500'}`}></div>
 
                             <div className="flex justify-between items-start mb-2 pl-2">
-                                <h3 className="font-bold text-slate-800 dark:text-white text-lg">{m.name}</h3>
+                                <h3 className="font-bold text-slate-800 dark:text-white text-lg flex items-center gap-2">
+                                    {m.name}
+                                    <span className="text-xs font-normal border rounded bg-slate-50 px-1">{getTypeBadge(m.type)}</span>
+                                </h3>
                                 <div className={`px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 shadow-sm border ${
                                     m.status === 'Online' 
                                     ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400' 
