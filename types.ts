@@ -373,3 +373,56 @@ export interface LisResultData {
     flag: string; // H, L, N
     refRange: string;
 }
+
+// --- LAB APPOINTMENT TYPES ---
+export interface LabAppointment {
+    id: string;
+    patientName: string;
+    patientId: string;
+    phone?: string;
+    testTypes: string; // Free text or comma separated codes
+    date: string; // YYYY-MM-DD
+    time: string; // HH:mm
+    status: 'Scheduled' | 'Completed' | 'Cancelled';
+    notes?: string;
+}
+
+// --- NOTIFICATION SYSTEM TYPES ---
+export type NotificationType = 'success' | 'error' | 'info' | 'warning';
+
+export interface AppNotification {
+    id: string;
+    title: string;
+    message: string;
+    type: NotificationType;
+    timestamp: Date;
+    isRead: boolean;
+    link?: string; // Optional link to navigate to when clicked
+    autoClose?: boolean; // If true, it's a toast that disappears
+}
+
+// --- CHAT SYSTEM TYPES ---
+export interface ChatUser {
+    id: string;
+    name: string;
+    avatar?: string;
+    status: 'online' | 'offline' | 'busy';
+    role: string;
+}
+
+export interface ChatMessage {
+    id: string;
+    senderId: string;
+    content: string;
+    timestamp: string;
+    isMe: boolean;
+}
+
+export interface ChatChannel {
+    id: string;
+    name: string; // User name or Group name
+    isGroup: boolean;
+    participants: string[]; // User IDs
+    unreadCount: number;
+    lastMessage?: ChatMessage;
+}

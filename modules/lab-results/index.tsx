@@ -8,12 +8,14 @@ import LabQCView from './views/LabQCView';
 import LabDictionaryView from './views/LabDictionaryView';
 import ReportsView from './views/ReportsView';
 import LabConnectionView from './views/LabConnectionView';
+import LabScheduleView from './views/LabScheduleView';
 
 const LabResults: React.FC = () => {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="dashboard" replace />} />
       <Route path="dashboard" element={<LabDashboardView />} />
+      <Route path="schedule" element={<LabScheduleView />} />
       <Route path="reception" element={<LabReceptionView />} />
       <Route path="processing" element={<LabProcessingView />} />
       <Route path="qc" element={<LabQCView />} />

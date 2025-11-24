@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from '../../../components/Icons';
 import { SurgerySchedule, SurgeryResource } from '../../../types';
 import SurgeryDetailModal from './SurgeryDetailModal';
+import SurgeryScheduleModal from './SurgeryScheduleModal';
 
 // --- MOCK DATA ---
 const resources: SurgeryResource[] = [
@@ -73,6 +74,7 @@ const SchedulerBoardView: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [schedules, setSchedules] = useState<SurgerySchedule[]>(initialSchedules);
     const [selectedSurgeryId, setSelectedSurgeryId] = useState<string | null>(null);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [currentTimePosition, setCurrentTimePosition] = useState<number | null>(null);
 
     // --- Update current time indicator ---
@@ -124,6 +126,15 @@ const SchedulerBoardView: React.FC = () => {
         setSelectedSurgeryId(id);
     };
 
+    const handleAddSurgery = (newSchedule: Omit<SurgerySchedule, 'id' | 'status'>) => {
+        const schedule: SurgerySchedule = {
+            ...newSchedule,
+            id: `S${Date.now()}`,
+            status: 'scheduled'
+        };
+        setSchedules([...schedules, schedule]);
+    };
+
     const selectedSurgery = schedules.find(s => s.id === selectedSurgeryId);
 
     return (
@@ -141,7 +152,10 @@ const SchedulerBoardView: React.FC = () => {
                         <button onClick={() => handleDateChange(1)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-600 rounded"><ChevronRightIcon className="w-5 h-5 text-slate-500"/></button>
                     </div>
                 </div>
-                <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition shadow-md">
+                <button 
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition shadow-md"
+                >
                     <PlusIcon className="w-5 h-5"/> Đặt lịch mổ
                 </button>
             </div>
@@ -228,6 +242,14 @@ const SchedulerBoardView: React.FC = () => {
                     schedule={selectedSurgery}
                 />
             )}
+
+            {/* Add Modal */}
+            <SurgeryScheduleModal
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                onSave={handleAddSurgery}
+                resources={resources}
+            />
         </div>
     );
 };

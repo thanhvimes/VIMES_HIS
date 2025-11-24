@@ -383,7 +383,9 @@ const ImageCaptureModal: React.FC<ImageCaptureModalProps> = ({ isOpen, onClose, 
     const removeTempImage = (e: React.MouseEvent, id: string) => {
         e.preventDefault();
         e.stopPropagation();
-        setTempImages(prev => prev.filter(img => img.id !== id));
+        if (window.confirm("Bạn có chắc chắn muốn xóa ảnh này?")) {
+            setTempImages(prev => prev.filter(img => img.id !== id));
+        }
     };
 
     const handleConfirm = () => {

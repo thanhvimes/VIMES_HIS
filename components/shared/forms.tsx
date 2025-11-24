@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { memo } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface FormInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -8,7 +7,7 @@ interface FormInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     containerClassName?: string;
 }
 
-export const FormInput: React.FC<FormInputProps> = ({ label, labelClassName = '', containerClassName = '', ...props }) => {
+export const FormInput: React.FC<FormInputProps> = memo(({ label, labelClassName = '', containerClassName = '', ...props }) => {
     const { fontSettings } = useTheme();
     
     return (
@@ -20,7 +19,7 @@ export const FormInput: React.FC<FormInputProps> = ({ label, labelClassName = ''
             />
         </div>
     );
-};
+});
 
 
 interface FormSelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
@@ -30,7 +29,7 @@ interface FormSelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> 
     children: React.ReactNode;
 }
 
-export const FormSelect: React.FC<FormSelectProps> = ({ label, children, labelClassName = '', containerClassName = '', ...props }) => {
+export const FormSelect: React.FC<FormSelectProps> = memo(({ label, children, labelClassName = '', containerClassName = '', ...props }) => {
     const { fontSettings } = useTheme();
 
     return (
@@ -44,4 +43,4 @@ export const FormSelect: React.FC<FormSelectProps> = ({ label, children, labelCl
             </select>
         </div>
     );
-};
+});

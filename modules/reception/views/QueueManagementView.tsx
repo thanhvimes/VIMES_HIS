@@ -69,22 +69,40 @@ const QueueManagementView: React.FC = () => {
     const [queues, setQueues] = useState<ClinicQueue[]>(initialQueues);
     const [isTvMode, setIsTvMode] = useState(false);
     const [flashMessage, setFlashMessage] = useState<string | null>(null);
+    const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
     // --- UTILS ---
+    useEffect(() => {
+        const loadVoices = () => {
+            const availableVoices = window.speechSynthesis.getVoices();
+            if (availableVoices.length > 0) {
+                setVoices(availableVoices);
+            }
+        };
+        
+        loadVoices();
+        
+        // Chrome loads voices asynchronously
+        if (window.speechSynthesis.onvoiceschanged !== undefined) {
+            window.speechSynthesis.onvoiceschanged = loadVoices;
+        }
+    }, []);
+
     const speak = (text: string) => {
         if ('speechSynthesis' in window) {
-            // Cancel any existing utterance to prevent overlap
             window.speechSynthesis.cancel();
-            
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'vi-VN';
-            utterance.rate = 0.9; // Slightly slower for clarity
             
-            // Try to find a Vietnamese voice
-            const voices = window.speechSynthesis.getVoices();
-            const vnVoice = voices.find(v => v.lang.includes('vi'));
-            if (vnVoice) utterance.voice = vnVoice;
-
+            // Attempt to find a Vietnamese voice, fallback to any
+            const vnVoice = voices.find(v => v.lang.includes('vi') || v.name.toLowerCase().includes('vietnamese'));
+            if (vnVoice) {
+                utterance.voice = vnVoice;
+                utterance.lang = vnVoice.lang;
+            } else {
+                utterance.lang = 'vi-VN';
+            }
+            
+            utterance.rate = 0.9; // Slightly slower for clarity
             window.speechSynthesis.speak(utterance);
         }
     };
@@ -250,7 +268,7 @@ const QueueManagementView: React.FC = () => {
 
     // --- CONTROLLER MODE RENDER ---
     return (
-        <div className="h-full flex flex-col space-y-4">
+        <div className="h-full flex flex-col space-y-4 relative">
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <div>
@@ -371,6 +389,14 @@ const QueueManagementView: React.FC = () => {
                     );
                 })}
             </div>
+
+            {/* Flash Message Mini Preview for Controller */}
+            {flashMessage && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-6 py-3 rounded-full shadow-lg z-50 animate-fade-in-up flex items-center gap-3">
+                    <MegaphoneIcon className="w-5 h-5 animate-pulse"/>
+                    <span className="text-sm font-bold">Đang phát: {flashMessage}</span>
+                </div>
+            )}
         </div>
     );
 };

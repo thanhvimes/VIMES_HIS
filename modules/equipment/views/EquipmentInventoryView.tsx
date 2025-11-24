@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { mockEquipment } from '../data';
 import { MedicalEquipment } from '../../types';
@@ -6,14 +5,14 @@ import {
     SearchIcon, 
     FilterIcon, 
     TagIcon, 
-    WrenchIcon,
-    DocumentTextIcon,
-    SwitchHorizontalIcon,
-    TrashIcon,
-    PencilIcon,
-    XIcon,
-    CheckBadgeIcon,
-    CubeIcon
+    WrenchIcon, 
+    DocumentTextIcon, 
+    SwitchHorizontalIcon, 
+    TrashIcon, 
+    PencilIcon, 
+    XIcon, 
+    CheckBadgeIcon, 
+    CubeIcon 
 } from '../../../components/Icons';
 
 // --- Detail Modal Component ---
@@ -222,15 +221,23 @@ const EquipmentInventoryView: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('All');
     const [selectedItem, setSelectedItem] = useState<MedicalEquipment | null>(null);
+    const [equipmentList, setEquipmentList] = useState<MedicalEquipment[]>(mockEquipment);
 
     const filteredEquipment = useMemo(() => {
-        return mockEquipment.filter(item => {
+        return equipmentList.filter(item => {
             const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                                   item.id.toLowerCase().includes(searchTerm.toLowerCase());
             const matchesStatus = filterStatus === 'All' || item.status === filterStatus;
             return matchesSearch && matchesStatus;
         });
-    }, [searchTerm, filterStatus]);
+    }, [searchTerm, filterStatus, equipmentList]);
+
+    const handleDelete = (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        if (window.confirm("Bạn có chắc chắn muốn xóa thiết bị này?")) {
+            setEquipmentList(prev => prev.filter(item => item.id !== id));
+        }
+    };
 
     const getStatusBadge = (status: string) => {
         switch(status) {
@@ -308,7 +315,12 @@ const EquipmentInventoryView: React.FC = () => {
                                     <td className="p-4 text-right">
                                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button className="p-2 hover:bg-slate-100 rounded text-slate-500 hover:text-blue-600"><PencilIcon className="w-4 h-4"/></button>
-                                            <button className="p-2 hover:bg-slate-100 rounded text-slate-500 hover:text-red-600"><TrashIcon className="w-4 h-4"/></button>
+                                            <button 
+                                                onClick={(e) => handleDelete(e, item.id)}
+                                                className="p-2 hover:bg-slate-100 rounded text-slate-500 hover:text-red-600"
+                                            >
+                                                <TrashIcon className="w-4 h-4"/>
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>

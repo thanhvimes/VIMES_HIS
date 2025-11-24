@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { 
     ListBulletIcon, 
@@ -227,12 +226,14 @@ const MedicationView: React.FC = () => {
     };
 
     const handleRemoveItem = (itemId: string) => {
-        const updatedItems = currentPrescription.items.filter(i => i.id !== itemId);
-        setCurrentPrescription({
-            ...currentPrescription,
-            items: updatedItems,
-            totalAmount: calculateTotal(updatedItems)
-        });
+        if (window.confirm("Xóa thuốc này khỏi đơn?")) {
+            const updatedItems = currentPrescription.items.filter(i => i.id !== itemId);
+            setCurrentPrescription({
+                ...currentPrescription,
+                items: updatedItems,
+                totalAmount: calculateTotal(updatedItems)
+            });
+        }
     };
 
     const handleQuickUsage = (itemId: string, type: string) => {

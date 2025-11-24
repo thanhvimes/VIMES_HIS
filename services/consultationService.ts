@@ -1,5 +1,6 @@
 
-import { ClinicalRecord, ICD10, OperationRecord } from '../types';
+import { ClinicalRecord, ICD10, OperationRecord, Patient } from '../types';
+import { mockPatients } from '../modules/reception/data';
 
 // Mock ICD10 Data
 export const mockICD10List: ICD10[] = [
@@ -81,6 +82,41 @@ const mockOperations: OperationRecord[] = [
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const consultationService = {
+    // Get comprehensive patient profile including demographics and mock clinical summary
+    getPatientProfile: async (patientId: string) => {
+        await delay(600);
+        const basicInfo = mockPatients.find(p => p.id === patientId);
+        
+        if (!basicInfo) return null;
+
+        // Merge with some mock clinical data for the record view
+        return {
+            ...basicInfo,
+            hasInsurance: basicInfo.patientType === 'Bảo hiểm',
+            insuranceNumber: basicInfo.patientType === 'Bảo hiểm' ? 'GD4790215567890' : undefined,
+            insuranceRegDate: '01/01/2023',
+            insuranceExpDate: '31/12/2023',
+            insuranceStatus: 'valid', 
+            diagnosis: basicInfo.history && basicInfo.history.length > 0 ? basicInfo.history[0].diagnosis : 'Chưa có chẩn đoán',
+            vitalSigns: {
+                height: 170,
+                weight: 65,
+                bmi: 22.5,
+                bpSys: 120,
+                bpDia: 80,
+                heartRate: 75,
+                respRate: 18,
+                temp: 36.5,
+                spO2: 98
+            },
+            bpHistory: [
+                { date: '08:00', systolic: 118, diastolic: 78 },
+                { date: '12:00', systolic: 122, diastolic: 82 },
+                { date: '16:00', systolic: 120, diastolic: 80 },
+            ]
+        };
+    },
+
     getClinicalRecord: async (patientId: string): Promise<ClinicalRecord> => {
         await delay(800); // Simulate network delay
         // In a real app, fetch by patientId

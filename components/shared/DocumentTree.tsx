@@ -1,5 +1,4 @@
-
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, memo } from 'react';
 import { 
     FolderIcon, 
     DocumentTextIcon, 
@@ -39,7 +38,7 @@ const getFileCount = (node: TreeNode): number => {
     return 0;
 };
 
-const TreeItem: React.FC<TreeItemProps> = ({ node, level, expandedNodes, selectedId, onToggle, onSelect }) => {
+const TreeItem: React.FC<TreeItemProps> = memo(({ node, level, expandedNodes, selectedId, onToggle, onSelect }) => {
     const isExpanded = expandedNodes.has(node.id);
     const isSelected = selectedId === node.id;
     const hasChildren = node.children && node.children.length > 0;
@@ -111,7 +110,7 @@ const TreeItem: React.FC<TreeItemProps> = ({ node, level, expandedNodes, selecte
             )}
         </div>
     );
-};
+});
 
 interface DocumentTreeProps {
     data: TreeNode[];

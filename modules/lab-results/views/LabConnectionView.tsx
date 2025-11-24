@@ -12,7 +12,9 @@ import {
     CogIcon, 
     TrashIcon, 
     PlusIcon, 
-    ArrowUpTrayIcon 
+    ArrowUpTrayIcon,
+    ShieldCheckIcon,
+    GlobeIcon
 } from '../../../components/Icons';
 import { LisMachineConfig, LisLogEntry, LisResultData, LisMachineType } from '../../../types';
 import { lisService } from '../../../services/lisService';
@@ -25,6 +27,98 @@ const initialMachines: LisMachineConfig[] = [
     { id: 'M03', name: 'Abbott Architect i2000SR', protocol: 'ASTM', ip: '192.168.1.103', port: '5003', mode: 'Bidirectional', status: 'Online', type: 'Immunology', autoSendOrder: false, lastActive: 'Just now' },
     { id: 'M04', name: 'UriSys 2400', protocol: 'Serial', ip: 'COM1', port: '9600', mode: 'Unidirectional', status: 'Offline', type: 'Urine', autoSendOrder: false, lastActive: '2 hours ago' },
 ];
+
+// --- MODAL: GLOBAL CONFIG ---
+const GlobalConfigModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white dark:bg-slate-800 w-full max-w-2xl rounded-xl shadow-2xl animate-fade-in-up overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                        <CogIcon className="w-6 h-6 text-blue-600"/>
+                        <h3 className="text-lg font-bold text-slate-800 dark:text-white">Cấu hình Hệ thống LIS (Middleware)</h3>
+                    </div>
+                    <button onClick={onClose}><XIcon className="w-6 h-6 text-slate-500"/></button>
+                </div>
+                
+                <div className="p-6 space-y-6">
+                    {/* 1. Network Settings */}
+                    <div className="space-y-3">
+                        <h4 className="text-sm font-bold text-slate-500 uppercase border-b border-slate-100 dark:border-slate-700 pb-1 flex items-center gap-2">
+                            <GlobeIcon className="w-4 h-4"/> Cấu hình Server Lắng nghe
+                        </h4>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">LIS Server IP</label>
+                                <input type="text" className="w-full p-2 border rounded dark:bg-slate-700 dark:border-slate-600 font-mono" defaultValue="192.168.1.200" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Listening Port (Default)</label>
+                                <input type="number" className="w-full p-2 border rounded dark:bg-slate-700 dark:border-slate-600 font-mono" defaultValue="6000" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 2. Automation Rules */}
+                    <div className="space-y-3">
+                        <h4 className="text-sm font-bold text-slate-500 uppercase border-b border-slate-100 dark:border-slate-700 pb-1 flex items-center gap-2">
+                            <ShieldCheckIcon className="w-4 h-4"/> Quy tắc Tự động (Automation)
+                        </h4>
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-3 p-3 border border-slate-200 dark:border-slate-600 rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                <input type="checkbox" className="w-5 h-5 text-blue-600 rounded" defaultChecked />
+                                <div>
+                                    <div className="font-bold text-sm text-slate-800 dark:text-white">Auto-Validate (Duyệt tự động)</div>
+                                    <div className="text-xs text-slate-500">Tự động duyệt kết quả nếu chỉ số nằm trong giới hạn bình thường (Normal Range).</div>
+                                </div>
+                            </label>
+                            
+                            <label className="flex items-center gap-3 p-3 border border-slate-200 dark:border-slate-600 rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                <input type="checkbox" className="w-5 h-5 text-blue-600 rounded" />
+                                <div>
+                                    <div className="font-bold text-sm text-slate-800 dark:text-white">Auto-Broadcast Order</div>
+                                    <div className="text-xs text-slate-500">Tự động gửi chỉ định xuống tất cả các máy Online khi bác sĩ lưu phiếu.</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    {/* 3. System Maintenance */}
+                    <div className="space-y-3">
+                        <h4 className="text-sm font-bold text-slate-500 uppercase border-b border-slate-100 dark:border-slate-700 pb-1 flex items-center gap-2">
+                            <ServerStackIcon className="w-4 h-4"/> Bảo trì & Logs
+                        </h4>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Thời gian lưu Log (Raw Data)</label>
+                                <select className="w-full p-2 border rounded dark:bg-slate-700 dark:border-slate-600">
+                                    <option>7 Ngày</option>
+                                    <option selected>30 Ngày</option>
+                                    <option>90 Ngày</option>
+                                    <option>Không giới hạn</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Chế độ Debug</label>
+                                <select className="w-full p-2 border rounded dark:bg-slate-700 dark:border-slate-600">
+                                    <option>Off (Chỉ hiện kết quả)</option>
+                                    <option selected>On (Hiện bản tin HL7/ASTM)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-end gap-3">
+                    <button onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded font-medium">Đóng</button>
+                    <button onClick={onClose} className="px-6 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 shadow">Lưu thiết lập</button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 // --- MODAL COMPONENT: MACHINE CONFIG ---
 const MachineConfigModal = ({ 
@@ -209,7 +303,10 @@ const LabConnectionView: React.FC = () => {
     const [selectedMachineId, setSelectedMachineId] = useState<string>(initialMachines[0].id);
     const [logs, setLogs] = useState<LisLogEntry[]>([]);
     const [isLogging, setIsLogging] = useState(true);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    
+    const [isMachineModalOpen, setIsMachineModalOpen] = useState(false);
+    const [isGlobalConfigOpen, setIsGlobalConfigOpen] = useState(false);
+    
     const [latestParsedResult, setLatestParsedResult] = useState<LisResultData[]>([]);
     const logEndRef = useRef<HTMLDivElement>(null);
 
@@ -274,7 +371,7 @@ const LabConnectionView: React.FC = () => {
         } else {
             setMachines(prev => [...prev, newConfig]);
         }
-        setIsModalOpen(false);
+        setIsMachineModalOpen(false);
     };
 
     const handleDeleteMachine = (id: string) => {
@@ -334,11 +431,14 @@ const LabConnectionView: React.FC = () => {
                     <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Giám sát trạng thái kết nối, log dữ liệu và mapping.</p>
                 </div>
                 <div className="flex gap-2">
-                    <button className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition shadow-sm text-slate-700 dark:text-slate-200">
+                    <button 
+                        onClick={() => setIsGlobalConfigOpen(true)}
+                        className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition shadow-sm text-slate-700 dark:text-slate-200"
+                    >
                         <CogIcon className="w-4 h-4"/> Cấu hình chung
                     </button>
                     <button 
-                        onClick={() => setIsModalOpen(true)}
+                        onClick={() => setIsMachineModalOpen(true)}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 shadow flex items-center gap-2 transition"
                     >
                         <PlusIcon className="w-4 h-4"/> Thêm máy
@@ -516,11 +616,17 @@ const LabConnectionView: React.FC = () => {
                 </div>
             </div>
 
-            {/* CONFIG MODAL */}
+            {/* CONFIG MODAL: MACHINE */}
             <MachineConfigModal 
-                isOpen={isModalOpen} 
-                onClose={() => setIsModalOpen(false)} 
+                isOpen={isMachineModalOpen} 
+                onClose={() => setIsMachineModalOpen(false)} 
                 onSave={handleSaveMachine}
+            />
+
+            {/* CONFIG MODAL: GLOBAL */}
+            <GlobalConfigModal
+                isOpen={isGlobalConfigOpen}
+                onClose={() => setIsGlobalConfigOpen(false)}
             />
         </div>
     );

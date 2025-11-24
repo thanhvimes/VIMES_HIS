@@ -1,12 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MegaphoneIcon, ArrowUpTrayIcon, TrashIcon, PencilIcon } from '../../../components/Icons';
 
-const mockSlides = [
+const mockSlidesData = [
     { id: 1, title: "Chương trình bảo trì hệ thống", imageUrl: "https://picsum.photos/seed/healthtech/200/100", description: "Hệ thống sẽ được bảo trì vào lúc 23:00 tối Chủ Nhật." },
     { id: 2, title: "Gói khám sức khỏe tổng quát", imageUrl: "https://picsum.photos/seed/checkup/200/100", description: "Ưu đãi 20% cho gói khám sức khỏe toàn diện. Đăng ký ngay!" },
 ];
 
 const AdvertisementManagerView: React.FC = () => {
+  const [slides, setSlides] = useState(mockSlidesData);
+
+  const handleDeleteSlide = (id: number) => {
+      if (window.confirm("Bạn có chắc chắn muốn xóa quảng cáo này?")) {
+          setSlides(slides.filter(s => s.id !== id));
+      }
+  };
+
   return (
     <div className="space-y-6">
        <div className="flex items-center space-x-3">
@@ -21,7 +29,7 @@ const AdvertisementManagerView: React.FC = () => {
             <div className="lg:col-span-2 bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
                 <h2 className="text-xl font-bold text-slate-700 dark:text-slate-200 mb-4">Danh sách Slides hiện tại</h2>
                 <div className="space-y-4">
-                    {mockSlides.map(slide => (
+                    {slides.map(slide => (
                         <div key={slide.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
                             <div className="flex items-center space-x-4">
                                 <img src={slide.imageUrl} alt={slide.title} className="w-24 h-14 object-cover rounded-md" />
@@ -32,10 +40,18 @@ const AdvertisementManagerView: React.FC = () => {
                             </div>
                             <div className="flex space-x-2">
                                 <button className="p-2 text-slate-500 hover:text-blue-600 dark:hover:text-blue-400"><PencilIcon className="w-5 h-5"/></button>
-                                <button className="p-2 text-slate-500 hover:text-red-600 dark:hover:text-red-400"><TrashIcon className="w-5 h-5"/></button>
+                                <button 
+                                    onClick={() => handleDeleteSlide(slide.id)}
+                                    className="p-2 text-slate-500 hover:text-red-600 dark:hover:text-red-400"
+                                >
+                                    <TrashIcon className="w-5 h-5"/>
+                                </button>
                             </div>
                         </div>
                     ))}
+                    {slides.length === 0 && (
+                        <p className="text-slate-500 text-center py-4">Chưa có slide nào.</p>
+                    )}
                 </div>
             </div>
             <div className="bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
@@ -58,7 +74,7 @@ const AdvertisementManagerView: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                    <button type="submit" className="w-full bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                    <button type="button" onClick={() => alert("Chức năng thêm đang được phát triển")} className="w-full bg-primary hover:bg-primary-dark text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105">
                         Lưu Slide
                     </button>
                  </form>

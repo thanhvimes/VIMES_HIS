@@ -1,5 +1,4 @@
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, memo } from 'react';
 import { 
     FolderIcon, 
     DocumentTextIcon, 
@@ -31,7 +30,7 @@ interface TreeItemProps {
     onSelect: (node: TreeNode) => void;
 }
 
-const TreeItem: React.FC<TreeItemProps> = ({ node, level, expandedNodes, selectedId, onToggle, onSelect }) => {
+const TreeItem: React.FC<TreeItemProps> = memo(({ node, level, expandedNodes, selectedId, onToggle, onSelect }) => {
     const isExpanded = expandedNodes.has(node.id);
     const isSelected = selectedId === node.id;
     const hasChildren = node.children && node.children.length > 0;
@@ -90,7 +89,7 @@ const TreeItem: React.FC<TreeItemProps> = ({ node, level, expandedNodes, selecte
             )}
         </div>
     );
-};
+});
 
 interface DocumentTreeProps {
     data: TreeNode[];
@@ -119,11 +118,6 @@ const DocumentTree: React.FC<DocumentTreeProps> = ({ data, selectedId, onSelect,
                 const filteredChildren = filterTree(node.children, term);
                 if (matches || filteredChildren.length > 0) {
                     acc.push({ ...node, children: filteredChildren });
-                    // Auto expand if matches found inside
-                    if (filteredChildren.length > 0 && !expandedNodes.has(node.id)) {
-                         // Side effect in render is generally bad, but for simple search auto-expand it works. 
-                         // Ideally use a useEffect for search term changes.
-                    }
                 }
             } else if (matches) {
                 acc.push(node);
@@ -135,7 +129,7 @@ const DocumentTree: React.FC<DocumentTreeProps> = ({ data, selectedId, onSelect,
     const displayTree = useMemo(() => filterTree(data, searchTerm), [data, searchTerm]);
 
     // Expand all on search
-    React.useEffect(() => {
+    useEffect(() => {
         if (searchTerm) {
             const allIds = new Set<string>();
             const collectIds = (nodes: TreeNode[]) => {

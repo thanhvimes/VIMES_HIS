@@ -18,6 +18,7 @@ import {
     UserGroupIcon
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { useNotification } from '../../../contexts/NotificationContext';
 
 // --- TYPES ---
 interface TestResult {
@@ -101,6 +102,7 @@ const machines = [
 
 const LabProcessingView: React.FC = () => {
     const { fontSettings } = useTheme();
+    const { addNotification } = useNotification();
     const [tasks, setTasks] = useState<LabTask[]>(mockTasks);
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -158,6 +160,8 @@ const LabProcessingView: React.FC = () => {
         // Move to Processing if in Todo
         if (selectedTask.workflowStatus === 'todo') {
             setTasks(prev => prev.map(t => t.id === selectedTaskId ? { ...t, workflowStatus: 'processing', assignedTo: 'KTV. CurrentUser' } : t));
+            addNotification("Đã gửi mẫu vào máy", `Mẫu ${selectedTask.sid} của ${selectedTask.patientName} đang chạy.`, "info", undefined, true);
+            
             // Keep selected, but tab might change. If user wants to follow sample, switch tab.
             if (window.confirm("Mẫu đã được chuyển sang trạng thái 'Đang xử lý'. Bạn có muốn chuyển sang tab Đang xử lý không?")) {
                 setActiveTab('processing');
@@ -180,6 +184,15 @@ const LabProcessingView: React.FC = () => {
                 return t;
             }));
             setIsMachineRunning(false);
+            
+            // Notify user
+            addNotification(
+                "Có kết quả máy", 
+                `Kết quả của BN ${selectedTask.patientName} (${selectedTask.sid}) đã có. Vui lòng duyệt.`, 
+                "success",
+                "/lab-results/processing" // Link back here
+            );
+            
             alert("Đã có kết quả từ máy! Mẫu chuyển sang danh sách 'Chờ duyệt'.");
             setActiveTab('review');
         }, 1500);
@@ -192,6 +205,16 @@ const LabProcessingView: React.FC = () => {
                 ? { ...t, workflowStatus: 'completed', results: t.results.map(r => ({ ...r, status: 'validated' as const })) } 
                 : t
             ));
+            
+            // Notify clinical doctors
+            addNotification(
+                "Đã trả kết quả", 
+                `KTV đã duyệt kết quả cho BN ${selectedTask.patientName}. Bác sĩ lâm sàng có thể xem ngay.`, 
+                "success",
+                undefined,
+                true
+            );
+            
             setSelectedTaskId(null); // Deselect
         }
     };

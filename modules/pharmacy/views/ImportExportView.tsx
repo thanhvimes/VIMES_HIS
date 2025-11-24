@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { TruckIcon, ArchiveIcon, CheckIcon, TrashIcon } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -44,7 +43,9 @@ const ImportExportView: React.FC = () => {
     };
 
     const handleRemoveItem = (id: string) => {
-        setItems(items.filter(i => i.id !== id));
+        if (window.confirm("Bạn có chắc chắn muốn xóa thuốc này khỏi phiếu?")) {
+            setItems(items.filter(i => i.id !== id));
+        }
     };
 
     const totalAmount = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);

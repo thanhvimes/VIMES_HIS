@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 
 const ActionButton: React.FC<{ label: string; icon: React.ReactNode; onClick: () => void; className?: string; disabled?: boolean }> = 
     ({ label, icon, onClick, className = '', disabled }) => (
@@ -8,4 +8,4 @@ const ActionButton: React.FC<{ label: string; icon: React.ReactNode; onClick: ()
     </button>
 );
 
-export default ActionButton;
+export default memo(ActionButton);

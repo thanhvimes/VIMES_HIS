@@ -1,9 +1,8 @@
-import React from 'react';
+import React, { memo } from 'react';
 
 interface CardProps {
   children: React.ReactNode;
   className?: string;
-  // FIX: Added optional onClick prop to CardProps to allow passing event handlers to the underlying div. This resolves a type error in ConfirmationModal where an onClick was being passed to stop propagation.
   onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
 }
 
@@ -18,4 +17,4 @@ const Card: React.FC<CardProps> = ({ children, className, onClick }) => {
   );
 };
 
-export default Card;
+export default memo(Card);
