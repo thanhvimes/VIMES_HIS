@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { MODULE_ITEMS } from '../../constants/navigation';
@@ -11,10 +12,10 @@ const Dashboard: React.FC = () => {
         <ClipboardListIcon className="h-16 w-16 text-primary dark:text-dark-primary" />
         <div>
           <h1 className="text-4xl font-bold text-onSurface dark:text-dark-onSurface tracking-tight">
-            Clinic Management System
+            Hệ thống quản lý bệnh viện
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1 text-lg">
-            Hệ thống quản lý phòng khám chuyên nghiệp
+            Giải pháp quản lý bệnh viện chuyên nghiệp - VIMES
           </p>
         </div>
       </div>
@@ -29,7 +30,7 @@ const Dashboard: React.FC = () => {
         ></div>
         <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-black/30"></div>
         <div className="relative z-10 h-full flex flex-col justify-center p-8 md:p-12 text-white">
-          <h2 className="text-3xl font-bold tracking-tight">Chào mừng đến với ClinicMS</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Chào mừng đến với VIMES</h2>
           <p className="mt-2 max-w-lg text-slate-200">
             Thông báo: Hệ thống sẽ được bảo trì vào lúc 23:00 tối Chủ Nhật.
             Vui lòng lưu lại công việc trước thời gian này.

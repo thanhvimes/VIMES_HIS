@@ -251,6 +251,17 @@ export interface Prescription {
   note?: string;
 }
 
+export interface DrugInteraction {
+    id: string;
+    drugCode1: string;
+    drugName1: string;
+    drugCode2: string;
+    drugName2: string;
+    severity: 'Mild' | 'Moderate' | 'Severe' | 'Contraindicated';
+    description: string;
+    management: string;
+}
+
 // --- NEW TYPES FOR FEE MODULE ---
 
 export interface FeeItem {
