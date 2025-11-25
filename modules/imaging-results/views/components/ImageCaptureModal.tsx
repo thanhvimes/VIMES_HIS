@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
     XIcon, 
@@ -8,9 +9,7 @@ import {
     ExclamationCircleIcon, 
     RefreshIcon, 
     ScissorsIcon,
-    TvIcon,
-    CogIcon,
-    PencilIcon
+    TvIcon
 } from '../../../../components/Icons';
 
 interface CapturedImage {
@@ -74,8 +73,10 @@ const ImageCaptureModal: React.FC<ImageCaptureModalProps> = ({ isOpen, onClose, 
     useEffect(() => {
         const getDevices = async () => {
             try {
+                // Safety check for mediaDevices support
                 if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-                     console.warn("Media Devices not supported");
+                     console.warn("Media Devices API not supported in this browser/context");
+                     setDevices([]);
                      return;
                 }
                 const deviceList = await navigator.mediaDevices.enumerateDevices();
@@ -96,11 +97,15 @@ const ImageCaptureModal: React.FC<ImageCaptureModalProps> = ({ isOpen, onClose, 
 
         if (isOpen) {
             getDevices();
-            navigator.mediaDevices.addEventListener('devicechange', getDevices);
+            // Safety check before adding event listener
+            if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+                navigator.mediaDevices.addEventListener('devicechange', getDevices);
+            }
         }
 
         return () => {
-            if (navigator.mediaDevices) {
+            // Safety check before removing event listener
+            if (navigator.mediaDevices && navigator.mediaDevices.removeEventListener) {
                 navigator.mediaDevices.removeEventListener('devicechange', getDevices);
             }
         };
@@ -150,7 +155,7 @@ const ImageCaptureModal: React.FC<ImageCaptureModalProps> = ({ isOpen, onClose, 
 
         try {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                throw new Error("Trình duyệt không hỗ trợ Camera.");
+                throw new Error("Trình duyệt không hỗ trợ Camera hoặc kết nối không an toàn (HTTPS).");
             }
 
             const idToUse = deviceIdOverride || selectedDeviceId;
@@ -170,12 +175,15 @@ const ImageCaptureModal: React.FC<ImageCaptureModalProps> = ({ isOpen, onClose, 
             setIsCameraOn(true);
             setIsLoadingStream(false);
 
-            const deviceList = await navigator.mediaDevices.enumerateDevices();
-            setDevices(deviceList.filter(d => d.kind === 'videoinput'));
+            // Refresh device list in case permissions just got granted
+            if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                const deviceList = await navigator.mediaDevices.enumerateDevices();
+                setDevices(deviceList.filter(d => d.kind === 'videoinput'));
+            }
 
         } catch (err: any) {
             console.error("Camera Error:", err);
-            setError("Không thể truy cập Camera. Vui lòng kiểm tra quyền truy cập.");
+            setError("Không thể truy cập Camera. Vui lòng kiểm tra quyền truy cập hoặc kết nối HTTPS.");
             setIsCameraOn(false);
             setIsLoadingStream(false);
         }
@@ -284,10 +292,6 @@ const ImageCaptureModal: React.FC<ImageCaptureModalProps> = ({ isOpen, onClose, 
 
     const setRatio43 = () => {
         // 4:3 aspect ratio (~1.33)
-        // Let's aim for 75% width and calculate height to match 4:3 given container size
-        // Since container size varies, we approximate. Assuming 16:9 container:
-        // 75% width = 75 units. 
-        // Height should be 75 / (4/3) * (16/9 aspect correction) ... simplification:
         setCropRect({ x: 12.5, y: 5, width: 75, height: 90 });
     };
 
