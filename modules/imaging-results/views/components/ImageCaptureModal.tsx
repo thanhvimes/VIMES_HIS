@@ -73,7 +73,7 @@ const ImageCaptureModal: React.FC<ImageCaptureModalProps> = ({ isOpen, onClose, 
     useEffect(() => {
         const getDevices = async () => {
             try {
-                // Safety check for mediaDevices support
+                // Safety check for mediaDevices support (Fixes crash in insecure contexts)
                 if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
                      console.warn("Media Devices API not supported in this browser/context");
                      setDevices([]);
@@ -98,14 +98,14 @@ const ImageCaptureModal: React.FC<ImageCaptureModalProps> = ({ isOpen, onClose, 
         if (isOpen) {
             getDevices();
             // Safety check before adding event listener
-            if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+            if (navigator.mediaDevices && typeof navigator.mediaDevices.addEventListener === 'function') {
                 navigator.mediaDevices.addEventListener('devicechange', getDevices);
             }
         }
 
         return () => {
             // Safety check before removing event listener
-            if (navigator.mediaDevices && navigator.mediaDevices.removeEventListener) {
+            if (navigator.mediaDevices && typeof navigator.mediaDevices.removeEventListener === 'function') {
                 navigator.mediaDevices.removeEventListener('devicechange', getDevices);
             }
         };
@@ -154,6 +154,7 @@ const ImageCaptureModal: React.FC<ImageCaptureModalProps> = ({ isOpen, onClose, 
         stopCamera();
 
         try {
+            // Double check support before calling getUserMedia
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 throw new Error("Trình duyệt không hỗ trợ Camera hoặc kết nối không an toàn (HTTPS).");
             }
