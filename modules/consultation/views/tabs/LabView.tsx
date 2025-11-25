@@ -12,8 +12,8 @@ import {
 import LabResultTemplate from './templates/LabResultTemplate';
 import ImagingResultTemplate from './templates/ImagingResultTemplate';
 import FunctionalExplorationTemplate from './templates/FunctionalExplorationTemplate';
-import ServiceCatalogModal from './modals/ServiceCatalogModal';
-import ServiceTemplateModal from './modals/ServiceTemplateModal';
+import ServiceCatalogModal from './../../../../components/shared/services/ServiceCatalogModal';
+import ServiceTemplateModal from '../../../../components/shared/services/ServiceTemplateModal';
 import { ServiceItem, serviceCategories } from '../../data/catalogs';
 import { useTheme } from '../../../../contexts/ThemeContext';
 
