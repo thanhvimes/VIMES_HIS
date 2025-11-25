@@ -22,6 +22,7 @@ import Combobox, { ComboboxColumn } from '../../../components/shared/Combobox';
 import { Patient } from '../../../types';
 import { mockPatients } from '../data';
 import { usePdfPreview } from '../../../contexts/PdfPreviewContext';
+import { receptionService } from '../../../services/receptionService';
 
 // --- MOCK DATA: OCCUPATIONS ---
 interface CatalogItem {
@@ -337,6 +338,7 @@ const RegistrationView: React.FC = () => {
     const [mode, setMode] = useState<'VIEW' | 'EDIT' | 'ADD'>('ADD');
     const [searchQuery, setSearchQuery] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const [originalData, setOriginalData] = useState<ExtendedFormData | null>(null);
     
     const [toast, setToast] = useState<ToastMessage | null>(null);
@@ -344,42 +346,73 @@ const RegistrationView: React.FC = () => {
         setToast({ id: Date.now(), type, message });
     };
 
+    // Load Patient Data
     useEffect(() => {
-        if (patientId) {
-            const found = mockPatients.find(p => p.id === patientId);
-            if (found) {
-                const [d, m, y] = found.dob.split('/');
-                const loadedData = {
-                    ...found,
-                    dob: `${y}-${m}-${d}`,
-                    email: 'example@email.com',
-                    nationality: 'Việt Nam',
-                    province: 'Thành phố Hà Nội',
-                    ward: 'Phường Đồng Tâm',
-                    identityIssueDate: '2021-05-01', // Mock data
+        const loadPatientData = async () => {
+            if (patientId) {
+                setIsLoading(true);
+                try {
+                    // Fetch patient using receptionService (real API wrapper)
+                    const found = await receptionService.getPatientByRecordNumber(patientId);
                     
-                    // Mock Insurance Data if type is Insurance
-                    insuranceNumber: found.patientType === 'Bảo hiểm' ? 'GD475702196755770003' : '',
-                    insuranceCode: found.patientType === 'Bảo hiểm' ? 'GD' : '',
-                    insuranceBenefit: found.patientType === 'Bảo hiểm' ? '80' : '',
-                    insuranceRegDate: found.patientType === 'Bảo hiểm' ? '2025-10-01' : '',
-                    insuranceExp: found.patientType === 'Bảo hiểm' ? '2026-09-30' : '',
-                    insurancePlace: found.patientType === 'Bảo hiểm' ? 'Bệnh viện đa khoa Huyện Bù Đăng' : '',
-                    insuranceArea: found.patientType === 'Bảo hiểm' ? 'K2' : '',
-                    
+                    if (found) {
+                        // Calculate a rough DOB if missing but Age exists (Common in API responses)
+                        let dobStr = found.dob;
+                        if (!dobStr && found.age) {
+                            const estimatedYear = new Date().getFullYear() - found.age;
+                            dobStr = `${estimatedYear}-01-01`;
+                        } else if (dobStr && dobStr.includes('/')) {
+                             // Ensure YYYY-MM-DD
+                             const [d, m, y] = dobStr.split('/');
+                             dobStr = `${y}-${m}-${d}`;
+                        }
+
+                        const loadedData: ExtendedFormData = {
+                            ...found,
+                            dob: dobStr,
+                            email: 'example@email.com', // Placeholder
+                            nationality: 'Việt Nam',
+                            province: found.address ? 'Tỉnh/TP (Auto)' : '', // Placeholder logic
+                            ward: '',
+                            identityIssueDate: '', 
+                            
+                            // Mock Insurance Data if type is Insurance (since API might not return it yet)
+                            insuranceNumber: found.patientType === 'Bảo hiểm' ? 'GD475702196755770003' : '',
+                            insuranceCode: found.patientType === 'Bảo hiểm' ? 'GD' : '',
+                            insuranceBenefit: found.patientType === 'Bảo hiểm' ? '80' : '',
+                            
+                            regDate: new Date().toISOString().slice(0, 10),
+                            regReason: '',
+                            regDepartment: 'Khoa Khám Bệnh',
+                            isTransfer: false
+                        };
+                        setFormData(loadedData);
+                        setOriginalData(JSON.parse(JSON.stringify(loadedData)));
+                        setMode('VIEW');
+                    } else {
+                        showToast('error', 'Không tìm thấy bệnh nhân');
+                        setMode('ADD');
+                    }
+                } catch (error) {
+                    console.error("Error fetching patient:", error);
+                    showToast('error', 'Lỗi khi tải dữ liệu bệnh nhân');
+                } finally {
+                    setIsLoading(false);
+                }
+            } else {
+                setMode('ADD');
+                setOriginalData(null);
+                setFormData({
+                    ...emptyPatient,
                     regDate: new Date().toISOString().slice(0, 10),
-                    regReason: '',
                     regDepartment: 'Khoa Khám Bệnh',
-                    isTransfer: false
-                };
-                setFormData(loadedData);
-                setOriginalData(JSON.parse(JSON.stringify(loadedData)));
-                setMode('VIEW');
+                    id: `BN${Date.now().toString().slice(-6)}`,
+                    recordNumber: `REC${Date.now().toString().slice(-6)}`,
+                });
             }
-        } else {
-            setMode('ADD');
-            setOriginalData(null);
-        }
+        };
+
+        loadPatientData();
     }, [patientId]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -439,7 +472,7 @@ const RegistrationView: React.FC = () => {
         setFormData(prev => ({ ...prev, dob: val, age }));
     };
 
-    const handleScan = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleScan = async (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
             const rawString = searchQuery.trim();
             if (!rawString) return;
@@ -466,20 +499,23 @@ const RegistrationView: React.FC = () => {
                     setMode('EDIT'); // Switch to edit if we scanned new data
                 }
             } else {
-                // Fallback: Search in mock DB
-                const found = mockPatients.find(p => 
-                    p.id.toLowerCase() === rawString.toLowerCase() || 
-                    p.phone === rawString ||
-                    p.identityCard === rawString
-                );
-                
-                if (found) {
-                    navigate(`/reception/register/${found.id}`);
-                    setSearchQuery('');
-                    showToast('success', 'Đã tìm thấy bệnh nhân.');
-                } else {
-                    setSearchQuery(''); 
-                    showToast('error', 'Không tìm thấy dữ liệu hoặc sai định dạng!');
+                // Fallback: Search in real DB via Service
+                try {
+                    setIsLoading(true);
+                    const found = await receptionService.getPatientByRecordNumber(rawString);
+                    
+                    if (found) {
+                        navigate(`/reception/register/${found.id}`); // Will trigger useEffect
+                        setSearchQuery('');
+                        showToast('success', 'Đã tìm thấy bệnh nhân.');
+                    } else {
+                        setSearchQuery(''); 
+                        showToast('error', 'Không tìm thấy dữ liệu hoặc sai định dạng!');
+                    }
+                } catch (error) {
+                    showToast('error', 'Lỗi kết nối khi tìm kiếm.');
+                } finally {
+                    setIsLoading(false);
                 }
             }
         }
@@ -570,6 +606,15 @@ const RegistrationView: React.FC = () => {
     ];
 
     const isEditable = mode !== 'VIEW';
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <span className="ml-3 text-slate-500">Đang tải hồ sơ...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col h-full gap-4 pb-10">
@@ -669,6 +714,7 @@ const RegistrationView: React.FC = () => {
                                             <FormSelect label="Giới tính" name="gender" value={formData.gender} onChange={handleInputChange} disabled={!isEditable} className="h-10">
                                                 <option value="Nam">Nam</option>
                                                 <option value="Nữ">Nữ</option>
+                                                <option value="Khác">Khác</option>
                                             </FormSelect>
                                         </div>
                                     </div>

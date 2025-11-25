@@ -1,28 +1,55 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mockPatients } from '../data';
+import { mockPatients } from '../data'; // Fallback data
 import { Patient } from '../../../types';
-import { SearchIcon } from '../../../components/Icons';
+import { SearchIcon, RefreshIcon } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { receptionService } from '../../../services/receptionService';
 
 const ITEMS_PER_PAGE = 10;
 
 const ListView: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    const [patients, setPatients] = useState<Patient[]>([]); // State lưu danh sách bệnh nhân
+    const [isLoading, setIsLoading] = useState(false); // State loading
+    const [error, setError] = useState<string | null>(null); // State lỗi
+
     const navigate = useNavigate();
     const { fontSettings } = useTheme();
+
+    // Hàm load dữ liệu từ API
+    const fetchPatients = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const data = await receptionService.getPatientList();
+            setPatients(data);
+        } catch (err) {
+            console.error("Failed to fetch patients, using mock data instead.", err);
+            setError("Không thể kết nối đến API. Đang hiển thị dữ liệu mẫu.");
+            setPatients(mockPatients); // Fallback về dữ liệu giả nếu lỗi
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Gọi API khi component mount
+    useEffect(() => {
+        fetchPatients();
+    }, []);
 
     const handleRowClick = (patientId: string) => {
         navigate(`/reception/register/${patientId}`);
     };
 
     const filteredPatients = useMemo(() => 
-        mockPatients.filter(patient =>
-            patient.name.toLowerCase().includes(searchTerm.toLowerCase())
+        patients.filter(patient =>
+            patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            patient.recordNumber.includes(searchTerm)
         ), 
-        [searchTerm]
+        [searchTerm, patients]
     );
 
     const totalPages = Math.ceil(filteredPatients.length / ITEMS_PER_PAGE);
@@ -45,7 +72,7 @@ const ListView: React.FC = () => {
                     <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                     <input
                         type="text"
-                        placeholder="Tìm theo tên bệnh nhân..."
+                        placeholder="Tìm theo tên hoặc mã hồ sơ..."
                         value={searchTerm}
                         onChange={(e) => {
                             setSearchTerm(e.target.value);
@@ -57,47 +84,80 @@ const ListView: React.FC = () => {
                 <div className="flex flex-col sm:flex-row gap-4">
                     <div className="flex items-center space-x-2">
                         <label className={`font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap ${fontSettings.controls}`}>Từ ngày</label>
-                        <input type="date" className={`w-full sm:w-auto p-1.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md ${fontSettings.controls}`} defaultValue="2023-01-01" />
+                        <input type="date" className={`w-full sm:w-auto p-1.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md ${fontSettings.controls}`} defaultValue="2025-11-24" />
                     </div>
                     <div className="flex items-center space-x-2">
                         <label className={`font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap ${fontSettings.controls}`}>Đến ngày</label>
                         <input type="date" className={`w-full sm:w-auto p-1.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md ${fontSettings.controls}`} defaultValue={new Date().toISOString().slice(0, 10)} />
                     </div>
-                    <button className={`w-full sm:w-auto px-6 py-1.5 bg-primary text-white font-semibold rounded-md hover:bg-primary-dark ${fontSettings.controls}`}>Nạp</button>
+                    <button 
+                        onClick={fetchPatients}
+                        className={`w-full sm:w-auto px-4 py-1.5 bg-primary text-white font-semibold rounded-md hover:bg-primary-dark flex items-center justify-center gap-2 ${fontSettings.controls}`}
+                        disabled={isLoading}
+                    >
+                        {isLoading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <RefreshIcon className="w-4 h-4"/>}
+                        Nạp lại
+                    </button>
                 </div>
             </div>
 
+            {/* Error Banner */}
+            {error && (
+                <div className="mb-4 p-3 bg-red-100 border border-red-200 text-red-700 rounded text-sm">
+                    {error}
+                </div>
+            )}
+
             {/* Data Table */}
             <div className="flex-grow overflow-auto">
-                <table className={`w-full whitespace-nowrap ${fontSettings.listSecondary}`}>
-                    <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0">
-                        <tr>
-                            {['Số hồ sơ', 'Tên bệnh nhân', 'Tuổi', 'Giới', 'Địa chỉ', 'Ngày khám gần nhất', 'Đối tượng'].map(h =>
-                                <th key={h} className="p-3 font-semibold text-left text-slate-600 dark:text-slate-300 border-b-2 border-slate-200 dark:border-slate-700">{h}</th>
-                            )}
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                        {paginatedPatients.map((patient: Patient) => (
-                            <tr key={patient.id} onClick={() => handleRowClick(patient.id)} className="hover:bg-primary/5 dark:hover:bg-dark-primary/10 transition-colors duration-150 cursor-pointer">
-                                <td className="p-3 text-primary dark:text-dark-primary font-mono">{patient.recordNumber}</td>
-                                <td className="p-3 font-semibold">{patient.name}</td>
-                                <td className="p-3">{patient.age}</td>
-                                <td className="p-3">{patient.gender}</td>
-                                <td className="p-3 truncate max-w-xs" title={patient.address}>{patient.address}</td>
-                                <td className="p-3">{patient.lastVisit}</td>
-                                <td className="p-3">{patient.patientType}</td>
+                {isLoading ? (
+                    <div className="flex justify-center items-center h-64">
+                        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                        <span className="ml-2 text-slate-500">Đang tải dữ liệu...</span>
+                    </div>
+                ) : (
+                    <table className={`w-full whitespace-nowrap ${fontSettings.listSecondary}`}>
+                        <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0">
+                            <tr>
+                                {['Số hồ sơ', 'Tên bệnh nhân', 'Tuổi', 'Giới', 'Địa chỉ', 'Ngày khám', 'Đối tượng'].map(h =>
+                                    <th key={h} className="p-3 font-semibold text-left text-slate-600 dark:text-slate-300 border-b-2 border-slate-200 dark:border-slate-700">{h}</th>
+                                )}
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                            {paginatedPatients.length > 0 ? (
+                                paginatedPatients.map((patient: Patient) => (
+                                    <tr key={patient.id} onClick={() => handleRowClick(patient.id)} className="hover:bg-primary/5 dark:hover:bg-dark-primary/10 transition-colors duration-150 cursor-pointer">
+                                        <td className="p-3 text-primary dark:text-dark-primary font-mono font-bold">{patient.recordNumber}</td>
+                                        <td className="p-3 font-semibold">{patient.name}</td>
+                                        <td className="p-3">{patient.age}</td>
+                                        <td className="p-3">{patient.gender}</td>
+                                        <td className="p-3 truncate max-w-xs" title={patient.address}>{patient.address || <span className="text-slate-400 italic">Chưa có</span>}</td>
+                                        <td className="p-3">{patient.lastVisit}</td>
+                                        <td className="p-3">
+                                            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${patient.patientType === 'Bảo hiểm' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                {patient.patientType}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={7} className="p-8 text-center text-slate-500 dark:text-slate-400">
+                                        Không tìm thấy bệnh nhân nào.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                )}
             </div>
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
                 <div className="flex-shrink-0 flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
                     <span className={`text-slate-500 dark:text-slate-400 ${fontSettings.controls}`}>
-                        Trang <strong>{currentPage}</strong> trên <strong>{totalPages}</strong>
+                        Trang <strong>{currentPage}</strong> trên <strong>{totalPages}</strong> (Tổng: {filteredPatients.length})
                     </span>
                     <div className="flex items-center space-x-2">
                         <button
