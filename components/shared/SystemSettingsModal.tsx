@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { XIcon, CogIcon, SaveIcon, MoonIcon, SunIcon, BellIcon, GlobeIcon, MegaphoneIcon, PlusIcon, TrashIcon, EyeIcon, PlayIcon } from '../Icons';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -32,10 +32,42 @@ const SystemSettingsModal: React.FC<SystemSettingsModalProps> = ({ isOpen, onClo
         active: true
     });
 
+    // Determine current font scale level based on listPrimary
+    const getCurrentFontLevel = () => {
+        if (fontSettings.listPrimary === 'text-sm') return 'small';
+        if (fontSettings.listPrimary === 'text-lg') return 'large';
+        return 'medium'; // Default (text-base)
+    };
+
+    const handleFontSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const level = e.target.value;
+        if (level === 'small') {
+            updateFontSettings({ 
+                listPrimary: 'text-sm', 
+                listSecondary: 'text-xs', 
+                controls: 'text-xs' 
+            });
+        } else if (level === 'large') {
+            updateFontSettings({ 
+                listPrimary: 'text-lg', 
+                listSecondary: 'text-base', 
+                controls: 'text-base' 
+            });
+        } else {
+            // Medium (Default)
+            updateFontSettings({ 
+                listPrimary: 'text-base', 
+                listSecondary: 'text-sm', 
+                controls: 'text-sm' 
+            });
+        }
+    };
+
     if (!isOpen) return null;
 
     const handleSave = () => {
-        alert("Đã lưu cấu hình hệ thống!");
+        // In a real app, you might save to backend here
+        // For now, Context updates are immediate, so we just close
         onClose();
     };
 
@@ -111,19 +143,34 @@ const SystemSettingsModal: React.FC<SystemSettingsModalProps> = ({ isOpen, onClo
 
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <div className="font-bold text-slate-700 dark:text-slate-200">Kích thước chữ (Font Size)</div>
-                                            <div className="text-xs text-slate-500">Điều chỉnh cỡ chữ hiển thị trên các danh sách.</div>
+                                            <div className="font-bold text-slate-700 dark:text-slate-200">Kích thước chữ (Toàn hệ thống)</div>
+                                            <div className="text-xs text-slate-500">Điều chỉnh đồng bộ cỡ chữ danh sách, bảng biểu và nút bấm.</div>
                                         </div>
                                         <div className="w-40">
                                             <select 
-                                                value={fontSettings.listPrimary}
-                                                onChange={(e) => updateFontSettings({ listPrimary: e.target.value })}
+                                                value={getCurrentFontLevel()}
+                                                onChange={handleFontSizeChange}
                                                 className={inputClass}
                                             >
-                                                <option value="text-xs">Nhỏ</option>
-                                                <option value="text-sm">Vừa (Mặc định)</option>
-                                                <option value="text-base">Lớn</option>
+                                                <option value="small">Nhỏ (Compact)</option>
+                                                <option value="medium">Vừa (Tiêu chuẩn)</option>
+                                                <option value="large">Lớn (Dễ đọc)</option>
                                             </select>
+                                        </div>
+                                    </div>
+
+                                    {/* Font Preview Box */}
+                                    <div className="mt-4 p-4 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900">
+                                        <p className="text-xs text-slate-400 uppercase font-bold mb-2">Xem trước hiển thị:</p>
+                                        <div className="space-y-2 bg-white dark:bg-slate-800 p-3 rounded border border-slate-200 dark:border-slate-700 shadow-sm">
+                                            <div className={`flex justify-between items-center ${fontSettings.listPrimary}`}>
+                                                <span className="font-bold text-slate-800 dark:text-white">Nguyễn Văn An</span>
+                                                <span className="text-blue-600">Đang chờ khám</span>
+                                            </div>
+                                            <div className={`flex justify-between items-center border-t border-slate-100 dark:border-slate-700 pt-2 ${fontSettings.listSecondary}`}>
+                                                <span className="text-slate-500">Mã HS: 21024061</span>
+                                                <button className={`px-3 py-1 bg-blue-600 text-white rounded ${fontSettings.controls}`}>Chi tiết</button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -278,7 +325,7 @@ const SystemSettingsModal: React.FC<SystemSettingsModalProps> = ({ isOpen, onClo
                         Đóng
                     </button>
                     <button onClick={handleSave} className="px-6 py-2.5 rounded-lg text-sm font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg flex items-center gap-2 transition">
-                        <SaveIcon className="w-4 h-4"/> Lưu cấu hình
+                        <SaveIcon className="w-4 h-4"/> Đã xong
                     </button>
                 </div>
             </div>
