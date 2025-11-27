@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { 
     ListBulletIcon, 
@@ -9,12 +10,15 @@ import {
     BanIcon, 
     ExclamationCircleIcon, 
     SearchIcon, 
-    CheckIcon,
-    DocumentPlusIcon
+    CheckIcon, 
+    DocumentPlusIcon,
+    XIcon,
+    InfoIcon
 } from '../../../../components/Icons';
 import Combobox, { ComboboxColumn } from '../../../../components/shared/Combobox';
 import { drugList } from '../../data/catalogs';
-import { Prescription, PrescriptionItem, DrugItem } from '../../../../types';
+import { mockInteractions } from '../../../pharmacy/data'; // Import interactions data
+import { Prescription, PrescriptionItem, DrugItem, DrugInteraction } from '../../../../types';
 import { usePdfPreview } from '../../../../contexts/PdfPreviewContext';
 import { useTheme } from '../../../../contexts/ThemeContext';
 
@@ -103,6 +107,52 @@ const UsageChip = ({ label, onClick, active = false }: { label: string, onClick:
     </button>
 );
 
+// Interaction Alert Modal
+const InteractionDetailModal = ({ 
+    interaction, 
+    onClose 
+}: { 
+    interaction: DrugInteraction; 
+    onClose: () => void;
+}) => (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+        <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-xl shadow-2xl overflow-hidden border-t-4 border-red-500 animate-bounce-in">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-start">
+                <div className="flex gap-3">
+                    <div className="p-2 bg-red-100 text-red-600 rounded-full h-fit">
+                        <ExclamationCircleIcon className="w-6 h-6"/>
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-red-600 dark:text-red-400">Cảnh báo Tương tác thuốc</h3>
+                        <p className="text-sm font-medium text-slate-500 uppercase">{interaction.severity}</p>
+                    </div>
+                </div>
+                <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><XIcon className="w-5 h-5"/></button>
+            </div>
+            <div className="p-5 space-y-4">
+                <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <span className="font-bold text-slate-700 dark:text-slate-200">{interaction.drugName1}</span>
+                    <span className="text-xs text-red-500 font-bold px-2">VS</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-200">{interaction.drugName2}</span>
+                </div>
+                <div>
+                    <h4 className="text-xs font-bold text-slate-500 uppercase mb-1">Hậu quả / Cơ chế</h4>
+                    <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{interaction.description}</p>
+                </div>
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded border border-blue-100 dark:border-blue-800">
+                    <h4 className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase mb-1">Hướng xử trí</h4>
+                    <p className="text-sm text-blue-800 dark:text-blue-200 leading-relaxed">{interaction.management}</p>
+                </div>
+            </div>
+            <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-end">
+                <button onClick={onClose} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg shadow-md transition-colors">
+                    Đã hiểu
+                </button>
+            </div>
+        </div>
+    </div>
+);
+
 const MedicationView: React.FC = () => {
     const { openPdf } = usePdfPreview();
     const { fontSettings } = useTheme();
@@ -111,8 +161,10 @@ const MedicationView: React.FC = () => {
     const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
     const [searchDrug, setSearchDrug] = useState('');
     
-    // Drug Interaction States (Mocked)
+    // Drug Interaction States
     const [interactions, setInteractions] = useState<string[]>([]);
+    const [activeAlert, setActiveAlert] = useState<DrugInteraction | null>(null); // The severe alert to show in popup/toast
+    const [showDetailModal, setShowDetailModal] = useState(false); // To toggle the detail modal
 
     // --- Calculations ---
     const calculateTotal = (items: PrescriptionItem[]) => {
@@ -136,6 +188,7 @@ const MedicationView: React.FC = () => {
         });
         setSelectedHistoryId(null);
         setInteractions([]);
+        setActiveAlert(null);
     };
 
     const handleCopyPrescription = (p: Prescription) => {
@@ -164,6 +217,29 @@ const MedicationView: React.FC = () => {
         }));
     };
 
+    const checkInteractions = (newDrug: DrugItem, currentItems: PrescriptionItem[]) => {
+        // Check against all existing drugs
+        currentItems.forEach(item => {
+            const existingDrug = item.drug;
+            
+            // Find matching interaction pair
+            const match = mockInteractions.find(i => 
+                (i.drugCode1 === newDrug.code && i.drugCode2 === existingDrug.code) ||
+                (i.drugCode1 === existingDrug.code && i.drugCode2 === newDrug.code)
+            );
+
+            if (match) {
+                // Add to side list
+                setInteractions(prev => [...prev, `${match.drugName1} - ${match.drugName2}: ${match.severity}`]);
+                
+                // If Severe or Contraindicated, trigger Alert
+                if (match.severity === 'Severe' || match.severity === 'Contraindicated') {
+                    setActiveAlert(match);
+                }
+            }
+        });
+    };
+
     const handleAddDrug = (drugName: string, drug?: DrugItem) => {
         if (!drug) return;
         
@@ -185,6 +261,9 @@ const MedicationView: React.FC = () => {
             totalPrice: drug.price * 10
         };
 
+        // Check Interactions BEFORE adding state, but against CURRENT state
+        checkInteractions(drug, currentPrescription.items);
+
         const newItems = [...currentPrescription.items, newItem];
         setCurrentPrescription({
             ...currentPrescription,
@@ -192,10 +271,6 @@ const MedicationView: React.FC = () => {
             totalAmount: calculateTotal(newItems)
         });
 
-        // Mock Interaction Check
-        if (drug.code === 'D001' && currentPrescription.items.some(i => i.drug.code === 'D002')) {
-             // Example logic only
-        }
         setSearchDrug(''); // Reset search
     };
 
@@ -233,6 +308,9 @@ const MedicationView: React.FC = () => {
                 items: updatedItems,
                 totalAmount: calculateTotal(updatedItems)
             });
+            // Clear interactions when removing (Simplified: just clearing list, real app would re-eval)
+            setInteractions([]); 
+            setActiveAlert(null);
         }
     };
 
@@ -284,9 +362,9 @@ const MedicationView: React.FC = () => {
     ];
 
     return (
-        <div className="flex flex-col lg:flex-row h-full gap-4 h-[calc(100vh-180px)] min-h-[500px]">
+        <div className="flex flex-col lg:flex-row h-full gap-4 h-[calc(100vh-180px)] min-h-[500px] relative">
             
-            {/* --- LEFT COLUMN: HISTORY LIST (25%) - Primary List --- */}
+            {/* --- LEFT COLUMN: HISTORY LIST (25%) --- */}
             <div className="lg:w-1/4 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
                 <div className="p-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center">
                     <h3 className="font-bold text-blue-700 dark:text-blue-400 text-sm uppercase flex items-center gap-2">
@@ -353,10 +431,34 @@ const MedicationView: React.FC = () => {
             </div>
 
             {/* --- CENTER COLUMN: PRESCRIPTION EDITOR (50%) --- */}
-            <div className="lg:w-2/4 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
+            <div className="lg:w-2/4 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden relative">
                 
+                {/* INTERACTION ALERT BANNER */}
+                {activeAlert && (
+                    <div className="absolute top-0 left-0 w-full z-30 bg-red-500 text-white px-4 py-3 shadow-md flex items-center justify-between animate-fade-in-up">
+                        <div className="flex items-center gap-2">
+                            <ExclamationCircleIcon className="w-6 h-6 animate-pulse text-yellow-300"/>
+                            <div>
+                                <p className="text-sm font-bold">PHÁT HIỆN TƯƠNG TÁC THUỐC NGHIÊM TRỌNG!</p>
+                                <p className="text-xs opacity-90">{activeAlert.drugName1} - {activeAlert.drugName2}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button 
+                                onClick={() => setShowDetailModal(true)}
+                                className="px-3 py-1 bg-white text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors"
+                            >
+                                Xem chi tiết
+                            </button>
+                            <button onClick={() => setActiveAlert(null)} className="p-1 hover:bg-red-600 rounded-full">
+                                <XIcon className="w-5 h-5"/>
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Header */}
-                <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 pt-4">
                     <div className="flex justify-between items-start mb-4">
                         <div>
                             <h2 className="text-xl font-bold text-blue-700 dark:text-blue-400 uppercase">Thông tin đơn thuốc</h2>
@@ -524,10 +626,12 @@ const MedicationView: React.FC = () => {
             <div className="lg:w-1/4 flex flex-col gap-4">
                 
                 {/* Warning Card */}
-                <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-red-100 dark:border-red-900/30 overflow-hidden">
-                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-900/30 flex items-center gap-2">
-                        <ExclamationCircleIcon className="w-5 h-5 text-red-500"/>
-                        <h3 className="font-bold text-red-600 dark:text-red-400 text-sm uppercase">Cảnh báo an toàn</h3>
+                <div className={`bg-white dark:bg-slate-800 rounded-lg shadow-sm border overflow-hidden ${interactions.length > 0 ? 'border-red-300 dark:border-red-800 ring-2 ring-red-100 dark:ring-red-900/30' : 'border-slate-200 dark:border-slate-700'}`}>
+                    <div className={`p-3 border-b flex items-center gap-2 ${interactions.length > 0 ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800'}`}>
+                        {interactions.length > 0 ? <ExclamationCircleIcon className="w-5 h-5 text-red-500"/> : <CheckIcon className="w-5 h-5 text-green-500"/>}
+                        <h3 className={`font-bold text-sm uppercase ${interactions.length > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                            {interactions.length > 0 ? 'Cảnh báo an toàn' : 'An toàn'}
+                        </h3>
                     </div>
                     <div className="p-4 space-y-3">
                         <div className="text-sm">
@@ -545,8 +649,8 @@ const MedicationView: React.FC = () => {
                                 </ul>
                             </div>
                         ) : (
-                            <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-100 dark:border-green-900/30">
-                                <CheckIcon className="w-4 h-4"/> Không phát hiện tương tác thuốc.
+                            <div className="text-xs text-green-600 dark:text-green-400">
+                                Không phát hiện tương tác thuốc.
                             </div>
                         )}
                     </div>
@@ -579,6 +683,14 @@ const MedicationView: React.FC = () => {
                     </div>
                  </div>
             </div>
+            
+            {/* Interaction Details Modal */}
+            {showDetailModal && activeAlert && (
+                <InteractionDetailModal 
+                    interaction={activeAlert} 
+                    onClose={() => setShowDetailModal(false)} 
+                />
+            )}
         </div>
     );
 };
