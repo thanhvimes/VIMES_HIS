@@ -1,45 +1,9 @@
+import { DrugItem, CatalogItem, DoctorItem, ServiceCategory, ServiceItem, ServiceTemplate } from '../../../types';
 
-import { DrugItem } from '../../../types';
+// Re-export types for backward compatibility with existing imports
+export type { CatalogItem, DoctorItem, ServiceCategory, ServiceItem, ServiceTemplate };
 
-// Catalog Types
-export interface CatalogItem {
-    code: string;
-    name: string;
-    group?: string;
-    price?: number;
-}
-
-export interface DoctorItem {
-    id: string;
-    name: string;
-    role: string;
-    department: string;
-}
-
-// --- New Types for Lab Ordering ---
-export interface ServiceCategory {
-    id: string;
-    name: string;
-    type: 'XN' | 'CDHA' | 'TDCN'; // Xét nghiệm | Chẩn đoán hình ảnh | Thăm dò chức năng
-}
-
-export interface ServiceItem {
-    id: string;
-    code: string;
-    name: string;
-    categoryId: string;
-    price: number;
-    unit: string;
-}
-
-export interface ServiceTemplate {
-    id: string;
-    name: string;
-    description: string;
-    serviceIds: string[]; // IDs of ServiceItems included in this template
-}
-
-// Mock Data
+// Mock Data - In real app, these might be fetched or kept as static fallbacks
 export const doctorOptions: DoctorItem[] = [
     { id: 'BS001', name: 'BS. Nguyễn Văn A', role: 'Trưởng khoa', department: 'Ngoại tổng quát' },
     { id: 'BS002', name: 'BS. Trần Thị B', role: 'Bác sĩ chính', department: 'Gây mê hồi sức' },
@@ -75,7 +39,6 @@ export const procedureOptions: CatalogItem[] = [
     { code: 'TT009', name: 'Cắt chỉ', group: 'Điều dưỡng' }
 ];
 
-// Dữ liệu ICD10 phong phú hơn
 export const diagnosisOptions: CatalogItem[] = [
     { code: 'A09', name: 'Tiêu chảy và viêm dạ dày ruột nguồn gốc nhiễm trùng', group: 'Tiêu hóa' },
     { code: 'E10', name: 'Bệnh đái tháo đường phụ thuộc insuline', group: 'Nội tiết' },
@@ -101,8 +64,6 @@ export const diagnosisOptions: CatalogItem[] = [
     { code: 'S72', name: 'Gãy xương đùi', group: 'Chấn thương' },
     { code: 'S83', name: 'Tổn thương dây chằng đầu gối', group: 'Chấn thương' }
 ];
-
-// --- Lab & Imaging Data ---
 
 export const serviceCategories: ServiceCategory[] = [
     { id: 'CAT_HH', name: 'Xét nghiệm huyết học', type: 'XN' },
@@ -178,8 +139,6 @@ export const serviceTemplates: ServiceTemplate[] = [
         serviceIds: ['S_001', 'S_002', 'S_003', 'S_015', 'S_017', 'S_004', 'S_005', 'S_006', 'S_019', 'S_023']
     }
 ];
-
-// --- DRUG CATALOG ---
 
 export const drugList: DrugItem[] = [
     { code: 'D001', name: 'Paracetamol 500mg', unit: 'Viên', price: 500, usageRoute: 'Uống', activeIngredient: 'Paracetamol', stock: 1000 },

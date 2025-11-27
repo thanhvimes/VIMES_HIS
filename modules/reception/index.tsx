@@ -5,7 +5,7 @@ import RegistrationView from './views/RegistrationView';
 import ListView from './views/ListView';
 import DashboardView from './views/DashboardView';
 import ScheduleView from './views/ScheduleView';
-import ReportsView from './views/ReportsView';
+import ReportsLayout from '../reports/ReportsLayout'; // Updated Import
 import QueueManagementView from './views/QueueManagementView';
 
 const Reception: React.FC = () => {
@@ -18,7 +18,8 @@ const Reception: React.FC = () => {
       <Route path="list" element={<ListView />} />
       <Route path="schedule" element={<ScheduleView />} />
       <Route path="queue" element={<QueueManagementView />} />
-      <Route path="reports" element={<ReportsView />} />
+      {/* Use ReportsLayout with module filter */}
+      <Route path="reports" element={<ReportsLayout moduleFilter="reception" />} />
       <Route path="settings" element={<div className="text-center p-8">Giao diện Cài đặt đang được xây dựng.</div>} />
     </Routes>
   );

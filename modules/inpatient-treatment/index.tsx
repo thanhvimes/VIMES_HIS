@@ -4,6 +4,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import InpatientDashboardView from './views/InpatientDashboardView';
 import InpatientListView from './views/InpatientListView';
 import InpatientRecordView from './views/InpatientRecordView';
+import TreatmentHistoryView from './views/TreatmentHistoryView';
 
 const InpatientTreatment: React.FC = () => {
   return (
@@ -13,7 +14,7 @@ const InpatientTreatment: React.FC = () => {
       <Route path="list" element={<InpatientListView />} />
       <Route path="record" element={<InpatientRecordView />} />
       <Route path="record/:patientId" element={<InpatientRecordView />} />
-      <Route path="history" element={<div className="text-center p-8">Giao diện Lịch sử điều trị đang được xây dựng.</div>} />
+      <Route path="history" element={<TreatmentHistoryView />} />
     </Routes>
   );
 };

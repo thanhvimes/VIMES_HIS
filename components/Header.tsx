@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MenuIcon, BellIcon, LogoutIcon, ClipboardListIcon, CheckCircleIcon, ExclamationCircleIcon, InfoIcon, CogIcon, UserGroupIcon } from './Icons';
+import { MenuIcon, BellIcon, LogoutIcon, ClipboardListIcon, CheckCircleIcon, ExclamationCircleIcon, InfoIcon, CogIcon, UserGroupIcon, FileSignatureIcon } from './Icons';
 import ThemeSwitcher from './ThemeSwitcher';
 import { useNotification } from '../contexts/NotificationContext';
 import { useSystem } from '../contexts/SystemContext';
@@ -165,6 +165,17 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
             {/* --- Right Side: Actions & Profile --- */}
             <div className="flex items-center space-x-3 sm:space-x-5">
                 
+                {/* Sign Document Shortcut */}
+                <Tooltip content="Trình ký văn bản">
+                    <button 
+                        onClick={() => navigate('/consultation/signing')}
+                        className="p-2.5 rounded-full text-slate-500 dark:text-slate-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-slate-800 transition-colors relative group"
+                    >
+                        <FileSignatureIcon className="h-6 w-6" />
+                        <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-orange-500 ring-2 ring-white dark:ring-slate-900"></span>
+                    </button>
+                </Tooltip>
+
                 <Tooltip content="Đổi giao diện">
                     <div className="relative">
                         <ThemeSwitcher />
@@ -173,6 +184,7 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
 
                 {/* Notification Bell */}
                 <div className="relative" ref={notifRef}>
+                    {/* ... existing notification code ... */}
                     <Tooltip content="Thông báo">
                         <button 
                             onClick={() => setNotifOpen(!isNotifOpen)}

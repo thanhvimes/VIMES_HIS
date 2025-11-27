@@ -223,6 +223,30 @@ const LabProcessingView: React.FC = () => {
         setTasks(prev => prev.map(t => t.id === selectedTaskId ? { ...t, internalNote: note } : t));
     };
 
+    const handleUpdateResult = (resultId: string, field: keyof TestResult, value: any) => {
+        if (!selectedTaskId) return;
+        
+        setTasks(prev => prev.map(t => {
+            if (t.id === selectedTaskId) {
+                return {
+                    ...t,
+                    results: t.results.map(r => {
+                        if (r.id === resultId) {
+                            const updated = { ...r, [field]: value };
+                            // Auto update status if result is entered
+                            if (field === 'result' && value !== '') {
+                                updated.status = 'analyzed';
+                            }
+                            return updated;
+                        }
+                        return r;
+                    })
+                };
+            }
+            return t;
+        }));
+    };
+
     // --- RENDER HELPERS ---
     const getPriorityBadge = (priority: string) => {
         if (priority === 'Urgent') return <span className="bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded animate-pulse">CẤP CỨU</span>;
@@ -408,7 +432,7 @@ const LabProcessingView: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* 3. Result Table */}
+                        {/* 3. Result Table - Enhanced for Manual Entry */}
                         <div className="flex-1 overflow-auto p-6 bg-slate-50 dark:bg-slate-900/50">
                             <div className="bg-white dark:bg-slate-800 rounded-lg shadow border border-slate-200 dark:border-slate-700 overflow-hidden">
                                 <table className="w-full text-left border-collapse">
@@ -417,40 +441,89 @@ const LabProcessingView: React.FC = () => {
                                             <th className="p-3 w-10 text-center">#</th>
                                             <th className="p-3">Xét nghiệm</th>
                                             <th className="p-3 w-32 text-center">Kết quả</th>
-                                            <th className="p-3 w-20">Đơn vị</th>
-                                            <th className="p-3 w-32">CSBT</th>
+                                            <th className="p-3 w-24">Đơn vị</th>
+                                            <th className="p-3 w-32">CSBT (Ref)</th>
                                             <th className="p-3 w-24 text-right">KQ Cũ</th>
-                                            <th className="p-3 w-16 text-center">Cờ</th>
+                                            <th className="p-3 w-24 text-center">Cờ (Flag)</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
-                                        {selectedTask.results.map((test, idx) => (
-                                            <tr key={test.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                                                <td className="p-3 text-center text-slate-400">{idx + 1}</td>
-                                                <td className="p-3 font-medium text-slate-700 dark:text-slate-200">
-                                                    {test.name} <span className="text-slate-400 text-xs font-normal">({test.code})</span>
-                                                </td>
-                                                <td className="p-3 text-center">
-                                                    <input 
-                                                        type="text" 
-                                                        value={test.result}
-                                                        readOnly={selectedTask.workflowStatus === 'completed'}
-                                                        className={`w-full p-1.5 text-center font-bold border rounded bg-slate-50 focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition ${
-                                                            test.flag === 'high' ? 'text-red-600' : test.flag === 'low' ? 'text-blue-600' : 'text-slate-800'
-                                                        } ${selectedTask.workflowStatus === 'completed' ? 'bg-transparent border-transparent' : 'border-slate-300 dark:border-slate-600 dark:bg-slate-800'}`}
-                                                    />
-                                                </td>
-                                                <td className="p-3 text-slate-500">{test.unit}</td>
-                                                <td className="p-3 text-slate-500 font-mono text-xs">{test.refRange}</td>
-                                                <td className="p-3 text-right font-mono text-slate-400 text-xs">
-                                                    {test.prevResult || '-'}
-                                                </td>
-                                                <td className="p-3 text-center font-bold text-xs">
-                                                    {test.flag === 'high' && <span className="text-red-600">H</span>}
-                                                    {test.flag === 'low' && <span className="text-blue-600">L</span>}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {selectedTask.results.map((test, idx) => {
+                                            const isReadOnly = selectedTask.workflowStatus === 'completed';
+                                            return (
+                                                <tr key={test.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                                    <td className="p-3 text-center text-slate-400">{idx + 1}</td>
+                                                    <td className="p-3 font-medium text-slate-700 dark:text-slate-200">
+                                                        {test.name} <span className="text-slate-400 text-xs font-normal">({test.code})</span>
+                                                    </td>
+                                                    
+                                                    {/* Result Input */}
+                                                    <td className="p-3 text-center">
+                                                        <input 
+                                                            type="text" 
+                                                            value={test.result}
+                                                            onChange={(e) => handleUpdateResult(test.id, 'result', e.target.value)}
+                                                            readOnly={isReadOnly}
+                                                            placeholder="--"
+                                                            className={`w-full p-1.5 text-center font-bold border rounded transition focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none ${
+                                                                test.flag === 'high' ? 'text-red-600' : test.flag === 'low' ? 'text-blue-600' : test.flag === 'critical' ? 'text-purple-600 bg-purple-50' : 'text-slate-800 dark:text-white'
+                                                            } ${isReadOnly ? 'bg-transparent border-transparent' : 'bg-slate-50 border-slate-300 dark:border-slate-600 dark:bg-slate-800'}`}
+                                                        />
+                                                    </td>
+
+                                                    {/* Unit Input */}
+                                                    <td className="p-3">
+                                                         <input 
+                                                            type="text" 
+                                                            value={test.unit}
+                                                            onChange={(e) => handleUpdateResult(test.id, 'unit', e.target.value)}
+                                                            readOnly={isReadOnly}
+                                                            className={`w-full p-1 text-xs text-slate-500 border rounded focus:ring-1 focus:ring-blue-500 outline-none ${isReadOnly ? 'bg-transparent border-transparent' : 'bg-transparent border-transparent hover:border-slate-300 focus:bg-white dark:focus:bg-slate-700'}`}
+                                                        />
+                                                    </td>
+
+                                                    {/* Ref Range Input */}
+                                                    <td className="p-3">
+                                                        <input 
+                                                            type="text" 
+                                                            value={test.refRange}
+                                                            onChange={(e) => handleUpdateResult(test.id, 'refRange', e.target.value)}
+                                                            readOnly={isReadOnly}
+                                                            className={`w-full p-1 text-xs text-slate-500 font-mono border rounded focus:ring-1 focus:ring-blue-500 outline-none ${isReadOnly ? 'bg-transparent border-transparent' : 'bg-transparent border-transparent hover:border-slate-300 focus:bg-white dark:focus:bg-slate-700'}`}
+                                                        />
+                                                    </td>
+
+                                                    <td className="p-3 text-right font-mono text-slate-400 text-xs">
+                                                        {test.prevResult || '-'}
+                                                    </td>
+
+                                                    {/* Flag Selection */}
+                                                    <td className="p-3 text-center">
+                                                        {isReadOnly ? (
+                                                            <span className={`font-bold text-xs ${test.flag === 'high' ? 'text-red-600' : test.flag === 'low' ? 'text-blue-600' : test.flag === 'critical' ? 'text-purple-600' : 'text-slate-400'}`}>
+                                                                {test.flag === 'normal' ? '-' : test.flag.toUpperCase()}
+                                                            </span>
+                                                        ) : (
+                                                            <select
+                                                                value={test.flag}
+                                                                onChange={(e) => handleUpdateResult(test.id, 'flag', e.target.value)}
+                                                                className={`p-1 rounded text-xs font-bold border outline-none cursor-pointer ${
+                                                                    test.flag === 'high' ? 'text-red-600 bg-red-50 border-red-200' :
+                                                                    test.flag === 'low' ? 'text-blue-600 bg-blue-50 border-blue-200' :
+                                                                    test.flag === 'critical' ? 'text-purple-600 bg-purple-50 border-purple-200' :
+                                                                    'text-slate-600 bg-slate-100 border-slate-200 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300'
+                                                                }`}
+                                                            >
+                                                                <option value="normal">-</option>
+                                                                <option value="high">H (High)</option>
+                                                                <option value="low">L (Low)</option>
+                                                                <option value="critical">C (Critical)</option>
+                                                            </select>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
     PresentationChartLineIcon,
@@ -12,9 +12,9 @@ import {
     ChevronLeftIcon,
     ClockIcon
 } from '../../../components/Icons';
+import { consultationService } from '../../../services/consultationService';
 
 // Reuse components from Consultation module to ensure feature parity and consistency
-// In a real-world scenario with divergent logic, these would be duplicated or refactored into shared components.
 import ChartView from '../../consultation/views/tabs/ChartView';
 import ExamineView from '../../consultation/views/tabs/ExamineView';
 import LabView from '../../consultation/views/tabs/LabView';
@@ -24,7 +24,7 @@ import FeeView from '../../consultation/views/tabs/FeeView';
 import DocumentsView from '../../consultation/views/tabs/DocumentsView';
 import HistorySidebar from '../../consultation/views/components/HistorySidebar';
 
-// Mock Data for Inpatient
+// Mock Data for Inpatient Fallback
 const mockInpatientRecord = {
     id: 'P003',
     name: 'LÊ HOÀNG CƯỜNG',
@@ -33,6 +33,7 @@ const mockInpatientRecord = {
     dob: '10/02/1978',
     address: '456 Minh Khai',
     hasInsurance: true,
+    insuranceNumber: 'GD4790215567890',
     diagnosis: '[J18] Viêm phổi, tác nhân không xác định',
     room: '301',
     bed: '02',
@@ -70,13 +71,51 @@ const InpatientRecordView: React.FC = () => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    const [patientData, setPatientData] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(true);
     const activeTab = searchParams.get('tab') || 'chart';
+
+    useEffect(() => {
+        const fetchPatientData = async () => {
+            setIsLoading(true);
+            try {
+                // In a real app, call inpatientService.getPatientProfile(patientId)
+                // For now, we use mock data or reuse consultation service
+                if (patientId) {
+                    const data = await consultationService.getPatientProfile(patientId);
+                    if (data) {
+                        // Merge with inpatient specifics
+                        setPatientData({
+                            ...data,
+                            room: '301',
+                            bed: '02',
+                            admissionDate: '15/11/2023 08:30'
+                        });
+                    } else {
+                        setPatientData(mockInpatientRecord);
+                    }
+                } else {
+                    setPatientData(mockInpatientRecord);
+                }
+            } catch (error) {
+                setPatientData(mockInpatientRecord);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchPatientData();
+    }, [patientId]);
 
     const setActiveTab = (tabId: string) => {
         setSearchParams({ tab: tabId }, { replace: true });
     };
 
     const activeTabInfo = tabs.find(t => t.id === activeTab);
+
+    if (isLoading || !patientData) {
+        return <div className="flex items-center justify-center h-full">Loading...</div>;
+    }
 
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden relative">
@@ -90,11 +129,12 @@ const InpatientRecordView: React.FC = () => {
                         <div className="flex flex-col">
                             <h1 className="text-lg font-bold uppercase flex items-center gap-2">
                                 <span className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></span>
-                                {mockInpatientRecord.name} | {mockInpatientRecord.age}T | {mockInpatientRecord.gender}
+                                {patientData.name} | {patientData.age}T | {patientData.gender}
                             </h1>
                             <p className="text-xs text-indigo-100 opacity-90 flex items-center gap-3">
-                                <span className="font-bold bg-white/20 px-1.5 rounded">P.{mockInpatientRecord.room} - G.{mockInpatientRecord.bed}</span>
-                                <span>Nhập viện: {mockInpatientRecord.admissionDate}</span>
+                                <span className="font-bold bg-white/20 px-1.5 rounded">P.{patientData.room} - G.{patientData.bed}</span>
+                                <span>Nhập viện: {patientData.admissionDate}</span>
+                                {patientData.hasInsurance && <span className="text-green-300 font-bold">BHYT</span>}
                             </p>
                         </div>
                     </div>
@@ -107,7 +147,7 @@ const InpatientRecordView: React.FC = () => {
                             Lịch sử
                         </button>
                         <div className="text-sm font-bold bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm max-w-xs truncate">
-                            {mockInpatientRecord.diagnosis}
+                            {patientData.diagnosis}
                         </div>
                     </div>
                 </div>
@@ -134,7 +174,7 @@ const InpatientRecordView: React.FC = () => {
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {/* REUSING COMPONENTS FROM CONSULTATION MODULE */}
                 {activeTab === 'chart' && (
-                    <ChartView initialVitals={mockInpatientRecord.vitalSigns} patientRecord={mockInpatientRecord} />
+                    <ChartView initialVitals={patientData.vitalSigns} patientRecord={patientData} />
                 )}
 
                 {activeTab === 'examine' && (

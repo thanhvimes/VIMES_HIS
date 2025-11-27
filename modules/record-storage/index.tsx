@@ -6,7 +6,7 @@ import ReceptionView from './views/ReceptionView';
 import StorageView from './views/StorageView';
 import CirculationView from './views/CirculationView';
 import DigitizationView from './views/DigitizationView';
-import ReportsView from './views/ReportsView';
+import ReportsLayout from '../reports/ReportsLayout'; // Updated Import
 
 const RecordStorage: React.FC = () => {
   return (
@@ -17,7 +17,8 @@ const RecordStorage: React.FC = () => {
       <Route path="storage" element={<StorageView />} />
       <Route path="circulation" element={<CirculationView />} />
       <Route path="digitization" element={<DigitizationView />} />
-      <Route path="reports" element={<ReportsView />} />
+      {/* Use ReportsLayout with module filter */}
+      <Route path="reports" element={<ReportsLayout moduleFilter="record-storage" />} />
     </Routes>
   );
 };

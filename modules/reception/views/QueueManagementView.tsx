@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
     TvIcon, 
     MegaphoneIcon, 
@@ -7,7 +7,9 @@ import {
     ChevronRightIcon, 
     RefreshIcon,
     CheckCircleIcon,
-    XIcon
+    XIcon,
+    PlayIcon,
+    StopIcon
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 
@@ -70,6 +72,10 @@ const QueueManagementView: React.FC = () => {
     const [isTvMode, setIsTvMode] = useState(false);
     const [flashMessage, setFlashMessage] = useState<string | null>(null);
     const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+    
+    // Auto Call State
+    const [isAutoMode, setIsAutoMode] = useState(false);
+    const autoCallTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // --- UTILS ---
     useEffect(() => {
@@ -110,39 +116,47 @@ const QueueManagementView: React.FC = () => {
     // --- ACTIONS ---
 
     const handleCallNext = (queueId: string) => {
-        setQueues(prev => prev.map(q => {
-            if (q.id !== queueId) return q;
+        setQueues(prev => {
+            const targetQueue = prev.find(q => q.id === queueId);
+            if (!targetQueue) return prev;
 
-            // 1. Move current 'serving' or 'called' to 'completed'
-            const newPatients = q.patients.map(p => 
-                (p.status === 'serving' || p.status === 'called') 
-                    ? { ...p, status: 'completed' as const } 
-                    : p
-            );
+            const nextPatientIndex = targetQueue.patients.findIndex(p => p.status === 'waiting');
+            if (nextPatientIndex === -1) return prev; // No one waiting
 
-            // 2. Find next 'waiting'
-            const nextPatientIndex = newPatients.findIndex(p => p.status === 'waiting');
-            
-            if (nextPatientIndex !== -1) {
-                newPatients[nextPatientIndex] = { 
-                    ...newPatients[nextPatientIndex], 
-                    status: 'called' as const 
-                };
-                const nextNumber = newPatients[nextPatientIndex].number;
-                const patientName = newPatients[nextPatientIndex].name;
-                
-                // Trigger Flash Message & Sound
-                const message = `Mời số ${nextNumber}, bệnh nhân ${patientName}, vào ${q.name}`;
-                setFlashMessage(`Mời số ${nextNumber} - ${patientName} vào ${q.name}`);
-                speak(message);
-                
-                setTimeout(() => setFlashMessage(null), 8000);
+            return prev.map(q => {
+                if (q.id !== queueId) return q;
 
-                return { ...q, currentNumber: nextNumber, patients: newPatients };
-            }
+                // 1. Move current 'serving' or 'called' to 'completed'
+                const newPatients = q.patients.map(p => 
+                    (p.status === 'serving' || p.status === 'called') 
+                        ? { ...p, status: 'completed' as const } 
+                        : p
+                );
 
-            return { ...q, patients: newPatients };
-        }));
+                // 2. Update next 'waiting' to 'called'
+                // Note: We check index again on the new array just to be safe, though mapping preserves order
+                const idx = newPatients.findIndex(p => p.status === 'waiting');
+                if (idx !== -1) {
+                    newPatients[idx] = { ...newPatients[idx], status: 'called' as const };
+                    const nextNumber = newPatients[idx].number;
+                    const patientName = newPatients[idx].name;
+                    
+                    // Side Effects: Flash Message & Audio
+                    const message = `Mời số ${nextNumber}, bệnh nhân ${patientName}, vào ${q.name}`;
+                    const displayMsg = `Mời số ${nextNumber} - ${patientName} vào ${q.name}`;
+                    
+                    // Use timeout to break render cycle for side effects if needed, but here direct is fine
+                    setFlashMessage(displayMsg);
+                    speak(message);
+                    
+                    // Clear flash message after 8s
+                    setTimeout(() => setFlashMessage(null), 8000);
+
+                    return { ...q, currentNumber: nextNumber, patients: newPatients };
+                }
+                return { ...q, patients: newPatients };
+            });
+        });
     };
 
     const handleRecall = (queueId: string) => {
@@ -176,6 +190,46 @@ const QueueManagementView: React.FC = () => {
         }));
     };
 
+    // --- AUTO CALL LOGIC ---
+    useEffect(() => {
+        if (isAutoMode) {
+            const runAutoCall = () => {
+                // Find queues that have waiting patients
+                const activeQueues = queues.filter(q => q.patients.some(p => p.status === 'waiting'));
+                
+                if (activeQueues.length > 0) {
+                    // Pick a random queue to simulate activity
+                    const randomQueue = activeQueues[Math.floor(Math.random() * activeQueues.length)];
+                    handleCallNext(randomQueue.id);
+                    
+                    // Schedule next call (random between 8s and 15s)
+                    const nextDelay = Math.floor(Math.random() * 7000) + 8000; 
+                    autoCallTimeoutRef.current = setTimeout(runAutoCall, nextDelay);
+                } else {
+                    // No one waiting, stop auto mode
+                    setIsAutoMode(false);
+                    setFlashMessage("Đã hết bệnh nhân chờ. Tắt chế độ tự động.");
+                    setTimeout(() => setFlashMessage(null), 3000);
+                }
+            };
+
+            // Start the loop
+            const initialDelay = 2000; // Start after 2s
+            autoCallTimeoutRef.current = setTimeout(runAutoCall, initialDelay);
+        } else {
+            if (autoCallTimeoutRef.current) {
+                clearTimeout(autoCallTimeoutRef.current);
+                autoCallTimeoutRef.current = null;
+            }
+        }
+
+        return () => {
+            if (autoCallTimeoutRef.current) {
+                clearTimeout(autoCallTimeoutRef.current);
+            }
+        };
+    }, [isAutoMode, queues]); // Dependency on queues is tricky; we rely on functional updates in handleCallNext but read queues here for logic
+
     // --- TV MODE RENDER ---
     if (isTvMode) {
         return (
@@ -186,7 +240,10 @@ const QueueManagementView: React.FC = () => {
                         <div className="bg-blue-600 p-2 rounded-lg">
                             <TvIcon className="w-8 h-8 text-white"/>
                         </div>
-                        <h1 className="text-3xl font-bold uppercase tracking-widest">Màn hình Gọi số</h1>
+                        <div>
+                            <h1 className="text-3xl font-bold uppercase tracking-widest">Màn hình Gọi số</h1>
+                            {isAutoMode && <span className="text-xs font-bold text-green-400 flex items-center gap-1 uppercase tracking-wider"><span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Chế độ tự động</span>}
+                        </div>
                     </div>
                     <div className="text-right">
                         <p className="text-2xl font-mono font-bold text-yellow-400">{new Date().toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}</p>
@@ -278,12 +335,26 @@ const QueueManagementView: React.FC = () => {
                     </h1>
                     <p className="text-slate-500 text-sm mt-1">Quản lý gọi số và phân luồng bệnh nhân tại phòng khám.</p>
                 </div>
-                <button 
-                    onClick={() => setIsTvMode(true)}
-                    className="w-full sm:w-auto px-5 py-2.5 bg-slate-900 hover:bg-black text-white rounded-lg font-bold shadow-lg flex items-center justify-center gap-2 transition transform hover:scale-105"
-                >
-                    <TvIcon className="w-5 h-5"/> Mở màn hình TV
-                </button>
+                <div className="flex gap-3 w-full sm:w-auto">
+                    <button 
+                        onClick={() => setIsAutoMode(!isAutoMode)}
+                        className={`w-full sm:w-auto px-5 py-2.5 rounded-lg font-bold shadow-lg flex items-center justify-center gap-2 transition transform active:scale-95 ${
+                            isAutoMode 
+                            ? 'bg-green-600 hover:bg-green-700 text-white' 
+                            : 'bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-600'
+                        }`}
+                    >
+                        {isAutoMode ? <StopIcon className="w-5 h-5 animate-pulse"/> : <PlayIcon className="w-5 h-5"/>}
+                        {isAutoMode ? 'Tắt Tự động' : 'Bật Tự động'}
+                    </button>
+
+                    <button 
+                        onClick={() => setIsTvMode(true)}
+                        className="w-full sm:w-auto px-5 py-2.5 bg-slate-900 hover:bg-black text-white rounded-lg font-bold shadow-lg flex items-center justify-center gap-2 transition transform hover:scale-105"
+                    >
+                        <TvIcon className="w-5 h-5"/> Mở màn hình TV
+                    </button>
+                </div>
             </div>
 
             {/* Queue Grid */}

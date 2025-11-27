@@ -5,6 +5,8 @@ import ConsultationView from './views/ConsultationView';
 import DashboardView from './views/DashboardView';
 import PatientListView from './views/PatientListView';
 import PatientRecordView from './views/PatientRecordView';
+import HistoryView from './views/HistoryView';
+import DocumentSigningView from './views/DocumentSigningView';
 
 const Consultation: React.FC = () => {
   return (
@@ -14,7 +16,8 @@ const Consultation: React.FC = () => {
       <Route path="list" element={<PatientListView />} />
       <Route path="record" element={<PatientRecordView />} />
       <Route path="record/:patientId" element={<PatientRecordView />} />
-      <Route path="history" element={<div className="text-center p-8">Giao diện Lịch sử bệnh án đang được xây dựng.</div>} />
+      <Route path="signing" element={<DocumentSigningView />} />
+      <Route path="history" element={<HistoryView />} />
     </Routes>
   );
 };

@@ -2,15 +2,21 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import SchedulerBoardView from './views/SchedulerBoardView';
+import SurgeryDetailView from './views/SurgeryDetailView';
+import SurgeryWaitingRoomView from './views/SurgeryWaitingRoomView';
+import SurgeryListView from './views/SurgeryListView';
+import ReportsLayout from '../reports/ReportsLayout'; // Updated Import
 
 const Surgery: React.FC = () => {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="scheduler" replace />} />
-      <Route path="dashboard" element={<Navigate to="scheduler" replace />} /> {/* Temp redirect */}
       <Route path="scheduler" element={<SchedulerBoardView />} />
-      <Route path="list" element={<div className="p-8 text-center">Danh sách phẫu thuật dạng bảng đang xây dựng.</div>} />
-      <Route path="reports" element={<div className="p-8 text-center">Báo cáo phẫu thuật đang xây dựng.</div>} />
+      <Route path="detail/:id" element={<SurgeryDetailView />} />
+      <Route path="waiting-room" element={<SurgeryWaitingRoomView />} />
+      <Route path="list" element={<SurgeryListView />} />
+      {/* Use ReportsLayout with module filter */}
+      <Route path="reports" element={<ReportsLayout moduleFilter="surgery" />} />
     </Routes>
   );
 };

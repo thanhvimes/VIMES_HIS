@@ -57,7 +57,7 @@ const Dashboard: React.FC = () => {
             >
               <div className="flex items-center justify-center h-20 w-20 mb-4 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors duration-300">
                 <div className="text-primary dark:text-dark-primary h-12 w-12">
-                  {React.cloneElement(item.icon, { className: 'w-12 h-12' })}
+                  {React.cloneElement(item.icon as React.ReactElement<any>, { className: 'w-12 h-12' })}
                 </div>
               </div>
               <span className="font-bold text-lg text-slate-700 dark:text-slate-200">

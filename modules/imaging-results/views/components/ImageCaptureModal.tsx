@@ -73,22 +73,23 @@ const ImageCaptureModal: React.FC<ImageCaptureModalProps> = ({ isOpen, onClose, 
     useEffect(() => {
         const getDevices = async () => {
             try {
-                // Safety check for mediaDevices support (Fixes crash in insecure contexts)
-                if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+                // Safety check: Ensure mediaDevices API is supported
+                if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                    const deviceList = await navigator.mediaDevices.enumerateDevices();
+                    const videoDevices = deviceList.filter(device => device.kind === 'videoinput');
+                    setDevices(videoDevices);
+
+                    if (videoDevices.length > 0) {
+                        // If current selected device is not in list, default to first one or back camera
+                        const currentExists = videoDevices.some(d => d.deviceId === selectedDeviceId);
+                        if (!selectedDeviceId || !currentExists) {
+                            const backCamera = videoDevices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('environment'));
+                            setSelectedDeviceId(backCamera ? backCamera.deviceId : videoDevices[0].deviceId);
+                        }
+                    }
+                } else {
                      console.warn("Media Devices API not supported in this browser/context");
                      setDevices([]);
-                     return;
-                }
-                const deviceList = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = deviceList.filter(device => device.kind === 'videoinput');
-                setDevices(videoDevices);
-
-                if (videoDevices.length > 0) {
-                    const currentExists = videoDevices.some(d => d.deviceId === selectedDeviceId);
-                    if (!selectedDeviceId || !currentExists) {
-                        const backCamera = videoDevices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('environment'));
-                        setSelectedDeviceId(backCamera ? backCamera.deviceId : videoDevices[0].deviceId);
-                    }
                 }
             } catch (err) {
                 console.warn("Error listing devices:", err);
@@ -109,7 +110,7 @@ const ImageCaptureModal: React.FC<ImageCaptureModalProps> = ({ isOpen, onClose, 
                 navigator.mediaDevices.removeEventListener('devicechange', getDevices);
             }
         };
-    }, [isOpen]);
+    }, [isOpen]); // Removed selectedDeviceId dependency to avoid re-binding listener constantly
 
     // 2. Stop camera on close
     useEffect(() => {
@@ -154,7 +155,7 @@ const ImageCaptureModal: React.FC<ImageCaptureModalProps> = ({ isOpen, onClose, 
         stopCamera();
 
         try {
-            // Double check support before calling getUserMedia
+            // Strict safety check for getUserMedia support
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 throw new Error("Trình duyệt không hỗ trợ Camera hoặc kết nối không an toàn (HTTPS).");
             }

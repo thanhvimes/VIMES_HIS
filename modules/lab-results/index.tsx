@@ -6,9 +6,9 @@ import LabReceptionView from './views/LabReceptionView';
 import LabProcessingView from './views/LabProcessingView';
 import LabQCView from './views/LabQCView';
 import LabDictionaryView from './views/LabDictionaryView';
-import ReportsView from './views/ReportsView';
 import LabConnectionView from './views/LabConnectionView';
 import LabScheduleView from './views/LabScheduleView';
+import ReportsLayout from '../reports/ReportsLayout'; // Updated Import
 
 const LabResults: React.FC = () => {
   return (
@@ -21,7 +21,8 @@ const LabResults: React.FC = () => {
       <Route path="qc" element={<LabQCView />} />
       <Route path="connections" element={<LabConnectionView />} />
       <Route path="dictionary" element={<LabDictionaryView />} />
-      <Route path="reports" element={<ReportsView />} />
+      {/* Use ReportsLayout with module filter */}
+      <Route path="reports" element={<ReportsLayout moduleFilter="lab" />} />
     </Routes>
   );
 };

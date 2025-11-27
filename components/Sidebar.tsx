@@ -27,7 +27,7 @@ const NavItem: React.FC<NavItemType & { isCollapsed: boolean }> = ({ name, path,
       }`
     }
   >
-    {React.cloneElement(icon, { className: "w-6 h-6 flex-shrink-0" })}
+    {React.cloneElement(icon as React.ReactElement<any>, { className: "w-6 h-6 flex-shrink-0" })}
     <span className={`ml-3 font-medium whitespace-nowrap transition-all duration-200 ${isCollapsed ? 'lg:opacity-0 lg:w-0 lg:hidden' : 'opacity-100'}`}>
       {name}
     </span>

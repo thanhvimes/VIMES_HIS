@@ -78,6 +78,92 @@ const mockOperations: OperationRecord[] = [
     }
 ];
 
+// Mock History Data (Full Detail)
+export interface DetailedHistoryRecord {
+    id: string;
+    visitId: string;
+    examDate: string;
+    patientName: string;
+    patientId: string;
+    doctorName: string;
+    specialty: string;
+    diagnosis: string;
+    symptoms: string;
+    vitals: {
+        bp: string;
+        hr: string;
+        temp: string;
+        weight: string;
+    };
+    prescriptionSummary: string; // e.g., "3 thuốc"
+    labSummary: string; // e.g., "Huyết học, Sinh hóa"
+    notes: string;
+}
+
+const mockHistoryRecords: DetailedHistoryRecord[] = [
+    {
+        id: 'HIST001',
+        visitId: 'V231101001',
+        examDate: '2023-11-01',
+        patientName: 'Lê Hoàng Cường',
+        patientId: 'P003',
+        doctorName: 'BS. Nguyễn Văn A',
+        specialty: 'Nội Tổng Quát',
+        diagnosis: '[E11] Đái tháo đường type 2',
+        symptoms: 'Mệt mỏi, khát nước nhiều, sụt cân nhẹ.',
+        vitals: { bp: '130/80', hr: '82', temp: '36.5', weight: '68' },
+        prescriptionSummary: 'Metformin 500mg, Diamicron MR',
+        labSummary: 'Glucose máu, HbA1c',
+        notes: 'Bệnh nhân tuân thủ điều trị tốt. Tái khám sau 1 tháng.'
+    },
+    {
+        id: 'HIST002',
+        visitId: 'V231015005',
+        examDate: '2023-10-15',
+        patientName: 'Lê Hoàng Cường',
+        patientId: 'P003',
+        doctorName: 'BS. Trần Thị B',
+        specialty: 'Tim Mạch',
+        diagnosis: '[I10] Tăng huyết áp vô căn',
+        symptoms: 'Đau đầu vùng chẩm, hồi hộp.',
+        vitals: { bp: '150/90', hr: '90', temp: '37.0', weight: '69' },
+        prescriptionSummary: 'Amlodipin 5mg, Concor 2.5mg',
+        labSummary: 'Điện tim, Siêu âm tim',
+        notes: 'Huyết áp chưa ổn định. Cần theo dõi sát tại nhà.'
+    },
+    {
+        id: 'HIST003',
+        visitId: 'V230920012',
+        examDate: '2023-09-20',
+        patientName: 'Nguyễn Văn An',
+        patientId: 'P001',
+        doctorName: 'BS. Lê Văn C',
+        specialty: 'Tai Mũi Họng',
+        diagnosis: '[J02] Viêm họng cấp',
+        symptoms: 'Đau họng, nuốt vướng, sốt nhẹ.',
+        vitals: { bp: '120/70', hr: '78', temp: '38.0', weight: '75' },
+        prescriptionSummary: 'Augmentin 1g, Alpha Choay, Paracetamol',
+        labSummary: 'Nội soi TMH',
+        notes: 'Uống nhiều nước, tránh đá lạnh.'
+    },
+    {
+        id: 'HIST004',
+        visitId: 'V231110003',
+        examDate: '2023-11-10',
+        patientName: 'Phạm Thị Dung',
+        patientId: 'P004',
+        doctorName: 'BS. Phạm Văn D',
+        specialty: 'Sản Phụ Khoa',
+        diagnosis: '[N76] Viêm âm đạo',
+        symptoms: 'Ra khí hư bất thường, ngứa.',
+        vitals: { bp: '110/70', hr: '70', temp: '36.8', weight: '50' },
+        prescriptionSummary: 'Polygynax (Đặt), Itraconazol',
+        labSummary: 'Soi tươi dịch âm đạo',
+        notes: 'Kiêng quan hệ trong thời gian điều trị.'
+    }
+];
+
+
 // Simulate API Latency
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -152,5 +238,32 @@ export const consultationService = {
     deleteOperation: async (id: string): Promise<boolean> => {
         await delay(500);
         return true;
+    },
+
+    // --- HISTORY APIs ---
+    getHistoryList: async (filter: { 
+        fromDate?: string, 
+        toDate?: string, 
+        doctor?: string, 
+        keyword?: string 
+    }): Promise<DetailedHistoryRecord[]> => {
+        await delay(800);
+        
+        return mockHistoryRecords.filter(record => {
+            const matchesKeyword = !filter.keyword || 
+                record.patientName.toLowerCase().includes(filter.keyword.toLowerCase()) ||
+                record.patientId.toLowerCase().includes(filter.keyword.toLowerCase()) ||
+                record.visitId.toLowerCase().includes(filter.keyword.toLowerCase());
+
+            const matchesDoctor = !filter.doctor || record.doctorName === filter.doctor;
+            
+            const recordDate = new Date(record.examDate);
+            const from = filter.fromDate ? new Date(filter.fromDate) : null;
+            const to = filter.toDate ? new Date(filter.toDate) : null;
+
+            const matchesDate = (!from || recordDate >= from) && (!to || recordDate <= to);
+
+            return matchesKeyword && matchesDoctor && matchesDate;
+        });
     }
 };
