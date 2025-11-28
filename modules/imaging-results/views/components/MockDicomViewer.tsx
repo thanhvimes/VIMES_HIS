@@ -8,7 +8,10 @@ import {
     MoonIcon,
     HandIcon,
     PencilIcon,
-    TrashIcon
+    TrashIcon,
+    RotateLeftIcon,
+    RotateRightIcon,
+    ArrowsRightLeftIcon
 } from '../../../../components/Icons';
 
 // Custom Icons for PACS specific tools
@@ -61,6 +64,10 @@ const MockDicomViewer: React.FC<MockDicomViewerProps> = ({
     const [brightness, setBrightness] = useState(100);
     const [isInvert, setIsInvert] = useState(false);
     
+    // Transform State
+    const [rotation, setRotation] = useState(0);
+    const [flipH, setFlipH] = useState(false);
+    
     // Slice State
     const [sliceIndex, setSliceIndex] = useState(15);
     const totalSlices = 120;
@@ -87,7 +94,10 @@ const MockDicomViewer: React.FC<MockDicomViewerProps> = ({
         setContrast(100);
         setBrightness(100);
         setIsInvert(false);
+        setRotation(0);
+        setFlipH(false);
         setMeasurements([]);
+        setActiveTool('pan');
     };
 
     const handleWheel = (e: React.WheelEvent) => {
@@ -105,15 +115,9 @@ const MockDicomViewer: React.FC<MockDicomViewerProps> = ({
     const getImageCoords = (e: React.MouseEvent) => {
         if (!containerRef.current) return { x: 0, y: 0 };
         const rect = containerRef.current.getBoundingClientRect();
-        // Calculate relative to center
-        const centerX = rect.width / 2;
-        const centerY = rect.height / 2;
-        
-        // Adjust for pan and zoom
+        // We need screen coordinates inside the container for the SVG overlay
         const rawX = e.clientX - rect.left;
         const rawY = e.clientY - rect.top;
-        
-        // We need screen coordinates inside the container for the SVG overlay
         return { x: rawX, y: rawY };
     };
 
@@ -200,6 +204,8 @@ const MockDicomViewer: React.FC<MockDicomViewerProps> = ({
 
     // Render measurement lines overlay
     const renderMeasurements = () => {
+        // Measurements are drawn on screen coordinates, so they don't rotate with the image currently (simplification)
+        // In a real DICOM viewer, annotations are transformed with the image matrix.
         const itemsToRender = [...measurements];
         if (currentMeasurement && currentMeasurement.startX !== undefined) {
             const dist = Math.sqrt(
@@ -285,6 +291,8 @@ const MockDicomViewer: React.FC<MockDicomViewerProps> = ({
                     <p>mA: 200</p>
                     <p>Thickness: 5mm</p>
                     <p className="text-orange-400">Zoom: {(scale * 100).toFixed(0)}%</p>
+                    {rotation !== 0 && <p className="text-blue-400">Rot: {rotation}°</p>}
+                    {flipH && <p className="text-blue-400">Flip: H</p>}
                 </div>
 
                 <div className="absolute bottom-24 right-4 z-10 space-y-1 text-right text-shadow pointer-events-none">
@@ -293,7 +301,7 @@ const MockDicomViewer: React.FC<MockDicomViewerProps> = ({
                     <p>Matrix: 512x512</p>
                 </div>
 
-                {/* Orientation Markers */}
+                {/* Orientation Markers (Static for now, ideally rotate with image) */}
                 <div className="absolute top-1/2 left-2 text-xl font-bold text-white/50 -translate-y-1/2">R</div>
                 <div className="absolute top-1/2 right-2 text-xl font-bold text-white/50 -translate-y-1/2">L</div>
                 <div className="absolute top-2 left-1/2 text-xl font-bold text-white/50 -translate-x-1/2">A</div>
@@ -312,7 +320,7 @@ const MockDicomViewer: React.FC<MockDicomViewerProps> = ({
                     alt="DICOM" 
                     className={`max-w-full max-h-full transition-opacity duration-200 ease-in-out ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
                     style={{
-                        transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                        transform: `translate(${position.x}px, ${position.y}px) rotate(${rotation}deg) scaleX(${flipH ? -1 : 1}) scale(${scale})`,
                         filter: `invert(${isInvert ? 1 : 0}) contrast(${contrast}%) brightness(${brightness}%)`
                     }}
                     draggable={false}
@@ -320,65 +328,91 @@ const MockDicomViewer: React.FC<MockDicomViewerProps> = ({
                 />
             </div>
 
-            {/* 2. Floating Toolbar (Top Center) */}
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-[#1a1a1a] border border-[#333] rounded-lg p-1 flex gap-1 z-30 shadow-2xl scale-90 hover:scale-100 transition-transform origin-top">
-                <button 
-                    onClick={() => setActiveTool('scroll')}
-                    className={`p-2 rounded transition-colors ${activeTool === 'scroll' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-[#333]'}`} 
-                    title="Scroll (Cuộn ảnh)"
-                >
-                    <ScrollIcon className="w-5 h-5"/>
-                </button>
-                <div className="w-px h-6 bg-[#333] my-auto mx-1"></div>
-                <button 
-                    onClick={() => setActiveTool('pan')}
-                    className={`p-2 rounded transition-colors ${activeTool === 'pan' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-[#333]'}`} 
-                    title="Pan (Di chuyển)"
-                >
-                    <HandIcon className="w-5 h-5"/>
-                </button>
-                <button 
-                    onClick={() => setActiveTool('zoom')}
-                    className={`p-2 rounded transition-colors ${activeTool === 'zoom' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-[#333]'}`} 
-                    title="Zoom"
-                >
-                    <ZoomInIcon className="w-5 h-5"/>
-                </button>
-                <button 
-                    onClick={() => setActiveTool('wl')}
-                    className={`p-2 rounded transition-colors ${activeTool === 'wl' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-[#333]'}`} 
-                    title="Window/Level"
-                >
-                    <SunIcon className="w-5 h-5"/>
-                </button>
-                <div className="w-px h-6 bg-[#333] my-auto mx-1"></div>
-                <button 
-                    onClick={() => setIsInvert(!isInvert)} 
-                    className={`p-2 rounded transition-colors ${isInvert ? 'bg-white text-black' : 'text-gray-400 hover:text-white hover:bg-[#333]'}`} 
-                    title="Invert (Đảo màu)"
-                >
-                    <MoonIcon className="w-5 h-5"/>
-                </button>
-                <button 
-                    onClick={() => setActiveTool('measure')}
-                    className={`p-2 rounded transition-colors ${activeTool === 'measure' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-[#333]'}`}
-                    title="Measure (Thước)"
-                >
-                    <RulerIcon className="w-5 h-5"/>
-                </button>
-                {measurements.length > 0 && (
-                    <button 
-                        onClick={() => setMeasurements([])} 
-                        className="p-2 rounded text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                        title="Clear Measurements"
+            {/* 2. Floating Toolbar (Enhanced) */}
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-[#1a1a1a] border border-[#333] rounded-lg p-1 flex gap-1 z-30 shadow-2xl transition-transform origin-top">
+                <div className="flex gap-1 border-r border-[#333] pr-1">
+                     <button 
+                        onClick={() => setActiveTool('scroll')}
+                        className={`p-2 rounded transition-colors ${activeTool === 'scroll' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-[#333]'}`} 
+                        title="Scroll (Cuộn ảnh)"
                     >
-                        <TrashIcon className="w-5 h-5"/>
+                        <ScrollIcon className="w-5 h-5"/>
                     </button>
-                )}
-                <div className="w-px h-6 bg-[#333] my-auto mx-1"></div>
-                <button onClick={resetView} className="p-2 rounded text-gray-400 hover:text-white hover:bg-[#333]" title="Reset">
-                    <RefreshIcon className="w-5 h-5"/>
-                </button>
+                    <button 
+                        onClick={() => setActiveTool('pan')}
+                        className={`p-2 rounded transition-colors ${activeTool === 'pan' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-[#333]'}`} 
+                        title="Pan (Di chuyển)"
+                    >
+                        <HandIcon className="w-5 h-5"/>
+                    </button>
+                    <button 
+                        onClick={() => setActiveTool('zoom')}
+                        className={`p-2 rounded transition-colors ${activeTool === 'zoom' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-[#333]'}`} 
+                        title="Zoom"
+                    >
+                        <ZoomInIcon className="w-5 h-5"/>
+                    </button>
+                     <button 
+                        onClick={() => setActiveTool('wl')}
+                        className={`p-2 rounded transition-colors ${activeTool === 'wl' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-[#333]'}`} 
+                        title="Window/Level"
+                    >
+                        <SunIcon className="w-5 h-5"/>
+                    </button>
+                </div>
+
+                <div className="flex gap-1 border-r border-[#333] px-1">
+                    <button 
+                        onClick={() => setRotation(r => r - 90)} 
+                        className="p-2 rounded text-gray-400 hover:text-white hover:bg-[#333]" 
+                        title="Xoay trái 90°"
+                    >
+                        <RotateLeftIcon className="w-5 h-5"/>
+                    </button>
+                    <button 
+                        onClick={() => setRotation(r => r + 90)} 
+                        className="p-2 rounded text-gray-400 hover:text-white hover:bg-[#333]" 
+                        title="Xoay phải 90°"
+                    >
+                        <RotateRightIcon className="w-5 h-5"/>
+                    </button>
+                     <button 
+                        onClick={() => setFlipH(f => !f)} 
+                        className={`p-2 rounded transition-colors ${flipH ? 'bg-white text-black' : 'text-gray-400 hover:text-white hover:bg-[#333]'}`} 
+                        title="Lật ngang"
+                    >
+                        <ArrowsRightLeftIcon className="w-5 h-5"/>
+                    </button>
+                    <button 
+                        onClick={() => setIsInvert(!isInvert)} 
+                        className={`p-2 rounded transition-colors ${isInvert ? 'bg-white text-black' : 'text-gray-400 hover:text-white hover:bg-[#333]'}`} 
+                        title="Invert (Đảo màu)"
+                    >
+                        <MoonIcon className="w-5 h-5"/>
+                    </button>
+                </div>
+
+                <div className="flex gap-1 pl-1">
+                    <button 
+                        onClick={() => setActiveTool('measure')}
+                        className={`p-2 rounded transition-colors ${activeTool === 'measure' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-[#333]'}`}
+                        title="Measure (Thước)"
+                    >
+                        <RulerIcon className="w-5 h-5"/>
+                    </button>
+                    {measurements.length > 0 && (
+                        <button 
+                            onClick={() => setMeasurements([])} 
+                            className="p-2 rounded text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                            title="Clear Measurements"
+                        >
+                            <TrashIcon className="w-5 h-5"/>
+                        </button>
+                    )}
+                    <button onClick={resetView} className="p-2 rounded text-gray-400 hover:text-white hover:bg-[#333]" title="Reset View">
+                        <RefreshIcon className="w-5 h-5"/>
+                    </button>
+                </div>
             </div>
 
             {/* 3. Series Thumbnail Strip (Bottom) */}

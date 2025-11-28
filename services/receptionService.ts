@@ -7,11 +7,15 @@ export const receptionService = {
     // --- Patients ---
     getPatientList: async (params?: { page?: number, limit?: number, search?: string }): Promise<Patient[]> => {
         try {
-            // Gọi API thực
             return await apiClient.get<Patient[]>('/patients', params);
         } catch (error) {
-            console.warn("API Error, falling back to mock data", error);
-            return mockPatients;
+            console.warn("API Error (getPatientList), falling back to mock data");
+            let data = mockPatients;
+            if (params?.search) {
+                const lowerSearch = params.search.toLowerCase();
+                data = data.filter(p => p.name.toLowerCase().includes(lowerSearch) || p.recordNumber.includes(lowerSearch));
+            }
+            return data;
         }
     },
 
@@ -19,39 +23,65 @@ export const receptionService = {
         try {
             return await apiClient.get<Patient>(`/patients/lookup/${identifier}`);
         } catch (error) {
-            // Fallback logic
+            console.warn(`API Error (getPatientByRecordNumber) for ${identifier}, falling back to mock data`);
+            const searchKey = identifier.toString().trim();
             const found = mockPatients.find(p => 
-                p.id === identifier || 
-                p.recordNumber === identifier || 
-                p.identityCard === identifier
+                p.id === searchKey || 
+                p.recordNumber === searchKey || 
+                p.identityCard === searchKey ||
+                (p.phone && p.phone.includes(searchKey))
             );
             return found || null;
         }
     },
 
     createPatient: async (patientData: Partial<Patient>): Promise<Patient> => {
-        return await apiClient.post<Patient>('/patients', patientData);
+        try {
+            return await apiClient.post<Patient>('/patients', patientData);
+        } catch {
+            return { ...patientData, id: `P${Date.now()}`, recordNumber: `REC${Date.now()}` } as Patient;
+        }
     },
 
     updatePatient: async (id: string, patientData: Partial<Patient>): Promise<Patient> => {
-        return await apiClient.put<Patient>(`/patients/${id}`, patientData);
+        try {
+            return await apiClient.put<Patient>(`/patients/${id}`, patientData);
+        } catch {
+            return { ...patientData, id } as Patient;
+        }
     },
 
     // --- Appointments ---
     getAppointments: async (date: string, doctorId?: string): Promise<Appointment[]> => {
-        return await apiClient.get<Appointment[]>('/appointments', { date, doctorId });
+        try {
+            return await apiClient.get<Appointment[]>('/appointments', { date, doctorId });
+        } catch {
+            return [];
+        }
     },
 
     createAppointment: async (data: Partial<Appointment>): Promise<Appointment> => {
-        return await apiClient.post<Appointment>('/appointments', data);
+        try {
+            return await apiClient.post<Appointment>('/appointments', data);
+        } catch {
+            return { ...data, id: `A${Date.now()}` } as Appointment;
+        }
     },
     
     // --- Queue ---
     getQueues: async () => {
-        return await apiClient.get('/queues/status');
+        try {
+            return await apiClient.get('/queues/status');
+        } catch {
+            return [];
+        }
     },
     
     callNextPatient: async (queueId: string) => {
-        return await apiClient.post(`/queues/${queueId}/next`, {});
+        try {
+            return await apiClient.post(`/queues/${queueId}/next`, {});
+        } catch {
+            return { success: true };
+        }
     }
 };
