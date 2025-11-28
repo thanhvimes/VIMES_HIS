@@ -169,3 +169,24 @@ export interface SurgeryResource {
     name: string;
     type: string;
 }
+
+export interface DetailedHistoryRecord {
+    id: string;
+    patientId: string;
+    patientName: string;
+    visitId: string;
+    examDate: string;
+    doctorName: string;
+    specialty: string;
+    diagnosis: string;
+    vitals: {
+        bp: string;
+        hr: string;
+        temp: string;
+        weight: string;
+    };
+    symptoms: string;
+    notes: string;
+    labSummary: string;
+    prescriptionSummary: string;
+}

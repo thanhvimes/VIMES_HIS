@@ -14,7 +14,8 @@ import {
     EyeIcon
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { consultationService, DetailedHistoryRecord } from '../../../services/consultationService';
+import { consultationService } from '../../../services/consultationService';
+import { DetailedHistoryRecord } from '../../../types';
 import { DoctorItem, doctorOptions } from '../data/catalogs';
 
 const HistoryView: React.FC = () => {

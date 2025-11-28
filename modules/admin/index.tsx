@@ -5,6 +5,7 @@ import DashboardView from './views/DashboardView';
 import AdvertisementManagerView from './views/AdvertisementManagerView';
 import SettingsView from './views/SettingsView';
 import UserManagementView from './views/UserManagementView';
+import SignatureManagementView from './views/SignatureManagementView';
 
 const Admin: React.FC = () => {
   return (
@@ -14,6 +15,7 @@ const Admin: React.FC = () => {
       <Route path="advertisements" element={<AdvertisementManagerView />} />
       <Route path="settings" element={<SettingsView />} />
       <Route path="users" element={<UserManagementView />} />
+      <Route path="signatures" element={<SignatureManagementView />} />
     </Routes>
   );
 };

@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { SearchIcon, LibraryIcon, TrashIcon, EyeIcon } from '../../../components/Icons';
+import ConfirmationModal from '../../../components/shared/ConfirmationModal';
 
 const mockStoredRecords = [
     { id: '21024061', name: 'Nguyễn Văn An', dob: '1988', dept: 'Nội TH', storeDate: '20/10/2023', location: 'Kệ A - Tầng 2 - Hộp 15', status: 'Stored' },
@@ -11,12 +12,18 @@ const mockStoredRecords = [
 const StorageView: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [records, setRecords] = useState(mockStoredRecords);
+    const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
 
     const filtered = records.filter(r => r.name.toLowerCase().includes(searchTerm.toLowerCase()) || r.id.includes(searchTerm));
 
-    const handleDelete = (id: string) => {
-        if (window.confirm("Xác nhận tiêu hủy hồ sơ hết hạn này? Hành động sẽ được ghi log.")) {
-            setRecords(records.filter(r => r.id !== id));
+    const handleDeleteClick = (id: string) => {
+        setRecordToDelete(id);
+    };
+
+    const confirmDelete = () => {
+        if (recordToDelete) {
+            setRecords(records.filter(r => r.id !== recordToDelete));
+            setRecordToDelete(null);
         }
     };
 
@@ -81,7 +88,7 @@ const StorageView: React.FC = () => {
                                             <button className="p-2 text-blue-600 hover:bg-blue-50 rounded" title="Xem chi tiết"><EyeIcon className="w-5 h-5"/></button>
                                             {rec.status === 'Expired' && (
                                                 <button 
-                                                    onClick={() => handleDelete(rec.id)}
+                                                    onClick={() => handleDeleteClick(rec.id)}
                                                     className="p-2 text-red-600 hover:bg-red-50 rounded" 
                                                     title="Tiêu hủy"
                                                 >
@@ -96,6 +103,14 @@ const StorageView: React.FC = () => {
                     </table>
                 </div>
             </div>
+            
+            <ConfirmationModal
+                isOpen={!!recordToDelete}
+                onClose={() => setRecordToDelete(null)}
+                onConfirm={confirmDelete}
+                title="Xác nhận tiêu hủy hồ sơ"
+                message="Bạn có chắc chắn muốn tiêu hủy hồ sơ hết hạn này? Hành động này không thể hoàn tác và sẽ được ghi lại trong nhật ký hệ thống."
+            />
         </div>
     );
 };

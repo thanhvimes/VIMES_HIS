@@ -22,15 +22,23 @@ import { MGMT_REPORTING_NAV_ITEMS } from './modules/management-reporting/constan
 import { SURGERY_NAV_ITEMS } from './modules/surgery/constants';
 import { EQUIPMENT_NAV_ITEMS } from './modules/equipment/constants';
 import { INSURANCE_NAV_ITEMS } from './modules/insurance/constants';
-import { TELEMEDICINE_NAV_ITEMS } from './modules/telemedicine/constants'; // New Import
+import { TELEMEDICINE_NAV_ITEMS } from './modules/telemedicine/constants';
+
+// Import Contexts
+import { PdfPreviewProvider } from './contexts/PdfPreviewContext';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { SystemProvider } from './contexts/SystemContext';
+import { MasterDataProvider } from './contexts/MasterDataContext'; 
+import { SessionProvider, useSession } from './contexts/SessionContext';
 
 // --- LAZY LOAD MODULES ---
+// Note: Imports must be at the top, but React.lazy is a function call so it comes after imports.
 const Dashboard = React.lazy(() => import('./modules/dashboard/Dashboard'));
 const Reception = React.lazy(() => import('./modules/reception/index'));
 const Consultation = React.lazy(() => import('./modules/consultation/index'));
 const InpatientTreatment = React.lazy(() => import('./modules/inpatient-treatment/index'));
 const Surgery = React.lazy(() => import('./modules/surgery/index'));
-const Telemedicine = React.lazy(() => import('./modules/telemedicine/index')); // New Lazy Load
+const Telemedicine = React.lazy(() => import('./modules/telemedicine/index'));
 const Equipment = React.lazy(() => import('./modules/equipment/index'));
 const Billing = React.lazy(() => import('./modules/billing/index'));
 const LabResults = React.lazy(() => import('./modules/lab-results/index'));
@@ -43,19 +51,13 @@ const Documents = React.lazy(() => import('./modules/documents/index'));
 const ReportsModule = React.lazy(() => import('./modules/reports/index'));
 const InsuranceModule = React.lazy(() => import('./modules/insurance/index'));
 
-import { PdfPreviewProvider } from './contexts/PdfPreviewContext';
-import { NotificationProvider } from './contexts/NotificationContext';
-import { SystemProvider } from './contexts/SystemContext';
-import { MasterDataProvider } from './contexts/MasterDataContext'; 
-import { SessionProvider, useSession } from './contexts/SessionContext';
-
 // Module configuration map
 const moduleConfig: { [key: string]: { title: string; nav: any[] } } = {
   reception: { title: 'Tiếp nhận', nav: RECEPTION_NAV_ITEMS },
   consultation: { title: 'Khám bệnh', nav: CONSULTATION_NAV_ITEMS },
   'inpatient-treatment': { title: 'Điều trị nội trú', nav: INPATIENT_NAV_ITEMS },
   surgery: { title: 'Quản lý Phẫu thuật', nav: SURGERY_NAV_ITEMS },
-  telemedicine: { title: 'Hội chẩn từ xa', nav: TELEMEDICINE_NAV_ITEMS }, // New Config
+  telemedicine: { title: 'Hội chẩn từ xa', nav: TELEMEDICINE_NAV_ITEMS },
   equipment: { title: 'Trang thiết bị Y tế', nav: EQUIPMENT_NAV_ITEMS },
   billing: { title: 'Viện phí', nav: BILLING_NAV_ITEMS },
   'lab-results': { title: 'KQ Xét nghiệm', nav: LAB_RESULTS_NAV_ITEMS },
@@ -153,7 +155,7 @@ const MainApp: React.FC = () => {
         <Route path="/consultation/*" element={<Consultation />} />
         <Route path="/inpatient-treatment/*" element={<InpatientTreatment />} />
         <Route path="/surgery/*" element={<Surgery />} />
-        <Route path="/telemedicine/*" element={<Telemedicine />} /> 
+        <Route path="/telemedicine/*" element={<Telemedicine />} />
         <Route path="/equipment/*" element={<Equipment />} />
         <Route path="/billing/*" element={<Billing />} />
         <Route path="/lab-results/*" element={<LabResults />} />
@@ -189,3 +191,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+    

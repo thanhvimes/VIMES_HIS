@@ -1,25 +1,26 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mockPatients } from '../data'; // Fallback data
-import { Patient } from '../../../types';
-import { SearchIcon, RefreshIcon } from '../../../components/Icons';
+import { mockPatients } from '../data'; 
+import { Patient } from '../../../types/patient';
+import { SearchIcon, RefreshIcon, TrashIcon } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { receptionService } from '../../../services/receptionService';
+import ConfirmationModal from '../../../components/shared/ConfirmationModal';
 
 const ITEMS_PER_PAGE = 10;
 
 const ListView: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const [patients, setPatients] = useState<Patient[]>([]); // State lưu danh sách bệnh nhân
-    const [isLoading, setIsLoading] = useState(false); // State loading
-    const [error, setError] = useState<string | null>(null); // State lỗi
+    const [patients, setPatients] = useState<Patient[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [patientToDelete, setPatientToDelete] = useState<string | null>(null);
 
     const navigate = useNavigate();
     const { fontSettings } = useTheme();
 
-    // Hàm load dữ liệu từ API
     const fetchPatients = async () => {
         setIsLoading(true);
         setError(null);
@@ -29,19 +30,31 @@ const ListView: React.FC = () => {
         } catch (err) {
             console.error("Failed to fetch patients, using mock data instead.", err);
             setError("Không thể kết nối đến API. Đang hiển thị dữ liệu mẫu.");
-            setPatients(mockPatients); // Fallback về dữ liệu giả nếu lỗi
+            setPatients(mockPatients); 
         } finally {
             setIsLoading(false);
         }
     };
 
-    // Gọi API khi component mount
     useEffect(() => {
         fetchPatients();
     }, []);
 
     const handleRowClick = (patientId: string) => {
         navigate(`/reception/register/${patientId}`);
+    };
+
+    const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        setPatientToDelete(id);
+    };
+
+    const confirmDelete = () => {
+        if (patientToDelete) {
+            // Simulate deletion
+            setPatients(prev => prev.filter(p => p.id !== patientToDelete));
+            setPatientToDelete(null);
+        }
     };
 
     const filteredPatients = useMemo(() => 
@@ -66,7 +79,6 @@ const ListView: React.FC = () => {
 
     return (
         <div className="flex flex-col h-full bg-surface dark:bg-dark-surface p-4 rounded-lg shadow border border-slate-200/50 dark:border-slate-700">
-            {/* Filter Bar */}
             <div className="flex-shrink-0 flex flex-col md:flex-row items-stretch md:items-center gap-4 p-3 mb-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg">
                 <div className="relative flex-grow">
                     <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
@@ -76,20 +88,12 @@ const ListView: React.FC = () => {
                         value={searchTerm}
                         onChange={(e) => {
                             setSearchTerm(e.target.value);
-                            setCurrentPage(1); // Reset to first page on search
+                            setCurrentPage(1);
                         }}
                         className={`w-full p-1.5 pl-10 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md ${fontSettings.controls}`}
                     />
                 </div>
                 <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="flex items-center space-x-2">
-                        <label className={`font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap ${fontSettings.controls}`}>Từ ngày</label>
-                        <input type="date" className={`w-full sm:w-auto p-1.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md ${fontSettings.controls}`} defaultValue="2025-11-24" />
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <label className={`font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap ${fontSettings.controls}`}>Đến ngày</label>
-                        <input type="date" className={`w-full sm:w-auto p-1.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md ${fontSettings.controls}`} defaultValue={new Date().toISOString().slice(0, 10)} />
-                    </div>
                     <button 
                         onClick={fetchPatients}
                         className={`w-full sm:w-auto px-4 py-1.5 bg-primary text-white font-semibold rounded-md hover:bg-primary-dark flex items-center justify-center gap-2 ${fontSettings.controls}`}
@@ -101,14 +105,12 @@ const ListView: React.FC = () => {
                 </div>
             </div>
 
-            {/* Error Banner */}
             {error && (
                 <div className="mb-4 p-3 bg-red-100 border border-red-200 text-red-700 rounded text-sm">
                     {error}
                 </div>
             )}
 
-            {/* Data Table */}
             <div className="flex-grow overflow-auto">
                 {isLoading ? (
                     <div className="flex justify-center items-center h-64">
@@ -119,15 +121,15 @@ const ListView: React.FC = () => {
                     <table className={`w-full whitespace-nowrap ${fontSettings.listSecondary}`}>
                         <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0">
                             <tr>
-                                {['Số hồ sơ', 'Tên bệnh nhân', 'Tuổi', 'Giới', 'Địa chỉ', 'Ngày khám', 'Đối tượng'].map(h =>
-                                    <th key={h} className="p-3 font-semibold text-left text-slate-600 dark:text-slate-300 border-b-2 border-slate-200 dark:border-slate-700">{h}</th>
+                                {['Số hồ sơ', 'Tên bệnh nhân', 'Tuổi', 'Giới', 'Địa chỉ', 'Ngày khám', 'Đối tượng', 'Hành động'].map(h =>
+                                    <th key={h} className={`p-3 font-semibold text-left text-slate-600 dark:text-slate-300 border-b-2 border-slate-200 dark:border-slate-700 ${h === 'Hành động' ? 'text-center' : ''}`}>{h}</th>
                                 )}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                             {paginatedPatients.length > 0 ? (
                                 paginatedPatients.map((patient: Patient) => (
-                                    <tr key={patient.id} onClick={() => handleRowClick(patient.id)} className="hover:bg-primary/5 dark:hover:bg-dark-primary/10 transition-colors duration-150 cursor-pointer">
+                                    <tr key={patient.id} onClick={() => handleRowClick(patient.id)} className="hover:bg-primary/5 dark:hover:bg-dark-primary/10 transition-colors duration-150 cursor-pointer group">
                                         <td className="p-3 text-primary dark:text-dark-primary font-mono font-bold">{patient.recordNumber}</td>
                                         <td className="p-3 font-semibold">{patient.name}</td>
                                         <td className="p-3">{patient.age}</td>
@@ -139,11 +141,20 @@ const ListView: React.FC = () => {
                                                 {patient.patientType}
                                             </span>
                                         </td>
+                                        <td className="p-3 text-center">
+                                            <button 
+                                                onClick={(e) => handleDeleteClick(e, patient.id)}
+                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                                                title="Xóa bệnh nhân"
+                                            >
+                                                <TrashIcon className="w-5 h-5"/>
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={7} className="p-8 text-center text-slate-500 dark:text-slate-400">
+                                    <td colSpan={8} className="p-8 text-center text-slate-500 dark:text-slate-400">
                                         Không tìm thấy bệnh nhân nào.
                                     </td>
                                 </tr>
@@ -153,7 +164,6 @@ const ListView: React.FC = () => {
                 )}
             </div>
 
-            {/* Pagination Controls */}
             {totalPages > 1 && (
                 <div className="flex-shrink-0 flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
                     <span className={`text-slate-500 dark:text-slate-400 ${fontSettings.controls}`}>
@@ -177,6 +187,14 @@ const ListView: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <ConfirmationModal
+                isOpen={!!patientToDelete}
+                onClose={() => setPatientToDelete(null)}
+                onConfirm={confirmDelete}
+                title="Xóa hồ sơ bệnh nhân"
+                message="Bạn có chắc chắn muốn xóa bệnh nhân này khỏi danh sách? Hành động này không thể hoàn tác."
+            />
         </div>
     );
 };

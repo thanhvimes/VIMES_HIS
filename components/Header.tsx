@@ -4,6 +4,7 @@ import { MenuIcon, BellIcon, LogoutIcon, ClipboardListIcon, CheckCircleIcon, Exc
 import ThemeSwitcher from './ThemeSwitcher';
 import { useNotification } from '../contexts/NotificationContext';
 import { useSystem } from '../contexts/SystemContext';
+import { useSession } from '../contexts/SessionContext';
 import { useNavigate } from 'react-router-dom';
 import Tooltip from './shared/Tooltip';
 import UserProfileModal from './shared/UserProfileModal';
@@ -96,6 +97,8 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotification();
+    const { user, orgInfo } = useSession(); // Use Session Context
+    
     const notifRef = useRef<HTMLDivElement>(null);
     const userMenuRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
@@ -151,9 +154,14 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
                        <div className="p-1.5 bg-gradient-to-br from-primary to-blue-600 rounded-lg shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-all">
                             <ClipboardListIcon className="h-6 w-6 text-white" />
                        </div>
-                       <span className="ml-1 text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 tracking-tight">
-                           VIMES
-                       </span>
+                       <div className="ml-1 flex flex-col justify-center">
+                            <span className="text-lg font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 tracking-tight leading-none">
+                                VIMES
+                            </span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-bold">
+                                {orgInfo.governingUnitCode}
+                            </span>
+                       </div>
                     </div>
                 ) : (
                     <h1 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight line-clamp-1">
@@ -184,7 +192,6 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
 
                 {/* Notification Bell */}
                 <div className="relative" ref={notifRef}>
-                    {/* ... existing notification code ... */}
                     <Tooltip content="Thông báo">
                         <button 
                             onClick={() => setNotifOpen(!isNotifOpen)}
@@ -286,14 +293,14 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
                         <div className="relative">
                             <img 
                                 className="h-9 w-9 rounded-full border-2 border-white dark:border-slate-700 shadow-sm object-cover" 
-                                src="https://ui-avatars.com/api/?name=Dr+Minh&background=0ea5e9&color=fff" 
+                                src={user?.avatarUrl || "https://ui-avatars.com/api/?name=User&background=0ea5e9&color=fff"} 
                                 alt="Avatar" 
                             />
                             <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-800"></span>
                         </div>
                         <div className="hidden sm:block text-left">
-                           <p className="text-sm font-bold text-slate-700 dark:text-slate-200 leading-none">Dr. Minh</p>
-                           <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-wide">Administrator</p>
+                           <p className="text-sm font-bold text-slate-700 dark:text-slate-200 leading-none truncate max-w-[120px]">{user?.fullName || "Khách"}</p>
+                           <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-wide truncate max-w-[120px]">{user?.departmentName || "Chưa phân khoa"}</p>
                         </div>
                         <div className={`text-slate-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}>
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -305,11 +312,12 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
                     {/* User Dropdown Menu */}
                     {isDropdownOpen && (
                         <div 
-                          className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-800 rounded-xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 z-50 overflow-hidden animate-fade-in-up origin-top-right"
+                          className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-800 rounded-xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 z-50 overflow-hidden animate-fade-in-up origin-top-right"
                         >
                            <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
-                               <p className="text-sm font-bold text-slate-800 dark:text-white">Tài khoản của tôi</p>
-                               <p className="text-xs text-slate-500 truncate">minh.dr@vimes.com.vn</p>
+                               <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{user?.fullName}</p>
+                               <p className="text-xs text-slate-500 truncate">{user?.title} - {user?.departmentName}</p>
+                               <p className="text-[10px] font-mono text-slate-400 mt-1">ID: {user?.userId}</p>
                            </div>
                            
                            <div className="p-1">

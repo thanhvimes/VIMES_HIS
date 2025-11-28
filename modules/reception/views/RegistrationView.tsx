@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-    UserPlusIcon, 
+    PlusIcon, 
     PencilIcon, 
     SaveIcon, 
     BanIcon, 
@@ -624,7 +624,7 @@ const RegistrationView: React.FC = () => {
             <div className="flex-shrink-0 bg-white dark:bg-slate-800 px-4 py-4 md:px-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
                     <h1 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                        <UserPlusIcon className="w-7 h-7 text-blue-600"/>
+                        <PlusIcon className="w-7 h-7 text-blue-600"/>
                         <span className="hidden sm:inline">{mode === 'ADD' ? 'Đăng ký mới' : 'Hồ sơ bệnh nhân'}</span>
                     </h1>
                     {formData.patientType && (
@@ -671,7 +671,7 @@ const RegistrationView: React.FC = () => {
                         </>
                     ) : (
                         <>
-                            <ActionButton label="Thêm mới" icon={<UserPlusIcon className="w-5 h-5"/>} onClick={() => {navigate('/reception/register'); setMode('ADD');}} className="bg-green-600 hover:bg-green-700 text-white py-2"/>
+                            <ActionButton label="Thêm mới" icon={<PlusIcon className="w-5 h-5"/>} onClick={() => {navigate('/reception/register'); setMode('ADD');}} className="bg-green-600 hover:bg-green-700 text-white py-2"/>
                             <ActionButton label="Sửa" icon={<PencilIcon className="w-5 h-5"/>} onClick={() => setMode('EDIT')} className="bg-amber-500 hover:bg-amber-600 text-white py-2"/>
                             <ActionButton label="In" icon={<PrinterIcon className="w-5 h-5"/>} onClick={() => {}} className="bg-slate-600 hover:bg-slate-700 text-white py-2 hidden sm:flex"/>
                         </>
