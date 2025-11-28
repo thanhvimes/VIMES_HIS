@@ -55,7 +55,6 @@ export interface Appointment {
     reason: string;
     status: AppointmentStatus;
     phone?: string;
-    type?: 'New' | 'Re-visit';
 }
 
 export interface LabAppointment {

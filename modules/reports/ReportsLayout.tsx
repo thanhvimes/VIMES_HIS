@@ -1,8 +1,9 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ChartBarIcon, SearchIcon, DocumentTextIcon } from '../../components/Icons';
 import { getGroupedReports, getReportById } from './registry';
 import { FilterValues } from './types';
+import ReportsDashboard from './views/ReportsDashboard';
 
 interface ReportsLayoutProps {
     moduleFilter?: string; // Optional: If provided, only show reports for this module
@@ -12,12 +13,12 @@ const ReportsLayout: React.FC<ReportsLayoutProps> = ({ moduleFilter }) => {
     const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     
-    // State lưu kết quả filter (khi bấm Run)
+    // State to store filter results (when Run is clicked)
     const [activeFilters, setActiveFilters] = useState<FilterValues | null>(null);
 
     const groupedReports = useMemo(() => getGroupedReports(), []);
 
-    // Filter danh sách báo cáo
+    // Filter report list
     const displayGroups = useMemo(() => {
         let groups = groupedReports;
 
@@ -40,17 +41,9 @@ const ReportsLayout: React.FC<ReportsLayoutProps> = ({ moduleFilter }) => {
         return groups;
     }, [groupedReports, searchTerm, moduleFilter]);
 
-    // Auto-select first report if list changes and nothing selected
-    useEffect(() => {
-        if (displayGroups.length > 0 && displayGroups[0].reports.length > 0 && !selectedReportId) {
-            // Optional: Auto select the first report
-            // setSelectedReportId(displayGroups[0].reports[0].id);
-        }
-    }, [displayGroups, selectedReportId]);
-
     const handleSelectReport = (id: string) => {
         setSelectedReportId(id);
-        setActiveFilters(null); // Reset kết quả cũ khi đổi báo cáo
+        setActiveFilters(null); // Reset previous results when changing report
     };
 
     const handleRunReport = (filters: FilterValues) => {
@@ -89,7 +82,7 @@ const ReportsLayout: React.FC<ReportsLayoutProps> = ({ moduleFilter }) => {
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
                     {displayGroups.map(group => (
                         <div key={group.id}>
-                            {/* Only show group header if NOT filtered by a specific module (since it's redundant) */}
+                            {/* Only show group header if NOT filtered by a specific module */}
                             {!moduleFilter && (
                                 <div className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase sticky top-0 z-10 border-b border-slate-300 dark:border-slate-600">
                                     {group.label}
@@ -145,10 +138,7 @@ const ReportsLayout: React.FC<ReportsLayoutProps> = ({ moduleFilter }) => {
 
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                        <ChartBarIcon className="w-20 h-20 mb-4 opacity-20"/>
-                        <p className="text-lg font-medium">Vui lòng chọn báo cáo từ danh sách bên trái</p>
-                    </div>
+                    <ReportsDashboard onSelectReport={handleSelectReport} moduleFilter={moduleFilter} />
                 )}
             </div>
         </div>

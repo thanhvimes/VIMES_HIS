@@ -6,6 +6,28 @@ export interface AISuggestion {
     nextSteps: string[];
 }
 
+export interface ServiceCategory {
+    id: string;
+    name: string;
+    type: 'XN' | 'CDHA' | 'TDCN'; // Xét nghiệm | Chẩn đoán hình ảnh | Thăm dò chức năng
+}
+
+export interface ServiceItem {
+    id: string;
+    code: string;
+    name: string;
+    categoryId: string;
+    price: number;
+    unit: string;
+}
+
+export interface ServiceTemplate {
+    id: string;
+    name: string;
+    description: string;
+    serviceIds: string[]; // IDs of ServiceItems included in this template
+}
+
 export interface ConsultationRecord {
     id: string;
     date: string;

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
@@ -20,6 +21,8 @@ import { ADMIN_NAV_ITEMS } from './modules/admin/constants';
 import { MGMT_REPORTING_NAV_ITEMS } from './modules/management-reporting/constants';
 import { SURGERY_NAV_ITEMS } from './modules/surgery/constants';
 import { EQUIPMENT_NAV_ITEMS } from './modules/equipment/constants';
+import { INSURANCE_NAV_ITEMS } from './modules/insurance/constants';
+import { TELEMEDICINE_NAV_ITEMS } from './modules/telemedicine/constants'; // New Import
 
 // --- LAZY LOAD MODULES ---
 const Dashboard = React.lazy(() => import('./modules/dashboard/Dashboard'));
@@ -27,6 +30,7 @@ const Reception = React.lazy(() => import('./modules/reception/index'));
 const Consultation = React.lazy(() => import('./modules/consultation/index'));
 const InpatientTreatment = React.lazy(() => import('./modules/inpatient-treatment/index'));
 const Surgery = React.lazy(() => import('./modules/surgery/index'));
+const Telemedicine = React.lazy(() => import('./modules/telemedicine/index')); // New Lazy Load
 const Equipment = React.lazy(() => import('./modules/equipment/index'));
 const Billing = React.lazy(() => import('./modules/billing/index'));
 const LabResults = React.lazy(() => import('./modules/lab-results/index'));
@@ -37,11 +41,13 @@ const Admin = React.lazy(() => import('./modules/admin/index'));
 const ManagementReporting = React.lazy(() => import('./modules/management-reporting/index'));
 const Documents = React.lazy(() => import('./modules/documents/index'));
 const ReportsModule = React.lazy(() => import('./modules/reports/index'));
+const InsuranceModule = React.lazy(() => import('./modules/insurance/index'));
 
 import { PdfPreviewProvider } from './contexts/PdfPreviewContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { SystemProvider } from './contexts/SystemContext';
-import { MasterDataProvider } from './contexts/MasterDataContext'; // NEW PROVIDER
+import { MasterDataProvider } from './contexts/MasterDataContext'; 
+import { SessionProvider, useSession } from './contexts/SessionContext';
 
 // Module configuration map
 const moduleConfig: { [key: string]: { title: string; nav: any[] } } = {
@@ -49,6 +55,7 @@ const moduleConfig: { [key: string]: { title: string; nav: any[] } } = {
   consultation: { title: 'Khám bệnh', nav: CONSULTATION_NAV_ITEMS },
   'inpatient-treatment': { title: 'Điều trị nội trú', nav: INPATIENT_NAV_ITEMS },
   surgery: { title: 'Quản lý Phẫu thuật', nav: SURGERY_NAV_ITEMS },
+  telemedicine: { title: 'Hội chẩn từ xa', nav: TELEMEDICINE_NAV_ITEMS }, // New Config
   equipment: { title: 'Trang thiết bị Y tế', nav: EQUIPMENT_NAV_ITEMS },
   billing: { title: 'Viện phí', nav: BILLING_NAV_ITEMS },
   'lab-results': { title: 'KQ Xét nghiệm', nav: LAB_RESULTS_NAV_ITEMS },
@@ -57,12 +64,14 @@ const moduleConfig: { [key: string]: { title: string; nav: any[] } } = {
   'record-storage': { title: 'Lưu trữ hồ sơ', nav: RECORD_STORAGE_NAV_ITEMS },
   admin: { title: 'Quản trị Hệ thống', nav: ADMIN_NAV_ITEMS },
   'management-reporting': { title: 'Báo cáo Quản trị', nav: MGMT_REPORTING_NAV_ITEMS },
+  insurance: { title: 'Bảo hiểm Y tế', nav: INSURANCE_NAV_ITEMS },
   documents: { title: 'Xem tài liệu', nav: [] },
   reports: { title: 'Hệ thống Báo cáo', nav: [] },
   settings: { title: 'Cài đặt', nav: [] },
 };
 
-const WorkspaceLayout: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
+const WorkspaceLayout: React.FC = () => {
+  const { logout } = useSession();
   const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try { return JSON.parse(localStorage.getItem('sidebarCollapsed') || 'false'); } catch { return false; }
@@ -97,7 +106,7 @@ const WorkspaceLayout: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
         <Header 
             pageTitle={pageTitle} 
             onToggleSidebar={() => setMobileSidebarOpen(!isMobileSidebarOpen)}
-            onLogout={onLogout}
+            onLogout={logout}
             showSidebarToggle={true}
         />
         <main className={`flex-1 overflow-x-hidden overflow-y-auto ${isFullWidthPage ? '' : 'p-4 sm:p-6 lg:p-8'}`}>
@@ -112,10 +121,11 @@ const WorkspaceLayout: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   );
 };
 
-const DashboardLayout: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
+const DashboardLayout: React.FC = () => {
+  const { logout } = useSession();
   return (
     <div className="flex flex-col h-screen bg-background dark:bg-dark-background relative">
-      <Header onToggleSidebar={() => {}} onLogout={onLogout} showSidebarToggle={false} showBranding={true} />
+      <Header onToggleSidebar={() => {}} onLogout={logout} showSidebarToggle={false} showBranding={true} />
       <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6 lg:p-8">
          <Suspense fallback={<GlobalLoading message="Đang tải bảng điều khiển..." />}>
             <Dashboard />
@@ -127,52 +137,53 @@ const DashboardLayout: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
   );
 };
 
-const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem('isAuthenticated'));
-
-  const handleLogin = () => {
-    localStorage.setItem('isAuthenticated', 'true');
-    setIsAuthenticated(true);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
-    setIsAuthenticated(false);
-  };
+// Main App Logic Wrapper to use useSession Hook inside SessionProvider
+const MainApp: React.FC = () => {
+  const { isAuthenticated, login } = useSession();
 
   if (!isAuthenticated) {
-    return <Login onLogin={handleLogin} />;
+    return <Login onLogin={() => login()} />;
   }
-  
+
+  return (
+    <Routes>
+      <Route path="/" element={<DashboardLayout />} />
+      <Route element={<WorkspaceLayout />}>
+        <Route path="/reception/*" element={<Reception />} />
+        <Route path="/consultation/*" element={<Consultation />} />
+        <Route path="/inpatient-treatment/*" element={<InpatientTreatment />} />
+        <Route path="/surgery/*" element={<Surgery />} />
+        <Route path="/telemedicine/*" element={<Telemedicine />} /> 
+        <Route path="/equipment/*" element={<Equipment />} />
+        <Route path="/billing/*" element={<Billing />} />
+        <Route path="/lab-results/*" element={<LabResults />} />
+        <Route path="/imaging-results/*" element={<ImagingResults />} />
+        <Route path="/pharmacy/*" element={<Pharmacy />} />
+        <Route path="/record-storage/*" element={<RecordStorage />} />
+        <Route path="/admin/*" element={<Admin />} />
+        <Route path="/management-reporting/*" element={<ManagementReporting />} />
+        <Route path="/insurance/*" element={<InsuranceModule />} /> 
+        <Route path="/documents/*" element={<Documents />} />
+        <Route path="/reports/*" element={<ReportsModule />} />
+        <Route path="/settings" element={<div className="text-center text-slate-500 dark:text-slate-400 p-10">Trang Cài đặt đang trong quá trình phát triển.</div>} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+const App: React.FC = () => {
   return (
     <SystemProvider>
-      <NotificationProvider>
-        <MasterDataProvider>
-          <PdfPreviewProvider>
-            <Routes>
-              <Route path="/" element={<DashboardLayout onLogout={handleLogout} />} />
-              <Route element={<WorkspaceLayout onLogout={handleLogout} />}>
-                <Route path="/reception/*" element={<Reception />} />
-                <Route path="/consultation/*" element={<Consultation />} />
-                <Route path="/inpatient-treatment/*" element={<InpatientTreatment />} />
-                <Route path="/surgery/*" element={<Surgery />} />
-                <Route path="/equipment/*" element={<Equipment />} />
-                <Route path="/billing/*" element={<Billing />} />
-                <Route path="/lab-results/*" element={<LabResults />} />
-                <Route path="/imaging-results/*" element={<ImagingResults />} />
-                <Route path="/pharmacy/*" element={<Pharmacy />} />
-                <Route path="/record-storage/*" element={<RecordStorage />} />
-                <Route path="/admin/*" element={<Admin />} />
-                <Route path="/management-reporting/*" element={<ManagementReporting />} />
-                <Route path="/documents/*" element={<Documents />} />
-                <Route path="/reports/*" element={<ReportsModule />} />
-                <Route path="/settings" element={<div className="text-center text-slate-500 dark:text-slate-400 p-10">Trang Cài đặt đang trong quá trình phát triển.</div>} />
-              </Route>
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </PdfPreviewProvider>
-        </MasterDataProvider>
-      </NotificationProvider>
+      <SessionProvider>
+        <NotificationProvider>
+          <MasterDataProvider>
+            <PdfPreviewProvider>
+               <MainApp />
+            </PdfPreviewProvider>
+          </MasterDataProvider>
+        </NotificationProvider>
+      </SessionProvider>
     </SystemProvider>
   );
 };

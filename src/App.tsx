@@ -21,6 +21,7 @@ import { ADMIN_NAV_ITEMS } from './modules/admin/constants';
 import { MGMT_REPORTING_NAV_ITEMS } from './modules/management-reporting/constants';
 import { SURGERY_NAV_ITEMS } from './modules/surgery/constants';
 import { EQUIPMENT_NAV_ITEMS } from './modules/equipment/constants';
+import { INSURANCE_NAV_ITEMS } from './modules/insurance/constants';
 
 // --- LAZY LOAD MODULES ---
 const Dashboard = React.lazy(() => import('./modules/dashboard/Dashboard'));
@@ -38,6 +39,7 @@ const Admin = React.lazy(() => import('./modules/admin/index'));
 const ManagementReporting = React.lazy(() => import('./modules/management-reporting/index'));
 const Documents = React.lazy(() => import('./modules/documents/index'));
 const ReportsModule = React.lazy(() => import('./modules/reports/index'));
+const InsuranceModule = React.lazy(() => import('./modules/insurance/index'));
 
 import { PdfPreviewProvider } from './contexts/PdfPreviewContext';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -59,6 +61,7 @@ const moduleConfig: { [key: string]: { title: string; nav: any[] } } = {
   'record-storage': { title: 'Lưu trữ hồ sơ', nav: RECORD_STORAGE_NAV_ITEMS },
   admin: { title: 'Quản trị Hệ thống', nav: ADMIN_NAV_ITEMS },
   'management-reporting': { title: 'Báo cáo Quản trị', nav: MGMT_REPORTING_NAV_ITEMS },
+  insurance: { title: 'Bảo hiểm Y tế', nav: INSURANCE_NAV_ITEMS },
   documents: { title: 'Xem tài liệu', nav: [] },
   reports: { title: 'Hệ thống Báo cáo', nav: [] },
   settings: { title: 'Cài đặt', nav: [] },
@@ -155,6 +158,7 @@ const MainApp: React.FC = () => {
         <Route path="/record-storage/*" element={<RecordStorage />} />
         <Route path="/admin/*" element={<Admin />} />
         <Route path="/management-reporting/*" element={<ManagementReporting />} />
+        <Route path="/insurance/*" element={<InsuranceModule />} /> 
         <Route path="/documents/*" element={<Documents />} />
         <Route path="/reports/*" element={<ReportsModule />} />
         <Route path="/settings" element={<div className="text-center text-slate-500 dark:text-slate-400 p-10">Trang Cài đặt đang trong quá trình phát triển.</div>} />

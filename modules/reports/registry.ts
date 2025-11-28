@@ -2,11 +2,11 @@
 import React from 'react';
 import { ReportDefinition, ReportGroup } from './types';
 
-// Import các báo cáo cụ thể từ file riêng
+// Import specific report templates
 import { PatientDrugReport } from './templates/reception/PatientDrugReport';
 import { RevenueMultiLevelReport } from './templates/general/RevenueReport3Level';
 
-// --- MOCK REPORTS (Giả lập các file báo cáo khác để demo danh sách) ---
+// --- MOCK REPORTS (Placeholders) ---
 const MockReport = (id: string, title: string, module: any): ReportDefinition => ({
     id, title, module,
     FilterComponent: ({ onRun }) => 
@@ -27,26 +27,26 @@ const MockReport = (id: string, title: string, module: any): ReportDefinition =>
 });
 
 // --- REGISTRY LIST ---
-// Đây là nơi bạn đăng ký tất cả báo cáo của hệ thống
+// Register all system reports here
 const allReports: ReportDefinition[] = [
-    // Module Tiếp nhận
+    // Reception Module
     MockReport('rep_recep_01', '1. Hoạt động điều trị', 'reception'),
     MockReport('rep_recep_02', '2. Danh sách phiếu hoàn trả chưa duyệt', 'reception'),
     MockReport('rep_recep_03', '3. Chi tiết theo số ca [K1]', 'reception'),
-    PatientDrugReport, // Báo cáo thật đã tách file
+    PatientDrugReport, // Real report template
     MockReport('rep_recep_05', '5. Báo cáo chi tiết tiền giường', 'reception'),
     MockReport('rep_recep_06', '6. Danh sách bệnh nhân theo bác sĩ', 'reception'),
     
-    // Nhóm báo cáo chung
+    // General / Billing Module
     MockReport('rep_gen_01', '1. Danh sách bệnh nhân điều trị', 'general'),
     MockReport('rep_gen_02', '2. Tình hình bệnh tật tử vong', 'general'),
-    RevenueMultiLevelReport, // Báo cáo doanh thu đa cấp MỚI
+    RevenueMultiLevelReport, // Real report template
     
-    // Module Dược
+    // Pharmacy Module
     MockReport('rep_phar_01', '1. Báo cáo nhập xuất tồn', 'pharmacy'),
 ];
 
-// Hàm helper để group báo cáo theo module phục vụ hiển thị Sidebar
+// Helper to group reports by module
 export const getGroupedReports = (): ReportGroup[] => {
     const groups: Record<string, ReportDefinition[]> = {
         'reception': [],

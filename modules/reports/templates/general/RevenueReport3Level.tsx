@@ -2,14 +2,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ReportDefinition, FilterValues } from '../../types';
 import { 
-    SearchIcon, 
-    PrinterIcon, 
-    DocumentArrowDownIcon,
-    ChevronDownIcon,
-    ChevronRightIcon,
     RefreshIcon,
     ChartBarIcon,
-    DocumentTextIcon
+    DocumentArrowDownIcon,
+    DocumentTextIcon,
+    PrinterIcon,
+    ChevronDownIcon,
+    ChevronRightIcon
 } from '../../../../components/Icons';
 import { reportService, RevenueReportItem } from '../../../../services/reportService';
 import jsPDF from 'jspdf';
@@ -53,16 +52,15 @@ const Filter: React.FC<{ onRun: (v: FilterValues) => void }> = ({ onRun }) => {
 };
 
 // --- DATA PROCESSING LOGIC (CORE) ---
-// Interface cho cấu trúc Tree sau khi Group
 interface GroupLevel2 {
-    key: string; // Tên nhóm dịch vụ
+    key: string;
     items: RevenueReportItem[];
     subTotal: { qty: number; revenue: number; insurance: number; patient: number };
     isExpanded: boolean;
 }
 
 interface GroupLevel1 {
-    key: string; // Tên khoa
+    key: string;
     groups: GroupLevel2[];
     subTotal: { qty: number; revenue: number; insurance: number; patient: number };
     isExpanded: boolean;
@@ -73,17 +71,14 @@ const Content: React.FC<{ filters: FilterValues | null }> = ({ filters }) => {
     const [loading, setLoading] = useState(false);
     const [dataTree, setDataTree] = useState<GroupLevel1[]>([]);
     const [grandTotal, setGrandTotal] = useState({ qty: 0, revenue: 0, insurance: 0, patient: 0 });
-    const [rawData, setRawData] = useState<RevenueReportItem[]>([]);
     const [isExporting, setIsExporting] = useState(false);
 
-    // Fetch Data
     useEffect(() => {
         if (filters) {
             const fetchData = async () => {
                 setLoading(true);
                 try {
                     const result = await reportService.getRevenueReport(filters.fromDate, filters.toDate);
-                    setRawData(result);
                     processDataToTree(result);
                 } catch (error) {
                     console.error(error);
@@ -95,19 +90,16 @@ const Content: React.FC<{ filters: FilterValues | null }> = ({ filters }) => {
         }
     }, [filters]);
 
-    // Hàm xử lý logic Grouping
     const processDataToTree = (items: RevenueReportItem[]) => {
         const tree: GroupLevel1[] = [];
         const total = { qty: 0, revenue: 0, insurance: 0, patient: 0 };
 
-        // 1. Group by Department (Level 1)
         const groupedByDept = items.reduce((acc, item) => {
             if (!acc[item.departmentName]) acc[item.departmentName] = [];
             acc[item.departmentName].push(item);
             return acc;
         }, {} as Record<string, RevenueReportItem[]>);
 
-        // 2. Iterate Level 1 and Group by Service Group (Level 2)
         Object.entries(groupedByDept).forEach(([deptName, deptItems]) => {
             const deptSubTotal = { qty: 0, revenue: 0, insurance: 0, patient: 0 };
             const level2Groups: GroupLevel2[] = [];
@@ -119,7 +111,6 @@ const Content: React.FC<{ filters: FilterValues | null }> = ({ filters }) => {
             }, {} as Record<string, RevenueReportItem[]>);
 
             Object.entries(groupedByServiceGroup).forEach(([groupName, serviceItems]) => {
-                // Calculate Level 2 Subtotal
                 const groupSubTotal = serviceItems.reduce((sum, i) => ({
                     qty: sum.qty + i.quantity,
                     revenue: sum.revenue + i.totalRevenue,
@@ -131,10 +122,9 @@ const Content: React.FC<{ filters: FilterValues | null }> = ({ filters }) => {
                     key: groupName,
                     items: serviceItems,
                     subTotal: groupSubTotal,
-                    isExpanded: true // Mặc định mở
+                    isExpanded: true
                 });
 
-                // Add to Dept Total
                 deptSubTotal.qty += groupSubTotal.qty;
                 deptSubTotal.revenue += groupSubTotal.revenue;
                 deptSubTotal.insurance += groupSubTotal.insurance;
@@ -145,10 +135,9 @@ const Content: React.FC<{ filters: FilterValues | null }> = ({ filters }) => {
                 key: deptName,
                 groups: level2Groups,
                 subTotal: deptSubTotal,
-                isExpanded: true // Mặc định mở
+                isExpanded: true
             });
 
-            // Add to Grand Total
             total.qty += deptSubTotal.qty;
             total.revenue += deptSubTotal.revenue;
             total.insurance += deptSubTotal.insurance;
@@ -159,7 +148,6 @@ const Content: React.FC<{ filters: FilterValues | null }> = ({ filters }) => {
         setGrandTotal(total);
     };
 
-    // Toggle Expand/Collapse
     const toggleLevel1 = (index1: number) => {
         const newTree = [...dataTree];
         newTree[index1].isExpanded = !newTree[index1].isExpanded;
@@ -174,36 +162,9 @@ const Content: React.FC<{ filters: FilterValues | null }> = ({ filters }) => {
 
     const formatCurrency = (val: number) => val.toLocaleString('vi-VN');
 
-    // --- CORE PDF GENERATION FUNCTION ---
-    const generatePdfDocument = async (): Promise<jsPDF> => {
+    const generatePdfDocument = () => {
         const doc = new jsPDF();
-
-        // --- 1. TẢI FONT TIẾNG VIỆT (Roboto) ---
-        try {
-            const fontUrl = 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/Roboto-Regular.ttf';
-            const response = await fetch(fontUrl);
-            const buffer = await response.arrayBuffer();
-            
-            // Convert ArrayBuffer to Binary String
-            let binary = '';
-            const bytes = new Uint8Array(buffer);
-            const len = bytes.byteLength;
-            for (let i = 0; i < len; i++) {
-                binary += String.fromCharCode(bytes[i]);
-            }
-            // Convert to Base64
-            const fontBase64 = window.btoa(binary);
-
-            // Add font to jsPDF
-            doc.addFileToVFS('Roboto-Regular.ttf', fontBase64);
-            doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
-            doc.setFont('Roboto'); // Set active font
-        } catch (fontError) {
-            console.warn("Không thể tải font Tiếng Việt. PDF có thể bị lỗi font.", fontError);
-            alert("Cảnh báo: Không tải được Font tiếng Việt. Ký tự có thể bị lỗi.");
-        }
         
-        // --- 2. HEADER ---
         doc.setFontSize(14);
         doc.setTextColor(40);
         doc.text("BÁO CÁO DOANH THU DỊCH VỤ CHI TIẾT", 105, 20, { align: 'center' });
@@ -211,13 +172,10 @@ const Content: React.FC<{ filters: FilterValues | null }> = ({ filters }) => {
         doc.setFontSize(10);
         doc.setTextColor(100);
         doc.text(`Thời gian: ${filters?.fromDate} đến ${filters?.toDate}`, 105, 28, { align: 'center' });
-        doc.text(`Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`, 105, 34, { align: 'center' });
 
-        // --- 3. TABLE CONTENT ---
         const tableBody: any[] = [];
         
         dataTree.forEach((l1, i1) => {
-            // Level 1 Row (Department)
             tableBody.push([
                 { content: `${i1 + 1}. ${l1.key.toUpperCase()}`, colSpan: 4, styles: { fontStyle: 'bold', fillColor: [220, 230, 240] } },
                 { content: formatCurrency(l1.subTotal.revenue), styles: { fontStyle: 'bold', fillColor: [220, 230, 240], halign: 'right' } },
@@ -226,7 +184,6 @@ const Content: React.FC<{ filters: FilterValues | null }> = ({ filters }) => {
             ]);
 
             l1.groups.forEach((l2) => {
-                 // Level 2 Row (Service Group)
                 tableBody.push([
                     { content: `  ${l2.key}`, colSpan: 4, styles: { fontStyle: 'bold', textColor: [80, 80, 80] } },
                     { content: formatCurrency(l2.subTotal.revenue), styles: { fontStyle: 'bold', halign: 'right' } },
@@ -235,7 +192,6 @@ const Content: React.FC<{ filters: FilterValues | null }> = ({ filters }) => {
                 ]);
 
                 l2.items.forEach(item => {
-                    // Detail Row (Item)
                     tableBody.push([
                         '',
                         item.serviceName,
@@ -249,9 +205,8 @@ const Content: React.FC<{ filters: FilterValues | null }> = ({ filters }) => {
             });
         });
 
-        // Total Row
         tableBody.push([
-            { content: "TỔNG CỘNG", colSpan: 4, styles: { fontStyle: 'bold', fillColor: [255, 200, 0], textColor: [0, 0, 0] } },
+            { content: "TỔNG CỘNG", colSpan: 4, styles: { fontStyle: 'bold', fillColor: [255, 200, 0] } },
             { content: formatCurrency(grandTotal.revenue), styles: { fontStyle: 'bold', fillColor: [255, 200, 0], halign: 'right' } },
             { content: formatCurrency(grandTotal.insurance), styles: { fontStyle: 'bold', fillColor: [255, 200, 0], halign: 'right' } },
             { content: formatCurrency(grandTotal.patient), styles: { fontStyle: 'bold', fillColor: [255, 200, 0], halign: 'right' } },
@@ -262,132 +217,75 @@ const Content: React.FC<{ filters: FilterValues | null }> = ({ filters }) => {
             body: tableBody,
             startY: 40,
             theme: 'grid',
-            // QUAN TRỌNG: Set font cho bảng là 'Roboto'
-            styles: { font: "Roboto", fontSize: 9, cellPadding: 2 },
+            styles: { fontSize: 9, cellPadding: 2 },
             columnStyles: {
-                0: { cellWidth: 15 }, // Index/Indent
-                2: { cellWidth: 15, halign: 'center' },
-                3: { cellWidth: 15, halign: 'center' },
+                0: { cellWidth: 15 },
                 4: { halign: 'right' },
                 5: { halign: 'right' },
                 6: { halign: 'right' }
             },
-            headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold', halign: 'center' },
         });
 
         return doc;
     };
 
-    // --- ACTIONS ---
-
-    const handlePrint = async () => {
-        if (dataTree.length === 0) return alert('Không có dữ liệu để in.');
-        setIsExporting(true);
-        try {
-            const doc = await generatePdfDocument();
-            // Tạo Blob URL và mở trong tab mới để in
-            const pdfBlob = doc.output('blob');
-            const url = URL.createObjectURL(pdfBlob);
-            window.open(url, '_blank');
-        } catch (error) {
-            console.error(error);
-            alert('Lỗi khi tạo bản in PDF.');
-        } finally {
-            setIsExporting(false);
-        }
+    const handlePrint = () => {
+        if (dataTree.length === 0) return alert('Không có dữ liệu.');
+        const doc = generatePdfDocument();
+        const pdfBlob = doc.output('blob');
+        const url = URL.createObjectURL(pdfBlob);
+        window.open(url, '_blank');
     };
 
-    const handleExportPdf = async () => {
-        if (dataTree.length === 0) return alert('Không có dữ liệu để xuất.');
-        setIsExporting(true);
-        try {
-            const doc = await generatePdfDocument();
-            doc.save(`BaoCaoDoanhThu_PDF_${new Date().getTime()}.pdf`);
-        } catch (err) {
-            console.error(err);
-            alert("Có lỗi xảy ra khi xuất PDF.");
-        } finally {
-            setIsExporting(false);
-        }
+    const handleExportPdf = () => {
+        if (dataTree.length === 0) return alert('Không có dữ liệu.');
+        const doc = generatePdfDocument();
+        doc.save(`DoanhThu_${new Date().getTime()}.pdf`);
     };
 
     const handleExportExcel = () => {
-        if (dataTree.length === 0) {
-            alert('Không có dữ liệu để xuất.');
-            return;
-        }
-
-        let csvContent = "\uFEFF"; // BOM for UTF-8
-        csvContent += "STT,Tên Dịch vụ / Nhóm,Đơn vị,Số lượng,Đơn giá,Thành tiền,BHYT Chi,BN Trả\n";
-
-        let stt = 1;
-        dataTree.forEach((l1) => {
-            // Level 1 Header
-            csvContent += `"${stt++}","${l1.key.toUpperCase()}","","",,"${l1.subTotal.revenue}","${l1.subTotal.insurance}","${l1.subTotal.patient}"\n`;
-            
-            l1.groups.forEach((l2) => {
-                // Level 2 Header
-                csvContent += `,"  ${l2.key}","","",,"${l2.subTotal.revenue}","${l2.subTotal.insurance}","${l2.subTotal.patient}"\n`;
-                
-                l2.items.forEach((item) => {
-                    // Level 3 Rows
-                    csvContent += `,"    ${item.serviceName}","Lần","${item.quantity}","${item.unitPrice}","${item.totalRevenue}","${item.insurancePaid}","${item.patientPaid}"\n`;
+        if (dataTree.length === 0) return alert('Không có dữ liệu.');
+        let csvContent = "\uFEFFSTT,Nội dung,Đơn vị,SL,Thành tiền,BHYT,BN Trả\n";
+        
+        dataTree.forEach((l1, i1) => {
+            csvContent += `"${i1+1}","${l1.key}",,,${l1.subTotal.revenue},${l1.subTotal.insurance},${l1.subTotal.patient}\n`;
+            l1.groups.forEach(l2 => {
+                csvContent += `,"${l2.key}",,,${l2.subTotal.revenue},${l2.subTotal.insurance},${l2.subTotal.patient}\n`;
+                l2.items.forEach(i => {
+                    csvContent += `,"${i.serviceName}","Lần",${i.quantity},${i.totalRevenue},${i.insurancePaid},${i.patientPaid}\n`;
                 });
             });
         });
-
-        // Grand Total
-        csvContent += `,"TỔNG CỘNG","","${grandTotal.qty}","","${grandTotal.revenue}","${grandTotal.insurance}","${grandTotal.patient}"\n`;
-
+        
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `BaoCaoDoanhThu_${filters?.fromDate}_${filters?.toDate}.csv`;
+        link.download = 'DoanhThu.csv';
         link.click();
     };
 
-    if (loading) return <div className="p-10 text-center text-slate-500">Đang tổng hợp số liệu...</div>;
+    if (loading) return <div className="p-10 text-center text-slate-500">Đang tải dữ liệu...</div>;
     if (!filters) return <div className="p-10 text-center text-slate-400">Vui lòng chọn thời gian xem báo cáo</div>;
 
     return (
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col h-full overflow-hidden">
-            {/* Toolbar */}
             <div className="p-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-between items-center no-print">
                 <h3 className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
                     <ChartBarIcon className="w-5 h-5 text-blue-600"/> Kết quả Báo cáo
                 </h3>
                 <div className="flex gap-2">
-                     <button 
-                        onClick={handlePrint} 
-                        disabled={isExporting}
-                        className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded flex items-center gap-1 transition shadow-sm disabled:opacity-50"
-                        title="Xem bản in PDF"
-                    >
-                        {isExporting ? <div className="w-3 h-3 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"></div> : <PrinterIcon className="w-3 h-3"/>}
-                        In báo cáo
+                     <button onClick={handlePrint} className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded flex items-center gap-1 shadow-sm">
+                        <PrinterIcon className="w-3 h-3"/> In
                     </button>
-                     <button 
-                        onClick={handleExportExcel} 
-                        className="px-3 py-1.5 bg-green-600 text-white text-xs font-bold rounded hover:bg-green-700 flex items-center gap-1 transition active:scale-95"
-                    >
+                     <button onClick={handleExportExcel} className="px-3 py-1.5 bg-green-600 text-white text-xs font-bold rounded hover:bg-green-700 flex items-center gap-1 shadow">
                         <DocumentArrowDownIcon className="w-3 h-3"/> Excel
                     </button>
-                    <button 
-                        onClick={handleExportPdf} 
-                        disabled={isExporting}
-                        className="px-3 py-1.5 bg-red-600 text-white text-xs font-bold rounded hover:bg-red-700 flex items-center gap-1 transition active:scale-95 disabled:opacity-50"
-                    >
-                         {isExporting ? (
-                            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                            <DocumentTextIcon className="w-3 h-3"/> 
-                        )}
-                        PDF
+                    <button onClick={handleExportPdf} className="px-3 py-1.5 bg-red-600 text-white text-xs font-bold rounded hover:bg-red-700 flex items-center gap-1 shadow">
+                        <DocumentTextIcon className="w-3 h-3"/> PDF
                     </button>
                 </div>
             </div>
 
-            {/* Table */}
             <div className="flex-1 overflow-auto custom-scrollbar relative">
                 <table className="w-full text-sm text-left border-collapse">
                     <thead className="bg-slate-100 dark:bg-slate-700 font-bold text-slate-600 dark:text-slate-300 sticky top-0 z-10 shadow-sm">
@@ -395,7 +293,6 @@ const Content: React.FC<{ filters: FilterValues | null }> = ({ filters }) => {
                             <th className="p-3 w-10 text-center"></th>
                             <th className="p-3">Nội dung</th>
                             <th className="p-3 w-20 text-center">SL</th>
-                            <th className="p-3 w-28 text-right">Đơn giá</th>
                             <th className="p-3 w-32 text-right">Thành tiền</th>
                             <th className="p-3 w-32 text-right">BHYT</th>
                             <th className="p-3 w-32 text-right">BN Trả</th>
@@ -404,20 +301,16 @@ const Content: React.FC<{ filters: FilterValues | null }> = ({ filters }) => {
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                         {dataTree.map((level1, idx1) => (
                             <React.Fragment key={level1.key}>
-                                {/* LEVEL 1 ROW (Department) */}
                                 <tr className="bg-blue-100 dark:bg-blue-900/40 hover:bg-blue-200 dark:hover:bg-blue-900/60 cursor-pointer" onClick={() => toggleLevel1(idx1)}>
                                     <td className="p-3 text-center">
                                         {level1.isExpanded ? <ChevronDownIcon className="w-4 h-4"/> : <ChevronRightIcon className="w-4 h-4"/>}
                                     </td>
                                     <td className="p-3 font-bold uppercase text-blue-800 dark:text-blue-200">{level1.key}</td>
                                     <td className="p-3 text-center font-bold">{level1.subTotal.qty.toLocaleString()}</td>
-                                    <td className="p-3 text-right"></td>
                                     <td className="p-3 text-right font-bold">{formatCurrency(level1.subTotal.revenue)}</td>
                                     <td className="p-3 text-right font-bold text-slate-500">{formatCurrency(level1.subTotal.insurance)}</td>
                                     <td className="p-3 text-right font-bold text-blue-700 dark:text-blue-300">{formatCurrency(level1.subTotal.patient)}</td>
                                 </tr>
-                                
-                                {/* LEVEL 2 GROUPS */}
                                 {level1.isExpanded && level1.groups.map((level2, idx2) => (
                                     <React.Fragment key={level2.key}>
                                         <tr className="bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer" onClick={() => toggleLevel2(idx1, idx2)}>
@@ -427,19 +320,15 @@ const Content: React.FC<{ filters: FilterValues | null }> = ({ filters }) => {
                                                 {level2.key}
                                             </td>
                                             <td className="p-3 text-center font-semibold">{level2.subTotal.qty.toLocaleString()}</td>
-                                            <td className="p-3 text-right"></td>
                                             <td className="p-3 text-right font-semibold">{formatCurrency(level2.subTotal.revenue)}</td>
                                             <td className="p-3 text-right text-slate-500">{formatCurrency(level2.subTotal.insurance)}</td>
                                             <td className="p-3 text-right text-blue-600 dark:text-blue-400">{formatCurrency(level2.subTotal.patient)}</td>
                                         </tr>
-
-                                        {/* LEVEL 3 ITEMS (Details) */}
                                         {level2.isExpanded && level2.items.map((item) => (
                                             <tr key={item.id} className="hover:bg-yellow-50 dark:hover:bg-slate-700 transition-colors border-b border-slate-50 dark:border-slate-700/50">
                                                 <td className="p-2"></td>
                                                 <td className="p-2 pl-16 text-slate-600 dark:text-slate-400">{item.serviceName}</td>
                                                 <td className="p-2 text-center text-slate-600 dark:text-slate-400">{item.quantity}</td>
-                                                <td className="p-2 text-right text-slate-500 text-xs">{formatCurrency(item.unitPrice)}</td>
                                                 <td className="p-2 text-right text-slate-700 dark:text-slate-300">{formatCurrency(item.totalRevenue)}</td>
                                                 <td className="p-2 text-right text-slate-500 text-xs">{formatCurrency(item.insurancePaid)}</td>
                                                 <td className="p-2 text-right text-slate-700 dark:text-slate-300">{formatCurrency(item.patientPaid)}</td>
@@ -449,13 +338,10 @@ const Content: React.FC<{ filters: FilterValues | null }> = ({ filters }) => {
                                 ))}
                             </React.Fragment>
                         ))}
-
-                        {/* GRAND TOTAL */}
                         <tr className="bg-yellow-100 dark:bg-yellow-900/30 font-bold text-slate-900 dark:text-white border-t-2 border-yellow-300 sticky bottom-0 shadow-inner">
                             <td className="p-4 text-center"></td>
                             <td className="p-4 uppercase">TỔNG CỘNG TOÀN VIỆN</td>
                             <td className="p-4 text-center">{grandTotal.qty.toLocaleString()}</td>
-                            <td className="p-4 text-right"></td>
                             <td className="p-4 text-right text-red-600 dark:text-red-400 text-base">{formatCurrency(grandTotal.revenue)}</td>
                             <td className="p-4 text-right">{formatCurrency(grandTotal.insurance)}</td>
                             <td className="p-4 text-right text-blue-700 dark:text-blue-300 text-base">{formatCurrency(grandTotal.patient)}</td>

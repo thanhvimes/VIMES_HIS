@@ -43,3 +43,38 @@ export interface ChatChannel {
     unreadCount: number;
     lastMessage?: ChatMessage;
 }
+
+export interface CatalogItem {
+    code: string;
+    name: string;
+    group?: string;
+    price?: number;
+}
+
+export interface DoctorItem {
+    id: string;
+    name: string;
+    role: string;
+    department: string;
+}
+
+export interface OrganizationInfo {
+    hospitalCode: string;
+    hospitalName: string;
+    governingUnitCode: string;
+    governingUnitName: string;
+    address: string;
+    hotline: string;
+    logoUrl?: string;
+}
+
+export interface UserSession {
+    userId: string;
+    username: string;
+    fullName: string;
+    title: string;
+    departmentId: string;
+    departmentName: string;
+    role: 'admin' | 'doctor' | 'nurse' | 'technician' | 'receptionist';
+    avatarUrl?: string;
+}

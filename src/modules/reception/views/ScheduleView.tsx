@@ -15,7 +15,6 @@ import {
     PhoneIcon
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
-// Fix: Import directly from the specific file to avoid barrel file circular dependency issues
 import { Appointment, AppointmentStatus } from '../../../types/patient';
 
 // --- Types & Mocks ---
