@@ -7,13 +7,15 @@ import {
     ActivityIcon,
     ChevronLeftIcon,
     PlusIcon,
-    TrashIcon
+    TrashIcon,
+    PresentationChartLineIcon
 } from '../../../../components/Icons';
 import LabResultTemplate from './templates/LabResultTemplate';
 import ImagingResultTemplate from './templates/ImagingResultTemplate';
 import FunctionalExplorationTemplate from './templates/FunctionalExplorationTemplate';
 import ServiceCatalogModal from './../../../../components/shared/services/ServiceCatalogModal';
 import ServiceTemplateModal from '../../../../components/shared/services/ServiceTemplateModal';
+import LabTrendModal from './modals/LabTrendModal';
 import { ServiceItem, serviceCategories } from '../../data/catalogs';
 import { useTheme } from '../../../../contexts/ThemeContext';
 
@@ -158,6 +160,7 @@ const LabView: React.FC = () => {
     // Modal States
     const [isCatalogModalOpen, setIsCatalogModalOpen] = useState(false);
     const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+    const [isTrendModalOpen, setIsTrendModalOpen] = useState(false); // Trend Chart Modal State
 
     const selectedRequest = useMemo(() => requests.find(r => r.id === selectedId), [requests, selectedId]);
 
@@ -266,6 +269,14 @@ const LabView: React.FC = () => {
                             title="Thêm theo gói (Template)"
                         >
                             <span className="text-xs font-extrabold">+G</span>
+                        </button>
+                        {/* Button to Open Trend Chart Modal */}
+                         <button 
+                            onClick={() => setIsTrendModalOpen(true)}
+                            className={`flex-none px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition shadow-sm font-bold flex items-center justify-center gap-1 ${fontSettings.controls}`}
+                            title="Biểu đồ xu hướng (Trend)"
+                        >
+                            <PresentationChartLineIcon className="w-4 h-4" />
                         </button>
                     </div>
                 </div>
@@ -389,6 +400,12 @@ const LabView: React.FC = () => {
                 isOpen={isTemplateModalOpen} 
                 onClose={() => setIsTemplateModalOpen(false)} 
                 onSelect={handleServiceAdd} 
+            />
+            <LabTrendModal
+                isOpen={isTrendModalOpen}
+                onClose={() => setIsTrendModalOpen(false)}
+                patientId="P003" // Mock patient ID
+                patientName="Lê Hoàng Cường" // Mock patient Name
             />
         </div>
     );

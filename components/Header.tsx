@@ -1,10 +1,11 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MenuIcon, BellIcon, LogoutIcon, ClipboardListIcon, CheckCircleIcon, ExclamationCircleIcon, InfoIcon, CogIcon, UserGroupIcon, FileSignatureIcon } from './Icons';
+import { MenuIcon, BellIcon, LogoutIcon, ClipboardListIcon, CheckCircleIcon, ExclamationCircleIcon, InfoIcon, CogIcon, UserGroupIcon, FileSignatureIcon, MicrophoneIcon, MicrophoneOffIcon, ChatBubbleIcon } from './Icons';
 import ThemeSwitcher from './ThemeSwitcher';
 import { useNotification } from '../contexts/NotificationContext';
 import { useSystem } from '../contexts/SystemContext';
 import { useSession } from '../contexts/SessionContext';
+import { useVoiceInput } from '../contexts/VoiceInputContext';
 import { useNavigate } from 'react-router-dom';
 import Tooltip from './shared/Tooltip';
 import UserProfileModal from './shared/UserProfileModal';
@@ -16,6 +17,8 @@ interface HeaderProps {
     onLogout: () => void;
     showSidebarToggle?: boolean;
     showBranding?: boolean;
+    isChatVisible: boolean;
+    onToggleChat: () => void;
 }
 
 // --- DYNAMIC ANNOUNCEMENT SLIDER COMPONENT ---
@@ -90,14 +93,23 @@ const AnnouncementSlider = () => {
     );
 };
 
-const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, showSidebarToggle = true, showBranding = false }) => {
+const Header: React.FC<HeaderProps> = ({ 
+    pageTitle, 
+    onToggleSidebar, 
+    onLogout, 
+    showSidebarToggle = true, 
+    showBranding = false,
+    isChatVisible,
+    onToggleChat
+}) => {
     const [isDropdownOpen, setDropdownOpen] = useState(false);
     const [isNotifOpen, setNotifOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotification();
-    const { user, orgInfo } = useSession(); // Use Session Context
+    const { user, orgInfo } = useSession(); 
+    const { isListening, toggleListening, hasSupport } = useVoiceInput();
     
     const notifRef = useRef<HTMLDivElement>(null);
     const userMenuRef = useRef<HTMLDivElement>(null);
@@ -173,6 +185,49 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
             {/* --- Right Side: Actions & Profile --- */}
             <div className="flex items-center space-x-3 sm:space-x-5">
                 
+                {/* Voice to Text Toggle */}
+                {hasSupport && (
+                    <Tooltip content={isListening ? "Tắt nhận dạng giọng nói" : "Bật nhận dạng giọng nói"}>
+                        <button 
+                            onClick={toggleListening}
+                            className={`p-2.5 rounded-full transition-colors relative group ${
+                                isListening 
+                                ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 animate-pulse' 
+                                : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200'
+                            }`}
+                        >
+                            {isListening ? (
+                                <MicrophoneIcon className="h-6 w-6" />
+                            ) : (
+                                <MicrophoneOffIcon className="h-6 w-6" />
+                            )}
+                            {isListening && (
+                                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                                </span>
+                            )}
+                        </button>
+                    </Tooltip>
+                )}
+
+                {/* Chat Widget Toggle */}
+                <Tooltip content={isChatVisible ? "Tắt cửa sổ Chat" : "Bật cửa sổ Chat"}>
+                    <button 
+                        onClick={onToggleChat}
+                        className={`p-2.5 rounded-full transition-colors relative group ${
+                            isChatVisible
+                            ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                            : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200'
+                        }`}
+                    >
+                        <ChatBubbleIcon className="h-6 w-6" />
+                        {isChatVisible && (
+                            <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-blue-500 ring-2 ring-white dark:ring-slate-900"></span>
+                        )}
+                    </button>
+                </Tooltip>
+
                 {/* Sign Document Shortcut */}
                 <Tooltip content="Trình ký văn bản">
                     <button 

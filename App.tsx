@@ -23,22 +23,15 @@ import { SURGERY_NAV_ITEMS } from './modules/surgery/constants';
 import { EQUIPMENT_NAV_ITEMS } from './modules/equipment/constants';
 import { INSURANCE_NAV_ITEMS } from './modules/insurance/constants';
 import { TELEMEDICINE_NAV_ITEMS } from './modules/telemedicine/constants';
-
-// Import Contexts
-import { PdfPreviewProvider } from './contexts/PdfPreviewContext';
-import { NotificationProvider } from './contexts/NotificationContext';
-import { SystemProvider } from './contexts/SystemContext';
-import { MasterDataProvider } from './contexts/MasterDataContext'; 
-import { SessionProvider, useSession } from './contexts/SessionContext';
+import { CRM_NAV_ITEMS } from './modules/crm/constants';
+import { HR_NAV_ITEMS } from './modules/hr/constants';
 
 // --- LAZY LOAD MODULES ---
-// Note: Imports must be at the top, but React.lazy is a function call so it comes after imports.
 const Dashboard = React.lazy(() => import('./modules/dashboard/Dashboard'));
 const Reception = React.lazy(() => import('./modules/reception/index'));
 const Consultation = React.lazy(() => import('./modules/consultation/index'));
 const InpatientTreatment = React.lazy(() => import('./modules/inpatient-treatment/index'));
 const Surgery = React.lazy(() => import('./modules/surgery/index'));
-const Telemedicine = React.lazy(() => import('./modules/telemedicine/index'));
 const Equipment = React.lazy(() => import('./modules/equipment/index'));
 const Billing = React.lazy(() => import('./modules/billing/index'));
 const LabResults = React.lazy(() => import('./modules/lab-results/index'));
@@ -50,6 +43,17 @@ const ManagementReporting = React.lazy(() => import('./modules/management-report
 const Documents = React.lazy(() => import('./modules/documents/index'));
 const ReportsModule = React.lazy(() => import('./modules/reports/index'));
 const InsuranceModule = React.lazy(() => import('./modules/insurance/index'));
+const Telemedicine = React.lazy(() => import('./modules/telemedicine/index'));
+const CRM = React.lazy(() => import('./modules/crm/index'));
+const HR = React.lazy(() => import('./modules/hr/index'));
+const Portal = React.lazy(() => import('./modules/portal/index'));
+
+import { PdfPreviewProvider } from './contexts/PdfPreviewContext';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { SystemProvider } from './contexts/SystemContext';
+import { MasterDataProvider } from './contexts/MasterDataContext'; 
+import { SessionProvider, useSession } from './contexts/SessionContext';
+import { VoiceInputProvider } from './contexts/VoiceInputContext';
 
 // Module configuration map
 const moduleConfig: { [key: string]: { title: string; nav: any[] } } = {
@@ -57,7 +61,6 @@ const moduleConfig: { [key: string]: { title: string; nav: any[] } } = {
   consultation: { title: 'Khám bệnh', nav: CONSULTATION_NAV_ITEMS },
   'inpatient-treatment': { title: 'Điều trị nội trú', nav: INPATIENT_NAV_ITEMS },
   surgery: { title: 'Quản lý Phẫu thuật', nav: SURGERY_NAV_ITEMS },
-  telemedicine: { title: 'Hội chẩn từ xa', nav: TELEMEDICINE_NAV_ITEMS },
   equipment: { title: 'Trang thiết bị Y tế', nav: EQUIPMENT_NAV_ITEMS },
   billing: { title: 'Viện phí', nav: BILLING_NAV_ITEMS },
   'lab-results': { title: 'KQ Xét nghiệm', nav: LAB_RESULTS_NAV_ITEMS },
@@ -67,6 +70,9 @@ const moduleConfig: { [key: string]: { title: string; nav: any[] } } = {
   admin: { title: 'Quản trị Hệ thống', nav: ADMIN_NAV_ITEMS },
   'management-reporting': { title: 'Báo cáo Quản trị', nav: MGMT_REPORTING_NAV_ITEMS },
   insurance: { title: 'Bảo hiểm Y tế', nav: INSURANCE_NAV_ITEMS },
+  telemedicine: { title: 'Hội chẩn từ xa', nav: TELEMEDICINE_NAV_ITEMS },
+  crm: { title: 'CRM & CSKH', nav: CRM_NAV_ITEMS },
+  hr: { title: 'Quản lý Nhân sự', nav: HR_NAV_ITEMS },
   documents: { title: 'Xem tài liệu', nav: [] },
   reports: { title: 'Hệ thống Báo cáo', nav: [] },
   settings: { title: 'Cài đặt', nav: [] },
@@ -78,6 +84,7 @@ const WorkspaceLayout: React.FC = () => {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try { return JSON.parse(localStorage.getItem('sidebarCollapsed') || 'false'); } catch { return false; }
   });
+  const [isChatVisible, setIsChatVisible] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('sidebarCollapsed', JSON.stringify(isSidebarCollapsed));
@@ -87,7 +94,8 @@ const WorkspaceLayout: React.FC = () => {
   const isFullWidthPage = location.pathname.includes('/consultation/record') || 
                           location.pathname.includes('/inpatient-treatment/record') ||
                           location.pathname.includes('/documents') ||
-                          location.pathname.includes('/reports');
+                          location.pathname.includes('/reports') ||
+                          location.pathname.includes('/telemedicine/live');
 
   const { pageTitle, moduleNavItems } = useMemo(() => {
     const currentModuleRoot = location.pathname.split('/')[1];
@@ -110,13 +118,15 @@ const WorkspaceLayout: React.FC = () => {
             onToggleSidebar={() => setMobileSidebarOpen(!isMobileSidebarOpen)}
             onLogout={logout}
             showSidebarToggle={true}
+            isChatVisible={isChatVisible}
+            onToggleChat={() => setIsChatVisible(!isChatVisible)}
         />
         <main className={`flex-1 overflow-x-hidden overflow-y-auto ${isFullWidthPage ? '' : 'p-4 sm:p-6 lg:p-8'}`}>
           <Suspense fallback={<GlobalLoading />}>
             <Outlet />
           </Suspense>
         </main>
-        <ChatWidget />
+        {isChatVisible && <ChatWidget />}
         <ToastContainer />
       </div>
     </div>
@@ -125,37 +135,70 @@ const WorkspaceLayout: React.FC = () => {
 
 const DashboardLayout: React.FC = () => {
   const { logout } = useSession();
+  const [isChatVisible, setIsChatVisible] = useState(false);
+
   return (
     <div className="flex flex-col h-screen bg-background dark:bg-dark-background relative">
-      <Header onToggleSidebar={() => {}} onLogout={logout} showSidebarToggle={false} showBranding={true} />
+      <Header 
+        onToggleSidebar={() => {}} 
+        onLogout={logout} 
+        showSidebarToggle={false} 
+        showBranding={true} 
+        isChatVisible={isChatVisible}
+        onToggleChat={() => setIsChatVisible(!isChatVisible)}
+      />
       <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6 lg:p-8">
          <Suspense fallback={<GlobalLoading message="Đang tải bảng điều khiển..." />}>
             <Dashboard />
          </Suspense>
       </main>
-      <ChatWidget />
+      {isChatVisible && <ChatWidget />}
       <ToastContainer />
     </div>
   );
 };
 
-// Main App Logic Wrapper to use useSession Hook inside SessionProvider
+// Main App Logic Wrapper
 const MainApp: React.FC = () => {
   const { isAuthenticated, login } = useSession();
+  const location = useLocation();
 
-  if (!isAuthenticated) {
-    return <Login onLogin={() => login()} />;
+  // 1. Ưu tiên Portal: Nếu đường dẫn bắt đầu bằng /portal hoặc là trang chủ (/), hiển thị Portal
+  // Điều này cho phép triển khai Cổng bệnh nhân trước
+  if (location.pathname.startsWith('/portal') || location.pathname === '/') {
+      // Nếu là trang chủ gốc, redirect vào Portal Home
+      if (location.pathname === '/') {
+          return <Navigate to="/portal/home" replace />;
+      }
+      return (
+          <Suspense fallback={<GlobalLoading message="Đang tải Cổng thông tin..." />}>
+              <Portal />
+          </Suspense>
+      );
   }
 
+  // 2. Các đường dẫn nội bộ (Staff) bắt buộc đăng nhập
+  // Chúng ta dùng prefix giả định hoặc check auth cho các route còn lại
+  if (!isAuthenticated) {
+      // Nếu truy cập route nội bộ mà chưa login -> Hiện form login
+      // Lưu ý: Login component giờ sẽ handle việc auth
+      return <Login onLogin={() => login()} />;
+  }
+
+  // 3. Giao diện làm việc của nhân viên (Sau khi login)
   return (
     <Routes>
-      <Route path="/" element={<DashboardLayout />} />
+      {/* Route Dashboard chính cho nhân viên */}
+      <Route path="/staff-dashboard" element={<DashboardLayout />} />
+      
       <Route element={<WorkspaceLayout />}>
         <Route path="/reception/*" element={<Reception />} />
         <Route path="/consultation/*" element={<Consultation />} />
         <Route path="/inpatient-treatment/*" element={<InpatientTreatment />} />
         <Route path="/surgery/*" element={<Surgery />} />
         <Route path="/telemedicine/*" element={<Telemedicine />} />
+        <Route path="/crm/*" element={<CRM />} />
+        <Route path="/hr/*" element={<HR />} />
         <Route path="/equipment/*" element={<Equipment />} />
         <Route path="/billing/*" element={<Billing />} />
         <Route path="/lab-results/*" element={<LabResults />} />
@@ -169,7 +212,9 @@ const MainApp: React.FC = () => {
         <Route path="/reports/*" element={<ReportsModule />} />
         <Route path="/settings" element={<div className="text-center text-slate-500 dark:text-slate-400 p-10">Trang Cài đặt đang trong quá trình phát triển.</div>} />
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      
+      {/* Fallback cho các route staff không tồn tại -> Về Dashboard */}
+      <Route path="*" element={<Navigate to="/staff-dashboard" replace />} />
     </Routes>
   );
 }
@@ -181,7 +226,9 @@ const App: React.FC = () => {
         <NotificationProvider>
           <MasterDataProvider>
             <PdfPreviewProvider>
-               <MainApp />
+              <VoiceInputProvider>
+                 <MainApp />
+              </VoiceInputProvider>
             </PdfPreviewProvider>
           </MasterDataProvider>
         </NotificationProvider>
@@ -191,4 +238,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-    
