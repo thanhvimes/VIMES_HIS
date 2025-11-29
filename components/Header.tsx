@@ -183,10 +183,7 @@ const Header: React.FC<HeaderProps> = ({
                        </div>
                        
                        {/* Text Container */}
-                       <div className="flex flex-col justify-center">
-                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-widest leading-tight">
-                                {orgInfo.governingUnitCode || 'SỞ Y TẾ'}
-                            </span>
+                       <div className="flex flex-col justify-center">                          
                             <h1 className="text-xl sm:text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-teal-500 dark:from-blue-400 dark:to-teal-300 tracking-tight leading-none group-hover:scale-[1.02] transition-transform duration-300 origin-left">
                                 {orgInfo.hospitalName || 'BỆNH VIỆN'}
                             </h1>
