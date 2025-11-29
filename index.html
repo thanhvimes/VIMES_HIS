@@ -14,22 +14,27 @@
           extend: {
             colors: {
               primary: {
-                DEFAULT: '#06b6d4', // cyan-500
+                DEFAULT: '#06b6d4', // cyan-500 (Light mode primary)
                 light: '#22d3ee',   // cyan-400
                 dark: '#0891b2',    // cyan-600
               },
               secondary: '#10b981', // emerald-500
-              // Light theme colors
-              background: '#f8fafc', // slate-50
+              
+              // --- LIGHT THEME ---
+              background: '#f8fafc', // slate-50 (Very light cool grey)
               surface: '#ffffff',
               onPrimary: '#ffffff',
               onSurface: '#1e293b', // slate-800
-              // Dark theme colors
+              
+              // --- DARK THEME (Refined for Professional Medical Look) ---
+              // Using Slate-950 for background provides a deep, rich blue-black 
+              // that is easier on the eyes than pure black.
               dark: {
-                background: '#0f172a', // slate-900
-                surface: '#1e293b',   // slate-800
-                onSurface: '#e2e8f0', // slate-200
-                primary: '#22d3ee', // cyan-400
+                background: '#020617', // slate-950 (Deepest blue-grey)
+                surface: '#0f172a',   // slate-900 (Slightly lighter for cards)
+                onSurface: '#e2e8f0', // slate-200 (Off-white text, reduces glare)
+                primary: '#2dd4bf',   // teal-400 (Bright pastel teal for dark mode contrast)
+                border: '#1e293b',    // slate-800 (Subtle borders)
               }
             },
             keyframes: {
@@ -77,7 +82,7 @@
       }
       
       .dark * {
-        scrollbar-color: #475569 transparent;
+        scrollbar-color: #334155 transparent; /* Darker thumb for dark mode */
       }
 
       /* 2. WebKit Browsers (Chrome, Safari, Edge) */
@@ -109,7 +114,8 @@
       
       /* Dark Mode Overrides */
       .dark ::-webkit-scrollbar-thumb {
-        background-color: #334155; /* slate-700 */
+        background-color: #1e293b; /* slate-800 */
+        border: 1px solid #334155;
       }
 
       .dark ::-webkit-scrollbar-thumb:hover {
@@ -127,13 +133,13 @@
           transition: background-color 5000s ease-in-out 0s;
       }
       
-      /* Dark Mode */
+      /* Dark Mode - Fix for the new Slate-900 background */
       .dark input:-webkit-autofill,
       .dark input:-webkit-autofill:hover, 
       .dark input:-webkit-autofill:focus, 
       .dark input:-webkit-autofill:active {
-          -webkit-box-shadow: 0 0 0 30px #334155 inset !important; /* Slate-700 to match inputs */
-          -webkit-text-fill-color: white !important;
+          -webkit-box-shadow: 0 0 0 30px #0f172a inset !important; /* Matches Slate-900 surface */
+          -webkit-text-fill-color: #e2e8f0 !important;
           caret-color: white;
       }
 
@@ -154,7 +160,7 @@
         border-radius: 4px;
       }
       .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-        background-color: #475569;
+        background-color: #334155;
       }
 
       /* Print Styles */

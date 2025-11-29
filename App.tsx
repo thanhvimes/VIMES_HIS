@@ -100,7 +100,7 @@ const WorkspaceLayout: React.FC = () => {
   const { pageTitle, moduleNavItems } = useMemo(() => {
     const currentModuleRoot = location.pathname.split('/')[1];
     const config = moduleConfig[currentModuleRoot];
-    return config ? { pageTitle: config.title, moduleNavItems: config.nav } : { pageTitle: 'ClinicMS', moduleNavItems: null };
+    return config ? { pageTitle: config.title, moduleNavItems: config.nav } : { pageTitle: 'VIMES', moduleNavItems: null };
   }, [location.pathname]);
 
   return (
@@ -164,8 +164,10 @@ const MainApp: React.FC = () => {
   const location = useLocation();
 
   // 1. Ưu tiên Portal: Nếu đường dẫn bắt đầu bằng /portal hoặc là trang chủ (/), hiển thị Portal
+  // Nếu chạy hệ thống bệnh viện thì /admin
   // Điều này cho phép triển khai Cổng bệnh nhân trước
-  if (location.pathname.startsWith('/portal') || location.pathname === '/') {
+
+  if (location.pathname.startsWith('/admin') || location.pathname === '/') {
       // Nếu là trang chủ gốc, redirect vào Portal Home
       if (location.pathname === '/') {
           return <Navigate to="/portal/home" replace />;

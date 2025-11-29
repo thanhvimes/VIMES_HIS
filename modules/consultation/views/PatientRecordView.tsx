@@ -68,7 +68,7 @@ const PatientRecordView: React.FC = () => {
         return (
             <div className="flex items-center justify-center h-full bg-slate-50 dark:bg-slate-900">
                 <div className="flex flex-col items-center">
-                    <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <div className="w-10 h-10 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mb-4"></div>
                     <p className="text-slate-500 dark:text-slate-400">Đang tải hồ sơ bệnh nhân...</p>
                 </div>
             </div>
@@ -82,7 +82,7 @@ const PatientRecordView: React.FC = () => {
                 <p className="text-slate-500 mb-6">Hồ sơ bệnh nhân với ID {patientId} không tồn tại hoặc đã bị xóa.</p>
                 <button 
                     onClick={() => navigate('/consultation/list')}
-                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+                    className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
                 >
                     Quay lại danh sách
                 </button>
@@ -93,7 +93,7 @@ const PatientRecordView: React.FC = () => {
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden relative">
             {/* 1. TOP BAR - Patient Info & Navigation */}
-            <div className="flex-shrink-0 bg-gradient-to-r from-cyan-600 to-cyan-500 text-white shadow-md z-20">
+            <div className="flex-shrink-0 bg-gradient-to-r from-teal-700 to-teal-600 text-white shadow-md z-20">
                 <div className="flex items-center justify-between px-4 py-2">
                     <div className="flex items-center space-x-4">
                         <button onClick={() => navigate(-1)} className="p-1 hover:bg-white/20 rounded-full transition-colors">
@@ -104,7 +104,7 @@ const PatientRecordView: React.FC = () => {
                                 <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
                                 {patientData.name} | Tuổi: {patientData.age} | Giới tính: {patientData.gender}
                             </h1>
-                            <p className="text-xs text-cyan-100 opacity-90 flex items-center gap-1">
+                            <p className="text-xs text-teal-100 opacity-90 flex items-center gap-1">
                                 <span className="opacity-70">📍 Địa chỉ:</span> {patientData.address}
                             </p>
                         </div>
@@ -130,11 +130,11 @@ const PatientRecordView: React.FC = () => {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={`flex flex-col items-center justify-center py-2 px-6 min-w-[90px] rounded-t-lg transition-all duration-200 border-b-4 ${activeTab === tab.id
-                                    ? 'bg-white text-cyan-700 border-amber-500 translate-y-[1px] shadow-inner font-bold'
-                                    : 'bg-cyan-700 text-cyan-100 border-transparent hover:bg-cyan-600 hover:text-white opacity-90'
+                                    ? 'bg-white text-teal-800 border-orange-500 translate-y-[1px] shadow-inner font-bold'
+                                    : 'bg-teal-800/40 text-teal-100 border-transparent hover:bg-teal-700 hover:text-white opacity-90'
                                 }`}
                         >
-                            <tab.icon className={`w-5 h-5 mb-1 ${activeTab === tab.id ? 'text-cyan-600' : 'text-cyan-200'}`} />
+                            <tab.icon className={`w-5 h-5 mb-1 ${activeTab === tab.id ? 'text-teal-600' : 'text-teal-200'}`} />
                             <span className="text-xs uppercase tracking-wide">{tab.label}</span>
                         </button>
                     ))}
