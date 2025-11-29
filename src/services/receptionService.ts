@@ -28,8 +28,6 @@ export interface QueueStatus {
     waitingCount: number;
 }
 
-const API_BASE_URL = 'http://localhost/api/erm';
-
 export const receptionService = {
     // --- Patient Management ---
     getPatientList: async (): Promise<Patient[]> => {
