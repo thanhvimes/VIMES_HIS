@@ -1,7 +1,6 @@
 
 import { apiClient } from './apiClient';
-import { UserSession } from '../types/common';
-import { SignDocument } from '../types/clinical';
+import { UserSession, OrganizationInfo } from '../types/common';
 
 // Interface cho User Account quản trị
 export interface UserAccount extends UserSession {
@@ -12,13 +11,28 @@ export interface UserAccount extends UserSession {
 }
 
 export const adminService = {
+    // --- Organization Info (Thông tin Bệnh viện) ---
+    getOrganizationInfo: async (): Promise<OrganizationInfo> => {
+        // Mock API Call
+        return await apiClient.get<OrganizationInfo>('/admin/organization/info');
+    },
+
+    updateOrganizationInfo: async (info: OrganizationInfo): Promise<OrganizationInfo> => {
+        console.log(">>> [API] Updating Organization Info:", info);
+        // Thực tế: return await apiClient.put<OrganizationInfo>('/admin/organization/info', info);
+        
+        // Mock response delay
+        await new Promise(resolve => setTimeout(resolve, 800));
+        return info;
+    },
+
     // --- Users ---
     getUsers: async (params?: { search?: string, department?: string }): Promise<UserAccount[]> => {
         return await apiClient.get<UserAccount[]>('/admin/users', params);
     },
 
     saveUser: async (user: UserAccount): Promise<UserAccount> => {
-        if (user.id && !user.id.startsWith('U')) { // Giả sử ID thật không bắt đầu bằng U (mock)
+        if (user.id && !user.id.startsWith('U')) { 
             return await apiClient.put<UserAccount>(`/admin/users/${user.id}`, user);
         }
         return await apiClient.post<UserAccount>('/admin/users', user);

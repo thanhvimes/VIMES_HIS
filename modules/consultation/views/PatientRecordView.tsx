@@ -93,7 +93,8 @@ const PatientRecordView: React.FC = () => {
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden relative">
             {/* 1. TOP BAR - Patient Info & Navigation */}
-            <div className="flex-shrink-0 bg-gradient-to-r from-teal-700 to-teal-600 text-white shadow-md z-20">
+            {/* ADAPTIVE HEADER: Teal in Light Mode (Matches Portal), Deep Slate in Dark Mode (Professional) */}
+            <div className="flex-shrink-0 bg-gradient-to-r from-teal-700 to-teal-600 dark:from-slate-900 dark:to-slate-800 text-white shadow-md z-20 border-b dark:border-slate-700">
                 <div className="flex items-center justify-between px-4 py-2">
                     <div className="flex items-center space-x-4">
                         <button onClick={() => navigate(-1)} className="p-1 hover:bg-white/20 rounded-full transition-colors">
@@ -104,7 +105,7 @@ const PatientRecordView: React.FC = () => {
                                 <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
                                 {patientData.name} | Tuổi: {patientData.age} | Giới tính: {patientData.gender}
                             </h1>
-                            <p className="text-xs text-teal-100 opacity-90 flex items-center gap-1">
+                            <p className="text-xs text-teal-100 dark:text-slate-400 opacity-90 flex items-center gap-1">
                                 <span className="opacity-70">📍 Địa chỉ:</span> {patientData.address}
                             </p>
                         </div>
@@ -117,7 +118,7 @@ const PatientRecordView: React.FC = () => {
                             <ClockIcon className="w-4 h-4" />
                             Lịch sử khám
                         </button>
-                        <div className="text-sm font-bold bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm max-w-xs truncate">
+                        <div className="text-sm font-bold bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm max-w-xs truncate border border-white/10">
                             {patientData.diagnosis}
                         </div>
                     </div>
@@ -130,11 +131,11 @@ const PatientRecordView: React.FC = () => {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={`flex flex-col items-center justify-center py-2 px-6 min-w-[90px] rounded-t-lg transition-all duration-200 border-b-4 ${activeTab === tab.id
-                                    ? 'bg-white text-teal-800 border-orange-500 translate-y-[1px] shadow-inner font-bold'
-                                    : 'bg-teal-800/40 text-teal-100 border-transparent hover:bg-teal-700 hover:text-white opacity-90'
+                                    ? 'bg-white dark:bg-slate-800 text-teal-800 dark:text-sky-400 border-orange-500 translate-y-[1px] shadow-inner font-bold'
+                                    : 'bg-teal-800/40 dark:bg-slate-800/50 text-teal-100 dark:text-slate-400 border-transparent hover:bg-teal-700 dark:hover:bg-slate-700 hover:text-white opacity-90'
                                 }`}
                         >
-                            <tab.icon className={`w-5 h-5 mb-1 ${activeTab === tab.id ? 'text-teal-600' : 'text-teal-200'}`} />
+                            <tab.icon className={`w-5 h-5 mb-1 ${activeTab === tab.id ? 'text-teal-600 dark:text-sky-400' : 'text-teal-200 dark:text-slate-400'}`} />
                             <span className="text-xs uppercase tracking-wide">{tab.label}</span>
                         </button>
                     ))}

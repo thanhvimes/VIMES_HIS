@@ -11,21 +11,20 @@ import FinanceView from './views/FinanceView';
 const Portal: React.FC = () => {
   return (
     <Routes>
-      {/* Login Route - Explicit path */}
-      <Route path="/portal/login" element={<PortalLoginView />} />
+      {/* Relative path "login" matches "/portal/login" */}
+      <Route path="login" element={<PortalLoginView />} />
       
-      {/* Protected Routes - Inside Portal Layout */}
-      {/* Parent route matches "/portal" prefix */}
-      <Route path="/portal" element={<PortalLayout />}>
-          <Route index element={<Navigate to="home" replace />} />
+      {/* Main Portal Layout Routes */}
+      <Route element={<PortalLayout />}>
           <Route path="home" element={<PortalHomeView />} />
           <Route path="booking" element={<BookingView />} />
           <Route path="records" element={<HealthRecordsView />} />
           <Route path="finance" element={<FinanceView />} />
+          <Route index element={<Navigate to="home" replace />} />
       </Route>
 
-      {/* Catch all - Redirect to portal home */}
-      <Route path="*" element={<Navigate to="/portal/home" replace />} />
+      {/* Catch all redirect within portal */}
+      <Route path="*" element={<Navigate to="home" replace />} />
     </Routes>
   );
 };

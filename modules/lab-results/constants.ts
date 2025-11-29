@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { 
-  HomeIcon,
+  Squares2X2Icon,
   ClipboardListIcon,
   MicroscopeIcon,
   DesktopComputerIcon,
@@ -14,7 +14,7 @@ import {
 import { NavItemType } from '../../types';
 
 export const LAB_RESULTS_NAV_ITEMS: NavItemType[] = [
-    { name: 'Bảng điều khiển', path: '/lab-results/dashboard', icon: React.createElement(HomeIcon, { className: "w-5 h-5" }) },
+    { name: 'Bảng điều khiển', path: '/lab-results/dashboard', icon: React.createElement(Squares2X2Icon, { className: "w-5 h-5" }) },
     { name: 'Lịch lấy mẫu', path: '/lab-results/schedule', icon: React.createElement(CalendarDaysIcon, { className: "w-5 h-5" }) },
     { name: 'Tiếp nhận & Lấy mẫu', path: '/lab-results/reception', icon: React.createElement(ClipboardListIcon, { className: "w-5 h-5" }) },
     { name: 'Thực hiện & Duyệt KQ', path: '/lab-results/processing', icon: React.createElement(MicroscopeIcon, { className: "w-5 h-5" }) },

@@ -4,13 +4,13 @@ import {
   ClipboardListIcon,
   DocumentTextIcon,
   FileSignatureIcon,
-  HomeIcon,
+  Squares2X2Icon,
   ListBulletIcon,
 } from '../../components/Icons';
 import { NavItemType } from '../../types';
 
 export const CONSULTATION_NAV_ITEMS: NavItemType[] = [
-    { name: 'Bảng điều khiển', path: '/consultation/dashboard', icon: React.createElement(HomeIcon, { className: "w-5 h-5" }) },
+    { name: 'Bảng điều khiển', path: '/consultation/dashboard', icon: React.createElement(Squares2X2Icon, { className: "w-5 h-5" }) },
     { name: 'Hồ sơ', path: '/consultation/record', icon: React.createElement(ClipboardListIcon, { className: "w-5 h-5" }) },
     { name: 'Danh sách', path: '/consultation/list', icon: React.createElement(ListBulletIcon, { className: "w-5 h-5" }) },
     { name: 'Tài liệu trình ký', path: '/consultation/signing', icon: React.createElement(FileSignatureIcon, { className: "w-5 h-5" }) },

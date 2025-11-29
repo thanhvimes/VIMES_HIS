@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
-import { ClipboardListIcon, XIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon } from './Icons';
+import { ClipboardListIcon, XIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, HomeIcon } from './Icons';
 import { NavItemType } from '../types';
 
 interface SidebarProps {
@@ -55,11 +55,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen, isCollap
           isCollapsed ? 'lg:w-20' : 'lg:w-64'
         }`}
       >
-        <div className={`flex items-center p-4 border-b border-slate-200 dark:border-slate-700 h-[65px] flex-shrink-0 ${isCollapsed ? 'lg:justify-center' : 'justify-between'}`}>
-          <Link to="/" className="flex items-center overflow-hidden" onClick={() => setMobileOpen(false)}>
-            <ClipboardListIcon className="h-8 w-8 text-primary dark:text-dark-primary flex-shrink-0" />
+        <div className={`flex items-center p-4 border-b border-slate-200 dark:border-slate-700 h-[72px] flex-shrink-0 ${isCollapsed ? 'lg:justify-center' : 'justify-between'}`}>
+          <Link to="/staff-dashboard" className="flex items-center overflow-hidden" onClick={() => setMobileOpen(false)} title="Về trang chủ">
+            <HomeIcon className="h-8 w-8 text-primary dark:text-dark-primary flex-shrink-0" />
             <span className={`ml-2 text-xl font-bold text-onSurface dark:text-dark-onSurface whitespace-nowrap transition-opacity duration-200 ${isCollapsed ? 'lg:opacity-0 lg:hidden' : 'opacity-100'}`}>
-              ClinicMS
+              Home
             </span>
           </Link>
           <button onClick={() => setMobileOpen(false)} className="lg:hidden text-slate-500 hover:text-primary dark:hover:text-dark-primary">
@@ -67,7 +67,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen, isCollap
           </button>
         </div>
         
-        <nav className="flex-1 p-2 overflow-y-auto">
+        <nav className="flex-1 p-2 overflow-y-auto custom-scrollbar">
           {moduleNavItems && moduleNavItems.length > 0 ? (
              <div>
                <h3 className={`px-3 mb-2 text-xs font-semibold tracking-wider text-slate-400 dark:text-slate-500 uppercase ${isCollapsed ? 'lg:text-center' : ''}`}>
@@ -92,7 +92,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen, isCollap
         <div className="p-2 border-t border-slate-200 dark:border-slate-700">
           <button
             onClick={onToggleCollapse}
-            className="hidden lg:flex items-center justify-center w-full p-3 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+            className="hidden lg:flex items-center justify-center w-full p-3 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
             title={isCollapsed ? "Mở rộng" : "Thu gọn"}
           >
             {isCollapsed ? 

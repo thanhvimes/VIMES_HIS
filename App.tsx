@@ -120,6 +120,7 @@ const WorkspaceLayout: React.FC = () => {
             showSidebarToggle={true}
             isChatVisible={isChatVisible}
             onToggleChat={() => setIsChatVisible(!isChatVisible)}
+            showBranding={false} // Always hide full branding inside modules to save space, use Title instead
         />
         <main className={`flex-1 overflow-x-hidden overflow-y-auto ${isFullWidthPage ? '' : 'p-4 sm:p-6 lg:p-8'}`}>
           <Suspense fallback={<GlobalLoading />}>
@@ -143,7 +144,7 @@ const DashboardLayout: React.FC = () => {
         onToggleSidebar={() => {}} 
         onLogout={logout} 
         showSidebarToggle={false} 
-        showBranding={true} 
+        showBranding={true} // Only show full branding on Dashboard
         isChatVisible={isChatVisible}
         onToggleChat={() => setIsChatVisible(!isChatVisible)}
       />
@@ -158,39 +159,10 @@ const DashboardLayout: React.FC = () => {
   );
 };
 
-// Main App Logic Wrapper
-const MainApp: React.FC = () => {
-  const { isAuthenticated, login } = useSession();
-  const location = useLocation();
-
-  // 1. Ưu tiên Portal: Nếu đường dẫn bắt đầu bằng /portal hoặc là trang chủ (/), hiển thị Portal
-  // Nếu chạy hệ thống bệnh viện thì /admin
-  // Điều này cho phép triển khai Cổng bệnh nhân trước
-
-  if (location.pathname.startsWith('/admin') || location.pathname === '/') {
-      // Nếu là trang chủ gốc, redirect vào Portal Home
-      if (location.pathname === '/') {
-          return <Navigate to="/portal/home" replace />;
-      }
-      return (
-          <Suspense fallback={<GlobalLoading message="Đang tải Cổng thông tin..." />}>
-              <Portal />
-          </Suspense>
-      );
-  }
-
-  // 2. Các đường dẫn nội bộ (Staff) bắt buộc đăng nhập
-  // Chúng ta dùng prefix giả định hoặc check auth cho các route còn lại
-  if (!isAuthenticated) {
-      // Nếu truy cập route nội bộ mà chưa login -> Hiện form login
-      // Lưu ý: Login component giờ sẽ handle việc auth
-      return <Login onLogin={() => login()} />;
-  }
-
-  // 3. Giao diện làm việc của nhân viên (Sau khi login)
+// Staff Routes Container
+const StaffSystem: React.FC = () => {
   return (
     <Routes>
-      {/* Route Dashboard chính cho nhân viên */}
       <Route path="/staff-dashboard" element={<DashboardLayout />} />
       
       <Route element={<WorkspaceLayout />}>
@@ -215,8 +187,37 @@ const MainApp: React.FC = () => {
         <Route path="/settings" element={<div className="text-center text-slate-500 dark:text-slate-400 p-10">Trang Cài đặt đang trong quá trình phát triển.</div>} />
       </Route>
       
-      {/* Fallback cho các route staff không tồn tại -> Về Dashboard */}
+      {/* Default Staff Redirect */}
       <Route path="*" element={<Navigate to="/staff-dashboard" replace />} />
+    </Routes>
+  );
+};
+
+// Main App Logic Wrapper
+const MainApp: React.FC = () => {
+  const { isAuthenticated, login } = useSession();
+
+  return (
+    <Routes>
+      {/* 1. PUBLIC: Patient Portal (Accessible by everyone) */}
+      <Route path="/portal/*" element={
+          <Suspense fallback={<GlobalLoading message="Đang tải Cổng thông tin..." />}>
+              <Portal />
+          </Suspense>
+      } />
+
+      {/* 2. ROOT REDIRECT: Default to Portal Home */}
+      <Route path="/" element={<Navigate to="/portal/home" replace />} />
+
+      {/* 3. STAFF AUTH: Login for Employees */}
+      <Route path="/staff/login" element={
+          isAuthenticated ? <Navigate to="/staff-dashboard" replace /> : <Login onLogin={() => login()} />
+      } />
+
+      {/* 4. STAFF SYSTEM: Protected Routes */}
+      <Route path="/*" element={
+          isAuthenticated ? <StaffSystem /> : <Navigate to="/staff/login" replace />
+      } />
     </Routes>
   );
 }
