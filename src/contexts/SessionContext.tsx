@@ -14,7 +14,7 @@ interface SessionContextType {
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
-// Default Mock Data for Organization
+// Default Mock Data for Organization (Updated to Hospital K)
 const defaultOrgInfo: OrganizationInfo = {
     hospitalCode: '79021',
     hospitalName: 'BỆNH VIỆN K',
@@ -22,7 +22,6 @@ const defaultOrgInfo: OrganizationInfo = {
     governingUnitName: 'Bộ Y tế - Hệ thống quản lý bệnh viện (HIS/EMR)',
     address: '43 Quán Sứ, Hàng Bông, Hoàn Kiếm, Hà Nội',
     hotline: '1900 886684',
-    // Sử dụng logo thực tế để demo trực quan
     logoUrl: 'https://upload.wikimedia.org/wikipedia/vi/thumb/e/e5/Logo_b%E1%BB%87nh_vi%E1%BB%87n_K.png/220px-Logo_b%E1%BB%87nh_vi%E1%BB%87n_K.png'
 };
 

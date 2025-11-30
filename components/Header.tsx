@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MenuIcon, BellIcon, LogoutIcon, CheckCircleIcon, ExclamationCircleIcon, InfoIcon, CogIcon, UserGroupIcon, ChatBubbleIcon, MicrophoneIcon, MicrophoneOffIcon } from './Icons';
+import { MenuIcon, BellIcon, LogoutIcon, CheckCircleIcon, ExclamationCircleIcon, InfoIcon, CogIcon, UserGroupIcon, ChatBubbleIcon, MicrophoneIcon, MicrophoneOffIcon, CubeIcon } from './Icons';
 import ThemeSwitcher from './ThemeSwitcher';
 import { useNotification } from '../contexts/NotificationContext';
 import { useSystem } from '../contexts/SystemContext';
@@ -73,7 +73,7 @@ const AnnouncementSlider = () => {
                             <p className="text-[10px] font-bold uppercase text-blue-300 tracking-wider">Tin tức & Sự kiện</p>
                         </div>
                         <h4 className="font-bold text-sm truncate drop-shadow-md">{item.title}</h4>
-                        <p className="text-xs opacity-90 truncate drop-shadow-sm">{item.desc}</p>
+                        <p className="text-xs opacity-90 drop-shadow-sm line-clamp-2 whitespace-normal leading-tight">{item.desc}</p>
                     </div>
                 </div>
             ))}
@@ -162,42 +162,31 @@ const Header: React.FC<HeaderProps> = ({
                     </button>
                 )}
                 
-                {/* --- DYNAMIC HOSPITAL BRANDING (Only on Dashboard) --- */}
-                {showBranding && (
+                {/* --- SYSTEM BRANDING (On Dashboard) OR PAGE TITLE --- */}
+                {showBranding ? (
                     <div 
                         className="flex items-center gap-3 group cursor-pointer select-none" 
                         onClick={() => navigate('/staff-dashboard')}
                         title="Về trang chủ"
                     >
-                       {/* Logo Container */}
-                       <div className="relative h-12 w-12 bg-white dark:bg-white rounded-lg shadow-md border border-slate-100 dark:border-slate-600 flex items-center justify-center overflow-hidden group-hover:shadow-lg transition-all duration-300">
-                            {orgInfo.logoUrl ? (
-                                <img 
-                                    src={orgInfo.logoUrl} 
-                                    alt="Hospital Logo" 
-                                    className="h-10 w-10 object-contain" 
-                                />
-                            ) : (
-                                <span className="text-xs font-bold text-slate-400">Logo</span>
-                            )}
+                       <div className="w-10 h-10 bg-teal-600 rounded-lg flex items-center justify-center shadow-lg shadow-teal-500/30 group-hover:rotate-3 transition-transform">
+                            <CubeIcon className="w-6 h-6 text-white" />
                        </div>
-                       
-                       {/* Text Container */}
                        <div className="flex flex-col justify-center">                          
-                            <h1 className="text-xl sm:text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-teal-500 dark:from-blue-400 dark:to-teal-300 tracking-tight leading-none group-hover:scale-[1.02] transition-transform duration-300 origin-left">
-                                {orgInfo.hospitalName || 'BỆNH VIỆN'}
+                            <h1 className="text-lg font-extrabold text-slate-800 dark:text-white tracking-tight leading-none">
+                                Hệ thống quản lý bệnh viện
                             </h1>
+                            <p className="text-[10px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider">Công ty CP phần mềm y tế Việt Nam (VIMES,.JSC)</p>
                        </div>
                     </div>
-                )}
-                
-                {/* Divider & Page Title (Show when NOT branding) */}
-                {!showBranding && pageTitle && (
-                    <div className="flex items-center animate-fade-in">
-                        <h2 className="text-xl font-bold text-slate-700 dark:text-slate-200 tracking-tight">
-                            {pageTitle}
-                        </h2>
-                    </div>
+                ) : (
+                    pageTitle && (
+                        <div className="flex items-center animate-fade-in">
+                            <h2 className="text-xl font-bold text-slate-700 dark:text-slate-200 tracking-tight">
+                                {pageTitle}
+                            </h2>
+                        </div>
+                    )
                 )}
             </div>
 

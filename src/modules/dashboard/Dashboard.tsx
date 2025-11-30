@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { MODULE_ITEMS } from '../../../constants/navigation';
 import { ChevronLeftIcon, ChevronRightIcon, ExternalLinkIcon, HospitalIcon } from '../../components/Icons';
 import { useSession } from '../../contexts/SessionContext';
-import { useSystem } from '../../contexts/SystemContext';
+import { useSystem } from '../../../contexts/SystemContext';
 
 const Dashboard: React.FC = () => {
   const { orgInfo } = useSession();
@@ -25,11 +25,11 @@ const Dashboard: React.FC = () => {
   const prevSlide = () => setCurrentSlideIndex((prev) => (prev - 1 + activeSlides.length) % activeSlides.length);
 
   const handleViewDetail = (url: string) => {
-      if (url && url.startsWith('http')) {
+      if (url && (url.startsWith('http') || url.startsWith('https'))) {
           window.open(url, '_blank');
       } else {
-          // Fallback or internal navigation logic
-          console.log("Navigate to:", url);
+          // Fallback or handle internal links
+          console.log("Opening slide link:", url);
       }
   };
 
@@ -37,6 +37,7 @@ const Dashboard: React.FC = () => {
     <div className="space-y-8 max-w-7xl mx-auto">
       {/* 1. Branding Section (Hospital Info) */}
       <div className="flex items-center gap-5 bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+        {/* Logo Box */}
         <div className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0 bg-slate-50 dark:bg-slate-900 rounded-xl p-2 border border-slate-200 dark:border-slate-600 flex items-center justify-center shadow-inner">
             {orgInfo.logoUrl ? (
                 <img 
@@ -80,6 +81,7 @@ const Dashboard: React.FC = () => {
                             loop 
                             playsInline
                         />
+                        {/* Video Overlay Gradient */}
                         <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/40 to-transparent"></div>
                     </div>
                  ) : (
