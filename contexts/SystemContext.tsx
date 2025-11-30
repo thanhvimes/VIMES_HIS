@@ -24,9 +24,9 @@ const defaultSlides: SlideItem[] = [
     { 
         id: '1', 
         type: 'image', 
-        url: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=600&q=80', 
+        url: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=1200&q=80', 
         title: 'Bệnh viện Đa khoa Quốc tế VIMES', 
-        desc: 'Chăm sóc sức khỏe toàn diện chuẩn 5 sao', 
+        desc: 'Chăm sóc sức khỏe toàn diện chuẩn 5 sao. Đặt lịch ngay để nhận ưu đãi.', 
         active: true 
     },
     { 
@@ -34,15 +34,15 @@ const defaultSlides: SlideItem[] = [
         type: 'video', 
         url: 'https://cdn.coverr.co/videos/coverr-doctors-walking-in-hospital-corridor-4538/1080p.mp4', 
         title: 'Đội ngũ chuyên gia hàng đầu', 
-        desc: 'Hội tụ các giáo sư, bác sĩ đầu ngành', 
+        desc: 'Hội tụ các giáo sư, bác sĩ đầu ngành. Trang thiết bị hiện đại bậc nhất.', 
         active: true 
     },
     { 
         id: '3', 
         type: 'image', 
-        url: 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?auto=format&fit=crop&w=600&q=80', 
-        title: 'Hệ thống trang thiết bị hiện đại', 
-        desc: 'Công nghệ chẩn đoán hình ảnh tiên tiến nhất', 
+        url: 'https://images.unsplash.com/photo-1584036561566-b43f5f318c62?auto=format&fit=crop&w=1200&q=80', 
+        title: 'Quảng cáo: Sữa dinh dưỡng SureMeal', 
+        desc: 'Dinh dưỡng vàng cho người cao tuổi. Hỗ trợ phục hồi sức khỏe nhanh chóng.', 
         active: true 
     },
 ];

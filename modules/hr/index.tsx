@@ -4,6 +4,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import HRDashboardView from './views/HRDashboardView';
 import StaffListView from './views/StaffListView';
 import SchedulingView from './views/SchedulingView';
+import RecruitmentView from './views/RecruitmentView';
+import PayrollView from './views/PayrollView';
 
 const HR: React.FC = () => {
   return (
@@ -12,8 +14,9 @@ const HR: React.FC = () => {
       <Route path="dashboard" element={<HRDashboardView />} />
       <Route path="staff" element={<StaffListView />} />
       <Route path="scheduling" element={<SchedulingView />} />
-      <Route path="payroll" element={<div className="p-10 text-center text-slate-500">Tính lương & Thưởng đang phát triển.</div>} />
-      <Route path="training" element={<div className="p-10 text-center text-slate-500">Quản lý Đào tạo đang phát triển.</div>} />
+      <Route path="recruitment" element={<RecruitmentView />} />
+      <Route path="payroll" element={<PayrollView />} />
+      <Route path="training" element={<div className="p-10 text-center text-slate-500">Quản lý Đào tạo & Đánh giá đang phát triển.</div>} />
       <Route path="reports" element={<div className="p-10 text-center text-slate-500">Báo cáo HR đang phát triển.</div>} />
     </Routes>
   );

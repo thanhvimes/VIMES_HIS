@@ -1,10 +1,11 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MenuIcon, BellIcon, LogoutIcon, ClipboardListIcon, CheckCircleIcon, ExclamationCircleIcon, InfoIcon, CogIcon, UserGroupIcon, FileSignatureIcon } from './Icons';
+import { MenuIcon, BellIcon, LogoutIcon, CheckCircleIcon, ExclamationCircleIcon, InfoIcon, CogIcon, UserGroupIcon, ChatBubbleIcon, MicrophoneIcon, MicrophoneOffIcon, CubeIcon } from './Icons';
 import ThemeSwitcher from './ThemeSwitcher';
 import { useNotification } from '../contexts/NotificationContext';
 import { useSystem } from '../contexts/SystemContext';
 import { useSession } from '../contexts/SessionContext';
+import { useVoiceInput } from '../contexts/VoiceInputContext';
 import { useNavigate } from 'react-router-dom';
 import Tooltip from './shared/Tooltip';
 import UserProfileModal from './shared/UserProfileModal';
@@ -16,6 +17,8 @@ interface HeaderProps {
     onLogout: () => void;
     showSidebarToggle?: boolean;
     showBranding?: boolean;
+    isChatVisible?: boolean;
+    onToggleChat?: () => void;
 }
 
 // --- DYNAMIC ANNOUNCEMENT SLIDER COMPONENT ---
@@ -70,7 +73,7 @@ const AnnouncementSlider = () => {
                             <p className="text-[10px] font-bold uppercase text-blue-300 tracking-wider">Tin tức & Sự kiện</p>
                         </div>
                         <h4 className="font-bold text-sm truncate drop-shadow-md">{item.title}</h4>
-                        <p className="text-xs opacity-90 truncate drop-shadow-sm">{item.desc}</p>
+                        <p className="text-xs opacity-90 drop-shadow-sm line-clamp-2 whitespace-normal leading-tight">{item.desc}</p>
                     </div>
                 </div>
             ))}
@@ -90,14 +93,23 @@ const AnnouncementSlider = () => {
     );
 };
 
-const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, showSidebarToggle = true, showBranding = false }) => {
+const Header: React.FC<HeaderProps> = ({ 
+    pageTitle, 
+    onToggleSidebar, 
+    onLogout, 
+    showSidebarToggle = true, 
+    showBranding = false,
+    isChatVisible,
+    onToggleChat
+}) => {
     const [isDropdownOpen, setDropdownOpen] = useState(false);
     const [isNotifOpen, setNotifOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotification();
-    const { user, orgInfo } = useSession(); // Use Session Context
+    const { user, orgInfo } = useSession(); 
+    const { isListening, toggleListening, hasSupport } = useVoiceInput();
     
     const notifRef = useRef<HTMLDivElement>(null);
     const userMenuRef = useRef<HTMLDivElement>(null);
@@ -136,51 +148,85 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
     };
 
     return (
-        <header className="flex items-center justify-between h-[68px] px-4 sm:px-6 lg:px-8 sticky top-0 z-30 no-print transition-all duration-300
-            bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-700/60 shadow-sm"
+        <header className="flex items-center justify-between h-[72px] px-4 sm:px-6 lg:px-8 sticky top-0 z-30 no-print transition-all duration-300
+            bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-700/80 shadow-sm"
         >
-            {/* --- Left Side: Title & Toggle --- */}
-            <div className="flex items-center">
+            {/* --- Left Side: Title, Toggle & BRANDING --- */}
+            <div className="flex items-center gap-4">
                 {showSidebarToggle && (
                     <button 
                         onClick={onToggleSidebar} 
-                        className="p-2 mr-3 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary dark:hover:text-dark-primary lg:hidden transition-colors"
+                        className="p-2 -ml-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary dark:hover:text-dark-primary lg:hidden transition-colors"
                     >
-                        <MenuIcon className="h-6 w-6" />
+                        <MenuIcon className="h-7 w-7" />
                     </button>
                 )}
+                
+                {/* --- SYSTEM BRANDING (On Dashboard) OR PAGE TITLE --- */}
                 {showBranding ? (
-                    <div className="flex items-center gap-2 group cursor-pointer" onClick={() => navigate('/')}>
-                       <div className="p-1.5 bg-gradient-to-br from-primary to-blue-600 rounded-lg shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-all">
-                            <ClipboardListIcon className="h-6 w-6 text-white" />
+                    <div 
+                        className="flex items-center gap-3 group cursor-pointer select-none" 
+                        onClick={() => navigate('/staff-dashboard')}
+                        title="Về trang chủ"
+                    >
+                       <div className="w-10 h-10 bg-teal-600 rounded-lg flex items-center justify-center shadow-lg shadow-teal-500/30 group-hover:rotate-3 transition-transform">
+                            <CubeIcon className="w-6 h-6 text-white" />
                        </div>
-                       <div className="ml-1 flex flex-col justify-center">
-                            <span className="text-lg font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 tracking-tight leading-none">
-                                VIMES
-                            </span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-bold">
-                                {orgInfo.governingUnitCode}
-                            </span>
+                       <div className="flex flex-col justify-center">                          
+                            <h1 className="text-lg font-extrabold text-slate-800 dark:text-white tracking-tight leading-none">
+                                Hệ thống quản lý bệnh viện
+                            </h1>
+                            <p className="text-[10px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider">Giải pháp quản lý bệnh viện chuyên nghiệp - VIMES</p>
                        </div>
                     </div>
                 ) : (
-                    <h1 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight line-clamp-1">
-                        {pageTitle}
-                    </h1>
+                    pageTitle && (
+                        <div className="flex items-center animate-fade-in">
+                            <h2 className="text-xl font-bold text-slate-700 dark:text-slate-200 tracking-tight">
+                                {pageTitle}
+                            </h2>
+                        </div>
+                    )
                 )}
             </div>
 
             {/* --- Right Side: Actions & Profile --- */}
-            <div className="flex items-center space-x-3 sm:space-x-5">
+            <div className="flex items-center space-x-2 sm:space-x-4">
                 
-                {/* Sign Document Shortcut */}
-                <Tooltip content="Trình ký văn bản">
+                {/* Voice to Text Toggle */}
+                {hasSupport && (
+                    <Tooltip content={isListening ? "Tắt nhận dạng giọng nói" : "Bật nhận dạng giọng nói"}>
+                        <button 
+                            onClick={toggleListening}
+                            className={`p-2.5 rounded-full transition-all relative group ${
+                                isListening 
+                                ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 animate-pulse ring-1 ring-red-200' 
+                                : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200'
+                            }`}
+                        >
+                            {isListening ? (
+                                <MicrophoneIcon className="h-5 w-5" />
+                            ) : (
+                                <MicrophoneOffIcon className="h-5 w-5" />
+                            )}
+                        </button>
+                    </Tooltip>
+                )}
+
+                {/* Chat Widget Toggle */}
+                <Tooltip content={isChatVisible ? "Tắt cửa sổ Chat" : "Bật cửa sổ Chat"}>
                     <button 
-                        onClick={() => navigate('/consultation/signing')}
-                        className="p-2.5 rounded-full text-slate-500 dark:text-slate-400 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-slate-800 transition-colors relative group"
+                        onClick={onToggleChat}
+                        className={`p-2.5 rounded-full transition-all relative group ${
+                            isChatVisible
+                            ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 ring-1 ring-blue-200'
+                            : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200'
+                        }`}
                     >
-                        <FileSignatureIcon className="h-6 w-6" />
-                        <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-orange-500 ring-2 ring-white dark:ring-slate-900"></span>
+                        <ChatBubbleIcon className="h-5 w-5" />
+                        {isChatVisible && (
+                            <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-blue-500 ring-2 ring-white dark:ring-slate-900"></span>
+                        )}
                     </button>
                 </Tooltip>
 
@@ -197,12 +243,12 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
                             onClick={() => setNotifOpen(!isNotifOpen)}
                             className={`p-2.5 rounded-full transition-all duration-200 relative 
                                 ${isNotifOpen 
-                                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' 
+                                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 ring-1 ring-blue-200' 
                                     : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200'
                                 }`
                             }
                         >
-                            <BellIcon className={`h-6 w-6 ${unreadCount > 0 ? 'animate-swing' : ''}`} />
+                            <BellIcon className={`h-5 w-5 ${unreadCount > 0 ? 'animate-swing' : ''}`} />
                             {unreadCount > 0 && (
                                 <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900 animate-pulse"></span>
                             )}
@@ -212,8 +258,6 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
                     {/* Notification Dropdown */}
                     {isNotifOpen && (
                         <div className="absolute right-0 mt-4 w-80 sm:w-96 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 z-50 overflow-hidden animate-fade-in-up origin-top-right">
-                            
-                            {/* Header */}
                             <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur">
                                 <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
                                     Thông báo
@@ -224,12 +268,8 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
                                     <button onClick={clearAll} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:underline">Xóa</button>
                                 </div>
                             </div>
-
-                            {/* Scrollable Content */}
                             <div className="max-h-[480px] overflow-y-auto custom-scrollbar p-2">
-                                {/* Slide Show Area */}
                                 <AnnouncementSlider />
-
                                 <div className="space-y-1">
                                     {historyNotifications.length === 0 ? (
                                         <div className="p-8 text-center flex flex-col items-center text-slate-400">
@@ -248,9 +288,7 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
                                                     }`
                                                 }
                                             >
-                                                {/* Unread Indicator Stripe */}
                                                 {!note.isRead && <div className="absolute left-0 top-3 bottom-3 w-1 bg-blue-500 rounded-r-full"></div>}
-
                                                 <div className={`mt-1 p-1.5 rounded-full bg-white dark:bg-slate-700 shadow-sm h-fit ${!note.isRead ? 'ml-2' : ''}`}>
                                                     {getIcon(note.type)}
                                                 </div>
@@ -268,8 +306,6 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
                                     )}
                                 </div>
                             </div>
-                            
-                            {/* Footer */}
                             <div className="p-2 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-center">
                                 <button className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline py-1">
                                     Xem tất cả hoạt động
@@ -302,11 +338,6 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200 leading-none truncate max-w-[120px]">{user?.fullName || "Khách"}</p>
                            <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-wide truncate max-w-[120px]">{user?.departmentName || "Chưa phân khoa"}</p>
                         </div>
-                        <div className={`text-slate-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}>
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                        </div>
                     </button>
 
                     {/* User Dropdown Menu */}
@@ -317,7 +348,6 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
                            <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50">
                                <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{user?.fullName}</p>
                                <p className="text-xs text-slate-500 truncate">{user?.title} - {user?.departmentName}</p>
-                               <p className="text-[10px] font-mono text-slate-400 mt-1">ID: {user?.userId}</p>
                            </div>
                            
                            <div className="p-1">

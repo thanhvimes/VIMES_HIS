@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTheme, FontSettings } from '../../../contexts/ThemeContext';
 import { useSession } from '../../../contexts/SessionContext';
 import { adminService } from '../../../services/adminService';
-import { CogIcon, HospitalIcon, GlobeIcon, CheckCircleIcon } from '../../../components/Icons';
+import { CogIcon, HospitalIcon, GlobeIcon, CheckCircleIcon, ArrowUpTrayIcon } from '../../../components/Icons';
 import { OrganizationInfo } from '../../../types/common';
 
 const fontOptions = [
@@ -20,6 +20,7 @@ const SettingsView: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'display' | 'hospital'>('display');
     const [hospitalForm, setHospitalForm] = useState<OrganizationInfo>(orgInfo);
     const [isSaving, setIsSaving] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Update form if global orgInfo changes
     useEffect(() => {
@@ -33,6 +34,17 @@ const SettingsView: React.FC = () => {
     const handleHospitalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setHospitalForm(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setHospitalForm(prev => ({ ...prev, logoUrl: reader.result as string }));
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
     const handleSaveHospital = async (e: React.FormEvent) => {
@@ -190,21 +202,37 @@ const SettingsView: React.FC = () => {
                             {/* Right Column: Contact & Logo URL */}
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Logo URL (Đường dẫn ảnh)</label>
+                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Logo</label>
                                     <div className="flex gap-2 items-start">
-                                        <input 
-                                            type="text" 
-                                            name="logoUrl"
-                                            value={hospitalForm.logoUrl}
-                                            onChange={handleHospitalChange}
-                                            className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 text-sm"
-                                            placeholder="https://..."
-                                        />
-                                        <div className="w-12 h-12 bg-white border rounded-lg flex items-center justify-center shrink-0 p-1 overflow-hidden">
+                                        <div className="flex-1">
+                                            <input 
+                                                type="text" 
+                                                name="logoUrl"
+                                                value={hospitalForm.logoUrl}
+                                                onChange={handleHospitalChange}
+                                                className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 text-sm mb-2"
+                                                placeholder="https://... hoặc tải ảnh lên"
+                                            />
+                                            <input 
+                                                type="file" 
+                                                ref={fileInputRef}
+                                                className="hidden"
+                                                accept="image/*"
+                                                onChange={handleLogoUpload}
+                                            />
+                                            <button 
+                                                type="button"
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="text-xs flex items-center gap-1 text-blue-600 hover:underline font-semibold"
+                                            >
+                                                <ArrowUpTrayIcon className="w-3 h-3"/> Tải ảnh lên từ máy
+                                            </button>
+                                        </div>
+                                        <div className="w-16 h-16 bg-white border rounded-lg flex items-center justify-center shrink-0 p-1 overflow-hidden shadow-sm">
                                             {hospitalForm.logoUrl ? (
                                                 <img src={hospitalForm.logoUrl} alt="Logo Preview" className="w-full h-full object-contain"/>
                                             ) : (
-                                                <GlobeIcon className="w-6 h-6 text-slate-300"/>
+                                                <GlobeIcon className="w-8 h-8 text-slate-300"/>
                                             )}
                                         </div>
                                     </div>

@@ -4,6 +4,7 @@ import { OrganizationInfo, UserSession } from '../types/common';
 
 interface SessionContextType {
     orgInfo: OrganizationInfo;
+    setOrgInfo: (info: OrganizationInfo) => void; // Allow updating org info
     user: UserSession | null;
     isAuthenticated: boolean;
     login: (mockUserType?: string) => void; // Mock login function
@@ -16,12 +17,13 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 // Default Mock Data for Organization
 const defaultOrgInfo: OrganizationInfo = {
     hospitalCode: '79021',
-    hospitalName: 'Bệnh viện Đa khoa Quốc tế VIMES',
-    governingUnitCode: 'SYT_HCM',
-    governingUnitName: 'Sở Y tế TP. Hồ Chí Minh',
-    address: '123 Đường Sức Khỏe, Quận 1, TP.HCM',
-    hotline: '1900 1234',
-    logoUrl: 'https://ui-avatars.com/api/?name=Vimes&background=0ea5e9&color=fff&size=128'
+    hospitalName: 'BỆNH VIỆN K',
+    governingUnitCode: 'BỘ Y TẾ',
+    governingUnitName: 'Bộ Y tế - Hệ thống quản lý bệnh viện (HIS/EMR)',
+    address: '43 Quán Sứ, Hàng Bông, Hoàn Kiếm, Hà Nội',
+    hotline: '1900 886684',
+    // Sử dụng logo thực tế để demo trực quan
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/vi/thumb/e/e5/Logo_b%E1%BB%87nh_vi%E1%BB%87n_K.png/220px-Logo_b%E1%BB%87nh_vi%E1%BB%87n_K.png'
 };
 
 // Default Mock Data for User (Admin/Doctor)
@@ -37,9 +39,16 @@ const mockDoctorUser: UserSession = {
 };
 
 export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [orgInfo] = useState<OrganizationInfo>(defaultOrgInfo);
+    // Initialize from localStorage if available to persist changes across reloads
+    const [orgInfo, setOrgInfoState] = useState<OrganizationInfo>(() => {
+        try {
+            const saved = localStorage.getItem('orgInfo');
+            return saved ? JSON.parse(saved) : defaultOrgInfo;
+        } catch {
+            return defaultOrgInfo;
+        }
+    });
     
-    // Initialize user from localStorage if available (simple persistence)
     const [user, setUser] = useState<UserSession | null>(() => {
         try {
             const savedUser = localStorage.getItem('currentUser');
@@ -49,8 +58,12 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
         }
     });
 
+    const setOrgInfo = (info: OrganizationInfo) => {
+        setOrgInfoState(info);
+        localStorage.setItem('orgInfo', JSON.stringify(info));
+    };
+
     const login = (mockUserType: string = 'doctor') => {
-        // In real app, this would take credentials and call API
         const newUser = { ...mockDoctorUser }; 
         setUser(newUser);
         localStorage.setItem('currentUser', JSON.stringify(newUser));
@@ -61,7 +74,7 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
         setUser(null);
         localStorage.removeItem('currentUser');
         localStorage.removeItem('isAuthenticated');
-        window.location.href = '/'; // Redirect to login
+        window.location.href = '/'; 
     };
 
     const updateDepartment = (deptId: string, deptName: string) => {
@@ -75,6 +88,7 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
     return (
         <SessionContext.Provider value={{ 
             orgInfo, 
+            setOrgInfo,
             user, 
             isAuthenticated: !!user,
             login, 

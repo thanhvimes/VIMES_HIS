@@ -197,6 +197,11 @@ const StaffSystem: React.FC = () => {
 const MainApp: React.FC = () => {
   const { isAuthenticated, login } = useSession();
 
+  // --- CẤU HÌNH ĐIỀU HƯỚNG MẶC ĐỊNH ---
+  // Đặt true: Mặc định vào Cổng Bệnh nhân (/portal)
+  // Đặt false: Mặc định vào Đăng nhập Nhân viên (/staff/login)
+  const IS_DEFAULT_PORTAL = false; 
+
   return (
     <Routes>
       {/* 1. PUBLIC: Patient Portal (Accessible by everyone) */}
@@ -206,8 +211,8 @@ const MainApp: React.FC = () => {
           </Suspense>
       } />
 
-      {/* 2. ROOT REDIRECT: Default to Portal Home */}
-      <Route path="/" element={<Navigate to="/portal/home" replace />} />
+      {/* 2. ROOT REDIRECT: Điều hướng dựa trên cấu hình IS_DEFAULT_PORTAL */}
+      <Route path="/" element={<Navigate to={IS_DEFAULT_PORTAL ? "/portal/home" : "/staff/login"} replace />} />
 
       {/* 3. STAFF AUTH: Login for Employees */}
       <Route path="/staff/login" element={

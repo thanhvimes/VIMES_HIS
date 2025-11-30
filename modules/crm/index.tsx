@@ -5,12 +5,16 @@ import CrmDashboardView from './views/CrmDashboardView';
 import LeadsView from './views/LeadsView';
 import MarketingView from './views/MarketingView';
 import CustomerCareView from './views/CustomerCareView';
+import CustomerListView from './views/CustomerListView';
+import CustomerDetailView from './views/CustomerDetailView';
 
 const CRM: React.FC = () => {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="dashboard" replace />} />
       <Route path="dashboard" element={<CrmDashboardView />} />
+      <Route path="customers" element={<CustomerListView />} />
+      <Route path="customers/:id" element={<CustomerDetailView />} />
       <Route path="leads" element={<LeadsView />} />
       <Route path="marketing" element={<MarketingView />} />
       <Route path="care" element={<CustomerCareView />} />
