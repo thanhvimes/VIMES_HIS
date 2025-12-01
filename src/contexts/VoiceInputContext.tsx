@@ -57,9 +57,12 @@ export const VoiceInputProvider: React.FC<{ children: ReactNode }> = ({ children
                 }
                 
                 console.error("Speech recognition error", event.error);
+                setIsListening(false);
+
                 if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-                    setIsListening(false);
-                    alert("Không thể truy cập Micro. Vui lòng kiểm tra quyền truy cập.");
+                    alert("Quyền truy cập Micro bị từ chối. Vui lòng kiểm tra biểu tượng ổ khóa 🔒 trên thanh địa chỉ trình duyệt và cho phép quyền Microphone.");
+                } else if (event.error === 'audio-capture') {
+                    alert("Không tìm thấy thiết bị Micro. Vui lòng kiểm tra kết nối.");
                 }
             };
 
@@ -88,6 +91,8 @@ export const VoiceInputProvider: React.FC<{ children: ReactNode }> = ({ children
                 
             } catch (error) {
                 console.error(error);
+                alert("Không thể khởi động Micro. Vui lòng làm mới trang và thử lại.");
+                setIsListening(false);
             }
         }
     };
