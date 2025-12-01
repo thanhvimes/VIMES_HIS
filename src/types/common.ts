@@ -5,7 +5,7 @@ export interface NavItemType {
   name: string;
   path: string;
   icon: React.ReactElement;
-  /** Group category for dashboard styling (clinical, admin, finance, support) */
+  /** Group category for dashboard styling */
   group?: 'clinical' | 'admin' | 'support' | 'finance'; 
 }
 

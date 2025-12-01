@@ -27,12 +27,12 @@ export const MODULE_ITEMS: NavItemType[] = [
   { name: 'Tiếp nhận', path: '/reception', icon: React.createElement(UserGroupIcon, { className: "h-6 w-6" }), group: 'admin' },
   { name: 'Khám bệnh', path: '/consultation', icon: React.createElement(HeartIcon, { className: "h-6 w-6" }), group: 'clinical' },
   { name: 'Điều trị nội trú', path: '/inpatient-treatment', icon: React.createElement(HospitalIcon, { className: "h-6 w-6" }), group: 'clinical' },
-  { name: 'Phẫu thuật', path: '/surgery', icon: React.createElement(ScissorsIcon, { className: "w-6 h-6" }), group: 'clinical' }, // Shortened name
+  { name: 'Phẫu thuật', path: '/surgery', icon: React.createElement(ScissorsIcon, { className: "w-6 h-6" }), group: 'clinical' },
   { name: 'KQ Xét nghiệm', path: '/lab-results', icon: React.createElement(BeakerIcon, { className: "h-6 w-6" }), group: 'clinical' },
   { name: 'KQ Hình ảnh', path: '/imaging-results', icon: React.createElement(PhotographIcon, { className: "h-6 w-6" }), group: 'clinical' },
   { name: 'Dược & Vật tư', path: '/pharmacy', icon: React.createElement(ArchiveIcon, { className: "h-6 w-6" }), group: 'support' },
   { name: 'Viện phí', path: '/billing', icon: React.createElement(CurrencyDollarIcon, { className: "h-6 w-6" }), group: 'finance' },
-  { name: 'BHYT', path: '/insurance', icon: React.createElement(ShieldCheckIcon, { className: "h-6 w-6" }), group: 'finance' }, // Shortened name
+  { name: 'BHYT', path: '/insurance', icon: React.createElement(ShieldCheckIcon, { className: "h-6 w-6" }), group: 'finance' },
   { name: 'CRM & CSKH', path: '/crm', icon: React.createElement(FunnelIcon, { className: "h-6 w-6" }), group: 'support' },
   { name: 'Nhân sự (HR)', path: '/hr', icon: React.createElement(BriefcaseIcon, { className: "h-6 w-6" }), group: 'admin' },
   { name: 'TB Y tế', path: '/equipment', icon: React.createElement(CpuChipIcon, { className: "h-6 w-6" }), group: 'support' },

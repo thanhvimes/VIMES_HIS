@@ -13,9 +13,10 @@ import {
     CheckIcon, 
     DocumentPlusIcon,
     XIcon
-} from '../../../../../components/Icons';
-import Combobox, { ComboboxColumn } from '../../../../../components/shared/Combobox';
+} from '../../../../components/Icons';
+import Combobox, { ComboboxColumn } from '../../../../components/shared/Combobox';
 import { drugList } from '../../data/catalogs';
+// Correct path to pharmacy module data
 import { mockInteractions } from '../../../pharmacy/data'; 
 import { Prescription, PrescriptionItem } from '../../../../types/clinical';
 import { DrugItem, DrugInteraction } from '../../../../types/finance';
