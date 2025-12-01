@@ -174,9 +174,9 @@ const Header: React.FC<HeaderProps> = ({
                        </div>
                        <div className="flex flex-col justify-center">                          
                             <h1 className="text-lg font-extrabold text-slate-800 dark:text-white tracking-tight leading-none">
-                                Hệ thống quản lý bệnh viện
+                                VIMES - Hệ thống quản lý bệnh viện
                             </h1>
-                            <p className="text-[10px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider">Công ty CP phần mềm y tế Việt Nam (VIMES,.JSC)</p>
+                            <p className="text-[10px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider">Giải pháp Bệnh viện thông minh</p>
                        </div>
                     </div>
                 ) : (
@@ -336,7 +336,7 @@ const Header: React.FC<HeaderProps> = ({
                         </div>
                         <div className="hidden sm:block text-left">
                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200 leading-none truncate max-w-[120px]">{user?.fullName || "Khách"}</p>
-                           <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-wide truncate max-w-[120px]">{user?.departmentName || "Chưa phân khoa"}</p>
+                           <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-wide truncate max-w-[120px]">{user?.departmentName || "Chưa phân khoa"}</p>
                         </div>
                     </button>
 
