@@ -34,7 +34,7 @@ const RecordDashboardView: React.FC = () => {
                 <div className="flex justify-between items-center text-sm p-3 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-slate-100 dark:border-slate-700">
                     <div>
                         <p className="font-medium text-onSurface dark:text-dark-onSurface">Tiếp nhận HS: Nguyễn Văn An (21024061)</p>
-                        <p className="text-slate-500 dark:text-slate-400 text-xs">Khoa Nội tổng hợp -> Kho lưu trữ</p>
+                        <p className="text-slate-500 dark:text-slate-400 text-xs">Khoa Nội tổng hợp - Kho lưu trữ</p>
                     </div>
                     <span className="text-xs text-slate-400">10 phút trước</span>
                 </div>

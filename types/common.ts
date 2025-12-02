@@ -1,9 +1,12 @@
+
 import React from 'react';
 
 export interface NavItemType {
   name: string;
   path: string;
   icon: React.ReactElement;
+  /** Group category for dashboard styling and organization */
+  group?: 'clinical' | 'paraclinical' | 'finance' | 'admin' | 'support'; 
 }
 
 export type NotificationType = 'info' | 'success' | 'warning' | 'error';

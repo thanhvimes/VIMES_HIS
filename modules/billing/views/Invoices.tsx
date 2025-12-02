@@ -301,8 +301,19 @@ export const Overview: React.FC<BillingProps> = () => {
     );
 };
 
+interface BillsManagerProps {
+    bills?: any;
+    customers?: any;
+    addBill?: any;
+    deleteBill?: any;
+    updateBillStatus?: any;
+    filter?: any;
+    clearFilter?: any;
+    onRowClick?: (patientId: string) => void;
+}
+
 // --- 2. INVOICE MANAGER (Details) ---
-export const BillsManager: React.FC<BillingProps> = () => {
+export const BillsManager: React.FC<BillingProps & BillsManagerProps> = ({ onRowClick }) => {
     const { fontSettings } = useTheme();
     const [invoices, setInvoices] = useState<MedicalInvoice[]>(mockInvoices);
     const [pdfPreview, setPdfPreview] = useState<{ url: string, fileName: string } | null>(null);
@@ -317,9 +328,16 @@ export const BillsManager: React.FC<BillingProps> = () => {
         });
     };
 
-    const handlePayment = (id: string) => {
+    const handlePayment = (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
         if(window.confirm("Xác nhận đã thu tiền hóa đơn này?")) {
             setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status: 'paid', patientPaid: inv.totalAmount - inv.insurancePaid } : inv));
+        }
+    };
+
+    const handleRowClickInternal = (invoice: MedicalInvoice) => {
+        if (onRowClick) {
+            onRowClick(invoice.patientId);
         }
     };
 
@@ -349,7 +367,11 @@ export const BillsManager: React.FC<BillingProps> = () => {
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                             {invoices.map(invoice => (
-                                <tr key={invoice.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                <tr 
+                                    key={invoice.id} 
+                                    className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer"
+                                    onClick={() => handleRowClickInternal(invoice)}
+                                >
                                     <td className="p-4 font-mono text-slate-600 dark:text-slate-300 text-sm">{invoice.id}</td>
                                     <td className="p-4 font-medium text-slate-800 dark:text-white">{invoice.patientName}</td>
                                     <td className="p-4 text-center text-slate-500 dark:text-slate-400">{new Date(invoice.date).toLocaleDateString('vi-VN')}</td>
@@ -368,7 +390,7 @@ export const BillsManager: React.FC<BillingProps> = () => {
                                     <td className="p-4 text-center flex justify-center gap-2">
                                         {invoice.status === 'pending' && (
                                             <button 
-                                                onClick={() => handlePayment(invoice.id)}
+                                                onClick={(e) => handlePayment(e, invoice.id)}
                                                 className="p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded transition" 
                                                 title="Thanh toán"
                                             >
@@ -376,7 +398,7 @@ export const BillsManager: React.FC<BillingProps> = () => {
                                             </button>
                                         )}
                                         <button 
-                                            onClick={() => handlePrint(invoice)}
+                                            onClick={(e) => { e.stopPropagation(); handlePrint(invoice); }}
                                             className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition" 
                                             title="In hóa đơn"
                                         >

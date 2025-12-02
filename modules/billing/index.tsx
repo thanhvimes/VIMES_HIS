@@ -3,8 +3,9 @@ import React, { useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import DashboardView from './views/DashboardView';
 import InvoiceListView from './views/InvoiceListView';
-import ReportsLayout from '../reports/ReportsLayout'; // Updated Import
+import ReportsLayout from '../reports/ReportsLayout'; 
 import PaymentsView from './views/PaymentsView';
+import BillingRecordView from './views/BillingRecordView'; // New Import
 import { mockBills, mockCustomers } from './data';
 import { Bill } from '../../types';
 
@@ -53,6 +54,9 @@ const Billing: React.FC = () => {
             />
         } 
       />
+      {/* NEW ROUTE FOR BILLING RECORD */}
+      <Route path="record/:patientId" element={<BillingRecordView />} />
+      
        <Route 
         path="payments" 
         element={
@@ -63,7 +67,6 @@ const Billing: React.FC = () => {
             />
         } 
       />
-      {/* Use ReportsLayout with module filter */}
       <Route 
         path="reports" 
         element={<ReportsLayout moduleFilter="billing" />} 

@@ -5,8 +5,8 @@ export interface NavItemType {
   name: string;
   path: string;
   icon: React.ReactElement;
-  /** Group category for dashboard styling */
-  group?: 'clinical' | 'admin' | 'support' | 'finance'; 
+  /** Group category for dashboard styling and organization */
+  group?: 'clinical' | 'paraclinical' | 'finance' | 'admin' | 'support'; 
 }
 
 export type NotificationType = 'info' | 'success' | 'warning' | 'error';
