@@ -342,7 +342,7 @@ const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({ isOpen, onClose, pdfU
   return (
     <>
       <div 
-        className={`fixed inset-0 bg-black z-50 flex justify-center items-center p-2 sm:p-4 transition-opacity duration-300 ease-out ${isShowing ? 'bg-opacity-80' : 'bg-opacity-0'}`} 
+        className={`fixed inset-0 bg-black z-[200] flex justify-center items-center p-2 sm:p-4 transition-opacity duration-300 ease-out ${isShowing ? 'bg-opacity-80' : 'bg-opacity-0'}`} 
         aria-modal="true" 
         role="dialog"
       >
@@ -542,7 +542,7 @@ const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({ isOpen, onClose, pdfU
       />
        {/* Signature Info Modal */}
       {viewingSignature && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[70] flex justify-center items-center p-4" onClick={() => setViewingSignature(null)}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[220] flex justify-center items-center p-4" onClick={() => setViewingSignature(null)}>
             <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">Signature Information</h3>
             <div className="space-y-2 text-sm text-slate-700 dark:text-slate-300">

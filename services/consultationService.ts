@@ -2,21 +2,46 @@
 import { apiClient } from './apiClient';
 import { ClinicalRecord, ICD10, OperationRecord, Prescription, DetailedHistoryRecord } from '../types/clinical';
 import { Patient } from '../types/patient';
-import { mockPatients } from '../modules/reception/data'; // Use existing mock data
+import { mockPatients } from '../modules/reception/data'; 
 
-// Mock Data Helpers
+// --- MOCK DATA ---
+
 const mockClinicalRecord: ClinicalRecord = {
     id: 'REC-MOCK-001',
     patientId: 'P003',
     examDate: new Date().toISOString().slice(0, 16),
     doctorName: 'BS. Nguyễn Văn A',
-    history: 'Bệnh nhân khai đau đầu 3 ngày nay.',
-    clinicalExam: 'Huyết áp 130/80, Mạch 80.',
-    initialDiagnosis: 'Đau đầu chưa rõ nguyên nhân',
-    conclusion: 'Theo dõi thêm',
-    treatmentPlan: 'Nghỉ ngơi, uống thuốc theo đơn',
+    history: 'Bệnh nhân khai đau đầu âm ỉ vùng chẩm 3 ngày nay. Không nôn, không sốt.',
+    clinicalExam: 'Huyết áp 130/80 mmHg, Mạch 80 l/p. Tim đều, phổi trong. Cổ mềm, không dấu thần kinh khu trú.',
+    initialDiagnosis: 'Đau đầu căng cơ / Theo dõi Tăng huyết áp',
+    conclusion: 'Đau đầu do căng thẳng',
+    treatmentPlan: 'Nghỉ ngơi, thư giãn. Kê đơn giảm đau và an thần nhẹ.',
     endTime: new Date().toISOString().slice(0, 16)
 };
+
+const mockOperations: OperationRecord[] = [
+    {
+        id: 'OP-001',
+        serviceName: 'Phẫu thuật nội soi cắt ruột thừa',
+        requestDate: '2023-11-15',
+        type: 'PT',
+        operationType: 'Phẫu thuật cấp cứu',
+        operationDate: '2023-11-15',
+        room: 'Phòng mổ 02',
+        startTime: '08:00',
+        endTime: '10:00',
+        mainSurgeon: 'BS. Nguyễn Văn A',
+        assistantSurgeons: 'BS. Trần Thị B',
+        anesthesiologist: 'BS. Phạm Văn D',
+        nurses: 'ĐD. Nguyễn Thị E',
+        technicians: 'KTV. Lê Thị G',
+        method: 'Gây mê nội khí quản',
+        steps: '- Rạch da...\n- Đặt trocar...\n- Bộc lộ ruột thừa viêm...\n- Kẹp cắt ruột thừa...\n- Lau rửa ổ bụng...\n- Đóng các lỗ trocar.',
+        instruments: 'Bộ dụng cụ nội soi tiêu hóa',
+        medications: 'Cefuroxime 1.5g, Metronidazole 500mg',
+        images: ['https://prod-images-static.radiopaedia.org/images/51665203/233d35423207068736406926750671_jumbo.jpeg']
+    }
+];
 
 const generateMockHistory = (): DetailedHistoryRecord[] => [
     {
@@ -51,123 +76,98 @@ const generateMockHistory = (): DetailedHistoryRecord[] => [
     }
 ];
 
+// --- SERVICE IMPLEMENTATION ---
+
 export const consultationService = {
     // --- Patient Clinical Profile ---
     getPatientProfile: async (patientId: string): Promise<any> => {
-        try {
-            return await apiClient.get<any>(`/clinical/patients/${patientId}/summary`);
-        } catch (error) {
-            console.warn(`API Error (getPatientProfile), using mock data for ${patientId}`);
-            const patient = mockPatients.find(p => p.id === patientId) || mockPatients[0];
-            return {
-                ...patient,
-                hasInsurance: patient.patientType === 'Bảo hiểm',
-                insuranceNumber: 'GD4790215567890',
-                diagnosis: '[J18] Viêm phổi, tác nhân không xác định',
-                vitalSigns: {
-                    height: 170,
-                    weight: 68,
-                    bmi: 23.5,
-                    bpSys: 120,
-                    bpDia: 80,
-                    heartRate: 80,
-                    respRate: 20,
-                    temp: 37,
-                    spO2: 98
-                },
-                bpHistory: [
-                    { date: '10/11', systolic: 120, diastolic: 80 },
-                    { date: '12/11', systolic: 125, diastolic: 82 },
-                    { date: '15/11', systolic: 118, diastolic: 78 },
-                ]
-            };
-        }
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 600));
+
+        const patient = mockPatients.find(p => p.id === patientId) || mockPatients[0];
+        return {
+            ...patient,
+            hasInsurance: patient.patientType === 'Bảo hiểm',
+            insuranceNumber: 'GD4790215567890',
+            diagnosis: '[J18] Viêm phổi, tác nhân không xác định',
+            vitalSigns: {
+                height: 170,
+                weight: 68,
+                bmi: 23.5,
+                bpSys: 120,
+                bpDia: 80,
+                heartRate: 80,
+                respRate: 20,
+                temp: 37,
+                spO2: 98
+            },
+            bpHistory: [
+                { date: '10/11', systolic: 120, diastolic: 80 },
+                { date: '12/11', systolic: 125, diastolic: 82 },
+                { date: '15/11', systolic: 118, diastolic: 78 },
+            ]
+        };
     },
 
     // --- Clinical Records (Phiếu khám) ---
     getClinicalRecord: async (patientId: string): Promise<ClinicalRecord> => {
-        try {
-            return await apiClient.get<ClinicalRecord>(`/clinical/records/active`, { patientId });
-        } catch (error) {
-             console.warn("API Error (getClinicalRecord), using mock data");
-             return { ...mockClinicalRecord, patientId };
-        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return { ...mockClinicalRecord, patientId };
     },
 
     saveClinicalRecord: async (record: ClinicalRecord): Promise<ClinicalRecord> => {
-        try {
-            if (record.id && !record.id.startsWith('REC-')) {
-                 return await apiClient.put<ClinicalRecord>(`/clinical/records/${record.id}`, record);
-            } else {
-                 return await apiClient.post<ClinicalRecord>('/clinical/records', record);
-            }
-        } catch (error) {
-            console.warn("API Error (saveClinicalRecord), simulating success");
-            return { ...record, id: record.id || `REC-${Date.now()}` };
-        }
+        await new Promise(resolve => setTimeout(resolve, 800));
+        console.log("Saved Clinical Record:", record);
+        return { ...record, id: record.id || `REC-${Date.now()}` };
     },
 
     // --- Master Data Lookups ---
     searchICD10: async (query: string): Promise<ICD10[]> => {
-        try {
-            return await apiClient.get<ICD10[]>('/master-data/icd10', { q: query });
-        } catch {
-            return [
-                { code: 'A09', name: 'Tiêu chảy và viêm dạ dày ruột' },
-                { code: 'J00', name: 'Viêm mũi họng cấp tính' },
-                { code: 'E11', name: 'Bệnh đái tháo đường không phụ thuộc insuline' }
-            ].filter(i => i.name.toLowerCase().includes(query.toLowerCase()) || i.code.toLowerCase().includes(query.toLowerCase()));
-        }
+        // Local mock search
+        const mockICD = [
+            { code: 'A09', name: 'Tiêu chảy và viêm dạ dày ruột' },
+            { code: 'J00', name: 'Viêm mũi họng cấp tính' },
+            { code: 'E11', name: 'Bệnh đái tháo đường không phụ thuộc insuline' },
+            { code: 'I10', name: 'Bệnh tăng huyết áp vô căn (nguyên phát)' },
+            { code: 'R51', name: 'Đau đầu' }
+        ];
+        return mockICD.filter(i => 
+            i.name.toLowerCase().includes(query.toLowerCase()) || 
+            i.code.toLowerCase().includes(query.toLowerCase())
+        );
     },
 
     // --- Operations (Phẫu thuật/Thủ thuật) ---
     getOperations: async (patientId: string): Promise<OperationRecord[]> => {
-        try {
-            return await apiClient.get<OperationRecord[]>('/clinical/operations', { patientId });
-        } catch {
-             return [];
-        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return mockOperations;
     },
 
     saveOperation: async (op: OperationRecord): Promise<OperationRecord> => {
-        try {
-            if (op.id) {
-                return await apiClient.put<OperationRecord>(`/clinical/operations/${op.id}`, op);
-            }
-            return await apiClient.post<OperationRecord>('/clinical/operations', op);
-        } catch {
-            return { ...op, id: op.id || `OP-${Date.now()}` };
-        }
+        await new Promise(resolve => setTimeout(resolve, 800));
+        console.log("Saved Operation:", op);
+        return { ...op, id: op.id || `OP-${Date.now()}` };
     },
 
     deleteOperation: async (id: string): Promise<boolean> => {
-        try {
-            await apiClient.delete(`/clinical/operations/${id}`);
-            return true;
-        } catch {
-            return true;
-        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+        console.log("Deleted Operation:", id);
+        return true;
     },
     
     // --- History ---
     getHistoryList: async (filter: { fromDate?: string, toDate?: string, doctor?: string, keyword?: string }): Promise<DetailedHistoryRecord[]> => {
-        try {
-            return await apiClient.get<DetailedHistoryRecord[]>('/clinical/history', filter);
-        } catch (error) {
-            console.warn("API Error (getHistoryList), using mock data");
-            return generateMockHistory().filter(h => 
-                (!filter.keyword || h.patientName.toLowerCase().includes(filter.keyword.toLowerCase()) || h.patientId.includes(filter.keyword)) &&
-                (!filter.doctor || h.doctorName === filter.doctor)
-            );
-        }
+        await new Promise(resolve => setTimeout(resolve, 600));
+        return generateMockHistory().filter(h => 
+            (!filter.keyword || h.patientName.toLowerCase().includes(filter.keyword.toLowerCase()) || h.patientId.includes(filter.keyword)) &&
+            (!filter.doctor || h.doctorName === filter.doctor)
+        );
     },
     
     // --- Prescriptions ---
     savePrescription: async (prescription: Prescription): Promise<Prescription> => {
-        try {
-            return await apiClient.post<Prescription>('/clinical/prescriptions', prescription);
-        } catch {
-            return prescription;
-        }
+        await new Promise(resolve => setTimeout(resolve, 800));
+        console.log("Saved Prescription:", prescription);
+        return prescription;
     }
 };

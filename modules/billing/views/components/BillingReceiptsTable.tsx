@@ -5,13 +5,12 @@ import {
     SearchIcon, 
     FilterIcon, 
     EyeIcon, 
-    CalendarIcon,
     ArrowUpTrayIcon, // For Refund/Out
     DownloadIcon, // For Income/In
     CreditCardIcon,
     CashIcon,
     CheckCircleIcon,
-    XIcon
+    CloudUploadIcon
 } from '../../../../components/Icons';
 import { useTheme } from '../../../../contexts/ThemeContext';
 
@@ -26,22 +25,24 @@ export interface Receipt {
     cashier: string;
     paymentMethod: 'Cash' | 'Transfer' | 'Card';
     status: 'active' | 'cancelled';
+    invoiceStatus?: 'Pending' | 'Issued'; // New Field
 }
 
 // Mock Data with more variety
 const mockReceipts: Receipt[] = [
-    { id: 'R05', receiptNumber: 'PC-231129-002', date: '2023-11-29', time: '14:00', type: 'Refund', description: 'Hoàn trả thuốc', amount: 150000, cashier: 'Nguyễn Thị Thu', paymentMethod: 'Cash', status: 'active' },
-    { id: 'R04', receiptNumber: 'PT-231128-015', date: '2023-11-28', time: '10:30', type: 'Payment', description: 'Thanh toán đợt 1', amount: 500000, cashier: 'Lê Văn Tiền', paymentMethod: 'Transfer', status: 'active' },
-    { id: 'R03', receiptNumber: 'PT-231127-001', date: '2023-11-27', time: '08:45', type: 'Advance', description: 'Tạm ứng nhập viện', amount: 2000000, cashier: 'Nguyễn Thị Thu', paymentMethod: 'Cash', status: 'active' },
-    { id: 'R02', receiptNumber: 'PT-231126-099', date: '2023-11-26', time: '09:15', type: 'Payment', description: 'Mua thuốc ngoài', amount: 350000, cashier: 'Trần Văn B', paymentMethod: 'Card', status: 'active' },
-    { id: 'R01', receiptNumber: 'PT-231125-012', date: '2023-11-25', time: '16:20', type: 'Advance', description: 'Tạm ứng mổ', amount: 5000000, cashier: 'Nguyễn Thị Thu', paymentMethod: 'Transfer', status: 'cancelled' },
+    { id: 'R05', receiptNumber: 'PC-231129-002', date: '2023-11-29', time: '14:00', type: 'Refund', description: 'Hoàn trả thuốc', amount: 150000, cashier: 'Nguyễn Thị Thu', paymentMethod: 'Cash', status: 'active', invoiceStatus: 'Pending' },
+    { id: 'R04', receiptNumber: 'PT-231128-015', date: '2023-11-28', time: '10:30', type: 'Payment', description: 'Thanh toán đợt 1', amount: 500000, cashier: 'Lê Văn Tiền', paymentMethod: 'Transfer', status: 'active', invoiceStatus: 'Issued' },
+    { id: 'R03', receiptNumber: 'PT-231127-001', date: '2023-11-27', time: '08:45', type: 'Advance', description: 'Tạm ứng nhập viện', amount: 2000000, cashier: 'Nguyễn Thị Thu', paymentMethod: 'Cash', status: 'active', invoiceStatus: 'Pending' },
+    { id: 'R02', receiptNumber: 'PT-231126-099', date: '2023-11-26', time: '09:15', type: 'Payment', description: 'Mua thuốc ngoài', amount: 350000, cashier: 'Trần Văn B', paymentMethod: 'Card', status: 'active', invoiceStatus: 'Pending' },
+    { id: 'R01', receiptNumber: 'PT-231125-012', date: '2023-11-25', time: '16:20', type: 'Advance', description: 'Tạm ứng mổ', amount: 5000000, cashier: 'Nguyễn Thị Thu', paymentMethod: 'Transfer', status: 'cancelled', invoiceStatus: 'Pending' },
 ];
 
 interface BillingReceiptsTableProps {
     onOpenDetail?: (receiptId: string) => void;
+    onIssueInvoice?: (receipt: Receipt) => void; // New Handler
 }
 
-const BillingReceiptsTable: React.FC<BillingReceiptsTableProps> = ({ onOpenDetail }) => {
+const BillingReceiptsTable: React.FC<BillingReceiptsTableProps> = ({ onOpenDetail, onIssueInvoice }) => {
     const { fontSettings } = useTheme();
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState<string>('All');
@@ -196,13 +197,14 @@ const BillingReceiptsTable: React.FC<BillingReceiptsTableProps> = ({ onOpenDetai
                                 <th className="p-4 w-20 text-center" title="Phương thức thanh toán">PTTT</th>
                                 <th className="p-4 w-32 text-right">Số tiền</th>
                                 <th className="p-4 w-32">Người thu</th>
+                                <th className="p-4 w-32 text-center">HĐĐT</th>
                                 <th className="p-4 w-24 text-center">Tác vụ</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                             {filteredReceipts.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="p-12 text-center text-slate-400 italic flex flex-col items-center justify-center w-full">
+                                    <td colSpan={9} className="p-12 text-center text-slate-400 italic flex flex-col items-center justify-center w-full">
                                         <SearchIcon className="w-8 h-8 mb-2 opacity-20"/>
                                         Không tìm thấy phiếu thu nào.
                                     </td>
@@ -238,6 +240,26 @@ const BillingReceiptsTable: React.FC<BillingReceiptsTableProps> = ({ onOpenDetai
                                             {item.type === 'Refund' ? '-' : '+'}{formatCurrency(item.amount)}
                                         </td>
                                         <td className="p-4 text-slate-600 dark:text-slate-400 text-xs">{item.cashier}</td>
+                                        
+                                        {/* E-Invoice Column */}
+                                        <td className="p-4 text-center">
+                                            {item.status !== 'cancelled' && (
+                                                item.invoiceStatus === 'Issued' ? (
+                                                    <span className="text-xs text-green-600 font-bold flex items-center justify-center gap-1 bg-green-50 px-2 py-0.5 rounded border border-green-200 cursor-pointer">
+                                                        <CheckCircleIcon className="w-3 h-3"/> Đã phát hành
+                                                    </span>
+                                                ) : (
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); onIssueInvoice?.(item); }}
+                                                        className="text-xs text-blue-600 hover:text-white border border-blue-200 hover:bg-blue-600 px-2 py-1 rounded transition flex items-center justify-center gap-1 mx-auto shadow-sm"
+                                                        title="Xuất Hóa đơn điện tử"
+                                                    >
+                                                        <CloudUploadIcon className="w-3 h-3"/> Xuất HĐĐT
+                                                    </button>
+                                                )
+                                            )}
+                                        </td>
+
                                         <td className="p-4 text-center">
                                             <div className="flex justify-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
                                                 {onOpenDetail && (

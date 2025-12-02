@@ -3,11 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import BillingPatientInfo, { PatientBillingInfo } from './components/BillingPatientInfo';
 import BillingItemsTable, { BillingItem } from './components/BillingItemsTable';
-import BillingReceiptsTable from './components/BillingReceiptsTable';
+import BillingReceiptsTable, { Receipt } from './components/BillingReceiptsTable';
 import PaymentDialog from './components/PaymentDialog';
 import DepositDialog from './components/DepositDialog';
 import DiscountDialog from './components/DiscountDialog';
 import AddFeeDialog from './components/AddFeeDialog'; 
+import ElectronicInvoiceModal from './components/ElectronicInvoiceModal';
 import { billingService } from '../../../services/billingService'; 
 import { 
     ChevronLeftIcon, 
@@ -17,7 +18,8 @@ import {
     PhoneIcon,
     HomeIcon,
     ShieldCheckIcon,
-    ClockIcon
+    ClockIcon,
+    QrcodeIcon
 } from '../../../components/Icons';
 
 const BillingRecordView: React.FC = () => {
@@ -28,11 +30,18 @@ const BillingRecordView: React.FC = () => {
     const [items, setItems] = useState<BillingItem[]>([]);
     const [activeTab, setActiveTab] = useState<'items' | 'receipts'>('items');
     
+    // Quick Search State
+    const [nextPatientQuery, setNextPatientQuery] = useState('');
+
     // Modal States
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
     const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
     const [isAddFeeModalOpen, setIsAddFeeModalOpen] = useState(false);
+    
+    // E-Invoice Modal
+    const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+    const [selectedInvoiceReceipt, setSelectedInvoiceReceipt] = useState<Receipt | null>(null);
 
     useEffect(() => {
         // Simulate API Fetch based on patientId
@@ -98,14 +107,12 @@ const BillingRecordView: React.FC = () => {
     };
 
     const handlePaymentConfirm = (data: any) => {
-        console.log("Processing payment:", data);
         setItems(prev => prev.map(item => ({ ...item, status: 'paid' })));
         alert("Thanh toán thành công!");
         setActiveTab('receipts');
     };
 
     const handleDepositConfirm = (data: any) => {
-        console.log("Processing deposit:", data);
         setPatient(prev => prev ? { ...prev, balance: prev.balance + data.amount } : null);
         alert(`Đã thu tạm ứng: ${data.amount.toLocaleString()}đ`);
         setActiveTab('receipts');
@@ -170,6 +177,18 @@ const BillingRecordView: React.FC = () => {
         return new Date().getFullYear() - year;
     };
 
+    const handleSwitchPatient = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' && nextPatientQuery.trim()) {
+            navigate(`/billing/record/${nextPatientQuery.trim()}`);
+            setNextPatientQuery('');
+        }
+    };
+    
+    const handleOpenInvoiceModal = (receipt: Receipt) => {
+        setSelectedInvoiceReceipt(receipt);
+        setIsInvoiceModalOpen(true);
+    };
+
     if (loading) {
         return <div className="h-full flex items-center justify-center text-slate-500">Đang tải hồ sơ viện phí...</div>;
     }
@@ -183,7 +202,7 @@ const BillingRecordView: React.FC = () => {
             <div className="flex-shrink-0 bg-gradient-to-r from-teal-600 to-blue-700 text-white shadow-md z-20 border-b border-white/10">
                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center px-6 py-4 gap-4">
                     {/* Left: Back & Name */}
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 flex-1">
                         <button onClick={() => navigate('/billing/invoices')} className="p-2 hover:bg-white/20 rounded-full transition-colors text-white">
                             <ChevronLeftIcon className="w-6 h-6" />
                         </button>
@@ -194,7 +213,7 @@ const BillingRecordView: React.FC = () => {
                                 </h1>
                                 {patient.patientType === 'BHYT' ? (
                                     <span className="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded border border-orange-400 flex items-center gap-1 shadow-sm">
-                                        <ShieldCheckIcon className="w-3 h-3"/> BHYT {patient.insuranceRate}%
+                                        <ShieldCheckIcon className="w-3 h-3"/> BHYT
                                     </span>
                                 ) : (
                                     <span className="bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded border border-blue-400 shadow-sm">
@@ -202,25 +221,69 @@ const BillingRecordView: React.FC = () => {
                                     </span>
                                 )}
                             </div>
-                            <div className="flex items-center gap-4 text-sm text-blue-100 mt-1 font-medium">
-                                <span className="flex items-center gap-1"><UserCircleIcon className="w-4 h-4"/> {calculateAge(patient.dob)} Tuổi ({patient.gender})</span>
+                            
+                            {/* Patient Demographics & Record ID */}
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-blue-100 mt-1 font-medium">
+                                <span className="flex items-center gap-1">
+                                    <UserCircleIcon className="w-4 h-4 opacity-80"/> 
+                                    {calculateAge(patient.dob)}T ({patient.gender})
+                                </span>
                                 <span className="w-1 h-1 bg-blue-300 rounded-full"></span>
-                                <span className="font-mono">{patient.recordId}</span>
-                                <span className="w-1 h-1 bg-blue-300 rounded-full"></span>
-                                <span className="flex items-center gap-1"><PhoneIcon className="w-3.5 h-3.5"/> {patient.phone}</span>
+                                <span className="bg-white/10 px-2 rounded text-xs py-0.5 border border-white/10" title="Số hồ sơ bệnh án">
+                                    HS: <span className="font-mono font-bold text-white">{patient.recordId}</span>
+                                </span>
                                 <span className="w-1 h-1 bg-blue-300 rounded-full hidden lg:block"></span>
-                                <span className="hidden lg:flex items-center gap-1"><HomeIcon className="w-3.5 h-3.5"/> {patient.address}</span>
+                                <span className="hidden lg:flex items-center gap-1 opacity-90 text-xs">
+                                    <HomeIcon className="w-3.5 h-3.5"/> {patient.address}
+                                </span>
                             </div>
+
+                            {/* Insurance Details Row */}
+                            {patient.patientType === 'BHYT' && (
+                                <div className="mt-2 pt-2 border-t border-white/10 flex flex-wrap gap-x-6 gap-y-1 text-xs text-blue-50 animate-fade-in">
+                                    <span className="flex gap-1 items-center">
+                                        <span className="opacity-60 uppercase font-semibold">Số thẻ:</span>
+                                        <span className="font-mono font-bold text-yellow-300 tracking-wide text-sm">{patient.insuranceNumber}</span>
+                                    </span>
+                                    <span className="flex gap-1 items-center">
+                                        <span className="opacity-60 uppercase font-semibold">Mức hưởng:</span>
+                                        <span className="font-bold text-white bg-blue-800/50 px-1.5 rounded">{patient.insuranceRate}%</span>
+                                    </span>
+                                    <span className="flex gap-1 items-center">
+                                        <span className="opacity-60 uppercase font-semibold">Hạn dùng:</span>
+                                        <span className="font-mono">{patient.insuranceRegDate} - {patient.insuranceExpDate}</span>
+                                    </span>
+                                    <span className="flex gap-1 items-center hidden xl:flex">
+                                        <span className="opacity-60 uppercase font-semibold">ĐKBD:</span>
+                                        <span className="truncate max-w-[150px]" title={patient.insurancePlace}>{patient.insurancePlace}</span>
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    {/* Right: Context Info */}
+                    {/* Right: Quick Search & Context Info */}
                     <div className="flex items-center gap-4">
-                         <div className="text-right hidden md:block">
+                        {/* QUICK PATIENT SWITCHER */}
+                        <div className="relative group">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <QrcodeIcon className="h-5 w-5 text-blue-200 group-focus-within:text-white" />
+                            </div>
+                            <input 
+                                type="text" 
+                                className="bg-white/10 border border-white/20 text-white text-sm rounded-lg focus:ring-2 focus:ring-white focus:bg-white/20 block w-64 pl-10 p-2.5 placeholder-blue-200 outline-none transition-all" 
+                                placeholder="Quét hồ sơ tiếp theo..." 
+                                value={nextPatientQuery}
+                                onChange={(e) => setNextPatientQuery(e.target.value)}
+                                onKeyDown={handleSwitchPatient}
+                            />
+                        </div>
+
+                         <div className="text-right hidden xl:block">
                             <p className="text-xs text-blue-200 font-bold uppercase">Khoa điều trị</p>
                             <p className="font-bold">{patient.department}</p>
                          </div>
-                         <div className="text-right hidden md:block">
+                         <div className="text-right hidden xl:block">
                             <p className="text-xs text-blue-200 font-bold uppercase">Ngày vào viện</p>
                             <p className="font-bold font-mono flex items-center justify-end gap-1"><ClockIcon className="w-3.5 h-3.5"/> {patient.admissionDate.split(' ')[0]}</p>
                          </div>
@@ -260,7 +323,10 @@ const BillingRecordView: React.FC = () => {
                             </div>
                         ) : (
                             <div className="h-full p-4 bg-slate-50 dark:bg-slate-900/30">
-                                <BillingReceiptsTable onOpenDetail={() => setIsPaymentModalOpen(true)} />
+                                <BillingReceiptsTable 
+                                    onOpenDetail={() => setIsPaymentModalOpen(true)} 
+                                    onIssueInvoice={handleOpenInvoiceModal}
+                                />
                             </div>
                         )}
                     </div>
@@ -294,6 +360,13 @@ const BillingRecordView: React.FC = () => {
                 isOpen={isAddFeeModalOpen}
                 onClose={() => setIsAddFeeModalOpen(false)}
                 onAdd={handleAddFees}
+            />
+            
+            <ElectronicInvoiceModal
+                isOpen={isInvoiceModalOpen}
+                onClose={() => setIsInvoiceModalOpen(false)}
+                receiptData={selectedInvoiceReceipt}
+                patientData={patient}
             />
         </div>
     );

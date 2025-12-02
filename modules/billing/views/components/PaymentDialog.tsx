@@ -8,9 +8,14 @@ import {
     CreditCardIcon,
     QrcodeIcon,
     CashIcon,
-    RefreshIcon
+    RefreshIcon,
+    ShieldCheckIcon,
+    UserCircleIcon, // Added icon
+    ClockIcon,      // Added icon
+    DocumentTextIcon // Added icon
 } from '../../../../components/Icons';
 import { useTheme } from '../../../../contexts/ThemeContext';
+import { useSession } from '../../../../contexts/SessionContext'; // Added session context
 import { BillingItem } from './BillingItemsTable';
 import { PatientBillingInfo } from './BillingPatientInfo';
 
@@ -50,7 +55,6 @@ const QrCodeModal = ({
     if (!isOpen) return null;
 
     // Using VietQR API format for realistic QR code
-    // Template: compact2. Bank ID: MBBank (970422). Account: DEMO_ACC
     const qrUrl = `https://img.vietqr.io/image/MB-123456789-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(content)}&accountName=BV_DA_KHOA_VIMES`;
 
     return (
@@ -98,6 +102,7 @@ const QrCodeModal = ({
 // --- MAIN PAYMENT DIALOG ---
 const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, patient, items, onConfirm }) => {
     const { fontSettings } = useTheme();
+    const { user } = useSession(); // Get current user info
     
     // States
     const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Transfer'>('Cash');
@@ -105,6 +110,10 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, patient,
     const [receivedAmount, setReceivedAmount] = useState<string>('');
     const [note, setNote] = useState('');
     
+    // Transaction Metadata State
+    const [receiptId, setReceiptId] = useState('');
+    const [transactionTime, setTransactionTime] = useState(new Date());
+
     // QR Modal State
     const [showQr, setShowQr] = useState(false);
 
@@ -119,6 +128,9 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, patient,
 
     const discountValue = parseFloat(discountAmount) || 0;
     const finalPatientPayable = Math.max(0, summary.patientPaid - discountValue);
+    
+    // Settlement (after deducting advance) - only for info
+    const settlementAmount = finalPatientPayable - patient.balance;
 
     // Calculate Change (Only relevant for Cash)
     const changeAmount = useMemo(() => {
@@ -137,6 +149,13 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, patient,
             setReceivedAmount('');
             setNote('');
             setShowQr(false);
+            
+            // Generate Receipt Data
+            const now = new Date();
+            setTransactionTime(now);
+            // Format: PT-YYYYMMDD-Random3Digits
+            const dateStr = now.toISOString().slice(0,10).replace(/-/g, '');
+            setReceiptId(`PT-${dateStr}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
         }
     }, [isOpen]);
 
@@ -151,6 +170,9 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, patient,
 
     const handleConfirm = () => {
         onConfirm({
+            receiptId,
+            cashier: user?.fullName,
+            timestamp: transactionTime.toISOString(),
             method: paymentMethod,
             total: finalPatientPayable,
             received: parseFloat(receivedAmount) || finalPatientPayable,
@@ -165,7 +187,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, patient,
     return (
         <>
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-                <div className="bg-white dark:bg-slate-800 w-full max-w-7xl h-[95vh] rounded-xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 dark:border-slate-700">
+                <div className="bg-white dark:bg-slate-800 w-full max-w-6xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 dark:border-slate-700">
                     
                     {/* 1. HEADER */}
                     <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center shrink-0">
@@ -191,171 +213,194 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, patient,
                         </button>
                     </div>
 
-                    {/* 2. MAIN CONTENT: Vertical Layout */}
-                    <div className="flex-1 flex flex-col overflow-hidden bg-slate-100 dark:bg-black/20">
+                    {/* 2. MAIN CONTENT */}
+                    <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
                         
-                        {/* A. TOP: ITEMS LIST (Flexible Height) */}
-                        <div className="flex-1 overflow-auto p-4">
-                            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                                <table className={`w-full text-left border-collapse ${fontSettings.listSecondary}`}>
-                                    <thead className="bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 text-xs uppercase font-bold sticky top-0 z-10">
-                                        <tr>
-                                            <th className="p-3 w-12 text-center border-r border-slate-200 dark:border-slate-600">#</th>
-                                            <th className="p-3 border-r border-slate-200 dark:border-slate-600">Nội dung / Dịch vụ</th>
-                                            <th className="p-3 w-20 text-center border-r border-slate-200 dark:border-slate-600">ĐVT</th>
-                                            <th className="p-3 w-20 text-center border-r border-slate-200 dark:border-slate-600">SL</th>
-                                            <th className="p-3 w-32 text-right border-r border-slate-200 dark:border-slate-600">Đơn giá</th>
-                                            <th className="p-3 w-36 text-right border-r border-slate-200 dark:border-slate-600">Thành tiền</th>
-                                            <th className="p-3 w-32 text-right border-r border-slate-200 dark:border-slate-600 text-blue-600 dark:text-blue-400">BHYT Trả</th>
-                                            <th className="p-3 w-36 text-right text-red-600 dark:text-red-400">BN Phải trả</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="text-sm divide-y divide-slate-100 dark:divide-slate-700">
-                                        {items.map((item, idx) => (
-                                            <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                                                <td className="p-3 text-center text-slate-400 text-xs border-r border-slate-100 dark:border-slate-700">{idx + 1}</td>
-                                                <td className="p-3 font-medium text-slate-800 dark:text-slate-200 border-r border-slate-100 dark:border-slate-700">{item.name}</td>
-                                                <td className="p-3 text-center text-slate-500 border-r border-slate-100 dark:border-slate-700">{item.unit}</td>
-                                                <td className="p-3 text-center font-bold text-slate-700 dark:text-slate-300 border-r border-slate-100 dark:border-slate-700">{item.quantity}</td>
-                                                <td className="p-3 text-right text-slate-500 border-r border-slate-100 dark:border-slate-700">{formatCurrency(item.unitPrice)}</td>
-                                                <td className="p-3 text-right font-bold text-slate-800 dark:text-white border-r border-slate-100 dark:border-slate-700">{formatCurrency(item.totalPrice)}</td>
-                                                <td className="p-3 text-right text-blue-600 dark:text-blue-400 font-medium border-r border-slate-100 dark:border-slate-700">{formatCurrency(item.insurancePaid)}</td>
-                                                <td className="p-3 text-right font-bold text-red-600 dark:text-red-400">{formatCurrency(item.patientPaid)}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        {/* B. BOTTOM: PAYMENT CONTROLS (Fixed Height) */}
-                        <div className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] p-6 shrink-0 z-20">
+                        {/* LEFT: Summary & Context (40%) */}
+                        <div className="w-full lg:w-2/5 bg-slate-50 dark:bg-slate-900/50 border-r border-slate-200 dark:border-slate-700 p-6 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
                             
-                            <div className="flex flex-col lg:flex-row gap-8">
-                                
-                                {/* 1. Financial Summary & Discount */}
-                                <div className="flex-1 space-y-4 border-r border-slate-100 dark:border-slate-700 pr-6">
-                                    <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                                        <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                                            <span>Tổng chi phí:</span>
-                                            <span className="font-medium text-slate-800 dark:text-slate-200">{formatCurrency(summary.totalPrice)}</span>
-                                        </div>
-                                        <div className="flex justify-between text-blue-600 dark:text-blue-400">
-                                            <span>BHYT chi trả:</span>
-                                            <span className="font-medium">-{formatCurrency(summary.insurancePaid)}</span>
-                                        </div>
-                                        <div className="col-span-2 border-t border-dashed border-slate-200 dark:border-slate-700 my-1"></div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="font-bold text-slate-700 dark:text-slate-300">Tổng BN phải trả:</span>
-                                            <span className="font-bold text-lg text-slate-800 dark:text-white">{formatCurrency(summary.patientPaid)}</span>
-                                        </div>
+                            {/* Invoice Summary */}
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-700 pb-2">Chi tiết Hóa đơn</h3>
+                                <div className="space-y-3 text-sm bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-slate-600 dark:text-slate-400">Tổng chi phí:</span>
+                                        <span className="font-bold text-slate-800 dark:text-white">{formatCurrency(summary.totalPrice)}</span>
                                     </div>
-
-                                    <div className="pt-2">
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Miễn giảm (VNĐ)</label>
-                                        <div className="relative">
-                                            <input 
-                                                type="number" 
-                                                value={discountAmount}
-                                                onChange={e => setDiscountAmount(e.target.value)}
-                                                className="w-full p-2.5 pr-12 bg-purple-50 dark:bg-slate-900 border border-purple-100 dark:border-purple-900/50 rounded-lg text-right font-bold text-purple-700 dark:text-purple-400 focus:ring-2 focus:ring-purple-500 outline-none transition-all"
-                                                placeholder="0"
-                                            />
-                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-purple-400 text-xs font-bold">VND</span>
-                                        </div>
+                                    <div className="flex justify-between items-center text-blue-600 dark:text-blue-400">
+                                        <span>BHYT chi trả:</span>
+                                        <span className="font-medium">-{formatCurrency(summary.insurancePaid)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-purple-600 dark:text-purple-400">
+                                        <span>Miễn giảm:</span>
+                                        <span className="font-medium">-{formatCurrency(discountValue)}</span>
+                                    </div>
+                                    
+                                    <div className="border-t border-dashed border-slate-200 dark:border-slate-600 my-2"></div>
+                                    
+                                    <div className="flex justify-between items-center text-lg">
+                                        <span className="font-bold text-slate-800 dark:text-white">Tổng BN phải trả:</span>
+                                        <span className="font-black text-red-600 dark:text-red-400">{formatCurrency(finalPatientPayable)}</span>
                                     </div>
                                 </div>
+                            </div>
 
-                                {/* 2. Payment Method & Amount */}
-                                <div className="flex-[1.2] space-y-4 border-r border-slate-100 dark:border-slate-700 pr-6">
-                                    {/* Total Hero */}
-                                    <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg border border-slate-200 dark:border-slate-600">
-                                        <span className="text-sm font-bold text-slate-600 dark:text-slate-300 uppercase">Thực thu cuối cùng</span>
-                                        <span className="text-3xl font-black text-blue-600 dark:text-blue-400 tracking-tight">{formatCurrency(finalPatientPayable)} <span className="text-sm text-slate-500 font-medium">đ</span></span>
+                            {/* Patient Account Context */}
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-700 pb-2">Thông tin Tài chính BN</h3>
+                                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-slate-600 dark:text-slate-400">Tổng tạm ứng (Đã đóng):</span>
+                                        <span className="font-mono font-bold text-green-600 dark:text-green-400">{formatCurrency(patient.balance)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-slate-600 dark:text-slate-400">Tổng miễn giảm (Lịch sử):</span>
+                                        <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{formatCurrency(patient.totalDiscount)}</span>
                                     </div>
 
-                                    {/* Method Switcher */}
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <button 
-                                            onClick={() => setPaymentMethod('Cash')}
-                                            className={`py-3 px-4 rounded-xl border-2 font-bold flex items-center justify-center gap-2 transition-all ${
-                                                paymentMethod === 'Cash' 
-                                                ? 'border-green-500 bg-green-50 text-green-700 ring-1 ring-green-500 dark:bg-green-900/30 dark:text-green-400 dark:border-green-500' 
-                                                : 'border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700'
-                                            }`}
-                                        >
-                                            <CashIcon className="w-5 h-5"/> Tiền mặt
-                                        </button>
-                                        <button 
-                                            onClick={() => setPaymentMethod('Transfer')}
-                                            className={`py-3 px-4 rounded-xl border-2 font-bold flex items-center justify-center gap-2 transition-all ${
-                                                paymentMethod === 'Transfer' 
-                                                ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-500' 
-                                                : 'border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700'
-                                            }`}
-                                        >
-                                            <CreditCardIcon className="w-5 h-5"/> Chuyển khoản
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* 3. Dynamic Action Area */}
-                                <div className="flex-[1.2] flex flex-col justify-between gap-4">
-                                    {paymentMethod === 'Cash' ? (
-                                        <div className="space-y-4 animate-fade-in">
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Khách đưa</label>
-                                                <input 
-                                                    type="number" 
-                                                    value={receivedAmount}
-                                                    onChange={e => setReceivedAmount(e.target.value)}
-                                                    autoFocus
-                                                    className="w-full p-3 text-xl font-bold text-right border-2 border-slate-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none dark:bg-slate-900 dark:border-slate-600 dark:text-white transition-all"
-                                                    placeholder="0"
-                                                />
-                                            </div>
-                                            {receivedAmount && (
-                                                <div className={`p-3 rounded-xl border flex justify-between items-center ${changeAmount < 0 ? 'bg-red-50 border-red-200 text-red-600' : 'bg-green-50 border-green-200 text-green-700'}`}>
-                                                    <span className="text-xs font-bold uppercase">{changeAmount < 0 ? 'Còn thiếu' : 'Tiền thừa trả lại'}</span>
-                                                    <span className="text-2xl font-black">{formatCurrency(Math.abs(changeAmount))}</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="h-full flex flex-col justify-center animate-fade-in">
-                                            <button 
-                                                onClick={() => setShowQr(true)}
-                                                className="w-full py-4 border-2 border-dashed border-blue-300 bg-blue-50 dark:bg-blue-900/10 dark:border-blue-700 rounded-xl flex flex-col items-center justify-center gap-2 hover:bg-blue-100 dark:hover:bg-blue-900/20 hover:border-blue-400 transition group"
-                                            >
-                                                <div className="p-2 bg-white dark:bg-slate-800 rounded-full shadow-sm group-hover:scale-110 transition-transform">
-                                                    <QrcodeIcon className="w-6 h-6 text-blue-600 dark:text-blue-400"/>
-                                                </div>
-                                                <span className="font-bold text-blue-700 dark:text-blue-400">Tạo mã QR Thanh toán</span>
-                                            </button>
+                                    {/* Settlement Preview */}
+                                    {patient.balance > 0 && (
+                                        <div className={`mt-3 p-3 rounded-lg text-center border ${settlementAmount > 0 ? 'bg-red-50 border-red-100 text-red-700 dark:bg-red-900/20 dark:border-red-800' : 'bg-green-50 border-green-100 text-green-700 dark:bg-green-900/20 dark:border-green-800'}`}>
+                                            <p className="text-xs uppercase font-bold mb-1">{settlementAmount > 0 ? 'Sau khi trừ tạm ứng còn thiếu' : 'Dư tạm ứng (Có thể hoàn)'}</p>
+                                            <p className="text-lg font-black">{formatCurrency(Math.abs(settlementAmount))}</p>
                                         </div>
                                     )}
-
-                                    <div className="grid grid-cols-2 gap-3 mt-auto">
-                                        <button className="py-3 text-slate-600 font-bold hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 rounded-xl transition border border-slate-200 dark:border-slate-600 flex items-center justify-center gap-2">
-                                            <PrinterIcon className="w-5 h-5"/> In Phiếu
-                                        </button>
-                                        <button 
-                                            onClick={handleConfirm}
-                                            disabled={paymentMethod === 'Cash' && changeAmount < 0}
-                                            className={`py-3 text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2 transition-all transform active:scale-95 ${
-                                                paymentMethod === 'Cash' && changeAmount < 0 
-                                                ? 'bg-slate-300 cursor-not-allowed' 
-                                                : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'
-                                            }`}
-                                        >
-                                            <CheckCircleIcon className="w-5 h-5"/> Xác nhận Thu
-                                        </button>
-                                    </div>
                                 </div>
+                            </div>
 
+                            {/* Discount Input */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">NHẬP MIỄN GIẢM THÊM (VNĐ)</label>
+                                <div className="relative">
+                                    <input 
+                                        type="number" 
+                                        value={discountAmount}
+                                        onChange={e => setDiscountAmount(e.target.value)}
+                                        className="w-full p-3 pr-12 bg-purple-50 dark:bg-slate-800 border border-purple-200 dark:border-slate-600 rounded-lg text-right font-bold text-purple-700 dark:text-purple-400 focus:ring-2 focus:ring-purple-500 outline-none transition-all"
+                                        placeholder="0"
+                                    />
+                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-purple-400 text-xs font-bold">VND</span>
+                                </div>
                             </div>
                         </div>
 
+                        {/* RIGHT: Action Area (60%) */}
+                        <div className="w-full lg:w-3/5 p-8 flex flex-col bg-white dark:bg-slate-900">
+                            
+                            {/* NEW: Transaction Details Bar */}
+                            <div className="mb-6 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 flex justify-between items-center shadow-inner">
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase flex items-center gap-1">
+                                        <DocumentTextIcon className="w-3 h-3"/> Số phiếu thu
+                                    </span>
+                                    <span className="text-sm font-mono font-bold text-blue-600 dark:text-blue-400">{receiptId}</span>
+                                </div>
+                                <div className="h-8 w-px bg-slate-300 dark:bg-slate-600"></div>
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase flex items-center gap-1">
+                                        <UserCircleIcon className="w-3 h-3"/> Người thu
+                                    </span>
+                                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{user?.fullName || 'Admin'}</span>
+                                </div>
+                                <div className="h-8 w-px bg-slate-300 dark:bg-slate-600"></div>
+                                <div className="flex flex-col text-right">
+                                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase flex items-center gap-1 justify-end">
+                                        <ClockIcon className="w-3 h-3"/> Thời gian
+                                    </span>
+                                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{transactionTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                </div>
+                            </div>
+
+                            {/* Amount Hero */}
+                            <div className="bg-blue-50 dark:bg-blue-900/20 p-8 rounded-2xl border border-blue-100 dark:border-blue-800 text-center mb-8 shadow-sm flex-shrink-0">
+                                <p className="text-sm font-bold text-blue-600 dark:text-blue-300 uppercase mb-2 tracking-widest">SỐ TIỀN CẦN THU</p>
+                                <p className="text-5xl font-black text-blue-700 dark:text-blue-400 tracking-tight">{formatCurrency(finalPatientPayable)} <span className="text-2xl text-blue-500 font-medium">VNĐ</span></p>
+                            </div>
+
+                            {/* Payment Method */}
+                            <div className="grid grid-cols-2 gap-4 mb-8 flex-shrink-0">
+                                <button 
+                                    onClick={() => setPaymentMethod('Cash')} 
+                                    className={`py-4 px-6 rounded-xl font-bold border-2 transition-all flex flex-col items-center gap-2 ${
+                                        paymentMethod === 'Cash' 
+                                        ? 'border-green-500 bg-green-50 text-green-700 shadow-md transform scale-105' 
+                                        : 'border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800'
+                                    }`}
+                                >
+                                    <CashIcon className="w-8 h-8"/>
+                                    <span>Tiền mặt</span>
+                                </button>
+                                <button 
+                                    onClick={() => setPaymentMethod('Transfer')} 
+                                    className={`py-4 px-6 rounded-xl font-bold border-2 transition-all flex flex-col items-center gap-2 ${
+                                        paymentMethod === 'Transfer' 
+                                        ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md transform scale-105' 
+                                        : 'border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800'
+                                    }`}
+                                >
+                                    <CreditCardIcon className="w-8 h-8"/>
+                                    <span>Chuyển khoản</span>
+                                </button>
+                            </div>
+
+                            {/* Dynamic Input Area */}
+                            <div className="flex-1 mb-6">
+                                {paymentMethod === 'Cash' ? (
+                                    <div className="space-y-6">
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">KHÁCH ĐƯA</label>
+                                            <input 
+                                                type="number" 
+                                                value={receivedAmount}
+                                                onChange={e => setReceivedAmount(e.target.value)}
+                                                autoFocus
+                                                className="w-full p-5 text-4xl font-black text-right border-2 border-slate-300 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-100 outline-none bg-white text-slate-900 shadow-inner transition-all" 
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                        {receivedAmount && (
+                                            <div className={`p-5 rounded-xl border-2 flex justify-between items-center transition-colors ${changeAmount < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700'}`}>
+                                                <span className="font-bold uppercase tracking-wider">{changeAmount < 0 ? 'CÒN THIẾU' : 'TIỀN THỪA TRẢ LẠI'}</span>
+                                                <span className="text-3xl font-black">{formatCurrency(Math.abs(changeAmount))}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+                                         <button 
+                                            onClick={() => setShowQr(true)}
+                                            className="flex flex-col items-center gap-4 p-8 hover:bg-blue-50 dark:hover:bg-slate-800 rounded-2xl transition group"
+                                        >
+                                            <div className="p-4 bg-white dark:bg-slate-700 rounded-full shadow-md group-hover:scale-110 transition-transform">
+                                                <QrcodeIcon className="w-12 h-12 text-blue-600 dark:text-blue-400"/>
+                                            </div>
+                                            <div className="text-center">
+                                                <h4 className="font-bold text-lg text-blue-700 dark:text-blue-400">Tạo mã QR Thanh toán</h4>
+                                                <p className="text-sm text-slate-500">Hỗ trợ VietQR, Momo, VNPAY</p>
+                                            </div>
+                                         </button>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            {/* Footer Actions */}
+                            <div className="grid grid-cols-2 gap-4 mt-auto">
+                                 <button className="py-4 text-slate-600 font-bold hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 rounded-xl transition border-2 border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2">
+                                    <PrinterIcon className="w-6 h-6"/> In Phiếu Thu
+                                 </button>
+                                 <button 
+                                    onClick={handleConfirm}
+                                    disabled={paymentMethod === 'Cash' && changeAmount < 0}
+                                    className={`py-4 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-95 text-lg ${
+                                        paymentMethod === 'Cash' && changeAmount < 0 
+                                        ? 'bg-slate-300 cursor-not-allowed' 
+                                        : 'bg-blue-600 hover:bg-blue-700 hover:shadow-xl'
+                                    }`}
+                                 >
+                                    <CheckCircleIcon className="w-6 h-6"/> XÁC NHẬN THU
+                                 </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
