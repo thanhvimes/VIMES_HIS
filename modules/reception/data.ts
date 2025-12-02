@@ -1,3 +1,4 @@
+
 import { Patient, ExaminationRecord } from '../../types';
 
 const nguyenVanAnHistory: ExaminationRecord[] = [
@@ -62,6 +63,8 @@ export const mockPatients: Patient[] = [
     lastVisit: '27/10/2023',
     patientType: 'Dịch vụ',
     history: nguyenVanAnHistory,
+    examinationStatus: 'waiting',
+    assignedDoctor: 'BS. Trần Thị B'
   },
   {
     id: 'P002',
@@ -76,6 +79,8 @@ export const mockPatients: Patient[] = [
     phone: '0987654321',
     lastVisit: '27/10/2023',
     patientType: 'Bảo hiểm',
+    examinationStatus: 'processing',
+    assignedDoctor: 'BS. Nguyễn Văn A'
   },
   {
     id: 'P003',
@@ -90,6 +95,8 @@ export const mockPatients: Patient[] = [
     phone: '0905123456',
     lastVisit: '26/10/2023',
     patientType: 'Dịch vụ',
+    examinationStatus: 'completed',
+    assignedDoctor: 'BS. Lê Văn C'
   },
   {
     id: 'P004',
@@ -104,6 +111,8 @@ export const mockPatients: Patient[] = [
     phone: '0358987654',
     lastVisit: '25/10/2023',
     patientType: 'Dịch vụ',
-    history: phamThiDungHistory
+    history: phamThiDungHistory,
+    examinationStatus: 'waiting',
+    assignedDoctor: 'BS. Phạm Văn D'
   },
 ];

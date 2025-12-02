@@ -99,7 +99,7 @@ const BillingItemsTable: React.FC<BillingItemsTableProps> = ({ items }) => {
                                 <td colSpan={9} className="p-10 text-center text-slate-400 italic">Không có dữ liệu chi phí.</td>
                             </tr>
                         ) : (
-                            Object.entries(groupedData).map(([category, groupItems]) => (
+                            Object.entries(groupedData).map(([category, groupItems]: [string, BillingItem[]]) => (
                                 <React.Fragment key={category}>
                                     {/* Group Header */}
                                     <tr className="bg-blue-50 dark:bg-blue-900/20">

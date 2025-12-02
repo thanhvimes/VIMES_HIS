@@ -1,62 +1,38 @@
 
 import React from 'react';
 import { 
-    CurrencyDollarIcon, 
-    CheckCircleIcon, 
-    CreditCardIcon, 
-    TagIcon, 
-    PlusIcon, 
     PrinterIcon, 
-    DocumentTextIcon
+    CurrencyDollarIcon, 
+    PlusIcon, 
+    CheckCircleIcon, 
+    CreditCardIcon,
+    DocumentTextIcon,
+    TagIcon
 } from '../../../../components/Icons';
+import { PatientBillingInfo } from './BillingPatientInfo';
 
-export interface PatientBillingInfo {
-    id: string;
-    recordId: string;
-    name: string;
-    dob: string;
-    gender: string;
-    address: string;
-    phone: string;
-    admissionDate: string;
-    department: string;
-    
-    patientType: 'BHYT' | 'Dịch vụ' | 'Thu phí' | 'Miễn phí';
-    insuranceNumber?: string;
-    insuranceRate?: number; 
-    insuranceRegDate?: string;
-    insuranceExpDate?: string;
-    insurancePlace?: string;
-
-    balance: number; // Số dư tạm ứng
-    totalDebt: number; // Tổng chi phí
-    totalInsurance: number; // Tổng BHYT chi trả
-    totalDiscount: number; // Tổng miễn giảm
-    
-    status: 'open' | 'closed' | 'locked';
-}
-
-interface BillingPatientInfoProps {
+interface BillingActionsPanelProps {
     patient: PatientBillingInfo;
     onAction: (action: string) => void;
 }
 
-const BillingPatientInfo: React.FC<BillingPatientInfoProps> = ({ patient, onAction }) => {
-    
+const BillingActionsPanel: React.FC<BillingActionsPanelProps> = ({ patient, onAction }) => {
     const formatCurrency = (val: number) => val.toLocaleString('vi-VN');
-
-    // 1. Calculate Patient Liability (Cost - Insurance - Discount)
-    const patientLiability = patient.totalDebt - patient.totalInsurance - patient.totalDiscount;
     
-    // 2. Calculate Final Settlement (Liability - Paid/Advance)
-    const settlementAmount = patientLiability - patient.balance;
+    const totalCost = patient.totalDebt;
+    const insurancePay = patient.totalInsurance;
+    const discount = patient.totalDiscount;
     
-    const isDebt = settlementAmount > 0;
-    const isRefund = settlementAmount < 0;
+    // Số tiền bệnh nhân phải trả (Sau BH và Miễn giảm)
+    const patientPayable = totalCost - insurancePay - discount;
+    
+    // Số tiền còn lại phải thanh toán (Sau khi trừ tạm ứng)
+    const finalPayment = patientPayable - patient.balance;
+    
+    const isDebt = finalPayment > 0;
 
     return (
         <div className="h-full flex flex-col gap-4">
-            
             {/* 1. FINANCIAL SUMMARY CARD */}
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
                 <div className="bg-slate-50 dark:bg-slate-900 p-3 border-b border-slate-200 dark:border-slate-700">
@@ -68,51 +44,41 @@ const BillingPatientInfo: React.FC<BillingPatientInfoProps> = ({ patient, onActi
                 <div className="p-4 space-y-3 text-sm">
                     <div className="flex justify-between items-center">
                         <span className="text-slate-500 dark:text-slate-400">Tổng chi phí</span>
-                        <span className="font-bold text-slate-800 dark:text-white">{formatCurrency(patient.totalDebt)}</span>
+                        <span className="font-bold text-slate-800 dark:text-white">{formatCurrency(totalCost)}</span>
                     </div>
                     <div className="flex justify-between items-center text-blue-600 dark:text-blue-400">
                         <span>BHYT chi trả</span>
-                        <span className="font-bold">-{formatCurrency(patient.totalInsurance)}</span>
+                        <span className="font-bold">-{formatCurrency(insurancePay)}</span>
                     </div>
                     <div className="flex justify-between items-center text-purple-600 dark:text-purple-400">
                         <span>Miễn giảm</span>
-                        <span className="font-bold">-{formatCurrency(patient.totalDiscount)}</span>
+                        <span className="font-bold">-{formatCurrency(discount)}</span>
                     </div>
                     
                     <div className="border-t border-dashed border-slate-200 dark:border-slate-700 my-2"></div>
                     
                     <div className="flex justify-between items-center">
                         <span className="text-slate-700 dark:text-slate-300 font-bold">BN Phải trả</span>
-                        <span className="font-bold text-red-600 dark:text-red-400 text-base">{formatCurrency(patientLiability)}</span>
+                        <span className="font-bold text-red-600 dark:text-red-400 text-base">{formatCurrency(patientPayable)}</span>
                     </div>
                     
                     <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
                         <span>Đã tạm ứng</span>
-                        <span className="font-semibold">{formatCurrency(patient.balance)}</span>
+                        <span className="font-bold">{formatCurrency(patient.balance)}</span>
                     </div>
 
-                    <div className={`mt-4 p-4 rounded-lg border text-center transition-colors ${
-                        isDebt 
-                            ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-900' 
-                            : isRefund 
-                                ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-900'
-                                : 'bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700'
-                    }`}>
-                        <div className={`text-xs uppercase font-bold tracking-wider mb-1 ${
-                            isDebt ? 'text-red-600 dark:text-red-400' : isRefund ? 'text-green-600 dark:text-green-400' : 'text-slate-500'
-                        }`}>
-                            {isDebt ? 'Cần thanh toán' : isRefund ? 'Dư tiền (Hoàn lại)' : 'Đã thanh toán đủ'}
-                        </div>
-                        <div className={`text-3xl font-black ${
-                            isDebt ? 'text-red-700 dark:text-red-400' : isRefund ? 'text-green-700 dark:text-green-400' : 'text-slate-700 dark:text-slate-300'
-                        }`}>
-                            {formatCurrency(Math.abs(settlementAmount))} <span className="text-sm font-medium opacity-70">đ</span>
-                        </div>
+                    <div className={`mt-3 p-3 rounded-lg border flex flex-col items-center justify-center gap-1 ${isDebt ? 'bg-red-50 border-red-100 dark:bg-red-900/20 dark:border-red-900' : 'bg-green-50 border-green-100 dark:bg-green-900/20 dark:border-green-900'}`}>
+                        <span className={`text-xs uppercase font-bold ${isDebt ? 'text-red-600' : 'text-green-600'}`}>
+                            {isDebt ? 'Cần thanh toán' : 'Dư tiền (Hoàn lại)'}
+                        </span>
+                        <span className={`text-2xl font-black ${isDebt ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                            {formatCurrency(Math.abs(finalPayment))}
+                        </span>
                     </div>
                 </div>
             </div>
 
-            {/* 2. ACTION BUTTONS */}
+            {/* 2. ACTIONS PANEL */}
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex-1 flex flex-col p-4">
                 <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm uppercase mb-3">Thao tác thu ngân</h3>
                 
@@ -163,4 +129,4 @@ const BillingPatientInfo: React.FC<BillingPatientInfoProps> = ({ patient, onActi
     );
 };
 
-export default BillingPatientInfo;
+export default BillingActionsPanel;

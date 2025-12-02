@@ -76,6 +76,19 @@ const ListView: React.FC = () => {
         }
     };
 
+    const getStatusBadge = (status?: string) => {
+        switch (status) {
+            case 'completed': 
+                return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">Đã khám</span>;
+            case 'processing': 
+                return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200 animate-pulse">Đang khám</span>;
+            case 'cancelled': 
+                return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200">Đã hủy</span>;
+            default: 
+                return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 border border-yellow-200">Chờ khám</span>;
+        }
+    };
+
     return (
         <div className="flex flex-col h-full bg-surface dark:bg-dark-surface p-4 rounded-lg shadow border border-slate-200/50 dark:border-slate-700">
             <div className="flex-shrink-0 flex flex-col md:flex-row items-stretch md:items-center gap-4 p-3 mb-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg">
@@ -121,7 +134,7 @@ const ListView: React.FC = () => {
                 <table className={`w-full whitespace-nowrap ${fontSettings.listSecondary}`}>
                     <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0 shadow-sm z-10">
                         <tr>
-                            {['Số hồ sơ', 'Tên bệnh nhân', 'Tuổi', 'Giới', 'Địa chỉ', 'Ngày khám', 'Đối tượng', 'Hành động'].map(h =>
+                            {['Số hồ sơ', 'Tên bệnh nhân', 'Tuổi', 'Giới', 'Địa chỉ', 'Trạng thái', 'Bác sĩ', 'Đối tượng', 'Hành động'].map(h =>
                                 <th key={h} className={`p-3 font-semibold text-left text-slate-600 dark:text-slate-300 border-b-2 border-slate-200 dark:border-slate-700 ${h === 'Hành động' ? 'text-center' : ''}`}>{h}</th>
                             )}
                         </tr>
@@ -135,7 +148,8 @@ const ListView: React.FC = () => {
                                     <td className="p-3">{patient.age}</td>
                                     <td className="p-3">{patient.gender}</td>
                                     <td className="p-3 truncate max-w-xs" title={patient.address}>{patient.address || <span className="text-slate-400 italic">Chưa có</span>}</td>
-                                    <td className="p-3">{patient.lastVisit}</td>
+                                    <td className="p-3">{getStatusBadge(patient.examinationStatus)}</td>
+                                    <td className="p-3 text-slate-700 dark:text-slate-300">{patient.assignedDoctor || '-'}</td>
                                     <td className="p-3">
                                         <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${patient.patientType === 'Bảo hiểm' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
                                             {patient.patientType}
@@ -155,7 +169,7 @@ const ListView: React.FC = () => {
                         ) : (
                             !isLoading && (
                                 <tr>
-                                    <td colSpan={8} className="p-10 text-center text-slate-500 dark:text-slate-400 italic">
+                                    <td colSpan={9} className="p-10 text-center text-slate-500 dark:text-slate-400 italic">
                                         Không tìm thấy bệnh nhân nào phù hợp.
                                     </td>
                                 </tr>

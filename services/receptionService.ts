@@ -1,6 +1,7 @@
 
 import { Patient } from '../types/patient';
 import { mockPatients } from '../modules/reception/data';
+import { apiClient } from './apiClient';
 
 // API Response Interface Mapping
 export interface ApiPatientResponse {
@@ -27,36 +28,33 @@ export interface QueueStatus {
     waitingCount: number;
 }
 
-const API_BASE_URL = 'http://localhost/api/erm';
-
 export const receptionService = {
+    // --- Patient Management ---
     getPatientList: async (): Promise<Patient[]> => {
         try {
-            // console.log(`Đang gọi API: ${API_BASE_URL}/getListpatient...`);
-            // const response = await fetch(`${API_BASE_URL}/getListpatient`);
+            // Uncomment below to use real API
+            /*
+            const data = await apiClient.get<ApiPatientResponse[]>('/patients');
+            return data.map((item) => ({
+                id: item.recordNumber,
+                recordNumber: item.recordNumber,
+                name: item.name,
+                dob: '',
+                age: parseInt(item.age) || 0,
+                gender: item.sex as 'Nam' | 'Nữ' | 'Khác',
+                ethnicity: 'Kinh', 
+                occupation: '',
+                address: '',
+                phone: '', 
+                lastVisit: item.examinationDate ? new Date(item.examinationDate).toLocaleDateString('vi-VN') : '',
+                patientType: item.priority === 'Dịch vụ' ? 'Dịch vụ' : 'Bảo hiểm',
+                history: [],
+                examinationStatus: item.status === 'Waiting' ? 'waiting' : 'completed', // Example mapping
+                assignedDoctor: 'BS. Nguyễn Văn A' // Example default
+            }));
+            */
             
-            // if (!response.ok) {
-            //     throw new Error(`HTTP error! status: ${response.status}`);
-            // }
-
-            // const data: ApiPatientResponse[] = await response.json();
-            // return data.map((item) => ({
-            //     id: item.recordNumber,
-            //     recordNumber: item.recordNumber,
-            //     name: item.name,
-            //     dob: '',
-            //     age: parseInt(item.age) || 0,
-            //     gender: item.sex as 'Nam' | 'Nữ' | 'Khác',
-            //     ethnicity: 'Kinh', 
-            //     occupation: '',
-            //     address: '',
-            //     phone: '', 
-            //     lastVisit: item.examinationDate ? new Date(item.examinationDate).toLocaleDateString('vi-VN') : '',
-            //     patientType: item.priority === 'Dịch vụ' ? 'Dịch vụ' : 'Bảo hiểm',
-            //     history: []
-            // }));
-            
-            // Fallback to mock data for demonstration if API is not available
+            // Fallback to mock data
             return new Promise((resolve) => {
                 setTimeout(() => {
                     resolve(mockPatients);
@@ -70,18 +68,23 @@ export const receptionService = {
     },
 
     getPatientByRecordNumber: async (identifier: string): Promise<Patient | null> => {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        const searchKey = identifier.toString().trim();
-        const found = mockPatients.find(p => 
-            p.id === searchKey || 
-            p.recordNumber === searchKey || 
-            p.identityCard === searchKey ||
-            (p.phone && p.phone.includes(searchKey))
-        );
+        try {
+            // Simulate API call
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            const searchKey = identifier.toString().trim();
+            const found = mockPatients.find(p => 
+                p.id === searchKey || 
+                p.recordNumber === searchKey || 
+                p.identityCard === searchKey ||
+                (p.phone && p.phone.includes(searchKey))
+            );
 
-        return found || null;
+            return found || null;
+        } catch (error) {
+            console.error("Error fetching patient:", error);
+            return null;
+        }
     },
 
     createPatient: async (patientData: Partial<Patient>): Promise<Patient> => {
@@ -89,11 +92,18 @@ export const receptionService = {
         await new Promise(resolve => setTimeout(resolve, 800));
         console.log("API Call: Create Patient", patientData);
         
-        return { 
+        const newPatient = { 
             ...patientData, 
             id: `BN${Date.now()}`, 
-            recordNumber: `REC${Date.now().toString().slice(-6)}` 
+            recordNumber: `REC${Date.now().toString().slice(-6)}`,
+            examinationStatus: 'waiting',
+            assignedDoctor: 'BS. Chỉ Định'
         } as Patient;
+
+        // In a real app, you'd add this to the list or refetch
+        // mockPatients.push(newPatient); 
+        
+        return newPatient;
     },
 
     updatePatient: async (id: string, patientData: Partial<Patient>): Promise<Patient> => {
@@ -105,7 +115,7 @@ export const receptionService = {
 
     // --- Queue Management ---
     getQueueStatus: async (counterId: string = 'DEFAULT'): Promise<QueueStatus> => {
-        // In real app, fetch from `${API_BASE_URL}/queue/status/${counterId}`
+        // In real app, fetch from `/queue/status/${counterId}`
         await new Promise(resolve => setTimeout(resolve, 200));
         return {
             id: counterId,
@@ -119,8 +129,9 @@ export const receptionService = {
     },
     
     callNextPatient: async (counterId: string): Promise<QueueStatus> => {
-        // In real app, POST to `${API_BASE_URL}/queue/next`
+        // In real app, POST to `/queue/next`
         await new Promise(resolve => setTimeout(resolve, 400));
+        // Mock shifting queue
         return {
             id: counterId,
             name: 'Quầy Tiếp nhận 01',
@@ -133,8 +144,9 @@ export const receptionService = {
     },
 
     recallPatient: async (counterId: string, currentNumber: number): Promise<boolean> => {
-        // In real app, POST to `${API_BASE_URL}/queue/recall`
+        // In real app, POST to `/queue/recall`
         await new Promise(resolve => setTimeout(resolve, 200));
+        console.log(`Recalling number ${currentNumber} at ${counterId}`);
         return true;
     }
 };

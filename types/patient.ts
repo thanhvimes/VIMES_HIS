@@ -29,6 +29,9 @@ export interface Patient {
   lastVisit?: string;
   patientType?: 'Dịch vụ' | 'Bảo hiểm' | 'Ưu tiên';
   history?: ExaminationRecord[];
+  // New fields
+  examinationStatus?: 'waiting' | 'processing' | 'completed' | 'cancelled';
+  assignedDoctor?: string;
 }
 
 export interface Customer {
@@ -55,7 +58,6 @@ export interface Appointment {
     reason: string;
     status: AppointmentStatus;
     phone?: string;
-    type?: 'New' | 'Re-visit';
 }
 
 export interface LabAppointment {
