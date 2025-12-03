@@ -13,15 +13,19 @@ import {
     PlusIcon,
     DocumentArrowDownIcon,
     CheckCircleIcon,
-    RefreshIcon
+    RefreshIcon,
+    XIcon,
+    CheckIcon
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { usePdfPreview } from '../../../contexts/PdfPreviewContext';
+import { useSession } from '../../../contexts/SessionContext';
 import { invoiceService, InvoiceDetailDB, SummarySheetDB } from '../../../services/invoiceService';
 
 const ElectronicInvoiceManagerView: React.FC = () => {
     const { fontSettings } = useTheme();
     const { openPdf } = usePdfPreview();
+    const { user } = useSession();
     const [activeTab, setActiveTab] = useState<'invoices' | 'summary'>('invoices');
     
     // Data State
@@ -30,8 +34,16 @@ const ElectronicInvoiceManagerView: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
 
-    // Selection State (For creating summary)
+    // Selection State (For creating summary manually - Optional)
     const [selectedInvoiceKeys, setSelectedInvoiceKeys] = useState<Set<number>>(new Set());
+
+    // Create Summary Modal State
+    const [isCreateSummaryModalOpen, setIsCreateSummaryModalOpen] = useState(false);
+    const [createSummaryParams, setCreateSummaryParams] = useState({
+        fromDate: '',
+        toDate: '',
+        createdBy: ''
+    });
 
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
@@ -97,24 +109,58 @@ const ElectronicInvoiceManagerView: React.FC = () => {
         setSelectedInvoiceKeys(newSet);
     };
 
-    const handleCreateSummary = async () => {
-        if (selectedInvoiceKeys.size === 0) {
-            alert("Vui lòng chọn ít nhất một hóa đơn để lập bảng kê.");
+    // --- OPEN MODAL HANDLER ---
+    const handleOpenCreateSummary = () => {
+        const now = new Date();
+        // Default From: Start of today
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0);
+        // Default To: End of today
+        const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59);
+        
+        // Convert to datetime-local string format: YYYY-MM-DDTHH:mm
+        const toLocalISO = (date: Date) => {
+            const offset = date.getTimezoneOffset() * 60000;
+            return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+        };
+
+        setCreateSummaryParams({
+            fromDate: toLocalISO(startOfDay),
+            toDate: toLocalISO(endOfDay),
+            createdBy: user?.username || 'admin'
+        });
+        setIsCreateSummaryModalOpen(true);
+    };
+
+    // --- SUBMIT CREATE SUMMARY HANDLER ---
+    const handleSubmitCreateSummary = async () => {
+        if (!createSummaryParams.fromDate || !createSummaryParams.toDate || !createSummaryParams.createdBy) {
+            alert("Vui lòng điền đầy đủ thông tin.");
             return;
         }
 
-        const desc = prompt("Nhập diễn giải cho bảng kê (VD: Bảng kê ngày 03/12):", `Bảng kê tổng hợp ${new Date().toLocaleDateString('vi-VN')}`);
-        if (!desc) return;
-
         setIsProcessing(true);
         try {
-            await invoiceService.createSummarySheet(desc, Array.from(selectedInvoiceKeys));
-            alert("Lập bảng kê thành công!");
-            setSelectedInvoiceKeys(new Set());
-            // Switch to summary tab to see result
-            setActiveTab('summary');
+            // Call the API Wrapper
+            const newSheet = await invoiceService.createElectronicSummary(
+                createSummaryParams.createdBy,
+                createSummaryParams.fromDate,
+                createSummaryParams.toDate
+            );
+            
+            alert(`Lập bảng kê thành công! Mã: ${newSheet.hfe_orderid}. Số lượng HĐ: ${newSheet.hfe_number}`);
+            
+            // Close modal & Refresh list
+            setIsCreateSummaryModalOpen(false);
+            // Ensure we are on summary tab
+            if (activeTab !== 'summary') {
+                setActiveTab('summary'); 
+            } else {
+                // Manually add to list to avoid full reload if already on tab
+                setSheets(prev => [newSheet, ...prev]);
+            }
         } catch (error) {
-            alert("Lỗi khi tạo bảng kê.");
+            console.error(error);
+            alert("Lỗi khi tạo bảng kê. Vui lòng thử lại.");
         } finally {
             setIsProcessing(false);
         }
@@ -150,7 +196,7 @@ const ElectronicInvoiceManagerView: React.FC = () => {
     };
 
     return (
-        <div className="h-full flex flex-col space-y-4">
+        <div className="h-full flex flex-col space-y-4 relative">
             {/* Header & Tabs */}
             <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
                 <div className="flex items-center gap-4 w-full md:w-auto">
@@ -256,18 +302,24 @@ const ElectronicInvoiceManagerView: React.FC = () => {
 
                         {activeTab === 'invoices' ? (
                              <button
-                                onClick={handleCreateSummary}
+                                onClick={() => {
+                                    if(selectedInvoiceKeys.size === 0) {
+                                        alert("Vui lòng chọn hóa đơn trước khi lập bảng kê thủ công (Nếu muốn).");
+                                    } else {
+                                        alert("Chức năng lập bảng kê thủ công từ danh sách chọn.");
+                                    }
+                                }}
                                 disabled={selectedInvoiceKeys.size === 0 || isProcessing}
-                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md flex items-center gap-2 transition transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-4 py-2 bg-slate-200 text-slate-600 rounded-lg font-bold shadow-sm flex items-center gap-2 disabled:opacity-50"
                             >
-                                <PlusIcon className="w-4 h-4"/> Lập Bảng kê
+                                <PlusIcon className="w-4 h-4"/> Lập BK (Chọn)
                             </button>
                         ) : (
                             <button
-                                onClick={() => alert("Chức năng tạo mới phiếu tổng hợp trực tiếp đang phát triển. Vui lòng chọn từ danh sách hóa đơn.")}
-                                className="px-4 py-2 bg-slate-100 text-slate-500 rounded-lg font-bold flex items-center gap-2 cursor-not-allowed"
+                                onClick={handleOpenCreateSummary}
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md flex items-center gap-2 transition transform active:scale-95"
                             >
-                                <PlusIcon className="w-4 h-4"/> Thêm mới (Từ DS HĐ)
+                                <PlusIcon className="w-4 h-4"/> Thêm mới (Tự động)
                             </button>
                         )}
                      </div>
@@ -390,6 +442,75 @@ const ElectronicInvoiceManagerView: React.FC = () => {
                     <span>Hiển thị {activeTab === 'invoices' ? filteredInvoices.length : filteredSheets.length} bản ghi</span>
                 </div>
             </div>
+
+            {/* CREATE SUMMARY MODAL */}
+            {isCreateSummaryModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+                    <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-xl shadow-2xl flex flex-col overflow-hidden animate-fade-in-up transform transition-all">
+                        
+                        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-between items-center">
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                <ClipboardListIcon className="w-5 h-5 text-blue-600"/> Lập bảng kê tổng hợp
+                            </h3>
+                            <button onClick={() => setIsCreateSummaryModalOpen(false)} className="p-1 hover:bg-slate-200 rounded-full text-slate-500"><XIcon className="w-5 h-5"/></button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Từ ngày (Bắt đầu)</label>
+                                <input 
+                                    type="datetime-local" 
+                                    value={createSummaryParams.fromDate}
+                                    onChange={e => setCreateSummaryParams({...createSummaryParams, fromDate: e.target.value})}
+                                    className={`w-full p-2 border rounded-lg bg-white dark:bg-slate-700 dark:border-slate-600 text-sm ${fontSettings.controls}`}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Đến ngày (Kết thúc)</label>
+                                <input 
+                                    type="datetime-local" 
+                                    value={createSummaryParams.toDate}
+                                    onChange={e => setCreateSummaryParams({...createSummaryParams, toDate: e.target.value})}
+                                    className={`w-full p-2 border rounded-lg bg-white dark:bg-slate-700 dark:border-slate-600 text-sm ${fontSettings.controls}`}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Người tạo (Created By)</label>
+                                <div className="relative">
+                                    <UserCircleIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"/>
+                                    <input 
+                                        type="text" 
+                                        value={createSummaryParams.createdBy}
+                                        onChange={e => setCreateSummaryParams({...createSummaryParams, createdBy: e.target.value})}
+                                        className={`w-full pl-9 p-2 border rounded-lg bg-white dark:bg-slate-700 dark:border-slate-600 text-sm font-medium ${fontSettings.controls}`}
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded text-xs text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
+                                Hệ thống sẽ tự động tìm kiếm tất cả các hóa đơn hợp lệ (chưa thuộc bảng kê nào) trong khoảng thời gian này để gom nhóm.
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-end gap-3">
+                            <button 
+                                onClick={() => setIsCreateSummaryModalOpen(false)} 
+                                className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-200 rounded-lg transition"
+                            >
+                                Hủy
+                            </button>
+                            <button 
+                                onClick={handleSubmitCreateSummary} 
+                                disabled={isProcessing}
+                                className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-md flex items-center gap-2 transition disabled:opacity-70"
+                            >
+                                {isProcessing ? <RefreshIcon className="w-4 h-4 animate-spin"/> : <CheckIcon className="w-4 h-4"/>}
+                                Duyệt & Tạo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

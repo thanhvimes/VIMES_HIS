@@ -13,14 +13,15 @@ import {
     ExclamationCircleIcon,
     RefreshIcon
 } from '../../../../components/Icons';
-import { invoiceService, InvoiceData, InvoiceDetailItem } from '../../../../services/invoiceService';
+import { invoiceService, InvoiceData, InvoiceDetailItem, InvoiceDetailDB } from '../../../../services/invoiceService';
 import { usePdfPreview } from '../../../../contexts/PdfPreviewContext';
+import { useSession } from '../../../../contexts/SessionContext';
 
 interface ElectronicInvoiceModalProps {
     isOpen: boolean;
     onClose: () => void;
-    receiptData: any; // Dữ liệu từ phiếu thu
-    patientData: any;
+    receiptData: any; // Dữ liệu từ phiếu thu (Bill/Receipt)
+    patientData: any; // Dữ liệu bệnh nhân
 }
 
 const defaultInvoiceState: Partial<InvoiceData> = {
@@ -32,10 +33,14 @@ const defaultInvoiceState: Partial<InvoiceData> = {
     status: 'Draft',
     vatRate: 0, // Y tế thường không chịu thuế hoặc 0%
     vatAmount: 0,
+    orderId: 0, // Default for new invoice (p_orderid)
+    docNo: 0,
+    internalInvoiceNo: 0
 };
 
 const ElectronicInvoiceModal: React.FC<ElectronicInvoiceModalProps> = ({ isOpen, onClose, receiptData, patientData }) => {
     const { openPdf } = usePdfPreview();
+    const { user } = useSession();
     const [formData, setFormData] = useState<Partial<InvoiceData>>(defaultInvoiceState);
     const [items, setItems] = useState<InvoiceDetailItem[]>([]);
     
@@ -65,16 +70,21 @@ const ElectronicInvoiceModal: React.FC<ElectronicInvoiceModalProps> = ({ isOpen,
         setIsLoading(true);
         setNotification(null);
         try {
-            // 1. Try to fetch existing invoice for this receipt
-            const existingInvoice = await invoiceService.getInvoiceByReceiptId(receiptData.id);
+            // 1. Parse IDs from receiptData/patientData
+            // Assuming receiptData.id holds invoice internal number or doc number reference
+            // For simulation: parse numbers or fallback to 0
+            const docNo = parseInt(receiptData.docNo || patientData.recordId.replace(/\D/g, '')) || 0;
+            const invoiceNo = parseInt(receiptData.id.replace(/\D/g, '')) || 0;
 
-            if (existingInvoice) {
-                setFormData(existingInvoice);
-                setItems(existingInvoice.items);
+            // 2. Check if invoice already exists in hms_fee_electronicline
+            const existingLine = await invoiceService.getInvoiceLineByRef(docNo, invoiceNo);
+
+            if (existingLine) {
+                mapDbToForm(existingLine);
                 setMode('VIEW');
             } else {
-                // 2. If not exist, map data from Receipt & Patient to create a new Draft
-                mapReceiptToInvoice();
+                // 3. If not exist, map data from Receipt & Patient to create a new Draft
+                mapReceiptToInvoice(docNo, invoiceNo);
                 setMode('CREATE');
             }
         } catch (error) {
@@ -85,22 +95,57 @@ const ElectronicInvoiceModal: React.FC<ElectronicInvoiceModalProps> = ({ isOpen,
         }
     };
 
-    const mapReceiptToInvoice = () => {
+    const mapDbToForm = (line: InvoiceDetailDB) => {
+        setFormData({
+            id: line.hfe_key.toString(), // Use key as ID
+            pattern: line.hfe_patter || defaultInvoiceState.pattern,
+            serial: line.hfe_serial || defaultInvoiceState.serial,
+            invoiceNo: line.hfe_invoice_number || '',
+            issueDate: line.hfe_invoice_date ? new Date(line.hfe_invoice_date).toISOString().slice(0, 16).replace('T', ' ') : defaultInvoiceState.issueDate,
+            paymentMethod: defaultInvoiceState.paymentMethod, // DB might not store this in line table
+            status: line.hfe_status === 'P' ? 'Signed' : line.hfe_status === 'C' ? 'Cancelled' : 'Draft',
+            vatRate: 0,
+            vatAmount: line.hfe_vatamount,
+            receiptId: line.hfe_invoiceno?.toString(),
+            buyerName: line.hfe_cusname,
+            buyerTaxCode: line.hfe_custaxcode || '',
+            buyerAddress: line.hfe_cusaddress,
+            buyerPhone: '', // Not in DB line table mock
+            totalAmount: line.hfe_amount,
+            totalPayment: line.hfe_patpaid,
+            orderId: line.hfe_orderid,
+            docNo: line.hfe_docno,
+            internalInvoiceNo: line.hfe_invoiceno
+        });
+
+        // Mock item details (since line table is summary, items might be in another table)
+        setItems([{
+            name: 'Chi phí khám chữa bệnh (Chi tiết)',
+            unit: 'Lần',
+            quantity: 1,
+            unitPrice: line.hfe_amount,
+            amount: line.hfe_amount
+        }]);
+    };
+
+    const mapReceiptToInvoice = (docNo: number, invoiceNo: number) => {
         setFormData(prev => ({
             ...prev,
             receiptId: receiptData.id,
             buyerName: patientData.name,
-            buyerTaxCode: '', // Patient usually doesn't have tax code
+            buyerTaxCode: '', 
             buyerAddress: patientData.address,
             buyerPhone: patientData.phone,
             issueDate: new Date().toISOString().slice(0, 16).replace('T', ' '),
             totalAmount: receiptData.amount,
             totalPayment: receiptData.amount,
             status: 'Draft',
-            invoiceNo: ''
+            invoiceNo: '',
+            docNo: docNo,
+            internalInvoiceNo: invoiceNo,
+            orderId: 0 // New order
         }));
 
-        // Map single item from receipt description (In real app, receipt would have detailed items)
         setItems([{
             name: receiptData.description || 'Dịch vụ khám chữa bệnh',
             unit: 'Lần',
@@ -114,8 +159,9 @@ const ElectronicInvoiceModal: React.FC<ElectronicInvoiceModalProps> = ({ isOpen,
 
     const handleCreateNew = () => {
         if (mode === 'EDIT' && !window.confirm("Dữ liệu đang sửa chưa lưu sẽ bị mất. Tiếp tục?")) return;
-        mapReceiptToInvoice(); // Reset to data from receipt
-        setFormData(prev => ({ ...prev, id: undefined, status: 'Draft', invoiceNo: '' }));
+        // Logic to reset for a completely new invoice manually if needed
+        setFormData(defaultInvoiceState);
+        setItems([]);
         setMode('CREATE');
         setNotification({ type: 'success', message: 'Đã làm mới form nhập liệu.' });
     };
@@ -131,19 +177,26 @@ const ElectronicInvoiceModal: React.FC<ElectronicInvoiceModalProps> = ({ isOpen,
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const payload: InvoiceData = {
-                ...formData as InvoiceData,
-                items: items,
-                totalAmount: items.reduce((sum, item) => sum + item.amount, 0),
-                // Recalculate totals just in case
-            };
+            // Call Procedure: public.hms_electronicline_insert_doc_byinvoice
+            const resultKey = await invoiceService.createElectronicInvoiceByDoc(
+                formData.orderId || 0,
+                formData.docNo || 0,
+                user?.username || 'admin', // p_postedby
+                formData.internalInvoiceNo || 0
+            );
             
-            const saved = await invoiceService.saveInvoice(payload);
-            setFormData(saved);
+            // Update local state after success
+            setFormData(prev => ({
+                 ...prev, 
+                 id: resultKey.toString(),
+                 // Assume save sets status to draft/active effectively
+            }));
+
             setMode('VIEW');
-            setNotification({ type: 'success', message: 'Lưu hóa đơn thành công!' });
+            setNotification({ type: 'success', message: `Lưu hóa đơn thành công! (Ref Key: ${resultKey})` });
         } catch (error) {
-            setNotification({ type: 'error', message: 'Lỗi khi lưu hóa đơn.' });
+            console.error(error);
+            setNotification({ type: 'error', message: 'Lỗi khi gọi hàm tạo hóa đơn.' });
         } finally {
             setIsSaving(false);
         }
@@ -156,10 +209,11 @@ const ElectronicInvoiceModal: React.FC<ElectronicInvoiceModalProps> = ({ isOpen,
         }
         if (!window.confirm("Bạn có chắc chắn muốn phát hành (ký số) hóa đơn này? Hành động này không thể hoàn tác.")) return;
 
-        setIsSaving(true); // Reuse saving loading state
+        setIsSaving(true); 
         try {
+            // This simulates the signing process, updating status to 'Signed' ('P')
             const released = await invoiceService.releaseInvoice(formData.id);
-            setFormData(released);
+            setFormData(prev => ({...prev, status: 'Signed', invoiceNo: released.invoiceNo}));
             setMode('VIEW');
             setNotification({ type: 'success', message: `Phát hành thành công! Số hóa đơn: ${released.invoiceNo}` });
         } catch (error) {
@@ -170,9 +224,8 @@ const ElectronicInvoiceModal: React.FC<ElectronicInvoiceModalProps> = ({ isOpen,
     };
     
     const handlePrint = () => {
-        // Mock Print using PDF Preview
         openPdf({
-            url: 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf', // Replace with generated PDF
+            url: 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf', 
             fileName: `HD_${formData.serial}_${formData.invoiceNo || 'Draft'}.pdf`,
             isSignable: false
         });
@@ -193,10 +246,9 @@ const ElectronicInvoiceModal: React.FC<ElectronicInvoiceModalProps> = ({ isOpen,
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 animate-fade-in">
-            {/* Removed complex JS-based transition logic to fix jitter. Used CSS animation 'animate-fade-in-up' or 'scale-100' */}
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 animate-fade-in" style={{zIndex: 2000}}>
             <div 
-                className="bg-slate-100 w-full max-w-5xl rounded-lg shadow-2xl flex flex-col overflow-hidden border border-slate-300 h-[90vh] animate-fade-in-up transform-gpu"
+                className="bg-slate-100 w-full max-w-5xl rounded-lg shadow-2xl flex flex-col overflow-hidden border border-slate-300 h-[90vh] animate-zoom-in transform-gpu"
             >
                 
                 {/* 1. Title Bar */}
@@ -296,7 +348,7 @@ const ElectronicInvoiceModal: React.FC<ElectronicInvoiceModalProps> = ({ isOpen,
                     <div className="bg-white border border-blue-200 rounded shadow-sm mb-4">
                         <div className="px-3 py-1.5 bg-blue-50 border-b border-blue-100 font-bold text-blue-800 text-xs uppercase flex justify-between">
                             <span>Thông tin chung</span>
-                            <span className="text-[10px] text-slate-500">ID: {formData.id || 'New'}</span>
+                            <span className="text-[10px] text-slate-500">Order ID: {formData.orderId} | Doc No: {formData.docNo}</span>
                         </div>
                         <div className="p-3 grid grid-cols-1 md:grid-cols-4 gap-x-4 gap-y-3">
                             <div>
@@ -380,7 +432,7 @@ const ElectronicInvoiceModal: React.FC<ElectronicInvoiceModalProps> = ({ isOpen,
                     <div className="bg-white border border-slate-300 rounded shadow-sm flex-1 flex flex-col min-h-[200px]">
                          <div className="px-3 py-1.5 bg-slate-100 border-b border-slate-200 font-bold text-slate-700 text-xs uppercase flex justify-between">
                             <span>Chi tiết hàng hóa / dịch vụ</span>
-                            <span className="text-blue-600">Tham chiếu Phiếu thu: {formData.receiptId}</span>
+                            <span className="text-blue-600">Ref: {formData.receiptId}</span>
                         </div>
                         <div className="flex-1 overflow-auto">
                             <table className="w-full text-left border-collapse">
