@@ -32,7 +32,7 @@ export interface SummarySheetDB {
     hfe_desc: string;            // Diễn giải
     hfe_amount: number;          // Tổng tiền
     hfe_number: number;          // Số lượng hóa đơn con
-    hfe_status: string;
+    hfe_status: string;          // 'O': Open/Draft, 'P': Posted/Signed, 'C': Cancelled
     hfe_createdby: string;
     hfe_createddate: string;
 }
@@ -69,6 +69,13 @@ export interface InvoiceData {
     orderId?: number;
     docNo?: number;
     internalInvoiceNo?: number;
+}
+
+export interface RevenueStat {
+    label: string;
+    date: string;
+    amount: number;
+    count: number;
 }
 
 // Mock Data Stores
@@ -124,6 +131,14 @@ export const invoiceService = {
     },
 
     /**
+     * Lấy danh sách hóa đơn thuộc về một bảng kê cụ thể
+     */
+    getInvoicesBySummaryId: async (orderId: number): Promise<InvoiceDetailDB[]> => {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        return mockLines.filter(l => l.hfe_orderid === orderId);
+    },
+
+    /**
      * Tìm dòng chi tiết hóa đơn theo InvoiceNo (nội bộ) hoặc DocNo
      */
     getInvoiceLineByRef: async (docNo: number, invoiceNo: number): Promise<InvoiceDetailDB | null> => {
@@ -155,39 +170,26 @@ export const invoiceService = {
     },
 
     /**
-     * Tạo phiếu tổng hợp mới từ danh sách các hóa đơn lẻ (Old Logic - Deprecated or used for manual selection)
-     * Nghệp vụ: Insert vào hms_fee_electronic -> Update hfe_orderid trong hms_fee_electronicline
+     * Hủy bảng kê: Cập nhật trạng thái bảng kê và giải phóng các hóa đơn con
      */
-    createSummarySheet: async (description: string, selectedLineKeys: number[]): Promise<SummarySheetDB> => {
-        await new Promise(resolve => setTimeout(resolve, 800));
+    cancelSummarySheet: async (orderId: number): Promise<boolean> => {
+        await new Promise(resolve => setTimeout(resolve, 600));
         
-        // 1. Calculate totals from selected lines
-        const selectedLines = mockLines.filter(l => selectedLineKeys.includes(l.hfe_key));
-        const totalAmount = selectedLines.reduce((sum, l) => sum + l.hfe_amount, 0);
-        
-        // 2. Create new Header
-        const newOrderId = Math.max(...mockHeaders.map(h => h.hfe_orderid), 5000) + 1;
-        const newSheet: SummarySheetDB = {
-            hfe_orderid: newOrderId,
-            hfe_date: new Date().toISOString(),
-            hfe_desc: description,
-            hfe_amount: totalAmount,
-            hfe_number: selectedLines.length,
-            hfe_status: 'O', // Open
-            hfe_createdby: 'current_user',
-            hfe_createddate: new Date().toISOString()
-        };
-        mockHeaders.unshift(newSheet);
+        // 1. Update Header status
+        const headerIdx = mockHeaders.findIndex(h => h.hfe_orderid === orderId);
+        if (headerIdx !== -1) {
+            mockHeaders[headerIdx].hfe_status = 'C'; // Cancelled
+        }
 
-        // 3. Update Foreign Keys in Lines
-        mockLines = mockLines.map(line => {
-            if (selectedLineKeys.includes(line.hfe_key)) {
-                return { ...line, hfe_orderid: newOrderId };
+        // 2. Release lines (Reset hfe_orderid to 0 so they can be grouped again)
+        mockLines = mockLines.map(l => {
+            if (l.hfe_orderid === orderId) {
+                return { ...l, hfe_orderid: 0 };
             }
-            return line;
+            return l;
         });
 
-        return newSheet;
+        return true;
     },
 
     /**
@@ -219,7 +221,7 @@ export const invoiceService = {
             hfe_date: new Date().toISOString(),
             hfe_desc: `Tổng hợp HĐĐT từ ${new Date(fromDate).toLocaleDateString('vi-VN')} đến ${new Date(toDate).toLocaleDateString('vi-VN')}`,
             hfe_amount: totalAmount,
-            hfe_number: eligibleLines.length, // Có thể là 0 nếu không tìm thấy, giống behavior thực tế
+            hfe_number: eligibleLines.length, 
             hfe_status: 'O',
             hfe_createdby: createdBy,
             hfe_createddate: new Date().toISOString()
@@ -238,11 +240,6 @@ export const invoiceService = {
 
     /**
      * API: hms_electronicline_insert_doc_byinvoice
-     * @param orderId p_orderid integer
-     * @param docNo p_docno integer
-     * @param postedBy p_postedby text
-     * @param invoiceNo p_invoiceno integer
-     * @returns integer (hfe_key or result code)
      */
     createElectronicInvoiceByDoc: async (orderId: number, docNo: number, postedBy: string, invoiceNo: number): Promise<number> => {
         console.log(`Calling Procedure: hms_electronicline_insert_doc_byinvoice(${orderId}, ${docNo}, '${postedBy}', ${invoiceNo})`);
@@ -252,7 +249,6 @@ export const invoiceService = {
         const existingIndex = mockLines.findIndex(l => l.hfe_docno === docNo && l.hfe_invoiceno === invoiceNo);
         
         if (existingIndex !== -1) {
-            // Update existing (simulated behavior, DB logic might differ)
             mockLines[existingIndex].hfe_status = 'P'; // Assume 'Posted' implies saving/ready
             return mockLines[existingIndex].hfe_key;
         }
@@ -264,10 +260,10 @@ export const invoiceService = {
             hfe_orderid: orderId,
             hfe_docno: docNo,
             hfe_invoiceno: invoiceNo,
-            hfe_patientno: 0, // DB would fetch this
-            hfe_cusname: 'Mới tạo từ Doc', // DB would fetch this
+            hfe_patientno: 0,
+            hfe_cusname: 'Mới tạo từ Doc',
             hfe_cusaddress: '', 
-            hfe_amount: 0, // DB would calc this
+            hfe_amount: 0,
             hfe_vatamount: 0,
             hfe_patpaid: 0,
             hfe_status: 'O',
@@ -284,7 +280,6 @@ export const invoiceService = {
 
 
     // --- E-INVOICE MANAGEMENT (NEW METHODS) ---
-    // Note: Updated to handle receiptId which we treat as invoiceNo internal reference
     getInvoiceByReceiptId: async (receiptId: string): Promise<InvoiceData | null> => {
         await new Promise(resolve => setTimeout(resolve, 400));
         return mockInvoiceDataStore.find(inv => inv.receiptId === receiptId) || null;
@@ -299,7 +294,6 @@ export const invoiceService = {
                 return data;
             }
         }
-        // Create new
         const newInvoice = { ...data, id: `EINV-${Date.now()}` };
         mockInvoiceDataStore.push(newInvoice);
         return newInvoice;
@@ -320,15 +314,78 @@ export const invoiceService = {
         throw new Error("Invoice not found");
     },
 
+    // --- REPORTING ---
+    getRevenueStats: async (period: 'day' | 'month', year: number, month?: number): Promise<RevenueStat[]> => {
+        await new Promise(resolve => setTimeout(resolve, 800)); // Sim latency
+
+        const stats: RevenueStat[] = [];
+        
+        if (period === 'day' && month) {
+            // Generate daily stats for a specific month
+            const daysInMonth = new Date(year, month, 0).getDate();
+            for (let i = 1; i <= daysInMonth; i++) {
+                const date = new Date(year, month - 1, i);
+                // Random logic to simulate fluctuation
+                const hasRevenue = Math.random() > 0.2; 
+                const count = hasRevenue ? Math.floor(Math.random() * 50) + 5 : 0;
+                const amount = hasRevenue ? count * (Math.random() * 500000 + 100000) : 0;
+                
+                stats.push({
+                    label: `${i.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}`,
+                    date: date.toISOString(),
+                    count: count,
+                    amount: Math.round(amount)
+                });
+            }
+        } else {
+            // Generate monthly stats for a year
+            for (let i = 1; i <= 12; i++) {
+                const count = Math.floor(Math.random() * 500) + 50;
+                const amount = count * (Math.random() * 800000 + 200000);
+                
+                stats.push({
+                    label: `Tháng ${i}`,
+                    date: new Date(year, i - 1, 1).toISOString(),
+                    count: count,
+                    amount: Math.round(amount)
+                });
+            }
+        }
+        return stats;
+    },
+
     // --- EXPORT & PRINT MOCK ---
     exportToExcel: async (data: any[], fileName: string) => {
         console.log("Exporting Excel:", data);
         await new Promise(resolve => setTimeout(resolve, 1000));
-        // Simulate download
-        const csvContent = "data:text/csv;charset=utf-8,Key,Name,Amount\n" + data.map(r => Object.values(r).join(",")).join("\n");
-        const encodedUri = encodeURI(csvContent);
+
+        if (!data || data.length === 0) {
+            alert("Không có dữ liệu để xuất");
+            return;
+        }
+
+        // Extract headers from the first object
+        const headers = Object.keys(data[0]);
+
+        // Create CSV rows with proper escaping for commas
+        const csvRows = data.map(row => 
+            headers.map(fieldName => {
+                const val = row[fieldName] !== null && row[fieldName] !== undefined ? String(row[fieldName]) : '';
+                // Wrap in quotes if contains comma or quote, escape existing quotes
+                const escaped = val.replace(/"/g, '""');
+                return `"${escaped}"`;
+            }).join(',')
+        );
+
+        // Add BOM for UTF-8 (Fix for Excel Vietnamese font)
+        const BOM = "\uFEFF";
+        const csvContent = BOM + headers.join(',') + '\n' + csvRows.join('\n');
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
+        const url = URL.createObjectURL(blob);
+        
+        link.setAttribute("href", url);
         link.setAttribute("download", fileName);
         document.body.appendChild(link);
         link.click();
