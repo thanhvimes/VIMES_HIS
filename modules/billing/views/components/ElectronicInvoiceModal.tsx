@@ -44,25 +44,12 @@ const ElectronicInvoiceModal: React.FC<ElectronicInvoiceModalProps> = ({ isOpen,
     const [isSaving, setIsSaving] = useState(false);
     const [mode, setMode] = useState<'CREATE' | 'EDIT' | 'VIEW'>('CREATE');
     const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
-    const [showContent, setShowContent] = useState(false);
-
-    // Animation State Control
-    useEffect(() => {
-        if (isOpen) {
-            // Small delay to allow mount before transition
-            requestAnimationFrame(() => {
-                setShowContent(true);
-            });
-        } else {
-            setShowContent(false);
-        }
-    }, [isOpen]);
 
     // Load data when modal opens
     useEffect(() => {
         if (isOpen && receiptData) {
             loadInvoiceData();
-        } else {
+        } else if (isOpen) {
             resetForm();
         }
     }, [isOpen, receiptData]);
@@ -195,11 +182,6 @@ const ElectronicInvoiceModal: React.FC<ElectronicInvoiceModalProps> = ({ isOpen,
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleClose = () => {
-        setShowContent(false);
-        setTimeout(onClose, 200); // Wait for exit transition
-    };
-
     // UI Classes
     const inputClass = `w-full p-1.5 text-sm border rounded outline-none font-medium transition-colors ${
         mode === 'VIEW' 
@@ -211,9 +193,10 @@ const ElectronicInvoiceModal: React.FC<ElectronicInvoiceModalProps> = ({ isOpen,
     if (!isOpen) return null;
 
     return (
-        <div className={`fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 transition-opacity duration-200 ${showContent ? 'opacity-100' : 'opacity-0'}`}>
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 animate-fade-in">
+            {/* Removed complex JS-based transition logic to fix jitter. Used CSS animation 'animate-fade-in-up' or 'scale-100' */}
             <div 
-                className={`bg-slate-100 w-full max-w-5xl rounded-lg shadow-2xl flex flex-col overflow-hidden border border-slate-300 h-[90vh] transition-transform duration-200 ease-out ${showContent ? 'scale-100' : 'scale-95'}`}
+                className="bg-slate-100 w-full max-w-5xl rounded-lg shadow-2xl flex flex-col overflow-hidden border border-slate-300 h-[90vh] animate-fade-in-up transform-gpu"
             >
                 
                 {/* 1. Title Bar */}
@@ -231,7 +214,7 @@ const ElectronicInvoiceModal: React.FC<ElectronicInvoiceModalProps> = ({ isOpen,
                              </span>
                         )}
                     </div>
-                    <button onClick={handleClose} className="hover:bg-white/20 p-1 rounded transition text-white/80 hover:text-white">
+                    <button onClick={onClose} className="hover:bg-white/20 p-1 rounded transition text-white/80 hover:text-white">
                         <XIcon className="w-5 h-5"/>
                     </button>
                 </div>

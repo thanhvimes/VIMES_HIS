@@ -8,7 +8,8 @@ import {
   DocumentTextIcon,
   CogIcon,
   CurrencyDollarIcon,
-  ReceiptIcon
+  ReceiptIcon,
+  CloudUploadIcon // Added icon for E-Invoice
 } from '../../components/Icons';
 import { NavItemType } from '../../types';
 
@@ -16,6 +17,7 @@ export const BILLING_NAV_ITEMS: NavItemType[] = [
     { name: 'Bảng điều khiển', path: '/billing/dashboard', icon: React.createElement(Squares2X2Icon, { className: "w-5 h-5" }) },
     { name: 'Hồ sơ thanh toán', path: '/billing/record', icon: React.createElement(CreditCardIcon, { className: "w-5 h-5" }) },
     { name: 'Danh sách HĐ', path: '/billing/invoices', icon: React.createElement(ListBulletIcon, { className: "w-5 h-5" }) },
+    { name: 'Hóa đơn điện tử', path: '/billing/e-invoices', icon: React.createElement(CloudUploadIcon, { className: "w-5 h-5" }) }, // New Item
     { name: 'Danh sách Tạm ứng', path: '/billing/deposits', icon: React.createElement(ReceiptIcon, { className: "w-5 h-5" }) },
     { name: 'Quản lý Thu Chi', path: '/billing/cash-flow', icon: React.createElement(CurrencyDollarIcon, { className: "w-5 h-5" }) },
     { name: 'Báo cáo', path: '/billing/reports', icon: React.createElement(ChartBarIcon, { className: "w-5 h-5" }) },

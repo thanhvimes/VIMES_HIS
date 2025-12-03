@@ -9,6 +9,7 @@ import PaymentsView from './views/PaymentsView';
 import BillingRecordView from './views/BillingRecordView';
 import CashFlowView from './views/CashFlowView';
 import BillingSettingsView from './views/BillingSettingsView';
+import ElectronicInvoiceManagerView from './views/ElectronicInvoiceManagerView'; // Import View Mới
 import { mockBills, mockCustomers } from './data';
 import { Bill } from '../../types';
 
@@ -52,6 +53,7 @@ const Billing: React.FC = () => {
             />
         } 
       />
+      <Route path="e-invoices" element={<ElectronicInvoiceManagerView />} /> {/* Route Mới */}
       <Route path="deposits" element={<DepositListView />} />
       <Route path="record" element={<BillingRecordView />} />
       <Route path="record/:patientId" element={<BillingRecordView />} />
