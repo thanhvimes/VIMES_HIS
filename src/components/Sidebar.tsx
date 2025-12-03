@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { XIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, HomeIcon } from './Icons';
 import { NavItemType } from '../types';
@@ -16,9 +16,10 @@ const NavItem: React.FC<NavItemType & { isCollapsed: boolean }> = ({ name, path,
   <NavLink
     to={path}
     title={name}
+    end={path === '/' || path.split('/').length === 2} // Exact match only for root/dashboard links to allow sub-routes active state
     className={({ isActive }) =>
-      `flex items-center p-3 my-1 rounded-lg transition-all duration-200 border border-transparent ${
-        isCollapsed ? 'justify-center' : ''
+      `flex items-center p-2.5 my-1 mx-2 rounded-lg transition-all duration-200 border border-transparent ${
+        isCollapsed ? 'justify-center px-2' : ''
       } ${
         isActive
           ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-light font-bold shadow-sm border-primary/20'
@@ -34,6 +35,22 @@ const NavItem: React.FC<NavItemType & { isCollapsed: boolean }> = ({ name, path,
 );
 
 const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen, isCollapsed, onToggleCollapse, moduleNavItems }) => {
+  
+  // Group items by their 'section' property
+  const groupedNavItems = useMemo(() => {
+      const groups: Record<string, NavItemType[]> = {};
+      if (!moduleNavItems) return groups;
+      
+      moduleNavItems.forEach(item => {
+          const section = item.section || 'Chức năng'; // Default section name
+          if (!groups[section]) {
+              groups[section] = [];
+          }
+          groups[section].push(item);
+      });
+      return groups;
+  }, [moduleNavItems]);
+
   return (
     <>
       {/* Mobile Overlay */}
@@ -67,17 +84,32 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen, isCollap
           </button>
         </div>
         
-        <nav className="flex-1 overflow-y-auto custom-scrollbar py-4">
+        {/* Navigation Items */}
+        <nav className="flex-1 overflow-y-auto custom-scrollbar py-4 space-y-6">
           {moduleNavItems && moduleNavItems.length > 0 ? (
-             <div className="px-3">
-              <ul>
-                {moduleNavItems.map((item) => (
-                  <li key={item.name}>
-                    <NavItem {...item} isCollapsed={isCollapsed} />
-                  </li>
-                ))}
-              </ul>
-            </div>
+             Object.entries(groupedNavItems).map(([section, items]) => (
+                 <div key={section}>
+                     {/* Section Header */}
+                     {!isCollapsed && (items as NavItemType[]).length > 0 && (
+                         <div className="px-4 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                             {section}
+                         </div>
+                     )}
+                     
+                     {/* Divider for Collapsed Mode */}
+                     {isCollapsed && (
+                         <div className="mx-4 my-2 border-t border-slate-200 dark:border-slate-700" />
+                     )}
+
+                     <ul>
+                        {(items as NavItemType[]).map((item) => (
+                          <li key={item.name}>
+                            <NavItem {...item} isCollapsed={isCollapsed} />
+                          </li>
+                        ))}
+                     </ul>
+                 </div>
+             ))
           ) : (
              <div className="px-6 py-8 text-center">
                 {!isCollapsed && (

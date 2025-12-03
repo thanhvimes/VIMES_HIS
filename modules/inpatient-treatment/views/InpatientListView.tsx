@@ -16,29 +16,35 @@ const mockInpatientList = [
 const InpatientListView: React.FC = () => {
   const navigate = useNavigate();
   const { fontSettings } = useTheme();
+  const [patients, setPatients] = useState(mockInpatientList);
   const [activeTab, setActiveTab] = useState<'admitted' | 'pending_discharge' | 'discharged'>('admitted');
   const [searchTerm, setSearchTerm] = useState('');
 
+  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>, id: string) => {
+      e.stopPropagation();
+      setPatients(prev => prev.map(p => p.id === id ? { ...p, status: e.target.value } : p));
+  };
+
   const filteredList = useMemo(() => {
-    return mockInpatientList.filter(patient => {
+    return patients.filter(patient => {
       const matchesTab = patient.status === activeTab;
       const matchesSearch = patient.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                             patient.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             patient.room.includes(searchTerm);
       return matchesTab && matchesSearch;
     });
-  }, [activeTab, searchTerm]);
+  }, [activeTab, searchTerm, patients]);
 
   const handleOpenRecord = (patientId: string) => {
     navigate(`/inpatient-treatment/record/${patientId}`);
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case 'admitted': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">Đang điều trị</span>;
-      case 'pending_discharge': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">Chờ xuất viện</span>;
-      case 'discharged': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">Đã xuất viện</span>;
-      default: return null;
+      case 'admitted': return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 border-indigo-200 hover:bg-indigo-200';
+      case 'pending_discharge': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 hover:bg-amber-200';
+      case 'discharged': return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 border-gray-200 hover:bg-gray-200';
+      default: return 'bg-slate-100 text-slate-600';
     }
   };
 
@@ -87,7 +93,7 @@ const InpatientListView: React.FC = () => {
                     <HospitalIcon className="w-5 h-5" />
                     <span>Đang điều trị</span>
                     <span className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full text-xs">
-                        {mockInpatientList.filter(p => p.status === 'admitted').length}
+                        {patients.filter(p => p.status === 'admitted').length}
                     </span>
                 </div>
                 {activeTab === 'admitted' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 dark:bg-indigo-400"></div>}
@@ -104,7 +110,7 @@ const InpatientListView: React.FC = () => {
                     <ClipboardListIcon className="w-5 h-5" />
                     <span>Chờ xuất viện</span>
                     <span className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full text-xs">
-                        {mockInpatientList.filter(p => p.status === 'pending_discharge').length}
+                        {patients.filter(p => p.status === 'pending_discharge').length}
                     </span>
                 </div>
                 {activeTab === 'pending_discharge' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-amber-600 dark:bg-amber-400"></div>}
@@ -121,7 +127,7 @@ const InpatientListView: React.FC = () => {
                     <CheckIcon className="w-5 h-5" />
                     <span>Đã xuất viện</span>
                     <span className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full text-xs">
-                        {mockInpatientList.filter(p => p.status === 'discharged').length}
+                        {patients.filter(p => p.status === 'discharged').length}
                     </span>
                 </div>
                 {activeTab === 'discharged' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gray-600 dark:bg-gray-400"></div>}
@@ -168,7 +174,16 @@ const InpatientListView: React.FC = () => {
                                     </div>
                                 </td>
                                 <td className="p-4 text-center">
-                                    {getStatusBadge(patient.status)}
+                                    <select
+                                        value={patient.status}
+                                        onChange={(e) => handleStatusChange(e, patient.id)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className={`appearance-none cursor-pointer px-2 py-0.5 rounded-full text-xs font-semibold border outline-none w-32 text-center ${getStatusColor(patient.status)}`}
+                                    >
+                                        <option value="admitted">Đang điều trị</option>
+                                        <option value="pending_discharge">Chờ xuất viện</option>
+                                        <option value="discharged">Đã xuất viện</option>
+                                    </select>
                                 </td>
                                 <td className="p-4 text-right">
                                     <button 

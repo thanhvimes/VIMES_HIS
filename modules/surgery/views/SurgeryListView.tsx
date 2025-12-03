@@ -64,13 +64,18 @@ const SurgeryListView: React.FC = () => {
         navigate(`/consultation/record/${patientId}`);
     };
 
-    const getStatusBadge = (status: string) => {
+    const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>, id: string) => {
+        e.stopPropagation();
+        setSurgeries(prev => prev.map(s => s.id === id ? { ...s, status: e.target.value as any } : s));
+    };
+
+    const getStatusColor = (status: string) => {
         switch (status) {
-            case 'completed': return <span className="px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200">Hoàn tất</span>;
-            case 'in-progress': return <span className="px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 animate-pulse">Đang mổ</span>;
-            case 'emergency': return <span className="px-2 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-200">Cấp cứu</span>;
-            case 'scheduled': return <span className="px-2 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 border border-gray-200">Chờ mổ</span>;
-            default: return null;
+            case 'completed': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 hover:bg-green-200';
+            case 'in-progress': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 hover:bg-blue-200 animate-pulse';
+            case 'emergency': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 hover:bg-red-200';
+            case 'scheduled': return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 border-gray-200 hover:bg-gray-200';
+            default: return 'bg-slate-100 text-slate-600';
         }
     };
 
@@ -183,7 +188,17 @@ const SurgeryListView: React.FC = () => {
                                             </div>
                                         </td>
                                         <td className="p-4 text-center">
-                                            {getStatusBadge(s.status)}
+                                            <select
+                                                value={s.status}
+                                                onChange={(e) => handleStatusChange(e, s.id)}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className={`appearance-none cursor-pointer px-2 py-0.5 rounded-full text-xs font-bold border outline-none w-28 text-center ${getStatusColor(s.status)}`}
+                                            >
+                                                <option value="scheduled">Chờ mổ</option>
+                                                <option value="in-progress">Đang mổ</option>
+                                                <option value="completed">Hoàn tất</option>
+                                                <option value="emergency">Cấp cứu</option>
+                                            </select>
                                         </td>
                                         <td className="p-4 text-right">
                                             <div className="flex justify-end gap-2 opacity-90 group-hover:opacity-100 transition-opacity">
@@ -201,7 +216,6 @@ const SurgeryListView: React.FC = () => {
                                                 >
                                                     <ScissorsIcon className="w-4 h-4"/>
                                                 </button>
-                                                {/* Placeholder for delete/cancel */}
                                                 <button 
                                                     className="p-2 bg-white border border-slate-200 hover:bg-red-50 hover:text-red-600 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-600 rounded shadow-sm transition"
                                                     title="Hủy lịch"

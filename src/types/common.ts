@@ -7,6 +7,8 @@ export interface NavItemType {
   icon: React.ReactElement;
   /** Group category for dashboard styling and organization */
   group?: 'clinical' | 'paraclinical' | 'finance' | 'admin' | 'support'; 
+  /** Section header name for Sidebar grouping within a module */
+  section?: string;
 }
 
 export type NotificationType = 'info' | 'success' | 'warning' | 'error';

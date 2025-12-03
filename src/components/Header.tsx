@@ -148,7 +148,7 @@ const Header: React.FC<HeaderProps> = ({
     };
 
     return (
-        <header className="flex items-center justify-between h-[72px] px-4 sm:px-6 lg:px-8 sticky top-0 z-30 no-print transition-all duration-300
+        <header className="flex items-center justify-between h-[72px] px-4 sticky top-0 z-30 no-print transition-all duration-300
             bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-700/80 shadow-sm"
         >
             {/* --- Left Side: Title, Toggle & BRANDING --- */}

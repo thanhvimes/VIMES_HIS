@@ -82,7 +82,8 @@ const WorkspaceLayout: React.FC = () => {
   const isFullWidthPage = location.pathname.includes('/consultation/record') || 
                           location.pathname.includes('/inpatient-treatment/record') ||
                           location.pathname.includes('/documents') ||
-                          location.pathname.includes('/reports');
+                          location.pathname.includes('/reports') ||
+                          location.pathname.includes('/billing/record'); // Added billing/record to full width
 
   const { pageTitle, moduleNavItems } = useMemo(() => {
     const currentModuleRoot = location.pathname.split('/')[1];
@@ -106,7 +107,7 @@ const WorkspaceLayout: React.FC = () => {
             onLogout={logout}
             showSidebarToggle={true}
         />
-        <main className={`flex-1 overflow-x-hidden overflow-y-auto ${isFullWidthPage ? '' : 'p-4 sm:p-6 lg:p-8'}`}>
+        <main className={`flex-1 overflow-x-hidden overflow-y-auto ${isFullWidthPage ? '' : 'p-3 md:p-4'}`}>
           <Suspense fallback={<GlobalLoading />}>
             <Outlet />
           </Suspense>

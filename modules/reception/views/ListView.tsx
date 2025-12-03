@@ -56,6 +56,12 @@ const ListView: React.FC = () => {
         }
     };
 
+    const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>, patientId: string) => {
+        e.stopPropagation();
+        const newStatus = e.target.value;
+        setPatients(prev => prev.map(p => p.id === patientId ? { ...p, examinationStatus: newStatus as any } : p));
+    };
+
     const filteredPatients = useMemo(() => 
         patients.filter(patient =>
             patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -76,16 +82,12 @@ const ListView: React.FC = () => {
         }
     };
 
-    const getStatusBadge = (status?: string) => {
+    const getStatusColor = (status?: string) => {
         switch (status) {
-            case 'completed': 
-                return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">Đã khám</span>;
-            case 'processing': 
-                return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200 animate-pulse">Đang khám</span>;
-            case 'cancelled': 
-                return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200">Đã hủy</span>;
-            default: 
-                return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 border border-yellow-200">Chờ khám</span>;
+            case 'completed': return 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200';
+            case 'processing': return 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200';
+            case 'cancelled': return 'bg-red-100 text-red-700 border-red-200 hover:bg-red-200';
+            default: return 'bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-200';
         }
     };
 
@@ -148,7 +150,19 @@ const ListView: React.FC = () => {
                                     <td className="p-3">{patient.age}</td>
                                     <td className="p-3">{patient.gender}</td>
                                     <td className="p-3 truncate max-w-xs" title={patient.address}>{patient.address || <span className="text-slate-400 italic">Chưa có</span>}</td>
-                                    <td className="p-3">{getStatusBadge(patient.examinationStatus)}</td>
+                                    <td className="p-3">
+                                        <select
+                                            value={patient.examinationStatus || 'waiting'}
+                                            onChange={(e) => handleStatusChange(e, patient.id)}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className={`appearance-none cursor-pointer px-2 py-0.5 rounded-full text-xs font-bold border focus:outline-none focus:ring-2 focus:ring-offset-1 transition-colors text-center w-28 ${getStatusColor(patient.examinationStatus)}`}
+                                        >
+                                            <option value="waiting">Chờ khám</option>
+                                            <option value="processing">Đang khám</option>
+                                            <option value="completed">Đã khám</option>
+                                            <option value="cancelled">Đã hủy</option>
+                                        </select>
+                                    </td>
                                     <td className="p-3 text-slate-700 dark:text-slate-300">{patient.assignedDoctor || '-'}</td>
                                     <td className="p-3">
                                         <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${patient.patientType === 'Bảo hiểm' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
