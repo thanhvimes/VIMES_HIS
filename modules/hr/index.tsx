@@ -6,12 +6,14 @@ import StaffListView from './views/StaffListView';
 import SchedulingView from './views/SchedulingView';
 import RecruitmentView from './views/RecruitmentView';
 import PayrollView from './views/PayrollView';
+import TimekeepingView from './views/TimekeepingView';
 
 const HR: React.FC = () => {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="dashboard" replace />} />
       <Route path="dashboard" element={<HRDashboardView />} />
+      <Route path="timekeeping" element={<TimekeepingView />} /> {/* New Route */}
       <Route path="staff" element={<StaffListView />} />
       <Route path="scheduling" element={<SchedulingView />} />
       <Route path="recruitment" element={<RecruitmentView />} />
