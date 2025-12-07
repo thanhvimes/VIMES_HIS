@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MenuIcon, BellIcon, LogoutIcon, CheckCircleIcon, ExclamationCircleIcon, InfoIcon, CogIcon, UserGroupIcon, ChatBubbleIcon, MicrophoneIcon, MicrophoneOffIcon, CubeIcon } from './Icons';
+import { MenuIcon, BellIcon, CheckCircleIcon, ExclamationCircleIcon, InfoIcon, CogIcon, UserGroupIcon, ChatBubbleIcon, MicrophoneIcon, MicrophoneOffIcon, LogoutIcon, CubeIcon } from './Icons';
 import ThemeSwitcher from './ThemeSwitcher';
 import { useNotification } from '../contexts/NotificationContext';
 import { useSystem } from '../contexts/SystemContext';
@@ -148,7 +148,7 @@ const Header: React.FC<HeaderProps> = ({
     };
 
     return (
-        <header className="flex items-center justify-between h-[72px] px-4 sm:px-6 lg:px-8 sticky top-0 z-30 no-print transition-all duration-300
+        <header className="flex items-center justify-between h-[72px] px-4 sticky top-0 z-30 no-print transition-all duration-300
             bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-700/80 shadow-sm"
         >
             {/* --- Left Side: Title, Toggle & BRANDING --- */}
@@ -174,7 +174,7 @@ const Header: React.FC<HeaderProps> = ({
                        </div>
                        <div className="flex flex-col justify-center">                          
                             <h1 className="text-lg font-extrabold text-slate-800 dark:text-white tracking-tight leading-none">
-                                VIMES - Hệ thống quản lý bệnh viện
+                                VIMES - Hệ thống quản lý tổng thể
                             </h1>
                             <p className="text-[10px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider">Giải pháp Bệnh viện thông minh</p>
                        </div>
@@ -193,19 +193,22 @@ const Header: React.FC<HeaderProps> = ({
             {/* --- Right Side: Actions & Profile --- */}
             <div className="flex items-center space-x-2 sm:space-x-4">
                 
-                {/* Voice to Text Toggle */}
+                {/* Voice to Text Toggle - ENHANCED STYLE */}
                 {hasSupport && (
-                    <Tooltip content={isListening ? "Tắt nhận dạng giọng nói" : "Bật nhận dạng giọng nói"}>
+                    <Tooltip content={isListening ? "Đang ghi âm (Nhấn để tắt)" : "Nhập liệu giọng nói (Nhấn để bật)"}>
                         <button 
                             onClick={toggleListening}
-                            className={`p-2.5 rounded-full transition-all relative group ${
+                            className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 relative shadow-sm border ${
                                 isListening 
-                                ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 animate-pulse ring-1 ring-red-200' 
-                                : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200'
+                                ? 'bg-gradient-to-r from-red-500 to-rose-600 text-white border-red-400 shadow-[0_0_15px_rgba(244,63,94,0.6)] animate-pulse ring-2 ring-red-200 dark:ring-red-900 scale-110' 
+                                : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-red-400 hover:text-red-500 dark:hover:text-red-400 hover:shadow-md'
                             }`}
                         >
                             {isListening ? (
-                                <MicrophoneIcon className="h-5 w-5" />
+                                <>
+                                    <span className="absolute inset-0 rounded-full bg-red-400 opacity-20 animate-ping"></span>
+                                    <MicrophoneIcon className="h-5 w-5 drop-shadow-md" />
+                                </>
                             ) : (
                                 <MicrophoneOffIcon className="h-5 w-5" />
                             )}

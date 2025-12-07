@@ -51,8 +51,8 @@ export const VoiceInputProvider: React.FC<{ children: ReactNode }> = ({ children
             };
 
             recognition.onerror = (event: any) => {
-                // Ignore 'no-speech' error to prevent console spam
-                if (event.error === 'no-speech') {
+                // Ignore benign errors to prevent console spam
+                if (event.error === 'no-speech' || event.error === 'aborted') {
                     return;
                 }
                 

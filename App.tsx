@@ -228,6 +228,31 @@ const MainApp: React.FC = () => {
 }
 
 const App: React.FC = () => {
+  // --- CẤU HÌNH: CHẶN MENU CHUỘT PHẢI (CONTEXT MENU) ---
+  // Đặt true để chặn menu chuột phải của trình duyệt
+  // Đặt false để bật lại menu chuột phải (hữu ích khi debug)
+  const DISABLE_BROWSER_CONTEXT_MENU = true; 
+
+  useEffect(() => {
+    if (DISABLE_BROWSER_CONTEXT_MENU) {
+      const handleContextMenu = (e: MouseEvent) => {
+        // Ngăn chặn hành vi mặc định ngay lập tức
+        e.preventDefault();
+        // Ngăn sự kiện lan truyền thêm
+        e.stopPropagation(); 
+        return false;
+      };
+
+      // Sử dụng { capture: true } để bắt sự kiện ngay từ document root 
+      // trước khi nó lan truyền xuống các phần tử con.
+      document.addEventListener('contextmenu', handleContextMenu, { capture: true });
+
+      return () => {
+        document.removeEventListener('contextmenu', handleContextMenu, { capture: true });
+      };
+    }
+  }, [DISABLE_BROWSER_CONTEXT_MENU]);
+
   return (
     <SystemProvider>
       <SessionProvider>

@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import BillingPatientInfo, { PatientBillingInfo } from './components/BillingPatientInfo';
 import BillingItemsTable, { BillingItem } from './components/BillingItemsTable';
 import BillingReceiptsTable, { Receipt } from './components/BillingReceiptsTable';
+import BillingActionsPanel from './components/BillingActionsPanel';
 import PaymentDialog from './components/PaymentDialog';
 import DepositDialog from './components/DepositDialog';
 import DiscountDialog from './components/DiscountDialog';
@@ -14,12 +15,8 @@ import {
     ChevronLeftIcon, 
     ListBulletIcon, 
     ReceiptIcon,
-    UserCircleIcon,
-    PhoneIcon,
-    HomeIcon,
-    ShieldCheckIcon,
-    ClockIcon,
-    QrcodeIcon
+    QrcodeIcon,
+    HomeIcon
 } from '../../../components/Icons';
 
 const BillingRecordView: React.FC = () => {
@@ -74,7 +71,7 @@ const BillingRecordView: React.FC = () => {
                 name: isInsurance ? 'NGUYỄN VĂN AN' : 'LÊ HOÀNG CƯỜNG',
                 dob: '1985-05-20',
                 gender: 'Nam',
-                address: '123 Nguyễn Trãi, Thanh Xuân, Hà Nội - Thành phố Hà Nội',
+                address: '123 Nguyễn Trãi, Thanh Xuân, Hà Nội',
                 phone: '0912345678',
                 admissionDate: '27/11/2023 08:30',
                 department: 'Khoa Nội Tổng Quát',
@@ -104,6 +101,7 @@ const BillingRecordView: React.FC = () => {
         if (action === 'discount') setIsDiscountModalOpen(true);
         if (action === 'add_service') setIsAddFeeModalOpen(true); 
         if (action === 'print') alert('In bảng kê chi phí...');
+        if (action === 'print_receipt') alert('In biên lai...');
     };
 
     const handlePaymentConfirm = (data: any) => {
@@ -171,11 +169,6 @@ const BillingRecordView: React.FC = () => {
         
         alert(`Đã thêm ${addedItems.length} dịch vụ vào bảng kê.`);
     };
-    
-    const calculateAge = (dob: string) => {
-        const year = new Date(dob).getFullYear();
-        return new Date().getFullYear() - year;
-    };
 
     const handleSwitchPatient = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter' && nextPatientQuery.trim()) {
@@ -198,129 +191,67 @@ const BillingRecordView: React.FC = () => {
     return (
         <div className="flex flex-col h-full bg-slate-100 dark:bg-slate-900 overflow-hidden relative">
             
-            {/* 1. TOP HEADER (Gradient & Patient Info) */}
-            <div className="flex-shrink-0 bg-gradient-to-r from-teal-600 to-blue-700 text-white shadow-md z-20 border-b border-white/10">
-                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center px-6 py-4 gap-4">
-                    {/* Left: Back & Name */}
-                    <div className="flex items-center gap-4 flex-1">
-                        <button onClick={() => navigate('/billing/invoices')} className="p-2 hover:bg-white/20 rounded-full transition-colors text-white">
-                            <ChevronLeftIcon className="w-6 h-6" />
+            {/* 1. TOP HEADER (Slim & Functional) */}
+            <div className="flex-shrink-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm z-20 px-4 py-2">
+                 <div className="flex justify-between items-center gap-4">
+                    {/* Left: Nav & Quick Info */}
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => navigate('/billing/invoices')} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500">
+                            <ChevronLeftIcon className="w-5 h-5" />
                         </button>
-                        <div>
-                            <div className="flex items-center gap-3">
-                                <h1 className="text-2xl font-black uppercase tracking-tight text-white">
-                                    {patient.name}
-                                </h1>
-                                {patient.patientType === 'BHYT' ? (
-                                    <span className="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded border border-orange-400 flex items-center gap-1 shadow-sm">
-                                        <ShieldCheckIcon className="w-3 h-3"/> BHYT
-                                    </span>
-                                ) : (
-                                    <span className="bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded border border-blue-400 shadow-sm">
-                                        DỊCH VỤ
-                                    </span>
-                                )}
-                            </div>
-                            
-                            {/* Patient Demographics & Record ID */}
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-blue-100 mt-1 font-medium">
-                                <span className="flex items-center gap-1">
-                                    <UserCircleIcon className="w-4 h-4 opacity-80"/> 
-                                    {calculateAge(patient.dob)}T ({patient.gender})
-                                </span>
-                                <span className="w-1 h-1 bg-blue-300 rounded-full"></span>
-                                <span className="bg-white/10 px-2 rounded text-xs py-0.5 border border-white/10" title="Số hồ sơ bệnh án">
-                                    HS: <span className="font-mono font-bold text-white">{patient.recordId}</span>
-                                </span>
-                                <span className="w-1 h-1 bg-blue-300 rounded-full hidden lg:block"></span>
-                                <span className="hidden lg:flex items-center gap-1 opacity-90 text-xs">
-                                    <HomeIcon className="w-3.5 h-3.5"/> {patient.address}
-                                </span>
-                            </div>
-
-                            {/* Insurance Details Row */}
-                            {patient.patientType === 'BHYT' && (
-                                <div className="mt-2 pt-2 border-t border-white/10 flex flex-wrap gap-x-6 gap-y-1 text-xs text-blue-50 animate-fade-in">
-                                    <span className="flex gap-1 items-center">
-                                        <span className="opacity-60 uppercase font-semibold">Số thẻ:</span>
-                                        <span className="font-mono font-bold text-yellow-300 tracking-wide text-sm">{patient.insuranceNumber}</span>
-                                    </span>
-                                    <span className="flex gap-1 items-center">
-                                        <span className="opacity-60 uppercase font-semibold">Mức hưởng:</span>
-                                        <span className="font-bold text-white bg-blue-800/50 px-1.5 rounded">{patient.insuranceRate}%</span>
-                                    </span>
-                                    <span className="flex gap-1 items-center">
-                                        <span className="opacity-60 uppercase font-semibold">Hạn dùng:</span>
-                                        <span className="font-mono">{patient.insuranceRegDate} - {patient.insuranceExpDate}</span>
-                                    </span>
-                                    <span className="flex gap-1 items-center hidden xl:flex">
-                                        <span className="opacity-60 uppercase font-semibold">ĐKBD:</span>
-                                        <span className="truncate max-w-[150px]" title={patient.insurancePlace}>{patient.insurancePlace}</span>
-                                    </span>
-                                </div>
-                            )}
+                        <div className="flex items-center gap-3">
+                             <h1 className="text-lg font-bold text-slate-800 dark:text-white uppercase flex items-center gap-2">
+                                <span className="text-blue-600">Thu Ngân</span> / {patient.name}
+                            </h1>
+                            <span className="text-xs font-mono text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded">{patient.recordId}</span>
                         </div>
                     </div>
 
-                    {/* Right: Quick Search & Context Info */}
-                    <div className="flex items-center gap-4">
-                        {/* QUICK PATIENT SWITCHER */}
-                        <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <QrcodeIcon className="h-5 w-5 text-blue-200 group-focus-within:text-white" />
-                            </div>
-                            <input 
-                                type="text" 
-                                className="bg-white/10 border border-white/20 text-white text-sm rounded-lg focus:ring-2 focus:ring-white focus:bg-white/20 block w-64 pl-10 p-2.5 placeholder-blue-200 outline-none transition-all" 
-                                placeholder="Quét hồ sơ tiếp theo..." 
-                                value={nextPatientQuery}
-                                onChange={(e) => setNextPatientQuery(e.target.value)}
-                                onKeyDown={handleSwitchPatient}
-                            />
+                    {/* Right: Quick Search */}
+                    <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <QrcodeIcon className="h-4 w-4 text-slate-400 group-focus-within:text-blue-500" />
                         </div>
-
-                         <div className="text-right hidden xl:block">
-                            <p className="text-xs text-blue-200 font-bold uppercase">Khoa điều trị</p>
-                            <p className="font-bold">{patient.department}</p>
-                         </div>
-                         <div className="text-right hidden xl:block">
-                            <p className="text-xs text-blue-200 font-bold uppercase">Ngày vào viện</p>
-                            <p className="font-bold font-mono flex items-center justify-end gap-1"><ClockIcon className="w-3.5 h-3.5"/> {patient.admissionDate.split(' ')[0]}</p>
-                         </div>
+                        <input 
+                            type="text" 
+                            className="bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-full focus:ring-2 focus:ring-blue-500 block w-64 pl-9 p-1.5 placeholder-slate-400 outline-none transition-all" 
+                            placeholder="Quét mã hồ sơ / BHYT..." 
+                            value={nextPatientQuery}
+                            onChange={(e) => setNextPatientQuery(e.target.value)}
+                            onKeyDown={handleSwitchPatient}
+                        />
                     </div>
                  </div>
             </div>
 
-            {/* 2. MAIN CONTENT (Split Layout) */}
-            <div className="flex-1 flex overflow-hidden p-4 gap-4">
+            {/* 2. MAIN CONTENT (3-Pane Layout) */}
+            <div className="flex-1 flex overflow-hidden p-3 gap-3">
                 
-                {/* LEFT: Financial Summary & Actions (Fixed Width) */}
-                <div className="w-80 flex-shrink-0 h-full overflow-hidden">
-                    <BillingPatientInfo patient={patient} onAction={handleAction} />
+                {/* PANE 1: PATIENT INFO (Fixed Width - 20%) */}
+                <div className="w-72 flex-shrink-0 flex flex-col h-full overflow-hidden">
+                    <BillingPatientInfo patient={patient} />
                 </div>
 
-                {/* RIGHT: Items Table (Flexible) */}
-                <div className="flex-1 min-w-0 h-full overflow-hidden flex flex-col bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-                    <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-2 pt-2">
+                {/* PANE 2: ITEMS & RECEIPTS (Flexible - 55%) */}
+                <div className="flex-1 flex flex-col bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-2 pt-2 shrink-0">
                         <button 
                             onClick={() => setActiveTab('items')}
-                            className={`flex items-center gap-2 px-4 py-3 text-sm font-bold rounded-t-lg transition-colors ${activeTab === 'items' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border-t border-x border-slate-200 dark:border-slate-700 -mb-px' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                            className={`flex items-center gap-2 px-6 py-2.5 text-sm font-bold rounded-t-lg transition-colors border-t-2 ${activeTab === 'items' ? 'bg-white dark:bg-slate-800 text-blue-600 border-blue-500' : 'text-slate-500 border-transparent hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                         >
-                            <ListBulletIcon className="w-4 h-4"/> Bảng kê Chi tiết
+                            <ListBulletIcon className="w-4 h-4"/> Bảng kê chi tiết
                         </button>
                         <button 
                             onClick={() => setActiveTab('receipts')}
-                            className={`flex items-center gap-2 px-4 py-3 text-sm font-bold rounded-t-lg transition-colors ${activeTab === 'receipts' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border-t border-x border-slate-200 dark:border-slate-700 -mb-px' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                            className={`flex items-center gap-2 px-6 py-2.5 text-sm font-bold rounded-t-lg transition-colors border-t-2 ${activeTab === 'receipts' ? 'bg-white dark:bg-slate-800 text-blue-600 border-blue-500' : 'text-slate-500 border-transparent hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                         >
                             <ReceiptIcon className="w-4 h-4"/> Lịch sử Phiếu thu
                         </button>
                     </div>
 
-                    <div className="flex-1 overflow-hidden">
+                    <div className="flex-1 overflow-hidden p-0 relative">
                         {activeTab === 'items' ? (
-                            <div className="h-full p-0">
-                                <BillingItemsTable items={items} />
-                            </div>
+                            <BillingItemsTable items={items} />
                         ) : (
                             <div className="h-full p-4 bg-slate-50 dark:bg-slate-900/30">
                                 <BillingReceiptsTable 
@@ -330,6 +261,11 @@ const BillingRecordView: React.FC = () => {
                             </div>
                         )}
                     </div>
+                </div>
+
+                {/* PANE 3: ACTIONS & CHECKOUT (Fixed Width - 25%) */}
+                <div className="w-80 flex-shrink-0 flex flex-col h-full overflow-hidden">
+                    <BillingActionsPanel patient={patient} onAction={handleAction} />
                 </div>
             </div>
 

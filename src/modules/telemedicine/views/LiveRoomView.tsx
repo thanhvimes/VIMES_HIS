@@ -358,7 +358,7 @@ const LiveRoomView: React.FC = () => {
 
             // Add error handler to prevent uncaught exceptions in console
             recognitionInstance.onerror = (event: any) => {
-                if (event.error === 'no-speech') return;
+                if (event.error === 'no-speech' || event.error === 'aborted') return;
                 console.warn("AI Scribe Error:", event.error);
             };
             

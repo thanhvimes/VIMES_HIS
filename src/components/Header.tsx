@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { MenuIcon, BellIcon, LogoutIcon, CheckCircleIcon, ExclamationCircleIcon, InfoIcon, CogIcon, UserGroupIcon, ChatBubbleIcon, MicrophoneIcon, MicrophoneOffIcon, CubeIcon } from './Icons';
-import ThemeSwitcher from './ThemeSwitcher';
+import ThemeSwitcher from '..//ThemeSwitcher';
 import { useNotification } from '../contexts/NotificationContext';
 import { useSystem } from '../contexts/SystemContext';
 import { useSession } from '../contexts/SessionContext';
