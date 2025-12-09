@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MenuIcon, BellIcon, CheckCircleIcon, ExclamationCircleIcon, InfoIcon, CogIcon, UserGroupIcon, ChatBubbleIcon, MicrophoneIcon, MicrophoneOffIcon, LogoutIcon, CubeIcon } from './Icons';
+import { MenuIcon, BellIcon, CheckCircleIcon, ExclamationCircleIcon, InfoIcon, CogIcon, UserGroupIcon, ChatBubbleIcon, MicrophoneIcon, MicrophoneOffIcon, LogoutIcon, HospitalIcon } from './Icons';
 import ThemeSwitcher from './ThemeSwitcher';
 import { useNotification } from '../contexts/NotificationContext';
 import { useSystem } from '../contexts/SystemContext';
@@ -170,13 +170,13 @@ const Header: React.FC<HeaderProps> = ({
                         title="Về trang chủ"
                     >
                        <div className="w-10 h-10 bg-teal-600 rounded-lg flex items-center justify-center shadow-lg shadow-teal-500/30 group-hover:rotate-3 transition-transform">
-                            <CubeIcon className="w-6 h-6 text-white" />
+                            <HospitalIcon className="w-6 h-6 text-white" />
                        </div>
                        <div className="flex flex-col justify-center">                          
-                            <h1 className="text-lg font-extrabold text-slate-800 dark:text-white tracking-tight leading-none">
-                                VIMES - Hệ thống quản lý tổng thể
+                            <h1 className="text-lg font-extrabold text-slate-800 dark:text-white tracking-tight leading-none uppercase">
+                                BỆNH VIỆN ĐA KHOA VIMES
                             </h1>
-                            <p className="text-[10px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider">Giải pháp Bệnh viện thông minh</p>
+                            <p className="text-[10px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider">HỆ THỐNG QUẢN LÝ PHÒNG KHÁM TOÀN DIỆN</p>
                        </div>
                     </div>
                 ) : (

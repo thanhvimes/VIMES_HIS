@@ -280,38 +280,38 @@ const DateTimeWidget = () => {
     const dayNameCapitalized = dayName.charAt(0).toUpperCase() + dayName.slice(1);
 
     return (
-        <div className="h-full bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-6 text-white shadow-xl flex flex-col justify-between relative overflow-hidden border border-slate-700">
+        <div className="h-full bg-gradient-to-br from-teal-500 to-blue-600 rounded-3xl p-6 text-white shadow-xl flex flex-col justify-between relative overflow-hidden border border-teal-400/30">
              {/* Background Effects */}
-             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500 rounded-full mix-blend-overlay filter blur-3xl opacity-20"></div>
-             <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500 rounded-full mix-blend-overlay filter blur-3xl opacity-20"></div>
+             <div className="absolute top-0 right-0 w-40 h-40 bg-white rounded-full mix-blend-overlay filter blur-3xl opacity-10"></div>
+             <div className="absolute bottom-0 left-0 w-40 h-40 bg-teal-300 rounded-full mix-blend-overlay filter blur-3xl opacity-10"></div>
 
              {/* User Welcome */}
              <div className="relative z-10">
-                 <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Xin chào</p>
-                 <h2 className="text-xl font-bold truncate" title={user?.fullName}>{user?.fullName}</h2>
-                 <p className="text-xs text-slate-400 truncate">{user?.title} - {user?.departmentName}</p>
+                 <p className="text-blue-100 text-xs font-bold uppercase tracking-wider mb-1">Xin chào</p>
+                 <h2 className="text-xl font-bold truncate drop-shadow-sm" title={user?.fullName}>{user?.fullName}</h2>
+                 <p className="text-xs text-blue-50 truncate">{user?.title} - {user?.departmentName}</p>
              </div>
 
              {/* Time Display */}
              <div className="relative z-10 flex flex-col items-center justify-center py-4">
-                 <div className="text-6xl font-black tracking-tighter flex items-baseline gap-1">
+                 <div className="text-6xl font-black tracking-tighter flex items-baseline gap-1 drop-shadow-md">
                      <span>{hours}</span>
                      <span className="animate-pulse">:</span>
                      <span>{minutes}</span>
-                     <span className="text-xl font-medium text-slate-400 ml-1">{seconds}</span>
+                     <span className="text-xl font-medium text-blue-100 ml-1">{seconds}</span>
                  </div>
              </div>
 
              {/* Date Display */}
-             <div className="relative z-10 border-t border-white/10 pt-4">
+             <div className="relative z-10 border-t border-white/20 pt-4">
                  <div className="flex justify-between items-end">
                      <div>
-                         <p className="text-blue-400 font-bold text-sm uppercase">{dayNameCapitalized}</p>
-                         <p className="text-slate-300 text-sm">
+                         <p className="text-blue-50 font-bold text-sm uppercase">{dayNameCapitalized}</p>
+                         <p className="text-white text-sm">
                              {time.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                          </p>
                      </div>
-                     <ClockIcon className="w-8 h-8 text-slate-600"/>
+                     <ClockIcon className="w-8 h-8 text-blue-200/80"/>
                  </div>
              </div>
         </div>

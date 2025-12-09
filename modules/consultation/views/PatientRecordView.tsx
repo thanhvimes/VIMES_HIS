@@ -10,7 +10,9 @@ import {
     CreditCardIcon,
     FolderIcon,
     ChevronLeftIcon,
-    ClockIcon
+    ClockIcon,
+    ExclamationCircleIcon,
+    UserCircleIcon
 } from '../../../components/Icons';
 import ChartView from './tabs/ChartView';
 import ExamineView from './tabs/ExamineView';
@@ -23,13 +25,13 @@ import HistorySidebar from './components/HistorySidebar';
 import { consultationService } from '../../../services/consultationService';
 
 const tabs = [
-    { id: 'chart', label: 'Chart', icon: PresentationChartLineIcon },
-    { id: 'examine', label: 'Examine', icon: ClipboardListIcon },
-    { id: 'lab', label: 'Lab', icon: BeakerIcon },
-    { id: 'operation', label: 'Operation', icon: ScissorsIcon },
-    { id: 'medication', label: 'Medication', icon: ArchiveIcon },
-    { id: 'fee', label: 'Fee', icon: CreditCardIcon },
-    { id: 'documents', label: 'Documents', icon: FolderIcon },
+    { id: 'chart', label: 'Tổng quan', icon: PresentationChartLineIcon },
+    { id: 'examine', label: 'Khám bệnh', icon: ClipboardListIcon },
+    { id: 'lab', label: 'Cận lâm sàng', icon: BeakerIcon },
+    { id: 'operation', label: 'Thủ thuật', icon: ScissorsIcon },
+    { id: 'medication', label: 'Kê đơn', icon: ArchiveIcon },
+    { id: 'fee', label: 'Viện phí', icon: CreditCardIcon },
+    { id: 'documents', label: 'Hồ sơ EMR', icon: FolderIcon },
 ];
 
 const PatientRecordView: React.FC = () => {
@@ -47,6 +49,11 @@ const PatientRecordView: React.FC = () => {
             setIsLoading(true);
             try {
                 const data = await consultationService.getPatientProfile(patientId);
+                // Mock adding critical medical info if not present
+                if (data && !data.allergies) {
+                    data.allergies = "Penicillin, Hải sản";
+                    data.bloodType = "O+";
+                }
                 setPatientData(data);
             } catch (error) {
                 console.error("Failed to fetch patient data", error);
@@ -68,7 +75,7 @@ const PatientRecordView: React.FC = () => {
         return (
             <div className="flex items-center justify-center h-full bg-slate-50 dark:bg-slate-900">
                 <div className="flex flex-col items-center">
-                    <div className="w-10 h-10 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
                     <p className="text-slate-500 dark:text-slate-400">Đang tải hồ sơ bệnh nhân...</p>
                 </div>
             </div>
@@ -81,10 +88,10 @@ const PatientRecordView: React.FC = () => {
                 <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-2">Không tìm thấy bệnh nhân</h2>
                 <p className="text-slate-500 mb-6">Hồ sơ bệnh nhân với ID {patientId} không tồn tại hoặc đã bị xóa.</p>
                 <button 
-                    onClick={() => navigate('/consultation/list')}
-                    className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+                    onClick={() => navigate('/consultation/dashboard')}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                    Quay lại danh sách
+                    Quay lại bàn khám
                 </button>
             </div>
         );
@@ -92,58 +99,81 @@ const PatientRecordView: React.FC = () => {
 
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 overflow-hidden relative">
-            {/* 1. TOP BAR - Patient Info & Navigation */}
-            {/* ADAPTIVE HEADER: Teal in Light Mode (Matches Portal), Deep Slate in Dark Mode (Professional) */}
-            <div className="flex-shrink-0 bg-gradient-to-r from-teal-700 to-teal-600 dark:from-slate-900 dark:to-slate-800 text-white shadow-md z-20 border-b dark:border-slate-700">
-                <div className="flex items-center justify-between px-4 py-2">
-                    <div className="flex items-center space-x-4">
-                        <button onClick={() => navigate(-1)} className="p-1 hover:bg-white/20 rounded-full transition-colors">
-                            <ChevronLeftIcon className="w-6 h-6 text-white" />
+            {/* 1. TOP BAR - Enhanced Patient Info */}
+            <div className="flex-shrink-0 bg-white dark:bg-slate-800 shadow-md z-20 border-b border-slate-200 dark:border-slate-700">
+                <div className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => navigate('/consultation/dashboard')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500 dark:text-slate-400">
+                            <ChevronLeftIcon className="w-6 h-6" />
                         </button>
-                        <div className="flex flex-col">
-                            <h1 className="text-lg font-bold uppercase flex items-center gap-2">
-                                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                                {patientData.name} | Tuổi: {patientData.age} | Giới tính: {patientData.gender}
-                            </h1>
-                            <p className="text-xs text-teal-100 dark:text-slate-400 opacity-90 flex items-center gap-1">
-                                <span className="opacity-70">📍 Địa chỉ:</span> {patientData.address}
-                            </p>
+                        
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg border border-blue-200">
+                                {patientData.name.charAt(0)}
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <h1 className="text-lg font-bold text-slate-800 dark:text-white uppercase leading-none">
+                                        {patientData.name}
+                                    </h1>
+                                    <span className="px-2 py-0.5 rounded text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
+                                        {patientData.gender} - {patientData.age}T
+                                    </span>
+                                </div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-3">
+                                    <span className="font-mono bg-slate-50 dark:bg-slate-900 px-1.5 rounded text-blue-600 dark:text-blue-400 font-bold">{patientData.id}</span>
+                                    <span>{patientData.address}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div className="hidden md:flex items-center gap-3">
+
+                    {/* Critical Info Tags */}
+                    <div className="flex items-center gap-4">
+                        {patientData.allergies && (
+                            <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-800 animate-pulse">
+                                <ExclamationCircleIcon className="w-5 h-5 text-red-600"/>
+                                <div>
+                                    <span className="text-[10px] font-bold text-red-500 uppercase block leading-none">Cảnh báo Dị ứng</span>
+                                    <span className="text-xs font-bold text-red-700 dark:text-red-400">{patientData.allergies}</span>
+                                </div>
+                            </div>
+                        )}
+                        <div className="hidden lg:block bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-800 text-center">
+                             <span className="text-[10px] font-bold text-blue-500 uppercase block leading-none">Nhóm máu</span>
+                             <span className="text-xs font-bold text-blue-700 dark:text-blue-400">{patientData.bloodType || 'Chưa XN'}</span>
+                        </div>
+                        
                         <button 
                             onClick={() => setIsHistoryOpen(true)}
-                            className="flex items-center gap-1 bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full backdrop-blur-sm transition-colors text-sm font-semibold"
+                            className="p-2 text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors flex flex-col items-center"
+                            title="Lịch sử khám"
                         >
-                            <ClockIcon className="w-4 h-4" />
-                            Lịch sử khám
+                            <ClockIcon className="w-5 h-5" />
                         </button>
-                        <div className="text-sm font-bold bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm max-w-xs truncate border border-white/10">
-                            {patientData.diagnosis}
-                        </div>
                     </div>
                 </div>
 
                 {/* 2. NAVIGATION TABS */}
-                <div className="flex items-end px-2 pt-1 space-x-1 overflow-x-auto">
+                <div className="flex items-end px-4 space-x-1 overflow-x-auto border-t border-slate-100 dark:border-slate-700">
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`flex flex-col items-center justify-center py-2 px-6 min-w-[90px] rounded-t-lg transition-all duration-200 border-b-4 ${activeTab === tab.id
-                                    ? 'bg-white dark:bg-slate-800 text-teal-800 dark:text-sky-400 border-orange-500 translate-y-[1px] shadow-inner font-bold'
-                                    : 'bg-teal-800/40 dark:bg-slate-800/50 text-teal-100 dark:text-slate-400 border-transparent hover:bg-teal-700 dark:hover:bg-slate-700 hover:text-white opacity-90'
+                            className={`flex items-center gap-2 py-3 px-4 border-b-2 transition-all duration-200 text-sm font-medium whitespace-nowrap ${activeTab === tab.id
+                                    ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-slate-800'
+                                    : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
                                 }`}
                         >
-                            <tab.icon className={`w-5 h-5 mb-1 ${activeTab === tab.id ? 'text-teal-600 dark:text-sky-400' : 'text-teal-200 dark:text-slate-400'}`} />
-                            <span className="text-xs uppercase tracking-wide">{tab.label}</span>
+                            <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`} />
+                            {tab.label}
                         </button>
                     ))}
                 </div>
             </div>
 
             {/* 3. MAIN CONTENT AREA */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-100 dark:bg-slate-900/50">
                 {/* CONTENT RENDERER BASED ON ACTIVE TAB */}
                 {activeTab === 'chart' && (
                     <ChartView initialVitals={patientData.vitalSigns} patientRecord={patientData} />
@@ -171,15 +201,6 @@ const PatientRecordView: React.FC = () => {
 
                 {activeTab === 'documents' && (
                     <DocumentsView />
-                )}
-
-                {activeTab !== 'chart' && activeTab !== 'examine' && activeTab !== 'lab' && activeTab !== 'operation' && activeTab !== 'medication' && activeTab !== 'fee' && activeTab !== 'documents' && (
-                    <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-                        <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-full mb-3">
-                            {activeTabInfo && React.createElement(activeTabInfo.icon, { className: "w-8 h-8" })}
-                        </div>
-                        <p>Tab <strong>{activeTabInfo?.label}</strong> đang được xây dựng.</p>
-                    </div>
                 )}
             </div>
 

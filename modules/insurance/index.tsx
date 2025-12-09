@@ -4,6 +4,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import InsuranceDashboardView from './views/InsuranceDashboardView';
 import CardCheckView from './views/CardCheckView';
 import XMLExportView from './views/XMLExportView';
+import DocumentSubmissionView from './views/DocumentSubmissionView'; // New View
 import ReportsLayout from '../reports/ReportsLayout';
 
 const InsuranceModule: React.FC = () => {
@@ -13,6 +14,7 @@ const InsuranceModule: React.FC = () => {
       <Route path="dashboard" element={<InsuranceDashboardView />} />
       <Route path="check-card" element={<CardCheckView />} />
       <Route path="xml-export" element={<XMLExportView />} />
+      <Route path="send-documents" element={<DocumentSubmissionView />} /> {/* New Route */}
       <Route path="reports" element={<ReportsLayout moduleFilter="insurance" />} />
     </Routes>
   );

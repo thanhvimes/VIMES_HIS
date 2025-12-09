@@ -1,5 +1,5 @@
 
-import { Patient } from '../types';
+import { apiClient } from './apiClient';
 
 // Interface for BHYT Card Response
 export interface InsuranceCardInfo {
@@ -31,19 +31,36 @@ export interface InsuranceClaim {
     errorMessage?: string;
 }
 
-// Mock Claims Data
-const mockClaims: InsuranceClaim[] = [
-    { id: 'CLM001', patientName: 'Nguyễn Văn An', cardNumber: 'GD4790215567890', visitDate: '2023-11-27', totalAmount: 1500000, insuranceAmount: 1200000, patientAmount: 300000, status: 'Accepted', xmlStatus: 'Generated' },
-    { id: 'CLM002', patientName: 'Trần Thị Bích', cardNumber: 'DN4790215567891', visitDate: '2023-11-27', totalAmount: 850000, insuranceAmount: 680000, patientAmount: 170000, status: 'Sent', xmlStatus: 'Generated' },
-    { id: 'CLM003', patientName: 'Lê Hoàng Cường', cardNumber: 'HS4790215567892', visitDate: '2023-11-26', totalAmount: 2100000, insuranceAmount: 2100000, patientAmount: 0, status: 'Ready', xmlStatus: 'Pending' },
-    { id: 'CLM004', patientName: 'Phạm Thị Dung', cardNumber: 'SV4790215567893', visitDate: '2023-11-26', totalAmount: 450000, insuranceAmount: 360000, patientAmount: 90000, status: 'Error', xmlStatus: 'Pending', errorMessage: 'Sai mã KCB ban đầu' },
-];
+// --- NEW: Insurance Document Interface ---
+export type DocumentType = 'GiayChuyenVien' | 'GiayRaVien' | 'GiayNghiBHXH' | 'GiayChungSinh';
+
+export interface InsuranceDocument {
+    id: string; // Mã Key
+    patientName: string;
+    yearOfBirth: number;
+    gender: 'Nam' | 'Nữ';
+    recordNumber: string; // Mã hồ sơ điều trị
+    
+    docTypeCode: DocumentType; // Mã loại phiếu
+    docTypeName: string; // Tên hiển thị loại phiếu
+
+    createdTime: string; // Ngày giờ tạo
+    sentTime?: string; // Ngày giờ gửi
+    transactionId?: string; // Mã giao dịch
+    
+    sendStatus: 'Unsent' | 'Sending' | 'Success' | 'Error';
+    signatureStatus: 'Unsigned' | 'Signed';
+    
+    xmlData: string; // Dữ liệu XML
+    errorMessage?: string;
+}
 
 export const insuranceService = {
     /**
      * Check thẻ BHYT Online (Giả lập gọi cổng giám định)
      */
     checkCardOnline: async (cardNumber: string, name: string): Promise<InsuranceCardInfo> => {
+        // Trong thực tế, đây sẽ là API gọi sang cổng BHYT hoặc GW của BV
         return new Promise((resolve) => {
             setTimeout(() => {
                 // Logic giả lập dựa trên mã thẻ
@@ -86,10 +103,6 @@ export const insuranceService = {
         let patientPay = 0;
 
         if (!effectiveRoute) {
-            // Trái tuyến (Ví dụ: Tỉnh -> TW được hưởng 40% nội trú, 0% ngoại trú - Giả lập đơn giản)
-            // Giả sử đây là BV Huyện (Hưởng 100% chi phí khám chữa bệnh theo mức hưởng)
-            // Nếu BV Tỉnh/TW thì logic phức tạp hơn.
-            // Ở đây giả lập Trái tuyến được hưởng 0% ngoại trú (thường gặp)
              insurancePay = 0;
              patientPay = totalCost;
         } else {
@@ -113,9 +126,14 @@ export const insuranceService = {
     },
 
     /**
-     * Lấy danh sách hồ sơ chờ đẩy cổng
+     * Lấy danh sách hồ sơ chờ đẩy cổng (Dùng cho view XML Export)
      */
     getClaimsList: async (): Promise<InsuranceClaim[]> => {
+        // Mock data cho chức năng Export XML 4210
+        const mockClaims: InsuranceClaim[] = [
+            { id: 'CLM001', patientName: 'Nguyễn Văn An', cardNumber: 'GD4790215567890', visitDate: '2023-11-27', totalAmount: 1500000, insuranceAmount: 1200000, patientAmount: 300000, status: 'Accepted', xmlStatus: 'Generated' },
+            { id: 'CLM002', patientName: 'Trần Thị Bích', cardNumber: 'DN4790215567891', visitDate: '2023-11-27', totalAmount: 850000, insuranceAmount: 680000, patientAmount: 170000, status: 'Sent', xmlStatus: 'Generated' },
+        ];
         return new Promise(resolve => setTimeout(() => resolve(mockClaims), 800));
     },
 
@@ -123,36 +141,69 @@ export const insuranceService = {
      * Sinh file XML 130/4210 (Giả lập nội dung XML)
      */
     generateXML4210: (claimId: string) => {
-        // Tạo nội dung XML giả lập chuẩn 4210
         const xmlContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <CHECKOUT>
     <THONGTINBENHNHAN>
         <MA_BN>${claimId}</MA_BN>
         <HO_TEN>NGUYEN VAN A</HO_TEN>
-        <NGAY_SINH>19900101</NGAY_SINH>
-        <GIOI_TINH>1</GIOI_TINH>
-        <DIA_CHI>Ha Noi</DIA_CHI>
-        <MA_THE>GD4790215567890</MA_THE>
-        <MA_DKBD>01001</MA_DKBD>
-        <GT_THE_TU>20230101</GT_THE_TU>
-        <GT_THE_DEN>20231231</GT_THE_DEN>
-        <MA_BENH>E11</MA_BENH>
-        <MA_BENH_KHAC>I10;E78</MA_BENH_KHAC>
-        <NGAY_VAO>202311270800</NGAY_VAO>
-        <NGAY_RA>202311271030</NGAY_RA>
-        <NGAY_TTOAN>202311271030</NGAY_TTOAN>
         <TONG_CHI>1500000</TONG_CHI>
-        <BHYT_TT>1200000</BHYT_TT>
-        <BN_TT>300000</BN_TT>
     </THONGTINBENHNHAN>
 </CHECKOUT>`;
         return xmlContent;
     },
 
     /**
-     * Gửi hồ sơ lên cổng giám định (Simulation)
+     * Gửi hồ sơ giám định 4210
      */
     sendToPortal: async (claimIds: string[]): Promise<boolean> => {
         return new Promise(resolve => setTimeout(() => resolve(true), 2000));
+    },
+
+    // --- NEW: Document Submission (REAL API) ---
+    
+    /**
+     * Lấy danh sách giấy tờ từ Backend
+     */
+    getDocumentsList: async (): Promise<InsuranceDocument[]> => {
+        try {
+            return await apiClient.get<InsuranceDocument[]>('/insurance/documents');
+        } catch (error) {
+            console.warn("API Error (getDocumentsList), using mock data", error);
+            // Fallback mock data if backend not ready
+            return [
+                {
+                    id: 'DOC001', patientName: 'Nguyễn Văn An', yearOfBirth: 1985, gender: 'Nam', recordNumber: '2301001',
+                    docTypeCode: 'GiayChuyenVien', docTypeName: 'Giấy chuyển tuyến',
+                    createdTime: '2023-11-28 08:30', sendStatus: 'Unsent', signatureStatus: 'Signed',
+                    xmlData: '<GiayChuyenVien>...</GiayChuyenVien>'
+                }
+            ];
+        }
+    },
+
+    /**
+     * Gửi giấy tờ lên cổng (API)
+     */
+    sendDocumentsToPortal: async (docIds: string[]): Promise<string[]> => {
+        try {
+            // Trả về danh sách ID bị lỗi (nếu có)
+            return await apiClient.post<string[]>('/insurance/documents/send', { docIds });
+        } catch (error) {
+            console.error("API Error (sendDocumentsToPortal)", error);
+            throw error;
+        }
+    },
+    
+    /**
+     * Ký số giấy tờ (API)
+     */
+    signDocuments: async (docIds: string[]): Promise<boolean> => {
+         try {
+             await apiClient.post('/insurance/documents/sign', { docIds });
+             return true;
+         } catch (error) {
+             console.error("API Error (signDocuments)", error);
+             return false;
+         }
     }
 };

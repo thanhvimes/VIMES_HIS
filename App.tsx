@@ -228,30 +228,53 @@ const MainApp: React.FC = () => {
 }
 
 const App: React.FC = () => {
-  // --- CẤU HÌNH: CHẶN MENU CHUỘT PHẢI (CONTEXT MENU) ---
-  // Đặt true để chặn menu chuột phải của trình duyệt
-  // Đặt false để bật lại menu chuột phải (hữu ích khi debug)
-  const DISABLE_BROWSER_CONTEXT_MENU = true; 
+  // --- CẤU HÌNH: CHẶN MENU CHUỘT PHẢI & ZOOM (NATIVE APP FEEL) ---
+  const ENABLE_NATIVE_APP_FEEL = true;
 
   useEffect(() => {
-    if (DISABLE_BROWSER_CONTEXT_MENU) {
+    if (ENABLE_NATIVE_APP_FEEL) {
+      // 1. Prevent Context Menu
       const handleContextMenu = (e: MouseEvent) => {
-        // Ngăn chặn hành vi mặc định ngay lập tức
         e.preventDefault();
-        // Ngăn sự kiện lan truyền thêm
-        e.stopPropagation(); 
+        e.stopPropagation();
         return false;
       };
 
-      // Sử dụng { capture: true } để bắt sự kiện ngay từ document root 
-      // trước khi nó lan truyền xuống các phần tử con.
+      // 2. Prevent Keyboard Zoom (Ctrl/Cmd + '+', '-', '0')
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if ((e.ctrlKey || e.metaKey) && ['+', '-', '=', '0'].includes(e.key)) {
+          e.preventDefault();
+        }
+      };
+
+      // 3. Prevent Wheel Zoom (Ctrl/Cmd + Scroll)
+      const handleWheel = (e: WheelEvent) => {
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+        }
+      };
+
+      // 4. Prevent Pinch Zoom on Trackpad/Touchscreen (Safari/Chrome)
+      const handleTouchMove = (e: TouchEvent) => {
+        if (e.touches.length > 1) {
+          e.preventDefault();
+        }
+      };
+
+      // Register Listeners
       document.addEventListener('contextmenu', handleContextMenu, { capture: true });
+      document.addEventListener('keydown', handleKeyDown);
+      document.addEventListener('wheel', handleWheel, { passive: false });
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
 
       return () => {
         document.removeEventListener('contextmenu', handleContextMenu, { capture: true });
+        document.removeEventListener('keydown', handleKeyDown);
+        document.removeEventListener('wheel', handleWheel);
+        document.removeEventListener('touchmove', handleTouchMove);
       };
     }
-  }, [DISABLE_BROWSER_CONTEXT_MENU]);
+  }, [ENABLE_NATIVE_APP_FEEL]);
 
   return (
     <SystemProvider>

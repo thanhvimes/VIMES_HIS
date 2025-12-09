@@ -8,12 +8,7 @@ import { BriefcaseIcon, UserCircleIcon, CalendarDaysIcon, CashIcon, AcademicCapI
 import { VideoCameraIcon } from '../../components/Icons'; // Reuse generic icon or import FaceID icon if available
 import { NavItemType } from '../../types';
 
-// FIX: Define local type to support section until global type is updated in non-src path
-interface ExtendedNavItemType extends NavItemType {
-    section?: string;
-}
-
-export const HR_NAV_ITEMS: ExtendedNavItemType[] = [
+export const HR_NAV_ITEMS: NavItemType[] = [
     { name: 'Tổng quan HR', path: '/hr/dashboard', icon: React.createElement(Squares2X2Icon, { className: "w-5 h-5" }), section: 'Tổng quan' },
     
     { name: 'Chấm công FaceID', path: '/hr/timekeeping', icon: React.createElement(VideoCameraIcon, { className: "w-5 h-5" }), section: 'Tiện ích nhân viên' }, // New Item

@@ -5,6 +5,7 @@ import { ReportDefinition, ReportGroup } from './types';
 // Import specific report templates
 import { PatientDrugReport } from './templates/reception/PatientDrugReport';
 import { RevenueMultiLevelReport } from './templates/general/RevenueReport3Level';
+import { InsuranceSettlementReport } from './templates/insurance/InsuranceSettlementReport';
 
 // --- MOCK REPORTS (Placeholders) ---
 const MockReport = (id: string, title: string, module: any): ReportDefinition => ({
@@ -42,6 +43,10 @@ const allReports: ReportDefinition[] = [
     MockReport('rep_gen_02', '2. Tình hình bệnh tật tử vong', 'general'),
     RevenueMultiLevelReport, // Real report template
     
+    // Insurance Module (NEW)
+    InsuranceSettlementReport,
+    MockReport('rep_ins_01', 'Báo cáo từ chối giám định', 'insurance'),
+    
     // Pharmacy Module
     MockReport('rep_phar_01', '1. Báo cáo nhập xuất tồn', 'pharmacy'),
 ];
@@ -54,6 +59,7 @@ export const getGroupedReports = (): ReportGroup[] => {
         'pharmacy': [],
         'consultation': [],
         'billing': [],
+        'insurance': [],
     };
 
     allReports.forEach(rep => {
@@ -62,10 +68,11 @@ export const getGroupedReports = (): ReportGroup[] => {
     });
 
     return [
-        { id: 'reception', label: 'A- Nhóm báo cáo hoạt động điều trị (Tiếp nhận)', reports: groups['reception'] },
-        { id: 'general', label: 'B- Nhóm báo cáo chung (Tổng hợp)', reports: groups['general'] },
-        { id: 'pharmacy', label: 'C- Nhóm báo cáo Dược', reports: groups['pharmacy'] },
-        { id: 'billing', label: 'D- Nhóm báo cáo Viện phí (Tài chính)', reports: groups['billing'] },
+        { id: 'reception', label: 'A- Nhóm báo cáo hoạt động điều trị', reports: groups['reception'] },
+        { id: 'insurance', label: 'B- Nhóm báo cáo Bảo hiểm Y tế', reports: groups['insurance'] },
+        { id: 'general', label: 'C- Nhóm báo cáo chung (Tổng hợp)', reports: groups['general'] },
+        { id: 'pharmacy', label: 'D- Nhóm báo cáo Dược', reports: groups['pharmacy'] },
+        { id: 'billing', label: 'E- Nhóm báo cáo Viện phí (Tài chính)', reports: groups['billing'] },
     ].filter(g => g.reports.length > 0);
 };
 

@@ -1,13 +1,14 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { OrganizationInfo, UserSession } from '../types/common';
 
 interface SessionContextType {
     orgInfo: OrganizationInfo;
-    setOrgInfo: (info: OrganizationInfo) => void; // Allow updating org info
+    setOrgInfo: (info: OrganizationInfo) => void;
     user: UserSession | null;
     isAuthenticated: boolean;
-    login: (mockUserType?: string) => void;
+    login: (mockUserType?: string) => void; 
     logout: () => void;
     updateDepartment: (deptId: string, deptName: string) => void;
 }
@@ -22,7 +23,6 @@ const defaultOrgInfo: OrganizationInfo = {
     governingUnitName: 'Bộ Y tế - Hệ thống quản lý bệnh viện (HIS/EMR)',
     address: '43 Quán Sứ, Hàng Bông, Hoàn Kiếm, Hà Nội',
     hotline: '1900 886684',
-    // Sử dụng logo Bệnh viện K (Wikimedia source)
     logoUrl: 'https://upload.wikimedia.org/wikipedia/vi/thumb/e/e5/Logo_b%E1%BB%87nh_vi%E1%BB%87n_K.png/220px-Logo_b%E1%BB%87nh_vi%E1%BB%87n_K.png'
 };
 
@@ -39,6 +39,8 @@ const mockDoctorUser: UserSession = {
 };
 
 export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const navigate = useNavigate();
+    
     // Initialize from localStorage if available to persist changes across reloads
     const [orgInfo, setOrgInfoState] = useState<OrganizationInfo>(() => {
         try {
@@ -52,9 +54,9 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
     const [user, setUser] = useState<UserSession | null>(() => {
         try {
             const savedUser = localStorage.getItem('currentUser');
-            return savedUser ? JSON.parse(savedUser) : mockDoctorUser;
+            return savedUser ? JSON.parse(savedUser) : null; // Changed default to null to require login
         } catch {
-            return mockDoctorUser;
+            return null;
         }
     });
 
@@ -74,7 +76,7 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
         setUser(null);
         localStorage.removeItem('currentUser');
         localStorage.removeItem('isAuthenticated');
-        window.location.href = '/'; 
+        navigate('/staff/login'); // Correct navigation for HashRouter
     };
 
     const updateDepartment = (deptId: string, deptName: string) => {

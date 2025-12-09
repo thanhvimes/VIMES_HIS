@@ -11,7 +11,7 @@ export interface ReportDefinition {
     id: string;
     title: string;
     description?: string;
-    module: 'reception' | 'consultation' | 'pharmacy' | 'billing' | 'admin' | 'general'; // Phân nhóm module
+    module: 'reception' | 'consultation' | 'pharmacy' | 'billing' | 'admin' | 'general' | 'insurance'; // Phân nhóm module
     
     // Component hiển thị bộ lọc (bên phải, phía trên)
     // onFilterChange: gọi khi người dùng thay đổi giá trị nhưng chưa bấm "Xem"
