@@ -14,6 +14,7 @@ import {
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { insuranceService, InsuranceDocument, DocumentType } from '../../../services/insuranceService';
+import { formatDateTime } from '../../../utils/formatters';
 
 const DocumentSubmissionView: React.FC = () => {
     const { fontSettings } = useTheme();
@@ -334,8 +335,8 @@ const DocumentSubmissionView: React.FC = () => {
                                             {doc.transactionId && <div className="text-[10px] text-slate-400 font-mono mt-0.5">{doc.transactionId}</div>}
                                         </td>
                                         <td className="p-4 text-xs text-slate-600 dark:text-slate-400">
-                                            <div>Tạo: {doc.createdTime}</div>
-                                            {doc.sentTime && <div className="text-green-600">Gửi: {doc.sentTime}</div>}
+                                            <div>Tạo: {formatDateTime(doc.createdTime)}</div>
+                                            {doc.sentTime && <div className="text-green-600">Gửi: {formatDateTime(doc.sentTime)}</div>}
                                         </td>
                                         <td className="p-4 text-right">
                                             <button 

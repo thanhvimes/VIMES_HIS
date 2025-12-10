@@ -22,6 +22,7 @@ import Combobox, { ComboboxColumn } from '../../../components/shared/Combobox';
 import { Patient } from '../../../types';
 import { receptionService } from '../../../services/receptionService';
 import { usePdfPreview } from '../../../contexts/PdfPreviewContext';
+import { formatDate, formatDateForInput } from '../../../utils/formatters';
 
 // --- MOCK DATA CATALOGS (Keep existing) ---
 interface CatalogItem {
@@ -79,26 +80,6 @@ const decodeHex = (hex: string): string => {
         console.error("Hex decode error:", e);
         return hex;
     }
-};
-
-const formatDateForInput = (dateStr: string) => {
-    if (!dateStr || dateStr === '-' || dateStr.trim() === '') return '';
-    if (dateStr.includes('/')) {
-        const parts = dateStr.split('/');
-        if (parts.length === 3) {
-            const day = parts[0].padStart(2, '0');
-            const month = parts[1].padStart(2, '0');
-            const year = parts[2];
-            return `${year}-${month}-${day}`;
-        }
-    } 
-    else if (dateStr.length === 8 && !isNaN(Number(dateStr))) {
-        const day = dateStr.slice(0, 2);
-        const month = dateStr.slice(2, 4);
-        const year = dateStr.slice(4, 8);
-        return `${year}-${month}-${day}`;
-    }
-    return '';
 };
 
 const parseScannedData = (rawData: string) => {
@@ -280,13 +261,8 @@ const RegistrationView: React.FC = () => {
                     if (found) {
                         // Data cleanup/mapping
                         let dobStr = found.dob;
-                        if (!dobStr && found.age) {
-                            const estimatedYear = new Date().getFullYear() - found.age;
-                            dobStr = `${estimatedYear}-01-01`;
-                        } else if (dobStr && dobStr.includes('/')) {
-                             const [d, m, y] = dobStr.split('/');
-                             dobStr = `${y}-${m}-${d}`;
-                        }
+                        // Attempt to parse DOB for input field yyyy-mm-dd
+                        dobStr = formatDateForInput(dobStr);
 
                         const loadedData: ExtendedFormData = {
                             ...emptyPatient, // Defaults
@@ -807,8 +783,10 @@ const RegistrationView: React.FC = () => {
                                             {formData.history.map(h => (
                                                 <tr key={h.id} className="hover:bg-blue-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors group">
                                                     <td className="p-3 align-top w-24">
-                                                        <div className="font-bold text-slate-800 dark:text-slate-200 text-sm">{h.examDate.split('/')[0]}/{h.examDate.split('/')[1]}</div>
-                                                        <div className="text-xs text-slate-400">{h.examDate.split('/')[2]}</div>
+                                                        <div className="font-bold text-slate-800 dark:text-slate-200 text-sm">
+                                                            {formatDate(h.examDate.includes('/') ? h.examDate.split('/').reverse().join('-') : h.examDate)}
+                                                        </div>
+                                                        {/* Optional: Add day of week if needed */}
                                                     </td>
                                                     <td className="p-3 align-top">
                                                         <div className="font-medium text-blue-600 dark:text-blue-400 text-sm">{h.examType}</div>

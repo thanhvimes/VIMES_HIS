@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { SearchIcon, CheckIcon } from '../../../../components/Icons';
 import { useTheme } from '../../../../contexts/ThemeContext';
+import { formatCurrency, formatDateTime } from '../../../../utils/formatters';
 
 export interface BillingItem {
     id: string;
@@ -42,8 +43,6 @@ const BillingItemsTable: React.FC<BillingItemsTableProps> = ({ items }) => {
 
         return groups;
     }, [items, searchTerm, statusFilter]);
-
-    const formatCurrency = (val: number) => val.toLocaleString('vi-VN');
 
     return (
         <div className="h-full flex flex-col bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -117,9 +116,9 @@ const BillingItemsTable: React.FC<BillingItemsTableProps> = ({ items }) => {
                                             </td>
                                             <td className="p-3 text-center text-slate-600 dark:text-slate-400">{item.unit}</td>
                                             <td className="p-3 text-center font-semibold">{item.quantity}</td>
-                                            <td className="p-3 text-right text-slate-600 dark:text-slate-400">{formatCurrency(item.unitPrice)}</td>
-                                            <td className="p-3 text-right font-bold text-slate-800 dark:text-slate-100">{formatCurrency(item.totalPrice)}</td>
-                                            <td className="p-3 text-right text-blue-600 dark:text-blue-400">{formatCurrency(item.insurancePaid)}</td>
+                                            <td className="p-3 text-right text-slate-600 dark:text-slate-400">{formatCurrency(item.unitPrice).replace(' đ','')}</td>
+                                            <td className="p-3 text-right font-bold text-slate-800 dark:text-slate-100">{formatCurrency(item.totalPrice).replace(' đ','')}</td>
+                                            <td className="p-3 text-right text-blue-600 dark:text-blue-400">{formatCurrency(item.insurancePaid).replace(' đ','')}</td>
                                             <td className="p-3 text-right font-bold text-red-600 dark:text-red-400">{formatCurrency(item.patientPaid)}</td>
                                             <td className="p-3 text-center">
                                                 {item.status === 'paid' ? (

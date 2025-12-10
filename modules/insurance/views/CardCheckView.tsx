@@ -9,6 +9,7 @@ import {
     UserGroupIcon
 } from '../../../components/Icons';
 import { insuranceService, InsuranceCardInfo } from '../../../services/insuranceService';
+import { formatDate } from '../../../utils/formatters';
 
 const CardCheckView: React.FC = () => {
     const [cardNumber, setCardNumber] = useState('');
@@ -109,13 +110,13 @@ const CardCheckView: React.FC = () => {
                                     <div className="grid grid-cols-2 gap-2">
                                         <p><span className="font-bold">Họ tên:</span> {cardInfo.fullName}</p>
                                         <p><span className="font-bold">Giới tính:</span> {cardInfo.gender}</p>
-                                        <p><span className="font-bold">Ngày sinh:</span> {cardInfo.dob}</p>
+                                        <p><span className="font-bold">Ngày sinh:</span> {formatDate(cardInfo.dob)}</p>
                                         <p><span className="font-bold">Khu vực:</span> {cardInfo.areaCode}</p>
                                     </div>
                                     <p><span className="font-bold">Địa chỉ:</span> {cardInfo.address}</p>
                                     <p><span className="font-bold">Nơi ĐKKCB BĐ:</span> {cardInfo.kcbBanDau}</p>
-                                    <p><span className="font-bold">Hạn sử dụng:</span> {cardInfo.dateStart} - {cardInfo.dateEnd}</p>
-                                    <p><span className="font-bold">Thời điểm đủ 5 năm:</span> {cardInfo.fiveYearMoment}</p>
+                                    <p><span className="font-bold">Hạn sử dụng:</span> {formatDate(cardInfo.dateStart)} - {formatDate(cardInfo.dateEnd)}</p>
+                                    <p><span className="font-bold">Thời điểm đủ 5 năm:</span> {formatDate(cardInfo.fiveYearMoment)}</p>
                                     <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-800">
                                         <span className="font-bold text-green-800 dark:text-green-300">Mức hưởng quy định: {cardInfo.benefitRate}%</span>
                                     </div>

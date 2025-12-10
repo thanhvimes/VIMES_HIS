@@ -8,6 +8,7 @@ import {
     ClockIcon,
     CreditCardIcon
 } from '../../../../components/Icons';
+import { formatDate, calculateAge } from '../../../../utils/dateFormatter';
 
 export interface PatientBillingInfo {
     id: string;
@@ -44,11 +45,6 @@ const BillingPatientInfo: React.FC<BillingPatientInfoProps> = ({ patient }) => {
     
     const formatCurrency = (val: number) => val.toLocaleString('vi-VN');
 
-    const calculateAge = (dob: string) => {
-        const year = new Date(dob).getFullYear();
-        return new Date().getFullYear() - year;
-    };
-
     return (
         <div className="h-full flex flex-col gap-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-y-auto custom-scrollbar">
             
@@ -78,7 +74,7 @@ const BillingPatientInfo: React.FC<BillingPatientInfoProps> = ({ patient }) => {
                         <div>
                             <p className="text-xs text-slate-500 uppercase font-bold">Thông tin chung</p>
                             <p className="text-slate-700 dark:text-slate-300 font-medium">
-                                {calculateAge(patient.dob)} tuổi - {patient.gender} - {new Date(patient.dob).toLocaleDateString('vi-VN')}
+                                {calculateAge(patient.dob)} tuổi - {patient.gender} - {formatDate(patient.dob)}
                             </p>
                         </div>
                     </div>
@@ -104,7 +100,7 @@ const BillingPatientInfo: React.FC<BillingPatientInfoProps> = ({ patient }) => {
                         <div>
                             <p className="text-xs text-slate-500 uppercase font-bold">Vào viện / Khoa</p>
                             <p className="text-slate-700 dark:text-slate-300 font-medium">
-                                {patient.admissionDate.split(' ')[0]} <br/>
+                                {formatDate(patient.admissionDate)} <br/>
                                 <span className="text-blue-600 dark:text-blue-400">{patient.department}</span>
                             </p>
                         </div>
@@ -128,7 +124,7 @@ const BillingPatientInfo: React.FC<BillingPatientInfoProps> = ({ patient }) => {
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-slate-500">Hạn dùng:</span>
-                                <span className="font-medium text-slate-700 dark:text-slate-300">{patient.insuranceExpDate}</span>
+                                <span className="font-medium text-slate-700 dark:text-slate-300">{formatDate(patient.insuranceExpDate)}</span>
                             </div>
                             <div>
                                 <span className="text-slate-500 block mb-0.5">Nơi ĐKKCB:</span>

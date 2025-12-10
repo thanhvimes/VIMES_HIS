@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { LabResult } from '../../../types';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { formatDate } from '../../../utils/dateFormatter';
 import { 
     BeakerIcon, 
     SearchIcon, 
@@ -97,7 +98,7 @@ const mockLabResults: ExtendedLabResult[] = [
       patientName: 'Lê Hoàng Cường', 
       testName: 'Sinh hóa máu', 
       date: '2023-10-20', 
-      status: 'Completed',
+      status: 'Completed', 
       phone: '0905123456',
       details: [
           { name: 'Ure', result: '4.5', unit: 'mmol/L', refRange: '2.5 - 7.5', isAbnormal: false },
@@ -297,7 +298,7 @@ const ResultsListView: React.FC = () => {
                       <td className="p-4 text-slate-500 dark:text-slate-400 text-sm">
                           <div className="flex items-center gap-2">
                               <ClockIcon className="w-4 h-4"/>
-                              {new Date(res.date).toLocaleDateString('vi-VN')}
+                              {formatDate(res.date)}
                           </div>
                       </td>
                       <td className="p-4 text-center">

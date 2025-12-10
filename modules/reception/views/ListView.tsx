@@ -7,6 +7,7 @@ import { SearchIcon, RefreshIcon, TrashIcon } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { receptionService } from '../../../services/receptionService';
 import ConfirmationModal from '../../../components/shared/ConfirmationModal';
+import { formatDate, calculateAge } from '../../../utils/formatters';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -30,7 +31,7 @@ const ListView: React.FC = () => {
         } catch (err) {
             console.error("Failed to fetch patients", err);
             setError("Không thể kết nối đến hệ thống. Đang hiển thị dữ liệu mẫu.");
-            setPatients(mockPatients); // Fallback
+            setPatients(mockPatients); 
         } finally {
             setIsLoading(false);
         }
@@ -56,12 +57,6 @@ const ListView: React.FC = () => {
         }
     };
 
-    const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>, patientId: string) => {
-        e.stopPropagation();
-        const newStatus = e.target.value;
-        setPatients(prev => prev.map(p => p.id === patientId ? { ...p, examinationStatus: newStatus as any } : p));
-    };
-
     const filteredPatients = useMemo(() => 
         patients.filter(patient =>
             patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -75,21 +70,6 @@ const ListView: React.FC = () => {
         filteredPatients.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
         [filteredPatients, currentPage]
     );
-
-    const handlePageChange = (page: number) => {
-        if (page > 0 && page <= totalPages) {
-            setCurrentPage(page);
-        }
-    };
-
-    const getStatusColor = (status?: string) => {
-        switch (status) {
-            case 'completed': return 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200';
-            case 'processing': return 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200';
-            case 'cancelled': return 'bg-red-100 text-red-700 border-red-200 hover:bg-red-200';
-            default: return 'bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-200';
-        }
-    };
 
     return (
         <div className="flex flex-col h-full bg-surface dark:bg-dark-surface p-4 rounded-lg shadow border border-slate-200/50 dark:border-slate-700">
@@ -126,17 +106,10 @@ const ListView: React.FC = () => {
             )}
 
             <div className="flex-grow overflow-auto relative min-h-[200px]">
-                {isLoading && !patients.length ? (
-                    <div className="absolute inset-0 flex flex-col justify-center items-center bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm z-10">
-                        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-2"></div>
-                        <span className="text-slate-500 font-medium">Đang đồng bộ dữ liệu...</span>
-                    </div>
-                ) : null}
-
                 <table className={`w-full whitespace-nowrap ${fontSettings.listSecondary}`}>
                     <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0 shadow-sm z-10">
                         <tr>
-                            {['Số hồ sơ', 'Tên bệnh nhân', 'Tuổi', 'Giới', 'Địa chỉ', 'Trạng thái', 'Bác sĩ', 'Đối tượng', 'Hành động'].map(h =>
+                            {['Số hồ sơ', 'Tên bệnh nhân', 'Tuổi/NS', 'Giới', 'Địa chỉ', 'Trạng thái', 'Đối tượng', 'Hành động'].map(h =>
                                 <th key={h} className={`p-3 font-semibold text-left text-slate-600 dark:text-slate-300 border-b-2 border-slate-200 dark:border-slate-700 ${h === 'Hành động' ? 'text-center' : ''}`}>{h}</th>
                             )}
                         </tr>
@@ -147,23 +120,21 @@ const ListView: React.FC = () => {
                                 <tr key={patient.id} onClick={() => handleRowClick(patient.id)} className="hover:bg-primary/5 dark:hover:bg-dark-primary/10 transition-colors duration-150 cursor-pointer group">
                                     <td className="p-3 text-primary dark:text-dark-primary font-mono font-bold">{patient.recordNumber}</td>
                                     <td className="p-3 font-semibold text-slate-800 dark:text-white">{patient.name}</td>
-                                    <td className="p-3">{patient.age}</td>
+                                    <td className="p-3">
+                                        {calculateAge(patient.dob)}T 
+                                        <span className="text-xs text-slate-400 ml-1">({formatDate(patient.dob)})</span>
+                                    </td>
                                     <td className="p-3">{patient.gender}</td>
                                     <td className="p-3 truncate max-w-xs" title={patient.address}>{patient.address || <span className="text-slate-400 italic">Chưa có</span>}</td>
                                     <td className="p-3">
-                                        <select
-                                            value={patient.examinationStatus || 'waiting'}
-                                            onChange={(e) => handleStatusChange(e, patient.id)}
-                                            onClick={(e) => e.stopPropagation()}
-                                            className={`appearance-none cursor-pointer px-2 py-0.5 rounded-full text-xs font-bold border focus:outline-none focus:ring-2 focus:ring-offset-1 transition-colors text-center w-28 ${getStatusColor(patient.examinationStatus)}`}
-                                        >
-                                            <option value="waiting">Chờ khám</option>
-                                            <option value="processing">Đang khám</option>
-                                            <option value="completed">Đã khám</option>
-                                            <option value="cancelled">Đã hủy</option>
-                                        </select>
+                                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                                            patient.examinationStatus === 'completed' ? 'bg-green-100 text-green-700' :
+                                            patient.examinationStatus === 'processing' ? 'bg-blue-100 text-blue-700' :
+                                            'bg-yellow-100 text-yellow-700'
+                                        }`}>
+                                            {patient.examinationStatus === 'completed' ? 'Đã khám' : patient.examinationStatus === 'processing' ? 'Đang khám' : 'Chờ khám'}
+                                        </span>
                                     </td>
-                                    <td className="p-3 text-slate-700 dark:text-slate-300">{patient.assignedDoctor || '-'}</td>
                                     <td className="p-3">
                                         <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${patient.patientType === 'Bảo hiểm' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
                                             {patient.patientType}
@@ -183,7 +154,7 @@ const ListView: React.FC = () => {
                         ) : (
                             !isLoading && (
                                 <tr>
-                                    <td colSpan={9} className="p-10 text-center text-slate-500 dark:text-slate-400 italic">
+                                    <td colSpan={8} className="p-10 text-center text-slate-500 dark:text-slate-400 italic">
                                         Không tìm thấy bệnh nhân nào phù hợp.
                                     </td>
                                 </tr>
@@ -192,31 +163,7 @@ const ListView: React.FC = () => {
                     </tbody>
                 </table>
             </div>
-
-            {totalPages > 1 && (
-                <div className="flex-shrink-0 flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
-                    <span className={`text-slate-500 dark:text-slate-400 ${fontSettings.controls}`}>
-                        Trang <strong>{currentPage}</strong> trên <strong>{totalPages}</strong> (Tổng: {filteredPatients.length})
-                    </span>
-                    <div className="flex items-center space-x-2">
-                        <button
-                            onClick={() => handlePageChange(currentPage - 1)}
-                            disabled={currentPage === 1}
-                            className={`px-3 py-1 rounded-md bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50 transition ${fontSettings.controls}`}
-                        >
-                            Trước
-                        </button>
-                        <button
-                            onClick={() => handlePageChange(currentPage + 1)}
-                            disabled={currentPage === totalPages}
-                            className={`px-3 py-1 rounded-md bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50 transition ${fontSettings.controls}`}
-                        >
-                            Sau
-                        </button>
-                    </div>
-                </div>
-            )}
-
+            
             <ConfirmationModal
                 isOpen={!!patientToDelete}
                 onClose={() => setPatientToDelete(null)}

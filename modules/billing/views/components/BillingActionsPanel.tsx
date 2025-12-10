@@ -11,6 +11,7 @@ import {
     CalculatorIcon
 } from '../../../../components/Icons';
 import { PatientBillingInfo } from './BillingPatientInfo';
+import { formatCurrency, readMoneyToText } from '../../../../utils/formatters';
 
 interface BillingActionsPanelProps {
     patient: PatientBillingInfo;
@@ -18,7 +19,6 @@ interface BillingActionsPanelProps {
 }
 
 const BillingActionsPanel: React.FC<BillingActionsPanelProps> = ({ patient, onAction }) => {
-    const formatCurrency = (val: number) => val.toLocaleString('vi-VN');
     
     const totalCost = patient.totalDebt;
     const insurancePay = patient.totalInsurance;
@@ -99,6 +99,12 @@ const BillingActionsPanel: React.FC<BillingActionsPanelProps> = ({ patient, onAc
                         {formatCurrency(Math.abs(finalPayment))}
                     </p>
                 </div>
+                
+                {Math.abs(finalPayment) > 0 && (
+                    <div className="text-[10px] text-slate-500 italic text-center px-2">
+                        {readMoneyToText(Math.abs(finalPayment))}
+                    </div>
+                )}
 
             </div>
 

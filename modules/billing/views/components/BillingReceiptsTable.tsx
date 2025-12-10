@@ -13,6 +13,7 @@ import {
     CloudUploadIcon
 } from '../../../../components/Icons';
 import { useTheme } from '../../../../contexts/ThemeContext';
+import { formatDate } from '../../../../utils/dateFormatter';
 
 export interface Receipt {
     id: string;
@@ -220,7 +221,7 @@ const BillingReceiptsTable: React.FC<BillingReceiptsTableProps> = ({ onOpenDetai
                                         </td>
                                         <td className="p-4">
                                             <div className="text-slate-700 dark:text-slate-200 font-medium text-xs">
-                                                {new Date(item.date).toLocaleDateString('vi-VN')}
+                                                {formatDate(item.date)}
                                             </div>
                                             <div className="text-[10px] text-slate-400 flex items-center gap-1">
                                                 <span className="w-1 h-1 rounded-full bg-slate-400"></span> {item.time}
@@ -281,6 +282,9 @@ const BillingReceiptsTable: React.FC<BillingReceiptsTableProps> = ({ onOpenDetai
                             )}
                         </tbody>
                     </table>
+                </div>
+                <div className="p-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs text-slate-500 flex justify-between items-center">
+                    <span>Hiển thị {filteredReceipts.length} phiếu</span>
                 </div>
             </div>
         </div>

@@ -33,7 +33,6 @@ export const VoiceInputProvider: React.FC<{ children: ReactNode }> = ({ children
             };
 
             recognition.onend = () => {
-                // If it stops but state is still listening (e.g. silence timeout), restart it
                 if (isListening) {
                     try {
                         recognition.start();
@@ -44,11 +43,17 @@ export const VoiceInputProvider: React.FC<{ children: ReactNode }> = ({ children
             };
 
             recognition.onerror = (event: any) => {
-                console.error("Speech recognition error", event.error);
-                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-                    setIsListening(false);
-                    alert("Không thể truy cập Micro. Vui lòng kiểm tra quyền truy cập.");
+                // Ignore benign errors
+                if (event.error === 'no-speech' || event.error === 'aborted') {
+                    return;
                 }
+                if (event.error === 'audio-capture' || event.error === 'not-allowed') {
+                    setIsListening(false);
+                    console.warn("Microphone access blocked or missing.");
+                    return;
+                }
+                console.error("Speech recognition error", event.error);
+                setIsListening(false);
             };
 
             recognitionRef.current = recognition;
@@ -57,7 +62,7 @@ export const VoiceInputProvider: React.FC<{ children: ReactNode }> = ({ children
 
     const toggleListening = () => {
         if (!hasSupport) {
-            alert("Trình duyệt của bạn không hỗ trợ nhận diện giọng nói. Vui lòng dùng Google Chrome hoặc Edge.");
+            alert("Trình duyệt không hỗ trợ nhận diện giọng nói.");
             return;
         }
 
@@ -68,51 +73,27 @@ export const VoiceInputProvider: React.FC<{ children: ReactNode }> = ({ children
             try {
                 recognitionRef.current?.start();
                 setIsListening(true);
-                
-                // Play a subtle sound to indicate start
-                const audio = new Audio('https://www.soundjay.com/buttons/sounds/beep-07.mp3');
-                audio.volume = 0.2;
-                audio.play().catch(() => {}); // Ignore auto-play errors
-                
             } catch (error) {
-                console.error(error);
+                console.error("Failed to start recognition:", error);
+                setIsListening(false);
             }
         }
     };
 
-    // Helper to insert text into React inputs correctly
     const insertTextToActiveElement = (text: string) => {
         const activeEl = document.activeElement as HTMLInputElement | HTMLTextAreaElement;
-        
         if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
             const start = activeEl.selectionStart || 0;
             const end = activeEl.selectionEnd || 0;
             const value = activeEl.value;
-            
-            // Add a space if not at start
             const textToInsert = (start > 0 && value[start - 1] !== ' ') ? ` ${text}` : text;
             const newValue = value.substring(0, start) + textToInsert + value.substring(end);
 
-            // This part is crucial for React to detect the change
-            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
-            const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
+            const nativeSetter = Object.getOwnPropertyDescriptor(window[activeEl.tagName === 'INPUT' ? 'HTMLInputElement' : 'HTMLTextAreaElement'].prototype, "value")?.set;
+            if (nativeSetter) nativeSetter.call(activeEl, newValue);
+            else activeEl.value = newValue;
 
-            if (activeEl.tagName === 'INPUT' && nativeInputValueSetter) {
-                nativeInputValueSetter.call(activeEl, newValue);
-            } else if (activeEl.tagName === 'TEXTAREA' && nativeTextAreaValueSetter) {
-                nativeTextAreaValueSetter.call(activeEl, newValue);
-            } else {
-                activeEl.value = newValue;
-            }
-
-            // Dispatch input event
-            const event = new Event('input', { bubbles: true });
-            activeEl.dispatchEvent(event);
-            
-            // Restore focus and move cursor
-            const newCursorPos = start + textToInsert.length;
-            activeEl.setSelectionRange(newCursorPos, newCursorPos);
-            activeEl.focus();
+            activeEl.dispatchEvent(new Event('input', { bubbles: true }));
         }
     };
 
@@ -125,8 +106,6 @@ export const VoiceInputProvider: React.FC<{ children: ReactNode }> = ({ children
 
 export const useVoiceInput = () => {
     const context = useContext(VoiceInputContext);
-    if (context === undefined) {
-        throw new Error('useVoiceInput must be used within a VoiceInputProvider');
-    }
+    if (context === undefined) throw new Error('useVoiceInput error');
     return context;
 };

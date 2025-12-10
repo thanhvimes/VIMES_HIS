@@ -13,6 +13,7 @@ import {
 } from '../../../components/Icons';
 import { insuranceService, InsuranceClaim } from '../../../services/insuranceService';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { formatDate } from '../../../utils/formatters';
 
 // --- VALIDATION MODAL ---
 const ValidationModal = ({ isOpen, onClose, claims, onConfirm }: { isOpen: boolean, onClose: () => void, claims: InsuranceClaim[], onConfirm: () => void }) => {
@@ -288,7 +289,7 @@ const XMLExportView: React.FC = () => {
                                         {claim.errorMessage && <div className="text-xs text-red-500 mt-1">{claim.errorMessage}</div>}
                                     </td>
                                     <td className="p-4 font-mono text-blue-600">{claim.cardNumber}</td>
-                                    <td className="p-4 text-slate-600">{claim.visitDate}</td>
+                                    <td className="p-4 text-slate-600">{formatDate(claim.visitDate)}</td>
                                     <td className="p-4 text-right font-bold">{claim.totalAmount.toLocaleString()}</td>
                                     <td className="p-4 text-right text-blue-600 font-bold">{claim.insuranceAmount.toLocaleString()}</td>
                                     <td className="p-4 text-center">
