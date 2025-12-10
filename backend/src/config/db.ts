@@ -2,35 +2,31 @@
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
 
-// 1. Nạp biến môi trường từ file .env
 dotenv.config();
 
-// 2. Kiểm tra chuỗi kết nối
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
   console.error("❌ LỖI: Không tìm thấy biến 'DATABASE_URL' trong file .env");
-  console.error("👉 Vui lòng tạo file .env và thêm chuỗi kết nối.");
 }
 
-// 3. Cấu hình Pool
-// Lưu ý: Các database Cloud (Supabase, Neon, Render) thường yêu cầu SSL.
-// Localhost thường không cần SSL.
-const isProductionOrCloud = connectionString && !connectionString.includes('localhost') && !connectionString.includes('127.0.0.1');
-
+// Cấu hình Pool kết nối
 const pool = new Pool({
   connectionString: connectionString,
-  ssl: isProductionOrCloud ? { rejectUnauthorized: false } : false,
+  // Tự động tắt SSL nếu chạy localhost hoặc IP nội bộ (10.x.x.x), bật nếu dùng cloud public
+  ssl: connectionString && !connectionString.includes('localhost') && !connectionString.includes('127.0.0.1') && !connectionString.includes('10.') 
+    ? { rejectUnauthorized: false } 
+    : false,
 });
 
-// 4. Test kết nối khi khởi động
+// Test kết nối ngay khi file này được import
 pool.connect((err, client, release) => {
   if (err) {
     console.error('❌ KẾT NỐI DATABASE THẤT BẠI:', err.message);
+    console.error('👉 Vui lòng kiểm tra lại: 1. VPN/Mạng nội bộ 2. Username/Password 3. Firewall');
   } else {
-    // Thử query đơn giản để đảm bảo mọi thứ hoạt động
     client?.query('SELECT NOW()', (qErr, result) => {
-      release(); // Trả kết nối về pool
+      release();
       if (qErr) {
         console.error('❌ Lỗi thực thi query test:', qErr.message);
       } else {
@@ -41,9 +37,5 @@ pool.connect((err, client, release) => {
   }
 });
 
-// 5. Export hàm query wrapper để dùng trong controller
-export const query = (text: string, params?: any[]) => {
-  return pool.query(text, params);
-};
-
+export const query = (text: string, params?: any[]) => pool.query(text, params);
 export default pool;

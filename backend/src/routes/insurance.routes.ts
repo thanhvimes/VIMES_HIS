@@ -5,13 +5,8 @@ import { InsuranceController } from '../controllers/insurance.controller';
 const router = Router();
 const controller = new InsuranceController();
 
-// Lấy danh sách giấy tờ (Giấy chuyển viện, ra viện...)
-router.get('/documents', controller.getDocuments);
-
-// Giả lập gửi giấy tờ lên cổng
-router.post('/documents/send', controller.sendDocuments);
-
-// Giả lập ký số
-router.post('/documents/sign', controller.signDocuments);
+router.get('/documents', (req, res) => controller.getDocuments(req, res));
+router.post('/documents/send', (req, res) => controller.sendDocuments(req, res));
+router.post('/documents/sign', (req, res) => controller.signDocuments(req, res));
 
 export default router;
