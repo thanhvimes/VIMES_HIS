@@ -161,12 +161,16 @@ const EMRTab: React.FC = () => {
     const [pdfLoading, setPdfLoading] = useState(false);
     const [viewMode, setViewMode] = useState<'pagination' | 'scroll'>('pagination');
     
+    // Mock EMR Data State
+    const [emrData, setEmrData] = useState<TreeNode[]>(mockEMRRecords);
+
     // Export State
     const [isExporting, setIsExporting] = useState(false);
     // Mock permission: In a real app, this would come from user context/auth service
     const [hasExportPermission] = useState(true); 
     
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const emrFileInputRef = useRef<HTMLInputElement>(null);
 
     const handleSelectNode = (node: TreeNode) => {
         setSelectedNode(node);
@@ -222,12 +226,61 @@ const EMRTab: React.FC = () => {
         }
     };
 
+    const handleEmrFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const newNode: TreeNode = {
+            id: `UPLOAD_${Date.now()}`,
+            label: file.name,
+            type: 'file',
+            date: new Date().toLocaleDateString('vi-VN'),
+            status: 'pending'
+        };
+
+        // Deep clone the EMR data structure to safely mutate
+        const newData = emrData.map(rootNode => {
+            // Find the root folder to add to (assuming first root is the main folder for this patient)
+            if (rootNode.id === 'HS_2023') {
+                return {
+                    ...rootNode,
+                    children: rootNode.children?.map(subFolder => {
+                        // Logic to decide which subfolder to add to. For now, default to first one.
+                        if (subFolder.id === 'GRP_HC_EMR') {
+                            return {
+                                ...subFolder,
+                                children: [newNode, ...(subFolder.children || [])]
+                            };
+                        }
+                        return subFolder;
+                    })
+                };
+            }
+            return rootNode;
+        });
+        
+        setEmrData(newData);
+        alert(`Đã tải lên tài liệu: ${file.name}`);
+        e.target.value = '';
+    };
+
     return (
         <div className="flex flex-1 overflow-hidden h-full">
             {/* Left: Tree View */}
             <div className="w-1/3 max-w-sm bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col">
                 {/* Search */}
-                <div className="p-3 border-b border-slate-100 dark:border-slate-700">
+                <div className="p-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                    <div className="flex justify-between items-center mb-2">
+                         <h4 className="text-xs font-bold text-slate-500 uppercase">Hồ sơ bệnh án điện tử</h4>
+                         <button 
+                             onClick={() => emrFileInputRef.current?.click()}
+                             className="p-1 hover:bg-blue-100 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-400 rounded transition" 
+                             title="Tải lên tài liệu"
+                         >
+                             <ArchiveIcon className="w-4 h-4"/>
+                         </button>
+                    </div>
+                    <input type="file" ref={emrFileInputRef} className="hidden" onChange={handleEmrFileUpload} />
                     <div className="relative">
                         <SearchIcon className="absolute left-3 top-2.5 w-4 h-4 text-slate-400"/>
                         <input 
@@ -235,14 +288,14 @@ const EMRTab: React.FC = () => {
                             placeholder="Tìm hồ sơ bệnh án..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className={`w-full pl-9 p-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 ${fontSettings.controls}`}
+                            className={`w-full pl-9 p-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 ${fontSettings.controls}`}
                         />
                     </div>
                 </div>
                 
                 {/* Tree */}
                 <DocumentTree 
-                    data={mockEMRRecords} 
+                    data={emrData} 
                     selectedId={selectedNode?.id || null} 
                     onSelect={handleSelectNode} 
                     searchTerm={searchTerm}
@@ -276,7 +329,7 @@ const EMRTab: React.FC = () => {
                             </>
                         ) : (
                             <>
-                                <ArchiveIcon className="w-4 h-4"/>
+                                <DownloadIcon className="w-4 h-4"/>
                                 <span>Export EMR</span>
                             </>
                         )}

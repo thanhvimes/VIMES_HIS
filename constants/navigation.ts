@@ -16,7 +16,8 @@ import {
   ScissorsIcon,
   CpuChipIcon,
   ShieldCheckIcon,
-  VideoCameraIcon
+  VideoCameraIcon,
+  GlobeIcon // New Icon for Command Center
 } from '../components/Icons';
 import { FunnelIcon } from '../modules/crm/icons';
 import { BriefcaseIcon } from '../modules/hr/icons';
@@ -24,6 +25,9 @@ import { UserCircleIcon } from '../modules/portal/icons'; // Import from Portal
 import { NavItemType } from '../types';
 
 export const MODULE_ITEMS: NavItemType[] = [
+  // --- QUẢN TRỊ ĐIỀU HÀNH (TOP LEVEL) ---
+  { name: 'TT Điều hành (HCC)', path: '/command-center', icon: React.createElement(GlobeIcon, { className: "h-6 w-6" }), group: 'admin' },
+
   // --- LÂM SÀNG (CLINICAL) ---
   { name: 'Tiếp nhận', path: '/reception', icon: React.createElement(UserGroupIcon, { className: "h-6 w-6" }), group: 'clinical' },
   { name: 'Khám bệnh', path: '/consultation', icon: React.createElement(HeartIcon, { className: "h-6 w-6" }), group: 'clinical' },

@@ -18,14 +18,15 @@ import {
     MegaphoneIcon,
     CalendarDaysIcon,
     StarIcon,
-    ClockIcon
+    ClockIcon,
+    GlobeIcon // Import GlobeIcon
 } from '../../components/Icons';
 import { useSession } from '../../contexts/SessionContext';
 import { UserSession } from '../../types/common';
 
 // --- TYPES & PERMISSIONS ---
 
-type UserRole = 'admin' | 'doctor' | 'nurse' | 'technician' | 'receptionist' | 'accountant' | 'pharmacist' | 'hr';
+type UserRole = 'admin' | 'doctor' | 'nurse' | 'technician' | 'receptionist' | 'accountant' | 'pharmacist' | 'hr' | 'director';
 
 interface ModuleCardConfig {
     id: string;
@@ -40,6 +41,15 @@ interface ModuleCardConfig {
 // --- DATA CONFIGURATION ---
 // Removed 'group' property as requested
 const MODULE_CARDS: ModuleCardConfig[] = [
+    {
+        id: 'command-center',
+        title: 'Trung tâm Điều hành (HCC)',
+        description: 'Hệ thống giám sát, chỉ huy và điều hành bệnh viện thời gian thực (Real-time).',
+        path: '/command-center',
+        icon: <GlobeIcon className="w-10 h-10"/>,
+        color: 'red', // Màu đỏ nổi bật cho module quan trọng
+        allowedRoles: ['admin', 'director', 'doctor'] // Cấp quyền cho doctor để bạn test
+    },
     {
         id: 'reception',
         title: 'Tiếp Nhận & Điều Phối',

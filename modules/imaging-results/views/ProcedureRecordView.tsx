@@ -289,17 +289,27 @@ const ProcedureRecordView: React.FC = () => {
             status: 'pending'
         };
 
-        const newData = [...emrData];
-        if (newData.length > 0 && newData[0].children && newData[0].children.length > 0) {
-             const targetFolder = newData[0].children[0]; 
-             if(targetFolder.children) {
-                 targetFolder.children.unshift(newNode);
-             } else {
-                 targetFolder.children = [newNode];
+        // Deep clone data to modify safely
+        const newData = emrData.map(node => {
+             // Mock finding the target folder to upload to. In a real scenario, you'd select a folder first.
+             // Here we just put it in the first folder of the first root node for simplicity.
+             if (node.id === 'EMR_ROOT' && node.children && node.children.length > 0) {
+                 const firstSub = node.children[0];
+                 if (firstSub.children) {
+                     return {
+                         ...node,
+                         children: [
+                             {
+                                 ...firstSub,
+                                 children: [newNode, ...firstSub.children]
+                             },
+                             ...node.children.slice(1)
+                         ]
+                     };
+                 }
              }
-        } else {
-            newData.push(newNode);
-        }
+             return node;
+        });
         
         setEmrData(newData);
         alert(`Đã tải lên tài liệu: ${file.name}`);

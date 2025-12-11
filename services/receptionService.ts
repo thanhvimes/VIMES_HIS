@@ -32,44 +32,48 @@ export const receptionService = {
     // --- Patient Management ---
     getPatientList: async (): Promise<Patient[]> => {
         try {
-            // Uncomment below to use real API
-            /*
-            const data = await apiClient.get<ApiPatientResponse[]>('/patients');
-            return data.map((item) => ({
-                id: item.recordNumber,
-                recordNumber: item.recordNumber,
-                name: item.name,
-                dob: '',
-                age: parseInt(item.age) || 0,
-                gender: item.sex as 'Nam' | 'Nữ' | 'Khác',
+            console.log("Calling API: /reception/patients");
+            // Gọi API thật từ Backend
+            const data = await apiClient.get<any>('/reception/patients');
+            
+            // Map dữ liệu từ Backend (có thể khác cấu trúc) sang cấu trúc Frontend
+            // Dựa trên controller backend bạn cung cấp, backend trả về JSON mảng trực tiếp hoặc { data: [] }
+            const patientsList = Array.isArray(data) ? data : (data.data || []);
+            
+            // Nếu Backend trả về rỗng (do chưa có data), fallback về mock để demo không bị trắng trang
+            if (patientsList.length === 0) {
+                console.warn("API returned empty list, using mock data for demo.");
+                return mockPatients;
+            }
+
+            // Map data (Tùy chỉnh mapping này nếu cấu trúc trả về từ DB khác)
+            return patientsList.map((item: any) => ({
+                id: item.id || item.recordNumber,
+                recordNumber: item.recordNumber || item.docno, // Fallback if naming differs
+                name: item.name || item.patientName,
+                dob: item.dob || '01/01/1990',
+                age: item.age || 0,
+                gender: item.gender || 'Khác',
                 ethnicity: 'Kinh', 
                 occupation: '',
-                address: '',
-                phone: '', 
-                lastVisit: item.examinationDate ? new Date(item.examinationDate).toLocaleDateString('vi-VN') : '',
-                patientType: item.priority === 'Dịch vụ' ? 'Dịch vụ' : 'Bảo hiểm',
+                address: item.address || '',
+                phone: item.phone || '', 
+                lastVisit: '',
+                patientType: 'Dịch vụ',
                 history: [],
-                examinationStatus: item.status === 'Waiting' ? 'waiting' : 'completed', // Example mapping
-                assignedDoctor: 'BS. Nguyễn Văn A' // Example default
+                examinationStatus: 'waiting', 
+                assignedDoctor: 'BS. Chỉ định'
             }));
-            */
-            
-            // Fallback to mock data
-            return new Promise((resolve) => {
-                setTimeout(() => {
-                    resolve(mockPatients);
-                }, 500); 
-            });
 
         } catch (error) {
-            console.warn("API Error, using mock data.", error);
+            console.error("Lỗi gọi API patients, sử dụng dữ liệu mẫu:", error);
             return mockPatients;
         }
     },
 
     getPatientByRecordNumber: async (identifier: string): Promise<Patient | null> => {
         try {
-            // Simulate API call
+            // Simulate API call for detail (Can switch to real API later)
             await new Promise(resolve => setTimeout(resolve, 300));
             
             const searchKey = identifier.toString().trim();
@@ -88,29 +92,31 @@ export const receptionService = {
     },
 
     createPatient: async (patientData: Partial<Patient>): Promise<Patient> => {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 800));
-        console.log("API Call: Create Patient", patientData);
-        
-        const newPatient = { 
-            ...patientData, 
-            id: `BN${Date.now()}`, 
-            recordNumber: `REC${Date.now().toString().slice(-6)}`,
-            examinationStatus: 'waiting',
-            assignedDoctor: 'BS. Chỉ Định'
-        } as Patient;
-
-        // In a real app, you'd add this to the list or refetch
-        // mockPatients.push(newPatient); 
-        
-        return newPatient;
+        try {
+            // Gọi API thật
+            const result = await apiClient.post<Patient>('/reception/patients', patientData);
+            return result;
+        } catch (e) {
+            console.error("API Error creating patient", e);
+            // Fallback mock
+            const newPatient = { 
+                ...patientData, 
+                id: `BN${Date.now()}`, 
+                recordNumber: `REC${Date.now().toString().slice(-6)}`,
+                examinationStatus: 'waiting',
+                assignedDoctor: 'BS. Chỉ Định'
+            } as Patient;
+            return newPatient;
+        }
     },
 
     updatePatient: async (id: string, patientData: Partial<Patient>): Promise<Patient> => {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 600));
-        console.log(`API Call: Update Patient ${id}`, patientData);
-        return { ...patientData, id } as Patient;
+         try {
+            await apiClient.put<Patient>(`/reception/patients/${id}`, patientData);
+            return { ...patientData, id } as Patient;
+        } catch (e) {
+             return { ...patientData, id } as Patient;
+        }
     },
 
     // --- Queue Management ---

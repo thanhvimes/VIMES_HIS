@@ -458,8 +458,7 @@ const ElectronicInvoiceModal: React.FC<ElectronicInvoiceModalProps> = ({ isOpen,
                                                         value={item.name}
                                                         className="w-full bg-transparent outline-none"
                                                         onChange={(e) => {
-                                                            const newItems = [...items];
-                                                            newItems[idx].name = e.target.value;
+                                                            const newItems = items.map((it, i) => i === idx ? { ...it, name: e.target.value } : it);
                                                             setItems(newItems);
                                                         }}
                                                     />

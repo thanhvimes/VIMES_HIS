@@ -47,6 +47,7 @@ const Telemedicine = React.lazy(() => import('./modules/telemedicine/index'));
 const CRM = React.lazy(() => import('./modules/crm/index'));
 const HR = React.lazy(() => import('./modules/hr/index'));
 const Portal = React.lazy(() => import('./modules/portal/index'));
+const CommandCenter = React.lazy(() => import('./modules/command-center/index')); // New Module
 
 import { PdfPreviewProvider } from './contexts/PdfPreviewContext';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -73,6 +74,7 @@ const moduleConfig: { [key: string]: { title: string; nav: any[] } } = {
   telemedicine: { title: 'Hội chẩn từ xa', nav: TELEMEDICINE_NAV_ITEMS },
   crm: { title: 'CRM & CSKH', nav: CRM_NAV_ITEMS },
   hr: { title: 'Quản lý Nhân sự', nav: HR_NAV_ITEMS },
+  'command-center': { title: 'Trung tâm Điều hành Bệnh viện', nav: [] }, // No sub-nav for command center
   documents: { title: 'Xem tài liệu', nav: [] },
   reports: { title: 'Hệ thống Báo cáo', nav: [] },
   settings: { title: 'Cài đặt', nav: [] },
@@ -91,11 +93,14 @@ const WorkspaceLayout: React.FC = () => {
   }, [isSidebarCollapsed]);
 
   const location = useLocation();
+  
+  // Full width pages logic
   const isFullWidthPage = location.pathname.includes('/consultation/record') || 
                           location.pathname.includes('/inpatient-treatment/record') ||
                           location.pathname.includes('/documents') ||
                           location.pathname.includes('/reports') ||
-                          location.pathname.includes('/telemedicine/live');
+                          location.pathname.includes('/telemedicine/live') ||
+                          location.pathname.includes('/command-center'); // Command center is full width
 
   const { pageTitle, moduleNavItems } = useMemo(() => {
     const currentModuleRoot = location.pathname.split('/')[1];
@@ -105,22 +110,26 @@ const WorkspaceLayout: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-background dark:bg-dark-background">
-      <Sidebar 
-        isMobileOpen={isMobileSidebarOpen} 
-        setMobileOpen={setMobileSidebarOpen}
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!isSidebarCollapsed)}
-        moduleNavItems={moduleNavItems}
-      />
+      {/* Hide Sidebar for Command Center to maximize screen real estate */}
+      {!location.pathname.includes('/command-center') && (
+        <Sidebar 
+          isMobileOpen={isMobileSidebarOpen} 
+          setMobileOpen={setMobileSidebarOpen}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!isSidebarCollapsed)}
+          moduleNavItems={moduleNavItems}
+        />
+      )}
+      
       <div className="flex-1 flex flex-col overflow-hidden relative">
         <Header 
             pageTitle={pageTitle} 
             onToggleSidebar={() => setMobileSidebarOpen(!isMobileSidebarOpen)}
             onLogout={logout}
-            showSidebarToggle={true}
+            showSidebarToggle={!location.pathname.includes('/command-center')}
             isChatVisible={isChatVisible}
             onToggleChat={() => setIsChatVisible(!isChatVisible)}
-            showBranding={false} // Always hide full branding inside modules to save space, use Title instead
+            showBranding={false} 
         />
         <main className={`flex-1 overflow-x-hidden overflow-y-auto ${isFullWidthPage ? '' : 'p-4 sm:p-6 lg:p-8'}`}>
           <Suspense fallback={<GlobalLoading />}>
@@ -184,6 +193,7 @@ const StaffSystem: React.FC = () => {
         <Route path="/insurance/*" element={<InsuranceModule />} /> 
         <Route path="/documents/*" element={<Documents />} />
         <Route path="/reports/*" element={<ReportsModule />} />
+        <Route path="/command-center/*" element={<CommandCenter />} /> {/* New Route */}
         <Route path="/settings" element={<div className="text-center text-slate-500 dark:text-slate-400 p-10">Trang Cài đặt đang trong quá trình phát triển.</div>} />
       </Route>
       
@@ -197,29 +207,22 @@ const StaffSystem: React.FC = () => {
 const MainApp: React.FC = () => {
   const { isAuthenticated, login } = useSession();
 
-  // --- CẤU HÌNH ĐIỀU HƯỚNG MẶC ĐỊNH ---
-  // Đặt true: Mặc định vào Cổng Bệnh nhân (/portal)
-  // Đặt false: Mặc định vào Đăng nhập Nhân viên (/staff/login)
   const IS_DEFAULT_PORTAL = false; 
 
   return (
     <Routes>
-      {/* 1. PUBLIC: Patient Portal (Accessible by everyone) */}
       <Route path="/portal/*" element={
           <Suspense fallback={<GlobalLoading message="Đang tải Cổng thông tin..." />}>
               <Portal />
           </Suspense>
       } />
 
-      {/* 2. ROOT REDIRECT: Điều hướng dựa trên cấu hình IS_DEFAULT_PORTAL */}
       <Route path="/" element={<Navigate to={IS_DEFAULT_PORTAL ? "/portal/home" : "/staff/login"} replace />} />
 
-      {/* 3. STAFF AUTH: Login for Employees */}
       <Route path="/staff/login" element={
           isAuthenticated ? <Navigate to="/staff-dashboard" replace /> : <Login onLogin={() => login()} />
       } />
 
-      {/* 4. STAFF SYSTEM: Protected Routes */}
       <Route path="/*" element={
           isAuthenticated ? <StaffSystem /> : <Navigate to="/staff/login" replace />
       } />
@@ -228,40 +231,34 @@ const MainApp: React.FC = () => {
 }
 
 const App: React.FC = () => {
-  // --- CẤU HÌNH: CHẶN MENU CHUỘT PHẢI & ZOOM (NATIVE APP FEEL) ---
   const ENABLE_NATIVE_APP_FEEL = true;
 
   useEffect(() => {
     if (ENABLE_NATIVE_APP_FEEL) {
-      // 1. Prevent Context Menu
       const handleContextMenu = (e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
         return false;
       };
 
-      // 2. Prevent Keyboard Zoom (Ctrl/Cmd + '+', '-', '0')
       const handleKeyDown = (e: KeyboardEvent) => {
         if ((e.ctrlKey || e.metaKey) && ['+', '-', '=', '0'].includes(e.key)) {
           e.preventDefault();
         }
       };
 
-      // 3. Prevent Wheel Zoom (Ctrl/Cmd + Scroll)
       const handleWheel = (e: WheelEvent) => {
         if (e.ctrlKey || e.metaKey) {
           e.preventDefault();
         }
       };
 
-      // 4. Prevent Pinch Zoom on Trackpad/Touchscreen (Safari/Chrome)
       const handleTouchMove = (e: TouchEvent) => {
         if (e.touches.length > 1) {
           e.preventDefault();
         }
       };
 
-      // Register Listeners
       document.addEventListener('contextmenu', handleContextMenu, { capture: true });
       document.addEventListener('keydown', handleKeyDown);
       document.addEventListener('wheel', handleWheel, { passive: false });

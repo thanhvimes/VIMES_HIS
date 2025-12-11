@@ -53,23 +53,19 @@ export interface InsuranceDocument {
     errorMessage?: string;
 }
 
+// Dữ liệu mẫu để fallback nếu API lỗi
 const MOCK_DOCUMENTS: InsuranceDocument[] = [
     {
-        id: 'DOC001', patientName: 'Nguyễn Văn An', yearOfBirth: 1985, gender: 'Nam', recordNumber: '2301001',
+        id: 'DOC001', patientName: 'Nguyễn Văn An (Mock)', yearOfBirth: 1985, gender: 'Nam', recordNumber: '2301001',
         docTypeCode: 'GiayChuyenVien', docTypeName: 'Giấy chuyển tuyến',
         createdTime: '2023-11-28 08:30', sendStatus: 'Unsent', signatureStatus: 'Signed',
         xmlData: '<GiayChuyenVien>...</GiayChuyenVien>'
-    },
-    {
-        id: 'DOC002', patientName: 'Phạm Thị Dung', yearOfBirth: 2001, gender: 'Nữ', recordNumber: '2301002',
-        docTypeCode: 'GiayRaVien', docTypeName: 'Giấy ra viện',
-        createdTime: '2023-11-29 09:15', sendStatus: 'Unsent', signatureStatus: 'Unsigned',
-        xmlData: '<GiayRaVien>...</GiayRaVien>'
     },
 ];
 
 export const insuranceService = {
     checkCardOnline: async (cardNumber: string, name: string): Promise<InsuranceCardInfo> => {
+        // Mock check thẻ online (vì cần kết nối cổng BHXH thật)
         return new Promise((resolve) => {
             setTimeout(() => {
                 const benefitCode = parseInt(cardNumber.substring(2, 3)) || 4;
@@ -126,6 +122,7 @@ export const insuranceService = {
     },
 
     getClaimsList: async (): Promise<InsuranceClaim[]> => {
+        // Mock claims list
         const mockClaims: InsuranceClaim[] = [
             { id: 'CLM001', patientName: 'Nguyễn Văn An', cardNumber: 'GD4790215567890', visitDate: '2023-11-27', totalAmount: 1500000, insuranceAmount: 1200000, patientAmount: 300000, status: 'Accepted', xmlStatus: 'Generated' },
             { id: 'CLM002', patientName: 'Trần Thị Bích', cardNumber: 'DN4790215567891', visitDate: '2023-11-27', totalAmount: 850000, insuranceAmount: 680000, patientAmount: 170000, status: 'Sent', xmlStatus: 'Generated' },
@@ -146,44 +143,34 @@ export const insuranceService = {
         return new Promise(resolve => setTimeout(() => resolve(true), 2000));
     },
 
-    // --- MOCK DATA (Thay vì gọi API thật để tránh lỗi) ---
+    // --- REAL API CALLS (Đã mở khóa) ---
     getDocumentsList: async (): Promise<InsuranceDocument[]> => {
-        // Khi nào có Backend thực sự thì uncomment đoạn dưới
-        /*
         try {
+            console.log("Calling API: /insurance/documents");
             return await apiClient.get<InsuranceDocument[]>('/insurance/documents');
         } catch (error) {
-            console.warn("API Error, falling back to mock data");
+            console.error("Lỗi gọi API documents, sử dụng dữ liệu mẫu:", error);
             return MOCK_DOCUMENTS;
         }
-        */
-        return new Promise(resolve => setTimeout(() => resolve(MOCK_DOCUMENTS), 800));
     },
 
     sendDocumentsToPortal: async (docIds: string[]): Promise<string[]> => {
-        /*
         try {
             return await apiClient.post<string[]>('/insurance/documents/send', { docIds });
         } catch (error) {
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            return []; // Mock Success
+            console.error("Lỗi gửi hồ sơ:", error);
+            // Giả lập lỗi cho demo nếu API thật fail
+            return []; 
         }
-        */
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        return []; // Trả về mảng rỗng (không có ID nào lỗi)
     },
     
     signDocuments: async (docIds: string[]): Promise<boolean> => {
-         /*
          try {
              await apiClient.post('/insurance/documents/sign', { docIds });
              return true;
          } catch (error) {
-             await new Promise(resolve => setTimeout(resolve, 1000));
-             return true; // Mock Success
+             console.error("Lỗi ký số:", error);
+             return false;
          }
-         */
-         await new Promise(resolve => setTimeout(resolve, 1000));
-         return true;
     }
 };

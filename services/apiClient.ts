@@ -18,6 +18,7 @@ const getEnv = () => {
 const env = getEnv();
 
 // CẤU HÌNH QUAN TRỌNG: Trỏ về Backend đang chạy ở port 8000
+// Nếu không tìm thấy biến môi trường, mặc định dùng localhost:8000
 const BASE_URL = env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
 const TIMEOUT = Number(env.VITE_API_TIMEOUT) || 30000;
@@ -31,6 +32,7 @@ class ApiClient {
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
+    console.log(`[API Client] Initialized with Base URL: ${this.baseUrl}`);
   }
 
   private getAuthToken(): string | null {
@@ -74,6 +76,8 @@ class ApiClient {
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
 
     try {
+      console.log(`[API Request] ${options.method || 'GET'} ${url}`);
+      
       const response = await fetch(url, {
         headers: defaultHeaders,
         signal: controller.signal,
@@ -91,6 +95,7 @@ class ApiClient {
 
         const errorBody = await response.json().catch(() => ({}));
         const errorMessage = errorBody.message || `HTTP Error ${response.status}: ${response.statusText}`;
+        console.error(`[API Error] ${errorMessage}`);
         throw new Error(errorMessage);
       }
 
@@ -98,13 +103,14 @@ class ApiClient {
         return {} as T;
       }
 
-      return await response.json();
+      const data = await response.json();
+      return data;
     } catch (error: any) {
       clearTimeout(timeoutId);
       if (error.name === 'AbortError') {
         throw new Error('Kết nối Backend thất bại (Timeout). Vui lòng kiểm tra Server 8000.');
       }
-      console.error(`API Error [${endpoint}]:`, error);
+      console.error(`[API Exception] ${endpoint}:`, error);
       throw error;
     }
   }
