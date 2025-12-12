@@ -8,23 +8,10 @@ import GlobalLoading from './components/shared/GlobalLoading';
 import ChatWidget from './components/ChatWidget';
 import ToastContainer from './components/shared/ToastContainer';
 
-// Import Nav Constants
+// Import Nav Constants (Only needed for titles now, logic moved to SystemContext)
 import { RECEPTION_NAV_ITEMS } from './modules/reception/constants';
 import { CONSULTATION_NAV_ITEMS } from './modules/consultation/constants';
-import { INPATIENT_NAV_ITEMS } from './modules/inpatient-treatment/constants';
-import { BILLING_NAV_ITEMS } from './modules/billing/constants';
-import { LAB_RESULTS_NAV_ITEMS } from './modules/lab-results/constants';
-import { IMAGING_RESULTS_NAV_ITEMS } from './modules/imaging-results/constants';
-import { PHARMACY_NAV_ITEMS } from './modules/pharmacy/constants';
-import { RECORD_STORAGE_NAV_ITEMS } from './modules/record-storage/constants';
-import { ADMIN_NAV_ITEMS } from './modules/admin/constants';
-import { MGMT_REPORTING_NAV_ITEMS } from './modules/management-reporting/constants';
-import { SURGERY_NAV_ITEMS } from './modules/surgery/constants';
-import { EQUIPMENT_NAV_ITEMS } from './modules/equipment/constants';
-import { INSURANCE_NAV_ITEMS } from './modules/insurance/constants';
-import { TELEMEDICINE_NAV_ITEMS } from './modules/telemedicine/constants';
-import { CRM_NAV_ITEMS } from './modules/crm/constants';
-import { HR_NAV_ITEMS } from './modules/hr/constants';
+// ... other imports ...
 
 // --- LAZY LOAD MODULES ---
 const Dashboard = React.lazy(() => import('./modules/dashboard/Dashboard'));
@@ -47,41 +34,42 @@ const Telemedicine = React.lazy(() => import('./modules/telemedicine/index'));
 const CRM = React.lazy(() => import('./modules/crm/index'));
 const HR = React.lazy(() => import('./modules/hr/index'));
 const Portal = React.lazy(() => import('./modules/portal/index'));
-const CommandCenter = React.lazy(() => import('./modules/command-center/index')); // New Module
+const CommandCenter = React.lazy(() => import('./modules/command-center/index'));
 
 import { PdfPreviewProvider } from './contexts/PdfPreviewContext';
 import { NotificationProvider } from './contexts/NotificationContext';
-import { SystemProvider } from './contexts/SystemContext';
+import { SystemProvider, useSystem } from './contexts/SystemContext';
 import { MasterDataProvider } from './contexts/MasterDataContext'; 
 import { SessionProvider, useSession } from './contexts/SessionContext';
 import { VoiceInputProvider } from './contexts/VoiceInputContext';
 
-// Module configuration map
-const moduleConfig: { [key: string]: { title: string; nav: any[] } } = {
-  reception: { title: 'Tiếp nhận', nav: RECEPTION_NAV_ITEMS },
-  consultation: { title: 'Khám bệnh', nav: CONSULTATION_NAV_ITEMS },
-  'inpatient-treatment': { title: 'Điều trị nội trú', nav: INPATIENT_NAV_ITEMS },
-  surgery: { title: 'Quản lý Phẫu thuật', nav: SURGERY_NAV_ITEMS },
-  equipment: { title: 'Trang thiết bị Y tế', nav: EQUIPMENT_NAV_ITEMS },
-  billing: { title: 'Viện phí', nav: BILLING_NAV_ITEMS },
-  'lab-results': { title: 'KQ Xét nghiệm', nav: LAB_RESULTS_NAV_ITEMS },
-  'imaging-results': { title: 'KQ Hình ảnh', nav: IMAGING_RESULTS_NAV_ITEMS },
-  pharmacy: { title: 'Dược & Vật tư', nav: PHARMACY_NAV_ITEMS },
-  'record-storage': { title: 'Lưu trữ hồ sơ', nav: RECORD_STORAGE_NAV_ITEMS },
-  admin: { title: 'Quản trị Hệ thống', nav: ADMIN_NAV_ITEMS },
-  'management-reporting': { title: 'Báo cáo Quản trị', nav: MGMT_REPORTING_NAV_ITEMS },
-  insurance: { title: 'Bảo hiểm Y tế', nav: INSURANCE_NAV_ITEMS },
-  telemedicine: { title: 'Hội chẩn từ xa', nav: TELEMEDICINE_NAV_ITEMS },
-  crm: { title: 'CRM & CSKH', nav: CRM_NAV_ITEMS },
-  hr: { title: 'Quản lý Nhân sự', nav: HR_NAV_ITEMS },
-  'command-center': { title: 'Trung tâm Điều hành Bệnh viện', nav: [] }, // No sub-nav for command center
-  documents: { title: 'Xem tài liệu', nav: [] },
-  reports: { title: 'Hệ thống Báo cáo', nav: [] },
-  settings: { title: 'Cài đặt', nav: [] },
+// Module Title Map (Navigation items are now handled by SystemContext)
+const moduleTitles: { [key: string]: string } = {
+  reception: 'Tiếp nhận',
+  consultation: 'Khám bệnh',
+  'inpatient-treatment': 'Điều trị nội trú',
+  surgery: 'Quản lý Phẫu thuật',
+  equipment: 'Trang thiết bị Y tế',
+  billing: 'Viện phí',
+  'lab-results': 'KQ Xét nghiệm',
+  'imaging-results': 'KQ Hình ảnh',
+  pharmacy: 'Dược & Vật tư',
+  'record-storage': 'Lưu trữ hồ sơ',
+  admin: 'Quản trị Hệ thống',
+  'management-reporting': 'Báo cáo Quản trị',
+  insurance: 'Bảo hiểm Y tế',
+  telemedicine: 'Hội chẩn từ xa',
+  crm: 'CRM & CSKH',
+  hr: 'Quản lý Nhân sự',
+  'command-center': 'Trung tâm Điều hành Bệnh viện',
+  documents: 'Xem tài liệu',
+  reports: 'Hệ thống Báo cáo',
+  settings: 'Cài đặt',
 };
 
 const WorkspaceLayout: React.FC = () => {
   const { logout } = useSession();
+  const { getModuleNav } = useSystem(); // Use system context for dynamic nav
   const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try { return JSON.parse(localStorage.getItem('sidebarCollapsed') || 'false'); } catch { return false; }
@@ -100,13 +88,16 @@ const WorkspaceLayout: React.FC = () => {
                           location.pathname.includes('/documents') ||
                           location.pathname.includes('/reports') ||
                           location.pathname.includes('/telemedicine/live') ||
-                          location.pathname.includes('/command-center'); // Command center is full width
+                          location.pathname.includes('/command-center');
 
   const { pageTitle, moduleNavItems } = useMemo(() => {
     const currentModuleRoot = location.pathname.split('/')[1];
-    const config = moduleConfig[currentModuleRoot];
-    return config ? { pageTitle: config.title, moduleNavItems: config.nav } : { pageTitle: 'VIMES', moduleNavItems: null };
-  }, [location.pathname]);
+    const title = moduleTitles[currentModuleRoot] || 'VIMES';
+    // Get dynamic nav items from context
+    const navItems = getModuleNav(currentModuleRoot);
+    
+    return { pageTitle: title, moduleNavItems: navItems };
+  }, [location.pathname, getModuleNav]);
 
   return (
     <div className="flex h-screen bg-background dark:bg-dark-background">
