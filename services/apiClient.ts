@@ -1,8 +1,8 @@
-
 import { OrganizationInfo, UserSession } from '../types/common';
 
 // Helper to safely access environment variables
-const getEnv = () => {
+// --- FIX: Added explicit return type 'any' to resolve property access errors on 'env' ---
+const getEnv = (): any => {
   try {
     // @ts-ignore
     if (typeof import.meta !== 'undefined' && import.meta.env) {

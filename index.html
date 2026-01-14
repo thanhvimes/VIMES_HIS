@@ -57,6 +57,10 @@
               pulseSlow: {
                 '0%, 100%': { opacity: '1' },
                 '50%': { opacity: '0.6' },
+              },
+              zoomIn: {
+                '0%': { transform: 'scale(0.95)', opacity: '0' },
+                '100%': { transform: 'scale(1)', opacity: '1' },
               }
             },
             animation: {
@@ -65,6 +69,7 @@
               'slide-in-up': 'slideInUp 0.4s ease-out forwards',
               'bounce-in': 'bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards',
               'pulse-slow': 'pulseSlow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'zoom-in': 'zoomIn 0.2s ease-out forwards',
             }
           },
         },
@@ -227,7 +232,10 @@
     "cors": "https://aistudiocdn.com/cors@^2.8.5",
     "@prisma/client": "https://aistudiocdn.com/@prisma/client@^7.1.0",
     "dotenv": "https://aistudiocdn.com/dotenv@^17.2.3",
-    "pg": "https://aistudiocdn.com/pg@^8.16.3"
+    "pg": "https://aistudiocdn.com/pg@^8.16.3",
+    "zustand": "https://esm.sh/zustand@5.0.2?external=react",
+    "zustand/middleware": "https://esm.sh/zustand@5.0.2/middleware?external=react",
+    "zustand/": "https://esm.sh/zustand@^5.0.9/"
   }
 }
 </script>

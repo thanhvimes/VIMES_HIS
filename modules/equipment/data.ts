@@ -15,7 +15,7 @@ export const mockEquipment: MedicalEquipment[] = [
         status: 'active',
         category: 'Hồi sức cấp cứu',
         maintenanceSchedule: 'Quarterly',
-        nextMaintenanceDate: '2023-12-15',
+        nextMaintenanceDate: '2023-10-15', // QUÁ HẠN
         image: 'https://www.gehealthcare.com/-/media/b5f9f8f7f8f44f8f8f8f8f8f8f8f8f8f/product-images/respiratory-care/carescaper860/carescaper860_main_hero.png'
     },
     {
@@ -61,7 +61,7 @@ export const mockEquipment: MedicalEquipment[] = [
         status: 'broken',
         category: 'Xét nghiệm',
         maintenanceSchedule: 'Monthly',
-        nextMaintenanceDate: '2023-11-01'
+        nextMaintenanceDate: '2023-09-01' // QUÁ HẠN
     },
     {
         id: 'EQ-005',

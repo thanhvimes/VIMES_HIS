@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import PdfPreviewModal from '../components/shared/PdfPreviewModal';
+import PdfPreviewModal from '../components/ui/PdfPreviewModal';
 
 interface PdfPreviewData {
     url: string;

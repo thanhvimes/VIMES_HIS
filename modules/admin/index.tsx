@@ -6,6 +6,7 @@ import AdvertisementManagerView from './views/AdvertisementManagerView';
 import SettingsView from './views/SettingsView';
 import UserManagementView from './views/UserManagementView';
 import SignatureManagementView from './views/SignatureManagementView';
+import ClinicSetupView from './views/ClinicSetupView';
 
 const Admin: React.FC = () => {
   return (
@@ -16,6 +17,7 @@ const Admin: React.FC = () => {
       <Route path="settings" element={<SettingsView />} />
       <Route path="users" element={<UserManagementView />} />
       <Route path="signatures" element={<SignatureManagementView />} />
+      <Route path="clinics" element={<ClinicSetupView />} />
     </Routes>
   );
 };

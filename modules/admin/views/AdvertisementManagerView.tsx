@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { MegaphoneIcon, ArrowUpTrayIcon, TrashIcon, PencilIcon, CheckCircleIcon, BanIcon, RefreshIcon, PlayIcon, PlusIcon, XIcon } from '../../../components/Icons';
-import { useSystem, SlideItem } from '../../../contexts/SystemContext';
+import { useSystemStore, SlideItem } from '../../../stores/useSystemStore';
 
 // --- LIVE PREVIEW COMPONENT ---
 const SlidePreview = ({ slides }: { slides: SlideItem[] }) => {
@@ -51,7 +51,7 @@ const SlidePreview = ({ slides }: { slides: SlideItem[] }) => {
 };
 
 const AdvertisementManagerView: React.FC = () => {
-  const { slides, addSlide, updateSlide, removeSlide, toggleSlideActive } = useSystem();
+  const { slides, addSlide, updateSlide, removeSlide, toggleSlideActive } = useSystemStore();
   
   // Form State
   const [isEditing, setIsEditing] = useState(false);

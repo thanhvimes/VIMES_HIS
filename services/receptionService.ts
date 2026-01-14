@@ -28,28 +28,36 @@ export interface QueueStatus {
     waitingCount: number;
 }
 
+// TOGGLE THIS TO FALSE WHEN BACKEND IS READY
+const USE_MOCK_API = true;
+
 export const receptionService = {
     // --- Patient Management ---
     getPatientList: async (): Promise<Patient[]> => {
+        // 1. Mock Mode (Default for Frontend Demo)
+        if (USE_MOCK_API) {
+            // Simulate network delay
+            await new Promise(resolve => setTimeout(resolve, 800));
+            return mockPatients;
+        }
+
+        // 2. Real API Mode
         try {
             console.log("Calling API: /reception/patients");
             // Gọi API thật từ Backend
             const data = await apiClient.get<any>('/reception/patients');
             
             // Map dữ liệu từ Backend (có thể khác cấu trúc) sang cấu trúc Frontend
-            // Dựa trên controller backend bạn cung cấp, backend trả về JSON mảng trực tiếp hoặc { data: [] }
             const patientsList = Array.isArray(data) ? data : (data.data || []);
             
-            // Nếu Backend trả về rỗng (do chưa có data), fallback về mock để demo không bị trắng trang
             if (patientsList.length === 0) {
-                console.warn("API returned empty list, using mock data for demo.");
                 return mockPatients;
             }
 
-            // Map data (Tùy chỉnh mapping này nếu cấu trúc trả về từ DB khác)
+            // Map data
             return patientsList.map((item: any) => ({
                 id: item.id || item.recordNumber,
-                recordNumber: item.recordNumber || item.docno, // Fallback if naming differs
+                recordNumber: item.recordNumber || item.docno,
                 name: item.name || item.patientName,
                 dob: item.dob || '01/01/1990',
                 age: item.age || 0,
@@ -72,10 +80,8 @@ export const receptionService = {
     },
 
     getPatientByRecordNumber: async (identifier: string): Promise<Patient | null> => {
-        try {
-            // Simulate API call for detail (Can switch to real API later)
+        if (USE_MOCK_API) {
             await new Promise(resolve => setTimeout(resolve, 300));
-            
             const searchKey = identifier.toString().trim();
             const found = mockPatients.find(p => 
                 p.id === searchKey || 
@@ -83,34 +89,53 @@ export const receptionService = {
                 p.identityCard === searchKey ||
                 (p.phone && p.phone.includes(searchKey))
             );
-
             return found || null;
+        }
+
+        try {
+            const data = await apiClient.get<any>(`/reception/patients/${identifier}`);
+            return data;
         } catch (error) {
             console.error("Error fetching patient:", error);
-            return null;
+            // Fallback to mock search on error
+            const searchKey = identifier.toString().trim();
+            const found = mockPatients.find(p => 
+                p.id === searchKey || 
+                p.recordNumber === searchKey || 
+                p.identityCard === searchKey ||
+                (p.phone && p.phone.includes(searchKey))
+            );
+            return found || null;
         }
     },
 
     createPatient: async (patientData: Partial<Patient>): Promise<Patient> => {
-        try {
-            // Gọi API thật
-            const result = await apiClient.post<Patient>('/reception/patients', patientData);
-            return result;
-        } catch (e) {
-            console.error("API Error creating patient", e);
-            // Fallback mock
-            const newPatient = { 
+        if (USE_MOCK_API) {
+            await new Promise(resolve => setTimeout(resolve, 600));
+            return { 
                 ...patientData, 
                 id: `BN${Date.now()}`, 
                 recordNumber: `REC${Date.now().toString().slice(-6)}`,
                 examinationStatus: 'waiting',
                 assignedDoctor: 'BS. Chỉ Định'
             } as Patient;
-            return newPatient;
+        }
+
+        try {
+            const result = await apiClient.post<Patient>('/reception/patients', patientData);
+            return result;
+        } catch (e) {
+            console.error("API Error creating patient", e);
+            throw e;
         }
     },
 
     updatePatient: async (id: string, patientData: Partial<Patient>): Promise<Patient> => {
+         if (USE_MOCK_API) {
+             await new Promise(resolve => setTimeout(resolve, 500));
+             return { ...patientData, id } as Patient;
+         }
+
          try {
             await apiClient.put<Patient>(`/reception/patients/${id}`, patientData);
             return { ...patientData, id } as Patient;
@@ -121,7 +146,6 @@ export const receptionService = {
 
     // --- Queue Management ---
     getQueueStatus: async (counterId: string = 'DEFAULT'): Promise<QueueStatus> => {
-        // In real app, fetch from `/queue/status/${counterId}`
         await new Promise(resolve => setTimeout(resolve, 200));
         return {
             id: counterId,
@@ -135,9 +159,7 @@ export const receptionService = {
     },
     
     callNextPatient: async (counterId: string): Promise<QueueStatus> => {
-        // In real app, POST to `/queue/next`
         await new Promise(resolve => setTimeout(resolve, 400));
-        // Mock shifting queue
         return {
             id: counterId,
             name: 'Quầy Tiếp nhận 01',
@@ -150,7 +172,6 @@ export const receptionService = {
     },
 
     recallPatient: async (counterId: string, currentNumber: number): Promise<boolean> => {
-        // In real app, POST to `/queue/recall`
         await new Promise(resolve => setTimeout(resolve, 200));
         console.log(`Recalling number ${currentNumber} at ${counterId}`);
         return true;

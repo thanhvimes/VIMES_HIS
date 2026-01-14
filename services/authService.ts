@@ -10,49 +10,63 @@ interface LoginResponse {
 
 export const authService = {
     login: async (username: string, password: string): Promise<LoginResponse> => {
-        // Thực tế: Gọi API login
-        // return apiClient.post<LoginResponse>('/auth/login', { username, password });
-        
-        // MOCK để test UI (Xóa phần này khi có Backend thực)
+        // MOCK logic xử lý đăng nhập
         await new Promise(resolve => setTimeout(resolve, 800));
-        if (username === 'demo' || username === 'admin') {
+        
+        // 1. Tài khoản Quản trị hệ thống
+        if (username === 'admin' && password === 'password') {
             return {
-                token: 'fake-jwt-token',
+                token: 'fake-admin-token',
+                user: {
+                    userId: 'AD001',
+                    username: 'admin',
+                    fullName: 'Quản trị viên Hệ thống',
+                    title: 'System Administrator',
+                    departmentId: 'IT',
+                    departmentName: 'Phòng CNTT',
+                    role: 'admin', // QUAN TRỌNG: Quyền admin nhìn thấy 14 module
+                    avatarUrl: 'https://ui-avatars.com/api/?name=Admin&background=1e293b&color=fff'
+                },
+                organization: mockOrg
+            };
+        }
+        
+        // 2. Tài khoản Bác sĩ (Demo)
+        if ((username === 'demo' || username === 'demo@clinicms.com') && password === 'password') {
+            return {
+                token: 'fake-doctor-token',
                 user: {
                     userId: 'BS001',
-                    username: username,
-                    fullName: 'Trần Văn Minh',
+                    username: 'demo',
+                    fullName: 'BS. Trần Văn Minh',
                     title: 'Bác sĩ CKII',
                     departmentId: 'K01',
                     departmentName: 'Khoa Nội Tổng Quát',
-                    role: 'doctor',
+                    role: 'doctor', // QUAN TRỌNG: Quyền doctor nhìn thấy 10 module
                     avatarUrl: 'https://ui-avatars.com/api/?name=Dr+Minh&background=0ea5e9&color=fff'
                 },
-                organization: {
-                    hospitalCode: '79021',
-                    hospitalName: 'Bệnh viện Đa khoa Quốc tế VIMES',
-                    governingUnitCode: 'SYT_HCM',
-                    governingUnitName: 'Sở Y tế TP. Hồ Chí Minh',
-                    address: '123 Đường Sức Khỏe, Quận 1, TP.HCM',
-                    hotline: '1900 1234',
-                }
+                organization: mockOrg
             };
         }
-        throw new Error('Tài khoản hoặc mật khẩu không đúng.');
+        
+        throw new Error('Tài khoản hoặc mật khẩu không đúng. Thử lại với admin/password.');
     },
 
     logout: async () => {
-        try {
-            // Gọi API logout để hủy token phía server (nếu cần)
-            // await apiClient.post('/auth/logout', {}); 
-        } catch (e) {
-            console.error(e);
-        } finally {
-            localStorage.removeItem('currentUser');
-        }
+        localStorage.removeItem('currentUser');
     },
     
     getProfile: async (): Promise<UserSession> => {
         return apiClient.get<UserSession>('/auth/me');
     }
+};
+
+const mockOrg: OrganizationInfo = {
+    hospitalCode: '79021',
+    hospitalName: 'Bệnh viện Đa khoa Quốc tế VIMES',
+    governingUnitCode: 'SYT_HCM',
+    governingUnitName: 'Sở Y tế TP. Hồ Chí Minh',
+    address: '123 Đường Sức Khỏe, Quận 1, TP.HCM',
+    hotline: '1900 1234',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/vi/thumb/e/e5/Logo_b%E1%BB%87nh_vi%E1%BB%87n_K.png/220px-Logo_b%E1%BB%87nh_vi%E1%BB%87n_K.png'
 };

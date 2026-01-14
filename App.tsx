@@ -4,18 +4,14 @@ import { Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Login from './modules/login/Login';
-import GlobalLoading from './components/shared/GlobalLoading';
+import GlobalLoading from './components/ui/GlobalLoading';
 import ChatWidget from './components/ChatWidget';
-import ToastContainer from './components/shared/ToastContainer';
-
-// Import Nav Constants (Only needed for titles now, logic moved to SystemContext)
-import { RECEPTION_NAV_ITEMS } from './modules/reception/constants';
-import { CONSULTATION_NAV_ITEMS } from './modules/consultation/constants';
-// ... other imports ...
+import ToastContainer from './components/ui/ToastContainer';
 
 // --- LAZY LOAD MODULES ---
 const Dashboard = React.lazy(() => import('./modules/dashboard/Dashboard'));
 const Reception = React.lazy(() => import('./modules/reception/index'));
+const OnlineBooking = React.lazy(() => import('./modules/online-booking/index')); // NEW
 const Consultation = React.lazy(() => import('./modules/consultation/index'));
 const InpatientTreatment = React.lazy(() => import('./modules/inpatient-treatment/index'));
 const Surgery = React.lazy(() => import('./modules/surgery/index'));
@@ -24,6 +20,7 @@ const Billing = React.lazy(() => import('./modules/billing/index'));
 const LabResults = React.lazy(() => import('./modules/lab-results/index'));
 const ImagingResults = React.lazy(() => import('./modules/imaging-results/index'));
 const Pharmacy = React.lazy(() => import('./modules/pharmacy/index'));
+const MedicalSupplies = React.lazy(() => import('./modules/medical-supplies/index'));
 const RecordStorage = React.lazy(() => import('./modules/record-storage/index'));
 const Admin = React.lazy(() => import('./modules/admin/index'));
 const ManagementReporting = React.lazy(() => import('./modules/management-reporting/index'));
@@ -38,14 +35,16 @@ const CommandCenter = React.lazy(() => import('./modules/command-center/index'))
 
 import { PdfPreviewProvider } from './contexts/PdfPreviewContext';
 import { NotificationProvider } from './contexts/NotificationContext';
-import { SystemProvider, useSystem } from './contexts/SystemContext';
+import { useSystemStore } from './stores/useSystemStore';
 import { MasterDataProvider } from './contexts/MasterDataContext'; 
 import { SessionProvider, useSession } from './contexts/SessionContext';
 import { VoiceInputProvider } from './contexts/VoiceInputContext';
+import { socketService } from './services/socketService';
 
-// Module Title Map (Navigation items are now handled by SystemContext)
+// Module Title Map
 const moduleTitles: { [key: string]: string } = {
   reception: 'Tiếp nhận',
+  'online-booking': 'Đăng ký Online', // NEW
   consultation: 'Khám bệnh',
   'inpatient-treatment': 'Điều trị nội trú',
   surgery: 'Quản lý Phẫu thuật',
@@ -54,6 +53,7 @@ const moduleTitles: { [key: string]: string } = {
   'lab-results': 'KQ Xét nghiệm',
   'imaging-results': 'KQ Hình ảnh',
   pharmacy: 'Dược & Vật tư',
+  'medical-supplies': 'Vật tư Y tế',
   'record-storage': 'Lưu trữ hồ sơ',
   admin: 'Quản trị Hệ thống',
   'management-reporting': 'Báo cáo Quản trị',
@@ -68,21 +68,11 @@ const moduleTitles: { [key: string]: string } = {
 };
 
 const WorkspaceLayout: React.FC = () => {
-  const { logout } = useSession();
-  const { getModuleNav } = useSystem(); // Use system context for dynamic nav
-  const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [isSidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('sidebarCollapsed') || 'false'); } catch { return false; }
-  });
+  const { logout, user } = useSession();
+  const { isSidebarCollapsed, toggleSidebar, isMobileSidebarOpen, setMobileSidebarOpen, getModuleNav } = useSystemStore();
   const [isChatVisible, setIsChatVisible] = useState(false);
-
-  useEffect(() => {
-    localStorage.setItem('sidebarCollapsed', JSON.stringify(isSidebarCollapsed));
-  }, [isSidebarCollapsed]);
-
   const location = useLocation();
   
-  // Full width pages logic
   const isFullWidthPage = location.pathname.includes('/consultation/record') || 
                           location.pathname.includes('/inpatient-treatment/record') ||
                           location.pathname.includes('/documents') ||
@@ -93,21 +83,18 @@ const WorkspaceLayout: React.FC = () => {
   const { pageTitle, moduleNavItems } = useMemo(() => {
     const currentModuleRoot = location.pathname.split('/')[1];
     const title = moduleTitles[currentModuleRoot] || 'VIMES';
-    // Get dynamic nav items from context
-    const navItems = getModuleNav(currentModuleRoot);
-    
+    const navItems = getModuleNav(currentModuleRoot, user?.role);
     return { pageTitle: title, moduleNavItems: navItems };
-  }, [location.pathname, getModuleNav]);
+  }, [location.pathname, getModuleNav, user?.role]);
 
   return (
     <div className="flex h-screen bg-background dark:bg-dark-background">
-      {/* Hide Sidebar for Command Center to maximize screen real estate */}
       {!location.pathname.includes('/command-center') && (
         <Sidebar 
           isMobileOpen={isMobileSidebarOpen} 
           setMobileOpen={setMobileSidebarOpen}
           isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(!isSidebarCollapsed)}
+          onToggleCollapse={toggleSidebar}
           moduleNavItems={moduleNavItems}
         />
       )}
@@ -144,7 +131,7 @@ const DashboardLayout: React.FC = () => {
         onToggleSidebar={() => {}} 
         onLogout={logout} 
         showSidebarToggle={false} 
-        showBranding={true} // Only show full branding on Dashboard
+        showBranding={true}
         isChatVisible={isChatVisible}
         onToggleChat={() => setIsChatVisible(!isChatVisible)}
       />
@@ -159,14 +146,13 @@ const DashboardLayout: React.FC = () => {
   );
 };
 
-// Staff Routes Container
 const StaffSystem: React.FC = () => {
   return (
     <Routes>
       <Route path="/staff-dashboard" element={<DashboardLayout />} />
-      
       <Route element={<WorkspaceLayout />}>
         <Route path="/reception/*" element={<Reception />} />
+        <Route path="/online-booking/*" element={<OnlineBooking />} />
         <Route path="/consultation/*" element={<Consultation />} />
         <Route path="/inpatient-treatment/*" element={<InpatientTreatment />} />
         <Route path="/surgery/*" element={<Surgery />} />
@@ -178,94 +164,52 @@ const StaffSystem: React.FC = () => {
         <Route path="/lab-results/*" element={<LabResults />} />
         <Route path="/imaging-results/*" element={<ImagingResults />} />
         <Route path="/pharmacy/*" element={<Pharmacy />} />
+        <Route path="/medical-supplies/*" element={<MedicalSupplies />} />
         <Route path="/record-storage/*" element={<RecordStorage />} />
         <Route path="/admin/*" element={<Admin />} />
         <Route path="/management-reporting/*" element={<ManagementReporting />} />
         <Route path="/insurance/*" element={<InsuranceModule />} /> 
         <Route path="/documents/*" element={<Documents />} />
         <Route path="/reports/*" element={<ReportsModule />} />
-        <Route path="/command-center/*" element={<CommandCenter />} /> {/* New Route */}
+        <Route path="/command-center/*" element={<CommandCenter />} />
         <Route path="/settings" element={<div className="text-center text-slate-500 dark:text-slate-400 p-10">Trang Cài đặt đang trong quá trình phát triển.</div>} />
       </Route>
-      
-      {/* Default Staff Redirect */}
       <Route path="*" element={<Navigate to="/staff-dashboard" replace />} />
     </Routes>
   );
 };
 
-// Main App Logic Wrapper
 const MainApp: React.FC = () => {
-  const { isAuthenticated, login } = useSession();
-
-  const IS_DEFAULT_PORTAL = false; 
+  const { isAuthenticated, user } = useSession();
+  useEffect(() => {
+    if (isAuthenticated && user) {
+        socketService.connect(user.userId);
+    }
+  }, [isAuthenticated, user]);
 
   return (
     <Routes>
-      <Route path="/portal/*" element={
-          <Suspense fallback={<GlobalLoading message="Đang tải Cổng thông tin..." />}>
-              <Portal />
-          </Suspense>
-      } />
-
-      <Route path="/" element={<Navigate to={IS_DEFAULT_PORTAL ? "/portal/home" : "/staff/login"} replace />} />
-
-      <Route path="/staff/login" element={
-          isAuthenticated ? <Navigate to="/staff-dashboard" replace /> : <Login onLogin={() => login()} />
-      } />
-
-      <Route path="/*" element={
-          isAuthenticated ? <StaffSystem /> : <Navigate to="/staff/login" replace />
-      } />
+      <Route path="/portal/*" element={<Suspense fallback={<GlobalLoading message="Đang tải Cổng thông tin..." />}><Portal /></Suspense>} />
+      <Route path="/" element={<Navigate to="/staff/login" replace />} />
+      <Route path="/staff/login" element={isAuthenticated ? <Navigate to="/staff-dashboard" replace /> : <Login onLogin={() => {}} />} />
+      <Route path="/*" element={isAuthenticated ? <StaffSystem /> : <Navigate to="/staff/login" replace />} />
     </Routes>
   );
 }
 
 const App: React.FC = () => {
-  const ENABLE_NATIVE_APP_FEEL = true;
-
   useEffect(() => {
-    if (ENABLE_NATIVE_APP_FEEL) {
-      const handleContextMenu = (e: MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
-      };
-
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if ((e.ctrlKey || e.metaKey) && ['+', '-', '=', '0'].includes(e.key)) {
-          e.preventDefault();
-        }
-      };
-
-      const handleWheel = (e: WheelEvent) => {
-        if (e.ctrlKey || e.metaKey) {
-          e.preventDefault();
-        }
-      };
-
-      const handleTouchMove = (e: TouchEvent) => {
-        if (e.touches.length > 1) {
-          e.preventDefault();
-        }
-      };
-
-      document.addEventListener('contextmenu', handleContextMenu, { capture: true });
-      document.addEventListener('keydown', handleKeyDown);
-      document.addEventListener('wheel', handleWheel, { passive: false });
-      document.addEventListener('touchmove', handleTouchMove, { passive: false });
-
-      return () => {
-        document.removeEventListener('contextmenu', handleContextMenu, { capture: true });
-        document.removeEventListener('keydown', handleKeyDown);
-        document.removeEventListener('wheel', handleWheel);
-        document.removeEventListener('touchmove', handleTouchMove);
-      };
-    }
-  }, [ENABLE_NATIVE_APP_FEEL]);
+    const handleContextMenu = (e: MouseEvent) => { e.preventDefault(); return false; };
+    const handleKeyDown = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && ['+', '-', '=', '0'].includes(e.key)) e.preventDefault(); };
+    document.addEventListener('contextmenu', handleContextMenu, { capture: true });
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu, { capture: true });
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   return (
-    <SystemProvider>
       <SessionProvider>
         <NotificationProvider>
           <MasterDataProvider>
@@ -277,7 +221,6 @@ const App: React.FC = () => {
           </MasterDataProvider>
         </NotificationProvider>
       </SessionProvider>
-    </SystemProvider>
   );
 };
 

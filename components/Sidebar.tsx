@@ -6,7 +6,7 @@ import { NavItemType } from '../types';
 
 interface SidebarProps {
   isMobileOpen: boolean;
-  setMobileOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setMobileOpen: (isOpen: boolean) => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   moduleNavItems: NavItemType[] | null;
@@ -34,6 +34,71 @@ const NavItem: React.FC<NavItemType & { isCollapsed: boolean }> = ({ name, path,
 );
 
 const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen, isCollapsed, onToggleCollapse, moduleNavItems }) => {
+  
+  // Logic render menu có phân nhóm
+  const renderNavItems = () => {
+    if (!moduleNavItems || moduleNavItems.length === 0) {
+        return (
+            <div className="px-6 py-8 text-center">
+                {!isCollapsed && (
+                    <p className="text-sm text-slate-500 dark:text-slate-400 italic">
+                        Vui lòng chọn một phân hệ từ Bảng điều khiển.
+                    </p>
+                )}
+            </div>
+        );
+    }
+
+    const elements: React.ReactNode[] = [];
+    let currentSection: string | undefined = undefined;
+
+    moduleNavItems.forEach((item, index) => {
+        // Nếu mục này có section và khác với section trước đó -> Chèn Header
+        if (item.section && item.section !== currentSection) {
+            currentSection = item.section;
+            if (!isCollapsed) {
+                elements.push(
+                    <div key={`section-${item.section}`} className="px-4 mt-6 mb-2">
+                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
+                            {item.section}
+                        </span>
+                    </div>
+                );
+            } else {
+                // Khi thu gọn, chỉ chèn một đường kẻ mờ
+                elements.push(<div key={`divider-${index}`} className="mx-4 my-4 border-t border-slate-100 dark:border-slate-800"></div>);
+            }
+        }
+
+        // Nếu là mục đầu tiên và không có section (như Bảng điều khiển) -> Style đặc biệt "Highlight"
+        const isHighlight = index === 0 && !item.section;
+        
+        elements.push(
+            <li key={item.path} className={isHighlight ? "px-3 mb-2" : "px-3"}>
+                {isHighlight ? (
+                    <NavLink
+                        to={item.path}
+                        className={({ isActive }) => 
+                            `flex items-center p-3 rounded-xl transition-all shadow-md border ${
+                                isActive 
+                                ? 'bg-orange-600 border-orange-500 text-white' 
+                                : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+                            } ${isCollapsed ? 'justify-center' : ''}`
+                        }
+                    >
+                        {React.cloneElement(item.icon as React.ReactElement<any>, { className: "w-5 h-5 flex-shrink-0" })}
+                        {!isCollapsed && <span className="ml-3 font-bold text-sm uppercase tracking-tight">{item.name}</span>}
+                    </NavLink>
+                ) : (
+                    <NavItem {...item} isCollapsed={isCollapsed} />
+                )}
+            </li>
+        );
+    });
+
+    return <ul>{elements}</ul>;
+  };
+
   return (
     <>
       {/* Mobile Overlay */}
@@ -44,7 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen, isCollap
         onClick={() => setMobileOpen(false)}
       ></div>
 
-      {/* Sidebar */}
+      {/* Sidebar Container */}
       <aside
         className={`flex flex-col bg-surface text-onSurface dark:bg-dark-surface dark:text-dark-onSurface shadow-xl fixed lg:relative lg:translate-x-0 h-full z-40 transition-all duration-300 ease-in-out no-print border-r border-slate-200 dark:border-slate-800 ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
@@ -68,28 +133,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen, isCollap
         </div>
         
         <nav className="flex-1 overflow-y-auto custom-scrollbar py-4">
-          {moduleNavItems && moduleNavItems.length > 0 ? (
-             <div className="px-3">
-              <ul>
-                {moduleNavItems.map((item) => (
-                  <li key={item.name}>
-                    <NavItem {...item} isCollapsed={isCollapsed} />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-             <div className="px-6 py-8 text-center">
-                {!isCollapsed && (
-                    <p className="text-sm text-slate-500 dark:text-slate-400 italic">
-                        Vui lòng chọn một phân hệ từ Bảng điều khiển.
-                    </p>
-                )}
-             </div>
-          )}
+          {renderNavItems()}
         </nav>
         
-        {/* --- Collapse Toggle Button --- */}
+        {/* Collapse Toggle Button */}
         <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
           <button
             onClick={onToggleCollapse}
@@ -100,7 +147,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen, isCollap
               <ChevronDoubleRightIcon className="w-5 h-5" /> : 
               <div className="flex items-center gap-2">
                 <ChevronDoubleLeftIcon className="w-5 h-5" />
-                <span className="text-xs font-bold uppercase">Thu gọn</span>
+                <span className="text-xs font-bold uppercase">Thu gọn menu</span>
               </div>
             }
           </button>

@@ -3,13 +3,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MenuIcon, BellIcon, CheckCircleIcon, ExclamationCircleIcon, InfoIcon, CogIcon, UserGroupIcon, ChatBubbleIcon, MicrophoneIcon, MicrophoneOffIcon, LogoutIcon, HospitalIcon } from './Icons';
 import ThemeSwitcher from './ThemeSwitcher';
 import { useNotification } from '../contexts/NotificationContext';
-import { useSystem } from '../contexts/SystemContext';
+// import { useSystem } from '../contexts/SystemContext'; // REMOVED
+import { useSystemStore } from '../stores/useSystemStore'; // ADDED
 import { useSession } from '../contexts/SessionContext';
 import { useVoiceInput } from '../contexts/VoiceInputContext';
 import { useNavigate } from 'react-router-dom';
-import Tooltip from './shared/Tooltip';
-import UserProfileModal from './shared/UserProfileModal';
-import SystemSettingsModal from './shared/SystemSettingsModal';
+import Tooltip from './ui/Tooltip';
+import UserProfileModal from './business/UserProfileModal';
+import SystemSettingsModal from './business/SystemSettingsModal';
 
 interface HeaderProps {
     pageTitle?: string;
@@ -23,7 +24,8 @@ interface HeaderProps {
 
 // --- DYNAMIC ANNOUNCEMENT SLIDER COMPONENT ---
 const AnnouncementSlider = () => {
-    const { slides } = useSystem();
+    // const { slides } = useSystem(); // REMOVED
+    const slides = useSystemStore(state => state.slides); // ADDED: Selector for performance
     const activeSlides = slides.filter(s => s.active);
     const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -108,7 +110,7 @@ const Header: React.FC<HeaderProps> = ({
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotification();
-    const { user, orgInfo } = useSession(); 
+    const { user } = useSession(); 
     const { isListening, toggleListening, hasSupport } = useVoiceInput();
     
     const notifRef = useRef<HTMLDivElement>(null);

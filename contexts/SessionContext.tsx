@@ -2,20 +2,20 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OrganizationInfo, UserSession } from '../types/common';
+import { authService } from '../services/authService';
 
 interface SessionContextType {
     orgInfo: OrganizationInfo;
     setOrgInfo: (info: OrganizationInfo) => void;
     user: UserSession | null;
     isAuthenticated: boolean;
-    login: (mockUserType?: string) => void; 
+    login: (username: string, password: string) => Promise<void>; 
     logout: () => void;
     updateDepartment: (deptId: string, deptName: string) => void;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
-// Default Mock Data for Organization (Updated to Hospital K)
 const defaultOrgInfo: OrganizationInfo = {
     hospitalCode: '79021',
     hospitalName: 'BỆNH VIỆN K',
@@ -26,22 +26,9 @@ const defaultOrgInfo: OrganizationInfo = {
     logoUrl: 'https://upload.wikimedia.org/wikipedia/vi/thumb/e/e5/Logo_b%E1%BB%87nh_vi%E1%BB%87n_K.png/220px-Logo_b%E1%BB%87nh_vi%E1%BB%87n_K.png'
 };
 
-// Default Mock Data for User (Admin/Doctor)
-const mockDoctorUser: UserSession = {
-    userId: 'BS001',
-    username: 'minh.dr',
-    fullName: 'Trần Văn Minh',
-    title: 'Bác sĩ CKII',
-    departmentId: 'K01',
-    departmentName: 'Khoa Nội Tổng Quát',
-    role: 'doctor',
-    avatarUrl: 'https://ui-avatars.com/api/?name=Dr+Minh&background=0ea5e9&color=fff'
-};
-
 export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const navigate = useNavigate();
     
-    // Initialize from localStorage if available to persist changes across reloads
     const [orgInfo, setOrgInfoState] = useState<OrganizationInfo>(() => {
         try {
             const saved = localStorage.getItem('orgInfo');
@@ -54,7 +41,7 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
     const [user, setUser] = useState<UserSession | null>(() => {
         try {
             const savedUser = localStorage.getItem('currentUser');
-            return savedUser ? JSON.parse(savedUser) : null; // Changed default to null to require login
+            return savedUser ? JSON.parse(savedUser) : null;
         } catch {
             return null;
         }
@@ -65,18 +52,23 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
         localStorage.setItem('orgInfo', JSON.stringify(info));
     };
 
-    const login = (mockUserType: string = 'doctor') => {
-        const newUser = { ...mockDoctorUser }; 
-        setUser(newUser);
-        localStorage.setItem('currentUser', JSON.stringify(newUser));
-        localStorage.setItem('isAuthenticated', 'true');
+    const login = async (username: string, password: string) => {
+        try {
+            const response = await authService.login(username, password);
+            setUser(response.user);
+            setOrgInfo(response.organization);
+            localStorage.setItem('currentUser', JSON.stringify(response.user));
+            localStorage.setItem('isAuthenticated', 'true');
+        } catch (error: any) {
+            throw error;
+        }
     };
 
     const logout = () => {
         setUser(null);
         localStorage.removeItem('currentUser');
         localStorage.removeItem('isAuthenticated');
-        navigate('/staff/login'); // Correct navigation for HashRouter
+        navigate('/staff/login');
     };
 
     const updateDepartment = (deptId: string, deptName: string) => {

@@ -9,6 +9,8 @@ export interface NavItemType {
   group?: 'clinical' | 'paraclinical' | 'finance' | 'admin' | 'support'; 
   /** Optional section grouping for sidebar */
   section?: string;
+  /** String name of the icon for serialization/dynamic loading */
+  iconName?: string;
 }
 
 export type NotificationType = 'info' | 'success' | 'warning' | 'error';

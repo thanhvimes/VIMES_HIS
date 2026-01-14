@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme, FontSettings } from '../../../contexts/ThemeContext';
 import { useSession } from '../../../contexts/SessionContext';
-import { useSystem, NavItemDTO } from '../../../contexts/SystemContext';
+import { useSystemStore, NavItemDTO } from '../../../stores/useSystemStore';
 import { adminService } from '../../../services/adminService';
 import { 
     CogIcon, HospitalIcon, GlobeIcon, CheckCircleIcon, ArrowUpTrayIcon, 
@@ -10,7 +10,7 @@ import {
     ChevronUpIcon, ChevronDownIcon, SearchIcon, XIcon
 } from '../../../components/Icons';
 import { OrganizationInfo } from '../../../types/common';
-import { ICON_MAP } from '../../../components/Icons';
+import { ICON_MAP } from '../../../components/icon-map'; // UPDATED IMPORT
 
 const fontOptions = [
     { label: 'Nhỏ (Compact)', value: 'text-xs' },
@@ -38,7 +38,8 @@ const iconOptions = Object.keys(ICON_MAP).sort();
 const SettingsView: React.FC = () => {
     const { fontSettings, updateFontSettings } = useTheme();
     const { orgInfo, setOrgInfo } = useSession();
-    const { menuConfig, updateMenuConfig, resetMenuConfig } = useSystem();
+    // Using Zustand Store
+    const { menuConfig, updateMenuConfig, resetMenuConfig } = useSystemStore();
     
     const [activeTab, setActiveTab] = useState<'display' | 'hospital' | 'menu'>('display');
     const [hospitalForm, setHospitalForm] = useState<OrganizationInfo>(orgInfo);
@@ -123,33 +124,6 @@ const SettingsView: React.FC = () => {
             const newItems = currentMenuItems.filter((_, i) => i !== index);
             updateMenuConfig(selectedModule, newItems);
         }
-    };
-
-    const handleSaveItem = () => {
-        const itemToSave = editingItem || newItem;
-        if (!itemToSave.name || !itemToSave.path) {
-            alert("Vui lòng nhập tên và đường dẫn");
-            return;
-        }
-
-        let newItems = [...currentMenuItems];
-        if (editingItem) {
-            // Update existing
-            const index = newItems.findIndex(i => i.name === editingItem.name && i.path === editingItem.path); // Simple identifier match
-            // A better way is using ID if available, but here we replace based on array index passed or just handle editing state better. 
-            // Simplified: We actually need the index or unique ID. Let's assume we pass the index to handleEditItem instead.
-            // For now, let's just append or replace based on logic below.
-            // Correction: editingItem is a copy. We need to know which one we are editing.
-            // Let's rely on UI state: if editingItem is set, we are in edit mode.
-            // But we need the index. Let's modify handleEditItem to store index.
-        } else {
-             // Add new
-             newItems.push(itemToSave as NavItemDTO);
-        }
-        updateMenuConfig(selectedModule, newItems);
-        setIsMenuModalOpen(false);
-        setEditingItem(null);
-        setNewItem({ name: '', path: '', iconName: 'Squares2X2Icon', isVisible: true });
     };
     
     // Improved Edit Handler with Index
