@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
     SearchIcon, 
     FilterIcon, 
@@ -12,205 +12,300 @@ import {
     EyeIcon,
     TrashIcon,
     PrinterIcon,
-    MegaphoneIcon
+    MegaphoneIcon,
+    RefreshIcon,
+    PaperAirplaneIcon,
+    SmsIcon,
+    UserPlusIcon,
+    BuildingOfficeIcon,
+    CheckIcon,
+    // Fix: Added missing icon imports
+    ClipboardListIcon,
+    XIcon
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useNotification } from '../../../contexts/NotificationContext';
-
-interface BookingRequest {
-    id: string;
-    patientName: string;
-    phone: string;
-    speciality: string;
-    date: string;
-    time: string;
-    source: 'Portal' | 'CallCenter';
-    status: 'Pending' | 'Approved' | 'Rejected' | 'Arrived';
-    createdAt: string;
-}
-
-const mockBookings: BookingRequest[] = [
-    { id: 'BK001', patientName: 'Nguyễn Văn An', phone: '0912345678', speciality: 'Nội tổng quát', date: '2023-11-28', time: '08:30', source: 'Portal', status: 'Pending', createdAt: '2023-11-27 10:00' },
-    { id: 'BK002', patientName: 'Trần Thị Bích', phone: '0987654321', speciality: 'Sản phụ khoa', date: '2023-11-28', time: '09:00', source: 'Portal', status: 'Approved', createdAt: '2023-11-27 11:30' },
-    { id: 'BK003', patientName: 'Lê Hoàng Cường', phone: '0905123456', speciality: 'Ngoại khoa', date: '2023-11-28', time: '14:00', source: 'CallCenter', status: 'Pending', createdAt: '2023-11-27 14:00' },
-    { id: 'BK004', patientName: 'Phạm Thị Dung', phone: '0358987654', speciality: 'Nhi khoa', date: '2023-11-29', time: '08:00', source: 'Portal', status: 'Rejected', createdAt: '2023-11-27 16:00' },
-];
+import { bookingService, OnlineBookingRecord, BookingSpeciality } from '../../../services/bookingService';
+import { formatDate } from '../../../utils/formatters';
 
 const BookingManagementView: React.FC = () => {
     const { fontSettings } = useTheme();
     const { addNotification } = useNotification();
-    const [data, setData] = useState<BookingRequest[]>(mockBookings);
+    
+    // State
+    const [bookings, setBookings] = useState<OnlineBookingRecord[]>([]);
+    const [specialities, setSpecialities] = useState<BookingSpeciality[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [processingId, setProcessingId] = useState<string | null>(null);
+    
+    // Filters
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
+    const [specialityFilter, setSpecialityFilter] = useState('All');
     const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
 
-    const inputClass = "p-2.5 border rounded-xl outline-none transition-all duration-200 focus:ring-2 focus:ring-teal-500 font-bold " + 
-                       "bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 " +
-                       "text-slate-900 dark:text-white placeholder-slate-400";
+    const loadData = async () => {
+        setIsLoading(true);
+        try {
+            const [data, specs] = await Promise.all([
+                bookingService.getBookingList({}),
+                bookingService.getSpecialities()
+            ]);
+            setBookings(data);
+            setSpecialities(specs);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    // Logic xử lý Duyệt & Đẩy HIS
+    const handleApprove = async (booking: OnlineBookingRecord) => {
+        setProcessingId(booking.id);
+        try {
+            const res = await bookingService.approveAndPushToHIS(booking.id);
+            if (res.success) {
+                setBookings(prev => prev.map(b => 
+                    b.id === booking.id ? { ...b, status: 'Approved', smsStatus: 'Sent' } : b
+                ));
+                addNotification(
+                    "Duyệt thành công", 
+                    `Đã đẩy BN ${booking.name} vào hàng đợi. STT: ${res.queueNumber}`, 
+                    "success", 
+                    undefined, 
+                    true
+                );
+            }
+        } catch (err) {
+            addNotification("Lỗi", "Không thể kết nối API HIS", "error", undefined, true);
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const handleReject = async (id: string) => {
+        if (!window.confirm("Từ chối lịch hẹn này? Hệ thống sẽ gửi tin nhắn thông báo hủy cho khách hàng.")) return;
+        await bookingService.rejectBooking(id, "Bác sĩ bận");
+        setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'Rejected' } : b));
+        addNotification("Đã từ chối", "Lịch hẹn đã được hủy.", "warning", undefined, true);
+    };
+
+    const handleResendSMS = async (id: string) => {
+        setProcessingId(id);
+        await bookingService.resendSMS(id);
+        setBookings(prev => prev.map(b => b.id === id ? { ...b, smsStatus: 'Sent' } : b));
+        setProcessingId(null);
+        addNotification("Đã gửi lại", "Tin nhắn xác nhận đã được gửi lại.", "info", undefined, true);
+    };
 
     const filteredBookings = useMemo(() => {
-        return data.filter(b => {
-            const matchesSearch = b.patientName.toLowerCase().includes(searchTerm.toLowerCase()) || b.phone.includes(searchTerm);
+        return bookings.filter(b => {
+            const matchesSearch = b.name.toLowerCase().includes(searchTerm.toLowerCase()) || b.phone.includes(searchTerm);
             const matchesStatus = statusFilter === 'All' || b.status === statusFilter;
+            const matchesSpec = specialityFilter === 'All' || b.speciality === specialityFilter;
             const matchesDate = !dateFilter || b.date === dateFilter;
-            return matchesSearch && matchesStatus && matchesDate;
+            return matchesSearch && matchesStatus && matchesDate && matchesSpec;
         });
-    }, [data, searchTerm, statusFilter, dateFilter]);
+    }, [bookings, searchTerm, statusFilter, dateFilter, specialityFilter]);
 
-    const handleApprove = (id: string) => {
-        setData(prev => prev.map(item => item.id === id ? { ...item, status: 'Approved' } : item));
-        const item = data.find(i => i.id === id);
-        addNotification("Đã duyệt lịch", `Lịch hẹn của ${item?.patientName} đã được xác nhận.`, "success", undefined, true);
-    };
-
-    const handleReject = (id: string) => {
-        if (!window.confirm("Bạn có chắc muốn từ chối lịch hẹn này?")) return;
-        setData(prev => prev.map(item => item.id === id ? { ...item, status: 'Rejected' } : item));
-        addNotification("Từ chối lịch", `Đã từ chối lịch hẹn và gửi thông báo cho bệnh nhân.`, "warning", undefined, true);
-    };
-
-    const getStatusStyle = (status: string) => {
+    const getStatusBadge = (status: string) => {
         switch (status) {
-            case 'Pending': return 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400';
-            case 'Approved': return 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400';
-            case 'Rejected': return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400';
-            case 'Arrived': return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400';
-            default: return 'bg-slate-100 text-slate-600';
+            case 'Pending': return <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-orange-200 bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 shadow-sm">Chờ duyệt</span>;
+            case 'Approved': return <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-green-200 bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 shadow-sm">Đã duyệt</span>;
+            case 'Rejected': return <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-red-200 bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 shadow-sm">Từ chối</span>;
+            default: return <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-blue-200 bg-blue-50 text-blue-700">Đã đến</span>;
+        }
+    };
+
+    const getSmsBadge = (status: string) => {
+        switch (status) {
+            case 'Sent': return <div className="flex items-center gap-1 text-green-600 font-bold text-xs" title="Đã gửi thành công"><SmsIcon className="w-4 h-4"/> Đã gửi</div>;
+            case 'Failed': return <div className="flex items-center gap-1 text-red-500 font-bold text-xs" title="Lỗi gửi tin"><XCircleIcon className="w-4 h-4"/> Lỗi</div>;
+            default: return <div className="flex items-center gap-1 text-slate-400 font-bold text-xs" title="Chờ gửi"><ClockIcon className="w-4 h-4"/> Chờ</div>;
         }
     };
 
     return (
-        <div className="h-full flex flex-col gap-6 animate-fade-in">
-            {/* Header Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex justify-between items-center transition-all hover:scale-[1.02] cursor-pointer" onClick={() => setStatusFilter('Pending')}>
-                    <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Chờ duyệt</p>
-                        <p className="text-3xl font-black text-orange-600">{data.filter(b => b.status === 'Pending').length}</p>
+        <div className="h-full flex flex-col gap-4 animate-fade-in">
+            {/* Header & Stats */}
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-teal-600 text-white rounded-xl shadow-lg shadow-teal-500/30">
+                        <ClipboardListIcon className="w-6 h-6"/>
                     </div>
-                    <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-xl text-orange-600"><ClockIcon className="w-6 h-6"/></div>
+                    <div>
+                        <h1 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Duyệt đăng ký trực tuyến</h1>
+                        <div className="flex items-center gap-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+                            <span>Tổng cộng: {bookings.length}</span>
+                            <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                            <span className="text-orange-500">Chờ duyệt: {bookings.filter(b => b.status === 'Pending').length}</span>
+                        </div>
+                    </div>
                 </div>
-                <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex justify-between items-center transition-all hover:scale-[1.02] cursor-pointer" onClick={() => setStatusFilter('Approved')}>
-                    <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Đã xác nhận</p>
-                        <p className="text-3xl font-black text-green-600">{data.filter(b => b.status === 'Approved').length}</p>
-                    </div>
-                    <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl text-green-600"><CheckCircleIcon className="w-6 h-6"/></div>
-                </div>
-                <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex justify-between items-center transition-all hover:scale-[1.02] cursor-pointer" onClick={() => setStatusFilter('All')}>
-                    <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Tổng lịch hẹn</p>
-                        <p className="text-3xl font-black text-blue-600">{data.length}</p>
-                    </div>
-                    <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl text-blue-600"><CalendarIcon className="w-6 h-6"/></div>
-                </div>
-                <div className="bg-indigo-600 p-5 rounded-2xl shadow-lg text-white flex justify-between items-center transition-all hover:scale-[1.02]">
-                    <div>
-                        <p className="text-[10px] font-black opacity-70 uppercase mb-1">Đến từ Portal</p>
-                        <p className="text-3xl font-black">{data.filter(b => b.source === 'Portal').length}</p>
-                    </div>
-                    <div className="p-3 bg-white/20 rounded-xl"><MegaphoneIcon className="w-6 h-6"/></div>
+
+                <div className="flex gap-2">
+                    <button 
+                        onClick={loadData}
+                        disabled={isLoading}
+                        className="p-2.5 bg-slate-100 dark:bg-slate-700 rounded-xl text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-white transition shadow-sm flex items-center gap-2 font-bold text-sm"
+                    >
+                        <RefreshIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`}/>
+                        Nạp lại
+                    </button>
                 </div>
             </div>
 
-            <div className="flex-1 bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
-                {/* Toolbar */}
-                <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="flex items-center gap-3 w-full md:w-auto">
-                        <div className="relative flex-1 md:w-64">
+            {/* Toolbar Filter */}
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col lg:flex-row gap-3 items-end">
+                <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div className="md:col-span-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Tìm bệnh nhân</label>
+                        <div className="relative">
                             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"/>
                             <input 
                                 type="text" 
-                                placeholder="Tìm tên BN, Số điện thoại..." 
+                                placeholder="Họ tên, SĐT..." 
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
-                                className={`${inputClass} pl-9 w-full`}
+                                className={`w-full pl-9 p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 text-sm focus:ring-2 focus:ring-teal-500 outline-none ${fontSettings.controls}`}
                             />
                         </div>
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Ngày khám</label>
                         <input 
                             type="date" 
                             value={dateFilter}
                             onChange={e => setDateFilter(e.target.value)}
-                            className={inputClass}
+                            className={`w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-sm font-bold ${fontSettings.controls}`}
                         />
                     </div>
-                    <div className="flex gap-2">
+                    <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Chuyên khoa</label>
                         <select 
-                            value={statusFilter}
-                            onChange={e => setStatusFilter(e.target.value)}
-                            className={inputClass}
+                            value={specialityFilter}
+                            onChange={e => setSpecialityFilter(e.target.value)}
+                            className={`w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-sm font-bold ${fontSettings.controls}`}
                         >
-                            <option value="All">Tất cả trạng thái</option>
-                            <option value="Pending">Đang chờ duyệt</option>
-                            <option value="Approved">Đã xác nhận</option>
-                            <option value="Rejected">Đã hủy/Từ chối</option>
+                            <option value="All">Tất cả khoa</option>
+                            {specialities.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                         </select>
-                        <button className="p-2.5 bg-slate-100 dark:bg-slate-700 rounded-xl text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 transition shadow-sm">
-                            <PrinterIcon className="w-5 h-5"/>
-                        </button>
                     </div>
                 </div>
+                
+                <div className="flex gap-2">
+                    <select 
+                        value={statusFilter}
+                        onChange={e => setStatusFilter(e.target.value)}
+                        className={`p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 text-sm font-bold ${fontSettings.controls}`}
+                    >
+                        <option value="All">Tất cả trạng thái</option>
+                        <option value="Pending">Chờ duyệt</option>
+                        <option value="Approved">Đã duyệt</option>
+                        <option value="Rejected">Từ chối</option>
+                    </select>
+                </div>
+            </div>
 
-                {/* Table */}
+            {/* Main Table */}
+            <div className="flex-1 bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col">
                 <div className="flex-1 overflow-auto custom-scrollbar">
                     <table className={`w-full text-left border-collapse ${fontSettings.listSecondary}`}>
                         <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 sticky top-0 z-10 text-[10px] font-black uppercase tracking-widest border-b border-slate-200 dark:border-slate-700">
                             <tr>
                                 <th className="p-4 w-12 text-center">STT</th>
-                                <th className="p-4">Ngày / Giờ hẹn</th>
+                                <th className="p-4">Thời gian hẹn</th>
                                 <th className="p-4">Bệnh nhân</th>
-                                <th className="p-4">Chuyên khoa</th>
+                                <th className="p-4">Chuyên khoa / Lý do</th>
                                 <th className="p-4 text-center">Nguồn</th>
+                                <th className="p-4 text-center">SMS</th>
                                 <th className="p-4 text-center">Trạng thái</th>
                                 <th className="p-4 text-right">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                             {filteredBookings.length === 0 ? (
-                                <tr><td colSpan={7} className="p-20 text-center text-slate-400 italic font-bold">Không tìm thấy yêu cầu nào phù hợp.</td></tr>
+                                <tr><td colSpan={8} className="p-20 text-center text-slate-400 italic font-bold">Không tìm thấy bản ghi nào.</td></tr>
                             ) : (
                                 filteredBookings.map((b, idx) => (
                                     <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors group">
                                         <td className="p-4 text-center text-slate-400 font-mono text-xs">{idx + 1}</td>
                                         <td className="p-4">
-                                            <div className="font-bold text-slate-800 dark:text-white">{b.date}</div>
-                                            <div className="text-xs text-blue-600 font-bold flex items-center gap-1 mt-1">
+                                            <div className="font-bold text-slate-800 dark:text-white">{formatDate(b.date)}</div>
+                                            <div className="text-xs text-blue-600 font-black flex items-center gap-1 mt-1">
                                                 <ClockIcon className="w-3 h-3"/> {b.time}
                                             </div>
                                         </td>
                                         <td className="p-4">
-                                            <div className="font-black text-slate-800 dark:text-white uppercase text-sm">{b.patientName}</div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="font-black text-slate-800 dark:text-white uppercase text-sm">{b.name}</div>
+                                                {b.patientId ? (
+                                                    <span className="text-[9px] bg-blue-100 text-blue-700 px-1.5 rounded font-bold border border-blue-200" title="Bệnh nhân cũ">ID: {b.patientId}</span>
+                                                ) : (
+                                                    <span className="text-[9px] bg-teal-100 text-teal-700 px-1.5 rounded font-bold border border-teal-200" title="Bệnh nhân mới"><UserPlusIcon className="w-2.5 h-2.5 inline"/> MỚI</span>
+                                                )}
+                                            </div>
                                             <div className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
                                                 <PhoneIcon className="w-3 h-3"/> {b.phone}
+                                                <span className="mx-1 opacity-30">|</span>
+                                                <span>{b.gender}, {new Date().getFullYear() - parseInt(b.dob.split('/')[2] || '1990')}T</span>
                                             </div>
                                         </td>
                                         <td className="p-4">
-                                            <span className="font-bold text-slate-700 dark:text-slate-200 text-sm">{b.speciality}</span>
+                                            <div className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-200 text-sm">
+                                                <BuildingOfficeIcon className="w-3.5 h-3.5 text-indigo-500"/>
+                                                {b.speciality}
+                                            </div>
+                                            <div className="text-xs text-slate-500 mt-1 italic line-clamp-1" title={b.reason}>{b.reason}</div>
                                         </td>
                                         <td className="p-4 text-center">
-                                            <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${b.source === 'Portal' ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30' : 'bg-slate-100 text-slate-600 dark:bg-slate-700'}`}>
+                                            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${b.source === 'Portal' ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30' : 'bg-blue-50 text-blue-700 dark:bg-blue-900/30'}`}>
                                                 {b.source}
                                             </span>
                                         </td>
                                         <td className="p-4 text-center">
-                                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border shadow-sm ${getStatusStyle(b.status)}`}>
-                                                {b.status === 'Approved' ? 'Đã duyệt' : b.status === 'Pending' ? 'Chờ duyệt' : b.status === 'Rejected' ? 'Đã hủy' : 'Đã đến'}
-                                            </span>
+                                            <div className="flex justify-center">
+                                                {getSmsBadge(b.smsStatus)}
+                                            </div>
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            {getStatusBadge(b.status)}
                                         </td>
                                         <td className="p-4 text-right">
                                             <div className="flex justify-end gap-2">
-                                                {b.status === 'Pending' && (
+                                                {b.status === 'Pending' ? (
                                                     <>
-                                                        <button onClick={() => handleApprove(b.id)} className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-sm transition" title="Duyệt">
-                                                            <CheckCircleIcon className="w-4 h-4"/>
+                                                        <button 
+                                                            onClick={() => handleApprove(b)}
+                                                            disabled={processingId === b.id}
+                                                            className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-md transition transform active:scale-90 disabled:opacity-50" 
+                                                            title="Duyệt & Đẩy vào HIS"
+                                                        >
+                                                            {processingId === b.id ? <RefreshIcon className="w-4 h-4 animate-spin"/> : <CheckIcon className="w-4 h-4"/>}
                                                         </button>
-                                                        <button onClick={() => handleReject(b.id)} className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 shadow-sm transition" title="Từ chối">
-                                                            <XCircleIcon className="w-4 h-4"/>
+                                                        <button 
+                                                            onClick={() => handleReject(b.id)}
+                                                            disabled={processingId === b.id}
+                                                            className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition disabled:opacity-50" 
+                                                            title="Từ chối"
+                                                        >
+                                                            <XIcon className="w-4 h-4"/>
                                                         </button>
                                                     </>
+                                                ) : (
+                                                    <button 
+                                                        onClick={() => handleResendSMS(b.id)}
+                                                        className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition" 
+                                                        title="Gửi lại SMS"
+                                                    >
+                                                        <PaperAirplaneIcon className="w-4 h-4 -rotate-45"/>
+                                                    </button>
                                                 )}
-                                                <button className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 shadow-sm transition" title="Xem chi tiết">
-                                                    <EyeIcon className="w-4 h-4"/>
+                                                <button className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition" title="In phiếu hẹn">
+                                                    <PrinterIcon className="w-4 h-4"/>
                                                 </button>
                                             </div>
                                         </td>
@@ -219,6 +314,17 @@ const BookingManagementView: React.FC = () => {
                             )}
                         </tbody>
                     </table>
+                </div>
+                {/* Footer Toolbar */}
+                <div className="p-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center text-[10px] font-black text-slate-500 uppercase tracking-widest shrink-0">
+                    <div className="flex gap-4">
+                        <span>Hiển thị {filteredBookings.length} yêu cầu</span>
+                        <span className="text-green-600">Duyệt xong: {bookings.filter(b => b.status === 'Approved').length}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <PaperAirplaneIcon className="w-3.5 h-3.5 text-blue-500"/>
+                        Dữ liệu đồng bộ lúc: {new Date().toLocaleTimeString()}
+                    </div>
                 </div>
             </div>
         </div>

@@ -17,53 +17,23 @@ import {
     CreditCardIcon
 } from '../../../components/Icons';
 import ActionButton from '../../../components/shared/ActionButton';
-import { FormInput, FormSelect } from '../../../components/shared/forms';
+import { FormInput, FormSelect, FormDateInput } from '../../../components/shared/forms';
 import Combobox, { ComboboxColumn } from '../../../components/shared/Combobox';
 import { Patient } from '../../../types';
 import { receptionService } from '../../../services/receptionService';
 import { usePdfPreview } from '../../../contexts/PdfPreviewContext';
 import { formatDate, formatDateForInput } from '../../../utils/formatters';
 
-// --- MOCK DATA CATALOGS (Keep existing) ---
+// --- MOCK DATA CATALOGS ---
 interface CatalogItem {
     code: string;
     name: string;
 }
 
-const occupationOptions: CatalogItem[] = [
-    { code: 'OC01', name: 'Cán bộ / Công chức' },
-    { code: 'OC02', name: 'Công nhân' },
-    { code: 'OC03', name: 'Nông dân' },
-    { code: 'OC04', name: 'Học sinh / Sinh viên' },
-    { code: 'OC05', name: 'Kỹ sư' },
-    { code: 'OC06', name: 'Giáo viên' },
-    { code: 'OC07', name: 'Hưu trí' },
-    { code: 'OC08', name: 'Kinh doanh tự do' },
-    { code: 'OC09', name: 'Nội trợ' },
-    { code: 'OC99', name: 'Khác' },
-];
-
-const provinceOptions: CatalogItem[] = [
-    { code: '01', name: 'Thành phố Hà Nội' },
-    { code: '79', name: 'Thành phố Hồ Chí Minh' },
-    { code: '48', name: 'Thành phố Đà Nẵng' },
-    { code: '31', name: 'Thành phố Hải Phòng' },
-    { code: '92', name: 'Thành phố Cần Thơ' },
-    { code: '70', name: 'Tỉnh Bình Phước' },
-    { code: '74', name: 'Tỉnh Bình Dương' },
-    { code: '60', name: 'Tỉnh Đồng Nai' },
-];
-
-const wardOptions: CatalogItem[] = [
-    { code: '00001', name: 'Phường Phúc Xá' },
-    { code: '00004', name: 'Phường Trúc Bạch' },
-    { code: '00006', name: 'Phường Vĩnh Phúc' },
-    { code: '00007', name: 'Phường Cống Vị' },
-    { code: '00008', name: 'Phường Liễu Giai' },
-    { code: '00010', name: 'Phường Nguyễn Trung Trực' },
-    { code: '00013', name: 'Phường Quán Thánh' },
-    { code: '20201', name: 'Thị trấn Đức Phong' },
-    { code: '20202', name: 'Xã Đoàn Kết' },
+const hospitalOptions: CatalogItem[] = [
+    { code: '47001', name: 'Bệnh viện đa khoa Huyện Bù Đăng' },
+    { code: '01001', name: 'Bệnh viện Bạch Mai' },
+    { code: '79021', name: 'Bệnh viện Chợ Rẫy' },
 ];
 
 // --- UTILITY FUNCTIONS ---
@@ -91,14 +61,14 @@ const parseScannedData = (rawData: string) => {
         try {
             const insuranceNumber = parts[0];
             const name = decodeHex(parts[1]);
-            const dob = formatDateForInput(parts[2]);
+            const dob = parts[2]; 
             const genderCode = parts[3];
             const gender = genderCode === '1' ? 'Nam' : genderCode === '2' ? 'Nữ' : 'Khác';
             const address = decodeHex(parts[4]);
-            const placeCode = parts[5].replace(' - ', ' - '); 
-            const validFrom = formatDateForInput(parts[6]);
-            const validTo = formatDateForInput(parts[7]);
-            const fiveYearDate = formatDateForInput(parts[12]);
+            const placeCode = parts[5]; 
+            const validFrom = parts[6];
+            const validTo = parts[7];
+            const fiveYearDate = parts[12];
             const code = insuranceNumber.substring(0, 2); 
             const benefitCode = insuranceNumber.substring(2, 3);
             
@@ -107,19 +77,13 @@ const parseScannedData = (rawData: string) => {
             else if(benefitCode === '3') benefitRate = '95';
             else benefitRate = '80';
             
-            const currentYear = new Date().getFullYear();
-            const birthYear = parseInt(dob.split('-')[0] || '0');
-            const age = birthYear > 0 ? currentYear - birthYear : 0;
-
             return {
                 type: 'BHYT',
                 data: {
                     name: name,
                     dob: dob,
                     gender: gender as 'Nam' | 'Nữ' | 'Khác',
-                    workplace: address, 
                     address: address, 
-                    age: age,
                     patientType: 'Bảo hiểm',
                     insuranceNumber: insuranceNumber,
                     insuranceCode: code,
@@ -138,24 +102,15 @@ const parseScannedData = (rawData: string) => {
 
     // CCCD Pattern
     if (parts.length >= 6 && /^\d{12}$/.test(parts[0])) {
-        const dobDate = formatDateForInput(parts[3]);
-        const issueDate = formatDateForInput(parts[6]);
-        const genderStr = parts[4];
-        
-        let gender: 'Nam' | 'Nữ' | 'Khác' = 'Khác';
-        if (genderStr.toLowerCase() === 'nam') gender = 'Nam';
-        else if (genderStr.toLowerCase() === 'nữ') gender = 'Nữ';
-
         return {
             type: 'CCCD',
             data: {
                 identityCard: parts[0],
                 name: parts[2],
-                dob: dobDate,
-                gender: gender,
+                dob: parts[3],
+                gender: parts[4] as any,
                 address: parts[5],
-                identityIssueDate: issueDate,
-                age: new Date().getFullYear() - parseInt(dobDate.split('-')[0] || '0'),
+                identityIssueDate: parts[6],
                 patientType: 'Dịch vụ'
             }
         };
@@ -166,12 +121,6 @@ const parseScannedData = (rawData: string) => {
 
 // --- COMPONENT ---
 interface ExtendedFormData extends Patient {
-    email?: string;
-    nationality?: string;
-    province?: string;
-    ward?: string;
-    relativePhone?: string;
-    workplace?: string;
     identityIssueDate?: string;
     insuranceNumber?: string;
     insuranceRegDate?: string;
@@ -179,64 +128,24 @@ interface ExtendedFormData extends Patient {
     insuranceCode?: string;
     insuranceBenefit?: string;
     insurancePlace?: string;
-    insuranceArea?: string;
     insurance5Year?: string;
-    insuranceExempt?: string;
     regDate?: string;
     regDepartment?: string;
     regRoom?: string;
-    regReason?: string;
-    regPriority?: boolean;
-    isTransfer?: boolean;
-    transferHospital?: string;
-    transferDiagnosis?: string;
-    transferFile?: string;
 }
 
 const emptyPatient: ExtendedFormData = {
     id: '', recordNumber: '', name: '', dob: '', age: 0, gender: 'Nam',
     ethnicity: 'Kinh', occupation: '', address: '', phone: '', lastVisit: '',
     patientType: 'Dịch vụ', identityCard: '', relativeInfo: '', history: [],
-    regDate: new Date().toISOString().slice(0, 10),
+    regDate: new Date().toLocaleDateString('vi-VN'),
     regDepartment: 'Khoa Khám Bệnh',
     regRoom: '',
-    regReason: '',
-    regPriority: false,
-    isTransfer: false
-};
-
-// Toast Component
-const Toast: React.FC<{ toast: { id: number; type: string; message: string } | null, onClose: () => void }> = ({ toast, onClose }) => {
-    useEffect(() => {
-        if (toast) {
-            const timer = setTimeout(onClose, 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [toast, onClose]);
-
-    if (!toast) return null;
-
-    const bgClass = toast.type === 'success' ? 'bg-green-500' : toast.type === 'error' ? 'bg-red-500' : 'bg-blue-500';
-    const icon = toast.type === 'success' ? <CheckCircleIcon className="w-6 h-6 text-white"/> : <ExclamationCircleIcon className="w-6 h-6 text-white"/>;
-
-    return (
-        <div className={`fixed top-4 right-4 z-[100] flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-white animate-fade-in-up ${bgClass}`}>
-            {icon}
-            <div>
-                <h4 className="font-bold text-sm uppercase">{toast.type === 'success' ? 'Thành công' : 'Thông báo'}</h4>
-                <p className="text-sm">{toast.message}</p>
-            </div>
-            <button onClick={onClose} className="ml-2 hover:bg-white/20 rounded-full p-1">
-                <XIcon className="w-4 h-4"/>
-            </button>
-        </div>
-    );
 };
 
 const RegistrationView: React.FC = () => {
     const { patientId } = useParams<{ patientId: string }>();
     const navigate = useNavigate();
-    const { openPdf } = usePdfPreview();
     
     const [formData, setFormData] = useState<ExtendedFormData>(emptyPatient);
     const [mode, setMode] = useState<'VIEW' | 'EDIT' | 'ADD'>('ADD');
@@ -250,29 +159,17 @@ const RegistrationView: React.FC = () => {
         setToast({ id: Date.now(), type, message });
     };
 
-    // Load Patient Data
     useEffect(() => {
         const loadPatientData = async () => {
             if (patientId) {
                 setIsLoading(true);
                 try {
                     const found = await receptionService.getPatientByRecordNumber(patientId);
-                    
                     if (found) {
-                        // Data cleanup/mapping
-                        let dobStr = found.dob;
-                        // Attempt to parse DOB for input field yyyy-mm-dd
-                        dobStr = formatDateForInput(dobStr);
-
                         const loadedData: ExtendedFormData = {
-                            ...emptyPatient, // Defaults
+                            ...emptyPatient,
                             ...found,
-                            dob: dobStr,
-                            regDate: new Date().toISOString().slice(0, 10),
-                            // Mock Insurance Data if needed
-                            insuranceNumber: found.patientType === 'Bảo hiểm' ? 'GD475702196755770003' : '',
-                            insuranceCode: found.patientType === 'Bảo hiểm' ? 'GD' : '',
-                            insuranceBenefit: found.patientType === 'Bảo hiểm' ? '80' : '',
+                            regDate: new Date().toLocaleDateString('vi-VN'),
                         };
                         setFormData(loadedData);
                         setOriginalData(JSON.parse(JSON.stringify(loadedData)));
@@ -282,8 +179,7 @@ const RegistrationView: React.FC = () => {
                         setMode('ADD');
                     }
                 } catch (error) {
-                    console.error("Error fetching patient:", error);
-                    showToast('error', 'Lỗi khi tải dữ liệu bệnh nhân');
+                    showToast('error', 'Lỗi khi tải dữ liệu');
                 } finally {
                     setIsLoading(false);
                 }
@@ -297,73 +193,38 @@ const RegistrationView: React.FC = () => {
                 });
             }
         };
-
         loadPatientData();
     }, [patientId]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        const { name, value, type } = e.target;
-        const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
-        setFormData(prev => ({ ...prev, [name]: val }));
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleIdentityInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = e.target.value.replace(/\D/g, ''); // Only numbers
-        if (val.length <= 12) {
-            setFormData(prev => ({ ...prev, identityCard: val }));
-        }
-    };
-
-    const handleDobChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = e.target.value;
-        let age = 0;
-        if (val) {
-            const year = parseInt(val.split('-')[0]);
-            if (!isNaN(year)) age = new Date().getFullYear() - year;
-        }
-        setFormData(prev => ({ ...prev, dob: val, age }));
-    };
-
-    // Scanner Handler
     const handleScan = async (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
             const rawString = searchQuery.trim();
             if (!rawString) return;
 
             const parsed = parseScannedData(rawString);
-            
             if (parsed) {
-                const { insuranceNumber, identityIssueDate, ...pData } = parsed.data as any;
-                setFormData(prev => ({
-                    ...prev,
-                    ...pData,
-                    identityIssueDate: identityIssueDate || prev.identityIssueDate,
-                    insuranceNumber: insuranceNumber || prev.insuranceNumber
-                }));
-                
+                setFormData(prev => ({ ...prev, ...parsed.data }));
                 setSearchQuery('');
                 showToast('success', `Đã quét thành công thẻ ${parsed.type}!`);
-                
-                if (mode === 'VIEW') {
-                    setOriginalData(JSON.parse(JSON.stringify(formData))); 
-                    setMode('EDIT'); 
-                }
+                if (mode === 'VIEW') setMode('EDIT'); 
             } else {
-                // Search via Service
                 try {
                     setIsLoading(true);
                     const found = await receptionService.getPatientByRecordNumber(rawString);
-                    
                     if (found) {
                         navigate(`/reception/register/${found.id}`);
                         setSearchQuery('');
-                        showToast('success', 'Đã tìm thấy bệnh nhân.');
                     } else {
                         setSearchQuery(''); 
-                        showToast('error', 'Không tìm thấy dữ liệu hoặc sai định dạng!');
+                        showToast('error', 'Không tìm thấy dữ liệu!');
                     }
                 } catch (error) {
-                    showToast('error', 'Lỗi kết nối khi tìm kiếm.');
+                    showToast('error', 'Lỗi kết nối.');
                 } finally {
                     setIsLoading(false);
                 }
@@ -371,31 +232,18 @@ const RegistrationView: React.FC = () => {
         }
     };
 
-    // Save Handler using Service
     const handleSave = async () => {
         if (!formData.name) { showToast('error', "Vui lòng nhập tên bệnh nhân"); return; }
-        if (formData.identityCard && !/^\d{12}$/.test(formData.identityCard)) {
-            showToast('error', 'CCCD không hợp lệ (Phải 12 số)');
-            return;
-        }
-        
         setIsSaving(true);
         try {
             if (mode === 'ADD') {
-                const newPatient = await receptionService.createPatient(formData);
-                showToast('success', 'Đã tạo hồ sơ và đăng ký khám thành công!');
-                setFormData(prev => ({ ...prev, ...newPatient }));
-                navigate(`/reception/register/${newPatient.id}`, { replace: true });
+                await receptionService.createPatient(formData);
+                showToast('success', 'Đã tạo hồ sơ thành công!');
             } else {
-                const updated = await receptionService.updatePatient(formData.id, formData);
-                showToast('success', 'Cập nhật thông tin thành công!');
-                setFormData(prev => ({ ...prev, ...updated }));
+                await receptionService.updatePatient(formData.id, formData);
+                showToast('success', 'Cập nhật thành công!');
             }
-            
-            setOriginalData(JSON.parse(JSON.stringify(formData)));
             setMode('VIEW');
-        } catch (error: any) {
-            showToast('error', error.message || "Lỗi khi lưu dữ liệu.");
         } finally {
             setIsSaving(false);
         }
@@ -403,409 +251,115 @@ const RegistrationView: React.FC = () => {
     
     const handleCancel = () => {
         if (mode === 'ADD') {
-            setFormData({
-                ...emptyPatient,
-                id: `BN${Date.now().toString().slice(-6)}`,
-                recordNumber: `REC${Date.now().toString().slice(-6)}`,
-            });
+            setFormData({...emptyPatient, id: `BN${Date.now().toString().slice(-6)}`, recordNumber: `REC${Date.now().toString().slice(-6)}`});
         } else if (mode === 'EDIT' && originalData) {
             setFormData(originalData);
             setMode('VIEW');
         }
     };
     
-    // Mock BHYT Check
-    const handleCheckIn = () => {
-        if (!formData.insuranceNumber) {
-            showToast('error', 'Vui lòng nhập số thẻ BHYT để kiểm tra.');
-            return;
-        }
-        setIsSaving(true);
-        setTimeout(() => {
-            setIsSaving(false);
-            showToast('success', 'Thẻ hợp lệ. Đang tham gia BHYT.');
-            setFormData(prev => ({
-                ...prev,
-                insuranceRegDate: '2023-01-01',
-                insuranceExp: '2023-12-31',
-                insurance5Year: '2020-05-01'
-            }));
-        }, 1000);
-    };
-
-    // Combobox Configs
-    const commonColumns: ComboboxColumn<CatalogItem>[] = [
-        { key: 'code', label: 'Mã', width: '30%', className: 'font-mono text-xs text-slate-500' },
-        { key: 'name', label: 'Tên', width: '70%', className: 'font-medium' },
-    ];
-    const hospitalColumns: ComboboxColumn<CatalogItem>[] = [
-        { key: 'code', label: 'Mã', width: '20%', className: 'font-mono text-xs text-slate-500' },
-        { key: 'name', label: 'Tên bệnh viện', width: '80%', className: 'font-medium' },
-    ];
-    const hospitalOptions: CatalogItem[] = [
-        { code: '47001', name: 'Bệnh viện đa khoa Huyện Bù Đăng' },
-        { code: '01001', name: 'Bệnh viện Bạch Mai' },
-        { code: '79021', name: 'Bệnh viện Chợ Rẫy' },
-    ];
-    const areaOptions: CatalogItem[] = [
-        { code: 'K1', name: 'K1 - Khu vực đặc biệt khó khăn' },
-        { code: 'K2', name: 'K2 - Khu vực đặc biệt khó khăn' },
-        { code: 'K3', name: 'K3 - Khu vực sinh sống' },
-    ];
-
     const isEditable = mode !== 'VIEW';
-
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                <span className="ml-3 text-slate-500">Đang tải hồ sơ...</span>
-            </div>
-        );
-    }
 
     return (
         <div className="flex flex-col h-full gap-4 pb-10">
-            <Toast toast={toast} onClose={() => setToast(null)} />
-
             {/* --- TOP ACTION BAR --- */}
             <div className="flex-shrink-0 bg-white dark:bg-slate-800 px-4 py-4 md:px-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
                     <h1 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                         <PlusIcon className="w-7 h-7 text-blue-600"/>
-                        <span className="hidden sm:inline">{mode === 'ADD' ? 'Đăng ký mới' : 'Hồ sơ bệnh nhân'}</span>
+                        <span>{mode === 'ADD' ? 'Đăng ký mới' : 'Hồ sơ bệnh nhân'}</span>
                     </h1>
-                    {formData.patientType && (
-                        <span className={`px-3 py-1 rounded-full text-sm font-bold border ${formData.patientType === 'Bảo hiểm' ? 'bg-green-100 text-green-700 border-green-300' : 'bg-slate-100 text-slate-700 border-slate-300'}`}>
-                            {formData.patientType}
-                        </span>
-                    )}
                 </div>
 
-                <div className="flex-1 w-full md:max-w-lg relative group order-3 md:order-2">
+                <div className="flex-1 w-full md:max-w-lg relative order-3 md:order-2">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <QrcodeIcon className={`h-6 w-6 ${searchQuery ? 'text-blue-500 animate-pulse' : 'text-slate-400'}`} />
                     </div>
                     <input
                         type="text"
-                        className="block w-full pl-12 pr-16 py-2.5 text-base border border-slate-300 dark:border-slate-600 rounded-lg leading-5 bg-slate-50 dark:bg-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-150 ease-in-out shadow-sm"
-                        placeholder="Quét QR CCCD / BHYT hoặc nhập Mã BN..."
+                        className="block w-full pl-12 pr-4 py-2.5 text-base border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 font-bold"
+                        placeholder="Quét QR CCCD / BHYT..."
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         onKeyDown={handleScan}
-                        autoFocus
                     />
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                        <span className="text-xs font-bold text-slate-400 border border-slate-300 rounded px-1.5 py-0.5 bg-white">Enter</span>
-                    </div>
                 </div>
 
                 <div className="flex gap-3 w-full md:w-auto justify-end order-2 md:order-3">
                     {isEditable ? (
                         <>
-                            <ActionButton 
-                                label={isSaving ? "Đang lưu..." : "Lưu phiếu"} 
-                                icon={isSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : <SaveIcon className="w-5 h-5"/>} 
-                                onClick={handleSave} 
-                                disabled={isSaving}
-                                className="bg-blue-600 hover:bg-blue-700 text-white py-2"
-                            />
-                            <ActionButton 
-                                label="Hủy" 
-                                icon={<BanIcon className="w-5 h-5"/>} 
-                                onClick={handleCancel} 
-                                className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-red-600 py-2 transition-colors shadow-sm"
-                            />
+                            <ActionButton label={isSaving ? "Đang lưu..." : "Lưu hồ sơ"} icon={<SaveIcon className="w-5 h-5"/>} onClick={handleSave} disabled={isSaving} className="bg-blue-600 text-white" />
+                            <ActionButton label="Hủy" icon={<BanIcon className="w-5 h-5"/>} onClick={handleCancel} className="bg-white border border-slate-300 text-slate-700" />
                         </>
                     ) : (
                         <>
-                            <ActionButton label="Thêm mới" icon={<PlusIcon className="w-5 h-5"/>} onClick={() => {navigate('/reception/register'); setMode('ADD');}} className="bg-green-600 hover:bg-green-700 text-white py-2"/>
-                            <ActionButton label="Sửa" icon={<PencilIcon className="w-5 h-5"/>} onClick={() => setMode('EDIT')} className="bg-amber-500 hover:bg-amber-600 text-white py-2"/>
-                            <ActionButton label="In" icon={<PrinterIcon className="w-5 h-5"/>} onClick={() => {}} className="bg-slate-600 hover:bg-slate-700 text-white py-2 hidden sm:flex"/>
+                            <ActionButton label="Sửa" icon={<PencilIcon className="w-5 h-5"/>} onClick={() => setMode('EDIT')} className="bg-amber-500 text-white"/>
+                            <ActionButton label="Thêm mới" icon={<PlusIcon className="w-5 h-5"/>} onClick={() => setMode('ADD')} className="bg-green-600 text-white"/>
                         </>
                     )}
                 </div>
             </div>
 
-            {/* --- MAIN CONTENT GRID --- */}
-            <div className="flex-1 overflow-hidden">
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-full">
-                    
-                    {/* LEFT COLUMN: INFO FORM (75%) */}
-                    <div className="lg:col-span-3 flex flex-col h-full overflow-y-auto pr-1 pb-40 custom-scrollbar">
-                        
-                        <div className={`bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 relative space-y-6 ${isEditable ? 'ring-2 ring-blue-100 dark:ring-blue-900' : ''}`}>
+            {/* --- MAIN FORM --- */}
+            <div className="flex-1 overflow-y-auto">
+                <div className={`bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 space-y-8 ${isEditable ? 'ring-2 ring-blue-100' : ''}`}>
+                    {/* Hành chính */}
+                    <section>
+                        <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4 border-b pb-2 flex items-center gap-2 uppercase tracking-wide">
+                            <UserGroupIcon className="w-5 h-5 text-blue-500"/> Thông tin Hành chính
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                            <FormInput label="Mã BN" name="id" value={formData.id} readOnly className="bg-slate-100 font-mono" containerClassName="md:col-span-1" />
+                            <FormInput label="Số Hồ sơ" name="recordNumber" value={formData.recordNumber} readOnly className="bg-slate-100 font-mono text-red-600" containerClassName="md:col-span-1" />
+                            <FormInput label="Họ và tên" name="name" value={formData.name} onChange={handleInputChange} readOnly={!isEditable} className="font-bold uppercase text-blue-700" containerClassName="md:col-span-2" />
+                            <FormDateInput label="Ngày sinh *" name="dob" value={formData.dob} onChange={handleInputChange} readOnly={!isEditable} containerClassName="md:col-span-1" />
+                            <FormSelect label="Giới tính" name="gender" value={formData.gender} onChange={handleInputChange} disabled={!isEditable} containerClassName="md:col-span-1">
+                                <option value="Nam">Nam</option>
+                                <option value="Nữ">Nữ</option>
+                                <option value="Khác">Khác</option>
+                            </FormSelect>
                             
-                            {/* SECTION 1: PERSONAL INFO */}
-                            <div>
-                                <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4 border-b pb-2 flex items-center gap-2 text-base uppercase tracking-wide">
-                                    <UserGroupIcon className="w-5 h-5 text-blue-500"/> Thông tin Hành chính
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                                    <div className="col-span-1 md:col-span-1">
-                                        <FormInput label="Mã Bệnh nhân" name="id" value={formData.id} readOnly className="bg-slate-100 font-mono font-bold text-slate-600 text-sm h-10"/>
-                                    </div>
-                                    <div className="col-span-1 md:col-span-1">
-                                        <FormInput label="Mã Hồ sơ" name="recordNumber" value={formData.recordNumber} readOnly className="bg-slate-100 font-mono font-bold text-red-600 text-sm h-10"/>
-                                    </div>
-                                    <div className="col-span-1 md:col-span-2">
-                                        <FormInput label="Họ và tên" name="name" value={formData.name} onChange={handleInputChange} readOnly={!isEditable} className="font-bold uppercase text-blue-700 h-10"/>
-                                    </div>
-                                    <div className="col-span-1 md:col-span-1">
-                                        <FormInput label="Ngày sinh" name="dob" type="date" value={formData.dob} onChange={handleDobChange} readOnly={!isEditable} className="h-10"/>
-                                    </div>
-                                    <div className="col-span-1 md:col-span-1 flex gap-2">
-                                        <div className="w-16 md:w-20">
-                                            <FormInput label="Tuổi" name="age" value={formData.age} readOnly className="bg-slate-100 font-bold text-center h-10"/>
-                                        </div>
-                                        <div className="flex-1">
-                                            <FormSelect label="Giới tính" name="gender" value={formData.gender} onChange={handleInputChange} disabled={!isEditable} className="h-10">
-                                                <option value="Nam">Nam</option>
-                                                <option value="Nữ">Nữ</option>
-                                                <option value="Khác">Khác</option>
-                                            </FormSelect>
-                                        </div>
-                                    </div>
-
-                                    <div className="col-span-1 md:col-span-2">
-                                        <FormInput 
-                                            label="CCCD/CMND" 
-                                            name="identityCard" 
-                                            value={formData.identityCard} 
-                                            onChange={(e) => {
-                                                const val = e.target.value.replace(/\D/g, '');
-                                                if (val.length <= 12) setFormData(prev => ({ ...prev, identityCard: val }));
-                                            }} 
-                                            readOnly={!isEditable} 
-                                            className="font-mono h-10 font-bold text-lg text-blue-700 uppercase"
-                                            maxLength={12}
-                                        />
-                                    </div>
-                                    <div className="col-span-1 md:col-span-1">
-                                        <FormInput label="Ngày cấp" name="identityIssueDate" type="date" value={formData.identityIssueDate} onChange={handleInputChange} readOnly={!isEditable} className="h-10"/>
-                                    </div>
-                                    <div className="col-span-1 md:col-span-1">
-                                        <FormSelect label="Dân tộc" name="ethnicity" value={formData.ethnicity} onChange={handleInputChange} disabled={!isEditable} className="h-10">
-                                            <option value="Kinh">Kinh</option>
-                                            <option value="Khác">Khác</option>
-                                        </FormSelect>
-                                    </div>
-                                    
-                                    <div className="col-span-1 md:col-span-1 relative z-20">
-                                        <Combobox<CatalogItem>
-                                            label="Nghề nghiệp"
-                                            value={formData.occupation}
-                                            onChange={(val) => setFormData(prev => ({...prev, occupation: val}))}
-                                            options={occupationOptions}
-                                            columns={commonColumns}
-                                            disabled={!isEditable}
-                                            placeholder="Chọn..."
-                                            className="h-10"
-                                            displayValue={item => item.name}
-                                        />
-                                    </div>
-                                    <div className="col-span-1 md:col-span-1">
-                                        <FormInput label="Điện thoại" name="phone" value={formData.phone} onChange={handleInputChange} readOnly={!isEditable} className="h-10"/>
-                                    </div>
-
-                                    {/* Address */}
-                                    <div className="col-span-1 md:col-span-2 relative z-10">
-                                        <Combobox<CatalogItem>
-                                            label="Tỉnh / TP"
-                                            value={formData.province}
-                                            onChange={(val) => setFormData(prev => ({...prev, province: val}))}
-                                            options={provinceOptions}
-                                            columns={commonColumns}
-                                            disabled={!isEditable}
-                                            placeholder="Chọn Tỉnh/TP..."
-                                            className="h-10"
-                                            displayValue={item => item.name}
-                                        />
-                                    </div>
-                                    <div className="col-span-1 md:col-span-2 relative z-10">
-                                        <Combobox<CatalogItem>
-                                            label="Phường / Xã"
-                                            value={formData.ward}
-                                            onChange={(val) => setFormData(prev => ({...prev, ward: val}))}
-                                            options={wardOptions}
-                                            columns={commonColumns}
-                                            disabled={!isEditable}
-                                            placeholder="Chọn Phường/Xã..."
-                                            className="h-10"
-                                            displayValue={item => item.name}
-                                        />
-                                    </div>
-                                    <div className="col-span-1 md:col-span-2">
-                                        <FormInput label="Địa chỉ chi tiết" name="address" value={formData.address} onChange={handleInputChange} readOnly={!isEditable} className="h-10"/>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* SECTION 2: REGISTRATION INFO */}
-                            <div className="pt-4 border-t border-dashed border-slate-300 dark:border-slate-600">
-                                <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2 text-base uppercase tracking-wide">
-                                    <DocumentTextIcon className="w-5 h-5 text-green-500"/> Thông tin Đăng ký khám
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-6 gap-x-4 gap-y-4">
-                                    <div className="col-span-1 md:col-span-2">
-                                        <FormSelect label="Đối tượng" name="patientType" value={formData.patientType} onChange={handleInputChange} disabled={!isEditable} className="h-10 font-bold text-blue-700">
-                                            <option value="Dịch vụ">Dịch vụ</option>
-                                            <option value="Bảo hiểm">Bảo hiểm Y tế</option>
-                                            <option value="Ưu tiên">Ưu tiên (Người già, TE)</option>
-                                        </FormSelect>
-                                    </div>
-                                    <div className="col-span-1 md:col-span-1">
-                                        <FormInput label="Ngày đăng ký" name="regDate" type="date" value={formData.regDate} onChange={handleInputChange} readOnly={!isEditable} className="h-10"/>
-                                    </div>
-                                    <div className="col-span-1 md:col-span-3">
-                                        <FormSelect label="Khoa / Phòng khám" name="regDepartment" value={formData.regDepartment} onChange={handleInputChange} disabled={!isEditable} className="h-10">
-                                            <option>Khoa Khám Bệnh - PK Nội TQ</option>
-                                            <option>Khoa Khám Bệnh - PK Ngoại</option>
-                                            <option>Khoa Nhi</option>
-                                            <option>Sản Phụ Khoa</option>
-                                        </FormSelect>
-                                    </div>
-
-                                    <div className="col-span-1 md:col-span-6 mt-2">
-                                        <label className="block font-bold text-slate-700 dark:text-slate-300 mb-2 text-sm">Lý do khám / Triệu chứng ban đầu</label>
-                                        <textarea 
-                                            name="regReason"
-                                            value={formData.regReason}
-                                            onChange={handleInputChange}
-                                            readOnly={!isEditable}
-                                            rows={3}
-                                            className="w-full p-3 text-sm bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
-                                            placeholder="Mô tả triệu chứng..."
-                                        />
-                                    </div>
-                                </div>
-                            </div>
+                            <FormInput label="Số CCCD" name="identityCard" value={formData.identityCard} onChange={handleInputChange} readOnly={!isEditable} className="font-mono" containerClassName="md:col-span-2" />
+                            <FormDateInput label="Ngày cấp CCCD" name="identityIssueDate" value={formData.identityIssueDate} onChange={handleInputChange} readOnly={!isEditable} containerClassName="md:col-span-1" />
+                            <FormInput label="Điện thoại" name="phone" value={formData.phone} onChange={handleInputChange} readOnly={!isEditable} containerClassName="md:col-span-1" />
+                            <FormInput label="Địa chỉ" name="address" value={formData.address} onChange={handleInputChange} readOnly={!isEditable} containerClassName="md:col-span-2" />
                         </div>
-                    </div>
+                    </section>
 
-                    {/* RIGHT COLUMN: INSURANCE DETAILS (25%) */}
-                    <div className="lg:col-span-1 flex flex-col h-full gap-4 overflow-y-auto">
-                        {/* INSURANCE CARD VISUAL */}
-                        {formData.patientType === 'Bảo hiểm' && (
-                            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl shadow-sm border border-blue-200 dark:border-blue-800 flex flex-col shrink-0 overflow-hidden relative transition-all animate-fade-in">
-                                <div className="bg-blue-600 text-white p-3 flex justify-between items-center">
-                                    <h3 className="font-bold text-sm uppercase flex items-center gap-2">
-                                        <CreditCardIcon className="w-5 h-5"/> Thông tin thẻ BHYT
-                                    </h3>
-                                    <span className="text-xs bg-blue-500 px-2 py-0.5 rounded">Còn hiệu lực</span>
-                                </div>
-                                
-                                <div className="p-4 space-y-3 text-sm">
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase">Số thẻ</label>
-                                        <div className="flex gap-2">
-                                            <input 
-                                                className="w-full font-mono font-bold text-base text-blue-700 bg-white border border-blue-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                                                value={formData.insuranceNumber} 
-                                                readOnly={!isEditable}
-                                                name="insuranceNumber"
-                                                onChange={handleInputChange}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-5 gap-2">
-                                        <div className="col-span-1">
-                                            <label className="text-xs text-slate-600 block font-bold">Mã</label>
-                                            <input className="w-full text-sm border border-slate-300 bg-white rounded px-1 py-1 font-bold text-slate-800" value={formData.insuranceCode} readOnly={!isEditable} name="insuranceCode" onChange={handleInputChange} />
-                                        </div>
-                                        <div className="col-span-1">
-                                            <label className="text-xs text-slate-600 block font-bold">Hưởng</label>
-                                            <div className="relative">
-                                                <input className="w-full text-sm border border-slate-300 bg-white rounded px-1 py-1 font-bold text-center text-slate-800" value={formData.insuranceBenefit} readOnly={!isEditable} name="insuranceBenefit" onChange={handleInputChange} />
-                                                <span className="absolute right-0.5 top-1 text-[8px] text-slate-500">%</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <label className="text-xs text-slate-600 block">Ngày đăng ký</label>
-                                            <input className="w-full text-sm border border-slate-300 bg-white rounded px-1 py-1 text-slate-800" value={formData.insuranceRegDate} readOnly={!isEditable} name="insuranceRegDate" onChange={handleInputChange} placeholder="yyyy-mm-dd" />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs text-slate-600 block">Ngày hết hạn</label>
-                                            <input className="w-full text-sm border border-slate-300 bg-white rounded px-1 py-1 text-slate-800" value={formData.insuranceExp} readOnly={!isEditable} name="insuranceExp" onChange={handleInputChange} placeholder="yyyy-mm-dd" />
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-1">
-                                        <label className="text-xs text-slate-600 block">Nơi đăng ký KCB Ban đầu</label>
-                                        <div className="flex gap-2">
-                                            <div className="flex-1 relative">
-                                                <Combobox<CatalogItem>
-                                                    value={formData.insurancePlace}
-                                                    onChange={(val) => setFormData(prev => ({...prev, insurancePlace: val}))}
-                                                    options={hospitalOptions}
-                                                    columns={hospitalColumns}
-                                                    disabled={!isEditable}
-                                                    placeholder="Tên bệnh viện..."
-                                                    displayValue={item => item.name}
-                                                    className="h-[30px]"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-2 gap-2 mt-2">
-                                        <button onClick={handleCheckIn} disabled={!isEditable || isSaving} className="bg-blue-600 hover:bg-blue-700 text-white py-1.5 rounded text-xs font-bold shadow transition">
-                                            Check-In (BHXH)
-                                        </button>
-                                    </div>
-                                </div>
+                    {/* Bảo hiểm y tế */}
+                    {formData.patientType === 'Bảo hiểm' && (
+                        <section className="bg-blue-50 dark:bg-blue-900/10 p-5 rounded-xl border border-blue-100 dark:border-blue-800">
+                            <h3 className="font-bold text-blue-800 dark:text-blue-300 mb-4 flex items-center gap-2 uppercase text-sm">
+                                <CreditCardIcon className="w-5 h-5"/> Thông tin thẻ BHYT
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <FormInput label="Số thẻ BHYT" name="insuranceNumber" value={formData.insuranceNumber} onChange={handleInputChange} readOnly={!isEditable} className="font-mono font-bold" />
+                                <FormDateInput label="Từ ngày" name="insuranceRegDate" value={formData.insuranceRegDate} onChange={handleInputChange} readOnly={!isEditable} />
+                                <FormDateInput label="Đến ngày (Hết hạn)" name="insuranceExp" value={formData.insuranceExp} onChange={handleInputChange} readOnly={!isEditable} />
+                                <FormDateInput label="Ngày đủ 5 năm" name="insurance5Year" value={formData.insurance5Year} onChange={handleInputChange} readOnly={!isEditable} />
                             </div>
-                        )}
+                        </section>
+                    )}
 
-                        {/* HISTORY */}
-                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col flex-1 min-h-0">
-                            <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-between items-center shrink-0">
-                                <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2 text-sm">
-                                    <ClockIcon className="w-5 h-5 text-slate-500"/> Lịch sử khám
-                                </h3>
-                                <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">{formData.history?.length || 0}</span>
-                            </div>
-                            
-                            <div className="flex-1 overflow-y-auto p-0 custom-scrollbar">
-                                {formData.history && formData.history.length > 0 ? (
-                                    <table className="w-full text-left text-xs">
-                                        <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0 shadow-sm text-slate-500">
-                                            <tr>
-                                                <th className="p-3 font-semibold">Ngày</th>
-                                                <th className="p-3 font-semibold">Dịch vụ</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                                            {formData.history.map(h => (
-                                                <tr key={h.id} className="hover:bg-blue-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors group">
-                                                    <td className="p-3 align-top w-24">
-                                                        <div className="font-bold text-slate-800 dark:text-slate-200 text-sm">
-                                                            {formatDate(h.examDate.includes('/') ? h.examDate.split('/').reverse().join('-') : h.examDate)}
-                                                        </div>
-                                                        {/* Optional: Add day of week if needed */}
-                                                    </td>
-                                                    <td className="p-3 align-top">
-                                                        <div className="font-medium text-blue-600 dark:text-blue-400 text-sm">{h.examType}</div>
-                                                        <div className="text-xs text-slate-500">{h.doctor}</div>
-                                                        <div className="text-xs text-slate-400 italic truncate max-w-[150px] group-hover:whitespace-normal mt-1">{h.diagnosis}</div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center h-40 text-slate-400 p-6 text-center">
-                                        <DocumentTextIcon className="w-10 h-10 mb-2 opacity-20"/>
-                                        <p className="text-sm">Chưa có lịch sử khám.</p>
-                                    </div>
-                                )}
-                            </div>
+                    {/* Đăng ký khám */}
+                    <section>
+                        <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4 border-b pb-2 flex items-center gap-2 uppercase tracking-wide">
+                            <DocumentTextIcon className="w-5 h-5 text-green-500"/> Đăng ký khám
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <FormSelect label="Đối tượng" name="patientType" value={formData.patientType} onChange={handleInputChange} disabled={!isEditable}>
+                                <option value="Dịch vụ">Dịch vụ</option>
+                                <option value="Bảo hiểm">Bảo hiểm Y tế</option>
+                                <option value="Ưu tiên">Ưu tiên</option>
+                            </FormSelect>
+                            <FormDateInput label="Ngày đăng ký" name="regDate" value={formData.regDate} onChange={handleInputChange} readOnly={!isEditable} />
+                            <FormSelect label="Khoa phòng" name="regDepartment" value={formData.regDepartment} onChange={handleInputChange} disabled={!isEditable} containerClassName="md:col-span-2">
+                                <option>Khoa Khám Bệnh - PK Nội 01</option>
+                                <option>Khoa Nhi</option>
+                                <option>Khoa Sản</option>
+                            </FormSelect>
                         </div>
-                    </div>
+                    </section>
                 </div>
             </div>
         </div>

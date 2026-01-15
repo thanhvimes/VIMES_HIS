@@ -6,6 +6,8 @@ import StaffBookingFormView from './views/StaffBookingFormView';
 import BookingManagementView from './views/BookingManagementView';
 import BookingConfigurationView from './views/BookingConfigurationView';
 import ActiveRoomSetupView from './views/ActiveRoomSetupView';
+import BookingReportsView from './views/BookingReportsView';
+import ReceptionReportView from './views/ReceptionReportView'; // NEW
 
 const OnlineBooking: React.FC = () => {
   return (
@@ -14,7 +16,8 @@ const OnlineBooking: React.FC = () => {
       <Route path="dashboard" element={<BookingDashboardView />} />
       <Route path="register" element={<StaffBookingFormView />} />
       <Route path="management" element={<BookingManagementView />} />
-      <Route path="search" element={<BookingManagementView />} />
+      <Route path="reports" element={<BookingReportsView />} />
+      <Route path="reception-list" element={<ReceptionReportView />} />
       <Route path="active-rooms" element={<ActiveRoomSetupView />} />
       <Route path="config" element={<BookingConfigurationView />} />
     </Routes>
