@@ -1,5 +1,11 @@
-
 # TÀI LIỆU KỸ THUẬT: HỆ THỐNG QUẢN LÝ PHÒNG KHÁM (CLINICMS)
+
+> [!IMPORTANT]
+> Tài liệu kỹ thuật chi tiết về Kiến trúc hệ thống, Luồng dữ liệu và Mô tả từng File:
+> [TECHNICAL_ARCHITECTURE_DETAILED.md](file:///C:/Users/Thanhhv/.gemini/antigravity/brain/7576bd31-3d82-4d01-ba2c-d99a46cb93cd/technical_architecture_detailed.md)
+>
+> 📘 **Hướng dẫn sử dụng dành cho nhân viên vClinic:**
+> [USER_MANUAL_DETAILED.md](file:///C:/Users/Thanhhv/.gemini/antigravity/brain/7576bd31-3d82-4d01-ba2c-d99a46cb93cd/user_manual_detailed.md)
 
 ## 1. Hướng dẫn Đăng nhập thử nghiệm
 Hệ thống sử dụng cơ chế xác thực giả lập (Mock) để demo các kịch bản phân quyền.

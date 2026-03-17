@@ -17,18 +17,22 @@ const getEnv = (): any => {
 
 const env = getEnv();
 
-// CẤU HÌNH QUAN TRỌNG: Trỏ về Backend đang chạy ở port 8000
-// Nếu không tìm thấy biến môi trường, mặc định dùng localhost:8000
-const BASE_URL = env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+// CẤU HÌNH QUAN TRỌNG: API Base URL
+// Sử dụng relative URL để tự động kết nối với server hiện tại
+// Có thể override bằng VITE_API_BASE_URL trong .env nếu cần
+const BASE_URL = env.VITE_API_BASE_URL || '/api/v1';
 
 const TIMEOUT = Number(env.VITE_API_TIMEOUT) || 30000;
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
+  skipAuthRedirect?: boolean;
+  responseType?: 'json' | 'blob' | 'text';
 }
 
+
 class ApiClient {
-  private baseUrl: string;
+  public baseUrl: string;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
@@ -49,8 +53,8 @@ class ApiClient {
   }
 
   private async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-    const { params, headers, ...restOptions } = options;
-    
+    const { params, headers, skipAuthRedirect, responseType = 'json', ...restOptions } = options;
+
     let url = `${this.baseUrl}${endpoint}`;
     if (params) {
       const queryParams = new URLSearchParams();
@@ -65,19 +69,32 @@ class ApiClient {
     }
 
     const token = this.getAuthToken();
+
+    // 🔍 DEBUG LOGGING
+    console.log('[apiClient] ========== REQUEST DEBUG ==========');
+    console.log('[apiClient] Endpoint:', endpoint);
+    console.log('[apiClient] Method:', options.method || 'GET');
+    console.log('[apiClient] localStorage.currentUser exists:', !!localStorage.getItem('currentUser'));
+    console.log('[apiClient] Token extracted:', token ? token.substring(0, 50) + '...' : 'NULL');
+
     const defaultHeaders: HeadersInit = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
+      ...(responseType === 'json' ? {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      } : {}),
       ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       ...headers,
     };
+
+    console.log('[apiClient] Headers:', JSON.stringify(defaultHeaders, null, 2));
+    console.log('[apiClient] ========================================');
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
 
     try {
       console.log(`[API Request] ${options.method || 'GET'} ${url}`);
-      
+
       const response = await fetch(url, {
         headers: defaultHeaders,
         signal: controller.signal,
@@ -88,13 +105,16 @@ class ApiClient {
 
       if (!response.ok) {
         if (response.status === 401) {
+          if (!skipAuthRedirect) {
             localStorage.removeItem('currentUser');
             window.location.href = '/';
-            throw new Error('Phiên đăng nhập hết hạn.');
+          }
+          const errorBody = await response.json().catch(() => ({}));
+          throw new Error(errorBody.error || errorBody.message || 'Phiên đăng nhập hết hạn.');
         }
 
         const errorBody = await response.json().catch(() => ({}));
-        const errorMessage = errorBody.message || `HTTP Error ${response.status}: ${response.statusText}`;
+        const errorMessage = errorBody.message || errorBody.error || `HTTP Error ${response.status}: ${response.statusText}`;
         console.error(`[API Error] ${errorMessage}`);
         throw new Error(errorMessage);
       }
@@ -103,12 +123,20 @@ class ApiClient {
         return {} as T;
       }
 
-      const data = await response.json();
-      return data;
+      let data;
+      if (responseType === 'blob') {
+        data = await response.blob();
+      } else if (responseType === 'text') {
+        data = await response.text();
+      } else {
+        data = await response.json();
+      }
+
+      return data as T;
     } catch (error: any) {
       clearTimeout(timeoutId);
       if (error.name === 'AbortError') {
-        throw new Error('Kết nối Backend thất bại (Timeout). Vui lòng kiểm tra Server 8000.');
+        throw new Error('Kết nối Backend thất bại (Timeout). Vui lòng kiểm tra Server 3000.');
       }
       console.error(`[API Exception] ${endpoint}:`, error);
       throw error;
@@ -120,32 +148,56 @@ class ApiClient {
   }
 
   public post<T>(endpoint: string, body: any, options?: RequestOptions): Promise<T> {
-    return this.request<T>(endpoint, { ...options, method: 'POST', body: JSON.stringify(body) });
+    return this.request<T>(endpoint, {
+      ...options,
+      method: 'POST',
+      body: JSON.stringify(body),
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+      }
+    });
   }
 
   public put<T>(endpoint: string, body: any, options?: RequestOptions): Promise<T> {
-    return this.request<T>(endpoint, { ...options, method: 'PUT', body: JSON.stringify(body) });
+    return this.request<T>(endpoint, {
+      ...options,
+      method: 'PUT',
+      body: JSON.stringify(body),
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+      }
+    });
   }
 
   public patch<T>(endpoint: string, body: any, options?: RequestOptions): Promise<T> {
-    return this.request<T>(endpoint, { ...options, method: 'PATCH', body: JSON.stringify(body) });
+    return this.request<T>(endpoint, {
+      ...options,
+      method: 'PATCH',
+      body: JSON.stringify(body),
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+      }
+    });
   }
 
   public delete<T>(endpoint: string, params?: RequestOptions['params'], options?: RequestOptions): Promise<T> {
     return this.request<T>(endpoint, { ...options, method: 'DELETE', params });
   }
-  
+
   public upload<T>(endpoint: string, formData: FormData, options?: RequestOptions): Promise<T> {
-      const { headers, ...rest } = options || {};
-      return this.request<T>(endpoint, {
-          ...rest,
-          method: 'POST',
-          body: formData,
-          headers: {
-              ...headers,
-              'Content-Type': undefined as any
-          }
-      });
+    const { headers, ...rest } = options || {};
+    return this.request<T>(endpoint, {
+      ...rest,
+      method: 'POST',
+      body: formData,
+      headers: {
+        ...headers,
+        'Content-Type': undefined as any
+      }
+    });
   }
 }
 

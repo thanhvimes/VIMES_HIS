@@ -6,7 +6,7 @@ import Header from './components/Header';
 import Login from './modules/login/Login';
 import GlobalLoading from './components/ui/GlobalLoading';
 import ChatWidget from './components/ChatWidget';
-import ToastContainer from './components/ui/ToastContainer';
+import { Toaster } from 'sonner';
 
 // --- LAZY LOAD MODULES ---
 const Dashboard = React.lazy(() => import('./modules/dashboard/Dashboard'));
@@ -36,9 +36,10 @@ const CommandCenter = React.lazy(() => import('./modules/command-center/index'))
 import { PdfPreviewProvider } from './contexts/PdfPreviewContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { useSystemStore } from './stores/useSystemStore';
-import { MasterDataProvider } from './contexts/MasterDataContext'; 
+import { MasterDataProvider } from './contexts/MasterDataContext';
 import { SessionProvider, useSession } from './contexts/SessionContext';
 import { VoiceInputProvider } from './contexts/VoiceInputContext';
+import { CatalogProvider } from './contexts/CatalogContext';
 import { socketService } from './services/socketService';
 
 // Module Title Map
@@ -72,13 +73,14 @@ const WorkspaceLayout: React.FC = () => {
   const { isSidebarCollapsed, toggleSidebar, isMobileSidebarOpen, setMobileSidebarOpen, getModuleNav } = useSystemStore();
   const [isChatVisible, setIsChatVisible] = useState(false);
   const location = useLocation();
-  
-  const isFullWidthPage = location.pathname.includes('/consultation/record') || 
-                          location.pathname.includes('/inpatient-treatment/record') ||
-                          location.pathname.includes('/documents') ||
-                          location.pathname.includes('/reports') ||
-                          location.pathname.includes('/telemedicine/live') ||
-                          location.pathname.includes('/command-center');
+
+  const isFullWidthPage = location.pathname.includes('/consultation/record') ||
+    location.pathname.includes('/inpatient-treatment/record') ||
+    location.pathname.includes('/documents') ||
+    location.pathname.includes('/reports') ||
+    location.pathname.includes('/telemedicine/live') ||
+    location.pathname.includes('/reception') ||
+    location.pathname.includes('/command-center');
 
   const { pageTitle, moduleNavItems } = useMemo(() => {
     const currentModuleRoot = location.pathname.split('/')[1];
@@ -90,24 +92,24 @@ const WorkspaceLayout: React.FC = () => {
   return (
     <div className="flex h-screen bg-background dark:bg-dark-background">
       {!location.pathname.includes('/command-center') && (
-        <Sidebar 
-          isMobileOpen={isMobileSidebarOpen} 
+        <Sidebar
+          isMobileOpen={isMobileSidebarOpen}
           setMobileOpen={setMobileSidebarOpen}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={toggleSidebar}
           moduleNavItems={moduleNavItems}
         />
       )}
-      
+
       <div className="flex-1 flex flex-col overflow-hidden relative">
-        <Header 
-            pageTitle={pageTitle} 
-            onToggleSidebar={() => setMobileSidebarOpen(!isMobileSidebarOpen)}
-            onLogout={logout}
-            showSidebarToggle={!location.pathname.includes('/command-center')}
-            isChatVisible={isChatVisible}
-            onToggleChat={() => setIsChatVisible(!isChatVisible)}
-            showBranding={false} 
+        <Header
+          pageTitle={pageTitle}
+          onToggleSidebar={() => setMobileSidebarOpen(!isMobileSidebarOpen)}
+          onLogout={logout}
+          showSidebarToggle={!location.pathname.includes('/command-center')}
+          isChatVisible={isChatVisible}
+          onToggleChat={() => setIsChatVisible(!isChatVisible)}
+          showBranding={false}
         />
         <main className={`flex-1 overflow-x-hidden overflow-y-auto ${isFullWidthPage ? '' : 'p-4 sm:p-6 lg:p-8'}`}>
           <Suspense fallback={<GlobalLoading />}>
@@ -115,7 +117,7 @@ const WorkspaceLayout: React.FC = () => {
           </Suspense>
         </main>
         {isChatVisible && <ChatWidget />}
-        <ToastContainer />
+
       </div>
     </div>
   );
@@ -127,21 +129,21 @@ const DashboardLayout: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen bg-background dark:bg-dark-background relative">
-      <Header 
-        onToggleSidebar={() => {}} 
-        onLogout={logout} 
-        showSidebarToggle={false} 
+      <Header
+        onToggleSidebar={() => { }}
+        onLogout={logout}
+        showSidebarToggle={false}
         showBranding={true}
         isChatVisible={isChatVisible}
         onToggleChat={() => setIsChatVisible(!isChatVisible)}
       />
       <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6 lg:p-8">
-         <Suspense fallback={<GlobalLoading message="Đang tải bảng điều khiển..." />}>
-            <Dashboard />
-         </Suspense>
+        <Suspense fallback={<GlobalLoading message="Đang tải bảng điều khiển..." />}>
+          <Dashboard />
+        </Suspense>
       </main>
       {isChatVisible && <ChatWidget />}
-      <ToastContainer />
+
     </div>
   );
 };
@@ -168,7 +170,7 @@ const StaffSystem: React.FC = () => {
         <Route path="/record-storage/*" element={<RecordStorage />} />
         <Route path="/admin/*" element={<Admin />} />
         <Route path="/management-reporting/*" element={<ManagementReporting />} />
-        <Route path="/insurance/*" element={<InsuranceModule />} /> 
+        <Route path="/insurance/*" element={<InsuranceModule />} />
         <Route path="/documents/*" element={<Documents />} />
         <Route path="/reports/*" element={<ReportsModule />} />
         <Route path="/command-center/*" element={<CommandCenter />} />
@@ -181,18 +183,34 @@ const StaffSystem: React.FC = () => {
 
 const MainApp: React.FC = () => {
   const { isAuthenticated, user } = useSession();
+  const location = useLocation();
+
   useEffect(() => {
     if (isAuthenticated && user) {
-        socketService.connect(user.userId);
+      socketService.connect(user.userId);
     }
   }, [isAuthenticated, user]);
 
+  // Check if current route is a portal route
+  const isPortalRoute = location.pathname.startsWith('/portal');
+
   return (
     <Routes>
-      <Route path="/portal/*" element={<Suspense fallback={<GlobalLoading message="Đang tải Cổng thông tin..." />}><Portal /></Suspense>} />
+      {/* Patient Portal - Independent routing with its own login */}
+      <Route path="/portal/*" element={
+        <Suspense fallback={<GlobalLoading message="Đang tải Cổng thông tin bệnh nhân..." />}>
+          <Portal />
+        </Suspense>
+      } />
+
+      {/* Staff System Routes */}
       <Route path="/" element={<Navigate to="/staff/login" replace />} />
-      <Route path="/staff/login" element={isAuthenticated ? <Navigate to="/staff-dashboard" replace /> : <Login onLogin={() => {}} />} />
-      <Route path="/*" element={isAuthenticated ? <StaffSystem /> : <Navigate to="/staff/login" replace />} />
+      <Route path="/staff/login" element={isAuthenticated ? <Navigate to="/staff-dashboard" replace /> : <Login onLogin={() => { }} />} />
+
+      {/* Staff wildcard - Only redirect to staff login if NOT a portal route */}
+      <Route path="*" element={
+        isPortalRoute ? null : (isAuthenticated ? <StaffSystem /> : <Navigate to="/staff/login" replace />)
+      } />
     </Routes>
   );
 }
@@ -210,17 +228,20 @@ const App: React.FC = () => {
   }, []);
 
   return (
-      <SessionProvider>
-        <NotificationProvider>
-          <MasterDataProvider>
+    <SessionProvider>
+      <NotificationProvider>
+        <MasterDataProvider>
+          <CatalogProvider>
             <PdfPreviewProvider>
               <VoiceInputProvider>
-                 <MainApp />
+                <MainApp />
+                <Toaster position="top-right" richColors />
               </VoiceInputProvider>
             </PdfPreviewProvider>
-          </MasterDataProvider>
-        </NotificationProvider>
-      </SessionProvider>
+          </CatalogProvider>
+        </MasterDataProvider>
+      </NotificationProvider>
+    </SessionProvider>
   );
 };
 

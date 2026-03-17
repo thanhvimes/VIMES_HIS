@@ -13,6 +13,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { socketService } from '../../../services/socketService';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useSession } from '../../../contexts/SessionContext';
 
 const DoctorStatCard = ({title, value, icon, color}: any) => (
     <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-between">
@@ -29,6 +30,7 @@ const DoctorStatCard = ({title, value, icon, color}: any) => (
 const DashboardView: React.FC = () => {
   const navigate = useNavigate();
   const { addNotification } = useNotification();
+  const { hasPermission } = useSession();
   
   // Chuyển sang State để có thể cập nhật Real-time
   const [waitingPatients, setWaitingPatients] = useState([
@@ -121,12 +123,14 @@ const DashboardView: React.FC = () => {
                                 <p className="text-sm text-slate-600 mt-1"><span className="text-slate-400">Lý do:</span> {p.reason}</p>
                             </div>
                         </div>
-                        <button 
-                            onClick={() => navigate(`/consultation/record/${p.id}`)}
-                            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md transition transform active:scale-95"
-                        >
-                            Khám ngay
-                        </button>
+                        {hasPermission('02.01') && (
+                            <button 
+                                onClick={() => navigate(`/consultation/record/${p.id}`)}
+                                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md transition transform active:scale-95"
+                            >
+                                Khám ngay
+                            </button>
+                        )}
                     </div>
                 ))}
             </div>

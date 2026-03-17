@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✅ vClinic - Fix Authentication</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .step {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 600;
+            width: 100%;
+            margin: 10px 0;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        button.success {
+            background: #27ae60;
+        }
+
+        button.danger {
+            background: #e74c3c;
+        }
+
+        .result {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .success-text {
+            color: #4ec9b0;
+        }
+
+        .error-text {
+            color: #f48771;
+        }
+
+        .info-text {
+            color: #569cd6;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>✅ vClinic Authentication Fix</h1>
+        <p style="text-align: center; color: #666; margin-bottom: 30px;">
+            Click nút bên dưới để test và fix authentication
+        </p>
+
+        <button onclick="runFullTest()" class="success">
+            🚀 Chạy Test Tự Động
+        </button>
+
+        <div id="result" class="result" style="display: none;"></div>
+
+        <div class="step" style="margin-top: 30px;">
+            <h3 style="margin-bottom: 10px;">📋 Hướng dẫn:</h3>
+            <ol style="margin-left: 20px; line-height: 1.8;">
+                <li>Click nút "Chạy Test Tự Động"</li>
+                <li>Đợi kết quả hiện ra</li>
+                <li>Nếu thấy "✅ SUCCESS" → Mọi thứ OK!</li>
+                <li>Nếu thấy lỗi → Chụp màn hình gửi cho tôi</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            const className = type === 'success' ? 'success-text' : type === 'error' ? 'error-text' : 'info-text';
+            resultDiv.innerHTML += `<span class="${className}">${message}</span>\n`;
+            resultDiv.scrollTop = resultDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('result').innerHTML = '';
+        }
+
+        async function runFullTest() {
+            clearLog();
+            log('🔍 vClinic Authentication Test', 'info');
+            log('=====================================\n', 'info');
+
+            // Step 1: Clear localStorage
+            log('Step 1: Clearing localStorage...', 'info');
+            localStorage.clear();
+            log('✅ Cleared\n', 'success');
+
+            // Step 2: Login
+            log('Step 2: Testing login...', 'info');
+            try {
+                const loginResponse = await fetch('http://localhost:3000/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: 'admin', password: 'Dunghoi1' })
+                });
+
+                if (!loginResponse.ok) {
+                    log(`❌ Login failed: ${loginResponse.status}`, 'error');
+                    return;
+                }
+
+                const loginData = await loginResponse.json();
+                if (!loginData.token) {
+                    log('❌ No token in response!', 'error');
+                    return;
+                }
+
+                log('✅ Login SUCCESS!', 'success');
+                log(`Token: ${loginData.token.substring(0, 50)}...\n`, 'info');
+
+                // Step 3: Save to localStorage (like authService does)
+                log('Step 3: Saving to localStorage...', 'info');
+                const userSession = {
+                    token: loginData.token,
+                    ...loginData.user
+                };
+                localStorage.setItem('currentUser', JSON.stringify(userSession));
+                log('✅ Saved to localStorage["currentUser"]\n', 'success');
+
+                // Step 4: Verify localStorage
+                log('Step 4: Verifying localStorage...', 'info');
+                const saved = localStorage.getItem('currentUser');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (parsed.token) {
+                        log('✅ Token exists in localStorage\n', 'success');
+                    } else {
+                        log('❌ No token in localStorage!', 'error');
+                        return;
+                    }
+                } else {
+                    log('❌ currentUser not found!', 'error');
+                    return;
+                }
+
+                // Step 5: Test schedule init WITH token
+                log('Step 5: Testing schedule init WITH token...', 'info');
+                const scheduleResponse = await fetch('http://localhost:3000/api/v1/schedule/init', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${loginData.token}`
+                    },
+                    body: JSON.stringify({ days: 30 })
+                });
+
+                log(`Response status: ${scheduleResponse.status}`, 'info');
+
+                if (scheduleResponse.ok) {
+                    const scheduleData = await scheduleResponse.json();
+                    log('✅ Schedule Init SUCCESS!', 'success');
+                    log(`Response: ${JSON.stringify(scheduleData, null, 2)}\n`, 'info');
+                } else {
+                    const errorData = await scheduleResponse.json();
+                    log(`❌ Schedule Init FAILED!`, 'error');
+                    log(`Error: ${JSON.stringify(errorData, null, 2)}\n`, 'error');
+                    return;
+                }
+
+                // Final result
+                log('=====================================', 'info');
+                log('🎉 ALL TESTS PASSED!', 'success');
+                log('=====================================\n', 'info');
+                log('✅ Backend API works perfectly!', 'success');
+                log('✅ Authentication works!', 'success');
+                log('✅ localStorage works!', 'success');
+                log('✅ Schedule initialization works!\n', 'success');
+                log('💡 If vClinic frontend still fails:', 'info');
+                log('   → Frontend code is not using apiClient correctly', 'info');
+                log('   → OR browser is serving old cached code', 'info');
+                log('\n📸 Chụp màn hình này và gửi cho tôi!', 'info');
+
+            } catch (error) {
+                log(`❌ ERROR: ${error.message}`, 'error');
+                log('\n💡 Possible issues:', 'info');
+                log('   1. Backend not running on port 3000', 'info');
+                log('   2. CORS issue', 'info');
+                log('   3. Network connection problem', 'info');
+            }
+        }
+    </script>
+</body>
+
+</html>

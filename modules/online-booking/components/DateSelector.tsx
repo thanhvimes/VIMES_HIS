@@ -19,8 +19,14 @@ const DateSelector: React.FC<DateSelectorProps> = ({ selectedDate, onSelect, day
         const now = new Date();
         for (let i = 0; i < daysCount; i++) {
             const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+            // Use local date format YYYY-MM-DD instead of toISOString() to avoid UTC conversion
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const localDateStr = `${year}-${month}-${day}`;
+
             result.push({
-                key: d.toISOString().split('T')[0],
+                key: localDateStr,
                 date: d,
                 isToday: i === 0
             });
@@ -45,19 +51,17 @@ const DateSelector: React.FC<DateSelectorProps> = ({ selectedDate, onSelect, day
                             key={item.key}
                             type="button"
                             onClick={() => onSelect(item.key)}
-                            className={`flex flex-col items-center justify-center h-14 rounded-xl border-2 transition-all duration-200 relative ${
-                                isSelected 
-                                ? 'border-teal-500 bg-teal-600 text-white shadow-lg z-10 scale-105' 
-                                : 'border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:border-teal-200 shadow-sm'
-                            }`}
+                            className={`flex flex-col items-center justify-center h-14 rounded-xl border-2 transition-all duration-200 relative ${isSelected
+                                    ? 'border-teal-500 bg-teal-600 text-white shadow-lg z-10 scale-105'
+                                    : 'border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:border-teal-200 shadow-sm'
+                                }`}
                         >
-                            <span className={`text-[9px] font-black uppercase ${
-                                isSelected ? 'text-teal-100' : isWeekend ? 'text-red-400' : 'text-slate-400'
-                            }`}>
+                            <span className={`text-[9px] font-black uppercase ${isSelected ? 'text-teal-100' : isWeekend ? 'text-red-400' : 'text-slate-400'
+                                }`}>
                                 {dayNames[dayOfWeek]}
                             </span>
                             <span className="text-lg font-black leading-none mt-0.5">{item.date.getDate()}</span>
-                            
+
                             {item.isToday && !isSelected && (
                                 <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full"></div>
                             )}

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { mockEquipment } from '../data';
-import { MedicalEquipment } from '../../types';
+import { MedicalEquipment } from '../../../types';
 import { 
     SearchIcon, 
     FilterIcon, 

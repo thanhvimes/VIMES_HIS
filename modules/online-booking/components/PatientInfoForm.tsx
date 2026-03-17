@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { LocationItem } from '../../../services/bookingService';
-import { FormInput, FormDateInput } from '../../../components/shared/forms';
+import { FormInput, FormDateInput, FormSelect } from '../../../components/shared/forms';
 
 interface PatientInfoFormProps {
     data: any;
@@ -12,18 +12,19 @@ interface PatientInfoFormProps {
 }
 
 const PatientInfoForm: React.FC<PatientInfoFormProps> = ({ data, errors, onChange, provinces, wards }) => {
-    const inputBaseClass = "font-bold text-slate-900 dark:text-white placeholder-slate-400 text-base shadow-sm rounded-xl uppercase";
+    // Standardize heights and aesthetics to be uniform and premium
+    const inputBaseClass = "h-11 bg-slate-50 dark:bg-slate-900/50 font-bold text-slate-900 dark:text-white placeholder-slate-400 text-base shadow-sm rounded-xl";
     const labelClass = "text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider";
 
     return (
         <div className="space-y-4">
-            {/* Hàng 1: Họ tên & Giới tính */}
+            {/* Row 1: Name & Gender */}
             <div className="grid grid-cols-12 gap-3">
                 <div className="col-span-8">
-                    <FormInput 
-                        label="Họ và tên bệnh nhân *" 
-                        name="name" 
-                        value={data.name} 
+                    <FormInput
+                        label="Họ và tên bệnh nhân *"
+                        name="name"
+                        value={data.name}
                         onChange={onChange}
                         className={inputBaseClass}
                         labelClassName={labelClass}
@@ -31,93 +32,103 @@ const PatientInfoForm: React.FC<PatientInfoFormProps> = ({ data, errors, onChang
                     />
                 </div>
                 <div className="col-span-4">
-                    <label className={`block font-bold text-slate-700 dark:text-slate-300 mb-1.5 text-sm ${labelClass}`}>Giới tính</label>
-                    <select name="gender" value={data.gender} onChange={onChange} className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold">
-                        <option value="Nam">Nam</option>
-                        <option value="Nữ">Nữ</option>
-                        <option value="Khác">Khác</option>
-                    </select>
+                    <FormSelect
+                        label="Giới tính"
+                        name="gender"
+                        value={data.gender}
+                        onChange={onChange}
+                        className={inputBaseClass}
+                        labelClassName={labelClass}
+                    >
+                        <option value="M">Nam</option>
+                        <option value="F">Nữ</option>
+                    </FormSelect>
                 </div>
             </div>
-            
-            {/* Hàng 2: Ngày sinh & Số điện thoại */}
+
+            {/* Row 2: DOB & Phone */}
             <div className="grid grid-cols-2 gap-3">
-                <FormDateInput 
-                    label="Ngày sinh (dd/mm/yyyy) *" 
-                    name="dob" 
-                    value={data.dob} 
+                <FormDateInput
+                    label="Ngày sinh (dd/mm/yyyy) *"
+                    name="dob"
+                    value={data.dob}
                     onChange={onChange}
-                    className={`rounded-xl font-bold ${errors.dob ? 'border-red-500 ring-2 ring-red-100' : ''}`}
+                    className={`${inputBaseClass} ${errors.dob ? 'border-red-500 ring-2 ring-red-100' : ''}`}
                     labelClassName={labelClass}
                 />
-                <FormInput 
-                    label="Số điện thoại *" 
-                    name="phone" 
+                <FormInput
+                    label="Số điện thoại *"
+                    name="phone"
                     type="tel"
-                    value={data.phone} 
+                    value={data.phone}
                     onChange={onChange}
-                    className="rounded-xl font-bold"
+                    maxLength={10}
+                    className={inputBaseClass}
                     labelClassName={labelClass}
                     placeholder="09xxxxxxxx"
                 />
             </div>
 
-            {/* Hàng 3: Số CCCD & Ngày cấp */}
+            {/* Row 3: Identity Card & Issue Date */}
             <div className="grid grid-cols-12 gap-3">
                 <div className="col-span-7">
-                    <FormInput 
-                        label="Số CCCD (12 số) *" 
-                        name="identityCard" 
-                        value={data.identityCard} 
+                    <FormInput
+                        label="Số CCCD (12 số) *"
+                        name="identityCard"
+                        value={data.identityCard}
                         onChange={onChange}
                         maxLength={12}
-                        className="rounded-xl font-bold font-mono"
+                        className={`${inputBaseClass} font-mono`}
                         labelClassName={labelClass}
                         placeholder="0010xxxxxxxx"
                     />
                 </div>
                 <div className="col-span-5">
-                    <FormDateInput 
-                        label="Ngày cấp *" 
-                        name="identityIssueDate" 
-                        value={data.identityIssueDate} 
+                    <FormDateInput
+                        label="Ngày cấp"
+                        name="identityIssueDate"
+                        value={data.identityIssueDate}
                         onChange={onChange}
-                        className="rounded-xl font-bold"
+                        className={inputBaseClass}
                         labelClassName={labelClass}
                     />
                 </div>
             </div>
 
-            {/* Địa chỉ */}
+            {/* Address Section */}
             <div className="pt-3 border-t border-dashed border-slate-200 dark:border-slate-700">
                 <label className="block text-[11px] font-black text-teal-600 uppercase mb-2 ml-1">Địa chỉ thường trú *</label>
                 <div className="grid grid-cols-2 gap-3 mb-3">
-                    <select 
-                        name="provinceId" 
-                        value={data.provinceId} 
-                        onChange={onChange} 
-                        className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold text-sm"
+                    <FormSelect
+                        label=""
+                        name="provinceId"
+                        value={data.provinceId}
+                        onChange={onChange}
+                        className={`${inputBaseClass} text-sm`}
+                        containerClassName="flex-1"
                     >
                         <option value="">-- Tỉnh/TP --</option>
                         {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
-                    <select 
-                        name="wardId" 
-                        value={data.wardId} 
-                        disabled={!data.provinceId} 
-                        onChange={onChange} 
-                        className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-bold text-sm"
+                    </FormSelect>
+                    <FormSelect
+                        label=""
+                        name="wardId"
+                        value={data.wardId}
+                        disabled={!data.provinceId}
+                        onChange={onChange}
+                        className={`${inputBaseClass} text-sm`}
+                        containerClassName="flex-1"
                     >
                         <option value="">-- Phường/Xã --</option>
                         {wards.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                    </select>
+                    </FormSelect>
                 </div>
-                <FormInput 
-                    label="" 
-                    name="addressDetail" 
-                    value={data.addressDetail} 
+                <FormInput
+                    label=""
+                    name="addressDetail"
+                    value={data.addressDetail}
                     onChange={onChange}
-                    className="rounded-xl font-bold"
+                    className={inputBaseClass}
                     placeholder="Số nhà, tên đường..."
                 />
             </div>

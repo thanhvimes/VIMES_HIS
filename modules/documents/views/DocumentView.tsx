@@ -30,6 +30,7 @@ const DocumentView: React.FC = () => {
     const handleSign = (signatureDataUrl: string, placement: any) => {
         console.log('Signature saved!', { signatureDataUrl, placement });
         const newSignature: Signature = {
+            id: `sig-${Date.now()}`, // Added missing id
             signerName: 'Dr. Minh', // This would come from the logged-in user's data
             signerTitle: 'Administrator',
             signedAt: new Date(),

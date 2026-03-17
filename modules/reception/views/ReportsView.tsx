@@ -2,6 +2,7 @@ import React from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { DocumentArrowDownIcon } from '../../../components/Icons';
+import { FormDateInput } from '../../../components/shared/forms';
 
 const hourlyData = [
     { hour: '7-8h', registrations: 5 }, { hour: '8-9h', registrations: 12 }, { hour: '9-10h', registrations: 18 }, { hour: '10-11h', registrations: 15 }, { hour: '11-12h', registrations: 7 }, { hour: '13-14h', registrations: 6 }, { hour: '14-15h', registrations: 10 }, { hour: '15-16h', registrations: 9 },
@@ -16,11 +17,11 @@ const kpiData = [
     { title: 'Tỷ lệ BHYT', value: '29%' },
 ];
 const detailedReportData = Array.from({ length: 15 }, (_, i) => ({
-  id: `BN${1001 + i}`,
-  name: `Bệnh Nhân ${i + 1}`,
-  time: `09:${(10 + i * 3) % 60}`,
-  type: i % 3 === 0 ? 'Bảo hiểm' : 'Dịch vụ',
-  status: 'Đã khám',
+    id: `BN${1001 + i}`,
+    name: `Bệnh Nhân ${i + 1}`,
+    time: `09:${(10 + i * 3) % 60}`,
+    type: i % 3 === 0 ? 'Bảo hiểm' : 'Dịch vụ',
+    status: 'Đã khám',
 }));
 
 
@@ -37,9 +38,9 @@ const ReportsView: React.FC = () => {
                     <p className="text-slate-500 dark:text-slate-400">Phân tích hoạt động đăng ký bệnh nhân.</p>
                 </div>
                 <div className="flex items-center space-x-2">
-                    <input type="date" className="p-2 text-sm bg-inherit border border-slate-300 dark:border-slate-600 rounded-md" defaultValue="2023-10-01" />
+                    <FormDateInput className="!p-2 text-sm bg-inherit border border-slate-300 dark:border-slate-600 rounded-md w-36" defaultValue="01/10/2023" />
                     <span>-</span>
-                    <input type="date" className="p-2 text-sm bg-inherit border border-slate-300 dark:border-slate-600 rounded-md" defaultValue={new Date().toISOString().slice(0, 10)} />
+                    <FormDateInput className="!p-2 text-sm bg-inherit border border-slate-300 dark:border-slate-600 rounded-md w-36" defaultValue={new Date().toLocaleDateString('vi-VN')} />
                     <button className="px-6 py-2 text-sm bg-primary text-white font-semibold rounded-md hover:bg-primary-dark">Lọc</button>
                 </div>
             </div>
@@ -76,7 +77,7 @@ const ReportsView: React.FC = () => {
                                 {patientTypeData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                             </Pie>
                             <Tooltip contentStyle={{ backgroundColor: theme === 'dark' ? '#1e293b' : '#ffffff' }} />
-                            <Legend wrapperStyle={{color: tickColor}} />
+                            <Legend wrapperStyle={{ color: tickColor }} />
                         </PieChart>
                     </ResponsiveContainer>
                 </div>
@@ -84,16 +85,16 @@ const ReportsView: React.FC = () => {
 
             {/* Detailed Report Table */}
             <div className="bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
-                 <div className="flex justify-between items-center mb-4">
+                <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-bold text-slate-700 dark:text-slate-200">Báo cáo chi tiết</h2>
-                    <button 
+                    <button
                         onClick={() => alert('Đang xuất dữ liệu ra Excel...')}
                         className="flex items-center space-x-2 px-4 py-2 text-sm font-semibold rounded-md shadow-sm bg-green-600 hover:bg-green-700 text-white"
                     >
-                        <DocumentArrowDownIcon className="w-5 h-5"/>
+                        <DocumentArrowDownIcon className="w-5 h-5" />
                         <span>Xuất Excel</span>
                     </button>
-                 </div>
+                </div>
                 <div className="overflow-x-auto max-h-96">
                     <table className="w-full text-sm whitespace-nowrap">
                         <thead className="bg-slate-100 dark:bg-slate-800 sticky top-0">

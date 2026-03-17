@@ -3,9 +3,10 @@ import React from 'react';
 import { ReportDefinition, ReportGroup } from './types';
 
 // Import specific report templates
-import { PatientDrugReport } from './templates/reception/PatientDrugReport';
-import { RevenueMultiLevelReport } from './templates/general/RevenueReport3Level';
-import { InsuranceSettlementReport } from './templates/insurance/InsuranceSettlementReport';
+import { PatientExamListReport } from '../reception/reports/PatientExamListReport';
+import { PatientDrugReport } from '../reception/reports/PatientDrugReport';
+import { RevenueMultiLevelReport } from '../management-reporting/reports/RevenueReport3Level';
+import { InsuranceSettlementReport } from '../insurance/reports/InsuranceSettlementReport';
 
 // --- MOCK REPORTS (Placeholders) ---
 const MockReport = (id: string, title: string, module: any): ReportDefinition => ({
@@ -31,9 +32,9 @@ const MockReport = (id: string, title: string, module: any): ReportDefinition =>
 // Register all system reports here
 const allReports: ReportDefinition[] = [
     // Reception Module
-    MockReport('rep_recep_01', '1. Hoạt động điều trị', 'reception'),
-    MockReport('rep_recep_02', '2. Danh sách phiếu hoàn trả chưa duyệt', 'reception'),
-    MockReport('rep_recep_03', '3. Chi tiết theo số ca [K1]', 'reception'),
+    PatientExamListReport,
+    MockReport('rep_recep_01', '2. Hoạt động điều trị', 'reception'),
+    MockReport('rep_recep_02', '3. Danh sách phiếu hoàn trả chưa duyệt', 'reception'),
     PatientDrugReport, // Real report template
     MockReport('rep_recep_05', '5. Báo cáo chi tiết tiền giường', 'reception'),
     MockReport('rep_recep_06', '6. Danh sách bệnh nhân theo bác sĩ', 'reception'),

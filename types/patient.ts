@@ -27,47 +27,59 @@ export interface Patient {
   identityCard?: string;
   relativeInfo?: string;
   lastVisit?: string;
-  patientType?: 'Dịch vụ' | 'Bảo hiểm' | 'Ưu tiên';
+  patientType?: string;
   history?: ExaminationRecord[];
   // New fields
   examinationStatus?: 'waiting' | 'processing' | 'completed' | 'cancelled';
   assignedDoctor?: string;
+  regDepartment?: string;
+  regRoom?: string;
+  patientId?: string;
+  identityIssueDate?: string;
+  regReason?: string;
+  isTransfer?: boolean;
+  provinceId?: number | string;
+  districtId?: number | string;
+  wardId?: number | string;
+  roomName?: string;
+  receptionist?: string;
+  receptNo?: string | number;
 }
 
 export interface Customer {
-    id: string;
-    name: string;
-    email: string;
-    address: string;
+  id: string;
+  name: string;
+  email: string;
+  address: string;
 }
 
 export enum AppointmentStatus {
-    Scheduled = 'Scheduled',
-    Waiting = 'Waiting',
-    InProgress = 'InProgress',
-    Completed = 'Completed',
-    Cancelled = 'Cancelled'
+  Scheduled = 'Scheduled',
+  Waiting = 'Waiting',
+  InProgress = 'InProgress',
+  Completed = 'Completed',
+  Cancelled = 'Cancelled'
 }
 
 export interface Appointment {
-    id: string;
-    patientName: string;
-    patientId: string;
-    time: string;
-    doctor: string;
-    reason: string;
-    status: AppointmentStatus;
-    phone?: string;
+  id: string;
+  patientName: string;
+  patientId: string;
+  time: string;
+  doctor: string;
+  reason: string;
+  status: AppointmentStatus;
+  phone?: string;
 }
 
 export interface LabAppointment {
-    id: string;
-    patientName: string;
-    patientId: string;
-    phone: string;
-    testTypes: string;
-    date: string;
-    time: string;
-    status: 'Scheduled' | 'Completed' | 'Cancelled';
-    notes?: string;
+  id: string;
+  patientName: string;
+  patientId: string;
+  phone: string;
+  testTypes: string;
+  date: string;
+  time: string;
+  status: 'Scheduled' | 'Completed' | 'Cancelled';
+  notes?: string;
 }

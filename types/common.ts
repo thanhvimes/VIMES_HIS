@@ -82,6 +82,8 @@ export interface UserSession {
     title: string;
     departmentId: string;
     departmentName: string;
-    role: 'admin' | 'doctor' | 'nurse' | 'technician' | 'receptionist';
+    role: 'admin' | 'doctor' | 'nurse' | 'technician' | 'receptionist' | 'accountant' | 'pharmacist' | 'hr' | 'director';
     avatarUrl?: string;
+    permissions?: string[]; // Detailed perms from sys_userperm
+    moduleId?: string;      // Current module context (e.g., 'RM', 'EM')
 }

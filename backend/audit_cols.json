@@ -1,0 +1,46 @@
+[
+  {
+    "column_name": "id",
+    "data_type": "bigint"
+  },
+  {
+    "column_name": "table_name",
+    "data_type": "text"
+  },
+  {
+    "column_name": "record_id",
+    "data_type": "text"
+  },
+  {
+    "column_name": "action",
+    "data_type": "character"
+  },
+  {
+    "column_name": "old_data",
+    "data_type": "jsonb"
+  },
+  {
+    "column_name": "new_data",
+    "data_type": "jsonb"
+  },
+  {
+    "column_name": "changed_fields",
+    "data_type": "jsonb"
+  },
+  {
+    "column_name": "user_id",
+    "data_type": "text"
+  },
+  {
+    "column_name": "client_ip",
+    "data_type": "text"
+  },
+  {
+    "column_name": "context_module",
+    "data_type": "text"
+  },
+  {
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  }
+]

@@ -8,6 +8,7 @@ import ScheduleView from './views/ScheduleView';
 import ReportsLayout from '../reports/ReportsLayout';
 import QueueManagementView from './views/QueueManagementView';
 import RemoteBookingView from './views/RemoteBookingView';
+import SettingsView from './views/SettingsView';
 
 const Reception: React.FC = () => {
   return (
@@ -21,7 +22,7 @@ const Reception: React.FC = () => {
       <Route path="schedule" element={<ScheduleView />} />
       <Route path="queue" element={<QueueManagementView />} />
       <Route path="reports" element={<ReportsLayout moduleFilter="reception" />} />
-      <Route path="settings" element={<div className="text-center p-8">Giao diện Cài đặt đang được xây dựng.</div>} />
+      <Route path="settings" element={<SettingsView />} />
     </Routes>
   );
 };

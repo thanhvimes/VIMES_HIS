@@ -45,15 +45,14 @@ const PatientRecordView: React.FC = () => {
 
     useEffect(() => {
         const fetchPatientData = async () => {
-            if (!patientId) return;
+            if (!patientId) {
+                setIsLoading(false);
+                return;
+            }
+            const docNo = searchParams.get('docNo');
             setIsLoading(true);
             try {
-                const data = await consultationService.getPatientProfile(patientId);
-                // Mock adding critical medical info if not present
-                if (data && !data.allergies) {
-                    data.allergies = "Penicillin, Hải sản";
-                    data.bloodType = "O+";
-                }
+                const data = await consultationService.getPatientProfile(patientId, docNo || undefined);
                 setPatientData(data);
             } catch (error) {
                 console.error("Failed to fetch patient data", error);
@@ -63,7 +62,7 @@ const PatientRecordView: React.FC = () => {
         };
 
         fetchPatientData();
-    }, [patientId]);
+    }, [patientId, searchParams]);
 
     const setActiveTab = (tabId: string) => {
         setSearchParams({ tab: tabId }, { replace: true });
@@ -82,16 +81,37 @@ const PatientRecordView: React.FC = () => {
         );
     }
 
+    if (!patientId) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full bg-slate-50 dark:bg-slate-900 text-center p-6">
+                <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-4">
+                    <UserCircleIcon className="w-8 h-8 text-blue-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-2">Chưa chọn bệnh nhân</h2>
+                <p className="text-slate-500 mb-6">Vui lòng chọn một bệnh nhân từ danh sách chờ khám để xem hồ sơ.</p>
+                <button 
+                    onClick={() => navigate('/consultation/list')}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-bold shadow-md shadow-blue-500/20"
+                >
+                    Đến danh sách chờ khám
+                </button>
+            </div>
+        );
+    }
+
     if (!patientData) {
         return (
             <div className="flex flex-col items-center justify-center h-full bg-slate-50 dark:bg-slate-900 text-center p-6">
+                <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4">
+                    <ExclamationCircleIcon className="w-8 h-8 text-red-600" />
+                </div>
                 <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200 mb-2">Không tìm thấy bệnh nhân</h2>
-                <p className="text-slate-500 mb-6">Hồ sơ bệnh nhân với ID {patientId} không tồn tại hoặc đã bị xóa.</p>
+                <p className="text-slate-500 mb-6">Hồ sơ bệnh nhân với ID <span className="font-bold text-slate-800 dark:text-white">{patientId}</span> không tồn tại hoặc đã bị xóa.</p>
                 <button 
-                    onClick={() => navigate('/consultation/dashboard')}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    onClick={() => navigate('/consultation/list')}
+                    className="px-6 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-all font-bold"
                 >
-                    Quay lại bàn khám
+                    Quay lại danh sách
                 </button>
             </div>
         );
@@ -180,7 +200,7 @@ const PatientRecordView: React.FC = () => {
                 )}
 
                 {activeTab === 'examine' && (
-                    <ExamineView />
+                    <ExamineView age={patientData.age} gender={patientData.gender} />
                 )}
 
                 {activeTab === 'lab' && (

@@ -1,11 +1,11 @@
 
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-    SearchIcon, 
-    PlusIcon, 
-    FilterIcon, 
-    CalendarIcon, 
+import {
+    SearchIcon,
+    PlusIcon,
+    FilterIcon,
+    CalendarIcon,
     UserGroupIcon,
     ClipboardListIcon,
     ClockIcon,
@@ -16,6 +16,7 @@ import {
     ScissorsIcon
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { FormDateInput } from '../../../components/shared/forms';
 import { SurgerySchedule } from '../../../types';
 import { mockSurgeries, resources } from '../data';
 import SurgeryScheduleModal from './SurgeryScheduleModal';
@@ -33,11 +34,11 @@ const SurgeryListView: React.FC = () => {
     const filteredSurgeries = useMemo(() => {
         return surgeries.filter(s => {
             const matchesSearch = s.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                  s.procedureName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                  s.surgeonName.toLowerCase().includes(searchTerm.toLowerCase());
-            
+                s.procedureName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                s.surgeonName.toLowerCase().includes(searchTerm.toLowerCase());
+
             const matchesStatus = statusFilter === 'All' || s.status === statusFilter;
-            
+
             // Optional: Filter by date or show all if date filter is cleared (not implemented in UI yet, default is today)
             // For list view, maybe we want to see broader range, but let's stick to date picker for now
             const matchesDate = !dateFilter || s.date === dateFilter;
@@ -89,7 +90,7 @@ const SurgeryListView: React.FC = () => {
             <div className="flex flex-col lg:flex-row justify-between items-center gap-4 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex-shrink-0">
                 <div className="flex items-center gap-3 w-full lg:w-auto">
                     <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
-                        <ClipboardListIcon className="w-6 h-6"/>
+                        <ClipboardListIcon className="w-6 h-6" />
                     </div>
                     <div>
                         <h1 className="text-xl font-bold text-slate-800 dark:text-white">Danh sách Phẫu thuật</h1>
@@ -99,27 +100,26 @@ const SurgeryListView: React.FC = () => {
 
                 <div className="flex flex-wrap gap-3 w-full lg:w-auto items-center">
                     <div className="relative">
-                        <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"/>
-                        <input 
-                            type="date" 
+                        <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <FormDateInput
                             value={dateFilter}
                             onChange={(e) => setDateFilter(e.target.value)}
-                            className={`pl-9 p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-blue-500 ${fontSettings.controls}`}
+                            className={`!pl-9 !p-2 w-36 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-blue-500 ${fontSettings.controls}`}
                         />
                     </div>
                     <div className="relative flex-1 min-w-[200px]">
-                        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"/>
-                        <input 
-                            type="text" 
-                            placeholder="Tìm bệnh nhân, Bác sĩ..." 
+                        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                            type="text"
+                            placeholder="Tìm bệnh nhân, Bác sĩ..."
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                             className={`w-full pl-9 p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-blue-500 ${fontSettings.controls}`}
                         />
                     </div>
                     <div className="relative">
-                        <FilterIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"/>
-                        <select 
+                        <FilterIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <select
                             value={statusFilter}
                             onChange={e => setStatusFilter(e.target.value)}
                             className={`pl-9 p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-blue-500 cursor-pointer ${fontSettings.controls}`}
@@ -131,11 +131,11 @@ const SurgeryListView: React.FC = () => {
                             <option value="emergency">Cấp cứu</option>
                         </select>
                     </div>
-                    <button 
+                    <button
                         onClick={() => setIsAddModalOpen(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition shadow-md whitespace-nowrap"
                     >
-                        <PlusIcon className="w-5 h-5"/> <span className="hidden sm:inline">Đặt lịch mổ</span>
+                        <PlusIcon className="w-5 h-5" /> <span className="hidden sm:inline">Đặt lịch mổ</span>
                     </button>
                 </div>
             </div>
@@ -184,7 +184,7 @@ const SurgeryListView: React.FC = () => {
                                         </td>
                                         <td className="p-4">
                                             <div className="flex items-center gap-1 text-sm text-slate-700 dark:text-slate-300">
-                                                <UserGroupIcon className="w-4 h-4 text-slate-400"/> {s.surgeonName}
+                                                <UserGroupIcon className="w-4 h-4 text-slate-400" /> {s.surgeonName}
                                             </div>
                                         </td>
                                         <td className="p-4 text-center">
@@ -202,25 +202,25 @@ const SurgeryListView: React.FC = () => {
                                         </td>
                                         <td className="p-4 text-right">
                                             <div className="flex justify-end gap-2 opacity-90 group-hover:opacity-100 transition-opacity">
-                                                <button 
+                                                <button
                                                     onClick={() => handleOpenEMR(s.patientId)}
                                                     className="p-2 bg-white border border-slate-200 hover:bg-blue-50 hover:text-blue-600 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-600 rounded shadow-sm transition"
                                                     title="Xem Hồ sơ bệnh án"
                                                 >
-                                                    <ClipboardListIcon className="w-4 h-4"/>
+                                                    <ClipboardListIcon className="w-4 h-4" />
                                                 </button>
-                                                <button 
+                                                <button
                                                     onClick={() => handleOpenDetail(s.id)}
                                                     className="p-2 bg-white border border-slate-200 hover:bg-teal-50 hover:text-teal-600 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-600 rounded shadow-sm transition"
                                                     title="Chi tiết & Tường trình"
                                                 >
-                                                    <ScissorsIcon className="w-4 h-4"/>
+                                                    <ScissorsIcon className="w-4 h-4" />
                                                 </button>
-                                                <button 
+                                                <button
                                                     className="p-2 bg-white border border-slate-200 hover:bg-red-50 hover:text-red-600 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-600 rounded shadow-sm transition"
                                                     title="Hủy lịch"
                                                 >
-                                                    <TrashIcon className="w-4 h-4"/>
+                                                    <TrashIcon className="w-4 h-4" />
                                                 </button>
                                             </div>
                                         </td>
@@ -235,7 +235,7 @@ const SurgeryListView: React.FC = () => {
                 </div>
             </div>
 
-            <SurgeryScheduleModal 
+            <SurgeryScheduleModal
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 onSave={handleAddSurgery}

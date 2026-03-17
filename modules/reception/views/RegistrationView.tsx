@@ -1,367 +1,414 @@
+import React, { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { XIcon, CheckCircleIcon, ExclamationCircleIcon } from '../../../components/Icons';
+import { useSession } from '../../../contexts/SessionContext';
+import { useRegistration } from '../hooks/useRegistration';
+import { CURRENT_HOSPITAL_CODE } from '../utils/registrationUtils';
+import { CatalogItem } from '../../../services/catalogService';
+import { ComboboxColumn } from '../../../components/shared/Combobox';
+import { calculateAge } from '../../../utils/formatters';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { 
-    PlusIcon, 
-    PencilIcon, 
-    SaveIcon, 
-    BanIcon, 
-    PrinterIcon, 
-    QrcodeIcon,
-    UserGroupIcon,
-    ClockIcon,
-    DocumentTextIcon,
-    CheckCircleIcon,
-    ExclamationCircleIcon,
-    XIcon,
-    CreditCardIcon
-} from '../../../components/Icons';
-import ActionButton from '../../../components/shared/ActionButton';
-import { FormInput, FormSelect, FormDateInput } from '../../../components/shared/forms';
-import Combobox, { ComboboxColumn } from '../../../components/shared/Combobox';
-import { Patient } from '../../../types';
-import { receptionService } from '../../../services/receptionService';
-import { usePdfPreview } from '../../../contexts/PdfPreviewContext';
-import { formatDate, formatDateForInput } from '../../../utils/formatters';
+// Sub-components
+import HeaderSection from '../components/HeaderSection';
+import AdministrativeSection from '../components/AdministrativeSection';
+import VisitSection from '../components/VisitSection';
+import InsuranceSection from '../components/InsuranceSection';
+import HistorySection from '../components/HistorySection';
+import TransferSection from '../components/TransferSection';
+import ExamTicketPrint from '../components/ExamTicketPrint';
+import BHXHResultModal from '../components/BHXHResultModal';
+import AuditLogModal from '../components/AuditLogModal';
+import { ClockIcon } from '../../../components/Icons';
 
-// --- MOCK DATA CATALOGS ---
-interface CatalogItem {
-    code: string;
-    name: string;
-}
+// ─── Toast ────────────────────────────────────────────────────────────────────
+const Toast: React.FC<{ toast: any; onClose: () => void }> = ({ toast, onClose }) => {
+    React.useEffect(() => {
+        if (toast) { const t = setTimeout(onClose, 4000); return () => clearTimeout(t); }
+    }, [toast, onClose]);
 
-const hospitalOptions: CatalogItem[] = [
-    { code: '47001', name: 'Bệnh viện đa khoa Huyện Bù Đăng' },
-    { code: '01001', name: 'Bệnh viện Bạch Mai' },
-    { code: '79021', name: 'Bệnh viện Chợ Rẫy' },
-];
-
-// --- UTILITY FUNCTIONS ---
-const decodeHex = (hex: string): string => {
-    if (!hex) return '';
-    try {
-        const cleanHex = hex.replace(/\s+/g, '');
-        if (cleanHex.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(cleanHex)) {
-            return hex;
-        }
-        const percentEncoded = cleanHex.replace(/(.{2})/g, '%$1');
-        return decodeURIComponent(percentEncoded);
-    } catch (e) {
-        console.error("Hex decode error:", e);
-        return hex;
-    }
+    if (!toast) return null;
+    const bg = toast.type === 'success' ? 'bg-green-500' : toast.type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+    const icon = toast.type === 'success'
+        ? <CheckCircleIcon className="w-6 h-6 text-white" />
+        : <ExclamationCircleIcon className="w-6 h-6 text-white" />;
+    return (
+        <div className={`fixed top-4 right-4 z-[100] flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-white animate-fade-in-up ${bg}`}>
+            {icon}
+            <div>
+                <h4 className="font-bold text-sm uppercase">
+                    {toast.type === 'success' ? 'Thành công' : toast.type === 'error' ? 'Lỗi' : 'Thông báo'}
+                </h4>
+                <p className="text-sm">{toast.message}</p>
+            </div>
+            <button onClick={onClose} className="ml-2 hover:bg-white/20 rounded-full p-1">
+                <XIcon className="w-4 h-4" />
+            </button>
+        </div>
+    );
 };
 
-const parseScannedData = (rawData: string) => {
-    if (!rawData) return null;
-    const parts = rawData.split('|');
-
-    // BHYT Pattern
-    if (parts.length >= 10 && parts[0].length === 15 && /^[A-Z]{2}\d{13}$/.test(parts[0])) {
-        try {
-            const insuranceNumber = parts[0];
-            const name = decodeHex(parts[1]);
-            const dob = parts[2]; 
-            const genderCode = parts[3];
-            const gender = genderCode === '1' ? 'Nam' : genderCode === '2' ? 'Nữ' : 'Khác';
-            const address = decodeHex(parts[4]);
-            const placeCode = parts[5]; 
-            const validFrom = parts[6];
-            const validTo = parts[7];
-            const fiveYearDate = parts[12];
-            const code = insuranceNumber.substring(0, 2); 
-            const benefitCode = insuranceNumber.substring(2, 3);
-            
-            let benefitRate = '';
-            if(benefitCode === '1' || benefitCode === '2') benefitRate = '100';
-            else if(benefitCode === '3') benefitRate = '95';
-            else benefitRate = '80';
-            
-            return {
-                type: 'BHYT',
-                data: {
-                    name: name,
-                    dob: dob,
-                    gender: gender as 'Nam' | 'Nữ' | 'Khác',
-                    address: address, 
-                    patientType: 'Bảo hiểm',
-                    insuranceNumber: insuranceNumber,
-                    insuranceCode: code,
-                    insuranceBenefit: benefitRate,
-                    insurancePlace: placeCode,
-                    insuranceRegDate: validFrom,
-                    insuranceExp: validTo,
-                    insurance5Year: fiveYearDate
-                }
-            };
-        } catch (e) {
-            console.error("BHYT Parse Error", e);
-            return null;
-        }
-    }
-
-    // CCCD Pattern
-    if (parts.length >= 6 && /^\d{12}$/.test(parts[0])) {
-        return {
-            type: 'CCCD',
-            data: {
-                identityCard: parts[0],
-                name: parts[2],
-                dob: parts[3],
-                gender: parts[4] as any,
-                address: parts[5],
-                identityIssueDate: parts[6],
-                patientType: 'Dịch vụ'
-            }
-        };
-    }
-
-    return null;
-};
-
-// --- COMPONENT ---
-interface ExtendedFormData extends Patient {
-    identityIssueDate?: string;
-    insuranceNumber?: string;
-    insuranceRegDate?: string;
-    insuranceExp?: string;
-    insuranceCode?: string;
-    insuranceBenefit?: string;
-    insurancePlace?: string;
-    insurance5Year?: string;
-    regDate?: string;
-    regDepartment?: string;
-    regRoom?: string;
-}
-
-const emptyPatient: ExtendedFormData = {
-    id: '', recordNumber: '', name: '', dob: '', age: 0, gender: 'Nam',
-    ethnicity: 'Kinh', occupation: '', address: '', phone: '', lastVisit: '',
-    patientType: 'Dịch vụ', identityCard: '', relativeInfo: '', history: [],
-    regDate: new Date().toLocaleDateString('vi-VN'),
-    regDepartment: 'Khoa Khám Bệnh',
-    regRoom: '',
-};
-
+// ─── Main View ────────────────────────────────────────────────────────────────
 const RegistrationView: React.FC = () => {
-    const { patientId } = useParams<{ patientId: string }>();
     const navigate = useNavigate();
-    
-    const [formData, setFormData] = useState<ExtendedFormData>(emptyPatient);
-    const [mode, setMode] = useState<'VIEW' | 'EDIT' | 'ADD'>('ADD');
-    const [searchQuery, setSearchQuery] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-    const [originalData, setOriginalData] = useState<ExtendedFormData | null>(null);
-    
-    const [toast, setToast] = useState<{ id: number, type: 'success'|'error'|'info', message: string } | null>(null);
-    const showToast = (type: 'success'|'error'|'info', message: string) => {
-        setToast({ id: Date.now(), type, message });
-    };
+    const {
+        formData, setFormData, mode, setMode, regMode, setRegMode,
+        searchQuery, setSearchQuery,
+        isSaving, isLoading, originalData, toast, setToast,
+        checkInResponse, setCheckInResponse,
+        provinces, wards, departments, rooms,
+        ethnicities, occupations, examTypes, patientObjects,
+        hospitals, insRouteTypes, areaOptions,
+        nations, relationships, workplaces,
+        handleInputChange, handleSave, handleScan, handleCheckIn, handleAcceptCheckIn, showToast,
+        hasActiveDocToday
+    } = useRegistration();
 
-    useEffect(() => {
-        const loadPatientData = async () => {
-            if (patientId) {
-                setIsLoading(true);
-                try {
-                    const found = await receptionService.getPatientByRecordNumber(patientId);
-                    if (found) {
-                        const loadedData: ExtendedFormData = {
-                            ...emptyPatient,
-                            ...found,
-                            regDate: new Date().toLocaleDateString('vi-VN'),
-                        };
-                        setFormData(loadedData);
-                        setOriginalData(JSON.parse(JSON.stringify(loadedData)));
-                        setMode('VIEW');
-                    } else {
-                        showToast('error', 'Không tìm thấy bệnh nhân');
-                        setMode('ADD');
-                    }
-                } catch (error) {
-                    showToast('error', 'Lỗi khi tải dữ liệu');
-                } finally {
-                    setIsLoading(false);
-                }
-            } else {
-                setMode('ADD');
-                setOriginalData(null);
-                setFormData({
-                    ...emptyPatient,
-                    id: `BN${Date.now().toString().slice(-6)}`,
-                    recordNumber: `REC${Date.now().toString().slice(-6)}`,
-                });
-            }
-        };
-        loadPatientData();
-    }, [patientId]);
+    const { hasPermission } = useSession();
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
+    // ── Audit state ───────────────────────────────────────────────────────────
+    const [auditLog, setAuditLog] = useState<{ isOpen: boolean, targets: { tableName: string, recordId: string | number }[], title: string }>({
+        isOpen: false, targets: [], title: ''
+    });
 
-    const handleScan = async (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            const rawString = searchQuery.trim();
-            if (!rawString) return;
+    // ── Print state ───────────────────────────────────────────────────────────
+    const [showPrint, setShowPrint] = useState(false);
+    const [isAutoPrint, setIsAutoPrint] = useState(false);
 
-            const parsed = parseScannedData(rawString);
-            if (parsed) {
-                setFormData(prev => ({ ...prev, ...parsed.data }));
-                setSearchQuery('');
-                showToast('success', `Đã quét thành công thẻ ${parsed.type}!`);
-                if (mode === 'VIEW') setMode('EDIT'); 
-            } else {
-                try {
-                    setIsLoading(true);
-                    const found = await receptionService.getPatientByRecordNumber(rawString);
-                    if (found) {
-                        navigate(`/reception/register/${found.id}`);
-                        setSearchQuery('');
-                    } else {
-                        setSearchQuery(''); 
-                        showToast('error', 'Không tìm thấy dữ liệu!');
-                    }
-                } catch (error) {
-                    showToast('error', 'Lỗi kết nối.');
-                } finally {
-                    setIsLoading(false);
-                }
-            }
-        }
-    };
+    // Tên phòng khám hiện tại (tra theo regRoom)
+    const currentRoom = rooms.find(r => String(r.id) === String(formData.regRoom));
+    const currentDept = departments.find(d => String(d.id) === String(formData.regDepartment));
 
-    const handleSave = async () => {
-        if (!formData.name) { showToast('error', "Vui lòng nhập tên bệnh nhân"); return; }
-        setIsSaving(true);
-        try {
-            if (mode === 'ADD') {
-                await receptionService.createPatient(formData);
-                showToast('success', 'Đã tạo hồ sơ thành công!');
-            } else {
-                await receptionService.updatePatient(formData.id, formData);
-                showToast('success', 'Cập nhật thành công!');
-            }
+    // ── Columns ───────────────────────────────────────────────────────────────
+    const hospitalColumns: ComboboxColumn<CatalogItem>[] = [
+        { key: 'code', label: 'Mã', width: '20%' },
+        { key: 'name', label: 'Tên Bệnh viện', width: '80%' }
+    ];
+    const commonColumns: ComboboxColumn<CatalogItem>[] = [
+        { key: 'code', label: 'Mã', width: '25%' },
+        { key: 'name', label: 'Tên', width: '75%' }
+    ];
+
+    // ── Handlers ──────────────────────────────────────────────────────────────
+    const handleCancel = useCallback(() => {
+        if (mode === 'EDIT' && originalData) {
+            setFormData(JSON.parse(JSON.stringify(originalData)));
             setMode('VIEW');
-        } finally {
-            setIsSaving(false);
+        } else {
+            navigate('/reception');
         }
-    };
-    
-    const handleCancel = () => {
-        if (mode === 'ADD') {
-            setFormData({...emptyPatient, id: `BN${Date.now().toString().slice(-6)}`, recordNumber: `REC${Date.now().toString().slice(-6)}`});
-        } else if (mode === 'EDIT' && originalData) {
-            setFormData(originalData);
-            setMode('VIEW');
+    }, [mode, originalData, navigate, setFormData, setMode]);
+
+    const handleShowCombinedAudit = useCallback(() => {
+        const targets = [];
+        if (formData.id) targets.push({ tableName: 'hms_patient', recordId: formData.id });
+        if (formData.recordNumber) {
+            targets.push({ tableName: 'hms_doc', recordId: formData.recordNumber });
+            targets.push({ tableName: 'hms_exam', recordId: formData.recordNumber });
+            targets.push({ tableName: 'hms_card', recordId: formData.recordNumber });
         }
-    };
-    
+        setAuditLog({
+            isOpen: true,
+            targets,
+            title: `Nhật ký hoạt động tổng hợp: ${formData.name || 'Bệnh nhân'}`
+        });
+    }, [formData]);
+
+    /** Lưu phiếu — nếu thành công thì mở modal xem trước phiếu in */
+    const handleSaveAndPrint = useCallback(async () => {
+        // Chỉ in tự động nếu là các chế độ thêm mới (BN mới, Lượt mới, hoặc Phiếu khám mới)
+        const isAdding = regMode === 'ADD_PATIENT' || regMode === 'ADD_DOC' || regMode === 'ADD_EXAM';
+        const saved = await handleSave();
+        
+        if (saved && isAdding) {
+            setIsAutoPrint(true);
+            setShowPrint(true);
+        }
+    }, [handleSave, regMode]);
+
+    const handleClosePrint = useCallback(() => {
+        setShowPrint(false);
+        setIsAutoPrint(false);
+    }, []);
+
+    const handleManualPrint = useCallback(() => {
+        setIsAutoPrint(false);
+        setShowPrint(true);
+    }, []);
+
+    // ── UI helpers ────────────────────────────────────────────────────────────
     const isEditable = mode !== 'VIEW';
+    
+    // Logic permissions mapping from HMSRegistration_utf8.cpp (01.13, 01.10)
+    const canEditPatientBasicInfo = isEditable && (mode === 'ADD' || hasPermission('01.13'));
+    const canEditInsuranceInfo = isEditable && (mode === 'ADD' || hasPermission('01.10'));
+    const isInsurancePatient =
+        (formData.patientType === 'Bảo hiểm' || formData.patientType === 'I') ||
+        ['1', '4', '6'].includes(String(formData.patientType)) || // Typical insurance IDs
+        patientObjects.find(o => String(o.id) === String(formData.patientType))?.type === 'I';
+
+    const scanModeBadge = regMode === 'ADD_PATIENT'
+        ? <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 border border-green-200 rounded-full text-[10px] font-bold uppercase tracking-wider">🟢 Bệnh nhân mới</span>
+        : regMode === 'ADD_DOC'
+            ? <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-700 border border-orange-200 rounded-full text-[10px] font-bold uppercase tracking-wider">🟠 Lượt khám mới</span>
+            : regMode === 'ADD_EXAM'
+                ? <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 border border-blue-200 rounded-full text-[10px] font-bold uppercase tracking-wider">🔵 Phiếu khám bổ sung</span>
+                : mode === 'EDIT'
+                    ? <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-full text-[10px] font-bold uppercase tracking-wider">📝 Chỉnh sửa thông tin</span>
+                    : null;
+
+    // ── Enter as Tab functionality ───────────────────────────────────────────
+    const handleFormKeyDown = useCallback((e: React.KeyboardEvent) => {
+        // Hotkey for Save & Print (Standard F2)
+        if (e.key === 'F2') {
+            e.preventDefault();
+            if (!isSaving && mode !== 'VIEW') {
+                handleSaveAndPrint();
+            }
+            return;
+        }
+
+        if (e.key === 'Enter') {
+            const target = e.target as HTMLElement;
+            
+            // Allow default behavior for textareas and buttons (like Submit)
+            if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON') return;
+            
+            // Special check for Combobox input - handled locally if list is open
+            // But if we're here, default was not prevented, so move to next
+            
+            e.preventDefault();
+            const container = target.closest('.registration-form-container');
+            if (!container) return;
+            
+            // Get all focusable elements in order
+            const focusable = Array.from(
+                container.querySelectorAll<HTMLElement>(
+                    'input:not([disabled]):not([readonly]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+                )
+            ).filter(el => {
+                // Filter out hidden elements or elements inside hidden containers
+                const style = window.getComputedStyle(el);
+                return style.display !== 'none' && style.visibility !== 'hidden' && el.offsetWidth > 0;
+            });
+            
+            const index = focusable.indexOf(target);
+            if (index > -1 && index < focusable.length - 1) {
+                focusable[index + 1].focus();
+                // If it's an input, select its text for better UX
+                if (focusable[index + 1] instanceof HTMLInputElement) {
+                    (focusable[index + 1] as HTMLInputElement).select();
+                }
+            }
+        }
+    }, []);
 
     return (
-        <div className="flex flex-col h-full gap-4 pb-10">
-            {/* --- TOP ACTION BAR --- */}
-            <div className="flex-shrink-0 bg-white dark:bg-slate-800 px-4 py-4 md:px-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
-                    <h1 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                        <PlusIcon className="w-7 h-7 text-blue-600"/>
-                        <span>{mode === 'ADD' ? 'Đăng ký mới' : 'Hồ sơ bệnh nhân'}</span>
-                    </h1>
+        <div 
+            className="h-full flex flex-col gap-3 bg-slate-50 dark:bg-slate-950 p-3 md:p-4 overflow-hidden registration-form-container"
+            onKeyDown={handleFormKeyDown}
+        >
+            <Toast toast={toast} onClose={() => setToast(null)} />
+
+            {/* ── HEADER ── */}
+            <HeaderSection
+                mode={mode} formData={formData}
+                regMode={regMode} setRegMode={setRegMode}
+                searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+                handleScan={(e) => { if (e.key === 'Enter') handleScan(searchQuery); }}
+                isSaving={isSaving}
+                handleSave={handleSaveAndPrint}
+                handleCancel={handleCancel}
+                setMode={setMode}
+                navigate={navigate}
+                onPrint={handleManualPrint}
+                onShowAudit={handleShowCombinedAudit}
+                hasActiveDocToday={hasActiveDocToday}
+                title="F2: Lưu & In"
+            />
+            {/* ── STATUS BAR: Scan mode + Mã hồ sơ + Số thứ tự ── */}
+            <div className="flex items-center justify-between px-1 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                    {scanModeBadge}
+                    {formData.recordNumber && (
+                        <div className="flex items-center gap-1 group">
+                             <span className="text-sm text-slate-500 font-medium">
+                                Hồ sơ: <b className="text-slate-800 font-mono text-base font-extrabold">#{formData.recordNumber}</b>
+                            </span>
+                            <button 
+                                onClick={handleShowCombinedAudit}
+                                className="p-1 hover:bg-white rounded-full text-slate-400 hover:text-blue-600 transition-all opacity-0 group-hover:opacity-100"
+                                title="Xem lịch sử hoạt động tổng hợp"
+                            >
+                                <ClockIcon className="w-4 h-4" />
+                            </button>
+                        </div>
+                    )}
+                    {formData.id && (
+                        <div className="flex items-center gap-1 group ml-2">
+                            <span className="text-sm text-slate-500 font-medium">
+                                Mã BN: <b className="text-blue-700 font-mono text-base font-black">{formData.id}</b>
+                            </span>
+                            <button 
+                                onClick={handleShowCombinedAudit}
+                                className="p-1 hover:bg-white rounded-full text-slate-400 hover:text-blue-600 transition-all opacity-0 group-hover:opacity-100"
+                                title="Xem lịch sử hoạt động tổng hợp"
+                            >
+                                <ClockIcon className="w-4 h-4" />
+                            </button>
+                        </div>
+                    )}
                 </div>
 
-                <div className="flex-1 w-full md:max-w-lg relative order-3 md:order-2">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <QrcodeIcon className={`h-6 w-6 ${searchQuery ? 'text-blue-500 animate-pulse' : 'text-slate-400'}`} />
+                {/* Số thứ tự — nổi bật khi đã đăng ký */}
+                {formData.receptNo && (
+                    <button
+                        onClick={() => setShowPrint(true)}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold shadow transition-colors cursor-pointer"
+                        title="Nhấn để xem và in phiếu khám"
+                    >
+                        <span>🎫</span>
+                        <span>STT:</span>
+                        <span className="text-2xl font-black leading-none">{formData.receptNo}</span>
+                        <span className="text-[10px] opacity-75 ml-1">🖨️ In</span>
+                    </button>
+                )}
+            </div>
+
+            {/* ── MAIN CONTENT ── */}
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 pb-10">
+
+                    {/* Cột trái: Chiếm 3/4 - Chứa toàn bộ các section chính */}
+                    <div className="lg:col-span-3 space-y-4">
+                        <AdministrativeSection
+                            formData={formData} isEditable={canEditPatientBasicInfo}
+                            handleInputChange={handleInputChange}
+                            handleDobChange={(e) => {
+                                handleInputChange('dob', e.target.value);
+                            }}
+                            handleIdentityInput={(e) => {
+                                const val = e.target.value.replace(/\D/g, '');
+                                if (val.length <= 12) handleInputChange('identityCard', val);
+                            }}
+                            handleIdentityBlur={() => {
+                                if (formData.identityCard && !/^\d{12}$/.test(formData.identityCard))
+                                    showToast('error', 'CCCD phải đúng 12 chữ số');
+                            }}
+                            ethnicities={ethnicities} occupations={occupations}
+                            provinces={provinces} wards={wards}
+                            handleProvinceChange={(val, item) => setFormData(p => ({ ...p, provinceId: item?.id || val, wardId: '' }))}
+                            handleWardChange={(val, item) => handleInputChange('wardId', item?.id || val)}
+                            commonColumns={commonColumns}
+                            nations={nations}
+                            relationships={relationships}
+                            workplaces={workplaces}
+                        />
+
+                        <VisitSection
+                            formData={formData} isEditable={isEditable}
+                            handleInputChange={handleInputChange}
+                            departments={departments} rooms={rooms}
+                            examTypes={examTypes} patientObjects={patientObjects}
+                        />
+
+                        {/* Chỉ hiển thị Lịch sử ở cột trái nếu là bệnh nhân BHYT (để cột phải cho BHYT & Chuyển tuyến) */}
+                        {isInsurancePatient && (
+                            <HistorySection 
+                                formData={formData} 
+                                onSelect={(docNo) => {
+                                    if (docNo !== formData.recordNumber) {
+                                        navigate(`/reception/register/${docNo}`);
+                                    }
+                                }}
+                            />
+                        )}
                     </div>
-                    <input
-                        type="text"
-                        className="block w-full pl-12 pr-4 py-2.5 text-base border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 font-bold"
-                        placeholder="Quét QR CCCD / BHYT..."
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        onKeyDown={handleScan}
-                    />
-                </div>
 
-                <div className="flex gap-3 w-full md:w-auto justify-end order-2 md:order-3">
-                    {isEditable ? (
-                        <>
-                            <ActionButton label={isSaving ? "Đang lưu..." : "Lưu hồ sơ"} icon={<SaveIcon className="w-5 h-5"/>} onClick={handleSave} disabled={isSaving} className="bg-blue-600 text-white" />
-                            <ActionButton label="Hủy" icon={<BanIcon className="w-5 h-5"/>} onClick={handleCancel} className="bg-white border border-slate-300 text-slate-700" />
-                        </>
-                    ) : (
-                        <>
-                            <ActionButton label="Sửa" icon={<PencilIcon className="w-5 h-5"/>} onClick={() => setMode('EDIT')} className="bg-amber-500 text-white"/>
-                            <ActionButton label="Thêm mới" icon={<PlusIcon className="w-5 h-5"/>} onClick={() => setMode('ADD')} className="bg-green-600 text-white"/>
-                        </>
-                    )}
-                </div>
-            </div>
+                    {/* Cột phải: Chiếm 1/4 - Chứa BHYT & Chuyển tuyến */}
+                    <div className="lg:col-span-1 space-y-4">
+                        {isInsurancePatient ? (
+                            <>
+                                <InsuranceSection
+                                    formData={formData} isEditable={canEditInsuranceInfo}
+                                    handleInputChange={handleInputChange}
+                                    handleInsurancePlaceChange={(val, item) => {
+                                        const code = item?.code || '';
+                                        setFormData(p => ({
+                                            ...p,
+                                            insurancePlace: val,
+                                            insuranceRegCode: code,
+                                            route: p.route === 'Cấp cứu' ? 'Cấp cứu'
+                                                : (code === CURRENT_HOSPITAL_CODE ? 'Đúng tuyến' : 'Trái tuyến')
+                                        }));
+                                    }}
+                                    handleInsuranceAreaChange={(val) => handleInputChange('insuranceArea', val)}
+                                    hospitals={hospitals} hospitalColumns={hospitalColumns}
+                                    areaOptions={areaOptions} insRouteTypes={insRouteTypes}
+                                    setFormData={setFormData}
+                                    handleCheckIn={handleCheckIn}
+                                    handleUpdate={handleSave}
+                                    isSaving={isSaving}
+                                    checkInResponse={checkInResponse}
+                                    onCloseResponse={() => setCheckInResponse(null)}
+                                />
 
-            {/* --- MAIN FORM --- */}
-            <div className="flex-1 overflow-y-auto">
-                <div className={`bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 space-y-8 ${isEditable ? 'ring-2 ring-blue-100' : ''}`}>
-                    {/* Hành chính */}
-                    <section>
-                        <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4 border-b pb-2 flex items-center gap-2 uppercase tracking-wide">
-                            <UserGroupIcon className="w-5 h-5 text-blue-500"/> Thông tin Hành chính
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                            <FormInput label="Mã BN" name="id" value={formData.id} readOnly className="bg-slate-100 font-mono" containerClassName="md:col-span-1" />
-                            <FormInput label="Số Hồ sơ" name="recordNumber" value={formData.recordNumber} readOnly className="bg-slate-100 font-mono text-red-600" containerClassName="md:col-span-1" />
-                            <FormInput label="Họ và tên" name="name" value={formData.name} onChange={handleInputChange} readOnly={!isEditable} className="font-bold uppercase text-blue-700" containerClassName="md:col-span-2" />
-                            <FormDateInput label="Ngày sinh *" name="dob" value={formData.dob} onChange={handleInputChange} readOnly={!isEditable} containerClassName="md:col-span-1" />
-                            <FormSelect label="Giới tính" name="gender" value={formData.gender} onChange={handleInputChange} disabled={!isEditable} containerClassName="md:col-span-1">
-                                <option value="Nam">Nam</option>
-                                <option value="Nữ">Nữ</option>
-                                <option value="Khác">Khác</option>
-                            </FormSelect>
-                            
-                            <FormInput label="Số CCCD" name="identityCard" value={formData.identityCard} onChange={handleInputChange} readOnly={!isEditable} className="font-mono" containerClassName="md:col-span-2" />
-                            <FormDateInput label="Ngày cấp CCCD" name="identityIssueDate" value={formData.identityIssueDate} onChange={handleInputChange} readOnly={!isEditable} containerClassName="md:col-span-1" />
-                            <FormInput label="Điện thoại" name="phone" value={formData.phone} onChange={handleInputChange} readOnly={!isEditable} containerClassName="md:col-span-1" />
-                            <FormInput label="Địa chỉ" name="address" value={formData.address} onChange={handleInputChange} readOnly={!isEditable} containerClassName="md:col-span-2" />
-                        </div>
-                    </section>
-
-                    {/* Bảo hiểm y tế */}
-                    {formData.patientType === 'Bảo hiểm' && (
-                        <section className="bg-blue-50 dark:bg-blue-900/10 p-5 rounded-xl border border-blue-100 dark:border-blue-800">
-                            <h3 className="font-bold text-blue-800 dark:text-blue-300 mb-4 flex items-center gap-2 uppercase text-sm">
-                                <CreditCardIcon className="w-5 h-5"/> Thông tin thẻ BHYT
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                <FormInput label="Số thẻ BHYT" name="insuranceNumber" value={formData.insuranceNumber} onChange={handleInputChange} readOnly={!isEditable} className="font-mono font-bold" />
-                                <FormDateInput label="Từ ngày" name="insuranceRegDate" value={formData.insuranceRegDate} onChange={handleInputChange} readOnly={!isEditable} />
-                                <FormDateInput label="Đến ngày (Hết hạn)" name="insuranceExp" value={formData.insuranceExp} onChange={handleInputChange} readOnly={!isEditable} />
-                                <FormDateInput label="Ngày đủ 5 năm" name="insurance5Year" value={formData.insurance5Year} onChange={handleInputChange} readOnly={!isEditable} />
-                            </div>
-                        </section>
-                    )}
-
-                    {/* Đăng ký khám */}
-                    <section>
-                        <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4 border-b pb-2 flex items-center gap-2 uppercase tracking-wide">
-                            <DocumentTextIcon className="w-5 h-5 text-green-500"/> Đăng ký khám
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <FormSelect label="Đối tượng" name="patientType" value={formData.patientType} onChange={handleInputChange} disabled={!isEditable}>
-                                <option value="Dịch vụ">Dịch vụ</option>
-                                <option value="Bảo hiểm">Bảo hiểm Y tế</option>
-                                <option value="Ưu tiên">Ưu tiên</option>
-                            </FormSelect>
-                            <FormDateInput label="Ngày đăng ký" name="regDate" value={formData.regDate} onChange={handleInputChange} readOnly={!isEditable} />
-                            <FormSelect label="Khoa phòng" name="regDepartment" value={formData.regDepartment} onChange={handleInputChange} disabled={!isEditable} containerClassName="md:col-span-2">
-                                <option>Khoa Khám Bệnh - PK Nội 01</option>
-                                <option>Khoa Nhi</option>
-                                <option>Khoa Sản</option>
-                            </FormSelect>
-                        </div>
-                    </section>
+                                <TransferSection
+                                    formData={formData} isEditable={isEditable}
+                                    handleInputChange={handleInputChange}
+                                    hospitals={hospitals} hospitalColumns={hospitalColumns}
+                                    setFormData={setFormData}
+                                />
+                            </>
+                        ) : (
+                            /* Nếu là đối tượng Dịch vụ: Đưa Lịch sử khám sang cột phải thay vì nằm ở cột trái */
+                            <HistorySection 
+                                formData={formData} 
+                                onSelect={(docNo) => {
+                                    if (docNo !== formData.recordNumber) {
+                                        navigate(`/reception/register/${docNo}`);
+                                    }
+                                }}
+                            />
+                        )}
+                    </div>
                 </div>
             </div>
+
+            {/* ── LOADING OVERLAY ── */}
+            {isLoading && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[110] flex items-center justify-center">
+                    <div className="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
+                        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                        <p className="font-bold text-slate-800">Đang xử lý...</p>
+                    </div>
+                </div>
+            )}
+
+            {/* ── PRINT MODAL ── */}
+            <ExamTicketPrint
+                visible={showPrint}
+                onClose={handleClosePrint}
+                formData={formData}
+                roomName={currentRoom?.name}
+                deptName={currentDept?.name}
+                autoPrint={isAutoPrint}
+            />
+
+            {/* ── BHXH RESULT MODAL ── */}
+            <BHXHResultModal
+                visible={!!checkInResponse}
+                onClose={() => setCheckInResponse(null)}
+                onAccept={handleAcceptCheckIn}
+                data={checkInResponse}
+            />
+
+            {/* ── AUDIT LOG MODAL ── */}
+            <AuditLogModal
+                isOpen={auditLog.isOpen}
+                onClose={() => setAuditLog(prev => ({ ...prev, isOpen: false }))}
+                targets={auditLog.targets}
+                title={auditLog.title}
+            />
         </div>
     );
 };

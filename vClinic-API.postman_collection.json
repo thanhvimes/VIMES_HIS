@@ -1,0 +1,178 @@
+{
+    "info": {
+        "name": "vClinic API",
+        "_postman_id": "vclinic-api-collection",
+        "description": "API Collection for vClinic - Hospital Management System",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Authentication",
+            "item": [
+                {
+                    "name": "Login",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "// Auto-save token to environment variable",
+                                    "if (pm.response.code === 200) {",
+                                    "    var jsonData = pm.response.json();",
+                                    "    pm.environment.set('auth_token', jsonData.token);",
+                                    "    pm.environment.set('user_deptId', jsonData.user.deptId);",
+                                    "    console.log('✅ Token saved:', jsonData.token.substring(0, 50) + '...');",
+                                    "    console.log('✅ DeptId:', jsonData.user.deptId);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"userId\": \"admin\",\n    \"password\": \"Dunghoi1\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/auth/login",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "login"
+                            ]
+                        },
+                        "description": "Login to get authentication token"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Schedule Management",
+            "item": [
+                {
+                    "name": "Initialize Schedule",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}",
+                                "description": "Auto-filled from Login response"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"days\": 30\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/schedule/init",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "schedule",
+                                "init"
+                            ]
+                        },
+                        "description": "Initialize schedule and exam slots for the next N days"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Available Slots",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/schedule/slots?deptId=KB&roomId=1&date=2026-01-28",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "schedule",
+                                "slots"
+                            ],
+                            "query": [
+                                {
+                                    "key": "deptId",
+                                    "value": "KB"
+                                },
+                                {
+                                    "key": "roomId",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "date",
+                                    "value": "2026-01-28"
+                                }
+                            ]
+                        },
+                        "description": "Get available time slots for booking"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Booking Management",
+            "item": [
+                {
+                    "name": "Get Bookings",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{auth_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/booking/list?deptId={{user_deptId}}&date=2026-01-28",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "booking",
+                                "list"
+                            ],
+                            "query": [
+                                {
+                                    "key": "deptId",
+                                    "value": "{{user_deptId}}"
+                                },
+                                {
+                                    "key": "date",
+                                    "value": "2026-01-28"
+                                }
+                            ]
+                        },
+                        "description": "Get list of bookings"
+                    },
+                    "response": []
+                }
+            ]
+        }
+    ],
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:3000/api/v1",
+            "type": "string"
+        }
+    ]
+}

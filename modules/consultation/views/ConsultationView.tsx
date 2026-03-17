@@ -1,15 +1,24 @@
 
 import React, { useState, useCallback } from 'react';
-import { Patient, ConsultationRecord, AISuggestion } from '../../../types';
+import { Patient, ConsultationRecord, AISuggestion, VitalSigns, ICD10 } from '../../../types';
 import { 
     SparklesIcon, 
     DocumentTextIcon, 
     ActivityIcon, 
     ClipboardListIcon, 
-    ExclamationCircleIcon 
+    ExclamationCircleIcon,
+    SpeakerWaveIcon,
+    PrinterIcon
 } from '../../../components/Icons';
 import { getAISuggestions } from '../../../services/geminiService';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { useSession } from '../../../contexts/SessionContext';
+import { consultationService } from '../../../services/consultationService';
+import VitalSignsForm from './components/VitalSignsForm';
+import ICDSelection from './components/ICDSelection';
+import DiagnosisForm from './components/DiagnosisForm';
+import DiseasePrehistory from './components/DiseasePrehistory';
+import { useNotification } from '../../../contexts/NotificationContext';
 
 // FIX: Updated mockPatient to conform to the Patient interface, fixing gender and contact info.
 const mockPatient: Patient = {
@@ -27,31 +36,158 @@ const mockPatient: Patient = {
 };
 
 const mockHistory: ConsultationRecord[] = [
-    { id: 'C001', date: '2023-09-15', doctor: 'Dr. Minh', symptoms: 'Đau đầu, chóng mặt', diagnosis: 'Thiếu máu não', prescription: [{id: 'D01', name: 'Ginkgo Biloba', dosage: '1v/ngày', stock: 100}], notes: 'Cần theo dõi thêm' },
+    { id: 'C001', date: '2023-09-15', doctor: 'Dr. Minh', symptoms: 'Đau đầu, chóng mặt', diagnosis: 'Thiếu máu nội', prescription: [{id: 'D01', name: 'Ginkgo Biloba', dosage: '1v/ngày', stock: 100}], notes: 'Cần theo dõi thêm' },
     { id: 'C002', date: '2023-05-10', doctor: 'Dr. Minh', symptoms: 'Ho, sốt nhẹ', diagnosis: 'Viêm họng cấp', prescription: [{id: 'D02', name: 'Paracetamol', dosage: '2v/ngày', stock: 200}], notes: 'Nghỉ ngơi, uống nhiều nước' },
 ];
 
 const ConsultationView: React.FC = () => {
   const { fontSettings } = useTheme();
+  const { hasPermission } = useSession();
+  const { addNotification } = useNotification();
   const [patient] = useState<Patient>(mockPatient);
   const [history] = useState<ConsultationRecord[]>(mockHistory);
-  const [currentSymptoms, setCurrentSymptoms] = useState('');
-  const [currentDiagnosis, setCurrentDiagnosis] = useState('');
-  const [currentNotes, setCurrentNotes] = useState('');
+  
+  // States for professional content
+  const [pathologyProcess, setPathologyProcess] = useState('');
+  const [clinicalExam, setClinicalExam] = useState('');
+  const [preliminaryDiagnosis, setPreliminaryDiagnosis] = useState('');
+  const [conclusion, setConclusion] = useState('');
+
+  const [vitals, setVitals] = useState<VitalSigns>({
+      pulse: 80,
+      temperature: 36.5,
+      bpSystolic: 120,
+      bpDiastolic: 80,
+      breathingRate: 20
+  });
+
+  const [mainDisease, setMainDisease] = useState<ICD10>();
+  const [subDiseases, setSubDiseases] = useState<ICD10[]>([]);
+
   const [aiSuggestion, setAiSuggestion] = useState<AISuggestion | null>(null);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isCalling, setIsCalling] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
   const [error, setError] = useState('');
   
+  const handlePrint = async () => {
+    setIsPrinting(true);
+    try {
+        const docNo = 21000001; // Mock
+        const blob = await consultationService.printExamination(docNo);
+        
+        // Tạo link download giả lập từ Blob PDF
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `PhieuKhamBenh_${docNo}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        
+        // Cleanup
+        link.parentNode?.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        addNotification("Thành công", "Đã khởi tạo lệnh in và tải xuống file PDF.", "success", undefined, true);
+    } catch (e: any) {
+        addNotification("Lỗi", "Không thể in phiếu: " + e.message, "error");
+    } finally {
+        setIsPrinting(false);
+    }
+  };
+
+  const handleCallPatient = async () => {
+    setIsCalling(true);
+    try {
+        const payload = {
+            docNo: 21000001, // Mock
+            deptId: 'KKB',
+            roomId: 1,
+            receptIdx: 1
+        };
+        const result = await consultationService.callPatient(payload);
+        if (result.success) {
+            addNotification("Thông báo", `Đang gọi bệnh nhân: ${patient.name}`, "info", undefined, true);
+        } else {
+            throw new Error(result.message || "Lỗi gọi bệnh nhân");
+        }
+    } catch (e: any) {
+        addNotification("Lỗi", "Không thể gọi bệnh nhân: " + e.message, "error");
+    } finally {
+        setIsCalling(false);
+    }
+  };
+
+  const handleSave = async (targetStatus: 'P' | 'T' = 'P') => {
+    if (!mainDisease) {
+        addNotification("Cảnh báo", "Vui lòng chọn chẩn đoán bệnh lý (ICD10) chính.", "warning");
+        return;
+    }
+
+    setIsSaving(true);
+    try {
+        const docNo = 21000001; // Mock
+        const receptIdx = 1;
+
+        // 1. Kiểm tra các quy tắc BHYT (Porting CheckExam)
+        const checkResult = await consultationService.checkInsuranceRules(docNo, receptIdx);
+        if (!checkResult.success) {
+            // Nếu vi phạm quy tắc (VD: quá định mức, quá nhanh, trùng chuyên khoa)
+            const proceed = window.confirm(`${checkResult.message}\n\nBạn có chắc chắn muốn tiếp tục lưu không?`);
+            if (!proceed) {
+                setIsSaving(false);
+                return;
+            }
+        }
+
+        // 2. Tiến hành lưu dữ liệu
+        const payload = {
+            docNo,
+            patientNo: patient.id,
+            receptIdx,
+            vitals,
+            mainDisease,
+            subDiseases,
+            status: targetStatus,
+            diagnosis: {
+                pathologyProcess,
+                clinicalExam,
+                preliminaryDiagnosis,
+                conclusion
+            }
+        };
+        
+        const result = await consultationService.saveClinicalRecord(payload);
+        if (result.success) {
+            addNotification("Thành công", targetStatus === 'T' ? "Đã hoàn tất hồ sơ khám bệnh." : "Đã lưu kết quả khám bệnh thành công.", "success");
+        } else {
+            throw new Error(result.message || "Lỗi không xác định");
+        }
+    } catch (e: any) {
+        addNotification("Lỗi", "Không thể lưu kết quả: " + e.message, "error");
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
+  const handleTerminate = () => {
+    if (window.confirm("Bạn có chắc chắn muốn kết thúc hồ sơ khám này không? Hồ sơ sẽ được chuyển sang trạng thái Đã khám.")) {
+        handleSave('T');
+    }
+  };
+  
   const handleGetAISuggestions = useCallback(async () => {
-    if (!currentSymptoms && !currentNotes) {
-        setError('Vui lòng nhập triệu chứng hoặc ghi chú để AI phân tích.');
+    if (!pathologyProcess && !clinicalExam) {
+        setError('Vui lòng nhập quá trình bệnh lý hoặc khám lâm sàng để AI phân tích.');
         return;
     }
     setError('');
     setIsLoadingAI(true);
     setAiSuggestion(null);
     try {
-        const suggestion = await getAISuggestions(currentSymptoms, currentNotes, patient);
+        const combinedNotes = `Bệnh lý: ${pathologyProcess}\nKhám: ${clinicalExam}`;
+        const suggestion = await getAISuggestions(combinedNotes, '', patient);
         setAiSuggestion(suggestion);
     } catch (e) {
         setError('Không thể kết nối với trợ lý AI. Vui lòng thử lại sau.');
@@ -59,7 +195,7 @@ const ConsultationView: React.FC = () => {
     } finally {
         setIsLoadingAI(false);
     }
-  }, [currentSymptoms, currentNotes, patient]);
+  }, [pathologyProcess, clinicalExam, patient]);
 
   return (
     <div className="space-y-6">
@@ -69,7 +205,17 @@ const ConsultationView: React.FC = () => {
         {/* Main Consultation Area */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
-             <h2 className="text-xl font-bold text-slate-700 dark:text-slate-200 border-b dark:border-slate-600 pb-3 mb-4">Thông tin bệnh nhân</h2>
+             <div className="flex items-center justify-between border-b dark:border-slate-600 pb-3 mb-4">
+                <h2 className="text-xl font-bold text-slate-700 dark:text-slate-200">Thông tin bệnh nhân</h2>
+                <button 
+                  onClick={handleCallPatient}
+                  disabled={isCalling}
+                  className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-600 px-4 py-2 rounded-lg transition-all font-bold disabled:opacity-50"
+                >
+                  <SpeakerWaveIcon className={`w-5 h-5 ${isCalling ? 'animate-pulse' : ''}`} />
+                  {isCalling ? 'Đang gọi...' : 'Gọi bệnh nhân'}
+                </button>
+             </div>
              <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 text-slate-600 dark:text-slate-300 ${fontSettings.listSecondary}`}>
                 <div><span className="font-semibold text-onSurface dark:text-dark-onSurface">Tên:</span> {patient.name}</div>
                 <div><span className="font-semibold text-onSurface dark:text-dark-onSurface">Tuổi:</span> {patient.age}</div>
@@ -78,45 +224,60 @@ const ConsultationView: React.FC = () => {
              </div>
           </div>
 
-          <div className="bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
-             <h2 className="text-xl font-bold text-slate-700 dark:text-slate-200 border-b dark:border-slate-600 pb-3 mb-4">Ghi chú Khám bệnh</h2>
-             <div className="space-y-4">
-                <div>
-                    <label className={`font-semibold text-slate-600 dark:text-slate-300 block mb-1 ${fontSettings.controls}`}>Triệu chứng & Lý do khám</label>
-                    <textarea 
-                        value={currentSymptoms} 
-                        onChange={e => setCurrentSymptoms(e.target.value)} 
-                        rows={3} 
-                        placeholder="VD: Đau đầu dữ dội vùng thái dương, kèm buồn nôn..."
-                        className={`w-full p-3 bg-inherit border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-shadow ${fontSettings.controls}`}
-                    ></textarea>
-                </div>
-                <div>
-                    <label className={`font-semibold text-slate-600 dark:text-slate-300 block mb-1 ${fontSettings.controls}`}>Khám lâm sàng / Ghi chú</label>
-                    <textarea 
-                        value={currentNotes} 
-                        onChange={e => setCurrentNotes(e.target.value)} 
-                        rows={4} 
-                        placeholder="VD: Huyết áp 140/90, Phổi trong, không rales..."
-                        className={`w-full p-3 bg-inherit border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-shadow ${fontSettings.controls}`}
-                    ></textarea>
-                </div>
-                 <div>
-                    <label className={`font-semibold text-slate-600 dark:text-slate-300 block mb-1 ${fontSettings.controls}`}>Chẩn đoán sơ bộ</label>
-                    <input 
-                        type="text" 
-                        value={currentDiagnosis} 
-                        onChange={e => setCurrentDiagnosis(e.target.value)} 
-                        placeholder="Nhập chẩn đoán..."
-                        className={`w-full p-3 bg-inherit border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-shadow ${fontSettings.controls}`} 
-                    />
-                </div>
-                <div className="text-right">
-                    <button className={`bg-secondary hover:bg-emerald-600 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105 ${fontSettings.controls}`}>
-                        Lưu kết quả
-                    </button>
-                </div>
-             </div>
+          <VitalSignsForm vitals={vitals} onVitalsChange={setVitals} />
+
+          <ICDSelection 
+            mainDisease={mainDisease} 
+            subDiseases={subDiseases}
+            onMainDiseaseChange={setMainDisease}
+            onSubDiseasesChange={setSubDiseases}
+            isYHCT={false} // Có thể check theo session bác sĩ hoặc khoa
+          />
+
+          <DiagnosisForm 
+            pathologyProcess={pathologyProcess}
+            clinicalExam={clinicalExam}
+            preliminaryDiagnosis={preliminaryDiagnosis}
+            conclusion={conclusion}
+            onPathologyChange={setPathologyProcess}
+            onClinicalExamChange={setClinicalExam}
+            onPreliminaryDiagnosisChange={setPreliminaryDiagnosis}
+            onConclusionChange={setConclusion}
+          />
+
+          <DiseasePrehistory patientId={patient.id} />
+
+          <div className="flex justify-end gap-3 mt-4">
+              {hasPermission('02.04') && (
+                  <button className={`bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold py-2 px-6 rounded-lg shadow-sm transition-all ${fontSettings.controls}`}>
+                      Nhập viện
+                  </button>
+              )}
+              {hasPermission('02.01') && (
+                  <button 
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className={`bg-primary hover:bg-primary-dark text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all disabled:bg-slate-400 ${fontSettings.controls}`}
+                  >
+                      {isSaving ? 'Đang lưu...' : 'Lưu kết quả'}
+                  </button>
+              )}
+              {hasPermission('02.02') && (
+                  <button 
+                    onClick={handleTerminate}
+                    className={`bg-secondary hover:bg-emerald-600 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all ${fontSettings.controls}`}
+                  >
+                      Kết thúc khám
+                  </button>
+              )}
+              <button 
+                onClick={handlePrint}
+                disabled={isPrinting}
+                className={`flex items-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold py-2 px-6 rounded-lg shadow-sm transition-all disabled:opacity-50 ${fontSettings.controls}`}
+              >
+                  <PrinterIcon className="w-5 h-5" />
+                  {isPrinting ? 'Đang in...' : 'In phiếu kết quả'}
+              </button>
           </div>
         </div>
 
@@ -207,20 +368,22 @@ const ConsultationView: React.FC = () => {
                 )}
            </div>
 
-           <div className="bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
-                <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 border-b dark:border-slate-600 pb-2 mb-3">Lịch sử khám</h3>
-                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                    {history.map(rec => (
-                        <div key={rec.id} className={`border-b border-slate-100 dark:border-slate-700 pb-2 last:border-0 ${fontSettings.listSecondary}`}>
-                            <div className="flex justify-between mb-1">
-                                <span className="font-semibold text-slate-700 dark:text-slate-200">{rec.date}</span>
-                                <span className="text-slate-500 text-xs">{rec.doctor}</span>
+           {hasPermission('02.05') && (
+               <div className="bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
+                    <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 border-b dark:border-slate-600 pb-2 mb-3">Lịch sử khám</h3>
+                    <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                        {history.map(rec => (
+                            <div key={rec.id} className={`border-b border-slate-100 dark:border-slate-700 pb-2 last:border-0 ${fontSettings.listSecondary}`}>
+                                <div className="flex justify-between mb-1">
+                                    <span className="font-semibold text-slate-700 dark:text-slate-200">{rec.date}</span>
+                                    <span className="text-slate-500 text-xs">{rec.doctor}</span>
+                                </div>
+                                <p className="text-slate-600 dark:text-slate-400"><span className="font-medium">Chẩn đoán:</span> {rec.diagnosis}</p>
                             </div>
-                            <p className="text-slate-600 dark:text-slate-400"><span className="font-medium">Chẩn đoán:</span> {rec.diagnosis}</p>
-                        </div>
-                    ))}
-                </div>
-           </div>
+                        ))}
+                    </div>
+               </div>
+           )}
         </div>
       </div>
     </div>

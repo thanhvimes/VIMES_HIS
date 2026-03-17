@@ -5,6 +5,7 @@ import { OperationRecord } from '../../../../types';
 import ImageGalleryUpload from './ImageGalleryUpload';
 import Combobox, { ComboboxColumn } from '../../Combobox';
 import { doctorOptions, procedureOptions, CatalogItem, DoctorItem } from '../../../../modules/consultation/data/catalogs';
+import { consultationService } from '../../../../services/consultationService';
 
 interface ProcedureFormProps {
     formData: OperationRecord;
@@ -34,7 +35,36 @@ const TextareaGroup = ({ label, name, value, onChange, rows = 3, placeholder = '
 );
 
 const ProcedureForm: React.FC<ProcedureFormProps> = ({ formData, onChange, onImagesChange }) => {
-    const handleComboChange = (name: string) => (value: string) => { onChange({ target: { name, value } }); };
+    const [options, setOptions] = React.useState<CatalogItem[]>(procedureOptions);
+    const [isLoading, setIsLoading] = React.useState(false);
+
+    const handleSearch = async (query: string) => {
+        if (!query || query.length < 2) return;
+        setIsLoading(true);
+        try {
+            const response = await consultationService.getOperationCatalog(query, 'TT');
+            if (response.success) {
+                setOptions(response.data || []);
+            }
+        } catch (error) {
+            console.error("Search error:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleComboChange = (name: string) => (value: string) => { 
+        onChange({ target: { name, value } }); 
+    };
+
+    const handleServiceChange = (value: string, item?: CatalogItem) => {
+        if (item) {
+            onChange({ target: { name: 'serviceName', value: item.name } } as any);
+            onChange({ target: { name: 'itemId', value: item.code } } as any);
+        } else {
+            onChange({ target: { name: 'serviceName', value } });
+        }
+    };
 
     const procedureColumns: ComboboxColumn<CatalogItem>[] = [
         { key: 'code', label: 'Mã', width: '15%', className: 'font-mono text-xs text-slate-500' },
@@ -51,7 +81,19 @@ const ProcedureForm: React.FC<ProcedureFormProps> = ({ formData, onChange, onIma
             <SectionHeader icon={ClockIcon} title="Thông tin thủ thuật" />
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="col-span-1 md:col-span-3">
-                    <Combobox<CatalogItem> label="Tên thủ thuật" name="serviceName" value={formData.serviceName} onChange={handleComboChange('serviceName')} options={procedureOptions} columns={procedureColumns} required placeholder="Tìm kiếm tên thủ thuật..." displayValue={(item) => item.name} />
+                    <Combobox<CatalogItem> 
+                        label="Tên thủ thuật" 
+                        name="serviceName" 
+                        value={formData.serviceName} 
+                        onChange={handleServiceChange} 
+                        options={options} 
+                        columns={procedureColumns} 
+                        required 
+                        placeholder="Tìm kiếm tên thủ thuật..." 
+                        displayValue={(item) => item.name} 
+                        onSearch={handleSearch}
+                        isLoading={isLoading}
+                    />
                 </div>
                 <div className="col-span-1">
                     <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1.5">Loại hình</label>

@@ -1,7 +1,7 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { XIcon, SearchIcon, PlusIcon, CheckIcon } from '../../Icons';
-import { ServiceItem, serviceCategories, serviceList } from '../../../modules/consultation/data/catalogs';
+import { ServiceItem, serviceCategories } from '../../../modules/consultation/data/catalogs';
+import { consultationService } from '../../../services/consultationService';
 
 interface ServiceCatalogModalProps {
     isOpen: boolean;
@@ -13,28 +13,59 @@ const ServiceCatalogModal: React.FC<ServiceCatalogModalProps> = ({ isOpen, onClo
     const [selectedCategoryId, setSelectedCategoryId] = useState<string>(serviceCategories[0]?.id || '');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+    const [items, setItems] = useState<ServiceItem[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        const fetchItems = async () => {
+            if (!isOpen) return;
+            setLoading(true);
+            try {
+                // In a real VIMES DB, category ID from our mock might not match.
+                // For now, we fetch by the type of category (XN, CDHA, TDCN)
+                const category = serviceCategories.find(c => c.id === selectedCategoryId);
+                const groupId = category?.type === 'CDHA' ? 'B' : category?.type === 'TDCN' ? 'C' : 'A';
+                
+                const response = await consultationService.getServiceCatalog(groupId);
+                if (response.success) {
+                    // Map backend data to ServiceItem
+                    const mappedItems: ServiceItem[] = response.data.map((it: any) => ({
+                        id: it.id,
+                        code: it.id.toString(), // Use ID as code if code field is missing
+                        name: it.name,
+                        categoryId: selectedCategoryId,
+                        price: parseFloat(it.price) || 0,
+                        unit: it.unit || 'Lần'
+                    }));
+                    setItems(mappedItems);
+                }
+            } catch (error) {
+                console.error("Failed to fetch service catalog", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchItems();
+    }, [isOpen, selectedCategoryId]);
 
     useEffect(() => {
         if (isOpen) {
             setSelectedItems(new Set());
             setSearchQuery('');
-            setSelectedCategoryId(serviceCategories[0]?.id || '');
         }
     }, [isOpen]);
 
     const filteredItems = useMemo(() => {
-        return serviceList.filter(item => {
-            const matchesCategory = selectedCategoryId ? item.categoryId === selectedCategoryId : true;
+        return items.filter(item => {
             const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.code.toLowerCase().includes(searchQuery.toLowerCase());
-            return matchesCategory && matchesSearch;
+            return matchesSearch;
         });
-    }, [selectedCategoryId, searchQuery]);
+    }, [items, searchQuery]);
 
     const categoryCounts = useMemo(() => {
         const counts: Record<string, number> = {};
-        serviceList.forEach(item => {
-            if (selectedItems.has(item.id)) counts[item.categoryId] = (counts[item.categoryId] || 0) + 1;
-        });
+        // Note: This logic might need adjustment as items now change per category
         return counts;
     }, [selectedItems]);
 
@@ -45,8 +76,8 @@ const ServiceCatalogModal: React.FC<ServiceCatalogModalProps> = ({ isOpen, onClo
     };
 
     const handleConfirm = () => {
-        const items = serviceList.filter(item => selectedItems.has(item.id));
-        onSelect(items);
+        const selected = items.filter(item => selectedItems.has(item.id));
+        onSelect(selected);
         onClose();
     };
 

@@ -1,10 +1,10 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { 
-    SearchIcon, 
-    FilterIcon, 
-    CheckCircleIcon, 
-    XCircleIcon, 
+import {
+    SearchIcon,
+    FilterIcon,
+    CheckCircleIcon,
+    XCircleIcon,
     ClockIcon,
     CalendarIcon,
     PhoneIcon,
@@ -19,30 +19,34 @@ import {
     UserPlusIcon,
     BuildingOfficeIcon,
     CheckIcon,
-    // Fix: Added missing icon imports
     ClipboardListIcon,
-    XIcon
+    XIcon,
+    DocumentPlusIcon
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { bookingService, OnlineBookingRecord, BookingSpeciality } from '../../../services/bookingService';
 import { formatDate } from '../../../utils/formatters';
+import BookingPrintTemplate from '../components/BookingPrintTemplate';
+import QuickSpecialityBookingModal from '../components/QuickSpecialityBookingModal';
 
 const BookingManagementView: React.FC = () => {
     const { fontSettings } = useTheme();
     const { addNotification } = useNotification();
-    
+
     // State
     const [bookings, setBookings] = useState<OnlineBookingRecord[]>([]);
     const [specialities, setSpecialities] = useState<BookingSpeciality[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [processingId, setProcessingId] = useState<string | null>(null);
-    
+
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
     const [specialityFilter, setSpecialityFilter] = useState('All');
     const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
+    const [printBooking, setPrintBooking] = useState<OnlineBookingRecord | null>(null);
+    const [quickBookingTarget, setQuickBookingTarget] = useState<OnlineBookingRecord | null>(null);
 
     const loadData = async () => {
         setIsLoading(true);
@@ -51,8 +55,21 @@ const BookingManagementView: React.FC = () => {
                 bookingService.getBookingList({}),
                 bookingService.getSpecialities()
             ]);
+            console.log('📋 Booking list data:', data);
+            console.log('📋 Data length:', data.length);
+            console.log('📋 Specialities:', specs);
+
+            // Deduplicate specialities by ID
+            const uniqueSpecs = Array.from(
+                new Map(specs.map(s => [s.id, s])).values()
+            );
+            console.log('📋 Unique specialities:', uniqueSpecs);
+
             setBookings(data);
-            setSpecialities(specs);
+            setSpecialities(uniqueSpecs);
+        } catch (error) {
+            console.error('❌ Error loading booking list:', error);
+            addNotification("Lỗi", "Không thể tải dữ liệu", "error", undefined, true);
         } finally {
             setIsLoading(false);
         }
@@ -64,67 +81,85 @@ const BookingManagementView: React.FC = () => {
 
     // Logic xử lý Duyệt & Đẩy HIS
     const handleApprove = async (booking: OnlineBookingRecord) => {
-        setProcessingId(booking.id);
+        setProcessingId(String(booking.id));
         try {
-            const res = await bookingService.approveAndPushToHIS(booking.id);
+            const res = await bookingService.approveBooking(booking.id);
             if (res.success) {
-                setBookings(prev => prev.map(b => 
-                    b.id === booking.id ? { ...b, status: 'Approved', smsStatus: 'Sent' } : b
+                setBookings(prev => prev.map(b =>
+                    b.id === booking.id ? { ...b, status: 'S' } : b
                 ));
                 addNotification(
-                    "Duyệt thành công", 
-                    `Đã đẩy BN ${booking.name} vào hàng đợi. STT: ${res.queueNumber}`, 
-                    "success", 
-                    undefined, 
+                    "Duyệt thành công",
+                    `Đã duyệt BN ${booking.patientName}. STT: ${res.receptNo}`,
+                    "success",
+                    undefined,
                     true
                 );
             }
-        } catch (err) {
-            addNotification("Lỗi", "Không thể kết nối API HIS", "error", undefined, true);
+        } catch (err: any) {
+            addNotification("Lỗi", err.message || "Không thể duyệt", "error", undefined, true);
         } finally {
             setProcessingId(null);
         }
     };
 
-    const handleReject = async (id: string) => {
+    const handleReject = async (id: number) => {
         if (!window.confirm("Từ chối lịch hẹn này? Hệ thống sẽ gửi tin nhắn thông báo hủy cho khách hàng.")) return;
-        await bookingService.rejectBooking(id, "Bác sĩ bận");
-        setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'Rejected' } : b));
-        addNotification("Đã từ chối", "Lịch hẹn đã được hủy.", "warning", undefined, true);
+        try {
+            await bookingService.rejectBooking(id, "Bác sĩ bận");
+            setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'C' } : b));
+            addNotification("Đã từ chối", "Lịch hẹn đã được hủy.", "warning", undefined, true);
+        } catch (err: any) {
+            addNotification("Lỗi", err.message || "Không thể từ chối", "error", undefined, true);
+        }
     };
 
-    const handleResendSMS = async (id: string) => {
-        setProcessingId(id);
-        await bookingService.resendSMS(id);
-        setBookings(prev => prev.map(b => b.id === id ? { ...b, smsStatus: 'Sent' } : b));
-        setProcessingId(null);
-        addNotification("Đã gửi lại", "Tin nhắn xác nhận đã được gửi lại.", "info", undefined, true);
+    const handleResendSMS = async (id: number) => {
+        setProcessingId(String(id));
+        try {
+            await bookingService.resendSMS(id);
+            setProcessingId(null);
+            addNotification("Đã gửi lại", "Tin nhắn xác nhận đã được gửi lại.", "info", undefined, true);
+        } catch (err: any) {
+            setProcessingId(null);
+            addNotification("Lỗi", err.message || "Không thể gửi SMS", "error", undefined, true);
+        }
+    };
+
+    const handlePrint = (booking: OnlineBookingRecord) => {
+        setPrintBooking(booking);
+        setTimeout(() => {
+            window.print();
+            setPrintBooking(null);
+        }, 100);
     };
 
     const filteredBookings = useMemo(() => {
         return bookings.filter(b => {
-            const matchesSearch = b.name.toLowerCase().includes(searchTerm.toLowerCase()) || b.phone.includes(searchTerm);
+            const matchesSearch = b.patientName.toLowerCase().includes(searchTerm.toLowerCase()) || b.phone.includes(searchTerm);
             const matchesStatus = statusFilter === 'All' || b.status === statusFilter;
-            const matchesSpec = specialityFilter === 'All' || b.speciality === specialityFilter;
-            const matchesDate = !dateFilter || b.date === dateFilter;
+            const matchesSpec = specialityFilter === 'All' || (b.specialityName && b.specialityName === specialityFilter);
+            // Handle both ISO date string and date-only format
+            const bookingDateStr = b.bookingDate ? b.bookingDate.split('T')[0] : '';
+            const matchesDate = !dateFilter || bookingDateStr === dateFilter;
             return matchesSearch && matchesStatus && matchesDate && matchesSpec;
         });
     }, [bookings, searchTerm, statusFilter, dateFilter, specialityFilter]);
 
     const getStatusBadge = (status: string) => {
         switch (status) {
-            case 'Pending': return <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-orange-200 bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 shadow-sm">Chờ duyệt</span>;
-            case 'Approved': return <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-green-200 bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 shadow-sm">Đã duyệt</span>;
-            case 'Rejected': return <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-red-200 bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 shadow-sm">Từ chối</span>;
-            default: return <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-blue-200 bg-blue-50 text-blue-700">Đã đến</span>;
+            case 'O': return <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-orange-200 bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 shadow-sm">Chờ duyệt</span>;
+            case 'S': return <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-green-200 bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 shadow-sm">Đã duyệt</span>;
+            case 'C': return <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-red-200 bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 shadow-sm">Đã hủy</span>;
+            default: return <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border border-blue-200 bg-blue-50 text-blue-700">Khác</span>;
         }
     };
 
     const getSmsBadge = (status: string) => {
         switch (status) {
-            case 'Sent': return <div className="flex items-center gap-1 text-green-600 font-bold text-xs" title="Đã gửi thành công"><SmsIcon className="w-4 h-4"/> Đã gửi</div>;
-            case 'Failed': return <div className="flex items-center gap-1 text-red-500 font-bold text-xs" title="Lỗi gửi tin"><XCircleIcon className="w-4 h-4"/> Lỗi</div>;
-            default: return <div className="flex items-center gap-1 text-slate-400 font-bold text-xs" title="Chờ gửi"><ClockIcon className="w-4 h-4"/> Chờ</div>;
+            case 'Sent': return <div className="flex items-center gap-1 text-green-600 font-bold text-xs" title="Đã gửi thành công"><SmsIcon className="w-4 h-4" /> Đã gửi</div>;
+            case 'Failed': return <div className="flex items-center gap-1 text-red-500 font-bold text-xs" title="Lỗi gửi tin"><XCircleIcon className="w-4 h-4" /> Lỗi</div>;
+            default: return <div className="flex items-center gap-1 text-slate-400 font-bold text-xs" title="Chờ gửi"><ClockIcon className="w-4 h-4" /> Chờ</div>;
         }
     };
 
@@ -134,25 +169,45 @@ const BookingManagementView: React.FC = () => {
             <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-teal-600 text-white rounded-xl shadow-lg shadow-teal-500/30">
-                        <ClipboardListIcon className="w-6 h-6"/>
+                        <ClipboardListIcon className="w-6 h-6" />
                     </div>
                     <div>
                         <h1 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Duyệt đăng ký trực tuyến</h1>
                         <div className="flex items-center gap-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
                             <span>Tổng cộng: {bookings.length}</span>
                             <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                            <span className="text-orange-500">Chờ duyệt: {bookings.filter(b => b.status === 'Pending').length}</span>
+                            <span className="text-orange-500">Chờ duyệt: {bookings.filter(b => b.status === 'O').length}</span>
                         </div>
                     </div>
                 </div>
 
                 <div className="flex gap-2">
-                    <button 
+                    <button
+                        onClick={async () => {
+                            if (!window.confirm("Bạn có muốn khởi tạo khung giờ khám cho 30 ngày tới không?")) return;
+                            setIsLoading(true);
+                            try {
+                                const res = await bookingService.initSlots(30);
+                                if (res.success) addNotification("Thành công", res.message, "success", undefined, true);
+                            } catch (err: any) {
+                                addNotification("Lỗi", err.message || "Không thể khởi tạo", "error", undefined, true);
+                            } finally {
+                                setIsLoading(false);
+                            }
+                        }}
+                        disabled={isLoading}
+                        className="p-2.5 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-xl border border-orange-200 dark:border-orange-800 hover:bg-orange-100 transition shadow-sm flex items-center gap-2 font-bold text-sm"
+                        title="Khởi tạo khung giờ cho 30 ngày tới"
+                    >
+                        <CalendarIcon className="w-5 h-5" />
+                        Khởi tạo lịch khám
+                    </button>
+                    <button
                         onClick={loadData}
                         disabled={isLoading}
                         className="p-2.5 bg-slate-100 dark:bg-slate-700 rounded-xl text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-white transition shadow-sm flex items-center gap-2 font-bold text-sm"
                     >
-                        <RefreshIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`}/>
+                        <RefreshIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
                         Nạp lại
                     </button>
                 </div>
@@ -164,10 +219,10 @@ const BookingManagementView: React.FC = () => {
                     <div className="md:col-span-2">
                         <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Tìm bệnh nhân</label>
                         <div className="relative">
-                            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"/>
-                            <input 
-                                type="text" 
-                                placeholder="Họ tên, SĐT..." 
+                            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="Họ tên, SĐT..."
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                                 className={`w-full pl-9 p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 text-sm focus:ring-2 focus:ring-teal-500 outline-none ${fontSettings.controls}`}
@@ -176,8 +231,8 @@ const BookingManagementView: React.FC = () => {
                     </div>
                     <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Ngày khám</label>
-                        <input 
-                            type="date" 
+                        <input
+                            type="date"
                             value={dateFilter}
                             onChange={e => setDateFilter(e.target.value)}
                             className={`w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-sm font-bold ${fontSettings.controls}`}
@@ -185,7 +240,7 @@ const BookingManagementView: React.FC = () => {
                     </div>
                     <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Chuyên khoa</label>
-                        <select 
+                        <select
                             value={specialityFilter}
                             onChange={e => setSpecialityFilter(e.target.value)}
                             className={`w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-sm font-bold ${fontSettings.controls}`}
@@ -195,17 +250,17 @@ const BookingManagementView: React.FC = () => {
                         </select>
                     </div>
                 </div>
-                
+
                 <div className="flex gap-2">
-                    <select 
+                    <select
                         value={statusFilter}
                         onChange={e => setStatusFilter(e.target.value)}
                         className={`p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 text-sm font-bold ${fontSettings.controls}`}
                     >
                         <option value="All">Tất cả trạng thái</option>
-                        <option value="Pending">Chờ duyệt</option>
-                        <option value="Approved">Đã duyệt</option>
-                        <option value="Rejected">Từ chối</option>
+                        <option value="O">Chờ duyệt</option>
+                        <option value="S">Đã duyệt</option>
+                        <option value="C">Đã hủy</option>
                     </select>
                 </div>
             </div>
@@ -218,8 +273,10 @@ const BookingManagementView: React.FC = () => {
                             <tr>
                                 <th className="p-4 w-12 text-center">STT</th>
                                 <th className="p-4">Thời gian hẹn</th>
+                                <th className="p-4">Số hồ sơ</th>
                                 <th className="p-4">Bệnh nhân</th>
                                 <th className="p-4">Chuyên khoa / Lý do</th>
+                                <th className="p-4">Phòng khám</th>
                                 <th className="p-4 text-center">Nguồn</th>
                                 <th className="p-4 text-center">SMS</th>
                                 <th className="p-4 text-center">Trạng thái</th>
@@ -228,47 +285,58 @@ const BookingManagementView: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                             {filteredBookings.length === 0 ? (
-                                <tr><td colSpan={8} className="p-20 text-center text-slate-400 italic font-bold">Không tìm thấy bản ghi nào.</td></tr>
+                                <tr><td colSpan={9} className="p-20 text-center text-slate-400 italic font-bold">Không tìm thấy bản ghi nào.</td></tr>
                             ) : (
                                 filteredBookings.map((b, idx) => (
                                     <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors group">
                                         <td className="p-4 text-center text-slate-400 font-mono text-xs">{idx + 1}</td>
                                         <td className="p-4">
-                                            <div className="font-bold text-slate-800 dark:text-white">{formatDate(b.date)}</div>
+                                            <div className="font-bold text-slate-800 dark:text-white">
+                                                {b.bookingDate ? formatDate(b.bookingDate.split('T')[0]) : '---'}
+                                            </div>
                                             <div className="text-xs text-blue-600 font-black flex items-center gap-1 mt-1">
-                                                <ClockIcon className="w-3 h-3"/> {b.time}
+                                                <ClockIcon className="w-3 h-3" /> {b.bookingTime}
                                             </div>
                                         </td>
                                         <td className="p-4">
+                                            <div className="font-mono text-blue-600 font-bold text-xs">{b.docNo || '---'}</div>
+                                        </td>
+                                        <td className="p-4">
                                             <div className="flex items-center gap-2">
-                                                <div className="font-black text-slate-800 dark:text-white uppercase text-sm">{b.name}</div>
-                                                {b.patientId ? (
-                                                    <span className="text-[9px] bg-blue-100 text-blue-700 px-1.5 rounded font-bold border border-blue-200" title="Bệnh nhân cũ">ID: {b.patientId}</span>
-                                                ) : (
-                                                    <span className="text-[9px] bg-teal-100 text-teal-700 px-1.5 rounded font-bold border border-teal-200" title="Bệnh nhân mới"><UserPlusIcon className="w-2.5 h-2.5 inline"/> MỚI</span>
-                                                )}
+                                                <div className="font-black text-slate-800 dark:text-white uppercase text-sm">{b.patientName}</div>
+                                                <span className="text-[9px] bg-teal-100 text-teal-700 px-1.5 rounded font-bold border border-teal-200" title="Bệnh nhân mới"><UserPlusIcon className="w-2.5 h-2.5 inline" /> MỚI</span>
                                             </div>
                                             <div className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
-                                                <PhoneIcon className="w-3 h-3"/> {b.phone}
+                                                <PhoneIcon className="w-3 h-3" /> {b.phone}
                                                 <span className="mx-1 opacity-30">|</span>
-                                                <span>{b.gender}, {new Date().getFullYear() - parseInt(b.dob.split('/')[2] || '1990')}T</span>
+                                                <span>{b.gender === 'M' ? 'Nam' : 'Nữ'}, {b.birthDate ? new Date().getFullYear() - new Date(b.birthDate).getFullYear() : '?'}T</span>
                                             </div>
                                         </td>
                                         <td className="p-4">
                                             <div className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-200 text-sm">
-                                                <BuildingOfficeIcon className="w-3.5 h-3.5 text-indigo-500"/>
-                                                {b.speciality}
+                                                <BuildingOfficeIcon className="w-3.5 h-3.5 text-indigo-500" />
+                                                {b.specialityName || b.deptId}
                                             </div>
-                                            <div className="text-xs text-slate-500 mt-1 italic line-clamp-1" title={b.reason}>{b.reason}</div>
+                                            <div className="text-xs text-slate-500 mt-1 italic line-clamp-1" title={b.reason}>{b.reason || 'Không có'}</div>
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="font-bold text-slate-800 dark:text-white text-sm">
+                                                {b.roomName || 'Chưa phân phòng'}
+                                            </div>
+                                            <div className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
+                                                <span className="font-mono">P.{b.roomId || '?'}</span>
+                                                <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                                <span>STT {b.receptNo || '?'}</span>
+                                            </div>
                                         </td>
                                         <td className="p-4 text-center">
-                                            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${b.source === 'Portal' ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30' : 'bg-blue-50 text-blue-700 dark:bg-blue-900/30'}`}>
-                                                {b.source}
+                                            <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-teal-50 text-teal-700 dark:bg-teal-900/30">
+                                                ONLINE
                                             </span>
                                         </td>
                                         <td className="p-4 text-center">
                                             <div className="flex justify-center">
-                                                {getSmsBadge(b.smsStatus)}
+                                                {getSmsBadge(b.smsStatus || 'Pending')}
                                             </div>
                                         </td>
                                         <td className="p-4 text-center">
@@ -276,36 +344,47 @@ const BookingManagementView: React.FC = () => {
                                         </td>
                                         <td className="p-4 text-right">
                                             <div className="flex justify-end gap-2">
-                                                {b.status === 'Pending' ? (
+                                                {b.status === 'O' ? (
                                                     <>
-                                                        <button 
+                                                        <button
                                                             onClick={() => handleApprove(b)}
-                                                            disabled={processingId === b.id}
-                                                            className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-md transition transform active:scale-90 disabled:opacity-50" 
+                                                            disabled={processingId === String(b.id)}
+                                                            className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-md transition transform active:scale-90 disabled:opacity-50"
                                                             title="Duyệt & Đẩy vào HIS"
                                                         >
-                                                            {processingId === b.id ? <RefreshIcon className="w-4 h-4 animate-spin"/> : <CheckIcon className="w-4 h-4"/>}
+                                                            {processingId === String(b.id) ? <RefreshIcon className="w-4 h-4 animate-spin" /> : <CheckIcon className="w-4 h-4" />}
                                                         </button>
-                                                        <button 
+                                                        <button
                                                             onClick={() => handleReject(b.id)}
-                                                            disabled={processingId === b.id}
-                                                            className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition disabled:opacity-50" 
+                                                            disabled={processingId === String(b.id)}
+                                                            className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition disabled:opacity-50"
                                                             title="Từ chối"
                                                         >
-                                                            <XIcon className="w-4 h-4"/>
+                                                            <XIcon className="w-4 h-4" />
                                                         </button>
                                                     </>
                                                 ) : (
-                                                    <button 
+                                                    <button
                                                         onClick={() => handleResendSMS(b.id)}
-                                                        className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition" 
+                                                        className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition"
                                                         title="Gửi lại SMS"
                                                     >
-                                                        <PaperAirplaneIcon className="w-4 h-4 -rotate-45"/>
+                                                        <PaperAirplaneIcon className="w-4 h-4 -rotate-45" />
                                                     </button>
                                                 )}
-                                                <button className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition" title="In phiếu hẹn">
-                                                    <PrinterIcon className="w-4 h-4"/>
+                                                <button
+                                                    onClick={() => setQuickBookingTarget(b)}
+                                                    className="p-2 bg-teal-50 text-teal-600 rounded-lg hover:bg-teal-100 transition"
+                                                    title="Đăng ký thêm chuyên khoa khác"
+                                                >
+                                                    <DocumentPlusIcon className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handlePrint(b)}
+                                                    className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition"
+                                                    title="In phiếu hẹn"
+                                                >
+                                                    <PrinterIcon className="w-4 h-4" />
                                                 </button>
                                             </div>
                                         </td>
@@ -319,14 +398,26 @@ const BookingManagementView: React.FC = () => {
                 <div className="p-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center text-[10px] font-black text-slate-500 uppercase tracking-widest shrink-0">
                     <div className="flex gap-4">
                         <span>Hiển thị {filteredBookings.length} yêu cầu</span>
-                        <span className="text-green-600">Duyệt xong: {bookings.filter(b => b.status === 'Approved').length}</span>
+                        <span className="text-green-600">Duyệt xong: {bookings.filter(b => b.status === 'S').length}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <PaperAirplaneIcon className="w-3.5 h-3.5 text-blue-500"/>
+                        <PaperAirplaneIcon className="w-3.5 h-3.5 text-blue-500" />
                         Dữ liệu đồng bộ lúc: {new Date().toLocaleTimeString()}
                     </div>
                 </div>
             </div>
+
+            {/* Print Template (hidden, only shows when printing) */}
+            {printBooking && <BookingPrintTemplate booking={printBooking} />}
+
+            {/* Quick Speciality Booking Modal */}
+            {quickBookingTarget && (
+                <QuickSpecialityBookingModal
+                    booking={quickBookingTarget}
+                    onClose={() => setQuickBookingTarget(null)}
+                    onSuccess={loadData}
+                />
+            )}
         </div>
     );
 };

@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
     SearchIcon,
     BeakerIcon,
@@ -151,18 +151,63 @@ const mockRequests: ServiceRequest[] = [
     }
 ];
 
+
+import { useParams } from 'react-router-dom';
+import { useNotification } from '../../../../contexts/NotificationContext';
+import { consultationService } from '../../../../services/consultationService';
+
 const LabView: React.FC = () => {
+    const { patientId } = useParams<{ patientId: string }>();
+    const { addNotification } = useNotification();
     const { fontSettings } = useTheme();
-    const [requests, setRequests] = useState<ServiceRequest[]>(mockRequests);
+    const [requests, setRequests] = useState<ServiceRequest[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     
+    // Mock DocNo for now - in real app this comes from the active encounter/visit
+    const currentDocNo = 21000001; 
+
     // Modal States
     const [isCatalogModalOpen, setIsCatalogModalOpen] = useState(false);
     const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
-    const [isTrendModalOpen, setIsTrendModalOpen] = useState(false); // Trend Chart Modal State
+    const [isTrendModalOpen, setIsTrendModalOpen] = useState(false);
 
     const selectedRequest = useMemo(() => requests.find(r => r.id === selectedId), [requests, selectedId]);
+
+    const loadHistory = async () => {
+        if (!currentDocNo) return;
+        setIsLoading(true);
+        try {
+            const response = await consultationService.getServiceHistory(currentDocNo);
+            if (response.success) {
+                // Map backend response to ServiceRequest interface
+                const mapped: ServiceRequest[] = response.data.map((order: any) => ({
+                    id: order.id.toString(),
+                    name: order.items && order.items.length > 0 ? (order.items.length > 1 ? `${order.items[0].name} (+${order.items.length - 1})` : order.items[0].name) : 'Phiếu chỉ định',
+                    type: order.type === 'A' ? 'XN' : order.type === 'B' ? 'HA' : 'TD',
+                    status: order.status === 'P' ? 'completed' : 'pending',
+                    orderingDoctor: order.orderingDoctor,
+                    orderingDate: new Date(order.orderingDate).toLocaleString('vi-VN'),
+                    labData: order.type === 'A' ? { items: order.items, device: '' } : undefined,
+                    imagingData: order.type === 'B' ? { findings: order.items[0]?.result || '', conclusion: '', technique: '', imageUrl: '' } : undefined,
+                    functionalData: order.type === 'C' ? { findings: order.items[0]?.result || '', conclusion: '', technique: '', metrics: {} } : undefined
+                }));
+                setRequests(mapped);
+                if (mapped.length > 0 && !selectedId && window.innerWidth >= 1024) {
+                    setSelectedId(mapped[0].id);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to load service history", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadHistory();
+    }, [currentDocNo]);
 
     const filteredRequests = useMemo(() => {
         if (!searchTerm) return requests;
@@ -172,42 +217,45 @@ const LabView: React.FC = () => {
         );
     }, [requests, searchTerm]);
 
-    // Initialize selection on desktop
-    React.useEffect(() => {
-        if (window.innerWidth >= 1024 && requests.length > 0 && !selectedId) {
-            setSelectedId(requests[0].id);
-        }
-    }, []);
-
     const handleDelete = () => {
         if (selectedRequest && window.confirm(`Bạn có chắc chắn muốn xóa phiếu ${selectedRequest.name}?`)) {
+            // In real app, call API to delete/cancel order
             setRequests(prev => prev.filter(r => r.id !== selectedRequest.id));
             setSelectedId(null);
+            addNotification("Thông báo", "Đã xóa chỉ định.", "info");
         }
     };
 
-    const handleServiceAdd = (items: ServiceItem[]) => {
-        const now = new Date();
-        const dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes()}`;
-        
-        const newRequests: ServiceRequest[] = items.map((item, index) => {
-            const category = serviceCategories.find(c => c.id === item.categoryId);
-            const type: ServiceType = category?.type === 'CDHA' ? 'HA' : category?.type === 'TDCN' ? 'TD' : 'XN';
-            
-            return {
-                id: `REQ-${Date.now()}-${index}`,
-                name: item.name,
-                type: type,
-                status: 'pending',
-                orderingDoctor: 'BS. Current User', // Should come from auth context
-                orderingDate: dateStr,
-                // Pending requests don't have results or specimen info yet
-            };
-        });
+    const handleServiceAdd = async (items: ServiceItem[]) => {
+        if (items.length === 0) return;
 
-        setRequests(prev => [...newRequests, ...prev]); // Add new items to top
-        if (newRequests.length > 0 && window.innerWidth >= 1024) {
-            setSelectedId(newRequests[0].id);
+        try {
+            // Group indices to determine the main group (XN, CDHA, TDCN)
+            // For simplicity, we use the first item's group category
+            const firstItem = items[0];
+            const category = serviceCategories.find(c => c.id === firstItem.categoryId);
+            const groupId = category?.type === 'CDHA' ? 'B' : category?.type === 'TDCN' ? 'C' : 'A';
+
+            const payload = {
+                docNo: currentDocNo,
+                groupId: groupId,
+                items: items.map(it => ({
+                    id: it.id,
+                    name: it.name,
+                    unit: it.unit,
+                    note: ''
+                }))
+            };
+
+            const result = await consultationService.saveServiceOrder(payload);
+            if (result.success) {
+                addNotification("Thành công", "Đã lưu chỉ định CLS.", "success");
+                loadHistory(); // Reload from DB
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error: any) {
+            addNotification("Lỗi", "Không thể lưu chỉ định: " + error.message, "error");
         }
     };
 

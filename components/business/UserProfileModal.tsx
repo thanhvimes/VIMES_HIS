@@ -1,18 +1,21 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { 
-    XIcon, 
-    UserGroupIcon, 
-    SaveIcon, 
-    CameraIcon, 
-    IdentificationIcon, 
-    BriefcaseIcon, 
-    CheckBadgeIcon, 
+import {
+    XIcon,
+    UserGroupIcon,
+    SaveIcon,
+    CameraIcon,
+    IdentificationIcon,
+    BriefcaseIcon,
+    CheckBadgeIcon,
     KeyIcon,
     PhoneIcon,
     HomeIcon
 } from '../Icons';
+
+import { useSession } from '../../contexts/SessionContext';
+import { authService } from '../../services/authService';
 
 interface UserProfileModalProps {
     isOpen: boolean;
@@ -20,35 +23,73 @@ interface UserProfileModalProps {
 }
 
 const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) => {
+    const { user, userInfo, updateUserInfo } = useSession();
     const [activeTab, setActiveTab] = useState<'personal' | 'professional' | 'security'>('personal');
+    const [isSaving, setIsSaving] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    
-    // Mock detailed medical staff data
+
+    // Helper to safely split date strings (backend might return Date objects or strings)
+    const safeDateSplit = (dateVal: any) => {
+        if (!dateVal) return '';
+        if (typeof dateVal !== 'string') {
+            // If it's a Date object, try to convert to ISO string first
+            try {
+                return new Date(dateVal).toISOString().split('T')[0];
+            } catch (e) {
+                return '';
+            }
+        }
+        return dateVal.split('T')[0];
+    };
+
+    // Initialize with session data
     const [formData, setFormData] = useState({
         // Personal
-        avatar: 'https://ui-avatars.com/api/?name=Dr+Minh&background=0ea5e9&color=fff&size=128',
-        fullName: 'Trần Văn Minh',
-        dob: '1985-05-20',
-        gender: 'Nam',
-        identityCard: '001085000xxx', // CCCD
-        phone: '0912345678',
-        email: 'minh.tv@vimes.com.vn',
-        address: '123 Nguyễn Trãi, Thanh Xuân, Hà Nội',
-        
+        avatar: user?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.fullName || 'User')}&background=0ea5e9&color=fff&size=128`,
+        fullName: user?.fullName || userInfo?.name || '',
+        dob: safeDateSplit(userInfo?.dob || user?.dob) || '1985-05-20',
+        gender: userInfo?.gender || user?.gender || 'Nam',
+        identityCard: userInfo?.identityCard || user?.identityCard || '',
+        phone: userInfo?.phone || user?.phone || '',
+        email: userInfo?.email || user?.email || (user?.username ? `${user.username}@vimes.com.vn` : 'staff@vimes.com.vn'),
+        address: userInfo?.address || user?.address || '',
+
         // Professional
-        staffId: 'BS001',
-        department: 'Khoa Nội Tổng Quát',
-        position: 'Trưởng khoa',
-        title: 'Bác sĩ CKII', // Học hàm/học vị
-        licenseNumber: '001234/HNO-CCHN', // Chứng chỉ hành nghề
-        scopeOfPractice: 'Khám bệnh, chữa bệnh Nội khoa',
+        staffId: userInfo?.userId || user?.userId || '',
+        department: user?.departmentName || userInfo?.deptId || 'Hành chính',
+        position: userInfo?.position || user?.position || 'Nhân viên',
+        title: userInfo?.title || user?.title || 'Bác sĩ',
+        licenseNumber: userInfo?.certificate || user?.certificate || 'Đang cập nhật',
+        scopeOfPractice: 'Chuyên môn theo phân công đơn vị',
         digitalSignatureStatus: 'Đã đăng ký (Token)',
-        
+
         // Security
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
     });
+
+    // Update form when session data loads
+    useEffect(() => {
+        if (isOpen && (user || userInfo)) {
+            setFormData(prev => ({
+                ...prev,
+                fullName: user?.fullName || userInfo?.name || prev.fullName,
+                staffId: userInfo?.userId || user?.userId || prev.staffId,
+                department: user?.departmentName || userInfo?.deptId || prev.department,
+                phone: userInfo?.phone || user?.phone || prev.phone,
+                title: userInfo?.title || user?.title || prev.title,
+                licenseNumber: userInfo?.certificate || user?.certificate || prev.licenseNumber,
+                position: userInfo?.position || user?.position || prev.position,
+                avatar: user?.avatarUrl || prev.avatar,
+                dob: safeDateSplit(userInfo?.dob || user?.dob) || prev.dob,
+                gender: userInfo?.gender || user?.gender || prev.gender,
+                identityCard: userInfo?.identityCard || user?.identityCard || prev.identityCard,
+                email: userInfo?.email || user?.email || prev.email,
+                address: userInfo?.address || user?.address || prev.address
+            }));
+        }
+    }, [isOpen, user, userInfo]);
 
     if (!isOpen) return null;
 
@@ -68,11 +109,42 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
         }
     };
 
-    const handleSave = (e: React.FormEvent) => {
-        e.preventDefault();
-        // In real app: Validate and API call
-        alert("Cập nhật hồ sơ nhân viên thành công!");
-        onClose();
+    const handleSave = async (e: React.FormEvent) => {
+        // Prevent default only if triggered by form submit
+        if (e) e.preventDefault();
+
+        setIsSaving(true);
+        try {
+            // Map frontend fields to backend expected fields
+            const updateData = {
+                name: formData.fullName,
+                phone: formData.phone,
+                certificate: formData.licenseNumber,
+                position: formData.position,
+                title: formData.title,
+                dob: formData.dob,
+                gender: formData.gender,
+                identityCard: formData.identityCard,
+                email: formData.email,
+                address: formData.address
+            };
+
+            const response = await authService.updateProfile(updateData);
+
+            if (response.success) {
+                // Update local session state using returned data if available
+                updateUserInfo(response.user || updateData);
+                alert("Cập nhật thông tin tài khoản thành công!");
+                onClose();
+            } else {
+                alert("Lỗi: " + (response.message || "Không thể cập nhật"));
+            }
+        } catch (error: any) {
+            console.error('Update profile error:', error);
+            alert("Lỗi hệ thống: " + error.message);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     // Common input style
@@ -81,50 +153,50 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
 
     // Use Portal to render outside of Header context to avoid CSS transform issues
     return createPortal(
-        <div 
+        <div
             className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
             onClick={onClose}
         >
             {/* Modal Container with max-height to prevent jumping */}
-            <div 
+            <div
                 className="bg-white dark:bg-slate-800 w-full max-w-4xl rounded-xl shadow-2xl flex flex-col overflow-hidden animate-fade-in-up max-h-[90vh]"
                 onClick={(e) => e.stopPropagation()}
             >
-                
+
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 shrink-0">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
-                            <UserGroupIcon className="w-6 h-6"/>
+                            <UserGroupIcon className="w-6 h-6" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-bold text-slate-800 dark:text-white">Hồ sơ Nhân viên</h2>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">Quản lý thông tin cá nhân và chuyên môn y tế</p>
+                            <h2 className="text-lg font-bold text-slate-800 dark:text-white">Thông tin Tài khoản</h2>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Quản lý hồ sơ nhân viên và chuyên môn y tế</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition">
-                        <XIcon className="w-6 h-6"/>
+                        <XIcon className="w-6 h-6" />
                     </button>
                 </div>
 
                 {/* Tabs & Main Layout */}
                 <div className="flex flex-1 overflow-hidden">
-                    
+
                     {/* Sidebar Tabs (Desktop) / Top Tabs (Mobile) */}
                     <div className="w-64 bg-slate-50 dark:bg-slate-900/50 border-r border-slate-200 dark:border-slate-700 flex-col hidden md:flex p-4 gap-2 shrink-0">
                         <div className="text-center mb-6">
                             <div className="relative inline-block">
-                                <img 
-                                    src={formData.avatar} 
-                                    alt="Avatar" 
+                                <img
+                                    src={formData.avatar}
+                                    alt="Avatar"
                                     className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-slate-700 shadow-md mx-auto"
                                 />
-                                <button 
+                                <button
                                     type="button"
                                     onClick={() => fileInputRef.current?.click()}
                                     className="absolute bottom-0 right-0 p-1.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 border-2 border-white dark:border-slate-800 shadow-sm transition"
                                 >
-                                    <CameraIcon className="w-4 h-4"/>
+                                    <CameraIcon className="w-4 h-4" />
                                 </button>
                                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
                             </div>
@@ -135,36 +207,36 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
                             </span>
                         </div>
 
-                        <button 
+                        <button
                             onClick={() => setActiveTab('personal')}
                             className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === 'personal' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                         >
-                            <IdentificationIcon className="w-5 h-5"/> Thông tin cá nhân
+                            <IdentificationIcon className="w-5 h-5" /> Thông tin cá nhân
                         </button>
-                        <button 
+                        <button
                             onClick={() => setActiveTab('professional')}
                             className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === 'professional' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                         >
-                            <BriefcaseIcon className="w-5 h-5"/> Công tác & Chuyên môn
+                            <BriefcaseIcon className="w-5 h-5" /> Công tác & Chuyên môn
                         </button>
-                        <button 
+                        <button
                             onClick={() => setActiveTab('security')}
                             className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === 'security' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                         >
-                            <KeyIcon className="w-5 h-5"/> Bảo mật tài khoản
+                            <KeyIcon className="w-5 h-5" /> Thiết lập tài khoản
                         </button>
                     </div>
 
                     {/* Mobile Tab Fallback */}
                     <div className="md:hidden flex border-b border-slate-200 dark:border-slate-700 shrink-0 overflow-x-auto">
-                         <button onClick={() => setActiveTab('personal')} className={`flex-1 py-3 text-xs font-bold ${activeTab === 'personal' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500'}`}>Cá nhân</button>
-                         <button onClick={() => setActiveTab('professional')} className={`flex-1 py-3 text-xs font-bold ${activeTab === 'professional' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500'}`}>Chuyên môn</button>
-                         <button onClick={() => setActiveTab('security')} className={`flex-1 py-3 text-xs font-bold ${activeTab === 'security' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500'}`}>Bảo mật</button>
+                        <button onClick={() => setActiveTab('personal')} className={`flex-1 py-3 text-xs font-bold ${activeTab === 'personal' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500'}`}>Cá nhân</button>
+                        <button onClick={() => setActiveTab('professional')} className={`flex-1 py-3 text-xs font-bold ${activeTab === 'professional' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500'}`}>Chuyên môn</button>
+                        <button onClick={() => setActiveTab('security')} className={`flex-1 py-3 text-xs font-bold ${activeTab === 'security' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500'}`}>Thiết lập</button>
                     </div>
 
                     {/* Form Content Area */}
                     <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
-                        
+
                         {activeTab === 'personal' && (
                             <div className="space-y-6 animate-fade-in">
                                 <h3 className="text-lg font-bold text-slate-800 dark:text-white border-b pb-2 dark:border-slate-700 mb-4">Thông tin hành chính</h3>
@@ -188,14 +260,14 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
                                     <div>
                                         <label className={labelClass}>CCCD / CMND</label>
                                         <div className="relative">
-                                            <IdentificationIcon className="absolute left-3 top-2.5 w-4 h-4 text-slate-400"/>
+                                            <IdentificationIcon className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                                             <input type="text" name="identityCard" value={formData.identityCard} onChange={handleChange} className={`${inputClass} pl-9`} />
                                         </div>
                                     </div>
                                     <div>
                                         <label className={labelClass}>Số điện thoại</label>
                                         <div className="relative">
-                                            <PhoneIcon className="absolute left-3 top-2.5 w-4 h-4 text-slate-400"/>
+                                            <PhoneIcon className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                                             <input type="tel" name="phone" value={formData.phone} onChange={handleChange} className={`${inputClass} pl-9`} />
                                         </div>
                                     </div>
@@ -206,7 +278,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
                                     <div className="col-span-1 md:col-span-2">
                                         <label className={labelClass}>Địa chỉ thường trú</label>
                                         <div className="relative">
-                                            <HomeIcon className="absolute left-3 top-2.5 w-4 h-4 text-slate-400"/>
+                                            <HomeIcon className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                                             <input type="text" name="address" value={formData.address} onChange={handleChange} className={`${inputClass} pl-9`} />
                                         </div>
                                     </div>
@@ -217,7 +289,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
                         {activeTab === 'professional' && (
                             <div className="space-y-6 animate-fade-in">
                                 <h3 className="text-lg font-bold text-slate-800 dark:text-white border-b pb-2 dark:border-slate-700 mb-4">Thông tin công tác & Chứng chỉ</h3>
-                                
+
                                 <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800 mb-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
@@ -259,7 +331,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
                                     <div>
                                         <label className={labelClass}>Chứng chỉ hành nghề (CCHN)</label>
                                         <div className="relative">
-                                            <CheckBadgeIcon className="absolute left-3 top-2.5 w-4 h-4 text-emerald-500"/>
+                                            <CheckBadgeIcon className="absolute left-3 top-2.5 w-4 h-4 text-emerald-500" />
                                             <input type="text" name="licenseNumber" value={formData.licenseNumber} onChange={handleChange} className={`${inputClass} pl-9 font-bold`} placeholder="Số hiệu chứng chỉ..." />
                                         </div>
                                     </div>
@@ -297,7 +369,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
                                         <input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} className={inputClass} placeholder="Nhập lại mật khẩu mới" />
                                     </div>
                                 </div>
-                                
+
                                 <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800 p-4 rounded-lg mt-6">
                                     <h4 className="text-sm font-bold text-orange-700 dark:text-orange-400 mb-2">Nhật ký đăng nhập gần đây</h4>
                                     <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
@@ -315,8 +387,18 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
                     <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700 transition">
                         Hủy bỏ
                     </button>
-                    <button type="button" onClick={handleSave} className="px-6 py-2.5 rounded-lg text-sm font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg flex items-center gap-2 transition transform active:scale-95">
-                        <SaveIcon className="w-4 h-4"/> Lưu hồ sơ
+                    <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className="px-6 py-2.5 rounded-lg text-sm font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg flex items-center gap-2 transition transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isSaving ? (
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                            <SaveIcon className="w-4 h-4" />
+                        )}
+                        {isSaving ? 'Đang lưu...' : 'Lưu hồ sơ'}
                     </button>
                 </div>
             </div>

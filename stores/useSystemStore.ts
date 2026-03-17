@@ -10,7 +10,7 @@ import { PHARMACY_NAV_ITEMS } from '../modules/pharmacy/constants';
 import { MEDICAL_SUPPLIES_NAV_ITEMS } from '../modules/medical-supplies/constants';
 import { LAB_RESULTS_NAV_ITEMS } from '../modules/lab-results/constants';
 import { IMAGING_RESULTS_NAV_ITEMS } from '../modules/imaging-results/constants';
-import { INPATIENT_NAV_ITEMS, DOCTOR_NAV_ITEMS, NURSE_NAV_ITEMS } from '../modules/inpatient-treatment/constants'; 
+import { INPATIENT_NAV_ITEMS, DOCTOR_NAV_ITEMS, NURSE_NAV_ITEMS } from '../modules/inpatient-treatment/constants';
 import { SURGERY_NAV_ITEMS } from '../modules/surgery/constants';
 import { EQUIPMENT_NAV_ITEMS } from '../modules/equipment/constants';
 import { RECORD_STORAGE_NAV_ITEMS } from '../modules/record-storage/constants';
@@ -20,7 +20,7 @@ import { INSURANCE_NAV_ITEMS } from '../modules/insurance/constants';
 import { TELEMEDICINE_NAV_ITEMS } from '../modules/telemedicine/constants';
 import { CRM_NAV_ITEMS } from '../modules/crm/constants';
 import { HR_NAV_ITEMS } from '../modules/hr/constants';
-import { ICON_MAP } from '../components/icon-map'; 
+import { ICON_MAP } from '../components/icon-map';
 import React from 'react';
 
 export interface SlideItem {
@@ -67,7 +67,7 @@ const defaultMenuConfigRaw: Record<string, NavItemType[]> = {
     'medical-supplies': MEDICAL_SUPPLIES_NAV_ITEMS,
     'lab-results': LAB_RESULTS_NAV_ITEMS,
     'imaging-results': IMAGING_RESULTS_NAV_ITEMS,
-    'inpatient-treatment': INPATIENT_NAV_ITEMS, 
+    'inpatient-treatment': INPATIENT_NAV_ITEMS,
     surgery: SURGERY_NAV_ITEMS,
     equipment: EQUIPMENT_NAV_ITEMS,
     'record-storage': RECORD_STORAGE_NAV_ITEMS,
@@ -129,14 +129,33 @@ export const useSystemStore = create<SystemState>()(
                     return DOCTOR_NAV_ITEMS;
                 }
                 const config = get().menuConfig[moduleId];
+                const defaultItems = defaultMenuConfigRaw[moduleId] || [];
+
                 if (config) {
+                    // AUTO-SYNC: Check if any default items are missing from current config
+                    const currentPaths = new Set(config.map(item => item.path));
+                    const missingItems = defaultItems
+                        .filter(item => !currentPaths.has(item.path))
+                        .map(mapConstantToDTO);
+
+                    if (missingItems.length > 0) {
+                        const updatedConfig = [...config, ...missingItems];
+                        // Update state and persistence
+                        setTimeout(() => {
+                            set((state) => ({
+                                menuConfig: { ...state.menuConfig, [moduleId]: updatedConfig }
+                            }));
+                        }, 0);
+                        return updatedConfig.filter(item => item.isVisible !== false).map(mapDTOToNavItem);
+                    }
+
                     return config.filter(item => item.isVisible !== false).map(mapDTOToNavItem);
                 }
-                return defaultMenuConfigRaw[moduleId] || [];
+                return defaultItems;
             }
         }),
         {
-            name: 'clinic-system-storage-v4',
+            name: 'clinic-system-storage-v5',
             storage: createJSONStorage(() => localStorage),
             partialize: (state) => ({ isSidebarCollapsed: state.isSidebarCollapsed, slides: state.slides, menuConfig: state.menuConfig }),
         }

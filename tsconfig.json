@@ -25,5 +25,16 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "include": ["**/*.ts", "**/*.tsx", "**/*.d.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "backend",
+    "release",
+    "android",
+    "old_reg.tsx",
+    "old_RegistrationView.tsx",
+    "release_v1"
+  ]
 }

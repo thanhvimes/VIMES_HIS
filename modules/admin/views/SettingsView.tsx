@@ -4,8 +4,8 @@ import { useTheme, FontSettings } from '../../../contexts/ThemeContext';
 import { useSession } from '../../../contexts/SessionContext';
 import { useSystemStore, NavItemDTO } from '../../../stores/useSystemStore';
 import { adminService } from '../../../services/adminService';
-import { 
-    CogIcon, HospitalIcon, GlobeIcon, CheckCircleIcon, ArrowUpTrayIcon, 
+import {
+    CogIcon, HospitalIcon, GlobeIcon, CheckCircleIcon, ArrowUpTrayIcon,
     ListBulletIcon, PencilIcon, TrashIcon, PlusIcon, EyeIcon, BanIcon,
     ChevronUpIcon, ChevronDownIcon, SearchIcon, XIcon
 } from '../../../components/Icons';
@@ -30,6 +30,7 @@ const moduleOptions = [
     { value: 'inpatient-treatment', label: 'Nội trú' },
     { value: 'surgery', label: 'Phẫu thuật' },
     { value: 'admin', label: 'Quản trị' },
+    { value: 'online-booking', label: 'Đăng ký Online' },
     { value: 'hr', label: 'Nhân sự' },
 ];
 
@@ -40,7 +41,7 @@ const SettingsView: React.FC = () => {
     const { orgInfo, setOrgInfo } = useSession();
     // Using Zustand Store
     const { menuConfig, updateMenuConfig, resetMenuConfig } = useSystemStore();
-    
+
     const [activeTab, setActiveTab] = useState<'display' | 'hospital' | 'menu'>('display');
     const [hospitalForm, setHospitalForm] = useState<OrganizationInfo>(orgInfo);
     const [isSaving, setIsSaving] = useState(false);
@@ -102,7 +103,7 @@ const SettingsView: React.FC = () => {
     };
 
     // --- MENU MANAGEMENT HANDLERS ---
-    
+
     const handleMoveItem = (index: number, direction: 'up' | 'down') => {
         const newItems = [...currentMenuItems];
         if (direction === 'up' && index > 0) {
@@ -125,10 +126,10 @@ const SettingsView: React.FC = () => {
             updateMenuConfig(selectedModule, newItems);
         }
     };
-    
+
     // Improved Edit Handler with Index
     const [editingIndex, setEditingIndex] = useState<number>(-1);
-    
+
     const openAddModal = () => {
         setEditingIndex(-1);
         setNewItem({ name: '', path: `/${selectedModule}/new-path`, iconName: 'Squares2X2Icon', isVisible: true });
@@ -137,7 +138,7 @@ const SettingsView: React.FC = () => {
 
     const openEditModal = (index: number) => {
         setEditingIndex(index);
-        setNewItem({...currentMenuItems[index]});
+        setNewItem({ ...currentMenuItems[index] });
         setIsMenuModalOpen(true);
     }
 
@@ -154,7 +155,7 @@ const SettingsView: React.FC = () => {
     }
 
     const handleResetMenu = () => {
-        if(confirm("Khôi phục menu mặc định cho phân hệ này?")) {
+        if (confirm("Khôi phục menu mặc định cho phân hệ này?")) {
             resetMenuConfig(selectedModule);
         }
     }
@@ -171,19 +172,19 @@ const SettingsView: React.FC = () => {
 
             {/* Tabs */}
             <div className="flex gap-4 border-b border-slate-200 dark:border-slate-700 mb-4 shrink-0">
-                <button 
+                <button
                     onClick={() => setActiveTab('display')}
                     className={`pb-2 px-4 text-sm font-bold transition-colors border-b-2 ${activeTab === 'display' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
                     Giao diện & Hiển thị
                 </button>
-                <button 
+                <button
                     onClick={() => setActiveTab('hospital')}
                     className={`pb-2 px-4 text-sm font-bold transition-colors border-b-2 ${activeTab === 'hospital' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
                     Thông tin Bệnh viện
                 </button>
-                <button 
+                <button
                     onClick={() => setActiveTab('menu')}
                     className={`pb-2 px-4 text-sm font-bold transition-colors border-b-2 ${activeTab === 'menu' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
@@ -203,7 +204,7 @@ const SettingsView: React.FC = () => {
                             </div>
                             <div className="w-64">
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Chọn kích thước</label>
-                                <select 
+                                <select
                                     value={fontSettings.listPrimary}
                                     onChange={(e) => handleFontChange('listPrimary', e.target.value)}
                                     className="w-full p-2 border rounded-md bg-white dark:bg-slate-700 dark:border-slate-600"
@@ -230,7 +231,7 @@ const SettingsView: React.FC = () => {
                             </div>
                             <div className="w-64">
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Chọn kích thước</label>
-                                <select 
+                                <select
                                     value={fontSettings.controls}
                                     onChange={(e) => handleFontChange('controls', e.target.value)}
                                     className="w-full p-2 border rounded-md bg-white dark:bg-slate-700 dark:border-slate-600"
@@ -257,7 +258,7 @@ const SettingsView: React.FC = () => {
                 <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 animate-fade-in overflow-y-auto">
                     <div className="flex items-start gap-4 mb-6 border-b border-slate-100 dark:border-slate-700 pb-4">
                         <div className="p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg">
-                            <HospitalIcon className="w-8 h-8"/>
+                            <HospitalIcon className="w-8 h-8" />
                         </div>
                         <div>
                             <h3 className="text-lg font-bold text-slate-800 dark:text-white">Thông tin Đơn vị</h3>
@@ -271,8 +272,8 @@ const SettingsView: React.FC = () => {
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Tên Bệnh viện (Hiển thị lớn)</label>
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         name="hospitalName"
                                         value={hospitalForm.hospitalName}
                                         onChange={handleHospitalChange}
@@ -282,8 +283,8 @@ const SettingsView: React.FC = () => {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Đơn vị chủ quản (Sở/Bộ)</label>
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         name="governingUnitCode"
                                         value={hospitalForm.governingUnitCode}
                                         onChange={handleHospitalChange}
@@ -293,8 +294,8 @@ const SettingsView: React.FC = () => {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Mã KCB (Hospital Code)</label>
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         name="hospitalCode"
                                         value={hospitalForm.hospitalCode}
                                         onChange={handleHospitalChange}
@@ -309,42 +310,42 @@ const SettingsView: React.FC = () => {
                                     <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Logo</label>
                                     <div className="flex gap-2 items-start">
                                         <div className="flex-1">
-                                            <input 
-                                                type="text" 
+                                            <input
+                                                type="text"
                                                 name="logoUrl"
                                                 value={hospitalForm.logoUrl}
                                                 onChange={handleHospitalChange}
                                                 className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 text-sm mb-2"
                                                 placeholder="https://... hoặc tải ảnh lên"
                                             />
-                                            <input 
-                                                type="file" 
+                                            <input
+                                                type="file"
                                                 ref={fileInputRef}
                                                 className="hidden"
                                                 accept="image/*"
                                                 onChange={handleLogoUpload}
                                             />
-                                            <button 
+                                            <button
                                                 type="button"
                                                 onClick={() => fileInputRef.current?.click()}
                                                 className="text-xs flex items-center gap-1 text-blue-600 hover:underline font-semibold"
                                             >
-                                                <ArrowUpTrayIcon className="w-3 h-3"/> Tải ảnh lên từ máy
+                                                <ArrowUpTrayIcon className="w-3 h-3" /> Tải ảnh lên từ máy
                                             </button>
                                         </div>
                                         <div className="w-16 h-16 bg-white border rounded-lg flex items-center justify-center shrink-0 p-1 overflow-hidden shadow-sm">
                                             {hospitalForm.logoUrl ? (
-                                                <img src={hospitalForm.logoUrl} alt="Logo Preview" className="w-full h-full object-contain"/>
+                                                <img src={hospitalForm.logoUrl} alt="Logo Preview" className="w-full h-full object-contain" />
                                             ) : (
-                                                <GlobeIcon className="w-8 h-8 text-slate-300"/>
+                                                <GlobeIcon className="w-8 h-8 text-slate-300" />
                                             )}
                                         </div>
                                     </div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Địa chỉ</label>
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         name="address"
                                         value={hospitalForm.address}
                                         onChange={handleHospitalChange}
@@ -353,8 +354,8 @@ const SettingsView: React.FC = () => {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Hotline</label>
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         name="hotline"
                                         value={hospitalForm.hotline}
                                         onChange={handleHospitalChange}
@@ -365,31 +366,31 @@ const SettingsView: React.FC = () => {
                         </div>
 
                         <div className="pt-6 border-t border-slate-100 dark:border-slate-700 flex justify-end">
-                            <button 
-                                type="submit" 
+                            <button
+                                type="submit"
                                 disabled={isSaving}
                                 className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg flex items-center gap-2 transition-transform active:scale-95 disabled:opacity-70"
                             >
-                                {isSaving ? 'Đang lưu...' : <><CheckCircleIcon className="w-5 h-5"/> Lưu Thay Đổi</>}
+                                {isSaving ? 'Đang lưu...' : <><CheckCircleIcon className="w-5 h-5" /> Lưu Thay Đổi</>}
                             </button>
                         </div>
                     </form>
                 </div>
             )}
-            
+
             {/* TAB: MENU CONFIG */}
             {activeTab === 'menu' && (
                 <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col">
                     <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-between items-center shrink-0">
                         <div className="flex items-center gap-4">
-                            <ListBulletIcon className="w-6 h-6 text-indigo-600"/>
+                            <ListBulletIcon className="w-6 h-6 text-indigo-600" />
                             <div>
                                 <h3 className="text-lg font-bold text-slate-800 dark:text-white">Cấu hình Menu Sidebar</h3>
                                 <p className="text-sm text-slate-500">Tùy chỉnh danh sách chức năng cho từng phân hệ.</p>
                             </div>
                         </div>
                         <div className="flex gap-2">
-                             <select 
+                            <select
                                 value={selectedModule}
                                 onChange={(e) => setSelectedModule(e.target.value)}
                                 className="p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500"
@@ -397,14 +398,14 @@ const SettingsView: React.FC = () => {
                                 {moduleOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                             </select>
                             <button onClick={openAddModal} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow flex items-center gap-2 transition">
-                                <PlusIcon className="w-4 h-4"/> Thêm mục
+                                <PlusIcon className="w-4 h-4" /> Thêm mục
                             </button>
                             <button onClick={handleResetMenu} className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-bold transition text-xs">
                                 Khôi phục mặc định
                             </button>
                         </div>
                     </div>
-                    
+
                     <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                         <table className="w-full text-left text-sm border-collapse">
                             <thead className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs uppercase sticky top-0">
@@ -426,38 +427,38 @@ const SettingsView: React.FC = () => {
                                             <td className="p-3 text-center text-slate-400">{idx + 1}</td>
                                             <td className="p-3 text-center">
                                                 <div className="flex justify-center">
-                                                    <IconComponent className="w-5 h-5 text-indigo-600 dark:text-indigo-400"/>
+                                                    <IconComponent className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                                                 </div>
                                             </td>
                                             <td className="p-3 font-medium text-slate-800 dark:text-white">{item.name}</td>
                                             <td className="p-3 font-mono text-slate-500 text-xs">{item.path}</td>
                                             <td className="p-3 text-center">
                                                 <button onClick={() => handleToggleVisibility(idx)} className={`p-1 rounded ${item.isVisible ? 'text-green-600 hover:bg-green-50' : 'text-slate-300 hover:bg-slate-100'}`}>
-                                                    {item.isVisible ? <EyeIcon className="w-4 h-4"/> : <BanIcon className="w-4 h-4"/>}
+                                                    {item.isVisible ? <EyeIcon className="w-4 h-4" /> : <BanIcon className="w-4 h-4" />}
                                                 </button>
                                             </td>
                                             <td className="p-3 text-center">
                                                 <div className="flex justify-center gap-1">
-                                                    <button 
-                                                        disabled={idx === 0} 
+                                                    <button
+                                                        disabled={idx === 0}
                                                         onClick={() => handleMoveItem(idx, 'up')}
                                                         className="p-1 text-slate-400 hover:text-blue-600 disabled:opacity-30"
                                                     >
-                                                        <ChevronUpIcon className="w-4 h-4"/>
+                                                        <ChevronUpIcon className="w-4 h-4" />
                                                     </button>
-                                                    <button 
-                                                        disabled={idx === currentMenuItems.length - 1} 
+                                                    <button
+                                                        disabled={idx === currentMenuItems.length - 1}
                                                         onClick={() => handleMoveItem(idx, 'down')}
                                                         className="p-1 text-slate-400 hover:text-blue-600 disabled:opacity-30"
                                                     >
-                                                        <ChevronDownIcon className="w-4 h-4"/>
+                                                        <ChevronDownIcon className="w-4 h-4" />
                                                     </button>
                                                 </div>
                                             </td>
                                             <td className="p-3 text-right">
                                                 <div className="flex justify-end gap-2">
-                                                    <button onClick={() => openEditModal(idx)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition"><PencilIcon className="w-4 h-4"/></button>
-                                                    <button onClick={() => handleDeleteItem(idx)} className="p-1.5 text-red-600 hover:bg-red-50 rounded transition"><TrashIcon className="w-4 h-4"/></button>
+                                                    <button onClick={() => openEditModal(idx)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition"><PencilIcon className="w-4 h-4" /></button>
+                                                    <button onClick={() => handleDeleteItem(idx)} className="p-1.5 text-red-600 hover:bg-red-50 rounded transition"><TrashIcon className="w-4 h-4" /></button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -465,7 +466,7 @@ const SettingsView: React.FC = () => {
                                 })}
                             </tbody>
                         </table>
-                        
+
                         {currentMenuItems.length === 0 && (
                             <div className="p-10 text-center text-slate-400 italic">Menu trống. Hãy thêm mục mới.</div>
                         )}
@@ -475,31 +476,31 @@ const SettingsView: React.FC = () => {
 
             {/* Menu Edit Modal */}
             {isMenuModalOpen && (
-                 <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+                <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
                     <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-xl shadow-2xl flex flex-col overflow-hidden animate-zoom-in">
                         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-between items-center">
                             <h3 className="text-lg font-bold text-slate-800 dark:text-white">
                                 {editingIndex >= 0 ? 'Chỉnh sửa Menu Item' : 'Thêm Menu Item'}
                             </h3>
-                            <button onClick={() => setIsMenuModalOpen(false)}><XIcon className="w-5 h-5 text-slate-400"/></button>
+                            <button onClick={() => setIsMenuModalOpen(false)}><XIcon className="w-5 h-5 text-slate-400" /></button>
                         </div>
                         <div className="p-6 space-y-4">
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Tên hiển thị</label>
-                                <input 
-                                    type="text" 
-                                    value={newItem.name} 
-                                    onChange={e => setNewItem({...newItem, name: e.target.value})}
+                                <input
+                                    type="text"
+                                    value={newItem.name}
+                                    onChange={e => setNewItem({ ...newItem, name: e.target.value })}
                                     className="w-full p-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white"
                                     placeholder="Ví dụ: Danh sách bệnh nhân"
                                 />
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Đường dẫn (Path)</label>
-                                <input 
-                                    type="text" 
-                                    value={newItem.path} 
-                                    onChange={e => setNewItem({...newItem, path: e.target.value})}
+                                <input
+                                    type="text"
+                                    value={newItem.path}
+                                    onChange={e => setNewItem({ ...newItem, path: e.target.value })}
                                     className="w-full p-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white font-mono text-sm"
                                     placeholder={`/${selectedModule}/...`}
                                 />
@@ -507,10 +508,10 @@ const SettingsView: React.FC = () => {
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Icon</label>
                                 <div className="relative">
-                                    <SearchIcon className="absolute left-3 top-2.5 w-4 h-4 text-slate-400"/>
-                                    <select 
-                                        value={newItem.iconName} 
-                                        onChange={e => setNewItem({...newItem, iconName: e.target.value})}
+                                    <SearchIcon className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                    <select
+                                        value={newItem.iconName}
+                                        onChange={e => setNewItem({ ...newItem, iconName: e.target.value })}
                                         className="w-full pl-9 p-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white appearance-none"
                                     >
                                         {iconOptions.map(icon => <option key={icon} value={icon}>{icon}</option>)}
@@ -520,12 +521,12 @@ const SettingsView: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-                             <div className="flex items-center gap-2 pt-2">
-                                <input 
-                                    type="checkbox" 
+                            <div className="flex items-center gap-2 pt-2">
+                                <input
+                                    type="checkbox"
                                     id="isVisible"
-                                    checked={newItem.isVisible} 
-                                    onChange={e => setNewItem({...newItem, isVisible: e.target.checked})}
+                                    checked={newItem.isVisible}
+                                    onChange={e => setNewItem({ ...newItem, isVisible: e.target.checked })}
                                     className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
                                 />
                                 <label htmlFor="isVisible" className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer">Hiển thị trên Sidebar</label>

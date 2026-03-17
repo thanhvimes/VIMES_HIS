@@ -1,7 +1,9 @@
 
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { PortalAuthProvider } from '../../contexts/PortalAuthContext';
 import PortalLayout from './components/PortalLayout';
+import ProtectedRoute from './components/ProtectedRoute';
 import PortalLoginView from './views/PortalLoginView';
 import PortalHomeView from './views/PortalHomeView';
 import BookingView from './views/BookingView';
@@ -9,23 +11,30 @@ import HealthRecordsView from './views/HealthRecordsView';
 import FinanceView from './views/FinanceView';
 
 const Portal: React.FC = () => {
+  console.log('[Portal] Component rendering');
   return (
-    <Routes>
-      {/* Relative path "login" matches "/portal/login" */}
-      <Route path="login" element={<PortalLoginView />} />
-      
-      {/* Main Portal Layout Routes */}
-      <Route element={<PortalLayout />}>
+    <PortalAuthProvider>
+      <Routes>
+        {/* Public Route - Login */}
+        <Route path="login" element={<PortalLoginView />} />
+
+        {/* Protected Routes - Require Authentication */}
+        <Route element={
+          <ProtectedRoute>
+            <PortalLayout />
+          </ProtectedRoute>
+        }>
           <Route path="home" element={<PortalHomeView />} />
           <Route path="booking" element={<BookingView />} />
           <Route path="records" element={<HealthRecordsView />} />
           <Route path="finance" element={<FinanceView />} />
-          <Route index element={<Navigate to="home" replace />} />
-      </Route>
+        </Route>
 
-      {/* Catch all redirect within portal */}
-      <Route path="*" element={<Navigate to="home" replace />} />
-    </Routes>
+        {/* Default redirect to login for unauthenticated access */}
+        <Route index element={<Navigate to="login" replace />} />
+        <Route path="*" element={<Navigate to="login" replace />} />
+      </Routes>
+    </PortalAuthProvider>
   );
 };
 

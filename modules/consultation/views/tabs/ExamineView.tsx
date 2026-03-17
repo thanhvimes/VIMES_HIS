@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams, useParams } from 'react-router-dom';
 import { 
     ClipboardListIcon, 
     PencilIcon, 
@@ -22,18 +23,16 @@ import { doctorOptions, diagnosisOptions, DoctorItem, CatalogItem } from '../../
 import SubDiagnosisModal from './modals/SubDiagnosisModal';
 import AIAnalysisModal from './modals/AIAnalysisModal';
 
-// Placeholder data
-const mockPatientInfo = {
-    id: 'P003',
-    name: 'PHÙNG THANH VIỆT',
-    age: 39,
-    gender: 'Nam',
-    address: 'Chưa có địa chỉ',
-};
+// --- Mock Data Removed ---
 
 const DEMO_PDF_URL = 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf';
 
-const ExamineView: React.FC = () => {
+const ExamineView: React.FC<{ age?: number; gender?: string }> = ({ age, gender }) => {
+    const { patientId } = useParams<{ patientId: string }>();
+    const [searchParams] = useSearchParams();
+    const docNo = searchParams.get('docNo');
+    const receptIdx = searchParams.get('receptIdx');
+
     const { openPdf } = usePdfPreview();
     const [mode, setMode] = useState<'VIEW' | 'EDIT_CLINICAL' | 'EDIT_CONCLUSION'>('VIEW');
     const [isLoading, setIsLoading] = useState(false);
@@ -51,9 +50,12 @@ const ExamineView: React.FC = () => {
 
     useEffect(() => {
         const loadData = async () => {
+            if (!docNo) return;
             setIsLoading(true);
             try {
-                const data = await consultationService.getClinicalRecord(mockPatientInfo.id);
+                // Fetch using docNo (Real system uses docNo to identify exam session)
+                const data = await consultationService.getClinicalRecordByDocNo(parseInt(docNo));
+                
                 // Ensure endTime is set, default to current time if empty
                 if (!data.endTime) {
                     const now = new Date();
@@ -69,7 +71,7 @@ const ExamineView: React.FC = () => {
             }
         };
         loadData();
-    }, []);
+    }, [docNo]);
 
     const handleUpdate = () => setMode('EDIT_CLINICAL');
     const handleConclude = () => setMode('EDIT_CONCLUSION');
@@ -178,10 +180,10 @@ const ExamineView: React.FC = () => {
         setAiResult(null);
 
         try {
-            // Map mock patient info to the structure expected by the service
+            // Use props for patient context
             const patientContext = {
-                age: mockPatientInfo.age,
-                gender: mockPatientInfo.gender
+                age: age || 0,
+                gender: gender || 'Không xác định'
             };
             const result = await getAISuggestions(symptoms, notes, patientContext);
             setAiResult(result);

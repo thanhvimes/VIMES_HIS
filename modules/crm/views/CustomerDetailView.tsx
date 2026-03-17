@@ -15,7 +15,7 @@ import {
     GiftIcon,
     PlusIcon
 } from '../../../components/Icons';
-import { ChartBarIcon } from '../../equipment/icons'; // Reusing icons
+import { ChartBarIcon } from '../../../components/Icons'; // Reusing icons
 
 const CustomerDetailView: React.FC = () => {
     const { id } = useParams<{ id: string }>();

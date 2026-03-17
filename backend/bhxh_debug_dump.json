@@ -1,0 +1,136 @@
+{
+  "timestamp": "2026-03-14T17:42:13.389Z",
+  "patient": "Nguyễn Thị Xuyên",
+  "checkApi": {
+    "maKetQua": "000",
+    "ghiChu": "Thẻ còn giá trị sử dụng! Họ tên : Nguyễn Thị Xuyên, Ngày sinh: 16/11/1989, Giới tính : Nữ! (ĐC: 177 Đường Trần Nhân Tông, Phường Đông Triều, Thị xã Đông Triều, Tỉnh Quảng Ninh; Nơi KCBBĐ: 30003; Hạn thẻ: 01/01/2026 - 31/12/2026; Thời điểm đủ 5 năm liên tục: 01/06/2018).",
+    "maThe": "HC4313013030424",
+    "hoTen": "Nguyễn Thị Xuyên",
+    "ngaySinh": "16/11/1989",
+    "gioiTinh": "Nữ",
+    "diaChi": "177 Đường Trần Nhân Tông, Phường Đông Triều, Thị xã Đông Triều, Tỉnh Quảng Ninh",
+    "maDKBD": "30003",
+    "cqBHXH": "Bảo hiểm Xã hội cơ sở Chí Linh",
+    "gtTheTu": "01/01/2026",
+    "gtTheDen": "31/12/2026",
+    "maKV": "",
+    "ngayDu5Nam": "01/06/2018",
+    "maSoBHXH": "3013030424",
+    "maTheCu": "",
+    "maTheMoi": "HC4313013030424",
+    "gtTheTuMoi": "01/01/2026",
+    "gtTheDenMoi": "31/12/2026",
+    "maDKBDMoi": "30003",
+    "tenDKBDMoi": "Trung tâm y tế Chí Linh",
+    "dsLichSuKCB2018": null,
+    "dsLichSuKT2018": [
+      {
+        "userKT": "01253_BV",
+        "thoiGianKT": "202603150039",
+        "thongBao": "Thẻ còn giá trị sử dụng! Họ tên : Nguyễn Thị Xuyên, Ngày sinh: 16/11/1989, Giới tính : Nữ! (ĐC: 177 Đường Trần Nhân Tông, Phường Đông Triều, Thị xã Đông Triều, Tỉnh Quảng Ninh; Nơi KCBBĐ: 30003; Hạn thẻ: 01/01/2026 - 31/12/2026; Thời điểm đủ 5 năm liên tục: 01/06/2018).",
+        "maLoi": "000"
+      },
+      {
+        "userKT": "01253_BV",
+        "thoiGianKT": "202603150041",
+        "thongBao": "Thẻ còn giá trị sử dụng! Họ tên : Nguyễn Thị Xuyên, Ngày sinh: 16/11/1989, Giới tính : Nữ! (ĐC: 177 Đường Trần Nhân Tông, Phường Đông Triều, Thị xã Đông Triều, Tỉnh Quảng Ninh; Nơi KCBBĐ: 30003; Hạn thẻ: 01/01/2026 - 31/12/2026; Thời điểm đủ 5 năm liên tục: 01/06/2018).",
+        "maLoi": "000"
+      }
+    ]
+  },
+  "historyApi": {
+    "maKetQua": "000",
+    "dsLichSuKCB2025": [
+      {
+        "maHoSo": "3014559274",
+        "maCSKCB": "01906",
+        "ngayVao": "202602251625",
+        "ngayRa": "202603111414",
+        "tenBenh": "",
+        "tinhTrang": "1",
+        "kqDieuTri": "3",
+        "lyDoVV": "1",
+        "TEMP1": null,
+        "TEMP2": null,
+        "TEMP3": "",
+        "TEMP4": "",
+        "TEMP5": ""
+      },
+      {
+        "maHoSo": "2999880740",
+        "maCSKCB": "22015",
+        "ngayVao": "202602230940",
+        "ngayRa": "202602231029",
+        "tenBenh": "",
+        "tinhTrang": "1",
+        "kqDieuTri": "2",
+        "lyDoVV": "3",
+        "TEMP1": null,
+        "TEMP2": null,
+        "TEMP3": "",
+        "TEMP4": "",
+        "TEMP5": ""
+      },
+      {
+        "maHoSo": "2996657779",
+        "maCSKCB": "01906",
+        "ngayVao": "202602120721",
+        "ngayRa": "202602121116",
+        "tenBenh": "",
+        "tinhTrang": "1",
+        "kqDieuTri": "3",
+        "lyDoVV": "1",
+        "TEMP1": null,
+        "TEMP2": null,
+        "TEMP3": "",
+        "TEMP4": "",
+        "TEMP5": ""
+      },
+      {
+        "maHoSo": "2976939056",
+        "maCSKCB": "22015",
+        "ngayVao": "202601230737",
+        "ngayRa": "202601230810",
+        "tenBenh": "",
+        "tinhTrang": "2",
+        "kqDieuTri": "3",
+        "lyDoVV": "3",
+        "TEMP1": null,
+        "TEMP2": null,
+        "TEMP3": "",
+        "TEMP4": "",
+        "TEMP5": ""
+      },
+      {
+        "maHoSo": "2971856456",
+        "maCSKCB": "01906",
+        "ngayVao": "202601150725",
+        "ngayRa": "202601160805",
+        "tenBenh": "",
+        "tinhTrang": "1",
+        "kqDieuTri": "3",
+        "lyDoVV": "1",
+        "TEMP1": null,
+        "TEMP2": null,
+        "TEMP3": "",
+        "TEMP4": "",
+        "TEMP5": ""
+      },
+      {
+        "maHoSo": "2964728376",
+        "maCSKCB": "01906",
+        "ngayVao": "202601071658",
+        "ngayRa": "202601081141",
+        "tenBenh": "",
+        "tinhTrang": "1",
+        "kqDieuTri": "3",
+        "lyDoVV": "1",
+        "TEMP1": null,
+        "TEMP2": null,
+        "TEMP3": "",
+        "TEMP4": "",
+        "TEMP5": ""
+      }
+    ]
+  }
+}

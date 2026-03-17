@@ -1,13 +1,12 @@
-
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import BookingDashboardView from './views/BookingDashboardView';
 import StaffBookingFormView from './views/StaffBookingFormView';
 import BookingManagementView from './views/BookingManagementView';
-import BookingConfigurationView from './views/BookingConfigurationView';
-import ActiveRoomSetupView from './views/ActiveRoomSetupView';
 import BookingReportsView from './views/BookingReportsView';
-import ReceptionReportView from './views/ReceptionReportView'; // NEW
+import ReceptionReportView from './views/ReceptionReportView';
+import RoomSetupView from './views/RoomSetupView'; // NEW
+import SettingsView from './views/SettingsView'; // NEW: Settings
 
 const OnlineBooking: React.FC = () => {
   return (
@@ -18,8 +17,8 @@ const OnlineBooking: React.FC = () => {
       <Route path="management" element={<BookingManagementView />} />
       <Route path="reports" element={<BookingReportsView />} />
       <Route path="reception-list" element={<ReceptionReportView />} />
-      <Route path="active-rooms" element={<ActiveRoomSetupView />} />
-      <Route path="config" element={<BookingConfigurationView />} />
+      <Route path="room-setup" element={<RoomSetupView />} />
+      <Route path="settings" element={<SettingsView />} />
     </Routes>
   );
 };

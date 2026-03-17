@@ -34,7 +34,12 @@ const emptyOperation: OperationRecord = {
     instruments: '', medications: '', images: []
 };
 
+import { useParams } from 'react-router-dom';
+import { useNotification } from '../../../../contexts/NotificationContext';
+
 const OperationView: React.FC = () => {
+    const { patientId } = useParams<{ patientId: string }>();
+    const { addNotification } = useNotification();
     const navigate = useNavigate();
     const { openPdf } = usePdfPreview();
     const { fontSettings } = useTheme();
@@ -46,22 +51,28 @@ const OperationView: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [viewImage, setViewImage] = useState<string | null>(null);
     
+    // In real app, this comes from a context or parent
+    const currentDocNo = 21000001; 
+
     // --- Data Loading ---
     useEffect(() => {
         loadData();
-    }, []);
+    }, [patientId]);
 
     const loadData = async () => {
         setIsLoading(true);
         try {
-            const data = await consultationService.getOperations(mockPatientId);
-            setOperations(data);
-            // On desktop, select first item by default if list is not empty and nothing selected
-            if (window.innerWidth >= 1024 && data.length > 0 && !selectedOp) {
-                setSelectedOp(data[0]);
+            const response = await consultationService.getOperations(currentDocNo);
+            if (response.success) {
+                const data = response.data;
+                setOperations(data);
+                if (window.innerWidth >= 1024 && data.length > 0 && !selectedOp) {
+                    setSelectedOp(data[0]);
+                }
             }
         } catch (error) {
             console.error("Error loading operations:", error);
+            addNotification("Lỗi", "Không thể tải danh sách phiếu PT/TT", "error");
         } finally {
             setIsLoading(false);
         }
@@ -102,44 +113,60 @@ const OperationView: React.FC = () => {
 
         setIsLoading(true);
         try {
-            await consultationService.deleteOperation(selectedOp.id);
-            const newList = operations.filter(o => o.id !== selectedOp.id);
-            setOperations(newList);
-            
-            // If on desktop, select next item. On mobile, go back to list.
-            if (window.innerWidth >= 1024 && newList.length > 0) {
-                setSelectedOp(newList[0]);
+            const response = await consultationService.deleteOperation(selectedOp.id);
+            if (response.success) {
+                addNotification("Thành công", "Đã xóa phiếu PT/TT", "success");
+                loadData();
             } else {
-                setSelectedOp(null);
+                throw new Error(response.message);
             }
-        } catch (err) {
-            alert("Xóa thất bại.");
+        } catch (err: any) {
+            addNotification("Lỗi", "Xóa thất bại: " + err.message, "error");
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleFormSubmit = async (formData: OperationRecord) => {
-        const saved = await consultationService.saveOperation(formData);
-        
-        if (modalMode === 'create') {
-            const newItem = { ...formData, id: saved.id || `OP-${Date.now()}` };
-            setOperations([newItem, ...operations]);
-            setSelectedOp(newItem);
-        } else {
-            setOperations(prev => prev.map(op => op.id === formData.id ? formData : op));
-            setSelectedOp(formData);
+        setIsLoading(true);
+        try {
+            const payload = {
+                ...formData,
+                docNo: currentDocNo,
+                itemId: formData.itemId || 'B5200' 
+            };
+
+            const response = await consultationService.saveOperation(payload);
+            if (response.success) {
+                addNotification("Thành công", "Đã lưu phiếu PT/TT", "success");
+                loadData();
+                setIsModalOpen(false);
+            } else {
+                throw new Error(response.message);
+            }
+        } catch (error: any) {
+            addNotification("Lỗi", "Lưu thất bại: " + error.message, "error");
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    const handlePrint = () => {
-        if(selectedOp) {
-            // Open PDF in global modal
+    const handlePrint = async () => {
+        if (!selectedOp) return;
+        setIsLoading(true);
+        try {
+            const blob = await consultationService.printOperation(selectedOp.id);
+            const url = window.URL.createObjectURL(blob);
+            
             openPdf({
-                url: DEMO_PDF_URL,
-                fileName: `Operation_${selectedOp.id}.pdf`,
+                url: url,
+                fileName: `Phieu_PTTT_${selectedOp.id}.pdf`,
                 isSignable: true
             });
+        } catch (error: any) {
+            addNotification("Lỗi", "Không thể tạo bản in: " + error.message, "error");
+        } finally {
+            setIsLoading(false);
         }
     };
 

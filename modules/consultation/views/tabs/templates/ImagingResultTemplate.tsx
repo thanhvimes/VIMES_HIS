@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PhotographIcon, PrinterIcon, DownloadIcon, XIcon, ZoomInIcon } from '../../../../../../components/Icons';
+import { PhotographIcon, PrinterIcon, DownloadIcon, XIcon, ZoomInIcon } from '../../../../../components/Icons';
 import { ServiceRequest } from '../LabView';
-import { usePdfPreview } from '../../../../../../contexts/PdfPreviewContext';
+import { usePdfPreview } from '../../../../../contexts/PdfPreviewContext';
 import MockDicomViewer from '../../../../imaging-results/views/components/MockDicomViewer';
 
 const DEMO_PDF_URL = 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf';

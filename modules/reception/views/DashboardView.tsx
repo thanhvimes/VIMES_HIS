@@ -9,7 +9,7 @@ import {
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { receptionService, QueueStatus } from '../../../services/receptionService';
+import { receptionService, ReceptionStatistics, QueueStatus } from '../../../services/receptionService';
 import { useNavigate } from 'react-router-dom';
 import { formatDate } from '../../../utils/dateFormatter';
 
@@ -42,11 +42,55 @@ const DashboardCard: React.FC<{title: string; value: string; subtext?: string; i
 
 const DashboardView: React.FC = () => {
   const { theme } = useTheme();
-  const navigate = useNavigate();
   const tickColor = theme === 'dark' ? '#94a3b8' : '#64748b';
   
-  // Use custom formatter to ensure consistent date display
+  const [data, setData] = useState<ReceptionStatistics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const stats = await receptionService.getDashboardStatistics();
+        setData(stats);
+      } catch (err: any) {
+        setError(err.message || 'Không thể tải dữ liệu thống kê');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+    // Refresh every 5 minutes
+    const interval = setInterval(fetchData, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatCurrency = (val: number) => {
+    if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
+    if (val >= 1000) return `${(val / 1000).toFixed(0)}K`;
+    return val.toString();
+  };
+
   const todayStr = formatDate(new Date());
+
+  if (loading && !data) {
+    return (
+        <div className="h-64 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+    );
+  }
+
+  if (error && !data) {
+    return (
+        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
+            {error}
+        </div>
+    );
+  }
+
+  const stats = data?.stats;
   
   return (
     <div className="space-y-6 pb-10">
@@ -65,28 +109,28 @@ const DashboardView: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <DashboardCard 
             title="Đã tiếp nhận" 
-            value="89" 
-            subtext="+15% so với hôm qua"
+            value={stats?.received.toString() || '0'} 
+            subtext={`${stats?.growth && stats.growth > 0 ? '+' : ''}${stats?.growth || 0}% so với hôm qua`}
             icon={<UserGroupIcon className="w-6 h-6"/>} 
             color="bg-cyan-500" 
         />
         <DashboardCard 
             title="Đang chờ khám" 
-            value="12" 
-            subtext="Thời gian chờ TB: 15p"
+            value={stats?.waiting.toString() || '0'} 
+            subtext={`Thời gian chờ TB: ${stats?.avgWaitTime || 0}p`}
             icon={<ClockIcon className="w-6 h-6"/>} 
             color="bg-amber-500" 
         />
         <DashboardCard 
             title="Đã hoàn tất" 
-            value="45" 
-            subtext="Doanh thu ước tính: 15M"
+            value={stats?.completed.toString() || '0'} 
+            subtext={`Doanh thu ước tính: ${formatCurrency(stats?.revenue || 0)}`}
             icon={<CheckCircleIcon className="w-6 h-6"/>} 
             color="bg-emerald-500" 
         />
         <DashboardCard 
             title="Đặt lịch trước" 
-            value="24" 
+            value={stats?.booked.toString() || '0'} 
             subtext="Qua App/Web"
             icon={<CalendarIcon className="w-6 h-6"/>} 
             color="bg-purple-500" 
@@ -105,7 +149,7 @@ const DashboardView: React.FC = () => {
                 </select>
             </div>
              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={hourlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <BarChart data={data?.hourlyData || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? '#334155' : '#f1f5f9'} />
                     <XAxis dataKey="hour" tick={{fill: tickColor, fontSize: 12}} axisLine={false} tickLine={false} dy={10} />
                     <YAxis allowDecimals={false} tick={{fill: tickColor, fontSize: 12}} axisLine={false} tickLine={false} />

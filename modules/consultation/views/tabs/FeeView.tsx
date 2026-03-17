@@ -1,5 +1,6 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { 
     PrinterIcon, 
     PlusIcon, 
@@ -12,17 +13,10 @@ import {
 import { FeeItem } from '../../../../types';
 import { usePdfPreview } from '../../../../contexts/PdfPreviewContext';
 import { useTheme } from '../../../../contexts/ThemeContext';
+import { consultationService } from '../../../../services/consultationService';
+import { useNotification } from '../../../../contexts/NotificationContext';
 
-// --- Mock Data ---
-const mockFeeItems: FeeItem[] = [
-    { id: 'F01', name: 'Khám Ngoại (Theo yêu cầu)', category: 'BẰNG KÊ CHI ĐỊNH DỊCH VỤ', unit: 'Lần', quantity: 1, unitPrice: 50600, totalPrice: 50600, insurancePaid: 0, patientPaid: 50600, surcharge: 0 },
-    { id: 'F02', name: 'Ngày giường chuyển khoa', category: 'BẰNG KÊ CHI ĐỊNH DỊCH VỤ', unit: 'Ngày', quantity: 1, unitPrice: 206000, totalPrice: 206000, insurancePaid: 164000, patientPaid: 42000, surcharge: 0 },
-    { id: 'F03', name: 'Tổng phân tích tế bào máu', category: 'XÉT NGHIỆM HUYẾT HỌC', unit: 'Lần', quantity: 1, unitPrice: 42100, totalPrice: 42100, insurancePaid: 42100, patientPaid: 0, surcharge: 0 },
-    { id: 'F04', name: 'Đường huyết (Glucose)', category: 'XÉT NGHIỆM HÓA SINH', unit: 'Lần', quantity: 1, unitPrice: 30000, totalPrice: 30000, insurancePaid: 30000, patientPaid: 0, surcharge: 0 },
-    { id: 'F05', name: 'Chức năng thận (Ure, Creatinin)', category: 'XÉT NGHIỆM HÓA SINH', unit: 'Lần', quantity: 2, unitPrice: 30000, totalPrice: 60000, insurancePaid: 60000, patientPaid: 0, surcharge: 0 },
-    { id: 'F06', name: 'Paracetamol 500mg', category: 'THUỐC & VẬT TƯ', unit: 'Viên', quantity: 10, unitPrice: 500, totalPrice: 5000, insurancePaid: 0, patientPaid: 5000, surcharge: 0 },
-    { id: 'F07', name: 'Kim tiêm 5ml', category: 'THUỐC & VẬT TƯ', unit: 'Cái', quantity: 2, unitPrice: 2000, totalPrice: 4000, insurancePaid: 4000, patientPaid: 0, surcharge: 0 },
-];
+// --- Mock Data Removed ---
 
 // --- Add Fee Modal Component ---
 const AddFeeModal = ({ isOpen, onClose, onAdd }: { isOpen: boolean; onClose: () => void; onAdd: (item: FeeItem) => void }) => {
@@ -88,10 +82,36 @@ const AddFeeModal = ({ isOpen, onClose, onAdd }: { isOpen: boolean; onClose: () 
 };
 
 const FeeView: React.FC = () => {
+    const { docNo } = useParams<{ docNo: string }>();
+    const currentDocNo = parseInt(docNo || '0');
+    
     const { openPdf } = usePdfPreview();
     const { fontSettings } = useTheme();
-    const [items, setItems] = useState<FeeItem[]>(mockFeeItems);
+    const { addNotification } = useNotification();
+    
+    const [items, setItems] = useState<FeeItem[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+    const loadFees = async () => {
+        if (!currentDocNo) return;
+        setIsLoading(true);
+        try {
+            const response = await consultationService.getFees(currentDocNo);
+            if (response.success) {
+                setItems(response.data || []);
+            }
+        } catch (error) {
+            console.error("Error loading fees:", error);
+            addNotification("Lỗi", "Không thể tải danh sách chi phí", "error");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadFees();
+    }, [currentDocNo]);
 
     // --- Calculations ---
     const summary = useMemo(() => {
@@ -123,12 +143,23 @@ const FeeView: React.FC = () => {
         }
     };
 
-    const handlePrint = () => {
-        openPdf({
-            url: 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf',
-            fileName: 'BangKeChiPhi.pdf',
-            isSignable: false
-        });
+    const handlePrint = async () => {
+        if (!currentDocNo) return;
+        setIsLoading(true);
+        try {
+            const blob = await consultationService.printFees(currentDocNo);
+            const url = window.URL.createObjectURL(blob);
+            openPdf({
+                url,
+                fileName: `BangKeChiPhi_${currentDocNo}.pdf`,
+                isSignable: false
+            });
+        } catch (error) {
+            console.error("Error printing fees:", error);
+            addNotification("Lỗi", "Không thể in bảng kê", "error");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const formatCurrency = (val: number) => val.toLocaleString('vi-VN');
@@ -148,7 +179,15 @@ const FeeView: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-auto">
+                <div className="flex-1 overflow-auto relative">
+                    {isLoading && (
+                        <div className="absolute inset-0 bg-white/50 dark:bg-slate-800/50 flex items-center justify-center z-20 backdrop-blur-[1px]">
+                             <div className="flex flex-col items-center">
+                                <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-2"></div>
+                                <span className="text-sm font-bold text-slate-600 dark:text-slate-300">Đang tải chi phí...</span>
+                             </div>
+                        </div>
+                    )}
                     <table className={`w-full text-left border-collapse ${fontSettings.listSecondary}`}>
                         <thead className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 sticky top-0 z-10 shadow-sm border-b-2 border-blue-500">
                             <tr>
@@ -199,12 +238,12 @@ const FeeView: React.FC = () => {
                                                 <td className="p-3 text-center font-semibold border-r border-slate-100 dark:border-slate-700">{item.quantity}</td>
                                                 <td className="p-3 text-right text-slate-600 dark:text-slate-400 border-r border-slate-100 dark:border-slate-700">{formatCurrency(item.unitPrice)}</td>
                                                 <td className="p-3 text-right font-semibold text-slate-700 dark:text-slate-300 border-r border-slate-100 dark:border-slate-700">{formatCurrency(item.totalPrice)}</td>
-                                                <td className="p-3 text-right text-slate-500 border-r border-slate-100 dark:border-slate-700">0</td>
-                                                <td className="p-3 text-right text-slate-500 border-r border-slate-100 dark:border-slate-700"></td>
-                                                <td className="p-3 text-right text-slate-500 border-r border-slate-100 dark:border-slate-700"></td>
-                                                <td className="p-3 text-right text-slate-500 border-r border-slate-100 dark:border-slate-700">0</td>
+                                                <td className="p-3 text-right text-slate-500 border-r border-slate-100 dark:border-slate-700">{formatCurrency(item.surcharge)}</td>
+                                                <td className="p-3 text-right text-slate-500 border-r border-slate-100 dark:border-slate-700">{formatCurrency(item.insurancePaid)}</td>
+                                                <td className="p-3 text-right text-slate-500 border-r border-slate-100 dark:border-slate-700">{formatCurrency(item.surcharge)}</td>
+                                                <td className="p-3 text-right text-slate-500 border-r border-slate-100 dark:border-slate-700">{formatCurrency(item.patientPaid - item.surcharge)}</td>
                                                 <td className="p-3 text-right font-bold text-slate-800 dark:text-white">
-                                                    {formatCurrency(item.totalPrice)}
+                                                    {formatCurrency(item.patientPaid)}
                                                 </td>
                                             </tr>
                                         ))}
@@ -219,11 +258,11 @@ const FeeView: React.FC = () => {
                                 <td className="p-4 text-center">{items.reduce((s, i) => s + i.quantity, 0)}</td>
                                 <td className="p-4 text-right"></td>
                                 <td className="p-4 text-right text-blue-700 dark:text-blue-400">{formatCurrency(summary.total)}</td>
-                                <td className="p-4 text-right">0</td>
-                                <td className="p-4 text-right"></td>
-                                <td className="p-4 text-right">0</td>
-                                <td className="p-4 text-right">0</td>
-                                <td className="p-4 text-right text-lg text-red-600 dark:text-red-400">{formatCurrency(summary.total)}</td>
+                                <td className="p-4 text-right">{formatCurrency(summary.surcharge)}</td>
+                                <td className="p-4 text-right">{formatCurrency(summary.insurance)}</td>
+                                <td className="p-4 text-right">{formatCurrency(summary.surcharge)}</td>
+                                <td className="p-4 text-right">{formatCurrency(summary.patientTotal - summary.surcharge)}</td>
+                                <td className="p-4 text-right text-lg text-red-600 dark:text-red-400">{formatCurrency(summary.patientTotal)}</td>
                             </tr>
                         </tbody>
                     </table>

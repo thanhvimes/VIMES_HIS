@@ -1,5 +1,5 @@
-
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronRightIcon, SearchIcon, XIcon, CheckIcon } from '../Icons';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -44,21 +44,21 @@ interface ComboboxProps<T> {
     name?: string;
     disabled?: boolean;
     autoFocus?: boolean;
-    
+
     // Configuration
     displayValue?: (item: T) => string; // Hàm lấy giá trị hiển thị khi chọn
     filterFunction?: (item: T, query: string) => boolean;
-    
+
     // Multi-column mode
-    columns?: ComboboxColumn<T>[]; 
+    columns?: ComboboxColumn<T>[];
 }
 
-function Combobox<T extends Record<string, any>>({ 
-    label, 
-    value = '', 
-    onChange, 
-    options = [], 
-    placeholder = 'Chọn...', 
+function Combobox<T extends Record<string, any>>({
+    label,
+    value = '',
+    onChange,
+    options = [],
+    placeholder = 'Chọn...',
     className = '',
     required = false,
     name,
@@ -71,36 +71,47 @@ function Combobox<T extends Record<string, any>>({
     const { fontSettings } = useTheme();
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState(value);
-    const [activeIndex, setActiveIndex] = useState(0); // Mặc định highlight dòng đầu tiên
-    
+    const [activeIndex, setActiveIndex] = useState(0);
+
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const listRef = useRef<HTMLUListElement>(null);
 
-    // Đồng bộ searchTerm khi value từ props thay đổi (reset form, chọn item)
-    useEffect(() => {
-        setSearchTerm(value);
-    }, [value]);
+    const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
+    // MUST be defined before useEffect that uses it
     const getDisplayValue = (item: T): string => {
         if (displayValue) return displayValue(item);
         return item.name || item.label || item.code || JSON.stringify(item);
     };
 
-    // Filter logic
+    // Resolve display name from options when value is an ID (e.g., "8026" → "Bình Phước")
+    // Runs when value OR options change, handling the race condition where options load after value
+    useEffect(() => {
+        if (value && options.length > 0) {
+            const strVal = String(value);
+            const matched = options.find(o => {
+                const oId = String(o.id ?? o.code ?? '');
+                const oName = getDisplayValue(o);
+                return oId === strVal || oName === strVal;
+            });
+            if (matched) {
+                setSearchTerm(getDisplayValue(matched));
+                return;
+            }
+        }
+        setSearchTerm(value);
+    }, [value, options]);
+
     const filteredOptions = useMemo(() => {
-        if (!searchTerm && !isOpen) return options; // Khi đóng, không filter
-        // Khi mở nhưng chưa nhập gì, hiện hết. Khi nhập, filter.
-        
-        // Custom filter hoặc default filter tìm trên tất cả các cột
+        if (!searchTerm && !isOpen) return options;
         const query = searchTerm.toLowerCase();
-        
+
         if (filterFunction) {
             return options.filter(opt => filterFunction(opt, query));
         }
 
         return options.filter(item => {
-            // Nếu đang hiển thị text khớp hoàn toàn giá trị item, coi như đã chọn, hiển thị full list gợi ý khác
             if (displayValue && displayValue(item) === searchTerm) return true;
 
             if (columns) {
@@ -109,28 +120,63 @@ function Combobox<T extends Record<string, any>>({
                     return String(val || '').toLowerCase().includes(query);
                 });
             }
-            // Fallback
             return getDisplayValue(item).toLowerCase().includes(query);
         });
     }, [searchTerm, options, filterFunction, columns, isOpen]);
 
-    // Reset active index khi danh sách thay đổi
     useEffect(() => {
         setActiveIndex(0);
     }, [filteredOptions.length]);
 
-    // Click outside to close
+    // Update Dropdown Position dynamically
+    const updatePosition = () => {
+        if (containerRef.current && isOpen) {
+            const rect = containerRef.current.getBoundingClientRect();
+            setDropdownStyle({
+                top: rect.bottom + window.scrollY + 4,
+                left: rect.left + window.scrollX,
+                width: rect.width,
+                // Optional: Thêm logic đảo list lên trên nếu không đủ chỗ trống phía dưới
+            });
+        }
+    };
+
+    useLayoutEffect(() => {
+        updatePosition();
+        if (isOpen) {
+            window.addEventListener('scroll', updatePosition, true);
+            window.addEventListener('resize', updatePosition);
+        }
+        return () => {
+            window.removeEventListener('scroll', updatePosition, true);
+            window.removeEventListener('resize', updatePosition);
+        };
+    }, [isOpen]);
+
+    // Click outside handler
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
+            if (
+                containerRef.current &&
+                !containerRef.current.contains(event.target as Node) &&
+                !(listRef.current?.closest('.combobox-portal') as HTMLElement)?.contains(event.target as Node)
+            ) {
+                // Khi mất focus, revert lại `value` nếu string nhập vào không hợp lệ
+                if (isOpen) {
+                    const matched = options.find(o => getDisplayValue(o) === searchTerm);
+                    if (!matched) {
+                        setSearchTerm(value);
+                    } else {
+                        handleSelect(matched);
+                    }
+                    setIsOpen(false);
+                }
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    }, [isOpen, searchTerm, options, value]);
 
-    // Auto-scroll to active item
     useEffect(() => {
         if (isOpen && listRef.current && activeIndex >= 0 && listRef.current.children[activeIndex]) {
             (listRef.current.children[activeIndex] as HTMLElement).scrollIntoView({
@@ -145,12 +191,13 @@ function Combobox<T extends Record<string, any>>({
         setSearchTerm(display);
         onChange(display, item);
         setIsOpen(false);
+        inputRef.current?.blur();
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchTerm(e.target.value);
-        setIsOpen(true);
-        onChange(e.target.value, undefined); // Báo ra ngoài là đang gõ (item = undefined)
+        if (!isOpen) setIsOpen(true);
+        onChange(e.target.value, undefined);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -160,18 +207,18 @@ function Combobox<T extends Record<string, any>>({
             e.preventDefault();
             if (!isOpen) setIsOpen(true);
             else setActiveIndex(prev => (prev < filteredOptions.length - 1 ? prev + 1 : prev));
-        } 
+        }
         else if (e.key === 'ArrowUp') {
             e.preventDefault();
             if (!isOpen) setIsOpen(true);
             else setActiveIndex(prev => (prev > 0 ? prev - 1 : prev));
-        } 
+        }
         else if (e.key === 'Enter') {
+            e.preventDefault();
             if (isOpen && filteredOptions.length > 0) {
-                e.preventDefault();
                 handleSelect(filteredOptions[activeIndex]);
             }
-        } 
+        }
         else if (e.key === 'Tab') {
             if (isOpen && filteredOptions.length > 0) {
                 handleSelect(filteredOptions[activeIndex]);
@@ -180,9 +227,72 @@ function Combobox<T extends Record<string, any>>({
         }
         else if (e.key === 'Escape') {
             e.preventDefault();
+            setSearchTerm(value); // Revert
             setIsOpen(false);
         }
     };
+
+    const dropdownMenu = (
+        <div
+            style={dropdownStyle}
+            className="combobox-portal absolute z-[99999] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl overflow-hidden ring-1 ring-black/5 animate-fade-in"
+        >
+            {columns && filteredOptions.length > 0 && (
+                <div className={`flex items-center bg-slate-100 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-600 px-3 py-2 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ${fontSettings.listSecondary}`}>
+                    {columns.map((col, idx) => (
+                        <div key={idx} style={{ width: col.width || 'flex-1', flex: col.width ? 'none' : 1 }} className={`px-2 ${col.className || ''}`}>
+                            {col.label}
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            <ul ref={listRef} className={`max-h-80 overflow-auto custom-scrollbar ${fontSettings.listSecondary}`}>
+                {filteredOptions.length > 0 ? (
+                    filteredOptions.map((option, index) => {
+                        const isActive = index === activeIndex;
+                        return (
+                            <li
+                                key={index}
+                                className={`px-3 py-2.5 cursor-pointer border-b border-slate-50 dark:border-slate-700/30 last:border-0 transition-colors duration-75
+                                    ${isActive
+                                        ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-100 font-medium'
+                                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                    }
+                                `}
+                                onClick={() => handleSelect(option)}
+                                onMouseEnter={() => setActiveIndex(index)}
+                            >
+                                {columns ? (
+                                    <div className="flex items-center w-full">
+                                        {columns.map((col, colIdx) => (
+                                            <div
+                                                key={colIdx}
+                                                style={{ width: col.width || 'flex-1', flex: col.width ? 'none' : 1 }}
+                                                className={`px-2 overflow-hidden text-ellipsis whitespace-nowrap ${col.className || ''}`}
+                                            >
+                                                {col.render ? col.render(option) : (
+                                                    <HighlightedText text={String(option[col.key as keyof T] || '')} highlight={searchTerm} />
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <span className="block truncate">
+                                        <HighlightedText text={getDisplayValue(option)} highlight={searchTerm} />
+                                    </span>
+                                )}
+                            </li>
+                        );
+                    })
+                ) : (
+                    <li className="px-4 py-6 italic text-center text-slate-500 dark:text-slate-400">
+                        {searchTerm ? 'Không tìm thấy kết quả phù hợp.' : 'Nhập từ khóa để tìm kiếm...'}
+                    </li>
+                )}
+            </ul>
+        </div>
+    );
 
     return (
         <div className={`relative ${className}`} ref={containerRef}>
@@ -191,9 +301,9 @@ function Combobox<T extends Record<string, any>>({
                     {label} {required && <span className="text-red-500">*</span>}
                 </label>
             )}
-            <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <SearchIcon className="h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+            <div className="relative group flex items-center">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                    <SearchIcon className={`h-5 w-5 transition-colors ${isOpen ? 'text-blue-500' : 'text-slate-400 group-focus-within:text-blue-500'}`} />
                 </div>
                 <input
                     ref={inputRef}
@@ -201,6 +311,10 @@ function Combobox<T extends Record<string, any>>({
                     name={name}
                     value={searchTerm}
                     onChange={handleInputChange}
+                    onClick={(e) => {
+                        (e.target as HTMLInputElement).select(); // Nhấn vào tự động bôi đen để gõ nhanh
+                        setIsOpen(true);
+                    }}
                     onFocus={() => setIsOpen(true)}
                     onKeyDown={handleKeyDown}
                     placeholder={placeholder}
@@ -208,99 +322,46 @@ function Combobox<T extends Record<string, any>>({
                     disabled={disabled}
                     autoFocus={autoFocus}
                     autoComplete="off"
-                    className={`w-full pl-10 pr-8 py-2.5 border rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transition-all placeholder-slate-400
-                        ${isOpen ? 'ring-2 ring-primary border-transparent' : 'border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-primary focus:border-transparent'}
-                        ${disabled ? 'bg-slate-100 dark:bg-slate-800 cursor-not-allowed opacity-75' : ''}
+                    className={`w-full pl-10 pr-10 py-2.5 border rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm transition-all placeholder-slate-400 focus:outline-none
+                        ${isOpen ? 'ring-2 ring-blue-500 border-blue-500' : 'border-slate-300 dark:border-slate-600 hover:border-slate-400'}
+                        ${disabled ? 'bg-slate-100 dark:bg-slate-900 cursor-not-allowed opacity-75' : ''}
                         ${fontSettings.controls}
                     `}
                 />
-                
+
                 {searchTerm && !disabled && (
-                    <div 
-                        className="absolute inset-y-0 right-8 flex items-center px-2 cursor-pointer text-slate-400 hover:text-red-500"
+                    <div
+                        className="absolute inset-y-0 right-7 flex items-center px-1 cursor-pointer text-slate-400 hover:text-red-500 z-10"
                         onClick={(e) => {
                             e.stopPropagation();
                             setSearchTerm('');
                             onChange('', undefined);
                             inputRef.current?.focus();
+                            setIsOpen(true);
                         }}
+                        title="Xóa"
                     >
                         <XIcon className="w-4 h-4" />
                     </div>
                 )}
-                <div 
-                    className={`absolute inset-y-0 right-0 flex items-center px-2 cursor-pointer text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ${disabled ? 'pointer-events-none' : ''}`}
+                <div
+                    className={`absolute inset-y-0 right-0 flex items-center px-2 cursor-pointer text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 z-10 ${disabled ? 'pointer-events-none' : ''}`}
                     onClick={() => {
                         if (!disabled) {
-                            if (!isOpen) inputRef.current?.focus();
+                            if (!isOpen) {
+                                inputRef.current?.focus();
+                                inputRef.current?.select();
+                            }
                             setIsOpen(!isOpen);
                         }
                     }}
                 >
-                    <ChevronRightIcon className={`w-5 h-5 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`} />
+                    <ChevronRightIcon className={`w-5 h-5 transition-transform duration-200 ${isOpen ? 'rotate-90 text-blue-500' : ''}`} />
                 </div>
             </div>
-            
-            {/* Dropdown Menu */}
-            {isOpen && !disabled && (
-                <div className="absolute z-[100] w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl overflow-hidden ring-1 ring-black/5 animate-fade-in">
-                    {/* Header Row for Columns */}
-                    {columns && filteredOptions.length > 0 && (
-                        <div className={`flex items-center bg-slate-100 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-600 px-3 py-2 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ${fontSettings.listSecondary}`}>
-                             {columns.map((col, idx) => (
-                                <div key={idx} style={{ width: col.width || 'flex-1', flex: col.width ? 'none' : 1 }} className={`px-2 ${col.className || ''}`}>
-                                    {col.label}
-                                </div>
-                            ))}
-                        </div>
-                    )}
 
-                    <ul ref={listRef} className={`max-h-80 overflow-auto ${fontSettings.listSecondary}`}>
-                        {filteredOptions.length > 0 ? (
-                            filteredOptions.map((option, index) => {
-                                const isActive = index === activeIndex;
-                                return (
-                                    <li
-                                        key={index}
-                                        className={`px-3 py-2.5 cursor-pointer border-b border-slate-50 dark:border-slate-700/30 last:border-0 transition-colors duration-75
-                                            ${isActive 
-                                                ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-100' 
-                                                : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'
-                                            }
-                                        `}
-                                        onClick={() => handleSelect(option)}
-                                        onMouseEnter={() => setActiveIndex(index)}
-                                    >
-                                        {columns ? (
-                                            <div className="flex items-center w-full">
-                                                {columns.map((col, colIdx) => (
-                                                    <div 
-                                                        key={colIdx} 
-                                                        style={{ width: col.width || 'flex-1', flex: col.width ? 'none' : 1 }}
-                                                        className={`px-2 overflow-hidden text-ellipsis whitespace-nowrap ${col.className || ''}`}
-                                                    >
-                                                        {col.render ? col.render(option) : (
-                                                            <HighlightedText text={String(option[col.key as keyof T] || '')} highlight={searchTerm} />
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <span className="block truncate">
-                                                <HighlightedText text={getDisplayValue(option)} highlight={searchTerm} />
-                                            </span>
-                                        )}
-                                    </li>
-                                );
-                            })
-                        ) : (
-                            <li className="px-4 py-6 italic text-center text-slate-500 dark:text-slate-400">
-                                {searchTerm ? 'Không tìm thấy kết quả phù hợp.' : 'Nhập từ khóa để tìm kiếm...'}
-                            </li>
-                        )}
-                    </ul>
-                </div>
-            )}
+            {/* Render Dropdown outside of the DOM tree to prevent clipping */}
+            {isOpen && !disabled && typeof document !== 'undefined' && createPortal(dropdownMenu, document.body)}
         </div>
     );
 }

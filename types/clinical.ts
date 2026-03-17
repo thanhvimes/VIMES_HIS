@@ -6,6 +6,17 @@ export interface AISuggestion {
     nextSteps: string[];
 }
 
+export interface VitalSigns {
+    pulse?: number;
+    temperature?: number;
+    bpSystolic?: number;
+    bpDiastolic?: number;
+    breathingRate?: number;
+    weight?: number;
+    height?: number;
+    bmi?: number;
+}
+
 export interface ServiceCategory {
     id: string;
     name: string;
@@ -34,7 +45,7 @@ export interface ConsultationRecord {
     doctor: string;
     symptoms: string;
     diagnosis: string;
-    prescription: any[]; 
+    prescription: any[];
     notes: string;
 }
 
@@ -53,6 +64,7 @@ export interface ImagingResult {
 }
 
 export interface Signature {
+    id: string; // Added id property
     signerName: string;
     signerTitle: string;
     signedAt: Date;
@@ -88,6 +100,8 @@ export interface ExamInfo {
 export interface ICD10 {
     code: string;
     name: string;
+    yhctCode?: string;
+    yhctName?: string;
 }
 
 export interface ClinicalRecord {
@@ -125,6 +139,7 @@ export interface OperationRecord {
     instruments: string;
     medications: string;
     images: string[];
+    itemId?: string;
 }
 
 export interface PrescriptionItem {
@@ -170,23 +185,57 @@ export interface SurgeryResource {
     type: string;
 }
 
+export interface PortalParaclinicalItem {
+    id?: string;            // Optional alias for orderid
+    orderid: string;
+    deptid: string;
+    status: string;
+    gname: string;          // Group name (e.g., "Xét nghiệm máu", "X-quang")
+    groupid: string;
+    createdby: string;
+    doctor: string;
+    orderdate: string;      // DD/MM/YYYY HH24:MI
+    performdate?: string;   // DD/MM/YYYY HH24:MI
+    practitioner?: string;
+    treatidx?: number;
+    signed_labo?: string;
+    ordertype: string;      // 'T' = Lab, 'P' = Imaging
+    stt?: string;           // Sequence Number
+    estimatedTime?: string; // HH:mm
+}
+
 export interface DetailedHistoryRecord {
     id: string;
     patientId: string;
-    patientName: string;
-    visitId: string;
-    examDate: string;
-    doctorName: string;
-    specialty: string;
+    patientName?: string;
+    visitId?: string;
+    date: string;       // Formatted as DD/MM/YYYY
+    examDate?: string;
+    dept: string;       // Department name
+    specialty?: string;
+    doctor: string;     // Doctor name
+    doctorName?: string;
     diagnosis: string;
-    vitals: {
+    status: string;
+    vitals?: {
         bp: string;
         hr: string;
         temp: string;
         weight: string;
     };
-    symptoms: string;
-    notes: string;
-    labSummary: string;
-    prescriptionSummary: string;
+    symptoms?: string;
+    notes?: string;
+    labSummary?: string;
+    prescriptionSummary?: string;
+    prescriptions?: PortalPrescriptionItem[];
+    paraclinical?: PortalParaclinicalItem[];
+}
+
+export interface PortalPrescriptionItem {
+    name: string;
+    unit: string;
+    usage: string;
+    quantity: number;
+    pharma: string;
+    doctor?: string;
 }

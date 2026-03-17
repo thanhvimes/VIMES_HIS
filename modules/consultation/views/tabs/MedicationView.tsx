@@ -38,11 +38,42 @@ const emptyPrescription: Prescription = {
     totalAmount: 0
 };
 
+
+import { useParams } from 'react-router-dom';
+import { useNotification } from '../../../../contexts/NotificationContext';
+import { consultationService } from '../../../../services/consultationService';
+
 const MedicationView: React.FC = () => {
+    const { patientId } = useParams<{ patientId: string }>();
+    const { addNotification } = useNotification();
     const { openPdf } = usePdfPreview();
     const { fontSettings } = useTheme();
     const [currentPrescription, setCurrentPrescription] = useState<Prescription>(emptyPrescription);
     const [searchDrug, setSearchDrug] = useState('');
+    const [drugOptions, setDrugOptions] = useState<DrugItem[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isLoadingDrugs, setIsLoadingDrugs] = useState(false);
+
+    const currentDocNo = 21000001; // Mock
+
+    const handleSearchDrugs = async (query: string) => {
+        setSearchDrug(query);
+        if (query.length < 2) {
+            setDrugOptions([]);
+            return;
+        }
+        setIsLoadingDrugs(true);
+        try {
+            const response = await consultationService.searchDrugs(query);
+            if (response.success) {
+                setDrugOptions(response.data);
+            }
+        } catch (error) {
+            console.error("Failed to search drugs", error);
+        } finally {
+            setIsLoadingDrugs(false);
+        }
+    };
 
     const handleAddDrug = (drugName: string, drug?: DrugItem) => {
         if (!drug) return;
@@ -52,27 +83,57 @@ const MedicationView: React.FC = () => {
             quantity: 10,
             morning: '1', noon: '0', afternoon: '0', night: '1',
             usageNote: 'Sau ăn',
-            totalPrice: drug.price * 10
+            totalPrice: (drug.price || 0) * 10
         };
         const newItems = [...currentPrescription.items, newItem];
-        setCurrentPrescription({ ...currentPrescription, items: newItems, totalAmount: newItems.reduce((s, i) => s + i.totalPrice, 0) });
+        setCurrentPrescription({ 
+            ...currentPrescription, 
+            items: newItems, 
+            totalAmount: newItems.reduce((s, i) => s + i.totalPrice, 0) 
+        });
         setSearchDrug('');
     };
 
-    const handleSave = () => {
-        if (currentPrescription.items.length === 0) { alert('Đơn thuốc trống!'); return; }
+    const handleSave = async () => {
+        if (currentPrescription.items.length === 0) { 
+            addNotification("Cảnh báo", "Đơn thuốc trống!", "warning");
+            return; 
+        }
         
-        // --- PHÁT TÍN HIỆU REAL-TIME CHO QUẦY DƯỢC ---
-        socketService.emit('new_prescription', {
-            id: currentPrescription.id,
-            patientName: 'LÊ HOÀNG CƯỜNG',
-            doctorName: currentPrescription.doctorName,
-            itemCount: currentPrescription.items.length,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        });
+        setIsSaving(true);
+        try {
+            const payload = {
+                docNo: currentDocNo,
+                items: currentPrescription.items.map(it => ({
+                    id: it.drug.code, // Use code from drug
+                    name: it.drug.name,
+                    quantity: it.quantity,
+                    unit: it.drug.unit,
+                    usage: it.usageNote
+                }))
+            };
 
-        alert('Đã gửi đơn thuốc sang quầy dược!');
-        setCurrentPrescription(emptyPrescription);
+            const result = await consultationService.savePrescription(payload);
+            if (result.success) {
+                // Emit real-time signal
+                socketService.emit('new_prescription', {
+                    id: result.orderId,
+                    patientName: 'LÊ HOÀNG CƯỜNG',
+                    doctorName: (currentPrescription as any).doctorName || 'BS. Admin',
+                    itemCount: currentPrescription.items.length,
+                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                });
+
+                addNotification("Thành công", "Đã lưu và gửi đơn thuốc sang quầy dược!", "success");
+                setCurrentPrescription(emptyPrescription);
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error: any) {
+            addNotification("Lỗi", "Không thể lưu đơn thuốc: " + error.message, "error");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -85,23 +146,61 @@ const MedicationView: React.FC = () => {
                     <Combobox<DrugItem>
                         placeholder="Tìm thuốc nhanh..."
                         value={searchDrug}
-                        onChange={(val, item) => { setSearchDrug(val); if (item) handleAddDrug(val, item); }}
-                        options={drugList}
+                        onChange={(val, item) => { 
+                            if (item) handleAddDrug(val, item);
+                            else handleSearchDrugs(val);
+                        }}
+                        options={drugOptions}
+                        isLoading={isLoadingDrugs}
                         displayValue={(item) => item.name}
                         className="w-full"
                     />
                 </div>
                 <div className="flex-1 overflow-y-auto p-4">
                     {currentPrescription.items.map((item, idx) => (
-                        <div key={item.id} className="p-3 border-b flex justify-between items-center">
-                            <div><span className="font-bold">{item.drug.name}</span><p className="text-xs text-slate-500">{item.usageNote}</p></div>
-                            <span className="font-bold text-blue-600">x{item.quantity}</span>
+                        <div key={item.id} className="p-3 border-b flex justify-between items-center group hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors">
+                            <div className="flex items-start gap-3">
+                                <div className="p-2 bg-blue-50 dark:bg-blue-900/40 rounded-full text-blue-600 dark:text-blue-400">
+                                    <ArchiveIcon className="w-4 h-4" />
+                                </div>
+                                <div>
+                                    <span className="font-bold text-slate-800 dark:text-white">{item.drug.name}</span>
+                                    <p className="text-xs text-slate-500 font-medium">{item.usageNote}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <span className="font-black text-blue-600 text-lg">x{item.quantity} {item.drug.unit}</span>
+                                <button 
+                                    onClick={() => {
+                                        const newItems = currentPrescription.items.filter(i => i.id !== item.id);
+                                        setCurrentPrescription({...currentPrescription, items: newItems});
+                                    }}
+                                    className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all"
+                                >
+                                    <TrashIcon className="w-4 h-4" />
+                                </button>
+                            </div>
                         </div>
                     ))}
+                    {currentPrescription.items.length === 0 && (
+                        <div className="flex flex-col items-center justify-center h-full opacity-30 select-none pointer-events-none">
+                            <ArchiveIcon className="w-16 h-16 mb-2"/>
+                            <p className="font-bold">Đơn thuốc chưa có thuốc nào</p>
+                        </div>
+                    )}
                 </div>
-                <div className="p-4 bg-slate-50 border-t flex justify-end gap-3">
-                    <button onClick={handleSave} className="px-8 py-2 bg-blue-600 text-white rounded-lg font-bold shadow-lg flex items-center gap-2">
-                        <SaveIcon className="w-4 h-4"/> Lưu & Gửi Quầy thuốc
+                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 border-t flex justify-end gap-3">
+                    <button 
+                        onClick={handleSave} 
+                        disabled={isSaving || currentPrescription.items.length === 0}
+                        className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-lg flex items-center gap-2 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isSaving ? (
+                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                            <SaveIcon className="w-5 h-5"/>
+                        )}
+                        {isSaving ? 'Đang gửi...' : 'Lưu & Gửi Quầy thuốc'}
                     </button>
                 </div>
             </div>

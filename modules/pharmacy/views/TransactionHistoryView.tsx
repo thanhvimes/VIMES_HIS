@@ -1,13 +1,14 @@
 
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-    SearchIcon, PlusIcon, FilterIcon, CalendarIcon, 
+import {
+    SearchIcon, PlusIcon, FilterIcon, CalendarIcon,
     PrinterIcon, EyeIcon, RefreshIcon, TruckIcon,
     DownloadIcon, ArrowUpTrayIcon, CurrencyDollarIcon,
     DocumentTextIcon, ChevronDownIcon
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { FormDateInput } from '../../../components/shared/forms';
 import { mockVouchers, mockWarehouses } from '../data';
 import { formatCurrency, formatDate } from '../../../utils/formatters';
 
@@ -21,12 +22,12 @@ const TransactionHistoryView: React.FC = () => {
 
     const filteredVouchers = useMemo(() => {
         return mockVouchers.filter(v => {
-            const matchesSearch = v.invoiceNo.includes(searchTerm) || 
-                                  v.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                  v.voucherNo.toLowerCase().includes(searchTerm.toLowerCase());
-            
+            const matchesSearch = v.invoiceNo.includes(searchTerm) ||
+                v.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                v.voucherNo.toLowerCase().includes(searchTerm.toLowerCase());
+
             const matchesType = typeFilter === 'All' || (typeFilter === 'Import' && v.voucherNo.startsWith('PN')) || (typeFilter === 'Export' && v.voucherNo.startsWith('PX'));
-            
+
             return matchesSearch && matchesType;
         });
     }, [searchTerm, typeFilter]);
@@ -43,7 +44,7 @@ const TransactionHistoryView: React.FC = () => {
 
     return (
         <div className="h-full flex flex-col gap-5 animate-fade-in">
-            
+
             {/* 1. SUMMARY CARDS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
                 <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border-l-4 border-blue-500 flex justify-between items-center transition-transform hover:scale-[1.02]">
@@ -51,7 +52,7 @@ const TransactionHistoryView: React.FC = () => {
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tổng giá trị giao dịch</p>
                         <p className="text-xl font-black text-slate-800 dark:text-white mt-1">{formatCurrency(summary.total)}</p>
                     </div>
-                    <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-blue-600"><CurrencyDollarIcon className="w-6 h-6"/></div>
+                    <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-blue-600"><CurrencyDollarIcon className="w-6 h-6" /></div>
                 </div>
                 <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border-l-4 border-emerald-500 flex justify-between items-center transition-transform hover:scale-[1.02]">
                     <div>
@@ -59,14 +60,14 @@ const TransactionHistoryView: React.FC = () => {
                         <p className="text-xl font-black text-emerald-600 mt-1">{summary.importCount} <span className="text-xs font-normal text-slate-400">phiếu</span></p>
                     </div>
                     {/* // Fixed missing ArrowDownTrayIcon export by using DownloadIcon */}
-                    <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg text-emerald-600"><DownloadIcon className="w-6 h-6"/></div>
+                    <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg text-emerald-600"><DownloadIcon className="w-6 h-6" /></div>
                 </div>
                 <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border-l-4 border-orange-500 flex justify-between items-center transition-transform hover:scale-[1.02]">
                     <div>
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Phiếu xuất kho</p>
                         <p className="text-xl font-black text-orange-600 mt-1">{summary.exportCount} <span className="text-xs font-normal text-slate-400">phiếu</span></p>
                     </div>
-                    <div className="p-2 bg-orange-50 dark:bg-orange-900/30 rounded-lg text-orange-600"><ArrowUpTrayIcon className="w-6 h-6"/></div>
+                    <div className="p-2 bg-orange-50 dark:bg-orange-900/30 rounded-lg text-orange-600"><ArrowUpTrayIcon className="w-6 h-6" /></div>
                 </div>
             </div>
 
@@ -88,10 +89,10 @@ const TransactionHistoryView: React.FC = () => {
                         </div>
 
                         <div className="relative flex-1 min-w-[250px]">
-                            <SearchIcon className="absolute left-3 top-2.5 w-4 h-4 text-slate-400"/>
-                            <input 
-                                type="text" 
-                                placeholder="Tìm số phiếu, HĐ, nhà cung cấp..." 
+                            <SearchIcon className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="Tìm số phiếu, HĐ, nhà cung cấp..."
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                                 className={`w-full pl-9 p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 text-sm ${fontSettings.controls}`}
@@ -100,11 +101,11 @@ const TransactionHistoryView: React.FC = () => {
                     </div>
 
                     <div className="flex gap-2 w-full lg:w-auto shrink-0">
-                        <button 
+                        <button
                             onClick={() => navigate('/pharmacy/receipt/new')}
                             className="flex-1 lg:flex-none px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-lg flex items-center justify-center gap-2 transition active:scale-95"
                         >
-                            <PlusIcon className="w-5 h-5"/> Lập phiếu mới
+                            <PlusIcon className="w-5 h-5" /> Lập phiếu mới
                         </button>
                     </div>
                 </div>
@@ -119,11 +120,11 @@ const TransactionHistoryView: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2">
                         <label className="text-[10px] font-bold text-slate-400 uppercase">Từ ngày:</label>
-                        <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="bg-transparent text-sm font-bold text-slate-700 dark:text-slate-200 outline-none" />
+                        <FormDateInput value={fromDate} onChange={e => setFromDate(e.target.value)} className="bg-transparent border-none text-sm font-bold text-slate-700 dark:text-slate-200 outline-none w-28" />
                     </div>
                     <div className="flex items-center gap-2">
                         <label className="text-[10px] font-bold text-slate-400 uppercase">Đến ngày:</label>
-                        <input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="bg-transparent text-sm font-bold text-slate-700 dark:text-slate-200 outline-none" />
+                        <FormDateInput value={toDate} onChange={e => setToDate(e.target.value)} className="bg-transparent border-none text-sm font-bold text-slate-700 dark:text-slate-200 outline-none w-28" />
                     </div>
                 </div>
             </div>
@@ -157,7 +158,7 @@ const TransactionHistoryView: React.FC = () => {
                                                 <div className="flex items-center gap-2">
                                                     {/* // Fixed missing ArrowDownTrayIcon export by using DownloadIcon for imports */}
                                                     <div className={`p-1.5 rounded-lg ${isImport ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-100 text-orange-600'}`}>
-                                                        {isImport ? <DownloadIcon className="w-3.5 h-3.5"/> : <ArrowUpTrayIcon className="w-3.5 h-3.5"/>}
+                                                        {isImport ? <DownloadIcon className="w-3.5 h-3.5" /> : <ArrowUpTrayIcon className="w-3.5 h-3.5" />}
                                                     </div>
                                                     <span className="font-bold text-slate-700 dark:text-slate-200">{v.voucherNo}</span>
                                                 </div>
@@ -172,7 +173,7 @@ const TransactionHistoryView: React.FC = () => {
                                                 <div className="text-[10px] opacity-60">10:30 AM</div>
                                             </td>
                                             <td className={`p-4 text-right font-black text-base ${isImport ? 'text-blue-600' : 'text-slate-700 dark:text-slate-200'}`}>
-                                                {formatCurrency(v.total).replace(' đ','')}
+                                                {formatCurrency(v.total).replace(' đ', '')}
                                             </td>
                                             <td className="p-4 text-center">
                                                 <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border transition-all ${v.status === 'A' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-orange-100 text-orange-700 border-orange-200'}`}>
@@ -181,8 +182,8 @@ const TransactionHistoryView: React.FC = () => {
                                             </td>
                                             <td className="p-4 text-center">
                                                 <div className="flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                                                    <button className="p-2 hover:bg-white dark:hover:bg-slate-600 rounded-lg text-blue-600 shadow-sm transition"><EyeIcon className="w-4 h-4"/></button>
-                                                    <button className="p-2 hover:bg-white dark:hover:bg-slate-600 rounded-lg text-slate-600 shadow-sm transition"><PrinterIcon className="w-4 h-4"/></button>
+                                                    <button className="p-2 hover:bg-white dark:hover:bg-slate-600 rounded-lg text-blue-600 shadow-sm transition"><EyeIcon className="w-4 h-4" /></button>
+                                                    <button className="p-2 hover:bg-white dark:hover:bg-slate-600 rounded-lg text-slate-600 shadow-sm transition"><PrinterIcon className="w-4 h-4" /></button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -192,17 +193,17 @@ const TransactionHistoryView: React.FC = () => {
                         </tbody>
                     </table>
                 </div>
-                
+
                 {/* 4. FOOTER SUMMARY */}
                 <div className="p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center shrink-0">
                     <div className="text-xs font-bold text-slate-500">
                         HIỂN THỊ <span className="text-slate-800 dark:text-white">{filteredVouchers.length}</span> GIAO DỊCH TRÊN TRANG
                     </div>
                     <div className="flex gap-4">
-                         <div className="flex items-center gap-2">
-                             <span className="text-[10px] font-bold text-slate-400 uppercase">Tổng nhập:</span>
-                             <span className="text-sm font-black text-emerald-600">{formatCurrency(summary.total)}</span>
-                         </div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">Tổng nhập:</span>
+                            <span className="text-sm font-black text-emerald-600">{formatCurrency(summary.total)}</span>
+                        </div>
                     </div>
                 </div>
             </div>

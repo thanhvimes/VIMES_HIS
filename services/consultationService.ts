@@ -49,9 +49,13 @@ const generateMockHistory = (): DetailedHistoryRecord[] => [
         patientId: 'P003',
         patientName: 'Lê Hoàng Cường',
         visitId: 'V23111501',
+        date: '15/11/2023',
         examDate: '15/11/2023',
-        doctorName: 'BS. Nguyễn Văn A',
+        dept: 'Nội khoa',
         specialty: 'Nội khoa',
+        doctor: 'BS. Nguyễn Văn A',
+        doctorName: 'BS. Nguyễn Văn A',
+        status: 'Đã khám',
         diagnosis: 'Viêm phế quản cấp',
         vitals: { bp: '120/80', hr: '80', temp: '37.5', weight: '65' },
         symptoms: 'Ho, sốt nhẹ',
@@ -64,9 +68,13 @@ const generateMockHistory = (): DetailedHistoryRecord[] => [
         patientId: 'P003',
         patientName: 'Lê Hoàng Cường',
         visitId: 'V23101005',
+        date: '10/10/2023',
         examDate: '10/10/2023',
-        doctorName: 'BS. Trần Thị B',
+        dept: 'Nội tiết',
         specialty: 'Nội tiết',
+        doctor: 'BS. Trần Thị B',
+        doctorName: 'BS. Trần Thị B',
+        status: 'Đã khám',
         diagnosis: 'Đái tháo đường type 2',
         vitals: { bp: '130/85', hr: '82', temp: '37.0', weight: '66' },
         symptoms: 'Mệt mỏi, khát nước',
@@ -80,33 +88,9 @@ const generateMockHistory = (): DetailedHistoryRecord[] => [
 
 export const consultationService = {
     // --- Patient Clinical Profile ---
-    getPatientProfile: async (patientId: string): Promise<any> => {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 600));
-
-        const patient = mockPatients.find(p => p.id === patientId) || mockPatients[0];
-        return {
-            ...patient,
-            hasInsurance: patient.patientType === 'Bảo hiểm',
-            insuranceNumber: 'GD4790215567890',
-            diagnosis: '[J18] Viêm phổi, tác nhân không xác định',
-            vitalSigns: {
-                height: 170,
-                weight: 68,
-                bmi: 23.5,
-                bpSys: 120,
-                bpDia: 80,
-                heartRate: 80,
-                respRate: 20,
-                temp: 37,
-                spO2: 98
-            },
-            bpHistory: [
-                { date: '10/11', systolic: 120, diastolic: 80 },
-                { date: '12/11', systolic: 125, diastolic: 82 },
-                { date: '15/11', systolic: 118, diastolic: 78 },
-            ]
-        };
+    async getPatientProfile(patientId: string, docNo?: string): Promise<any> {
+        const response = await apiClient.get<any>(`/consultation/patient-profile/${patientId}${docNo ? `?docNo=${docNo}` : ''}`);
+        return response.data;
     },
 
     // --- Clinical Records (Phiếu khám) ---
@@ -115,10 +99,32 @@ export const consultationService = {
         return { ...mockClinicalRecord, patientId };
     },
 
-    saveClinicalRecord: async (record: ClinicalRecord): Promise<ClinicalRecord> => {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        console.log("Saved Clinical Record:", record);
-        return { ...record, id: record.id || `REC-${Date.now()}` };
+    getClinicalRecordByDocNo: async (docNo: number): Promise<ClinicalRecord> => {
+        return apiClient.get(`/consultation/records/${docNo}`);
+    },
+
+    saveClinicalRecord: async (payload: any): Promise<any> => {
+        return apiClient.post('/consultation/records', payload);
+    },
+
+    checkInsuranceRules: async (docNo: number, receptIdx: number): Promise<any> => {
+        return apiClient.get(`/consultation/check-insurance?docNo=${docNo}&receptIdx=${receptIdx}`);
+    },
+
+    callPatient: async (payload: { docNo: number, deptId: string, roomId: number, receptIdx: number }): Promise<any> => {
+        return apiClient.post('/consultation/call-patient', payload);
+    },
+
+    getDiseasePrehistory: async (patientId: string): Promise<any> => {
+        return apiClient.get(`/consultation/prehistory/${patientId}`);
+    },
+
+    saveDiseasePrehistory: async (patientId: string, data: { owner: string, family: string, drugallergy: string }): Promise<any> => {
+        return apiClient.post(`/consultation/prehistory/${patientId}`, data);
+    },
+
+    printExamination: async (docNo: number): Promise<Blob> => {
+        return apiClient.get(`/consultation/print/${docNo}`, undefined, { responseType: 'blob' });
     },
 
     // --- Master Data Lookups ---
@@ -138,21 +144,24 @@ export const consultationService = {
     },
 
     // --- Operations (Phẫu thuật/Thủ thuật) ---
-    getOperations: async (patientId: string): Promise<OperationRecord[]> => {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        return mockOperations;
+    getOperationCatalog: async (query?: string, groupId?: string): Promise<any> => {
+        return apiClient.get(`/consultation/operations/catalog?q=${query || ''}${groupId ? `&groupId=${groupId}` : ''}`);
     },
 
-    saveOperation: async (op: OperationRecord): Promise<OperationRecord> => {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        console.log("Saved Operation:", op);
-        return { ...op, id: op.id || `OP-${Date.now()}` };
+    getOperations: async (docNo: number): Promise<any> => {
+        return apiClient.get(`/consultation/operations/history/${docNo}`);
     },
 
-    deleteOperation: async (id: string): Promise<boolean> => {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        console.log("Deleted Operation:", id);
-        return true;
+    saveOperation: async (payload: any): Promise<any> => {
+        return apiClient.post('/consultation/operations', payload);
+    },
+
+    deleteOperation: async (id: string): Promise<any> => {
+        return apiClient.delete(`/consultation/operations/${id}`);
+    },
+
+    printOperation: async (id: string): Promise<Blob> => {
+        return apiClient.get(`/consultation/operations/print/${id}`, undefined, { responseType: 'blob' });
     },
     
     // --- History ---
@@ -165,9 +174,53 @@ export const consultationService = {
     },
     
     // --- Prescriptions ---
-    savePrescription: async (prescription: Prescription): Promise<Prescription> => {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        console.log("Saved Prescription:", prescription);
-        return prescription;
+    searchDrugs: async (query: string): Promise<any> => {
+        return apiClient.get(`/consultation/drugs/search?q=${query}`);
+    },
+
+    savePrescription: async (payload: { docNo: number, items: any[] }): Promise<any> => {
+        return apiClient.post('/consultation/prescriptions', payload);
+    },
+
+    getPrescriptionHistory: async (docNo: number): Promise<any> => {
+        return apiClient.get(`/consultation/prescriptions/history/${docNo}`);
+    },
+
+    // --- CLS (Paraclinical Services) ---
+    getServiceCatalog: async (groupId?: string): Promise<any> => {
+        return apiClient.get(`/consultation/services/catalog${groupId ? `?groupId=${groupId}` : ''}`);
+    },
+
+    saveServiceOrder: async (payload: { docNo: number, items: any[], groupId: string }): Promise<any> => {
+        return apiClient.post('/consultation/services/order', payload);
+    },
+
+    getServiceHistory: async (docNo: number): Promise<any> => {
+        return apiClient.get(`/consultation/services/history/${docNo}`);
+    },
+
+    getFees: async (docNo: number): Promise<any> => {
+        return apiClient.get(`/consultation/fees/history/${docNo}`);
+    },
+
+    printFees: async (docNo: number): Promise<Blob> => {
+        return apiClient.get(`/consultation/fees/print/${docNo}`, undefined, { responseType: 'blob' });
+    },
+
+    getExamQueue: async (params: { 
+        status: string; 
+        deptId?: string; 
+        timePeriod?: string; 
+        fromDate?: string; 
+        toDate?: string; 
+        roomId?: number;
+        isOutpatient?: boolean;
+        isChronic?: boolean;
+    }): Promise<any> => {
+        return apiClient.get('/consultation/queue', params);
+    },
+
+    getRooms: async (deptId?: string): Promise<any> => {
+        return apiClient.get('/consultation/rooms', { deptId });
     }
 };

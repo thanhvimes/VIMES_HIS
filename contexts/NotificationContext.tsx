@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { AppNotification, NotificationType } from '../types';
+import { toast } from 'sonner';
 
 interface NotificationContextType {
     notifications: AppNotification[];
@@ -18,6 +19,26 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
     const addNotification = useCallback((title: string, message: string, type: NotificationType = 'info', link?: string, autoClose = false) => {
+        // If autoClose, use Sonner Toast and do NOT add to notification center state
+        if (autoClose) {
+            switch (type) {
+                case 'success':
+                    toast.success(title, { description: message });
+                    break;
+                case 'error':
+                    toast.error(title, { description: message });
+                    break;
+                case 'warning':
+                    toast.warning(title, { description: message });
+                    break;
+                case 'info':
+                default:
+                    toast.info(title, { description: message });
+                    break;
+            }
+            return;
+        }
+
         const newNote: AppNotification = {
             id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
             title,
@@ -30,13 +51,6 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         };
 
         setNotifications(prev => [newNote, ...prev]);
-
-        // If autoClose (Toast), remove it after 5 seconds
-        if (autoClose) {
-            setTimeout(() => {
-                setNotifications(prev => prev.filter(n => n.id !== newNote.id));
-            }, 5000);
-        }
     }, []);
 
     const markAsRead = useCallback((id: string) => {
