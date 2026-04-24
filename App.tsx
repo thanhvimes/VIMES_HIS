@@ -32,6 +32,7 @@ const CRM = React.lazy(() => import('./modules/crm/index'));
 const HR = React.lazy(() => import('./modules/hr/index'));
 const Portal = React.lazy(() => import('./modules/portal/index'));
 const CommandCenter = React.lazy(() => import('./modules/command-center/index'));
+const QueueManagement = React.lazy(() => import('./modules/queue-management/index'));
 
 import { PdfPreviewProvider } from './contexts/PdfPreviewContext';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -63,6 +64,7 @@ const moduleTitles: { [key: string]: string } = {
   crm: 'CRM & CSKH',
   hr: 'Quản lý Nhân sự',
   'command-center': 'Trung tâm Điều hành Bệnh viện',
+  'queue-management': 'Quản lý Hàng đợi',
   documents: 'Xem tài liệu',
   reports: 'Hệ thống Báo cáo',
   settings: 'Cài đặt',
@@ -174,6 +176,7 @@ const StaffSystem: React.FC = () => {
         <Route path="/documents/*" element={<Documents />} />
         <Route path="/reports/*" element={<ReportsModule />} />
         <Route path="/command-center/*" element={<CommandCenter />} />
+        <Route path="/queue-management/*" element={<QueueManagement />} />
         <Route path="/settings" element={<div className="text-center text-slate-500 dark:text-slate-400 p-10">Trang Cài đặt đang trong quá trình phát triển.</div>} />
       </Route>
       <Route path="*" element={<Navigate to="/staff-dashboard" replace />} />

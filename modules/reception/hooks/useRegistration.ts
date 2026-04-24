@@ -228,7 +228,56 @@ export const useRegistration = () => {
                 } else {
                     setRegMode('ADD_PATIENT');
                     setMode('ADD');
-                    showToast('success', `Đã quét ${parsed.type} — Bệnh nhân mới, vui lòng bổ sung thông tin`);
+
+                    // --- NEW: TỰ ĐỘNG CHECK BHXH KHI QUÉT CCCD MỚI ---
+                    if (parsed.type === 'CCCD') {
+                        try {
+                            const birthYear = parseInt(parsed.data.dob.split('-')[0] || '0');
+                            const bhxhRes = await apiClient.post<any>('/reception/insurance/check', {
+                                cardNo: parsed.data.identityCard,
+                                patientName: parsed.data.name,
+                                birthYear: birthYear,
+                                dob: parsed.data.dob
+                            });
+
+                            if (bhxhRes?.success) {
+                                const info = bhxhRes.data || {};
+                                const regCode = (info.maDKBD || '').trim();
+                                const isCurrentHospital = regCode === CURRENT_HOSPITAL_CODE;
+                                
+                                const finalCardNo = info.newCardNo || info.cardNo || '';
+                                const finalStartDate = info.startDateNew || info.startDate || '';
+                                const finalEndDate = info.endDateNew || info.endDate || '';
+                                
+                                let routeType = '1.1'; // Đúng tuyến
+                                if (regCode !== CURRENT_HOSPITAL_CODE) routeType = '3.3'; // Trái tuyến
+
+                                setFormData(prev => ({
+                                    ...prev,
+                                    insuranceNumber: finalCardNo,
+                                    insuranceRegCode: regCode,
+                                    insurancePlace: regCode,
+                                    insuranceObject: finalCardNo.substring(0, 2),
+                                    insuranceArea: info.maKV || '',
+                                    insuranceRegDate: finalStartDate ? formatDateForInput(finalStartDate) : '',
+                                    insuranceExp: finalEndDate ? formatDateForInput(finalEndDate) : '',
+                                    insurance5Year: info.fiveYearDate ? formatDateForInput(info.fiveYearDate) : '',
+                                    route: regCode === CURRENT_HOSPITAL_CODE ? 'Đúng tuyến' : 'Trái tuyến',
+                                    insuranceRouteType: routeType,
+                                    // BƯỚC 2: Tự động chọn Đối tượng = BHYT (ID: 4)
+                                    patientType: '4' 
+                                }));
+                                showToast('success', `Đã quét CCCD mới & Tìm thấy thông tin BHYT trên cổng giám định!`);
+                            } else {
+                                showToast('info', `Quét CCCD thành công — BN mới (Không thấy thông tin BHYT trên cổng)`);
+                            }
+                        } catch (bhxhErr) {
+                            console.warn('BHXH Auto-check failed during scan:', bhxhErr);
+                            showToast('info', `Đã quét CCCD mới — BN mới`);
+                        }
+                    } else {
+                        showToast('success', `Đã quét ${parsed.type} — Bệnh nhân mới, vui lòng bổ sung thông tin`);
+                    }
                 }
             } catch (e: any) {
                 showToast('error', 'Lỗi tra cứu: ' + (e.message || 'Server Error'));
@@ -244,7 +293,44 @@ export const useRegistration = () => {
                 '/reception/lookup', { docNo: rawString.trim() }
             );
             if (lookup.found) {
-                const docNo = lookup.data.docNo || lookup.data.patientNo;
+                const data = lookup.data;
+                const todayStr = getLocalDateString();
+                
+                // --- NEW: KIỂM TRA HỒ SƠ CHƯA KẾT THÚC CỦA NGÀY TRƯỚC ---
+                if (data.status === 'O' && data.admitDate && data.admitDate < todayStr) {
+                    const confirmClose = window.confirm("Hồ sơ khám lần trước chưa kết thúc bạn có muốn kết thúc và tạo đợt khám mới không?");
+                    if (confirmClose) {
+                        try {
+                            // 1. Đóng hồ sơ cũ
+                            await apiClient.put(`/reception/patients/${data.docNo}/terminate`, {});
+                            
+                            // 2. Chuyển sang tạo lượt khám mới (ADD_DOC) cho bệnh nhân này
+                            const fullData = await apiClient.get<any>(`/reception/patients/${data.patientNo}`);
+                            if (fullData) {
+                                setFormData({
+                                    ...emptyPatient,
+                                    ...fullData,
+                                    recordNumber: '', // Xóa số hồ sơ cũ để tạo đợt mới
+                                    regDateTime: new Date().toISOString().slice(0, 16),
+                                    regRoom: '', // Phòng khám để trắng
+                                    regExamType: '', // Mã loại khám để trắng
+                                    id: String(fullData.patientId || fullData.id || ''),
+                                    history: fullData.history || []
+                                });
+                                setMode('ADD');
+                                setRegMode('ADD_DOC');
+                                setSearchQuery('');
+                                showToast('success', 'Đã kết thúc hồ sơ cũ và chuyển sang tạo lượt khám mới');
+                                return true;
+                            }
+                        } catch (err: any) {
+                            showToast('error', 'Lỗi khi kết thúc hồ sơ: ' + err.message);
+                        }
+                    }
+                }
+
+                // Luồng bình thường: Mở hồ sơ để xem/sửa
+                const docNo = data.docNo || data.patientNo;
                 navigate(`/reception/register/${docNo}`);
                 setSearchQuery('');
                 return true;
@@ -423,7 +509,7 @@ export const useRegistration = () => {
             route: newRoute,
             insuranceRouteType: routeType,
             name: prev.name || info.name,
-            gender: prev.gender || (info.gender === '1' ? 'Nam' : 'Nữ'),
+            gender: prev.gender || (String(info.gender) === '1' || info.gender === 'Nam' ? 'Nam' : 'Nữ'),
             address: prev.address || info.address,
         }));
         

@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Debug logs and dumps
+backend/*.txt
+backend/*.json
+backend/debug_*.ts
+backend/debug_*.txt

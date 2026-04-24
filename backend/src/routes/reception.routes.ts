@@ -42,6 +42,7 @@ router.post('/patients', authMiddleware, requirePermission('01.01'), patient.cre
 router.post('/patients/:id/register', authMiddleware, requirePermission('01.01'), patient.addDocForExistingPatient.bind(patient));
 router.post('/patients/:id/exams', authMiddleware, requirePermission('01.01'), patient.addExamForExistingPatient.bind(patient));
 router.put('/patients/:id', authMiddleware, requirePermission('01.02'), patient.updatePatient.bind(patient));
+router.put('/patients/:id/terminate', authMiddleware, requirePermission('01.02'), patient.terminateDoc.bind(patient));
 router.delete('/patients/:id', authMiddleware, requirePermission('01.03'), patient.deletePatientRegistration.bind(patient));
 
 // ── HÀNG ĐỢI ────────────────────────────────────

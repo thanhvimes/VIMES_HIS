@@ -12,6 +12,10 @@ export interface InsuranceCardInfo {
     startDate: string;
     endDate: string;
     regCode: string;
+    insuranceExempt?: string;
+    insuranceRouteType?: string;
+    benefitCode?: string;
+    regDate?: string;
     code?: string;
     discount?: number;
     areaCode?: string;
@@ -156,10 +160,21 @@ class ReceptionInsuranceController {
                 // Handle Check API (primary info)
                 if (results[0].status === 'fulfilled') {
                     checkResponse = results[0].value;
+                    const resData = checkResponse.data || {};
+                    const ghiChu = String(resData.ghiChu || '').toLowerCase();
+                    
+                    if (resData.maKetQua === '401' || ghiChu.includes('token không đúng')) {
+                        console.warn('⚠️ [BHXH Controller] Token invalid/expired from response, refreshing...');
+                        tokenInfo = await this.getBHXHToken(config, true);
+                        checkResponse = await callBHXHApi(tokenInfo);
+                        historyResponse = await callHistory2025Api(tokenInfo);
+                    }
                 } else {
                     const error = (results[0] as PromiseRejectedResult).reason;
-                    if (error.response?.status === 401 || error.response?.data?.maKetQua === '401') {
-                        console.warn('⚠️ [BHXH Controller] Token expired, refreshing for all...');
+                    const errGhiChu = String(error.response?.data?.ghiChu || '').toLowerCase();
+
+                    if (error.response?.status === 401 || error.response?.data?.maKetQua === '401' || errGhiChu.includes('token')) {
+                        console.warn('⚠️ [BHXH Controller] Auth error detected, refreshing token...');
                         tokenInfo = await this.getBHXHToken(config, true);
                         checkResponse = await callBHXHApi(tokenInfo);
                         historyResponse = await callHistory2025Api(tokenInfo);

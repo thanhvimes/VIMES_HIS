@@ -39,7 +39,7 @@ const BHXHResultModal: React.FC<BHXHResultModalProps> = ({ visible, onClose, onA
                             {data.message || 'Thẻ còn giá trị sử dụng'}
                         </h3>
                         <div className="bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800/50 p-3 rounded text-[13px] text-slate-700 dark:text-slate-300 leading-relaxed italic text-left">
-                            {data.message}! Họ tên : <b>{info.name}</b>, Ngày sinh: <b>{info.dob}</b>, Giới tính : <b>{info.gender === '1' ? 'Nam' : 'Nữ'}</b>! (ĐC: {info.address}; Nơi KCBBĐ: {info.maDKBD}; Hạn thẻ: {info.startDate} - {info.endDate}; Thời điểm đủ 5 năm liên tục: {info.fiveYearDate}).
+                            {data.message}! Họ tên : <b>{info.name}</b>, Ngày sinh: <b>{info.dob}</b>, Giới tính : <b>{String(info.gender) === '1' || info.gender === 'Nam' ? 'Nam' : 'Nữ'}</b>! (ĐC: {info.address}; Nơi KCBBĐ: {info.maDKBD}; Hạn thẻ: {info.startDate} - {info.endDate}; Thời điểm đủ 5 năm liên tục: {info.fiveYearDate}).
                         </div>
                     </div>
 
@@ -53,7 +53,7 @@ const BHXHResultModal: React.FC<BHXHResultModalProps> = ({ visible, onClose, onA
                                     <td className="bg-slate-50 dark:bg-slate-800/50 p-2 font-bold w-32 text-slate-600 dark:text-slate-400">Ngày sinh:</td>
                                     <td className="p-2 font-medium">{info.dob}</td>
                                     <td className="bg-slate-50 dark:bg-slate-800/50 p-2 font-bold w-32 text-slate-600 dark:text-slate-400">Giới tính:</td>
-                                    <td className="p-2 font-medium">{info.gender === '1' ? 'Nam' : 'Nữ'}</td>
+                                    <td className="p-2 font-medium">{String(info.gender) === '1' || info.gender === 'Nam' ? 'Nam' : 'Nữ'}</td>
                                 </tr>
                                 <tr className="border-b border-slate-200 dark:border-slate-800">
                                     <td className="bg-slate-50 dark:bg-slate-800/50 p-2 font-bold text-slate-600 dark:text-slate-400">Địa chỉ:</td>

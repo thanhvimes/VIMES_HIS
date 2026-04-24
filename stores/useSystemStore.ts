@@ -20,6 +20,7 @@ import { INSURANCE_NAV_ITEMS } from '../modules/insurance/constants';
 import { TELEMEDICINE_NAV_ITEMS } from '../modules/telemedicine/constants';
 import { CRM_NAV_ITEMS } from '../modules/crm/constants';
 import { HR_NAV_ITEMS } from '../modules/hr/constants';
+import { QUEUE_NAV_ITEMS } from '../modules/queue-management/constants';
 import { ICON_MAP } from '../components/icon-map';
 import React from 'react';
 
@@ -77,6 +78,7 @@ const defaultMenuConfigRaw: Record<string, NavItemType[]> = {
     telemedicine: TELEMEDICINE_NAV_ITEMS,
     crm: CRM_NAV_ITEMS,
     hr: HR_NAV_ITEMS,
+    'queue-management': QUEUE_NAV_ITEMS,
 };
 
 const mapConstantToDTO = (item: NavItemType): NavItemDTO => ({

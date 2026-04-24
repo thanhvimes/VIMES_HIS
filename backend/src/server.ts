@@ -40,6 +40,7 @@ import commandCenterRoutes from './routes/command_center.routes';
 import consultationRoutes from './routes/consultation.routes';
 import insuranceRoutes from './routes/insurance.routes';
 import auditRoutes from './routes/audit.routes';
+import queueRoutes from './routes/queue.routes';
 
 // API Health check
 app.get('/api/health', (req: Request, res: Response) => {
@@ -64,6 +65,7 @@ app.use('/api/v1/command-center', commandCenterRoutes);
 app.use('/api/v1/consultation', consultationRoutes);
 app.use('/api/v1/insurance', insuranceRoutes);
 app.use('/api/v1/audit', auditRoutes);
+app.use('/api/v1', queueRoutes);
 
 // Error handling middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

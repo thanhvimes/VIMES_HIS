@@ -37,35 +37,35 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     };
 
     return (
-        <div className="min-h-screen w-full bg-[#17424C] flex items-center justify-center p-4 relative overflow-hidden font-sans">
-            {/* TOP LEFT BRANDING */}
-            <div className="absolute top-8 left-8 md:top-12 md:left-12 flex items-center gap-4 z-[30]">
-                <div className="w-10 h-10 md:w-12 md:h-12 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 flex items-center justify-center group relative overflow-hidden shadow-2xl">
+        <div className="h-screen w-full bg-[#17424C] flex items-center justify-center p-4 py-4 md:py-4 relative overflow-y-auto font-sans">
+            {/* TOP LEFT BRANDING - hidden on mobile */}
+            <div className="absolute top-8 left-8 md:top-12 md:left-12 items-center gap-4 z-[30] hidden md:flex">
+                <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 flex items-center justify-center group relative overflow-hidden shadow-2xl">
                     <div className="absolute inset-0 bg-gradient-to-br from-teal-400 to-blue-600 opacity-20 group-hover:opacity-40 transition-opacity"></div>
-                    <HospitalIcon className="w-6 h-6 md:w-7 md:h-7 text-white drop-shadow-md" />
+                    <HospitalIcon className="w-7 h-7 text-white drop-shadow-md" />
                 </div>
                 <div className="flex flex-col">
-                    <span className="text-[10px] md:text-[11px] font-black text-white tracking-[0.2em] uppercase leading-none mb-1.5 drop-shadow-sm">
+                    <span className="text-[11px] font-black text-white tracking-[0.2em] uppercase leading-none mb-1.5 drop-shadow-sm">
                         CÔNG TY CP PHẦN MỀM Y TẾ VIỆT NAM
                     </span>
                     <div className="flex items-center gap-2">
                         <div className="h-[1px] w-6 bg-teal-400/50"></div>
-                        <span className="text-[8px] md:text-[9px] font-bold text-teal-300/60 tracking-[0.1em] uppercase leading-none italic">
+                        <span className="text-[9px] font-bold text-teal-300/60 tracking-[0.1em] uppercase leading-none italic">
                             VIETNAM MEDICAL SOFTWARE JSC
                         </span>
                     </div>
                 </div>
             </div>
 
-            {/* Background Shapes (Using brand colors: Teal and Azure) */}
+            {/* Background Shapes */}
             <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-[#0078D4] rounded-full blur-[150px] opacity-40"></div>
             <div className="absolute bottom-[-20%] right-[-10%] w-[70%] h-[70%] bg-[#3BB17B] rounded-full blur-[180px] opacity-20"></div>
             <div className="absolute top-[30%] right-[10%] w-[25%] h-[25%] bg-[#00A88E] rounded-full blur-[100px] opacity-20"></div>
 
-            <div className="w-full max-w-5xl z-10 flex flex-col md:flex-row items-center justify-between gap-12 md:gap-20 px-4 md:px-8">
+            <div className="w-full max-w-5xl z-10 flex flex-col md:flex-row items-center justify-center md:justify-between gap-8 md:gap-20 px-2 md:px-8">
                 
-                {/* LEFT SIDE: WELCOME TEXT */}
-                <div className="w-full md:w-1/2 text-white space-y-6">
+                {/* LEFT SIDE: WELCOME TEXT - hidden on mobile */}
+                <div className="hidden md:block w-full md:w-1/2 text-white space-y-6">
                     <div className="space-y-3">
                         <div className="w-12 h-1 bg-white/40 rounded-full mb-8"></div>
                         <h1 className="text-5xl md:text-7xl font-black tracking-tighter uppercase leading-[0.9] drop-shadow-2xl">
@@ -94,32 +94,43 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 </div>
 
                 {/* RIGHT SIDE: LOGIN CARD */}
-                <div className="w-full md:w-[420px] bg-white rounded-[2.5rem] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.5)] p-8 md:p-12 relative overflow-hidden">
+                <div className="w-full max-w-[420px] md:w-[420px] bg-white rounded-2xl md:rounded-[2.5rem] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.5)] p-5 md:p-12 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50 rounded-bl-full -z-0"></div>
                     
                     <div className="relative z-10">
-                        <div className="mb-8">
-                            <h2 className="text-4xl font-black text-[#17424C] mb-3 tracking-tight">Đăng nhập</h2>
-                            <p className="text-slate-400 text-xs font-medium leading-relaxed">
+                        {/* Mobile-only branding */}
+                        <div className="flex md:hidden items-center gap-3 mb-4">
+                            <div className="w-9 h-9 bg-[#17424C] rounded-lg flex items-center justify-center shadow-lg">
+                                <HospitalIcon className="w-5 h-5 text-white" />
+                            </div>
+                            <div>
+                                <h1 className="text-sm font-black text-[#17424C] tracking-tight leading-tight">BỆNH VIỆN K</h1>
+                                <p className="text-[8px] font-bold text-teal-600 tracking-[0.15em] uppercase">VIMES HIS</p>
+                            </div>
+                        </div>
+
+                        <div className="mb-4 md:mb-8">
+                            <h2 className="text-xl md:text-4xl font-black text-[#17424C] mb-1 md:mb-3 tracking-tight">Đăng nhập</h2>
+                            <p className="text-slate-400 text-[10px] md:text-xs font-medium leading-relaxed">
                                 Vui lòng đăng nhập bằng tài khoản được cấp để bắt đầu phiên làm việc.
                             </p>
                         </div>
 
-                        <form className="space-y-6" onSubmit={handleSubmit}>
-                            <div className="space-y-2">
-                                <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider ml-1">Tài khoản</label>
+                        <form className="space-y-3 md:space-y-6" onSubmit={handleSubmit}>
+                            <div className="space-y-1 md:space-y-2">
+                                <label className="block text-[10px] md:text-[11px] font-black text-slate-700 uppercase tracking-wider ml-1">Tài khoản</label>
                                 <input
                                     type="text"
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="Tên đăng nhập"
-                                    className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-900 focus:outline-none focus:border-[#0078D4] focus:bg-white transition-all font-bold text-sm placeholder:text-slate-300 placeholder:font-medium"
+                                    className="w-full px-3.5 md:px-5 py-2.5 md:py-4 bg-slate-50 border-2 border-slate-100 rounded-xl md:rounded-2xl text-slate-900 focus:outline-none focus:border-[#0078D4] focus:bg-white transition-all font-bold text-sm placeholder:text-slate-300 placeholder:font-medium"
                                 />
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="block text-[11px] font-black text-slate-700 uppercase tracking-wider ml-1">Mật khẩu</label>
+                            <div className="space-y-1 md:space-y-2">
+                                <label className="block text-[10px] md:text-[11px] font-black text-slate-700 uppercase tracking-wider ml-1">Mật khẩu</label>
                                 <div className="relative">
                                     <input
                                         type={showPassword ? "text" : "password"}
@@ -127,12 +138,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="Nhập mật khẩu"
-                                        className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-900 focus:outline-none focus:border-[#0078D4] focus:bg-white transition-all font-bold text-sm placeholder:text-slate-300 placeholder:font-medium"
+                                        className="w-full px-3.5 md:px-5 py-2.5 md:py-4 bg-slate-50 border-2 border-slate-100 rounded-xl md:rounded-2xl text-slate-900 focus:outline-none focus:border-[#0078D4] focus:bg-white transition-all font-bold text-sm placeholder:text-slate-300 placeholder:font-medium"
                                     />
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-[#0078D4] hover:text-blue-700 transition-colors uppercase tracking-widest"
+                                        className="absolute right-3.5 md:right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-[#0078D4] hover:text-blue-700 transition-colors uppercase tracking-widest"
                                     >
                                         {showPassword ? "ẨN" : "HIỆN"}
                                     </button>
@@ -140,15 +151,15 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                             </div>
 
                             <div className="flex items-center justify-between px-1">
-                                <label className="flex items-center gap-2.5 cursor-pointer group">
-                                    <input type="checkbox" className="w-4 h-4 rounded-md border-slate-300 text-[#0078D4] focus:ring-[#0078D4] transition-all" />
+                                <label className="flex items-center gap-2 cursor-pointer group">
+                                    <input type="checkbox" className="w-3.5 h-3.5 md:w-4 md:h-4 rounded-md border-slate-300 text-[#0078D4] focus:ring-[#0078D4] transition-all" />
                                     <span className="text-[10px] font-black text-slate-500 group-hover:text-slate-700">Ghi nhớ</span>
                                 </label>
                                 <button type="button" className="text-[10px] font-black text-slate-500 hover:text-[#17424C] transition-colors">Quên mật khẩu?</button>
                             </div>
 
                             {error && (
-                                <div className="p-3.5 rounded-xl bg-red-50 border border-red-100 text-[11px] text-red-600 flex items-center gap-2 animate-shake">
+                                <div className="p-2.5 md:p-3.5 rounded-xl bg-red-50 border border-red-100 text-[11px] text-red-600 flex items-center gap-2 animate-shake">
                                     <ExclamationCircleIcon className="w-4 h-4 shrink-0" />
                                     <span className="font-bold">{error}</span>
                                 </div>
@@ -157,7 +168,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className="w-full py-4 bg-[#0078D4] hover:bg-[#005A9E] text-white rounded-2xl text-lg font-black shadow-[0_15px_30px_-10px_rgba(0,120,212,0.4)] active:scale-[0.98] transition-all disabled:opacity-70 flex items-center justify-center gap-3"
+                                className="w-full py-3 md:py-4 bg-[#0078D4] hover:bg-[#005A9E] text-white rounded-xl md:rounded-2xl text-sm md:text-lg font-black shadow-[0_15px_30px_-10px_rgba(0,120,212,0.4)] active:scale-[0.98] transition-all disabled:opacity-70 flex items-center justify-center gap-3"
                             >
                                 {isLoading ? (
                                     <span className="animate-pulse">Đang xử lý...</span>
@@ -172,8 +183,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                             </button>
                         </form>
 
-                        <div className="mt-8 text-center">
-                            <p className="text-xs text-slate-400 font-bold">
+                        <div className="mt-3 md:mt-8 text-center">
+                            <p className="text-[10px] md:text-xs text-slate-400 font-bold">
                                 Chưa có tài khoản? <button className="text-[#17424C] font-black hover:underline ml-1">Liên hệ quản trị</button>
                             </p>
                         </div>
@@ -181,7 +192,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 </div>
             </div>
 
-            {/* Footer rights */}
+            {/* Mobile footer */}
+            <div className="md:hidden absolute bottom-2 left-0 right-0 text-center text-white/30 text-[8px] font-bold tracking-[0.2em] uppercase z-0">
+                VIMES HIS · Nền tảng quản lý y tế
+            </div>
+
+            {/* Desktop footer */}
             <div className="absolute bottom-12 left-12 text-white/20 text-[9px] font-black tracking-[0.4em] uppercase hidden md:block z-0">
                 VIMES HIS · Nền tảng quản lý y tế tiêu chuẩn quốc tế
             </div>

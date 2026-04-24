@@ -3,14 +3,23 @@ import { Patient } from '../../../types';
 
 // --- ROBUST HEX DECODER (UTF-8) ---
 export const decodeHex = (hex: string): string => {
-    if (!hex) return '';
+    if (!hex || hex === '-') return '';
+    const cleanHex = hex.trim().replace(/\s+/g, '');
+    if (!cleanHex || cleanHex.length < 2) return hex;
+    
+    // Check if it's actually HEX (only 0-9a-f, even length)
+    if (cleanHex.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(cleanHex)) return hex;
+
     try {
-        const cleanHex = hex.replace(/\s+/g, '');
-        if (cleanHex.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(cleanHex)) return hex;
         const percentEncoded = cleanHex.replace(/(.{2})/g, '%$1');
         return decodeURIComponent(percentEncoded);
     } catch (e) {
-        return hex;
+        // Fallback for non-UTF8 or malformed hex
+        try {
+            return Buffer.from(cleanHex, 'hex').toString('utf8');
+        } catch(ee) {
+            return hex;
+        }
     }
 };
 
@@ -48,30 +57,48 @@ export const getLocalDateString = () => {
 // --- QR CODE PARSER ---
 export const parseScannedData = (rawData: string) => {
     if (!rawData) return null;
-    const parts = rawData.split('|');
+    const parts = rawData.trim().split('|');
 
-    if (parts.length >= 10 && parts[0].length === 15 && /^[A-Z]{2}\d{13}$/.test(parts[0])) {
+    // --- CASE 1: BHYT (Traditional or New Format) ---
+    // Traditional: [0] = SZMAHOSO (15 chars, starts with letters)
+    // New: [0] = Social Insurance Num (10 chars), [9] = Full Card Num
+    const isTraditionalBHYT = parts.length >= 10 && parts[0].length === 15 && /^[A-Z]{2}\d{13}$/.test(parts[0]);
+    const isNewBHYT = parts.length >= 15 && /^\d{10}$/.test(parts[0]);
+
+    if (isTraditionalBHYT || isNewBHYT) {
         try {
-            const insuranceNumber = parts[0];
+            // New format (2024+) uses 10-digit Social Insurance Num as primary ID
+            // but index 9 often contains a longer composite number.
+            // Portal usually accepts the 10-digit one more consistently.
+            const insuranceNumber = isNewBHYT ? (parts[0] || parts[9]) : parts[0];
             const name = decodeHex(parts[1]);
             const dob = formatDateForInput(parts[2]);
             const gender = parts[3] === '1' ? 'Nam' : parts[3] === '2' ? 'Nữ' : 'Khác';
-            const address = decodeHex(parts[4]);
+            
+            // Address for traditional is at [4], for new format usually at [15]
+            const address = decodeHex(isNewBHYT ? (parts[15] || parts[4]) : parts[4]);
+
+            // Reg code: parts[5]. May have " - " separator
+            const rawRegCode = parts[5].split('-').pop()?.trim() || parts[5].trim();
+            
+            // Benefit level: parts[11] in new format, or char index 2 in traditional (e.g. GD4 -> 4)
+            const benefitLevel = isNewBHYT ? (parts[11] || '') : (insuranceNumber.charAt(2) || '');
 
             return {
                 type: 'BHYT',
                 data: {
                     name, dob, gender, address,
                     insuranceNumber,
-                    insuranceRegCode: parts[5],
+                    insuranceRegCode: rawRegCode,
                     insuranceRegDate: formatDateForInput(parts[6]),
-                    insuranceExp: formatDateForInput(parts[7]),
-                    insurance5Year: formatDateForInput(parts[12]),
-                    age: new Date().getFullYear() - parseInt(dob.split('-')[0] || '0'),
-                    patientType: '4' // 4 is BHYT Xã Hội in hms_object
+                    insuranceExp: formatDateForInput(parts[7] === '-' ? (parts[8] || parts[7]) : parts[7]),
+                    insurance5Year: formatDateForInput(isNewBHYT ? (parts[12] || '') : (parts.length > 12 ? parts[12] : '')),
+                    age: dob ? (new Date().getFullYear() - parseInt(dob.split('-')[0] || '0')) : 0,
+                    patientType: '4',
+                    benefitCode: benefitLevel
                 }
             };
-        } catch (e) { return null; }
+        } catch (e) { console.error('BHYT Parse Error:', e); }
     }
 
     if (parts.length >= 6 && /^\d{12}$/.test(parts[0])) {
@@ -112,6 +139,7 @@ export interface ExtendedFormData extends Patient {
     insurance5Year?: string;
     insuranceExempt?: string;
     insuranceRouteType?: string;
+    benefitCode?: string;
     regDate?: string;
     regDepartment?: string;
     regRoom?: string;
@@ -143,6 +171,7 @@ export const emptyPatient: ExtendedFormData = {
     insuranceRegCode: '', insuranceObject: '', insurancePlace: '',
     insuranceArea: '', insuranceExempt: '', insurance5Year: '',
     insuranceRouteType: '0',
+    benefitCode: '',
     regReason: '', regDepartment: '', regRoom: '',
     regExamType: '', regPriority: false, regEmergency: false, regHealthCheck: false,
     regDateTime: new Date().toISOString().slice(0, 16), // YYYY-MM-DDTHH:mm

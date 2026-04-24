@@ -60,9 +60,9 @@ class ReceptionPatientController {
                     hd_status                                        AS "status",
                     hd_emergency                                     AS "emergency",
                     CASE 
-                        WHEN hd_object = 2 THEN 'BHYT'
-                        WHEN hd_object = 4 THEN 'BHYT'
-                        WHEN hd_object = 6 THEN 'BHYT'
+                        WHEN hd_object = '2' THEN 'BHYT'
+                        WHEN hd_object = '4' THEN 'BHYT'
+                        WHEN hd_object = '6' THEN 'BHYT'
                         ELSE 'Dịch vụ'
                     END                                             AS "patientType",
                     hd_object                                        AS "objectType",
@@ -98,7 +98,9 @@ class ReceptionPatientController {
                 const r = await query(`
                     SELECT hd_docno as "docNo", hd_patientno as "patientNo",
                            trim(COALESCE(hp_surname,'') || ' ' || COALESCE(hp_midname,'') || ' ' || hp_firstname) as "name",
-                           hd_cardno as "cardNo"
+                           hd_cardno as "cardNo",
+                           hd_status as "status",
+                           to_char(hd_admitdate, 'YYYY-MM-DD') as "admitDate"
                     FROM hms_doc
                     JOIN hms_patient ON hp_patientno = hd_patientno
                     WHERE hd_docno::text = $1
@@ -147,6 +149,7 @@ class ReceptionPatientController {
                     hp_patientno                                     as "id",
                     hp_patientno                                     as "patientId",
                     hd_docno                                         as "recordNumber",
+                    hd_status                                        as "status",
                     trim(COALESCE(hp_surname,'') || ' ' || COALESCE(hp_midname,'') || ' ' || hp_firstname) as "name",
                     to_char(hp_birthdate, 'YYYY-MM-DD')              as "dob",
                     to_char(hd_admitdate, 'YYYY-MM-DD"T"HH24:MI')     as "regDateTime",
@@ -502,7 +505,7 @@ class ReceptionPatientController {
                         if (oldCard) {
                             await hmsQuery(req, `UPDATE hms_card SET hc_active = 'N' WHERE hc_idx = $1`, [oldCard.hc_idx]);
                         }
-                        
+
                         const idxRes = await query(`SELECT nextval('hms_card_hc_idx_seq') as idx`);
                         const newIdx = idxRes.rows[0].idx;
                         await hmsQuery(req, `INSERT INTO hms_card (
@@ -513,7 +516,7 @@ class ReceptionPatientController {
                         await hmsQuery(req, `UPDATE hms_doc SET hd_cardidx = $1 WHERE hd_docno = $2`, [newIdx, docNo]);
                     } else {
                         // Nếu trùng số thẻ -> Kiểm tra xem có thay đổi ngày hạn hay nơi đăng ký không (gia hạn thẻ)
-                        const hasCardChanges = 
+                        const hasCardChanges =
                             (data.insuranceRegDate && oldCard.hc_regdate && new Date(oldCard.hc_regdate).toISOString().slice(0, 10) !== data.insuranceRegDate) ||
                             (data.insuranceExp && oldCard.hc_expdate && new Date(oldCard.hc_expdate).toISOString().slice(0, 10) !== data.insuranceExp) ||
                             (oldCard.hc_regcode !== data.insuranceRegCode);
@@ -615,6 +618,27 @@ class ReceptionPatientController {
         } catch (error: any) {
             console.error('❌ deletePatientRegistration:', error);
             return res.status(500).json({ error: error.message || 'Lỗi hệ thống' });
+        }
+    }
+
+    // ==================== ĐÓNG HỒ SƠ ====================
+    async terminateDoc(req: AuthRequest, res: Response) {
+        try {
+            const { docNo } = (req as any).params;
+            const currentUser = (req as any).user?.username || 'admin';
+
+            await query(`
+                UPDATE hms_doc SET 
+                    hd_status = 'T',
+                    hd_updatedby = $2,
+                    hd_updateddate = NOW()
+                WHERE hd_docno = $1
+            `, [docNo, currentUser]);
+
+            return res.json({ success: true, message: 'Đã kết thúc hồ sơ thành công' });
+        } catch (error: any) {
+            console.error('❌ terminateDoc:', error);
+            return res.status(500).json({ error: error.message });
         }
     }
 }

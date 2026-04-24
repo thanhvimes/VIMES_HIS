@@ -59,8 +59,8 @@ const InsuranceSection: React.FC<InsuranceSectionProps> = ({
                     <div className="col-span-1">
                         <label className="enterprise-label !mb-1 text-center">%</label>
                         <div className="w-full text-[13px] border border-slate-200 dark:border-slate-600 bg-blue-50 dark:bg-blue-900/40 rounded-md h-8 font-bold flex items-center justify-center text-blue-700 dark:text-blue-300">
-                            {formData.insuranceNumber ? (getBenefitRate(formData.insuranceNumber.charAt(2)) + '%') : '--'}
-                        </div>
+                             {formData.insuranceNumber ? (getBenefitRate(formData.benefitCode || formData.insuranceNumber.charAt(2)) + '%') : '--'}
+                         </div>
                     </div>
                     <div className="col-span-3">
                         <label className="enterprise-label !mb-1">Khu vực</label>
