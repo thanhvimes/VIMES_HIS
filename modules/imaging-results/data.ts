@@ -1,5 +1,5 @@
 
-import { TreeNode } from '../../components/shared/DocumentTree';
+import { TreeNode } from '../../components/ui/DocumentTree';
 
 export interface ImagingRequest {
     id: string;

@@ -71,7 +71,7 @@ class ReceptionCatalogController {
         try {
             // Lấy TẤT CẢ nghề nghiệp để BN cũ không bị trắng (Bỏ ss_active filter)
             const result = await query(
-                `SELECT trim(ss_code) as id, trim(ss_code) as code, ss_desc as name FROM sys_sel WHERE trim(ss_id)='sys_occupation' ORDER BY id`
+                `SELECT trim(ss_code) as id, trim(ss_code) as code, ss_desc as name FROM sys_sel WHERE trim(ss_id)='sys_occupation' ORDER BY ss_index, id`
             );
             return res.json(result.rows);
         } catch (error: any) {
@@ -83,7 +83,7 @@ class ReceptionCatalogController {
         try {
             // Lấy TẤT CẢ dân tộc để BN cũ không bị trắng (Bỏ ss_active filter)
             const result = await query(
-                `SELECT trim(ss_code) as id, trim(ss_code) as code, ss_desc as name FROM sys_sel WHERE trim(ss_id)='sys_ethnic' ORDER BY id`
+                `SELECT trim(ss_code) as id, trim(ss_code) as code, ss_desc as name FROM sys_sel WHERE trim(ss_id)='sys_ethnic' ORDER BY ss_index, id`
             );
             return res.json(result.rows);
         } catch (error: any) {
@@ -93,7 +93,7 @@ class ReceptionCatalogController {
 
     async getNations(req: Request, res: Response) {
         try {
-            const result = await query(`SELECT hq_id as id, hq_id as code, hq_name as name from hms_quoctich ORDER BY id`);
+            const result = await query(`SELECT hq_idx as id, hq_idx as code, hq_name as name from hms_quoctich ORDER BY hq_index, id`);
             return res.json(result.rows);
         } catch (error: any) {
             return res.status(500).json({ error: error.message });

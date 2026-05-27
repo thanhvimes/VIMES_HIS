@@ -44,10 +44,33 @@ const SettingsView: React.FC = () => {
 
     const [activeTab, setActiveTab] = useState<'display' | 'hospital' | 'menu'>('display');
     const [hospitalForm, setHospitalForm] = useState<OrganizationInfo>(orgInfo);
+    
+    // Using System Store for dynamic branding
+    const { hospitalName, systemName, logoUrl, updateBrandingSettings } = useSystemStore();
+    const [brandingForm, setBrandingForm] = useState({
+        hospitalName: hospitalName,
+        systemName: systemName,
+        logoUrl: logoUrl
+    });
+    
     const [isSaving, setIsSaving] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Menu Management State
+    // Update form if global orgInfo changes
+    useEffect(() => {
+        setHospitalForm(orgInfo);
+    }, [orgInfo]);
+
+    // Update branding form when store values change
+    useEffect(() => {
+        setBrandingForm({
+            hospitalName: hospitalName,
+            systemName: systemName,
+            logoUrl: logoUrl
+        });
+    }, [hospitalName, systemName, logoUrl]);
+
+    // Update menu items when module selection changes or config updates
     const [selectedModule, setSelectedModule] = useState('reception');
     const [currentMenuItems, setCurrentMenuItems] = useState<NavItemDTO[]>([]);
     const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
@@ -77,12 +100,17 @@ const SettingsView: React.FC = () => {
         setHospitalForm(prev => ({ ...prev, [name]: value }));
     };
 
+    const handleBrandingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setBrandingForm(prev => ({ ...prev, [name]: value }));
+    };
+
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
             const reader = new FileReader();
             reader.onloadend = () => {
-                setHospitalForm(prev => ({ ...prev, logoUrl: reader.result as string }));
+                setBrandingForm(prev => ({ ...prev, logoUrl: reader.result as string }));
             };
             reader.readAsDataURL(file);
         }
@@ -92,8 +120,16 @@ const SettingsView: React.FC = () => {
         e.preventDefault();
         setIsSaving(true);
         try {
-            const updatedInfo = await adminService.updateOrganizationInfo(hospitalForm);
-            setOrgInfo(updatedInfo);
+            // Update other org info if needed
+            await adminService.updateOrganizationInfo(hospitalForm);
+            
+            // Update Branding Settings (SystemStore)
+            await updateBrandingSettings([
+                { key: 'general_hospital_name', value: brandingForm.hospitalName },
+                { key: 'general_system_name', value: brandingForm.systemName },
+                { key: 'general_logo_url', value: brandingForm.logoUrl }
+            ]);
+            
             alert("Cập nhật thông tin bệnh viện thành công!");
         } catch (error) {
             alert("Lỗi khi lưu thông tin.");
@@ -275,10 +311,21 @@ const SettingsView: React.FC = () => {
                                     <input
                                         type="text"
                                         name="hospitalName"
-                                        value={hospitalForm.hospitalName}
-                                        onChange={handleHospitalChange}
+                                        value={brandingForm.hospitalName}
+                                        onChange={handleBrandingChange}
                                         className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 font-bold text-lg"
                                         placeholder="BỆNH VIỆN..."
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Tiêu đề Hệ thống (Subtitle)</label>
+                                    <input
+                                        type="text"
+                                        name="systemName"
+                                        value={brandingForm.systemName}
+                                        onChange={handleBrandingChange}
+                                        className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 font-medium text-md text-blue-600"
+                                        placeholder="HỆ THỐNG QUẢN LÝ TỔNG THỂ BỆNH VIỆN"
                                     />
                                 </div>
                                 <div>
@@ -307,14 +354,14 @@ const SettingsView: React.FC = () => {
                             {/* Right Column: Contact & Logo URL */}
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Logo</label>
+                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Đường dẫn Logo (URL)</label>
                                     <div className="flex gap-2 items-start">
                                         <div className="flex-1">
                                             <input
                                                 type="text"
                                                 name="logoUrl"
-                                                value={hospitalForm.logoUrl}
-                                                onChange={handleHospitalChange}
+                                                value={brandingForm.logoUrl}
+                                                onChange={handleBrandingChange}
                                                 className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 text-sm mb-2"
                                                 placeholder="https://... hoặc tải ảnh lên"
                                             />
@@ -334,8 +381,8 @@ const SettingsView: React.FC = () => {
                                             </button>
                                         </div>
                                         <div className="w-16 h-16 bg-white border rounded-lg flex items-center justify-center shrink-0 p-1 overflow-hidden shadow-sm">
-                                            {hospitalForm.logoUrl ? (
-                                                <img src={hospitalForm.logoUrl} alt="Logo Preview" className="w-full h-full object-contain" />
+                                            {brandingForm.logoUrl ? (
+                                                <img src={brandingForm.logoUrl} alt="Logo Preview" className="w-full h-full object-contain" />
                                             ) : (
                                                 <GlobeIcon className="w-8 h-8 text-slate-300" />
                                             )}

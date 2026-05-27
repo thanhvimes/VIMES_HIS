@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { TruckIcon, ArchiveIcon, CheckIcon, TrashIcon } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
-import Combobox, { ComboboxColumn } from '../../../components/shared/Combobox';
+import Combobox, { ComboboxColumn } from '../../../components/ui/Combobox';
 import { drugList } from '../../consultation/data/catalogs';
 import { DrugItem } from '../../../types';
 

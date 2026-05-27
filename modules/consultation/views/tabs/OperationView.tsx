@@ -18,7 +18,7 @@ import {
 } from '../../../../components/Icons';
 import { OperationRecord } from '../../../../types';
 import { consultationService } from '../../../../services/consultationService';
-import OperationFormModal from '../../../../components/shared/services/OperationFormModal';
+import OperationFormModal from '../../../../components/ui/services/OperationFormModal';
 import { usePdfPreview } from '../../../../contexts/PdfPreviewContext';
 import { useTheme } from '../../../../contexts/ThemeContext';
 

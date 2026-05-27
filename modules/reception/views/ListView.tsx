@@ -7,9 +7,9 @@ import { SearchIcon, RefreshIcon, TrashIcon, MegaphoneIcon } from '../../../comp
 import { useTheme } from '../../../contexts/ThemeContext';
 import { receptionService } from '../../../services/receptionService';
 import { catalogService } from '../../../services/catalogService';
-import { FormDateInput } from '../../../components/shared/forms';
-import Combobox from '../../../components/shared/Combobox';
-import ConfirmationModal from '../../../components/shared/ConfirmationModal';
+import { FormDateInput } from '../../../components/ui/forms';
+import Combobox from '../../../components/ui/Combobox';
+import ConfirmationModal from '../../../components/ui/ConfirmationModal';
 import { formatDate, calculateAge } from '../../../utils/formatters';
 import { useSession } from '../../../contexts/SessionContext';
 import { useCatalogs } from '../../../contexts/CatalogContext';

@@ -1,15 +1,15 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { MenuIcon, BellIcon, CheckCircleIcon, ExclamationCircleIcon, InfoIcon, UserGroupIcon, ChatBubbleIcon, MicrophoneIcon, MicrophoneOffIcon, LogoutIcon, HospitalIcon } from './Icons';
+import { HospitalLogo } from '../config/branding';
 import ThemeSwitcher from './ThemeSwitcher';
 import { useNotification } from '../contexts/NotificationContext';
 import { useSystemStore } from '../stores/useSystemStore';
 import { useSession } from '../contexts/SessionContext';
 import { useVoiceInput } from '../contexts/VoiceInputContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Tooltip from './ui/Tooltip';
 import UserProfileModal from './business/UserProfileModal';
-import SystemSettingsModal from './business/SystemSettingsModal';
 import ReAuthModal from './business/ReAuthModal';
 
 interface HeaderProps {
@@ -77,16 +77,19 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
     const [isDropdownOpen, setDropdownOpen] = useState(false);
     const [isNotifOpen, setNotifOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isReAuthOpen, setIsReAuthOpen] = useState(false);
 
     const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotification();
     const { user } = useSession();
     const { isListening, toggleListening, hasSupport } = useVoiceInput();
+    const { hospitalName, systemName, logoUrl } = useSystemStore();
 
     const notifRef = useRef<HTMLDivElement>(null);
     const userMenuRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
+    const location = useLocation();
+
+    const isQmsOrCc = location.pathname.includes('/queue-management') || location.pathname.includes('/command-center');
 
     const historyNotifications = notifications.filter(n => !n.autoClose);
 
@@ -133,17 +136,42 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
                 )}
                 {showBranding ? (
                     <div className="flex items-center gap-3 group cursor-pointer select-none" onClick={() => navigate('/staff-dashboard')} title="Về trang chủ">
-                        <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center shadow-lg group-hover:rotate-3 transition-transform border border-white/20">
-                            <HospitalIcon className="w-6 h-6 text-white" />
+                        <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-lg flex items-center justify-center shadow-lg group-hover:rotate-3 transition-transform border border-slate-200/50 dark:border-slate-700/50 p-1.5 overflow-hidden">
+                            {logoUrl ? (
+                                <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                            ) : (
+                                <HospitalLogo className="w-7 h-7" />
+                            )}
                         </div>
                         <div className="flex flex-col justify-center">
-                            <h1 className="text-lg font-extrabold text-white tracking-tight leading-none uppercase">BỆNH VIỆN K</h1>
-                            <p className="text-[10px] font-bold text-blue-100 uppercase tracking-wider">HỆ THỐNG QUẢN LÝ PHÒNG KHÁM TOÀN DIỆN</p>
+                            <h1 className="text-sm font-extrabold text-white tracking-tight leading-none uppercase">{hospitalName}</h1>
+                            <p className="text-[9px] font-bold text-blue-100 uppercase tracking-wider">{systemName}</p>
                         </div>
                     </div>
                 ) : (
                     pageTitle && (
-                        <div className="flex items-center animate-fade-in">
+                        <div className="flex items-center gap-3 animate-fade-in">
+                            {isQmsOrCc && (
+                                <button 
+                                    onClick={() => {
+                                        const path = location.pathname;
+                                        if (path.startsWith('/queue-management') && path !== '/queue-management' && path !== '/queue-management/') {
+                                            navigate('/queue-management');
+                                        } else if (path.startsWith('/command-center') && path !== '/command-center' && path !== '/command-center/') {
+                                            navigate('/command-center');
+                                        } else {
+                                            navigate('/staff-dashboard');
+                                        }
+                                    }}
+                                    className="p-1.5 bg-white/15 hover:bg-white/25 active:scale-95 rounded-lg text-white transition-all flex items-center gap-1.5 border border-white/10"
+                                    title="Quay lại"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+                                    </svg>
+                                    <span className="text-[10px] font-black uppercase tracking-wider pr-1">Quay lại</span>
+                                </button>
+                            )}
                             <h2 className="text-xl font-bold text-white tracking-tight">{pageTitle}</h2>
                         </div>
                     )
@@ -216,7 +244,6 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
                 </div>
             </div>
             <UserProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
-            <SystemSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
             <ReAuthModal isOpen={isReAuthOpen} onClose={() => setIsReAuthOpen(false)} onSuccess={handleReAuthSuccess} />
         </header>
     );

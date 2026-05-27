@@ -1,0 +1,172 @@
+@import "tailwindcss";
+@config "./tailwind.config.js";
+@source "./**/*.{js,ts,jsx,tsx,html}";
+
+/* --- Global Professional Scrollbar --- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #3B82F6 transparent;
+}
+
+.dark * {
+  scrollbar-color: #2563EB transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #3B82F6, #2563EB);
+  border-radius: 10px;
+}
+
+/* --- ENTERPRISE COMPONENTS --- */
+
+.zendesk-sidebar {
+  background-color: #17424C !important;
+  color: #E1E5E9 !important;
+}
+
+.azure-header {
+  background-color: #0078D4 !important;
+  color: white !important;
+}
+
+.enterprise-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #605E5C;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.dark .enterprise-label {
+  color: #94A3B8;
+}
+
+.enterprise-input {
+  border: 1px solid #D1D5DB;
+  border-radius: 4px;
+  background-color: #FFFFFF;
+  font-size: 13px;
+  height: 32px;
+  padding: 0 10px;
+  width: 100%;
+  color: #323130;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.enterprise-input:focus {
+  border-color: #0078D4;
+  box-shadow: 0 0 0 1px #0078D4;
+  outline: none;
+}
+
+.dark .enterprise-input {
+  background-color: #0F172A;
+  border-color: #1E3A5F;
+  color: #F1F5F9;
+}
+
+.modern-card {
+  background: white;
+  border: 1px solid #EDEBE9;
+  border-radius: 4px;
+  box-shadow: 0 1.6px 3.6px 0 rgba(0, 0, 0, 0.132), 0 0.3px 0.9px 0 rgba(0, 0, 0, 0.108);
+}
+
+.dark .modern-card {
+  background-color: #0C243B;
+  border-color: #1E3A5F;
+}
+
+/* --- UTILITIES --- */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #f0f0f0 0%, #f8f8f8 50%, #f0f0f0 100%);
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 30s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.1);
+}
+
+@media print {
+  .no-print { display: none !important; }
+  body { background-color: white !important; color: black !important; overflow: visible !important; }
+}
+
+/* --- QMS CUSTOM UTILITIES & ANIMATIONS --- */
+.animate-spin-slow {
+  animation: spin 8s linear infinite;
+}
+.animate-scan {
+  animation: scan 3s ease-in-out infinite alternate;
+}
+.animate-ticker {
+  animation: ticker 40s linear infinite;
+}
+.animate-progress-fast {
+  animation: progress-fast 3s linear infinite;
+}
+@keyframes scan {
+  0% { top: 0; }
+  100% { top: 100%; }
+}
+@keyframes ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes progress-fast {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}

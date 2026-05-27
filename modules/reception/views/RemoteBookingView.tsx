@@ -13,7 +13,7 @@ import {
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { receptionService } from '../../../services/receptionService';
-import { FormDateInput } from '../../../components/shared/forms';
+import { FormDateInput } from '../../../components/ui/forms';
 import { Patient } from '../../../types';
 
 const specialities = ['Nội tổng quát', 'Ngoại khoa', 'Nhi khoa', 'Sản phụ khoa', 'Tai mũi họng', 'Răng hàm mặt', 'Da liễu', 'Tim mạch', 'Mắt'];

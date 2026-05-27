@@ -20,6 +20,7 @@ class SettingsService {
     private cache: Map<string, Setting>;
     private cacheTimeout: number;
     private lastCacheUpdate: number | null;
+    private initPromise: Promise<void> | null = null;
 
     constructor() {
         this.cache = new Map();
@@ -28,9 +29,111 @@ class SettingsService {
     }
 
     /**
+     * Lazily ensure that branding settings exist in hms_booking_settings
+     */
+    private async ensureDefaultSettings(): Promise<void> {
+        if (this.initPromise) return this.initPromise;
+
+        this.initPromise = (async () => {
+            try {
+                // Ensure general_system_name
+                await query(`
+                    INSERT INTO hms_booking_settings (setting_key, setting_value, setting_type, category, description, is_system)
+                    VALUES ('general_system_name', 'HỆ THỐNG QUẢN LÝ TỔNG THỂ BỆNH VIỆN', 'string', 'general', 'System name displayed in header and logins', true)
+                    ON CONFLICT (setting_key) DO NOTHING
+                `);
+                // Ensure general_logo_url
+                await query(`
+                    INSERT INTO hms_booking_settings (setting_key, setting_value, setting_type, category, description, is_system)
+                    VALUES ('general_logo_url', '', 'string', 'general', 'Hospital branding logo image URL', true)
+                    ON CONFLICT (setting_key) DO NOTHING
+                `);
+                // Ensure general_hospital_name
+                await query(`
+                    INSERT INTO hms_booking_settings (setting_key, setting_value, setting_type, category, description, is_system)
+                    VALUES ('general_hospital_name', 'BỆNH VIỆN K', 'string', 'general', 'Hospital name for display', true)
+                    ON CONFLICT (setting_key) DO NOTHING
+                `);
+            } catch (e) {
+                console.error('Failed to ensure default settings:', e);
+            }
+        })();
+
+        return this.initPromise;
+    }
+
+    /**
+     * Get core hospital details from sys_company table
+     */
+    private async getCompanyInfo(): Promise<any> {
+        try {
+            const facilityId = process.env.FACILITY_ID || process.env.BRANCH_ID || process.env.COMPANY_ID;
+            if (facilityId) {
+                const res = await query(
+                    'SELECT sc_id, sc_name, sc_fullname, sc_phone, sc_email, sc_address, sc_website FROM sys_company WHERE sc_id = $1',
+                    [facilityId]
+                );
+                if (res.rows.length > 0) return res.rows[0];
+            }
+
+            // Fallback to matching with reporthost from hms_config
+            const resMatch = await query(`
+                SELECT sc_id, sc_name, sc_fullname, sc_phone, sc_email, sc_address, sc_website 
+                FROM sys_company 
+                WHERE sc_reporthost = (SELECT reporthost FROM hms_config LIMIT 1)
+            `);
+            if (resMatch.rows.length > 0) return resMatch.rows[0];
+
+            // Final fallback: return first row
+            const resFallback = await query('SELECT sc_id, sc_name, sc_fullname, sc_phone, sc_email, sc_address, sc_website FROM sys_company LIMIT 1');
+            return resFallback.rows[0] || null;
+        } catch (e) {
+            console.error('Failed to query sys_company table:', e);
+            return null;
+        }
+    }
+
+    /**
      * Get a single setting by key
      */
     async getSetting(key: string): Promise<Setting | null> {
+        await this.ensureDefaultSettings();
+
+        // Handle sys_company keys dynamically
+        const companyKeys = ['general_hospital_name', 'general_hotline', 'general_email', 'general_address', 'general_website'];
+        if (companyKeys.includes(key)) {
+            const company = await this.getCompanyInfo();
+            if (company) {
+                let value = '';
+                let desc = '';
+                if (key === 'general_hospital_name') {
+                    value = company.sc_fullname || company.sc_name || '';
+                    desc = 'Hospital name for display and SMS';
+                } else if (key === 'general_hotline') {
+                    value = company.sc_phone || '';
+                    desc = 'Hospital hotline number';
+                } else if (key === 'general_email') {
+                    value = company.sc_email || '';
+                    desc = 'Hospital support email';
+                } else if (key === 'general_address') {
+                    value = company.sc_address || '';
+                    desc = 'Hospital address';
+                } else if (key === 'general_website') {
+                    value = company.sc_website || '';
+                    desc = 'Hospital website URL';
+                }
+
+                return {
+                    key,
+                    value,
+                    type: 'string',
+                    category: 'general',
+                    description: desc,
+                    isSystem: true
+                };
+            }
+        }
+
         // Check cache first
         if (this.cache.has(key) && !this.isCacheExpired()) {
             return this.cache.get(key) || null;
@@ -58,6 +161,8 @@ class SettingsService {
      * Get all settings by category
      */
     async getSettingsByCategory(category: string): Promise<Setting[]> {
+        await this.ensureDefaultSettings();
+
         const sql = `
             SELECT setting_key, setting_value, setting_type, category, description, is_system
             FROM hms_booking_settings
@@ -66,13 +171,31 @@ class SettingsService {
         `;
 
         const result = await query(sql, [category]);
-        return result.rows.map(row => this.parseSetting(row));
+        let settings = result.rows.map(row => this.parseSetting(row));
+
+        if (category === 'general') {
+            const company = await this.getCompanyInfo();
+            if (company) {
+                settings = settings.map(setting => {
+                    if (setting.key === 'general_hospital_name') setting.value = company.sc_fullname || company.sc_name || '';
+                    if (setting.key === 'general_hotline') setting.value = company.sc_phone || '';
+                    if (setting.key === 'general_email') setting.value = company.sc_email || '';
+                    if (setting.key === 'general_address') setting.value = company.sc_address || '';
+                    if (setting.key === 'general_website') setting.value = company.sc_website || '';
+                    return setting;
+                });
+            }
+        }
+
+        return settings;
     }
 
     /**
      * Get all settings
      */
     async getAllSettings(): Promise<Setting[]> {
+        await this.ensureDefaultSettings();
+
         const sql = `
             SELECT setting_key, setting_value, setting_type, category, description, is_system, updated_by, updated_at
             FROM hms_booking_settings
@@ -80,13 +203,57 @@ class SettingsService {
         `;
 
         const result = await query(sql);
-        return result.rows.map(row => this.parseSetting(row));
+        let settings = result.rows.map(row => this.parseSetting(row));
+
+        const company = await this.getCompanyInfo();
+        if (company) {
+            settings = settings.map(setting => {
+                if (setting.key === 'general_hospital_name') setting.value = company.sc_fullname || company.sc_name || '';
+                if (setting.key === 'general_hotline') setting.value = company.sc_phone || '';
+                if (setting.key === 'general_email') setting.value = company.sc_email || '';
+                if (setting.key === 'general_address') setting.value = company.sc_address || '';
+                if (setting.key === 'general_website') setting.value = company.sc_website || '';
+                return setting;
+            });
+        }
+
+        return settings;
     }
 
     /**
      * Update a single setting
      */
     async updateSetting(key: string, value: any, updatedBy: string): Promise<Setting> {
+        await this.ensureDefaultSettings();
+        
+        const safeUpdatedBy = String(updatedBy || 'system').substring(0, 100);
+
+        const companyKeys = ['general_hospital_name', 'general_hotline', 'general_email', 'general_address', 'general_website'];
+        if (companyKeys.includes(key)) {
+            const company = await this.getCompanyInfo();
+            if (company) {
+                let sql = '';
+                let params: any[] = [];
+                if (key === 'general_hospital_name') {
+                    sql = 'UPDATE sys_company SET sc_fullname = $1::varchar, sc_name = UPPER($1::varchar) WHERE sc_id = $2';
+                    params = [value, company.sc_id];
+                } else if (key === 'general_hotline') {
+                    sql = 'UPDATE sys_company SET sc_phone = $1 WHERE sc_id = $2';
+                    params = [value, company.sc_id];
+                } else if (key === 'general_email') {
+                    sql = 'UPDATE sys_company SET sc_email = $1 WHERE sc_id = $2';
+                    params = [value, company.sc_id];
+                } else if (key === 'general_address') {
+                    sql = 'UPDATE sys_company SET sc_address = $1 WHERE sc_id = $2';
+                    params = [value, company.sc_id];
+                } else if (key === 'general_website') {
+                    sql = 'UPDATE sys_company SET sc_website = $1 WHERE sc_id = $2';
+                    params = [value, company.sc_id];
+                }
+                await query(sql, params);
+            }
+        }
+
         const sql = `
             UPDATE hms_booking_settings
             SET setting_value = $1, updated_by = $2, updated_at = CURRENT_TIMESTAMP
@@ -95,7 +262,7 @@ class SettingsService {
         `;
 
         const stringValue = this.stringifyValue(value);
-        const result = await query(sql, [stringValue, updatedBy, key]);
+        const result = await query(sql, [stringValue, safeUpdatedBy, key]);
 
         if (result.rows.length === 0) {
             throw new Error(`Setting not found: ${key}`);
@@ -111,13 +278,7 @@ class SettingsService {
     async updateMultipleSettings(settings: { key: string; value: any }[], updatedBy: string) {
         try {
             for (const setting of settings) {
-                const stringValue = this.stringifyValue(setting.value);
-                await query(
-                    `UPDATE hms_booking_settings 
-                     SET setting_value = $1, updated_by = $2, updated_at = CURRENT_TIMESTAMP 
-                     WHERE setting_key = $3`,
-                    [stringValue, updatedBy, setting.key]
-                );
+                await this.updateSetting(setting.key, setting.value, updatedBy);
             }
 
             this.clearCache();

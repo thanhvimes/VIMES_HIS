@@ -82,7 +82,8 @@ const WorkspaceLayout: React.FC = () => {
     location.pathname.includes('/reports') ||
     location.pathname.includes('/telemedicine/live') ||
     location.pathname.includes('/reception') ||
-    location.pathname.includes('/command-center');
+    location.pathname.includes('/command-center') ||
+    location.pathname.includes('/queue-management');
 
   const { pageTitle, moduleNavItems } = useMemo(() => {
     const currentModuleRoot = location.pathname.split('/')[1];
@@ -93,7 +94,7 @@ const WorkspaceLayout: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-background dark:bg-dark-background">
-      {!location.pathname.includes('/command-center') && (
+      {!location.pathname.includes('/command-center') && !location.pathname.includes('/queue-management') && (
         <Sidebar
           isMobileOpen={isMobileSidebarOpen}
           setMobileOpen={setMobileSidebarOpen}
@@ -108,7 +109,7 @@ const WorkspaceLayout: React.FC = () => {
           pageTitle={pageTitle}
           onToggleSidebar={() => setMobileSidebarOpen(!isMobileSidebarOpen)}
           onLogout={logout}
-          showSidebarToggle={!location.pathname.includes('/command-center')}
+          showSidebarToggle={!location.pathname.includes('/command-center') && !location.pathname.includes('/queue-management')}
           isChatVisible={isChatVisible}
           onToggleChat={() => setIsChatVisible(!isChatVisible)}
           showBranding={false}
@@ -187,6 +188,11 @@ const StaffSystem: React.FC = () => {
 const MainApp: React.FC = () => {
   const { isAuthenticated, user } = useSession();
   const location = useLocation();
+  const fetchBrandingSettings = useSystemStore(state => state.fetchBrandingSettings);
+
+  useEffect(() => {
+    fetchBrandingSettings();
+  }, [fetchBrandingSettings]);
 
   useEffect(() => {
     if (isAuthenticated && user) {

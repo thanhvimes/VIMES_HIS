@@ -1,7 +1,7 @@
 import React from 'react';
 import { CreditCardIcon } from '../../../components/Icons';
-import { FormDateInput } from '../../../components/shared/forms';
-import Combobox from '../../../components/shared/Combobox';
+import { FormDateInput } from '../../../components/ui/forms';
+import Combobox from '../../../components/ui/Combobox';
 import { ExtendedFormData, getBenefitRate } from '../utils/registrationUtils';
 import { CatalogItem } from '../../../services/catalogService';
 

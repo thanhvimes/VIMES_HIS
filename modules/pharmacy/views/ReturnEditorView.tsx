@@ -12,7 +12,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { mockReturns, mockWarehouses } from '../data';
 import { pharmacyService } from '../../../services/pharmacyService';
 import { formatCurrency, formatDate } from '../../../utils/formatters';
-import Combobox, { ComboboxColumn } from '../../../components/shared/Combobox';
+import Combobox, { ComboboxColumn } from '../../../components/ui/Combobox';
 import { drugList } from '../../consultation/data/catalogs';
 import { DrugItem, PharmacyReturn } from '../../../types';
 import { useNotification } from '../../../contexts/NotificationContext';

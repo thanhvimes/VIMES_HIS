@@ -1,5 +1,0 @@
-[
-  {
-    "pg_get_constraintdef": "FOREIGN KEY (hc_patientno) REFERENCES hms_patient(hp_patientno)"
-  }
-]

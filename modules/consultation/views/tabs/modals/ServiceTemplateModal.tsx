@@ -1,3 +1,3 @@
 
-// This file has been moved to components/shared/services/ServiceTemplateModal.tsx
+// This file has been moved to components/ui/services/ServiceTemplateModal.tsx
 export {}; 

@@ -13,7 +13,8 @@ import {
     ScissorsIcon,   
     BeakerIcon,
     EyeIcon,
-    StethoscopeIcon // Icon cho Khám bệnh
+    StethoscopeIcon, // Icon cho Khám bệnh
+    HospitalIcon
 } from '../../../components/Icons';
 
 interface ConfigPanelProps {
@@ -36,6 +37,12 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({
     
     // Danh sách các mẫu báo cáo (Layouts)
     const layouts = [
+        { 
+            id: 'executive', 
+            name: 'Tình hình hoạt động', 
+            desc: 'Tổng quan Toàn viện & KPI', 
+            icon: <ChartBarIcon className="w-5 h-5"/> 
+        },
         { 
             id: 'general', 
             name: 'Tổng quan Bệnh viện', 

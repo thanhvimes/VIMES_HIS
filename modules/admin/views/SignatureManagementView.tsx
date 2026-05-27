@@ -15,8 +15,8 @@ import {
     UserGroupIcon
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
-import SignatureModal from '../../../components/shared/SignatureModal';
-import Combobox, { ComboboxColumn } from '../../../components/shared/Combobox';
+import SignatureModal from '../../../components/ui/SignatureModal';
+import Combobox, { ComboboxColumn } from '../../../components/ui/Combobox';
 import { doctorOptions, DoctorItem } from '../../consultation/data/catalogs';
 
 // --- TYPES ---

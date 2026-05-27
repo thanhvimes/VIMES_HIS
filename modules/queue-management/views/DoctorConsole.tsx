@@ -1,366 +1,905 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { 
+  Users, 
+  Play, 
+  Bell, 
+  Clock, 
+  CheckCircle2, 
+  SkipForward, 
+  ArrowRightLeft, 
+  Monitor,
+  Activity,
+  UserCheck,
+  AlertCircle,
+  History,
+  MessageSquare,
+  Search,
+  LogOut,
+  ArrowLeft,
+  Briefcase,
+  ChevronDown,
+  Layers,
+  MapPin,
+} from 'lucide-react';
+import { apiFetch, getBaseUrl } from '../services/apiService';
+import { AppSettings, KioskType } from '../types';
+import { SurgeryConsole } from './SurgeryConsole';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { useQueue } from '../context/QueueContext';
-import { PatientCard } from './components/PatientCard';
-import { PatientStatus, Room, Patient } from '../types';
-import { DEPARTMENTS } from '../constants';
-
-interface DoctorConsoleProps {
-  onBack: () => void;
+interface OperatorConsoleProps {
+  settings: AppSettings;
+  counterId: number;
+  counterName: string;
+  onLogout: () => void;
 }
 
-type ListFilter = 'waiting' | 'conclusion' | 'scheduled' | 'skipped' | 'completed';
-type MobileTab = 'list' | 'detail';
+const formatTicketTime = (timeStr: any, options?: Intl.DateTimeFormatOptions): string => {
+  if (!timeStr) return '--:--';
+  try {
+    const d = new Date(timeStr);
+    if (isNaN(d.getTime())) return '--:--';
+    return d.toLocaleTimeString([], options || { hour: '2-digit', minute: '2-digit' });
+  } catch (e) {
+    return '--:--';
+  }
+};
 
-export const DoctorConsole: React.FC<DoctorConsoleProps> = ({ onBack }) => {
-  const { 
-    patients, 
-    room, 
-    currentPatient, 
-    callPatient, 
-    completePatient, 
-    moveToConclusion,
-    transferPatient,
-    transferPatients,
-    schedulePatient, 
-    schedulePatients,
-    checkInAppointment,
-    skipPatient,
-    addPatient,
-    togglePriority,
-    isAnnouncing,
-    sendToLab
-  } = useQueue();
-  
-  const [activeFilter, setActiveFilter] = useState<ListFilter>('waiting');
-  const [mobileTab, setMobileTab] = useState<MobileTab>('list');
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [selectedPatientIds, setSelectedPatientIds] = useState<Set<string>>(new Set());
-  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
-  const [transferPatientId, setTransferPatientId] = useState<string | null>(null);
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const [schedulePatientId, setSchedulePatientId] = useState<string | null>(null);
-  const [scheduleDate, setScheduleDate] = useState(new Date().toISOString().split('T')[0]);
-  const [scheduleTime, setScheduleTime] = useState("08:00");
-  const [scheduleNote, setScheduleNote] = useState("Máy hỏng / Quá tải");
-  const [isBulkAction, setIsBulkAction] = useState(false); 
-  const [selectedDeptId, setSelectedDeptId] = useState('');
-  const [selectedTargetRoomId, setSelectedTargetRoomId] = useState('');
-  const [apptViewDate, setApptViewDate] = useState<string>(new Date().toISOString().split('T')[0]);
+const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, counterName, onLogout }) => {
+  const [currentTicket, setCurrentTicket] = useState<any>(null);
+  const [waitingList, setWaitingList] = useState<any[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState({ waiting: 0, served: 0, avgTime: 0 });
+  const [activeTab, setActiveTab] = useState<'CONSOLE' | 'WAITING' | 'HISTORY' | 'TRANSFER'>('CONSOLE');
+  const effectiveTab = activeTab === 'CONSOLE' ? 'WAITING' : activeTab;
 
-  // Lab modal state
-  const [isLabModalOpen, setIsLabModalOpen] = useState(false);
-  const [labPatientId, setLabPatientId] = useState<string | null>(null);
-  const [selectedLabRoomId, setSelectedLabRoomId] = useState('');
+  // Search filter
+  const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    if (currentPatient) setMobileTab('detail');
-  }, [currentPatient?.id]);
+  // Dynamic Console States
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [counters, setCounters] = useState<any[]>([]);
 
-  const displayedPatients = useMemo(() => {
-    let filtered = [];
-    switch (activeFilter) {
-        case 'waiting': filtered = patients.filter(p => p.status === PatientStatus.WAITING); break;
-        case 'conclusion': filtered = patients.filter(p => p.status === PatientStatus.CONCLUSION); break;
-        case 'scheduled': filtered = patients.filter(p => p.status === PatientStatus.SCHEDULED); break;
-        case 'skipped': filtered = patients.filter(p => p.status === PatientStatus.SKIPPED); break;
-        case 'completed': filtered = patients.filter(p => p.status === PatientStatus.COMPLETED); break;
+  const [activeService, setActiveService] = useState<KioskType>(() => {
+    return (localStorage.getItem('vimes_selected_service') as KioskType) || 
+           (localStorage.getItem('vimes_operator_service') as KioskType) || 
+           'REGISTRATION';
+  });
+
+  const [selectedDept, setSelectedDept] = useState<string>(() => {
+    return localStorage.getItem('vimes_selected_dept') || 
+           localStorage.getItem('vimes_operator_dept') || 
+           'KB';
+  });
+
+  const [activeCounterId, setActiveCounterId] = useState<number>(() => {
+    const isRoomBased = activeService === 'EXECUTION' || activeService === 'REGISTRATION';
+    if (isRoomBased) {
+      try {
+        const savedRoomJson = localStorage.getItem('vimes_selected_room');
+        if (savedRoomJson) {
+          const roomObj = JSON.parse(savedRoomJson);
+          if (roomObj && roomObj.id) {
+            const parsed = parseInt(roomObj.id);
+            if (!isNaN(parsed)) return parsed;
+          }
+        }
+      } catch (e) {
+        console.error('Failed to parse selected room:', e);
+      }
     }
-    return filtered.sort((a, b) => {
-        if (activeFilter === 'scheduled') return (a.appointmentTime || 0) - (b.appointmentTime || 0);
-        if (a.isPriority && !b.isPriority) return -1;
-        if (!a.isPriority && b.isPriority) return 1;
-        return a.timestamp - b.timestamp;
-    });
-  }, [patients, activeFilter]);
-  
-  const counts = useMemo(() => ({
-      waiting: patients.filter(p => p.status === PatientStatus.WAITING).length,
-      conclusion: patients.filter(p => p.status === PatientStatus.CONCLUSION).length,
-      scheduled: patients.filter(p => p.status === PatientStatus.SCHEDULED).length,
-      completed: patients.filter(p => p.status === PatientStatus.COMPLETED).length
-  }), [patients]);
+    
+    const saved = localStorage.getItem('vimes_operator_counter_id');
+    if (saved && saved !== 'undefined' && saved !== 'NaN') {
+      const parsed = parseInt(saved);
+      if (!isNaN(parsed)) return parsed;
+    }
+    return counterId || 1;
+  });
 
-  const toggleSelectionMode = () => { setIsSelectionMode(!isSelectionMode); setSelectedPatientIds(new Set()); };
-  const handleSelectPatient = (id: string) => {
-      setSelectedPatientIds(prev => {
-          const newSet = new Set(prev);
-          if (newSet.has(id)) newSet.delete(id); else newSet.add(id);
-          return newSet;
-      });
-  };
-  const handleSelectAll = () => {
-      if (selectedPatientIds.size === displayedPatients.length) setSelectedPatientIds(new Set());
-      else setSelectedPatientIds(new Set(displayedPatients.map(p => p.id)));
-  };
+  const [activeCounterName, setActiveCounterName] = useState<string>(() => {
+    const isRoomBased = activeService === 'EXECUTION' || activeService === 'REGISTRATION';
+    if (isRoomBased) {
+      try {
+        const savedRoomJson = localStorage.getItem('vimes_selected_room');
+        if (savedRoomJson) {
+          const roomObj = JSON.parse(savedRoomJson);
+          if (roomObj && roomObj.name) return roomObj.name;
+        }
+      } catch (e) {}
+    }
+    return localStorage.getItem('vimes_operator_counter_name') || counterName || 'Quầy số 1';
+  });
 
-  const openTransferModalSingle = (pId: string) => { setTransferPatientId(pId); setIsBulkAction(false); setIsTransferModalOpen(true); };
-  const openTransferModalBulk = () => { if (selectedPatientIds.size === 0) return; setIsBulkAction(true); setIsTransferModalOpen(true); };
-  const confirmTransfer = async () => {
-      if (selectedTargetRoomId) {
-          if (isBulkAction) { await transferPatients(Array.from(selectedPatientIds), selectedTargetRoomId); setIsSelectionMode(false); setSelectedPatientIds(new Set()); } 
-          else if (transferPatientId) { transferPatient(transferPatientId, selectedTargetRoomId); }
-          setIsTransferModalOpen(false); setTransferPatientId(null); setIsBulkAction(false);
-      }
-  };
-
-  const openScheduleModalSingle = (pId: string) => { setSchedulePatientId(pId); setIsBulkAction(false); setIsScheduleModalOpen(true); };
-  const openScheduleModalBulk = () => { if (selectedPatientIds.size === 0) return; setIsBulkAction(true); setIsScheduleModalOpen(true); };
-  const confirmSchedule = async () => {
-      const ts = new Date(`${scheduleDate}T${scheduleTime}`).getTime();
-      if (isBulkAction) { await schedulePatients(Array.from(selectedPatientIds), ts, scheduleNote); setIsSelectionMode(false); setSelectedPatientIds(new Set()); } 
-      else if (schedulePatientId) { schedulePatient(schedulePatientId, ts, scheduleNote); }
-      setIsScheduleModalOpen(false); setSchedulePatientId(null); setIsBulkAction(false);
-  };
-
-  const openLabModal = (pId: string) => { setLabPatientId(pId); setIsLabModalOpen(true); };
-  const confirmSendToLab = async () => {
-      if (labPatientId && selectedLabRoomId) {
-          await sendToLab(labPatientId, selectedLabRoomId);
-          setIsLabModalOpen(false); setLabPatientId(null); setSelectedLabRoomId('');
-      } else if (labPatientId && !selectedLabRoomId) {
-          // If no lab selected, just move to conclusion locally
-          moveToConclusion(labPatientId);
-          setIsLabModalOpen(false); setLabPatientId(null);
-      }
-  };
-
-  const appointmentsForView = useMemo(() => {
-      const startOfDay = new Date(apptViewDate).setHours(0, 0, 0, 0);
-      const endOfDay = new Date(apptViewDate).setHours(23, 59, 59, 999);
-      return patients.filter(p => p.status === PatientStatus.SCHEDULED && p.appointmentTime && p.appointmentTime >= startOfDay && p.appointmentTime <= endOfDay).sort((a, b) => (a.appointmentTime || 0) - (b.appointmentTime || 0));
-  }, [patients, apptViewDate]);
-
-  const filteredTargetRooms = selectedDeptId ? DEPARTMENTS.find(d => d.id === selectedDeptId)?.rooms || [] : [];
-  
-  const subclinicalDepts = useMemo(() => {
-      return DEPARTMENTS.filter(d => d.type === 'LAB' || d.type === 'IMAGING');
+  // Fetch Departments and Counters
+  useEffect(() => {
+    apiFetch('/api/departments').then(data => {
+      if (Array.isArray(data)) setDepartments(data);
+    }).catch(e => console.error('Error fetching depts:', e));
+    
+    apiFetch('/api/public/counters').then(data => {
+      if (Array.isArray(data)) setCounters(data);
+    }).catch(e => console.error('Error fetching counters:', e));
   }, []);
 
+  useEffect(() => {
+    if (selectedDept) {
+      apiFetch(`/api/departments/${selectedDept}/rooms`).then(data => {
+        if (Array.isArray(data)) setRooms(data);
+      }).catch(e => console.error('Error fetching rooms:', e));
+    }
+  }, [selectedDept]);
+
+  // Validate and sync activeCounterId with rooms/counters list to prevent invalid / NaN states
+  useEffect(() => {
+    if (activeService === 'SURGERY') return;
+    if (activeService === 'EXECUTION') {
+      if (rooms.length > 0) {
+        const hasValidRoom = rooms.some(r => parseInt(r.id) === activeCounterId);
+        if (!hasValidRoom || isNaN(activeCounterId)) {
+          const r = rooms[0];
+          const roomId = parseInt(r.id);
+          if (!isNaN(roomId)) {
+            setActiveCounterId(roomId);
+            setActiveCounterName(r.name);
+            localStorage.setItem('vimes_operator_counter_id', r.id.toString());
+            localStorage.setItem('vimes_operator_counter_name', r.name);
+          }
+        }
+      }
+    } else {
+      if (counters.length > 0) {
+        const hasValidCounter = counters.some(c => c.counter_id === activeCounterId);
+        if (!hasValidCounter || isNaN(activeCounterId)) {
+          const c = counters[0];
+          setActiveCounterId(c.counter_id);
+          setActiveCounterName(c.counter_name);
+          localStorage.setItem('vimes_operator_counter_id', c.counter_id.toString());
+          localStorage.setItem('vimes_operator_counter_name', c.counter_name);
+        }
+      }
+    }
+  }, [activeService, rooms, counters, activeCounterId]);
+
+  // Load Queue Data
+  const loadData = useCallback(async () => {
+    try {
+      if (activeService === 'SURGERY') return;
+      if (!activeCounterId || isNaN(activeCounterId)) return;
+      
+      const waiting = await apiFetch(`/api/queue/waiting-list/${activeCounterId}?type=${activeService}&deptId=${selectedDept}`);
+      if (Array.isArray(waiting)) setWaitingList(waiting);
+      
+      const statsData = await apiFetch(`/api/queue/stats/${activeCounterId}?type=${activeService}&deptId=${selectedDept}`);
+      if (statsData && statsData.data) {
+        const computedStats = {
+          waiting: (statsData.data.normal_waiting || 0) + (statsData.data.priority_waiting || 0),
+          served: statsData.data.total_served_today || 0,
+          avgTime: 5
+        };
+        setStats(computedStats);
+      }
+      
+      const historyData = await apiFetch(`/api/queue/history/${activeCounterId}?type=${activeService}&deptId=${selectedDept}`);
+      if (Array.isArray(historyData)) setHistory(historyData);
+    } catch (e) {
+      console.error('Error loading data:', e);
+    }
+  }, [activeCounterId, activeService, selectedDept]);
+
+  useEffect(() => {
+    loadData();
+    const interval = setInterval(loadData, 10000);
+    return () => clearInterval(interval);
+  }, [loadData]);
+
+  // SSE EventSource for Queue Updates
+  useEffect(() => {
+    const baseUrl = getBaseUrl();
+    const eventSource = new EventSource(`${baseUrl}/api/queue/events`);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('[OperatorConsole SSE] Event received:', data);
+        if (data.type === 'QUEUE_UPDATED') {
+          loadData();
+        }
+      } catch (e) {
+        console.error('Error parsing SSE event:', e);
+      }
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [loadData]);
+
+  // Handle Selector Changes
+  const handleServiceChange = (service: KioskType) => {
+    setActiveService(service);
+    localStorage.setItem('vimes_operator_service', service);
+    
+    if (service === 'SURGERY') {
+       setActiveTab('CONSOLE');
+       return;
+    }
+
+    if (service === 'EXECUTION') {
+      if (rooms.length > 0) {
+        const r = rooms[0];
+        setActiveCounterId(parseInt(r.id));
+        setActiveCounterName(r.name);
+        localStorage.setItem('vimes_operator_counter_id', r.id.toString());
+        localStorage.setItem('vimes_operator_counter_name', r.name);
+      }
+    } else {
+      if (counters.length > 0) {
+        const c = counters[0];
+        setActiveCounterId(c.counter_id);
+        setActiveCounterName(c.counter_name);
+        localStorage.setItem('vimes_operator_counter_id', c.counter_id.toString());
+        localStorage.setItem('vimes_operator_counter_name', c.counter_name);
+      }
+    }
+  };
+
+  const handleDeptChange = (deptId: string) => {
+    setSelectedDept(deptId);
+    localStorage.setItem('vimes_operator_dept', deptId);
+    
+    apiFetch(`/api/departments/${deptId}/rooms`).then(data => {
+      if (Array.isArray(data) && data.length > 0) {
+        setRooms(data);
+        if (activeService === 'EXECUTION') {
+          const r = data[0];
+          setActiveCounterId(parseInt(r.id));
+          setActiveCounterName(r.name);
+          localStorage.setItem('vimes_operator_counter_id', r.id.toString());
+          localStorage.setItem('vimes_operator_counter_name', r.name);
+        }
+      }
+    });
+  };
+
+  const handleRoomChange = (roomIdStr: string) => {
+    const room = rooms.find(r => String(r.id) === roomIdStr);
+    if (room) {
+      const idNum = parseInt(room.id);
+      setActiveCounterId(idNum);
+      setActiveCounterName(room.name);
+      localStorage.setItem('vimes_operator_counter_id', room.id.toString());
+      localStorage.setItem('vimes_operator_counter_name', room.name);
+    }
+  };
+
+  const handleCounterChange = (counterIdStr: string) => {
+    const counter = counters.find(c => String(c.counter_id) === counterIdStr);
+    if (counter) {
+      setActiveCounterId(counter.counter_id);
+      setActiveCounterName(counter.counter_name);
+      localStorage.setItem('vimes_operator_counter_id', counter.counter_id.toString());
+      localStorage.setItem('vimes_operator_counter_name', counter.counter_name);
+    }
+  };
+
+  // Operations
+  const handleCallNext = async (isPriority = false) => {
+    if (loading || currentTicket) return;
+    
+    let cid = activeCounterId;
+    if (!cid || isNaN(cid)) {
+      if (activeService === 'EXECUTION' && rooms.length > 0) {
+        cid = parseInt(rooms[0].id) || 1;
+      } else if (counters.length > 0) {
+        cid = counters[0].counter_id || 1;
+      } else {
+        cid = 1;
+      }
+      setActiveCounterId(cid);
+    }
+
+    setLoading(true);
+    try {
+      const res = await apiFetch('/api/queue/call-next', {
+        method: 'POST',
+        body: JSON.stringify({ counterId: cid, isPriority, type: activeService, deptId: selectedDept })
+      });
+      if (res && res.data) {
+        setCurrentTicket(res.data);
+      } else {
+        alert("Hết bệnh nhân đang chờ.");
+      }
+      loadData();
+    } catch (e) { 
+      console.error(e); 
+      alert(e instanceof Error ? e.message : 'Lỗi gọi bệnh nhân');
+    }
+    finally { setLoading(false); }
+  };
+
+  const handleComplete = async () => {
+    if (!currentTicket) return;
+    
+    let cid = activeCounterId;
+    if (!cid || isNaN(cid)) {
+      cid = 1;
+    }
+    
+    setLoading(true);
+    try {
+      await apiFetch('/api/queue/complete', {
+        method: 'POST',
+        body: JSON.stringify({ ticketId: currentTicket.id, counterId: cid })
+      });
+      setCurrentTicket(null);
+      loadData();
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+
+  const handleRecall = async () => {
+    if (!currentTicket) return;
+    try {
+      await apiFetch('/api/queue/call-again', {
+        method: 'POST',
+        body: JSON.stringify({ ticketId: currentTicket.id })
+      });
+    } catch (e) { console.error(e); }
+  };
+
+  const handleCallAgain = async (ticket: any) => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const res = await apiFetch('/api/queue/call-again', {
+        method: 'POST',
+        body: JSON.stringify({ ticketId: ticket.id })
+      });
+      if (res && res.data) {
+        setCurrentTicket(res.data);
+      } else {
+        setCurrentTicket({
+          ...ticket,
+          status: 'CALLING'
+        });
+      }
+      loadData();
+    } catch (e) {
+      console.error(e);
+      alert(e instanceof Error ? e.message : 'Lỗi gọi lại bệnh nhân');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCallSpecific = async (ticketId: string) => {
+    if (loading) return;
+    
+    if (currentTicket) {
+      const confirmChange = window.confirm("Đang có bệnh nhân đang phục vụ. Bạn có muốn hoàn tất bệnh nhân hiện tại và gọi bệnh nhân mới chỉ định này không?");
+      if (!confirmChange) return;
+      
+      try {
+        await apiFetch('/api/queue/complete', {
+          method: 'POST',
+          body: JSON.stringify({ ticketId: currentTicket.id, counterId: activeCounterId })
+        });
+      } catch (e) {
+        console.error('Lỗi hoàn tất bệnh nhân hiện tại:', e);
+      }
+    }
+
+    setLoading(true);
+    try {
+      const res = await apiFetch('/api/queue/call-specific', {
+        method: 'POST',
+        body: JSON.stringify({ ticketId, counterId: activeCounterId })
+      });
+      if (res && res.data) {
+        setCurrentTicket(res.data);
+      }
+      loadData();
+    } catch (e) {
+      console.error(e);
+      alert(e instanceof Error ? e.message : 'Lỗi gọi bệnh nhân chỉ định');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSkip = async () => {
+    if (!currentTicket) return;
+    try {
+      await apiFetch('/api/queue/skip', {
+        method: 'POST',
+        body: JSON.stringify({ ticketId: currentTicket.id })
+      });
+      setCurrentTicket(null);
+      loadData();
+    } catch (e) { console.error(e); }
+  };
+
+  const handleTransfer = async (targetAreaId: number) => {
+    if (!currentTicket) return;
+    try {
+      await apiFetch('/api/queue/transfer', {
+        method: 'POST',
+        body: JSON.stringify({ ticketId: currentTicket.id, targetAreaId })
+      });
+      setCurrentTicket(null);
+      loadData();
+    } catch (e) { console.error(e); }
+  };
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return;
+      if (activeService === 'SURGERY') return; 
+      if (e.code === 'Space') { e.preventDefault(); handleCallNext(); }
+      if (e.code === 'Enter') { e.preventDefault(); handleComplete(); }
+      if (e.key === 'F2') { e.preventDefault(); handleRecall(); }
+      if (e.key === 'F3') { e.preventDefault(); handleSkip(); }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentTicket, loading, activeService]);
+
+  const filteredWaitingList = waitingList.filter(t => 
+    (t.patient_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    String(t.ticket_number || '').includes(searchQuery)
+  );
+
+  const filteredHistory = history.filter(t => 
+    (t.patient_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    String(t.ticket_number || '').includes(searchQuery)
+  );
+
   return (
-    <div className="flex flex-col md:flex-row h-full overflow-hidden font-sans bg-slate-50 text-slate-900">
-      <div className={`${mobileTab === 'list' ? 'flex' : 'hidden'} md:flex w-full md:w-[420px] bg-white border-r border-slate-200 flex-col shadow-sm z-20 h-full relative`}>
-        <div className="bg-white sticky top-0 z-10 flex-shrink-0">
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                <button onClick={onBack} className="text-sm font-bold text-slate-500 hover:text-blue-600 flex items-center gap-1">← Back</button>
-                <div className="flex gap-2">
-                    <button onClick={() => addPatient(false)} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg">+ Thường</button>
-                    <button onClick={() => addPatient(true)} className="px-3 py-1.5 bg-amber-500 text-white text-xs font-bold rounded-lg">+ Ưu tiên</button>
-                </div>
-            </div>
-            <div className="px-2 pt-2 border-b border-slate-200 bg-white">
-                <div className="flex gap-1 overflow-x-auto no-scrollbar pb-0">
-                    {[
-                        { id: 'waiting', label: 'Chờ', count: counts.waiting, color: 'blue' },
-                        { id: 'conclusion', label: 'KQ', count: counts.conclusion, color: 'purple' },
-                        { id: 'scheduled', label: 'Hẹn', count: counts.scheduled, color: 'cyan' },
-                        { id: 'completed', label: 'Xong', count: counts.completed, color: 'green' }
-                    ].map(tab => (
-                        <button key={tab.id} onClick={() => { setActiveFilter(tab.id as ListFilter); setIsSelectionMode(false); }}
-                            className={`flex-shrink-0 px-4 py-3 text-xs font-bold transition-all border-b-2 
-                                ${activeFilter === tab.id ? `border-${tab.color}-600 text-${tab.color}-700 bg-${tab.color}-50` : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-                            {tab.label} <span className="ml-1 text-[10px] opacity-60">{tab.count}</span>
-                        </button>
-                    ))}
-                </div>
-            </div>
-        </div>
-        <div className="flex-1 overflow-y-auto bg-slate-50 p-3 pb-24 space-y-2">
-            {activeFilter === 'scheduled' ? (
-                <div className="space-y-4">
-                    <input type="date" value={apptViewDate} onChange={e => setApptViewDate(e.target.value)} className="w-full p-2 border rounded" />
-                    {appointmentsForView.map(p => (
-                        <div key={p.id} className="p-3 bg-white rounded-xl border flex justify-between items-center">
-                            <div><div className="font-bold">{new Date(p.appointmentTime!).toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'})}</div><div className="text-sm">{p.name}</div></div>
-                            <button onClick={() => checkInAppointment(p.id)} className="bg-cyan-600 text-white px-3 py-1 rounded text-xs font-bold">Tiếp nhận</button>
-                        </div>
-                    ))}
-                </div>
-            ) : (
-                <>
-                    <div className="flex justify-between items-center px-1 mb-2">
-                        <span className="text-[10px] font-black uppercase text-slate-400">Danh sách {activeFilter}</span>
-                        <button onClick={toggleSelectionMode} className="text-xs font-bold text-blue-600">{isSelectionMode ? 'Hủy' : 'Chọn nhiều'}</button>
-                    </div>
-                    {isSelectionMode && (
-                        <div className="sticky top-0 z-20 mb-3 p-2 bg-white shadow-md rounded-lg flex justify-between items-center border border-blue-100">
-                            <span className="text-xs font-bold ml-2">Đã chọn: {selectedPatientIds.size}</span>
-                            <div className="flex gap-2">
-                                <button onClick={handleSelectAll} className="px-2 py-1 text-xs bg-slate-100 rounded">Tất cả</button>
-                                <button onClick={openTransferModalBulk} className="px-3 py-1 bg-purple-600 text-white rounded text-xs">Chuyển</button>
-                            </div>
-                        </div>
-                    )}
-                    {displayedPatients.map(patient => (
-                        <PatientCard key={patient.id} patient={patient} 
-                            onCall={(activeFilter === 'waiting' || activeFilter === 'conclusion') ? callPatient : undefined}
-                            onSkip={activeFilter === 'waiting' ? skipPatient : undefined}
-                            onTogglePriority={activeFilter === 'waiting' ? togglePriority : undefined}
-                            onTransfer={activeFilter === 'conclusion' ? openTransferModalSingle : undefined}
-                            onSchedule={activeFilter === 'waiting' ? openScheduleModalSingle : undefined}
-                            isSelectable={isSelectionMode} isSelected={selectedPatientIds.has(patient.id)} onSelect={handleSelectPatient}
-                        />
-                    ))}
-                </>
+    <div className="h-full w-full bg-slate-50 flex overflow-hidden font-sans relative">
+      
+      {/* Mobile Bottom Navigation Bar (Visible only on mobile < 768px) */}
+      {activeService !== 'SURGERY' && (
+         <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900 border-t border-slate-800 flex items-center justify-around z-50 px-4 shadow-lg">
+            <button 
+              onClick={() => setActiveTab('CONSOLE')}
+              className={`flex flex-col items-center justify-center transition-all ${activeTab === 'CONSOLE' ? 'text-blue-400 font-bold scale-105' : 'text-slate-400 hover:text-white'}`}
+            >
+               <Activity size={18} />
+               <span className="text-[8px] font-black uppercase mt-1">Gọi số</span>
+            </button>
+            
+            <button 
+              onClick={() => setActiveTab('WAITING')}
+              className={`flex flex-col items-center justify-center transition-all ${activeTab === 'WAITING' ? 'text-blue-400 font-bold scale-105' : 'text-slate-400 hover:text-white'}`}
+            >
+               <Users size={18} />
+               <span className="text-[8px] font-black uppercase mt-1">Chờ ({waitingList.length})</span>
+            </button>
+
+            <button 
+              onClick={() => setActiveTab('HISTORY')}
+              className={`flex flex-col items-center justify-center transition-all ${activeTab === 'HISTORY' ? 'text-blue-400 font-bold scale-105' : 'text-slate-400 hover:text-white'}`}
+            >
+               <History size={18} />
+               <span className="text-[8px] font-black uppercase mt-1">Lịch sử</span>
+            </button>
+
+            <button 
+              onClick={() => setActiveTab('TRANSFER')}
+              className={`flex flex-col items-center justify-center transition-all ${activeTab === 'TRANSFER' ? 'text-blue-400 font-bold scale-105' : 'text-slate-400 hover:text-white'}`}
+            >
+               <ArrowRightLeft size={18} />
+               <span className="text-[8px] font-black uppercase mt-1">Chuyển</span>
+            </button>
+
+            <button 
+              onClick={onLogout}
+              className="flex flex-col items-center justify-center text-slate-400 hover:text-rose-500 transition-all"
+              title="Trở về Portal"
+            >
+               <ArrowLeft size={18} />
+               <span className="text-[8px] font-black uppercase mt-1">Trở về</span>
+            </button>
+         </div>
+      )}
+
+      {/* Sidebar: Navigation & Status */}
+      <aside className="w-20 bg-slate-900 hidden md:flex flex-col items-center py-8 gap-8 border-r border-slate-800 shrink-0">
+         <button 
+           onClick={onLogout}
+           title="Quay lại Portal"
+           className="h-12 w-12 bg-blue-600 rounded-xl flex items-center justify-center text-white hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95"
+         >
+            <ArrowLeft size={20} />
+         </button>
+         
+         <div className="flex-1 flex flex-col gap-4">
+            {activeService !== 'SURGERY' && (
+               <>
+                  <button 
+                    onClick={() => setActiveTab('WAITING')}
+                    className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all ${effectiveTab === 'WAITING' ? 'bg-slate-800 text-blue-400' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+                  >
+                     <Users size={20} />
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('HISTORY')}
+                    className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all ${effectiveTab === 'HISTORY' ? 'bg-slate-800 text-blue-400' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+                  >
+                     <History size={20} />
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('TRANSFER')}
+                    className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all ${effectiveTab === 'TRANSFER' ? 'bg-slate-800 text-blue-400' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+                  >
+                     <ArrowRightLeft size={20} />
+                  </button>
+               </>
             )}
-        </div>
-      </div>
-      <div className={`${mobileTab === 'detail' ? 'flex' : 'hidden'} md:flex flex-1 flex-col bg-slate-100 h-full overflow-hidden`}>
-        <div className="bg-white px-6 py-4 border-b border-slate-200 flex justify-between items-center shadow-sm">
-          <div><h1 className="text-xl font-black text-slate-800 uppercase">{room.name}</h1><p className="text-xs text-slate-500 font-medium">{room.doctorName}</p></div>
-          <button onClick={() => setMobileTab('list')} className="md:hidden text-blue-600 font-bold">Xem DS</button>
-        </div>
-        <div className="flex-1 p-4 md:p-8 flex flex-col justify-center">
-           {currentPatient ? (
-             <div className="w-full max-w-5xl mx-auto animate-scaleIn">
-                <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col md:flex-row min-h-[480px]">
-                    
-                    {/* Left Panel: Primary Calling Info */}
-                    <div className="w-full md:w-[40%] bg-gradient-to-br from-[#1e3a8a] to-[#25448b] p-10 flex flex-col items-center justify-center text-white relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-8 opacity-10">
-                           <svg className="w-48 h-48" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
-                        </div>
-                        <div className="z-10 text-center w-full flex flex-col items-center justify-center">
-                            <span className="inline-block px-5 py-1.5 bg-blue-500/30 border border-blue-400/30 rounded-full text-blue-100 text-[10px] font-black uppercase tracking-[0.2em] mb-8">
-                                • ĐANG PHỤC VỤ •
-                            </span>
-                            <div className="text-[7rem] leading-none font-black font-mono tracking-tighter drop-shadow-xl mb-4 text-[#eff6ff]">{currentPatient.code}</div>
-                            {currentPatient.isPriority && (
-                                <div className="inline-flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-xl font-bold uppercase tracking-widest text-xs shadow-lg mt-4">
-                                    <span>⭐</span> ƯU TIÊN
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                    
-                    {/* Right Panel: Patient Details & Actions */}
-                    <div className="w-full md:w-[60%] p-8 lg:p-10 flex flex-col bg-[#f8fafc]">
-                        <div className="flex-1">
-                            <div className="flex justify-between items-start mb-6">
-                                <div>
-                                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Hồ sơ người bệnh</h3>
-                                    <h2 className="text-3xl lg:text-4xl font-black text-[#1e3a8a] uppercase leading-tight">{currentPatient.name}</h2>
-                                </div>
-                                <div className="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border border-emerald-200 flex items-center gap-2">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Sẵn sàng
-                                </div>
-                            </div>
-                
-                            <div className="grid grid-cols-2 gap-4 mb-8">
-                                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 font-bold border border-slate-100">
-                                        {currentPatient.gender === 'Nam' ? '♂' : (currentPatient.gender === 'Nữ' ? '♀' : '👤')}
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Giới/Tuổi</p>
-                                        <p className="font-black text-slate-800 text-lg truncate">
-                                            {(currentPatient.gender || 'K/R').toUpperCase()} / {currentPatient.birthYear ? (new Date().getFullYear() - currentPatient.birthYear) : currentPatient.age || '--'}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-500 font-bold border border-blue-100">📋</div>
-                                    <div className="min-w-0">
-                                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Lý do khám</p>
-                                        <p className="font-bold text-slate-700 text-sm truncate" title={currentPatient.reason || 'Khám tổng hợp'}>{currentPatient.reason || 'Khám tổng hợp'}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                
-                        {/* Action Cockpit */}
-                        <div className="pt-6 border-t border-slate-200">
-                            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Bảng điều khiển (Cockpit)</h3>
-                            <div className="grid grid-cols-3 gap-4">
-                                <button 
-                                  onClick={() => callPatient(currentPatient.id)} 
-                                  disabled={isAnnouncing} 
-                                  className={`flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all group ${isAnnouncing ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' : 'bg-white border-blue-200 hover:border-blue-500 hover:shadow-lg hover:-translate-y-1 text-blue-600'}`}>
-                                    <svg className="w-7 h-7 lg:w-8 lg:h-8 mb-2 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3a9 9 0 00-9 9v7c0 1.1.9 2 2 2h4v-8H5v-1a7 7 0 1114 0v1h-4v8h4c1.1 0 2-.9 2-2v-7a9 9 0 00-9-9z"/></svg>
-                                    <span className="font-black tracking-wider uppercase text-[10px] lg:text-xs">Phát Loa Gọi</span>
-                                </button>
-                
-                                <button 
-                                  onClick={() => openLabModal(currentPatient.id)} 
-                                  className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white border-2 border-purple-200 hover:border-purple-500 hover:shadow-lg hover:-translate-y-1 text-purple-600 transition-all group">
-                                    <svg className="w-7 h-7 lg:w-8 lg:h-8 mb-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-                                    <span className="font-black tracking-wider uppercase text-[10px] lg:text-xs">Chỉ định CLS</span>
-                                </button>
-                
-                                <button 
-                                  onClick={() => completePatient(currentPatient.id)} 
-                                  className="flex flex-col items-center justify-center p-4 rounded-2xl bg-gradient-to-t from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 shadow-lg shadow-emerald-500/30 text-white transition-all group border border-emerald-400 hover:-translate-y-1">
-                                    <svg className="w-7 h-7 lg:w-8 lg:h-8 mb-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                                    <span className="font-black tracking-widest uppercase text-[10px] lg:text-xs">Hoàn thành</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-             </div>
-           ) : (
-             <div className="text-center opacity-40 flex flex-col items-center"><div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm">+</div><h2 className="text-2xl font-bold">Vui lòng chọn bệnh nhân</h2></div>
-           )}
-        </div>
-      </div>
+         </div>
 
-      {isTransferModalOpen && (
-          <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl w-full max-w-md p-6">
-                  <h3 className="text-xl font-bold mb-4">Chuyển bệnh nhân</h3>
-                  <select value={selectedDeptId} onChange={e => setSelectedDeptId(e.target.value)} className="w-full border rounded p-2 mb-4">
-                      <option value="">Chọn Khoa</option>
-                      {DEPARTMENTS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
-                  <select value={selectedTargetRoomId} onChange={e => setSelectedTargetRoomId(e.target.value)} className="w-full border rounded p-2 mb-4">
-                      <option value="">Chọn Phòng</option>
-                      {filteredTargetRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                  </select>
-                  <div className="flex gap-2">
-                      <button onClick={() => setIsTransferModalOpen(false)} className="flex-1 p-2 border rounded">Hủy</button>
-                      <button onClick={confirmTransfer} className="flex-1 bg-blue-600 text-white p-2 rounded">Chuyển</button>
-                  </div>
-              </div>
-          </div>
-      )}
+         <button 
+           onClick={() => window.location.href = '/'}
+           title="Đăng xuất hệ thống"
+           className="h-12 w-12 rounded-xl flex items-center justify-center text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 transition-all"
+         >
+            <LogOut size={20} />
+         </button>
+      </aside>
 
-      {isScheduleModalOpen && (
-          <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl w-full max-w-md p-6">
-                  <h3 className="text-xl font-bold mb-4">Hẹn lịch khám</h3>
-                  <div className="grid grid-cols-2 gap-2 mb-4">
-                      <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="p-2 border rounded" />
-                      <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} className="p-2 border rounded" />
+      {/* Main Panel */}
+      <main className="flex-1 flex flex-col overflow-hidden">
+         
+         {/* Header */}
+         <header className="min-h-20 py-4 bg-white border-b border-slate-200 px-4 md:px-8 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm shrink-0">
+            <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6 w-full md:w-auto">
+               <div className="h-10 w-10 bg-slate-100 rounded-xl hidden md:flex items-center justify-center text-slate-400 shrink-0">
+                  <Monitor size={20} />
+               </div>
+               
+               {/* DYNAMIC SELECTORS IN HEADER */}
+               <div className="flex flex-wrap items-center gap-2 md:gap-4 bg-slate-50 p-1.5 md:p-1 rounded-2xl border border-slate-100 shadow-inner w-full md:w-auto">
+                  {/* SERVICE SELECTOR */}
+                  <div className="relative flex items-center px-3 py-1 bg-white rounded-xl shadow-sm border border-slate-150">
+                     <Briefcase size={14} className="text-blue-500 mr-2" />
+                     <div className="text-left">
+                        <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest leading-none">Nghiệp vụ</p>
+                        <select 
+                           value={activeService}
+                           onChange={(e) => handleServiceChange(e.target.value as KioskType)}
+                           className="bg-transparent text-[11px] font-extrabold text-slate-700 focus:outline-none cursor-pointer uppercase tracking-wider pr-6 appearance-none"
+                        >
+                           <option value="RECEPTION">Tiếp nhận</option>
+                           <option value="SAMPLING">Lấy mẫu XN</option>
+                           <option value="REGISTRATION">Lấy số khám</option>
+                           <option value="PAYMENT">Thanh toán</option>
+                           <option value="DRUG">Lĩnh thuốc</option>
+                           <option value="EXECUTION">Khám bệnh, CĐHA</option>
+                           <option value="SURGERY">Phòng mổ</option>
+                        </select>
+                     </div>
+                     <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   </div>
-                  <textarea value={scheduleNote} onChange={e => setScheduleNote(e.target.value)} className="w-full p-2 border rounded mb-4" placeholder="Ghi chú"></textarea>
-                  <div className="flex gap-2">
-                      <button onClick={() => setIsScheduleModalOpen(false)} className="flex-1 p-2 border rounded">Hủy</button>
-                      <button onClick={confirmSchedule} className="flex-1 bg-cyan-600 text-white p-2 rounded">Xác nhận</button>
-                  </div>
-              </div>
-          </div>
-      )}
 
-      {isLabModalOpen && (
-          <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl w-full max-w-md p-6">
-                  <h3 className="text-xl font-bold mb-4">Chỉ định Cận Lâm Sàng</h3>
-                  <p className="text-sm text-slate-500 mb-4">Chọn phòng Xét nghiệm / Chẩn đoán hình ảnh để chuyển bệnh nhân đến (nếu có).</p>
-                  <select value={selectedLabRoomId} onChange={e => setSelectedLabRoomId(e.target.value)} className="w-full border rounded p-3 mb-6 bg-slate-50">
-                      <option value="">-- Chỉ chờ kết quả (không chuyển) --</option>
-                      {subclinicalDepts.map(d => (
-                          <optgroup key={d.id} label={d.name}>
-                              {d.rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                          </optgroup>
-                      ))}
-                  </select>
-                  <div className="flex gap-2">
-                      <button onClick={() => setIsLabModalOpen(false)} className="flex-1 p-2 border border-slate-200 rounded font-bold text-slate-600">Hủy</button>
-                      <button onClick={confirmSendToLab} className="flex-1 bg-purple-600 text-white p-2 rounded font-bold hover:bg-purple-700">Chuyển & Chờ KQ</button>
-                  </div>
-              </div>
-          </div>
-      )}
+                  {/* DEPT SELECTOR */}
+                  {activeService === 'EXECUTION' && (
+                     <div className="relative flex items-center px-3 py-1 bg-white rounded-xl shadow-sm border border-slate-150">
+                        <Layers size={14} className="text-indigo-500 mr-2" />
+                        <div className="text-left">
+                           <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest leading-none">Khoa</p>
+                           <select 
+                              value={selectedDept}
+                              onChange={(e) => handleDeptChange(e.target.value)}
+                              className="bg-transparent text-[11px] font-extrabold text-slate-700 focus:outline-none cursor-pointer uppercase tracking-wider pr-6 appearance-none min-w-[120px]"
+                           >
+                              {departments.map(dept => (
+                                 <option key={dept.id} value={dept.id}>{dept.name}</option>
+                              ))}
+                           </select>
+                        </div>
+                        <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                     </div>
+                  )}
+
+                  {/* ROOM OR COUNTER SELECTOR */}
+                  {activeService !== 'SURGERY' && (
+                     <div className="relative flex items-center px-3 py-1 bg-white rounded-xl shadow-sm border border-slate-150">
+                        <MapPin size={14} className="text-emerald-500 mr-2" />
+                        <div className="text-left">
+                           <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                              {activeService === 'EXECUTION' ? 'Phòng khám' : 'Quầy gọi'}
+                           </p>
+                           {activeService === 'EXECUTION' ? (
+                              <select 
+                                 value={isNaN(activeCounterId) || !activeCounterId ? '' : activeCounterId}
+                                 onChange={(e) => handleRoomChange(e.target.value)}
+                                 className="bg-transparent text-[11px] font-extrabold text-emerald-600 focus:outline-none cursor-pointer uppercase tracking-wider pr-6 appearance-none min-w-[140px]"
+                              >
+                                 <option value="" disabled>Chọn Phòng</option>
+                                 {rooms.map(room => (
+                                    <option key={room.id} value={room.id}>{room.name}</option>
+                                 ))}
+                              </select>
+                           ) : (
+                              <select 
+                                 value={isNaN(activeCounterId) || !activeCounterId ? '' : activeCounterId}
+                                 onChange={(e) => handleCounterChange(e.target.value)}
+                                 className="bg-transparent text-[11px] font-extrabold text-blue-600 focus:outline-none cursor-pointer uppercase tracking-wider pr-6 appearance-none min-w-[140px]"
+                              >
+                                 <option value="" disabled>Chọn Quầy</option>
+                                 {counters.map(counter => (
+                                    <option key={counter.counter_id} value={counter.counter_id}>{counter.counter_name}</option>
+                                 ))}
+                              </select>
+                           )}
+                        </div>
+                        <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                     </div>
+                  )}
+               </div>
+            </div>
+
+            <div className="flex items-center justify-between md:justify-end gap-4 md:gap-6 w-full md:w-auto">
+               <div className="flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
+                  <Clock size={16} className="text-slate-400" />
+                  <span className="text-xs font-black text-slate-600 uppercase">{new Date().toLocaleTimeString()}</span>
+               </div>
+               <div className="hidden md:block h-8 w-[1px] bg-slate-200"></div>
+               <div className="text-right">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Trạng thái gọi</p>
+                  <p className="text-xs font-black text-emerald-600 uppercase tracking-wide">
+                     {activeService === 'SURGERY' ? 'PHÒNG MỔ' : activeCounterName}
+                  </p>
+               </div>
+               <div className="h-10 w-10 bg-gradient-to-tr from-blue-600 to-indigo-650 rounded-xl flex items-center justify-center text-white font-black text-xs shadow-md">AD</div>
+            </div>
+         </header>
+
+         <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden p-4 md:p-6 gap-4 md:gap-6 pb-24 md:pb-6">
+            
+            {activeService === 'SURGERY' ? (
+               <SurgeryConsole 
+                  settings={settings}
+                  departments={departments}
+                  surgeryRooms={rooms}
+                  selectedDept={selectedDept}
+                  onLogout={onLogout}
+               />
+            ) : (
+               <>
+                  {/* QMS WORKSPACE: LEFT PANEL (Calling patient & Stats) */}
+                  <section className={`flex-1 flex-col gap-6 md:overflow-y-auto pr-0 md:pr-2 custom-scrollbar ${activeTab === 'CONSOLE' ? 'flex' : 'hidden md:flex'}`}>
+                     
+                     {/* Calling Card */}
+                     <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                        <div className="bg-slate-950 px-8 py-4 flex items-center justify-between">
+                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Bệnh nhân hiện tại</span>
+                           <div className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-[9px] font-black uppercase border border-blue-500/30">Đang phục vụ</div>
+                        </div>
+                        
+                        <div className="p-10 flex flex-col items-center text-center">
+                           {currentTicket ? (
+                              <>
+                                 <h2 className="text-8xl font-black text-blue-600 tracking-tighter mb-4 font-mono">{currentTicket.ticket_number}</h2>
+                                 <h3 className="text-3xl font-black text-slate-900 uppercase mb-2 tracking-tight">{currentTicket.patient_name || 'Khách lẻ'}</h3>
+                                 <div className="flex items-center gap-4 text-slate-400 text-sm font-bold uppercase tracking-widest">
+                                    <span>Mã HS: {currentTicket.doc_no || 'N/A'}</span>
+                                    <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
+                                    <span>{currentTicket.is_priority ? '🔥 Ưu tiên' : 'Tiêu chuẩn'}</span>
+                                 </div>
+                              </>
+                           ) : (
+                              <div className="py-12 flex flex-col items-center gap-4">
+                                 <div className="h-20 w-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-250">
+                                    <UserCheck size={40} />
+                                 </div>
+                                 <p className="text-slate-450 font-bold uppercase tracking-widest text-sm italic">Hệ thống đang sẵn sàng gọi số</p>
+                              </div>
+                           )}
+                        </div>
+
+                        <div className="p-4 md:p-8 bg-slate-50/50 border-t border-slate-100 flex flex-wrap md:flex-nowrap gap-3 md:gap-4">
+                           {currentTicket ? (
+                              <>
+                                 <button 
+                                   onClick={handleComplete}
+                                   className="flex-1 h-16 bg-emerald-650 hover:bg-emerald-700 text-white rounded-2xl font-black flex items-center justify-center gap-3 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
+                                 >
+                                    <CheckCircle2 size={24} /> HOÀN TẤT
+                                 </button>
+                                 <button 
+                                   onClick={handleRecall}
+                                   className="h-16 w-16 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-2xl flex items-center justify-center transition-all shadow-sm active:scale-95"
+                                   title="Gọi lại (F2)"
+                                 >
+                                    <Bell size={24} />
+                                 </button>
+                                 <button 
+                                   onClick={handleSkip}
+                                   className="h-16 w-16 bg-white border border-slate-200 text-rose-500 hover:bg-rose-50 rounded-2xl flex items-center justify-center transition-all shadow-sm active:scale-95"
+                                    title="Bỏ qua (F3)"
+                                 >
+                                    <SkipForward size={24} />
+                                 </button>
+                              </>
+                           ) : (
+                              <button 
+                                onClick={() => handleCallNext()}
+                                disabled={loading}
+                                className="flex-1 h-16 bg-blue-605 hover:bg-blue-700 disabled:bg-slate-200 text-white rounded-2xl font-black flex items-center justify-center gap-4 shadow-xl shadow-blue-600/20 transition-all active:scale-95"
+                              >
+                                 {loading ? <div className="h-6 w-6 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : <Play size={24} fill="currentColor" />}
+                                 GỌI SỐ TIẾP THEO <span className="opacity-50 font-medium text-xs tracking-normal">(SPACE)</span>
+                              </button>
+                           )}
+                        </div>
+                     </div>
+
+                     {/* Quick Stats Grid */}
+                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
+                        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-5">
+                           <div className="h-12 w-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0">
+                              <Users size={24} />
+                           </div>
+                           <div>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Đang chờ</p>
+                              <p className="text-2xl font-black text-slate-900">{waitingList.length}</p>
+                           </div>
+                        </div>
+                        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-5">
+                           <div className="h-12 w-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
+                              <CheckCircle2 size={24} />
+                           </div>
+                           <div>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Đã gọi</p>
+                              <p className="text-2xl font-black text-slate-900">{stats.served || 0}</p>
+                           </div>
+                        </div>
+                        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-5">
+                           <div className="h-12 w-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shrink-0">
+                              <Clock size={24} />
+                           </div>
+                           <div>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Thời gian TB</p>
+                              <p className="text-2xl font-black text-slate-900">{stats.avgTime || 0}m</p>
+                           </div>
+                        </div>
+                     </div>
+
+                     {/* Patient Details Panel */}
+                     <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 space-y-6">
+                        <div className="flex items-center justify-between">
+                           <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">Thông tin chi tiết</h4>
+                           <button className="text-blue-600 font-bold text-[10px] uppercase tracking-widest hover:text-blue-800 transition-colors">Xem hồ sơ HIS</button>
+                        </div>
+                        
+                        {currentTicket ? (
+                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 sm:gap-y-6 gap-x-12">
+                              <div>
+                                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Giới tính</p>
+                                 <p className="text-sm font-bold text-slate-700">{currentTicket.gender || 'Chưa xác định'}</p>
+                              </div>
+                              <div>
+                                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Năm sinh</p>
+                                 <p className="text-sm font-bold text-slate-700">{currentTicket.dob || 'N/A'}</p>
+                              </div>
+                              <div className="col-span-2">
+                                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Địa chỉ</p>
+                                 <p className="text-sm font-bold text-slate-700 leading-relaxed">{currentTicket.address || 'Đang cập nhật...'}</p>
+                              </div>
+                              <div className="col-span-2 pt-4 border-t border-slate-50">
+                                 <div className="flex items-center gap-3">
+                                    <MessageSquare size={16} className="text-slate-400" />
+                                    <p className="text-xs italic text-slate-400">Không có ghi chú đặc biệt cho bệnh nhân này.</p>
+                                 </div>
+                              </div>
+                           </div>
+                        ) : (
+                           <div className="py-8 text-center text-slate-300 text-xs italic">Vui lòng gọi bệnh nhân để xem chi tiết</div>
+                        )}
+                     </div>
+
+                  </section>
+
+                  {/* QMS WORKSPACE: RIGHT PANEL (Tabbed waiting/history) */}
+                  <aside className={`w-full md:w-80 lg:w-96 flex-col gap-6 shrink-0 ${activeTab !== 'CONSOLE' ? 'flex' : 'hidden md:flex'}`}>
+                     
+                     <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex-1 flex flex-col">
+                        <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                           <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">
+                              {effectiveTab === 'WAITING' ? 'Hàng chờ hiện tại' : effectiveTab === 'HISTORY' ? 'Lịch sử phục vụ' : 'Chuyển quầy'}
+                           </h3>
+                           <div className="h-6 w-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-[10px] font-black">
+                              {effectiveTab === 'WAITING' ? waitingList.length : history.length}
+                           </div>
+                        </div>
+
+                        <div className="flex-1 md:overflow-y-auto p-4 custom-scrollbar min-h-[300px]">
+                           {effectiveTab === 'WAITING' && (
+                              <div className="space-y-3">
+                                 {waitingList.length === 0 ? (
+                                    <div className="py-20 text-center flex flex-col items-center gap-4">
+                                       <AlertCircle size={32} className="text-slate-200" />
+                                       <p className="text-xs text-slate-400 font-bold uppercase italic">Không có ai trong hàng chờ</p>
+                                    </div>
+                                 ) : (
+                                    filteredWaitingList.map((t) => (
+                                       <div 
+                                          key={t.id} 
+                                          onClick={() => handleCallSpecific(t.id)}
+                                          className={`p-4 rounded-2xl border transition-all cursor-pointer ${t.is_priority ? 'bg-amber-50 border-amber-100 hover:border-amber-300' : 'bg-slate-50 border-slate-100 hover:border-blue-300'} group`}
+                                       >
+                                          <div className="flex justify-between items-start mb-2">
+                                             <span className={`text-xl font-black ${t.is_priority ? 'text-amber-600' : 'text-slate-800'}`}>{t.ticket_number}</span>
+                                             <span className="text-[9px] font-black text-slate-400 uppercase">{formatTicketTime(t.created_at)}</span>
+                                          </div>
+                                          <div className="flex justify-between items-center">
+                                             <span className="text-xs font-bold text-slate-600 uppercase line-clamp-1">{t.patient_name || 'Khách lẻ'}</span>
+                                             <button className="h-8 w-8 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-slate-400 opacity-0 group-hover:opacity-100 hover:text-blue-600 transition-all">
+                                                <Play size={14} fill="currentColor" />
+                                             </button>
+                                          </div>
+                                       </div>
+                                    ))
+                                 )}
+                              </div>
+                           )}
+
+                           {effectiveTab === 'HISTORY' && (
+                              <div className="space-y-3">
+                                 {history.length === 0 ? (
+                                    <div className="py-20 text-center flex flex-col items-center gap-4">
+                                       <AlertCircle size={32} className="text-slate-250" />
+                                       <p className="text-xs text-slate-400 font-bold uppercase italic">Chưa phục vụ ca nào hôm nay</p>
+                                    </div>
+                                 ) : (
+                                    filteredHistory.map((t) => (
+                                       <div key={t.id} className="p-4 rounded-2xl border border-slate-100 bg-white flex justify-between items-center opacity-70 hover:opacity-100 transition-opacity">
+                                          <div>
+                                             <div className="font-black text-slate-800 tracking-tight">{t.ticket_number}</div>
+                                             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.patient_name || 'Khách lẻ'}</div>
+                                          </div>
+                                          <div className="text-right">
+                                             <div className="text-[10px] font-black text-emerald-500 uppercase">Hoàn tất</div>
+                                             <div className="text-[9px] text-slate-400">{formatTicketTime(t.served_at || t.created_at)}</div>
+                                          </div>
+                                       </div>
+                                    ))
+                                 )}
+                              </div>
+                           )}
+
+                           {effectiveTab === 'TRANSFER' && (
+                              <div className="py-12 text-center text-slate-350 text-xs font-bold uppercase italic">
+                                 Chức năng chuyển quầy khám bệnh
+                              </div>
+                           )}
+                        </div>
+                     </div>
+
+                     {/* Quick Search */}
+                     <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-3">
+                        <Search size={18} className="text-slate-400" />
+                        <input 
+                          type="text" 
+                          placeholder="Tìm kiếm số / bệnh nhân..." 
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="flex-1 bg-transparent text-xs font-bold focus:outline-none placeholder:text-slate-300"
+                        />
+                     </div>
+
+                  </aside>
+               </>
+            )}
+         </div>
+
+      </main>
+
     </div>
   );
 };
+
+export default OperatorConsole;

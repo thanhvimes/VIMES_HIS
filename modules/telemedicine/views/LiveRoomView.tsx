@@ -26,7 +26,7 @@ import { useNavigate } from 'react-router-dom';
 import MockDicomViewer from '../../imaging-results/views/components/MockDicomViewer';
 import { usePdfPreview } from '../../../contexts/PdfPreviewContext';
 import { useNotification } from '../../../contexts/NotificationContext';
-import ConfirmationModal from '../../../components/shared/ConfirmationModal';
+import ConfirmationModal from '../../../components/ui/ConfirmationModal';
 import jsPDF from 'jspdf';
 
 // Mock participants

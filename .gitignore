@@ -32,4 +32,7 @@ dist-ssr
 backend/*.txt
 backend/*.json
 backend/debug_*.ts
-backend/debug_*.txt
+
+# Archive directories
+archive/
+backend/archive/

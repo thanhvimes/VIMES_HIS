@@ -11,7 +11,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { mockInteractions } from '../data';
 import { drugList } from '../../consultation/data/catalogs';
 import { DrugInteraction, DrugItem } from '../../../types';
-import Combobox, { ComboboxColumn } from '../../../components/shared/Combobox';
+import Combobox, { ComboboxColumn } from '../../../components/ui/Combobox';
 
 const InteractionView: React.FC = () => {
     const { fontSettings } = useTheme();

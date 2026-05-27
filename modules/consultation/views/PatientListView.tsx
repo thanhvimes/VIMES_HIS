@@ -1,11 +1,25 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SearchIcon, UserGroupIcon, ClockIcon, CheckIcon, PlayIcon, MegaphoneIcon } from '../../../components/Icons';
+import { ColumnDef } from '@tanstack/react-table';
+import { 
+    SearchIcon, 
+    UserGroupIcon, 
+    ClockIcon, 
+    CheckIcon, 
+    PlayIcon, 
+    MegaphoneIcon,
+    ArrowPathIcon
+} from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useSession } from '../../../contexts/SessionContext';
 import { consultationService } from '../../../services/consultationService';
 import { useNotification } from '../../../contexts/NotificationContext';
+
+// Import UI Components chuẩn
+import { DataTable } from '../../../components/ui/DataTable';
+import Combobox from '../../../components/ui/Combobox';
+import { FormDateInput, FormSelect } from '../../../components/ui/forms';
 
 interface QueuePatient {
     id: string;
@@ -72,7 +86,6 @@ const PatientListView: React.FC = () => {
           if (response.success) {
               const data = response.data || [];
               setPatients(data);
-              // Update count for current tab
               setCounts(prev => ({ ...prev, [currentTab]: data.length }));
           }
       } catch (error) {
@@ -87,10 +100,9 @@ const PatientListView: React.FC = () => {
 
   useEffect(() => {
       loadQueue(activeTab, timePeriod);
-      // Periodically refresh waiting tab if it's active
       const timer = setInterval(() => {
           if (!isLoading) loadQueue(activeTab, timePeriod);
-      }, 30000); // 30s
+      }, 30000);
       return () => clearInterval(timer);
   }, [activeTab, timePeriod, fromDate, toDate, selectedDept, selectedRoom, isOutpatient, isChronic]);
 
@@ -104,289 +116,269 @@ const PatientListView: React.FC = () => {
   }, [patients, searchTerm]);
 
   const handleStartExam = (patient: QueuePatient) => {
-    // Navigate to the exam recording view for this patient with context
-    navigate(`/consultation/record/${patient.id}?docNo=${patient.docNo}&receptIdx=${patient.receptIdx}`);
+    navigate(`/consultation/record/${patient.id}?docNo=${patient.docNo}&receptIdx=${patient.receptIdx}&tab=examine`);
   };
 
+  // Badge Renders
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'waiting': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">Chờ khám</span>;
-      case 'processing': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">Đang khám</span>;
-      case 'completed': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">Đã xong</span>;
+      case 'waiting': return <span className="px-2.5 py-1 text-[11px] font-bold uppercase rounded-md bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800">Chờ khám</span>;
+      case 'processing': return <span className="px-2.5 py-1 text-[11px] font-bold uppercase rounded-md bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800">Đang khám</span>;
+      case 'completed': return <span className="px-2.5 py-1 text-[11px] font-bold uppercase rounded-md bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">Đã xong</span>;
       default: return null;
     }
   };
 
   const getPriorityBadge = (priority: string) => {
-      if (priority === 'Emergency') return <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded bg-red-100 text-red-600 border border-red-200">Cấp cứu</span>;
-      if (priority === 'High') return <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded bg-orange-100 text-orange-600 border border-orange-200">Ưu tiên</span>;
+      if (priority === 'Emergency') return <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-black uppercase tracking-tighter rounded bg-red-600 text-white shadow-sm ml-2">Cấp cứu</span>;
+      if (priority === 'High') return <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-tighter rounded bg-orange-500 text-white shadow-sm ml-2">Ưu tiên</span>;
       return null;
-  }
+  };
+
+  // DataTable Columns Configuration
+  const columns: ColumnDef<QueuePatient>[] = [
+    {
+      accessorKey: 'id',
+      header: 'Mã BN',
+      cell: ({ row }) => <span className="font-mono text-sm text-blue-600 dark:text-blue-400 font-bold">{row.original.id}</span>
+    },
+    {
+      accessorKey: 'name',
+      header: 'Họ và tên',
+      cell: ({ row }) => (
+        <div className="flex flex-col">
+          <div className="flex items-center">
+            <span className="font-bold text-slate-800 dark:text-slate-200 uppercase">{row.original.name}</span>
+            {getPriorityBadge(row.original.priority)}
+          </div>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400">HS: {row.original.patientNo}</span>
+        </div>
+      )
+    },
+    {
+      header: 'Tuổi / Giới',
+      cell: ({ row }) => <span className="text-sm">{row.original.age}t / {row.original.gender}</span>
+    },
+    {
+      accessorKey: 'arrivalTime',
+      header: 'Giờ đến',
+      cell: ({ row }) => <span className="font-mono text-sm text-slate-600 dark:text-slate-400">{row.original.arrivalTime}</span>
+    },
+    {
+      accessorKey: 'reason',
+      header: 'Lý do khám',
+      cell: ({ row }) => <div className="max-w-[200px] truncate text-sm italic text-slate-600 dark:text-slate-400" title={row.original.reason}>{row.original.reason}</div>
+    },
+    {
+      accessorKey: 'status',
+      header: () => <div className="text-center">Trạng thái</div>,
+      cell: ({ row }) => <div className="text-center">{getStatusBadge(row.original.status)}</div>
+    },
+    {
+      id: 'actions',
+      header: () => <div className="text-right">Hành động</div>,
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+            {row.original.status === 'waiting' && hasPermission('02.06') && (
+                <button 
+                    className="p-1.5 text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-md transition-colors"
+                    title="Gọi số"
+                    onClick={(e) => { e.stopPropagation(); /* Logic gọi số */ }}
+                >
+                    <MegaphoneIcon className="w-5 h-5" />
+                </button>
+            )}
+            {row.original.status === 'waiting' ? (
+                hasPermission('02.01') && (
+                    <button 
+                        onClick={() => handleStartExam(row.original)}
+                        className="inline-flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold uppercase rounded-md transition-all shadow-sm active:scale-95"
+                    >
+                        <PlayIcon className="w-3 h-3 mr-1.5" />
+                        Khám ngay
+                    </button>
+                )
+            ) : (
+                hasPermission('02.05') && (
+                    <button 
+                        onClick={() => handleStartExam(row.original)}
+                        className="inline-flex items-center px-3 py-1.5 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[11px] font-bold uppercase rounded-md transition-all active:scale-95"
+                    >
+                        Hồ sơ
+                    </button>
+                )
+            )}
+        </div>
+      )
+    }
+  ];
 
   return (
-    <div className="flex flex-col h-full space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="flex flex-col h-full space-y-4 animate-fade-in">
+      {/* HEADER AREA */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
         <div>
-            <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Danh sách khám bệnh</h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm">Quản lý hàng đợi và trạng thái bệnh nhân.</p>
+            <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <UserGroupIcon className="w-6 h-6 text-primary"/>
+                Danh sách chờ khám bệnh
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">Quản lý luồng bệnh nhân và điều phối phòng khám.</p>
+        </div>
+        
+        {/* Quick Refresh & Search */}
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+             <div className="relative flex-1 sm:w-64">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <SearchIcon className="h-4 w-4 text-slate-400" />
+                </div>
+                <input
+                    type="text"
+                    className={`block w-full pl-9 pr-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-900 placeholder-slate-500 focus:ring-2 focus:ring-primary transition-all ${fontSettings.controls}`}
+                    placeholder="Tên, mã BN, hồ sơ..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+            <button 
+                onClick={() => loadQueue()}
+                disabled={isLoading}
+                className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-md flex items-center gap-2 text-xs font-bold active:scale-95 px-4 disabled:opacity-50"
+            >
+                <ArrowPathIcon className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                Nạp (F5)
+            </button>
         </div>
       </div>
 
-      {/* Filter Controls Row */}
-      <div className="flex flex-wrap items-center gap-3 bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 w-full">
+      {/* FILTER BAR - Professional Layout */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
             {/* Date Range */}
-            <div className="flex items-center gap-2">
-                <input 
-                    type="date"
+            <div className="md:col-span-3 grid grid-cols-2 gap-2">
+                <FormDateInput 
+                    label="Từ ngày"
                     value={fromDate}
                     onChange={(e) => setFromDate(e.target.value)}
-                    className={`p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary ${fontSettings.controls}`}
                 />
-                <span className="text-slate-400">→</span>
-                <input 
-                    type="date"
+                <FormDateInput 
+                    label="Đến ngày"
                     value={toDate}
                     onChange={(e) => setToDate(e.target.value)}
-                    className={`p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary ${fontSettings.controls}`}
                 />
             </div>
 
-            {/* Department Filter (For Testing) */}
-            <div className="min-w-[120px]">
-                <select 
+            {/* Department */}
+            <div className="md:col-span-2">
+                <FormSelect 
+                    label="Khoa khám"
                     value={selectedDept}
                     onChange={(e) => setSelectedDept(e.target.value)}
-                    className={`w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary ${fontSettings.controls}`}
                 >
                     <option value="ALL">Tất cả khoa</option>
                     <option value="KB">Khoa Khám bệnh</option>
                     <option value="NOI1">Khoa Nội 1</option>
                     <option value="NOI2">Khoa Nội 2</option>
-                </select>
+                </FormSelect>
             </div>
 
-            {/* Room Filter */}
-            <div className="min-w-[200px] flex-1">
-                <select 
+            {/* Room - Using Combobox */}
+            <div className="md:col-span-4">
+                <Combobox<{id: number, name: string}>
+                    label="Phòng khám"
                     value={selectedRoom}
-                    onChange={(e) => setSelectedRoom(e.target.value)}
-                    className={`w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary ${fontSettings.controls}`}
-                >
-                    <option value="">-- Tất cả phòng khám --</option>
-                    {rooms.map(room => (
-                        <option key={room.id} value={room.id}>{room.id} - {room.name}</option>
-                    ))}
-                </select>
-            </div>
-
-            <div className="flex items-center gap-4 px-2">
-                <label className="flex items-center gap-2 cursor-pointer group">
-                    <input 
-                        type="checkbox"
-                        checked={isOutpatient}
-                        onChange={(e) => setIsOutpatient(e.target.checked)}
-                        className="w-4 h-4 text-primary rounded border-slate-300 focus:ring-primary"
-                    />
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-primary transition-colors">Điều trị ngoại trú</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer group">
-                    <input 
-                        type="checkbox"
-                        checked={isChronic}
-                        onChange={(e) => setIsChronic(e.target.checked)}
-                        className="w-4 h-4 text-primary rounded border-slate-300 focus:ring-primary"
-                    />
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-primary transition-colors">Điều trị mãn tính</span>
-                </label>
-            </div>
-
-            {/* Time Period Buttons (Legacy HMS style) */}
-            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
-                <button 
-                    onClick={() => setTimePeriod('1')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${timePeriod === '1' ? 'bg-white dark:bg-slate-600 text-primary shadow-sm border border-slate-200 dark:border-slate-500' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    Cả ngày
-                </button>
-                <button 
-                    onClick={() => setTimePeriod('2')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${timePeriod === '2' ? 'bg-white dark:bg-slate-600 text-primary shadow-sm border border-slate-200 dark:border-slate-500' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    Sáng
-                </button>
-                <button 
-                    onClick={() => setTimePeriod('3')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${timePeriod === '3' ? 'bg-white dark:bg-slate-600 text-primary shadow-sm border border-slate-200 dark:border-slate-500' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    Chiều
-                </button>
-            </div>
-
-            {/* Refresh Button (HMS "Nạp") */}
-            <button 
-                onClick={() => loadQueue()}
-                disabled={isLoading}
-                className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-sm flex items-center gap-2 text-sm font-bold active:scale-95 px-4 disabled:opacity-50"
-                title="Làm mới danh sách"
-            >
-                <MegaphoneIcon className={`w-4 h-4 rotate-180 ${isLoading ? 'animate-spin' : ''}`} />
-                Nạp
-            </button>
-
-            {/* Search Bar */}
-            <div className="relative min-w-[200px]">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <SearchIcon className="h-4 h-4 text-slate-400" />
-                </div>
-                <input
-                    type="text"
-                    className={`block w-full pl-9 pr-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg leading-5 bg-white dark:bg-slate-700 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary transition duration-150 ease-in-out ${fontSettings.controls}`}
-                    placeholder="Tìm tên hoặc mã BN..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(val) => setSelectedRoom(val)}
+                    options={rooms}
+                    placeholder="-- Chọn tất cả phòng --"
+                    displayValue={(item) => `${item.id} - ${item.name}`}
                 />
+            </div>
+
+            {/* Treatment Flags */}
+            <div className="md:col-span-3 flex flex-col justify-center gap-2 pt-5">
+                <div className="flex items-center gap-4 px-2">
+                    <label className="flex items-center gap-2 cursor-pointer group">
+                        <input 
+                            type="checkbox"
+                            checked={isOutpatient}
+                            onChange={(e) => setIsOutpatient(e.target.checked)}
+                            className="w-4 h-4 text-primary rounded border-slate-300 focus:ring-primary"
+                        />
+                        <span className="text-xs font-bold text-slate-600 dark:text-slate-400 group-hover:text-primary">Ngoại trú</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer group">
+                        <input 
+                            type="checkbox"
+                            checked={isChronic}
+                            onChange={(e) => setIsChronic(e.target.checked)}
+                            className="w-4 h-4 text-primary rounded border-slate-300 focus:ring-primary"
+                        />
+                        <span className="text-xs font-bold text-slate-600 dark:text-slate-400 group-hover:text-primary">Mãn tính</span>
+                    </label>
+                </div>
+                
+                {/* Time Period Buttons */}
+                <div className="flex bg-slate-100 dark:bg-slate-900 p-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                    <button 
+                        onClick={() => setTimePeriod('1')}
+                        className={`flex-1 py-1 text-[10px] font-black uppercase rounded transition-all ${timePeriod === '1' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                        Cả ngày
+                    </button>
+                    <button 
+                        onClick={() => setTimePeriod('2')}
+                        className={`flex-1 py-1 text-[10px] font-black uppercase rounded transition-all ${timePeriod === '2' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                        Sáng
+                    </button>
+                    <button 
+                        onClick={() => setTimePeriod('3')}
+                        className={`flex-1 py-1 text-[10px] font-black uppercase rounded transition-all ${timePeriod === '3' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                        Chiều
+                    </button>
+                </div>
             </div>
       </div>
 
-      {/* Tabs & Content Area */}
-      <div className="flex-1 bg-surface dark:bg-dark-surface rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700 flex flex-col overflow-hidden">
-        {/* Tabs */}
-        <div className="flex border-b border-slate-200 dark:border-slate-700">
-            <button
-                onClick={() => setActiveTab('waiting')}
-                className={`flex-1 py-4 font-medium text-center transition-colors relative ${fontSettings.controls} ${
-                    activeTab === 'waiting' 
-                    ? 'text-primary dark:text-dark-primary' 
-                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-                }`}
-            >
-                <div className="flex items-center justify-center gap-2">
-                    <ClockIcon className="w-5 h-5" />
-                    <span>Chờ khám</span>
-                    <span className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full text-xs">
-                        {counts.waiting}
-                    </span>
-                </div>
-                {activeTab === 'waiting' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-primary dark:bg-dark-primary"></div>}
-            </button>
-            <button
-                onClick={() => setActiveTab('processing')}
-                className={`flex-1 py-4 font-medium text-center transition-colors relative ${fontSettings.controls} ${
-                    activeTab === 'processing' 
-                    ? 'text-blue-600 dark:text-blue-400' 
-                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-                }`}
-            >
-                <div className="flex items-center justify-center gap-2">
-                    <UserGroupIcon className="w-5 h-5" />
-                    <span>Đang khám</span>
-                    <span className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full text-xs">
-                        {counts.processing}
-                    </span>
-                </div>
-                {activeTab === 'processing' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 dark:bg-blue-400"></div>}
-            </button>
-            <button
-                onClick={() => setActiveTab('completed')}
-                className={`flex-1 py-4 font-medium text-center transition-colors relative ${fontSettings.controls} ${
-                    activeTab === 'completed' 
-                    ? 'text-green-600 dark:text-green-400' 
-                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-                }`}
-            >
-                <div className="flex items-center justify-center gap-2">
-                    <CheckIcon className="w-5 h-5" />
-                    <span>Hoàn tất</span>
-                    <span className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full text-xs">
-                        {counts.completed}
-                    </span>
-                </div>
-                {activeTab === 'completed' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-green-600 dark:bg-green-400"></div>}
-            </button>
+      {/* CONTENT AREA - Tabs & DataTable */}
+      <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
+        {/* Tabs Bar */}
+        <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30">
+            {[
+                { id: 'waiting', label: 'Chờ khám', icon: ClockIcon, count: counts.waiting, color: 'amber' },
+                { id: 'processing', label: 'Đang khám', icon: UserGroupIcon, count: counts.processing, color: 'blue' },
+                { id: 'completed', label: 'Hoàn tất', icon: CheckIcon, count: counts.completed, color: 'emerald' }
+            ].map((tab) => (
+                <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`flex-1 py-3.5 font-bold text-center transition-all relative ${
+                        activeTab === tab.id 
+                        ? `text-${tab.color}-600 dark:text-${tab.color}-400 bg-white dark:bg-slate-800` 
+                        : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                    }`}
+                >
+                    <div className="flex items-center justify-center gap-2">
+                        <tab.icon className="w-5 h-5" />
+                        <span className="text-sm uppercase tracking-wide">{tab.label}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+                            activeTab === tab.id 
+                            ? `bg-${tab.color}-100 text-${tab.color}-700 dark:bg-${tab.color}-900/40` 
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                        }`}>
+                            {tab.count}
+                        </span>
+                    </div>
+                    {activeTab === tab.id && <div className={`absolute bottom-0 left-0 w-full h-1 bg-${tab.color}-500 shadow-[0_-2px_10px_rgba(0,0,0,0.1)]`}></div>}
+                </button>
+            ))}
         </div>
 
-        {/* Table */}
-        <div className="flex-1 overflow-auto p-0 relative">
-            {isLoading && (
-                <div className="absolute inset-0 bg-white/50 dark:bg-slate-800/50 flex items-center justify-center z-20">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                </div>
-            )}
-            <table className={`w-full text-left border-collapse ${fontSettings.listSecondary}`}>
-                <thead className="bg-slate-50 dark:bg-slate-800/50 sticky top-0 z-10 text-xs uppercase text-slate-500 dark:text-slate-400 font-semibold">
-                    <tr>
-                        <th className="p-4 border-b border-slate-200 dark:border-slate-700">Mã BN</th>
-                        <th className="p-4 border-b border-slate-200 dark:border-slate-700">Họ tên</th>
-                        <th className="p-4 border-b border-slate-200 dark:border-slate-700">Tuổi/Giới</th>
-                        <th className="p-4 border-b border-slate-200 dark:border-slate-700">Giờ đến</th>
-                        <th className="p-4 border-b border-slate-200 dark:border-slate-700">Lý do khám</th>
-                        <th className="p-4 border-b border-slate-200 dark:border-slate-700 text-center">Trạng thái</th>
-                        <th className="p-4 border-b border-slate-200 dark:border-slate-700 text-right">Hành động</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                    {filteredList.length > 0 ? (
-                        filteredList.map((patient) => (
-                            <tr 
-                                key={patient.docNo} 
-                                className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
-                                onClick={() => handleStartExam(patient)}
-                            >
-                                <td className="p-4 font-mono text-sm text-blue-600 dark:text-blue-400 font-bold">{patient.id}</td>
-                                <td className="p-4">
-                                    <div className="flex flex-col">
-                                        <span className="font-bold text-slate-800 dark:text-slate-200 uppercase">{patient.name}</span>
-                                        {getPriorityBadge(patient.priority)}
-                                    </div>
-                                </td>
-                                <td className="p-4 text-slate-600 dark:text-slate-300">{patient.age}t / {patient.gender}</td>
-                                <td className="p-4 text-slate-600 dark:text-slate-300 font-mono">{patient.arrivalTime}</td>
-                                <td className="p-4 text-slate-600 dark:text-slate-300 max-w-xs truncate" title={patient.reason}>{patient.reason}</td>
-                                <td className="p-4 text-center">
-                                    {getStatusBadge(patient.status)}
-                                </td>
-                                <td className="p-4 text-right flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                                    {patient.status === 'waiting' && hasPermission('02.06') && (
-                                        <button 
-                                            className="p-1.5 text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-md transition-colors"
-                                            title="Gọi số"
-                                            onClick={(e) => { e.stopPropagation(); /* Call logic */ }}
-                                        >
-                                            <MegaphoneIcon className="w-4 h-4" />
-                                        </button>
-                                    )}
-                                    {patient.status === 'waiting' ? (
-                                        hasPermission('02.01') && (
-                                            <button 
-                                                onClick={() => handleStartExam(patient)}
-                                                className="inline-flex items-center px-3 py-1.5 bg-primary hover:bg-primary-dark text-white text-xs font-medium rounded-md transition-colors shadow-sm"
-                                            >
-                                                <PlayIcon className="w-3 h-3 mr-1.5" />
-                                                Khám ngay
-                                            </button>
-                                        )
-                                    ) : (
-                                        hasPermission('02.05') && (
-                                            <button 
-                                                onClick={() => handleStartExam(patient)}
-                                                className="inline-flex items-center px-3 py-1.5 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium rounded-md transition-colors"
-                                            >
-                                                Xem hồ sơ
-                                            </button>
-                                        )
-                                    )}
-                                </td>
-                            </tr>
-                        ))
-                    ) : (
-                        <tr>
-                            <td colSpan={7} className="p-8 text-center text-slate-500 dark:text-slate-400">
-                                Không tìm thấy bệnh nhân nào trong danh sách này.
-                            </td>
-                        </tr>
-                    )}
-                </tbody>
-            </table>
+        {/* Data Table Area */}
+        <div className="flex-1 p-4 overflow-auto">
+            <DataTable 
+                columns={columns}
+                data={filteredList}
+            />
         </div>
       </div>
     </div>

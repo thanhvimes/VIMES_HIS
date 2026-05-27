@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, Legend
 } from 'recharts';
@@ -15,48 +15,64 @@ import {
 } from '../../../components/Icons';
 import { KPICard } from '../components/Widgets';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { commandCenterService, OutpatientFlow, RoomStatus, QueueStatus } from '../../../services/commandCenterService';
 
-// --- MOCK DATA ---
+// MOCK DATA REMOVED - Using real data from API
 
-// 1. Lưu lượng theo giờ (Phân tách Thường/Yêu cầu)
-const flowData = [
-    { time: '07:00', normal: 10, service: 5 },
-    { time: '08:00', normal: 45, service: 15 },
-    { time: '09:00', normal: 80, service: 25 },
-    { time: '10:00', normal: 65, service: 20 },
-    { time: '11:00', normal: 40, service: 10 },
-    { time: '13:00', normal: 30, service: 8 },
-    { time: '14:00', normal: 55, service: 18 },
-    { time: '15:00', normal: 40, service: 12 },
-    { time: '16:00', normal: 20, service: 5 },
-];
+interface OutpatientLayoutProps {
+    liveData?: {
+        totalPatients: number;
+        waiting: number;
+        completed: number;
+        revenue: number;
+    }
+}
 
-// 2. Tình trạng hàng đợi theo chuyên khoa
-const queueData = [
-    { name: 'Nội Tổng quát', waiting: 45, processing: 10, doctorCount: 5, avgWait: 25 },
-    { name: 'Nội Tim mạch', waiting: 32, processing: 8, doctorCount: 4, avgWait: 35 },
-    { name: 'Ngoại Khoa', waiting: 15, processing: 5, doctorCount: 3, avgWait: 15 },
-    { name: 'Nhi Khoa', waiting: 50, processing: 12, doctorCount: 6, avgWait: 40 }, // High load
-    { name: 'Sản Phụ khoa', waiting: 20, processing: 6, doctorCount: 4, avgWait: 20 },
-    { name: 'Tai Mũi Họng', waiting: 18, processing: 4, doctorCount: 2, avgWait: 18 },
-    { name: 'Răng Hàm Mặt', waiting: 10, processing: 3, doctorCount: 2, avgWait: 10 },
-];
-
-// 3. Trạng thái phòng khám (Grid View)
-// Status: 0=Closed, 1=Available, 2=Occupied, 3=Full/Overloaded
-const roomStatus = [
-    { id: 'P101', type: 'Normal', status: 2, doctor: 'BS. A' }, { id: 'P102', type: 'Normal', status: 3, doctor: 'BS. B' },
-    { id: 'P103', type: 'Normal', status: 2, doctor: 'BS. C' }, { id: 'P104', type: 'Normal', status: 2, doctor: 'BS. D' },
-    { id: 'P105', type: 'Normal', status: 1, doctor: 'BS. E' }, { id: 'P106', type: 'Normal', status: 0, doctor: '-' },
-    { id: 'VIP1', type: 'Service', status: 2, doctor: 'GS. F' }, { id: 'VIP2', type: 'Service', status: 2, doctor: 'TS. G' },
-    { id: 'VIP3', type: 'Service', status: 1, doctor: 'BS. H' }, { id: 'VIP4', type: 'Service', status: 0, doctor: '-' },
-];
-
-const OutpatientLayout: React.FC = () => {
+const OutpatientLayout: React.FC<OutpatientLayoutProps> = ({ liveData }) => {
     const { theme } = useTheme();
+    
+    const [flowData, setFlowData] = useState<OutpatientFlow[]>([]);
+    const [roomStatus, setRoomStatus] = useState<RoomStatus[]>([]);
+    const [queueData, setQueueData] = useState<QueueStatus[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchDetails = async () => {
+            try {
+                const [flow, rooms, queues] = await Promise.all([
+                    commandCenterService.getOutpatientFlow(),
+                    commandCenterService.getRoomStatus(),
+                    commandCenterService.getQueueStatus()
+                ]);
+                setFlowData(flow);
+                setRoomStatus(rooms);
+                setQueueData(queues);
+            } catch (error) {
+                console.error("Failed to fetch outpatient details:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchDetails();
+        const interval = setInterval(fetchDetails, 15000); // Update details every 15s
+        return () => clearInterval(interval);
+    }, []);
+
     const isDark = theme === 'dark';
     const gridColor = isDark ? '#334155' : '#e2e8f0';
     const textColor = isDark ? '#94a3b8' : '#64748b';
+
+    if (isLoading && flowData.length === 0) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-sm font-bold text-slate-500 animate-pulse uppercase tracking-widest">Đang tải dữ liệu thật...</span>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="grid grid-cols-12 gap-4 lg:gap-6 h-full overflow-hidden">
@@ -65,30 +81,30 @@ const OutpatientLayout: React.FC = () => {
             <div className="col-span-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 h-fit shrink-0">
                 <KPICard 
                     title="Lượt tiếp đón" 
-                    value="518" 
-                    subtext="380 Thường | 138 Yêu cầu"
+                    value={liveData?.totalPatients || 0} 
+                    subtext={`${liveData?.normalReception || 0} Thường | ${liveData?.serviceReception || 0} Yêu cầu`}
                     trend={5.2}
                     icon={<UserPlusIcon/>} 
                     color="text-blue-600"
                 />
                 <KPICard 
                     title="Đang chờ khám" 
-                    value="190" 
-                    subtext="Cao điểm tại Khoa Nhi"
+                    value={liveData?.waiting || 0} 
+                    subtext={`Cao điểm tại: ${liveData?.highestWaitingDept || '--'}`}
                     icon={<UserGroupIcon/>} 
                     color="text-orange-500"
                 />
                 <KPICard 
                     title="Đã hoàn tất" 
-                    value="210" 
-                    subtext="Tỷ lệ kê đơn: 85%"
+                    value={liveData?.completed || 0} 
+                    subtext={`Tỉ lệ hoàn tất: ${liveData?.completionRate || 0}%`}
                     icon={<CheckCircleIcon/>} 
                     color="text-green-600"
                 />
                 <KPICard 
                     title="Doanh thu Khám (Est)" 
-                    value="185 Tr" 
-                    subtext="TB: 350k/lượt"
+                    value={`${liveData?.revenue || 0} Tr`} 
+                    subtext="Tính theo thực thu"
                     icon={<CurrencyDollarIcon/>} 
                     color="text-teal-600"
                 />
@@ -103,22 +119,27 @@ const OutpatientLayout: React.FC = () => {
                         <h3 className="font-bold text-slate-700 dark:text-slate-200 uppercase text-sm flex items-center gap-2">
                             <ActivityIcon className="w-5 h-5 text-indigo-500"/> Biểu đồ lưu lượng bệnh nhân
                         </h3>
-                        <div className="flex gap-4 text-xs font-bold">
-                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Khám thường</span>
-                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500"></span> Khám yêu cầu</span>
+                        <div className="flex gap-4 text-[10px] font-black uppercase">
+                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Tiếp đón</span>
+                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Vào khám</span>
+                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Kết thúc</span>
                         </div>
                     </div>
                     <div className="flex-1 w-full min-h-0">
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={flowData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                 <defs>
-                                    <linearGradient id="colorNormal" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                                    <linearGradient id="colorReception" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
                                         <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                                     </linearGradient>
-                                    <linearGradient id="colorService" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#a855f7" stopOpacity={0.8}/>
-                                        <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
+                                    <linearGradient id="colorStart" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
+                                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                                    </linearGradient>
+                                    <linearGradient id="colorFinish" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
@@ -128,8 +149,9 @@ const OutpatientLayout: React.FC = () => {
                                     contentStyle={{ backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: gridColor, borderRadius: '8px' }}
                                     itemStyle={{ fontSize: '12px' }}
                                 />
-                                <Area type="monotone" dataKey="normal" name="Khám thường" stackId="1" stroke="#3b82f6" fill="url(#colorNormal)" />
-                                <Area type="monotone" dataKey="service" name="Khám yêu cầu" stackId="1" stroke="#a855f7" fill="url(#colorService)" />
+                                <Area type="monotone" dataKey="reception" name="Tiếp đón" stroke="#3b82f6" fill="url(#colorReception)" strokeWidth={2} dot={false} />
+                                <Area type="monotone" dataKey="start" name="Vào khám" stroke="#f59e0b" fill="url(#colorStart)" strokeWidth={2} dot={false} />
+                                <Area type="monotone" dataKey="finish" name="Kết thúc" stroke="#10b981" fill="url(#colorFinish)" strokeWidth={2} dot={false} />
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
@@ -150,20 +172,26 @@ const OutpatientLayout: React.FC = () => {
                     </div>
                     
                     <div className="grid grid-cols-5 gap-3 flex-1 overflow-y-auto content-start">
-                        {roomStatus.map(room => {
-                            let colorClass = 'bg-slate-100 dark:bg-slate-800 border-slate-200 text-slate-400'; // Closed
-                            if (room.status === 1) colorClass = 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 text-blue-600'; // Available
-                            if (room.status === 2) colorClass = 'bg-green-50 dark:bg-green-900/20 border-green-200 text-green-700'; // Occupied
-                            if (room.status === 3) colorClass = 'bg-red-50 dark:bg-red-900/20 border-red-200 text-red-700 animate-pulse'; // Full
+                        {roomStatus
+                            .sort((a, b) => b.status - a.status) // Sắp xếp cảnh báo (3) lên đầu
+                            .map(room => {
+                                let colorClass = 'bg-slate-100 dark:bg-slate-800 border-slate-200 text-slate-400'; // Closed
+                                if (room.status === 1) colorClass = 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 text-blue-600'; // Available
+                                if (room.status === 2) colorClass = 'bg-green-50 dark:bg-green-900/20 border-green-200 text-green-700'; // Occupied
+                                if (room.status === 3) colorClass = 'bg-red-50 dark:bg-red-900/20 border-red-200 text-red-700 animate-pulse border-2'; // Full
 
-                            return (
-                                <div key={room.id} className={`p-2 rounded-lg border flex flex-col items-center justify-center text-center transition-all ${colorClass}`}>
-                                    <div className="text-xs font-bold mb-1">{room.id}</div>
-                                    <div className="text-[10px] font-medium truncate w-full">{room.doctor}</div>
-                                    {room.type === 'Service' && <div className="mt-1 text-[8px] px-1 bg-yellow-100 text-yellow-800 rounded uppercase font-bold">VIP</div>}
-                                </div>
-                            );
-                        })}
+                                return (
+                                    <div key={room.id} className={`p-3 rounded-xl border shadow-sm flex flex-col items-center justify-center text-center transition-all ${colorClass}`}>
+                                        <div className="text-sm font-black mb-1">{room.id}</div>
+                                        <div className="text-xs font-bold truncate w-full mb-1">{room.doctor}</div>
+                                        <div className="flex gap-2 mt-1 font-mono">
+                                            <span className="text-[11px] font-black text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded border border-blue-200/50">Đ:{room.waiting}</span>
+                                            <span className="text-[11px] font-black text-green-700 bg-green-100 px-1.5 py-0.5 rounded border border-green-200/50">X:{room.completed}</span>
+                                        </div>
+                                        {room.type === 'Service' && <div className="mt-1.5 text-[9px] px-2 py-0.5 bg-yellow-400 text-slate-900 rounded-full uppercase font-black shadow-sm">VIP</div>}
+                                    </div>
+                                );
+                            })}
                     </div>
                 </div>
 
@@ -214,15 +242,33 @@ const OutpatientLayout: React.FC = () => {
                      <h3 className="font-bold text-red-700 dark:text-red-400 uppercase text-sm mb-3 flex items-center gap-2">
                         <ExclamationCircleIcon className="w-5 h-5 animate-pulse"/> Cảnh báo Vận hành
                     </h3>
-                    <div className="space-y-2 text-sm">
-                        <div className="flex gap-2 items-start">
-                            <span className="text-red-500">•</span>
-                            <span className="text-slate-700 dark:text-slate-300">Khoa Nhi: Hàng đợi vượt ngưỡng (50 BN). Đề xuất bổ sung bác sĩ.</span>
-                        </div>
-                        <div className="flex gap-2 items-start">
-                             <span className="text-red-500">•</span>
-                            <span className="text-slate-700 dark:text-slate-300">Phòng 102: Bác sĩ báo tạm ngưng 15p.</span>
-                        </div>
+                    <div className="space-y-2 text-sm max-h-[150px] overflow-y-auto pr-2 custom-scrollbar">
+                        {/* 1. Cảnh báo theo Khoa */}
+                        {queueData.filter(q => q.waiting > 40).map((q, i) => (
+                            <div key={`dept-${i}`} className="flex gap-2 items-start animate-fade-in">
+                                <span className="text-red-500 font-black">•</span>
+                                <span className="text-slate-700 dark:text-slate-300 font-medium">
+                                    <strong className="text-red-600">{q.name}</strong>: Hàng đợi vượt ngưỡng ({q.waiting} BN). Cần bổ sung nhân sự.
+                                </span>
+                            </div>
+                        ))}
+                        
+                        {/* 2. Cảnh báo theo Phòng cụ thể */}
+                        {roomStatus.filter(r => r.waiting > 15).map((r, i) => (
+                            <div key={`room-${i}`} className="flex gap-2 items-start animate-fade-in">
+                                <span className="text-amber-500 font-black">•</span>
+                                <span className="text-slate-700 dark:text-slate-300">
+                                    <strong className="text-amber-600">Phòng {r.name}</strong>: Đang ùn tắc ({r.waiting} BN chờ). Bác sĩ {r.doctor}.
+                                </span>
+                            </div>
+                        ))}
+
+                        {/* 3. Trường hợp không có cảnh báo */}
+                        {queueData.filter(q => q.waiting > 40).length === 0 && roomStatus.filter(r => r.waiting > 15).length === 0 && (
+                            <div className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-2 italic">
+                                <CheckCircleIcon className="w-4 h-4"/> Hệ thống đang vận hành ổn định.
+                            </div>
+                        )}
                     </div>
                 </div>
 

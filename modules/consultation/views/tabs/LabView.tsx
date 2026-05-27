@@ -13,8 +13,8 @@ import {
 import LabResultTemplate from './templates/LabResultTemplate';
 import ImagingResultTemplate from './templates/ImagingResultTemplate';
 import FunctionalExplorationTemplate from './templates/FunctionalExplorationTemplate';
-import ServiceCatalogModal from './../../../../components/shared/services/ServiceCatalogModal';
-import ServiceTemplateModal from '../../../../components/shared/services/ServiceTemplateModal';
+import ServiceCatalogModal from './../../../../components/ui/services/ServiceCatalogModal';
+import ServiceTemplateModal from '../../../../components/ui/services/ServiceTemplateModal';
 import LabTrendModal from './modals/LabTrendModal';
 import { ServiceItem, serviceCategories } from '../../data/catalogs';
 import { useTheme } from '../../../../contexts/ThemeContext';
@@ -152,7 +152,7 @@ const mockRequests: ServiceRequest[] = [
 ];
 
 
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useNotification } from '../../../../contexts/NotificationContext';
 import { consultationService } from '../../../../services/consultationService';
 
@@ -164,9 +164,9 @@ const LabView: React.FC = () => {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    
-    // Mock DocNo for now - in real app this comes from the active encounter/visit
-    const currentDocNo = 21000001; 
+    const [searchParams] = useSearchParams();
+    const docNo = searchParams.get('docNo');
+    const currentDocNo = docNo ? parseInt(docNo) : null;
 
     // Modal States
     const [isCatalogModalOpen, setIsCatalogModalOpen] = useState(false);

@@ -1,6 +1,6 @@
 import React from 'react';
 import { PlusIcon, SaveIcon, BanIcon, PencilIcon, PrinterIcon, QrcodeIcon, ClockIcon } from '../../../components/Icons';
-import ActionButton from '../../../components/shared/ActionButton';
+import ActionButton from '../../../components/ui/ActionButton';
 import { ExtendedFormData } from '../utils/registrationUtils';
 import { useSession } from '../../../contexts/SessionContext';
 

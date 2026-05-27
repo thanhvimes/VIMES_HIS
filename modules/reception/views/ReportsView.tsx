@@ -2,7 +2,7 @@ import React from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { DocumentArrowDownIcon } from '../../../components/Icons';
-import { FormDateInput } from '../../../components/shared/forms';
+import { FormDateInput } from '../../../components/ui/forms';
 
 const hourlyData = [
     { hour: '7-8h', registrations: 5 }, { hour: '8-9h', registrations: 12 }, { hour: '9-10h', registrations: 18 }, { hour: '10-11h', registrations: 15 }, { hour: '11-12h', registrations: 7 }, { hour: '13-14h', registrations: 6 }, { hour: '14-15h', registrations: 10 }, { hour: '15-16h', registrations: 9 },

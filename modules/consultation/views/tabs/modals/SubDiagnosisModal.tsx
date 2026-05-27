@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { XIcon, CheckIcon, PlusIcon } from '../../../../../components/Icons';
-import Combobox, { ComboboxColumn } from '../../../../../components/shared/Combobox';
+import Combobox, { ComboboxColumn } from '../../../../../components/ui/Combobox';
 import { CatalogItem, diagnosisOptions } from '../../../data/catalogs';
 import { ICD10 } from '../../../../../types';
 

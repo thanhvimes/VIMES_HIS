@@ -1,4 +1,3 @@
-
 import React, { memo } from 'react';
 
 interface CardProps {
@@ -11,7 +10,7 @@ const Card: React.FC<CardProps> = ({ children, className, onClick }) => {
   return (
     <div
       onClick={onClick}
-      className={`bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg rounded-xl p-4 sm:p-6 ${className}`}
+      className={`modern-card p-4 sm:p-6 ${onClick ? 'cursor-pointer hover-lift' : ''} ${className || ''}`}
     >
       {children}
     </div>

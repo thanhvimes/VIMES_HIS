@@ -1,3 +1,3 @@
 
-// This file has been moved to components/shared/services/OperationFormModal.tsx
+// This file has been moved to components/ui/services/OperationFormModal.tsx
 export {}; 

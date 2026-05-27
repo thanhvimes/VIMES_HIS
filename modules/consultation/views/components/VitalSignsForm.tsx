@@ -162,6 +162,19 @@ const VitalSignsForm: React.FC<VitalSignsFormProps> = ({ vitals, onVitalsChange 
             {vitals.bmi ?? '--'}
           </div>
         </div>
+
+        <div className="space-y-2">
+          <label className={`block font-semibold text-slate-600 dark:text-slate-300 ${fontSettings.controls}`}>
+            SpO2 (%)
+          </label>
+          <input
+            type="number"
+            value={vitals.spo2 ?? ''}
+            onChange={(e) => handleInputChange('spo2', e.target.value)}
+            className={`w-full p-2.5 bg-inherit border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all ${fontSettings.controls}`}
+            placeholder="98"
+          />
+        </div>
       </div>
     </div>
   );

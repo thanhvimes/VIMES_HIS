@@ -35,6 +35,7 @@
     "android",
     "old_reg.tsx",
     "old_RegistrationView.tsx",
-    "release_v1"
+    "release_v1",
+    "archive"
   ]
 }

@@ -1,3 +1,3 @@
 
-// This file has been moved to components/shared/services/forms/ProcedureForm.tsx
+// This file has been moved to components/ui/services/forms/ProcedureForm.tsx
 export {}; 

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { mockRequests, mockTemplates, ImagingRequest, ReportTemplate } from '../data';
 import MockDicomViewer from './components/MockDicomViewer';
-import Combobox from '../../../components/shared/Combobox';
+import Combobox from '../../../components/ui/Combobox';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { 
     ChevronLeftIcon, SaveIcon, CheckBadgeIcon, PrinterIcon,

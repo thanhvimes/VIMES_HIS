@@ -16,7 +16,7 @@ import {
     ScissorsIcon
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { FormDateInput } from '../../../components/shared/forms';
+import { FormDateInput } from '../../../components/ui/forms';
 import { SurgerySchedule } from '../../../types';
 import { mockSurgeries, resources } from '../data';
 import SurgeryScheduleModal from './SurgeryScheduleModal';

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import PdfPreviewModal from '../../../components/shared/PdfPreviewModal';
+import PdfPreviewModal from '../../../components/ui/PdfPreviewModal';
 import { Signature } from '../../../types';
 
 // A sample PDF file for demonstration purposes. 

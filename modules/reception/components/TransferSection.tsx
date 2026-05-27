@@ -1,7 +1,7 @@
 import React from 'react';
 import { DocumentTextIcon, CloudUploadIcon } from '../../../components/Icons';
-import { FormInput } from '../../../components/shared/forms';
-import Combobox from '../../../components/shared/Combobox';
+import { FormInput } from '../../../components/ui/forms';
+import Combobox from '../../../components/ui/Combobox';
 import { ExtendedFormData } from '../utils/registrationUtils';
 import { CatalogItem } from '../../../services/catalogService';
 

@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { QrCodeIcon } from '../icons';
 import { portalService } from '../../../services/portalService';
 import { usePortalAuth } from '../../../contexts/PortalAuthContext';
+import { useSystemStore } from '../../../stores/useSystemStore';
+import { HospitalLogo } from '../../../config/branding';
 
 const PortalLoginView: React.FC = () => {
     const { login } = usePortalAuth();
+    const { hospitalName, logoUrl } = useSystemStore();
     const [mode, setMode] = useState<'LOGIN' | 'ACTIVATE'>('LOGIN');
 
     // Form fields
@@ -70,12 +73,14 @@ const PortalLoginView: React.FC = () => {
             <div className="hidden md:flex w-1/2 bg-gradient-to-br from-teal-600 to-blue-700 items-center justify-center text-white p-12 relative overflow-hidden shadow-2xl">
                 <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
                 <div className="relative z-10 max-w-lg">
-                    <div className="w-24 h-24 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center mb-8 shadow-2xl border border-white/30">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m8-2h2m-2-4h2m-7 4h2m-2-4h2m-2-4h2m-2-4h2" />
-                        </svg>
+                    <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center mb-8 shadow-2xl border border-white/30 overflow-hidden p-2">
+                        {logoUrl ? (
+                            <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                        ) : (
+                            <HospitalLogo className="h-12 w-12 text-white" />
+                        )}
                     </div>
-                    <h1 className="text-5xl font-black mb-6 tracking-tight leading-tight">Cổng thông tin<br /><span className="text-teal-300 italic">Bệnh nhân VIMES</span></h1>
+                    <h1 className="text-5xl font-black mb-6 tracking-tight leading-tight">Cổng thông tin<br /><span className="text-teal-300 italic">{hospitalName}</span></h1>
                     <p className="text-xl text-teal-100/80 leading-relaxed font-medium">
                         Tra cứu kết quả khám, lịch hẹn và quản lý sức khỏe gia đình chỉ trong vài chạm. An toàn, bảo mật và hoàn toàn miễn phí.
                     </p>
@@ -96,10 +101,12 @@ const PortalLoginView: React.FC = () => {
             <div className="w-full md:w-1/2 bg-white flex flex-col items-center justify-center p-8 md:p-16 relative shadow-inner">
                 <div className="w-full max-w-md">
                     <div className="text-center md:text-left mb-10">
-                        <div className="md:hidden w-20 h-20 bg-teal-50 text-teal-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-teal-100">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m8-2h2m-2-4h2m-7 4h2m-2-4h2m-2-4h2m-2-4h2" />
-                            </svg>
+                        <div className="md:hidden w-20 h-20 bg-white text-teal-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-200 overflow-hidden p-2">
+                            {logoUrl ? (
+                                <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                            ) : (
+                                <HospitalLogo className="h-10 w-10" />
+                            )}
                         </div>
                         <h1 className="text-3xl font-black text-slate-800 tracking-tight leading-none mb-3">
                             {mode === 'LOGIN' ? 'Chào mừng trở lại' : 'Kích hoạt hồ sơ'}
@@ -219,7 +226,7 @@ const PortalLoginView: React.FC = () => {
                     )}
                 </div>
 
-                <p className="absolute bottom-8 text-slate-300 text-[10px] font-bold uppercase tracking-widest">© 2026 VIMES Hospital • Hệ thống thông tin y tế</p>
+                <p className="absolute bottom-8 text-slate-300 text-[10px] font-bold uppercase tracking-widest">© 2026 {hospitalName} • Hệ thống thông tin y tế</p>
             </div>
         </div>
     );

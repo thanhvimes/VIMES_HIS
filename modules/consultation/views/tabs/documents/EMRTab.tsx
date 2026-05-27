@@ -15,7 +15,7 @@ import {
     DownloadIcon,
     ArchiveIcon
 } from '../../../../../components/Icons';
-import DocumentTree, { TreeNode } from '../../../../../components/shared/DocumentTree';
+import DocumentTree, { TreeNode } from '../../../../../components/ui/DocumentTree';
 import { useTheme } from '../../../../../contexts/ThemeContext';
 import { Document, Page, pdfjs } from 'react-pdf';
 

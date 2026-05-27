@@ -5,7 +5,7 @@ import { useSession } from '../../../contexts/SessionContext';
 import { useRegistration } from '../hooks/useRegistration';
 import { CURRENT_HOSPITAL_CODE } from '../utils/registrationUtils';
 import { CatalogItem } from '../../../services/catalogService';
-import { ComboboxColumn } from '../../../components/shared/Combobox';
+import { ComboboxColumn } from '../../../components/ui/Combobox';
 import { calculateAge } from '../../../utils/formatters';
 
 // Sub-components

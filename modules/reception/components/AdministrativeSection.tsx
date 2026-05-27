@@ -1,7 +1,7 @@
 import React from 'react';
 import { UserGroupIcon } from '../../../components/Icons';
-import { FormInput, FormSelect, FormDateInput } from '../../../components/shared/forms';
-import Combobox, { ComboboxColumn } from '../../../components/shared/Combobox';
+import { FormInput, FormSelect, FormDateInput } from '../../../components/ui/forms';
+import Combobox, { ComboboxColumn } from '../../../components/ui/Combobox';
 import { ExtendedFormData } from '../utils/registrationUtils';
 import { CatalogItem } from '../../../services/catalogService';
 

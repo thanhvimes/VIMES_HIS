@@ -10,7 +10,7 @@ import {
     SparklesIcon,
     XIcon
 } from '../../../../components/Icons';
-import Combobox from '../../../../components/shared/Combobox';
+import Combobox from '../../../../components/ui/Combobox';
 import { diagnosisOptions, drugList } from '../../../consultation/data/catalogs';
 import { useTheme } from '../../../../contexts/ThemeContext';
 

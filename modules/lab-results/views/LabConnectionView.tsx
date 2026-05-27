@@ -18,7 +18,7 @@ import {
 } from '../../../components/Icons';
 import { LisMachineConfig, LisLogEntry, LisResultData, LisMachineType } from '../../../types';
 import { lisService } from '../../../services/lisService';
-import Combobox from '../../../components/shared/Combobox';
+import Combobox from '../../../components/ui/Combobox';
 
 // --- MOCK DATA FOR MACHINES ---
 const initialMachines: LisMachineConfig[] = [

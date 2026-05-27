@@ -15,6 +15,7 @@ export interface VitalSigns {
     weight?: number;
     height?: number;
     bmi?: number;
+    spo2?: number;
 }
 
 export interface ServiceCategory {
@@ -117,6 +118,7 @@ export interface ClinicalRecord {
     conclusion: string;
     treatmentPlan: string;
     endTime?: string;
+    vitals?: VitalSigns;
 }
 
 export interface OperationRecord {
@@ -163,6 +165,13 @@ export interface Prescription {
     warehouse: string;
     items: PrescriptionItem[];
     totalAmount: number;
+}
+
+export interface PrescriptionTemplate {
+    id: string;
+    name: string;
+    description?: string;
+    items: Partial<PrescriptionItem>[];
 }
 
 export interface SurgerySchedule {

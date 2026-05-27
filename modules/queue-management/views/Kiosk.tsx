@@ -1,379 +1,377 @@
-
-import React, { useState, useEffect, useRef } from 'react';
-import { Department, Patient } from '../types';
-import { queueService } from '../data/queueService';
-import { DEPARTMENTS } from '../constants';
+import React, { useState, useEffect, useCallback } from 'react';
+import { 
+  User, 
+  Users, 
+  Baby, 
+  CreditCard, 
+  Printer, 
+  Scan, 
+  ChevronRight, 
+  ArrowLeft,
+  Search,
+  Activity,
+  Heart,
+  Stethoscope,
+  FlaskConical,
+  Coins,
+  Pill,
+  Clock,
+  UserCheck,
+  Droplet
+} from 'lucide-react';
+import { apiFetch } from '../services/apiService';
+import { AppSettings } from '../types';
 
 interface KioskProps {
+  settings: AppSettings;
   onBack: () => void;
 }
 
-// Mock DB for scanning simulation
-const MOCK_PATIENT_DB: Record<string, { name: string, birthYear: number, gender: 'Nam' | 'Nữ' | 'Khác', address: string }> = {
-    'BN75':  { name: 'Cụ Ông Cao Tuổi', birthYear: 1945, gender: 'Nam', address: 'Hà Nội' }, 
-    'BN05':  { name: 'Bé Nguyễn Văn An', birthYear: 2020, gender: 'Nam', address: 'Hà Nội' },
-    'BN30':  { name: 'Trần Văn Thanh Niên', birthYear: 1994, gender: 'Nam', address: 'Hải Phòng' }, 
-    'VIP':   { name: 'Nguyễn Thị Mẹ Bỉm', birthYear: 1990, gender: 'Nữ', address: 'Đà Nẵng' }, 
-};
+type KioskStep = 'TYPE_SELECTION' | 'PATIENT_IDENTIFY' | 'DEPARTMENT_SELECTION' | 'PRINTING' | 'SUCCESS';
+type TicketType = 'RECEPTION' | 'REGISTRATION' | 'EXECUTION' | 'SAMPLING' | 'PAYMENT' | 'DRUG';
 
-type Step = 1 | 2 | 3 | 4; 
+const Kiosk: React.FC<KioskProps> = ({ settings, onBack }) => {
+  const [step, setStep] = useState<KioskStep>(() => {
+    const hasService = localStorage.getItem('vimes_selected_service');
+    return hasService ? 'PATIENT_IDENTIFY' : 'TYPE_SELECTION';
+  });
+  const [ticketType, setTicketType] = useState<TicketType | null>(() => {
+    return (localStorage.getItem('vimes_selected_service') as TicketType) || null;
+  });
+  const [patientData, setPatientData] = useState<any>(null);
+  const [searchId, setSearchId] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [printStatus, setPrintStatus] = useState('');
+  const [lastTicket, setLastTicket] = useState<any>(null);
 
-export const Kiosk: React.FC<KioskProps> = ({ onBack }) => {
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [selectedDept, setSelectedDept] = useState<Department | null>(null);
-  const [step, setStep] = useState<Step>(1); 
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [lastTicket, setLastTicket] = useState<{code: string, name: string, deptName: string, roomName: string} | null>(null);
-  const [isPrinting, setIsPrinting] = useState(false);
-  const [patientCode, setPatientCode] = useState("");
-  const [scannedProfile, setScannedProfile] = useState<{ name: string, birthYear: number, gender: string, address: string } | null>(null);
-  const [isLookingUp, setIsLookingUp] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // Auto-reset feature for Kiosk
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-
-    const resetTimer = () => {
-      clearTimeout(timeoutId);
-      if (step > 1 && step < 4) { // Don't reset on step 1 (Home) or 4 (Done)
-        timeoutId = setTimeout(() => {
-          console.log("Kiosk auto-reset due to inactivity");
-          setStep(1);
-          setSelectedDept(null);
-          setPatientCode("");
-          setScannedProfile(null);
-        }, 45000); // 45 seconds of inactivity
-      }
-    };
-
-    window.addEventListener('mousemove', resetTimer);
-    window.addEventListener('keydown', resetTimer);
-    window.addEventListener('touchstart', resetTimer);
-    window.addEventListener('click', resetTimer);
-
-    resetTimer();
-
-    return () => {
-      clearTimeout(timeoutId);
-      window.removeEventListener('mousemove', resetTimer);
-      window.removeEventListener('keydown', resetTimer);
-      window.removeEventListener('touchstart', resetTimer);
-      window.removeEventListener('click', resetTimer);
-    };
-  }, [step]);
-
-  useEffect(() => {
-      const loadDepts = async () => {
-          const depts = await queueService.getDepartments();
-          if (depts && depts.length > 0) {
-              setDepartments(depts);
-          } else {
-              setDepartments(DEPARTMENTS);
-          }
-      };
-      loadDepts();
-      const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-      return () => clearInterval(timer);
+  const resetKiosk = useCallback(() => {
+    setStep('TYPE_SELECTION');
+    setTicketType(null);
+    setPatientData(null);
+    setSearchId('');
+    setPrintStatus('');
   }, []);
 
+  // Tự động quay về trang chủ sau 60 giây không hoạt động
   useEffect(() => {
-      if (step === 2 && inputRef.current) {
-          inputRef.current.focus();
+    if (step === 'TYPE_SELECTION') return;
+    const timer = setTimeout(resetKiosk, 60000);
+    return () => clearTimeout(timer);
+  }, [step, resetKiosk]);
+
+  const handleIdentifyPatient = async (id?: string) => {
+    const searchKey = id || searchId;
+    if (!searchKey) return;
+    
+    setLoading(true);
+    try {
+      // 1. Tìm thông tin bệnh nhân
+      const res = await apiFetch(`/api/his/patient/${searchKey}`);
+      if (res && res.name) {
+        setPatientData(res);
+        
+        // 2. Nếu là dịch vụ CLS/Thanh toán/Thuốc -> Kiểm tra chỉ định
+        if (ticketType !== 'REGISTRATION' && ticketType !== 'RECEPTION') {
+            const ordersRes = await apiFetch(`/api/his/pending-orders/${searchKey}`);
+            if (ordersRes && ordersRes.success) {
+                setPatientData({ ...res, ...ordersRes.patient, orders: ordersRes.orders });
+            } else {
+                alert(ordersRes?.message || "Không tìm thấy hồ sơ đang hoạt động của bạn.");
+                return;
+            }
+        }
+        setStep(ticketType === 'REGISTRATION' ? 'DEPARTMENT_SELECTION' : 'PRINTING');
+      } else {
+        alert("Không tìm thấy thông tin bệnh nhân trên hệ thống HIS.");
       }
-  }, [step]);
-
-  const handleScan = (e?: React.FormEvent) => {
-      if (e) e.preventDefault();
-      if (!patientCode.trim()) return;
-      setIsLookingUp(true);
-      
-      setTimeout(() => {
-          const found = MOCK_PATIENT_DB[patientCode.toUpperCase()];
-          if (found) {
-              setScannedProfile(found);
-          } else {
-              const randomAge = Math.floor(Math.random() * 90);
-              setScannedProfile({
-                  name: `Bệnh nhân ${patientCode}`,
-                  birthYear: new Date().getFullYear() - randomAge,
-                  gender: 'Khác',
-                  address: 'Chưa cập nhật'
-              });
-          }
-          setIsLookingUp(false);
-      }, 600);
-  };
-
-  const handleClearScan = () => {
-      setPatientCode("");
-      setScannedProfile(null);
-      if (inputRef.current) inputRef.current.focus();
-  };
-
-  const checkPriorityEligible = () => {
-      if (!scannedProfile) return false;
-      const age = new Date().getFullYear() - scannedProfile.birthYear;
-      return age > 75 || age < 6;
-  };
-
-  const confirmScanAndNext = () => {
-      if (scannedProfile) {
-          setStep(3); 
-      }
-  };
-
-  const handleTakeTicket = async (targetRoomId: string, targetRoomName: string) => {
-    if (!selectedDept || !scannedProfile) return;
-    setIsPrinting(true);
-    const isPriority = checkPriorityEligible();
-
-    const customData = {
-        departmentId: selectedDept.id, 
-        roomId: targetRoomId, 
-        name: scannedProfile.name,
-        birthYear: scannedProfile.birthYear,
-        gender: scannedProfile.gender as any,
-        address: scannedProfile.address,
-        reason: isPriority ? "Ưu Tiên" : "Thường"
-    };
-
-    const ticket = await queueService.createTicket(targetRoomId, { ...customData, isPriority });
-    if (ticket) {
-        setLastTicket({
-            code: ticket.code,
-            name: ticket.name,
-            deptName: selectedDept.name,
-            roomName: targetRoomName
-        });
+    } catch (e) {
+      console.error(e);
+      alert("Lỗi kết nối hệ thống HIS.");
+    } finally {
+      setLoading(false);
     }
-
-    setStep(4);
-    setIsPrinting(false);
   };
 
-  const handlePrintAndFinish = async () => {
-      try {
-          // Simulate calling backend API for silent printing
-          // await queueService.silentPrintTicket(lastTicket);
-          console.log("Mock: Sent print request to backend thermal printer API");
-          // Fallback to browser print if needed during development
-          window.print(); 
-      } catch (e) {
-          console.error("Print API failed", e);
+  const handlePrintTicket = async (specialtyCode?: string) => {
+    setStep('PRINTING');
+    setPrintStatus('Đang xử lý đăng ký...');
+    
+    try {
+      const res = await apiFetch('/api/queue', {
+        method: 'POST',
+        body: JSON.stringify({
+          kioskType: ticketType,
+          patientName: patientData?.name,
+          identityNumber: patientData?.identityNumber,
+          insuranceCard: patientData?.insuranceNumber,
+          patientId: patientData?.patientId,
+          docNo: patientData?.docNo,
+          specialtyCode: specialtyCode,
+          kioskId: settings.kioskId,
+          isPriority: patientData?.isPriority || false
+        })
+      });
+
+      if (res && res.success) {
+        setLastTicket(res.data);
+        setPrintStatus('Đang in phiếu...');
+        // Giả lập lệnh in
+        setTimeout(() => {
+          setStep('SUCCESS');
+          // Tự động reset sau 5 giây
+          setTimeout(resetKiosk, 5000);
+        }, 1500);
+      } else {
+        alert(res?.message || "Lỗi đăng ký hàng đợi");
+        setStep('TYPE_SELECTION');
       }
-      
-      setTimeout(() => {
-          setLastTicket(null);
-          setStep(1);
-          setSelectedDept(null);
-          setScannedProfile(null);
-          setPatientCode("");
-      }, 1500);
-  };
-
-  const resetAll = () => {
-      setStep(1);
-      setSelectedDept(null);
-      handleClearScan();
+    } catch (e) {
+      console.error(e);
+      alert("Lỗi hệ thống.");
+      setStep('TYPE_SELECTION');
+    }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 relative overflow-hidden flex flex-col">
-        <style>{`
-            @media print {
-                @page { margin: 0; size: 80mm auto; }
-                body { background: white; margin: 0; }
-                body * { visibility: hidden; height: 0; overflow: hidden; }
-                #printable-ticket, #printable-ticket * { visibility: visible; height: auto; overflow: visible; }
-                #printable-ticket { position: fixed; left: 0; top: 0; width: 72mm; padding: 4mm; background: white; color: black; font-family: monospace; text-align: center; }
-                .no-print { display: none !important; }
-            }
-        `}</style>
+    <div className="h-full w-full bg-slate-900 text-white flex flex-col overflow-hidden font-sans select-none">
+      
+      {/* Header */}
+      <header className="h-24 px-12 flex items-center justify-between border-b border-white/10 bg-black/20 backdrop-blur-md">
+        <div className="flex items-center gap-6">
+          <div className="h-16 w-16 bg-white rounded-2xl p-2">
+            <img src={settings.hospitalLogo} alt="Logo" className="w-full h-full object-contain" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black uppercase tracking-tight">{settings.hospitalName}</h1>
+            <p className="text-emerald-400 text-sm font-bold tracking-widest uppercase">Hệ thống cấp số tự động</p>
+          </div>
+        </div>
+        
+        {step === 'TYPE_SELECTION' ? (
+          <button 
+            onClick={onBack}
+            className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-2xl transition-all border border-white/10 font-bold uppercase text-[10px] tracking-widest text-slate-400 hover:text-white"
+          >
+            <ArrowLeft size={16} /> Về Portal
+          </button>
+        ) : (
+          <button 
+            onClick={resetKiosk}
+            className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-2xl transition-all border border-white/10 font-bold uppercase text-xs text-blue-400 hover:text-blue-300"
+          >
+            <ArrowLeft size={16} /> Quay lại
+          </button>
+        )}
+      </header>
 
-        {lastTicket && (
-            <div id="printable-ticket" className="fixed top-0 left-0 bg-white z-[9999] hidden text-black">
-                <div className="font-bold text-sm uppercase mb-1">BỆNH VIỆN ĐA KHOA</div>
-                <div className="border-b-2 border-black border-dashed w-full my-2"></div>
-                <div className="text-lg font-bold">{lastTicket.deptName}</div>
-                <div className="text-md font-bold">{lastTicket.roomName}</div>
-                <div className="text-4xl font-black my-4">{lastTicket.code}</div>
-                <div className="text-sm uppercase font-bold">{lastTicket.name}</div>
-                <div className="text-xs mt-2">{new Date().toLocaleString('vi-VN')}</div>
-                <div className="border-b-2 border-black border-dashed w-full my-2"></div>
-                <div className="text-xs italic">Vui lòng đợi tại khu vực chờ.</div>
+      {/* Main Content Area */}
+      <main className="flex-1 p-12 overflow-hidden relative">
+        
+        {/* STEP 1: TYPE SELECTION */}
+        {step === 'TYPE_SELECTION' && (
+          <div className="h-full flex flex-col items-center justify-center space-y-12 animate-in fade-in zoom-in duration-500">
+            <h2 className="text-4xl font-black text-center uppercase tracking-tighter">Chào mừng Quý khách!<br/><span className="text-blue-500">Vui lòng chọn dịch vụ cần thực hiện</span></h2>
+            
+            <div className="grid grid-cols-3 gap-6 w-full max-w-6xl">
+              {[
+                { id: 'RECEPTION', name: 'TIẾP ĐỐN', icon: <UserCheck size={48} />, color: 'bg-purple-600', desc: 'Đón tiếp, đăng ký thông tin ban đầu' },
+                { id: 'REGISTRATION', name: 'ĐĂNG KÝ KHÁM BỆNH', icon: <Stethoscope size={48} />, color: 'bg-blue-600', desc: 'Dành cho bệnh nhân mới hoặc tái khám' },
+                { id: 'EXECUTION', name: 'THỰC HIỆN CHỈ ĐỊNH', icon: <FlaskConical size={48} />, color: 'bg-rose-600', desc: 'Siêu âm, X-Quang, CT, Nội soi...' },
+                { id: 'SAMPLING', name: 'LẤY MẪU XN', icon: <Droplet size={48} />, color: 'bg-emerald-600', desc: 'Lấy mẫu máu, nước tiểu, xét nghiệm...' },
+                { id: 'PAYMENT', name: 'THANH TOÁN VIỆN PHÍ', icon: <Coins size={48} />, color: 'bg-amber-500', desc: 'Thanh toán hóa đơn, tạm ứng' },
+                { id: 'DRUG', name: 'LĨNH THUỐC', icon: <Pill size={48} />, color: 'bg-slate-600', desc: 'Nhà thuốc bệnh viện, cấp thuốc BHYT' }
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => { setTicketType(item.id as TicketType); setStep('PATIENT_IDENTIFY'); }}
+                  className={`${item.color} p-6 rounded-[2.5rem] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all flex flex-col items-center text-center space-y-4 border-b-[8px] border-black/20`}
+                >
+                  <div className="p-4 bg-white/20 rounded-2xl">
+                    {item.icon}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black tracking-tight uppercase mb-1">{item.name}</h3>
+                    <p className="text-white/70 font-medium text-xs line-clamp-2">{item.desc}</p>
+                  </div>
+                </button>
+              ))}
             </div>
+          </div>
         )}
 
-        <header className="px-8 py-6 flex justify-between items-center bg-white shadow-sm border-b border-slate-200 no-print flex-shrink-0 z-20">
-            <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+        {/* STEP 2: PATIENT IDENTIFY */}
+        {step === 'PATIENT_IDENTIFY' && (
+          <div className="h-full flex flex-col items-center justify-center space-y-12 animate-in slide-in-from-right duration-500">
+             <div className="w-full max-w-4xl bg-white/5 border border-white/10 rounded-[4rem] p-16 text-center space-y-12 backdrop-blur-xl shadow-2xl">
+                <div className="space-y-4">
+                  <h2 className="text-5xl font-black uppercase tracking-tighter">Xác thực thông tin</h2>
+                  <p className="text-xl text-white/50 font-medium italic">Vui lòng quét thẻ BHYT hoặc nhập số CCCD / Mã bệnh nhân</p>
                 </div>
-                <div>
-                    <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Hệ Thống Lấy Số Tự Động</h1>
-                    <p className="text-slate-500 text-sm font-medium">
-                        {step === 1 ? 'Bước 1: Chọn Khoa' : 
-                         step === 2 ? `Bước 2: Xác thực thông tin (${selectedDept?.name})` : 
-                         step === 3 ? `Bước 3: Chọn dịch vụ (${selectedDept?.name})` : 'Hoàn tất'}
-                    </p>
-                </div>
-            </div>
-            <div className="text-right">
-                <div className="text-3xl font-bold text-blue-600">{currentTime.toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'})}</div>
-                <button onClick={onBack} className="mt-1 text-xs text-slate-400 hover:text-slate-600 border border-slate-200 px-3 py-1 rounded hover:bg-slate-100 transition-colors">Thoát</button>
-            </div>
-        </header>
 
-        <main className="flex-1 container mx-auto p-8 no-print overflow-y-auto flex flex-col items-center">
-            {step === 1 && (
-                <div className="w-full max-w-6xl animate-fadeIn">
-                    <h2 className="text-center text-3xl font-bold text-slate-800 mb-8">VUI LÒNG CHỌN KHOA / KHU VỰC</h2>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                        {departments.map(dept => (
-                            <button 
-                                key={dept.id}
-                                onClick={() => { setSelectedDept(dept); setStep(2); }}
-                                className="bg-white hover:bg-blue-600 hover:-translate-y-1 hover:shadow-xl transition-all p-8 rounded-3xl border border-slate-200 flex flex-col items-center justify-center gap-6 group h-72 shadow-sm"
-                            >
-                                <div className="w-24 h-24 rounded-full bg-blue-50 flex items-center justify-center group-hover:bg-white text-blue-600 transition-colors">
-                                    <span className="text-3xl font-bold">{dept.codePrefix || dept.id.substring(0,2)}</span>
-                                </div>
-                                <h3 className="text-xl font-bold text-center uppercase text-slate-700 group-hover:text-white leading-tight">{dept.name}</h3>
-                            </button>
-                        ))}
+                <div className="flex flex-col items-center gap-10">
+                   {/* QR SCAN ANIMATION AREA */}
+                   <div className="relative h-64 w-64 bg-black/40 rounded-3xl border-2 border-emerald-500/30 flex items-center justify-center overflow-hidden">
+                      <Scan size={120} className="text-emerald-500/50" />
+                      <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/20 to-transparent h-1/2 animate-scan"></div>
+                      <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-emerald-500"></div>
+                      <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-emerald-500"></div>
+                      <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-emerald-500"></div>
+                      <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-emerald-500"></div>
+                   </div>
+
+                   <div className="w-full flex items-center gap-4">
+                      <input 
+                        type="text" 
+                        value={searchId}
+                        onChange={(e) => setSearchId(e.target.value)}
+                        placeholder="Nhập mã số tại đây..."
+                        className="flex-1 h-24 bg-white/10 border border-white/20 rounded-3xl px-10 text-4xl font-black focus:outline-none focus:border-blue-500 text-center placeholder:text-white/10"
+                        autoFocus
+                      />
+                      <button 
+                        onClick={() => handleIdentifyPatient()}
+                        disabled={loading || !searchId}
+                        className="h-24 w-24 bg-blue-600 rounded-3xl flex items-center justify-center hover:bg-blue-500 transition-colors disabled:bg-white/5"
+                      >
+                        {loading ? <div className="h-10 w-10 border-4 border-white/20 border-t-white rounded-full animate-spin"></div> : <ChevronRight size={48} />}
+                      </button>
+                   </div>
+                </div>
+
+                <div className="flex justify-center gap-4">
+                   <span className="px-6 py-3 bg-white/5 rounded-full text-sm font-bold text-white/40 uppercase tracking-widest border border-white/5 flex items-center gap-2">
+                     <CreditCard size={16} /> Quét thẻ BHYT
+                   </span>
+                   <span className="px-6 py-3 bg-white/5 rounded-full text-sm font-bold text-white/40 uppercase tracking-widest border border-white/5 flex items-center gap-2">
+                     <User size={16} /> CCCD / Mã BN
+                   </span>
+                </div>
+             </div>
+          </div>
+        )}
+
+        {/* STEP 3: DEPARTMENT SELECTION (For Registration) */}
+        {step === 'DEPARTMENT_SELECTION' && (
+          <div className="h-full flex flex-col items-center space-y-10 animate-in slide-in-from-right duration-500">
+             <div className="text-center space-y-2">
+                <h2 className="text-4xl font-black uppercase tracking-tighter">Chọn chuyên khoa khám</h2>
+                <p className="text-white/50 font-bold uppercase tracking-[0.2em] text-xs">Chào bạn: <span className="text-blue-400">{patientData?.name}</span></p>
+             </div>
+
+             <div className="grid grid-cols-3 gap-6 w-full max-w-6xl overflow-y-auto pr-4 custom-scrollbar">
+                {[
+                  { code: 'NOI', name: 'KHOA NỘI TỔNG QUÁT', icon: <Heart size={24} />, color: 'from-blue-500/20 to-blue-600/10' },
+                  { code: 'NGOAI', name: 'KHOA NGOẠI TỔNG QUÁT', icon: <Activity size={24} />, color: 'from-orange-500/20 to-orange-600/10' },
+                  { code: 'NHI', name: 'KHOA NHI', icon: <Baby size={24} />, color: 'from-pink-500/20 to-pink-600/10' },
+                  { code: 'SAN', name: 'KHOA PHỤ SẢN', icon: <Activity size={24} />, color: 'from-purple-500/20 to-purple-600/10' },
+                  { code: 'RHM', name: 'RĂNG HÀM MẶT', icon: <Activity size={24} />, color: 'from-emerald-500/20 to-emerald-600/10' },
+                  { code: 'TMH', name: 'TAI MŨI HỌNG', icon: <Activity size={24} />, color: 'from-cyan-500/20 to-cyan-600/10' },
+                  { code: 'MAT', name: 'KHOA MẮT', icon: <Activity size={24} />, color: 'from-indigo-500/20 to-indigo-600/10' },
+                  { code: 'DL', name: 'DA LIỄU', icon: <Activity size={24} />, color: 'from-rose-500/20 to-rose-600/10' },
+                  { code: 'YHCT', name: 'Y HỌC CỔ TRUYỀN', icon: <Activity size={24} />, color: 'from-amber-500/20 to-amber-600/10' }
+                ].map((dept) => (
+                  <button
+                    key={dept.code}
+                    onClick={() => handlePrintTicket(dept.code)}
+                    className={`h-40 bg-gradient-to-br ${dept.color} border border-white/10 rounded-[2.5rem] p-8 flex flex-col justify-between hover:border-white/40 transition-all hover:-translate-y-1 active:scale-95 text-left`}
+                  >
+                    <div className="h-12 w-12 bg-white/10 rounded-2xl flex items-center justify-center">
+                      {dept.icon}
                     </div>
+                    <h4 className="text-xl font-black leading-tight uppercase">{dept.name}</h4>
+                  </button>
+                ))}
+             </div>
+          </div>
+        )}
+
+        {/* STEP 4: PRINTING / PROCESSING */}
+        {step === 'PRINTING' && (
+          <div className="h-full flex flex-col items-center justify-center space-y-12">
+             <div className="relative">
+                <div className="h-48 w-48 border-[12px] border-white/5 border-t-blue-600 rounded-full animate-spin"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                   <Printer size={64} className="text-blue-600 animate-pulse" />
                 </div>
-            )}
+             </div>
+             <div className="text-center space-y-4">
+                <h2 className="text-5xl font-black uppercase tracking-tighter animate-pulse">{printStatus}</h2>
+                <p className="text-xl text-white/40 font-medium">Vui lòng chờ trong giây lát...</p>
+             </div>
+          </div>
+        )}
 
-            {step === 2 && selectedDept && (
-                <div className="w-full max-w-4xl">
-                    <button onClick={resetAll} className="mb-8 flex items-center gap-2 text-slate-500 hover:text-blue-600 font-bold bg-white px-4 py-2 rounded-full shadow-sm border border-slate-200">
-                        ← Quay lại chọn Khoa
-                    </button>
-                    
-                    <div className="bg-white border border-slate-200 rounded-3xl p-10 shadow-2xl relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-2 bg-blue-600"></div>
-                        <h2 className="text-4xl font-black text-center mb-2 text-slate-800 uppercase">
-                            {selectedDept.name}
-                        </h2>
-                        <p className="text-center text-slate-500 mb-10 text-lg">Vui lòng quét thẻ BHYT hoặc nhập mã hồ sơ để tiếp tục</p>
+        {/* STEP 5: SUCCESS */}
+        {step === 'SUCCESS' && (
+          <div className="h-full flex flex-col items-center justify-center space-y-12 animate-in zoom-in duration-500">
+             <div className="h-40 w-40 bg-emerald-500 rounded-full flex items-center justify-center shadow-[0_0_80px_rgba(16,185,129,0.4)]">
+                <Printer size={80} className="text-white" />
+             </div>
+             
+             <div className="text-center space-y-6">
+                <h2 className="text-6xl font-black uppercase tracking-tighter">Lấy số thành công!</h2>
+                <p className="text-2xl text-emerald-400 font-black uppercase tracking-widest">Vui lòng nhận phiếu tại khe máy in</p>
+             </div>
 
-                        <div className="mb-8">
-                            <form onSubmit={handleScan} className="relative max-w-2xl mx-auto">
-                                <input 
-                                    ref={inputRef}
-                                    type="text" 
-                                    value={patientCode}
-                                    onChange={e => setPatientCode(e.target.value)}
-                                    placeholder="Quét mã tại đây..."
-                                    className="w-full bg-slate-50 border-2 border-slate-300 rounded-2xl py-6 pl-8 pr-16 text-4xl text-slate-800 focus:border-blue-500 outline-none text-center font-mono font-bold tracking-widest shadow-inner transition-all placeholder:text-slate-300"
-                                    disabled={!!scannedProfile}
-                                />
-                                {scannedProfile && (
-                                    <button type="button" onClick={handleClearScan} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 p-2">✕</button>
-                                )}
-                            </form>
+             {lastTicket && (
+               <div className="w-full max-w-md bg-white text-slate-900 rounded-3xl p-10 shadow-2xl space-y-6">
+                  <div className="text-center border-b-2 border-dashed border-slate-200 pb-6">
+                     <p className="font-bold text-slate-400 text-sm uppercase tracking-widest mb-1">{settings.hospitalName}</p>
+                     <h3 className="text-6xl font-black tracking-tighter text-blue-600">{lastTicket.ticketNumber}</h3>
+                  </div>
+                  <div className="space-y-4 font-bold uppercase text-xs">
+                     <div className="flex justify-between items-center text-slate-400">
+                        <span>Bệnh nhân:</span>
+                        <span className="text-slate-900">{lastTicket.patientName}</span>
+                     </div>
+                     <div className="flex justify-between items-center text-slate-400">
+                        <span>Dịch vụ:</span>
+                        <span className="text-slate-900">{ticketType === 'RECEPTION' ? 'Tiếp đón' : ticketType === 'REGISTRATION' ? 'Khám bệnh' : ticketType === 'EXECUTION' ? 'Cận lâm sàng' : ticketType === 'SAMPLING' ? 'Lấy mẫu XN' : ticketType === 'PAYMENT' ? 'Thanh toán' : ticketType === 'DRUG' ? 'Lĩnh thuốc' : 'Dịch vụ'}</span>
+                     </div>
+                     <div className="flex justify-between items-center text-slate-400">
+                        <span>Phòng:</span>
+                        <span className="text-slate-900">{lastTicket.roomname || 'Chờ điều phối'}</span>
+                     </div>
+                  </div>
+                  <div className="pt-6 border-t-2 border-dashed border-slate-200 text-center">
+                     <p className="text-[10px] text-slate-400 font-black tracking-widest mb-4">MỜI QUÝ KHÁCH ĐẾN PHÒNG CHỜ VÀ THEO DÕI MÀN HÌNH</p>
+                     <div className="h-20 w-full bg-slate-100 rounded-xl flex items-center justify-center opacity-30">
+                        <Scan size={40} className="text-slate-400" />
+                     </div>
+                  </div>
+               </div>
+             )}
 
-                            {!scannedProfile && (
-                                <div className="mt-8 max-w-lg mx-auto bg-slate-50 p-6 rounded-3xl border border-slate-200 shadow-sm animate-fadeIn">
-                                    <div className="grid grid-cols-3 gap-4">
-                                        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-                                            <button key={num} onClick={() => setPatientCode(prev => prev + num)} className="bg-white hover:bg-blue-50 text-slate-800 text-3xl font-bold py-6 rounded-2xl shadow-sm border border-slate-200 active:scale-95 transition-transform">
-                                                {num}
-                                            </button>
-                                        ))}
-                                        <button onClick={() => setPatientCode(prev => prev.slice(0, -1))} className="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xl font-bold py-6 rounded-2xl shadow-sm active:scale-95 transition-transform flex items-center justify-center">
-                                            ⌫ XÓA
-                                        </button>
-                                        <button onClick={() => setPatientCode(prev => prev + '0')} className="bg-white hover:bg-blue-50 text-slate-800 text-3xl font-bold py-6 rounded-2xl shadow-sm border border-slate-200 active:scale-95 transition-transform">
-                                            0
-                                        </button>
-                                        <button onClick={() => handleScan()} className="bg-blue-600 hover:bg-blue-700 text-white text-xl font-bold py-6 rounded-2xl shadow-md active:scale-95 transition-transform flex items-center justify-center">
-                                            GỬI ➜
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
+             <p className="text-white/20 font-bold uppercase tracking-widest text-xs">Màn hình sẽ tự động đóng sau 5 giây</p>
+          </div>
+        )}
 
-                            {scannedProfile && (
-                                <div className="mt-8 bg-blue-50 rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between text-slate-900 border border-blue-100 shadow-sm animate-fadeIn">
-                                    <div className="flex items-center gap-6 mb-6 md:mb-0">
-                                        <div className="w-20 h-20 bg-white text-blue-600 rounded-full flex items-center justify-center font-black text-3xl shadow-md">
-                                            {scannedProfile.name.charAt(0)}
-                                        </div>
-                                        <div>
-                                            <div className="font-black text-2xl uppercase text-blue-900">{scannedProfile.name}</div>
-                                            <div className="text-slate-600 font-medium text-lg mt-1">Năm sinh: <strong>{scannedProfile.birthYear}</strong> • {scannedProfile.address}</div>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col items-end gap-3 w-full md:w-auto">
-                                        {checkPriorityEligible() && (
-                                            <div className="bg-amber-100 text-amber-700 border border-amber-200 font-bold px-4 py-1.5 rounded-full uppercase text-sm">Ưu Tiên</div>
-                                        )}
-                                        <button onClick={confirmScanAndNext} className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-xl shadow-lg transition-transform active:scale-95 text-lg">Tiếp Tục →</button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
+      </main>
 
-            {step === 3 && selectedDept && (
-                <div className="w-full max-w-6xl">
-                    <div className="flex justify-between items-center mb-8 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                        <button onClick={() => setStep(2)} className="flex items-center gap-2 text-slate-500 hover:text-blue-600 font-bold px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors">← Quay lại</button>
-                        <div className="text-slate-800 font-medium text-lg">Xin chào: <span className="font-black uppercase text-blue-600">{scannedProfile?.name}</span></div>
-                    </div>
+      {/* Footer Info */}
+      <footer className="h-20 px-12 border-t border-white/10 flex items-center justify-between bg-black/40">
+        <div className="flex items-center gap-8">
+           <div className="flex items-center gap-3 text-white/40">
+              <Clock size={20} />
+              <span className="text-sm font-black tracking-widest uppercase">{new Date().toLocaleTimeString()}</span>
+           </div>
+           <div className="h-6 w-[1px] bg-white/10"></div>
+           <div className="flex items-center gap-3 text-white/40">
+              <Activity size={20} />
+              <span className="text-sm font-black tracking-widest uppercase">Sync: HIS Online</span>
+           </div>
+        </div>
+        
+        <div className="text-white/20 text-[10px] font-black uppercase tracking-[0.3em]">
+          VIMES QMS Enterprise • Self-Service Kiosk v2.0
+        </div>
+      </footer>
 
-                    <h2 className="text-3xl font-black text-center mb-8 uppercase text-slate-800 tracking-tight">Chọn Dịch Vụ Cần Thực Hiện</h2>
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                        {selectedDept.rooms && selectedDept.rooms.length > 0 ? (
-                            selectedDept.rooms.map(room => (
-                                <button
-                                    key={room.id}
-                                    onClick={() => handleTakeTicket(room.id, room.name)}
-                                    disabled={isPrinting}
-                                    className="bg-white hover:bg-blue-600 p-8 rounded-3xl shadow-sm border border-slate-200 hover:border-blue-600 hover:shadow-xl flex flex-col items-center justify-center gap-6 transition-all duration-300 group min-h-[200px]"
-                                >
-                                    <div className="w-20 h-20 bg-blue-50 rounded-2xl flex items-center justify-center group-hover:bg-white/20 transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-blue-600 group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                                        </svg>
-                                    </div>
-                                    <span className="text-xl font-bold uppercase text-center text-slate-700 group-hover:text-white px-4">{room.name}</span>
-                                </button>
-                            ))
-                        ) : (
-                            <div className="col-span-full text-center text-slate-400 py-16 bg-white rounded-3xl border border-dashed border-slate-300">
-                                <p className="text-lg">Hiện chưa có phòng nào hoạt động.</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {step === 4 && lastTicket && (
-                <div className="flex flex-col items-center justify-center pt-10 w-full max-w-md animate-fadeIn">
-                    <div className="bg-white p-10 rounded-3xl shadow-2xl text-center w-full relative overflow-hidden border border-slate-200">
-                        <div className="absolute top-0 left-0 w-full h-3 bg-green-500"></div>
-                        <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">✓</div>
-                        <h2 className="text-3xl font-black uppercase text-slate-800 mb-2">Đăng Ký Thành Công</h2>
-                        <p className="text-slate-500 mb-8 font-medium">Vui lòng nhận phiếu in</p>
-                        
-                        <div className="bg-slate-50 p-8 rounded-2xl border-2 border-dashed border-slate-300 mb-8">
-                            <div className="text-sm font-bold text-slate-500 uppercase mb-2">{lastTicket.deptName}</div>
-                            <div className="text-xl font-bold text-blue-700 mb-4">{lastTicket.roomName}</div>
-                            <div className="text-7xl font-black text-slate-800">{lastTicket.code}</div>
-                        </div>
-
-                        <button onClick={handlePrintAndFinish} className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-lg shadow-lg">Hoàn Tất & In Phiếu</button>
-                    </div>
-                </div>
-            )}
-        </main>
+      {/* Background Styling */}
+      <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-blue-600/10 rounded-full blur-[120px] -z-10 pointer-events-none translate-x-1/2 -translate-y-1/2"></div>
+      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-emerald-600/5 rounded-full blur-[100px] -z-10 pointer-events-none -translate-x-1/2 translate-y-1/2"></div>
     </div>
   );
 };
+
+export default Kiosk;

@@ -72,7 +72,30 @@ class ConsultationController {
     }
 
     async getRecordDetail(req: Request, res: Response) {
-        return res.json({});
+        try {
+            const { id } = (req as any).params;
+            const docNo = parseInt(id);
+
+            const result = await query(
+                'SELECT hms_get_record_detail_v1($1) as result',
+                [docNo]
+            );
+
+            if (result.rows.length > 0 && result.rows[0].result) {
+                return res.json(result.rows[0].result);
+            }
+            
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Không tìm thấy thông tin phiếu khám' 
+            });
+        } catch (error: any) {
+            console.error('Error fetching record detail:', error);
+            return res.status(500).json({ 
+                success: false, 
+                message: error.message 
+            });
+        }
     }
 
     async savePrescription(req: Request, res: Response) {

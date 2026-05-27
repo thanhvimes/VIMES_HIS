@@ -28,7 +28,7 @@ import {
 import { usePdfPreview } from '../../../contexts/PdfPreviewContext';
 import ImageCaptureModal from './components/ImageCaptureModal';
 import { generateImagingReportPdf } from '../utils/reportGenerator';
-import DocumentTree, { TreeNode } from '../../../components/shared/DocumentTree';
+import DocumentTree, { TreeNode } from '../../../components/ui/DocumentTree';
 
 interface CapturedImage {
     id: string;

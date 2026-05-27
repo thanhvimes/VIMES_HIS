@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { LocationItem } from '../../../services/bookingService';
-import { FormInput, FormDateInput, FormSelect } from '../../../components/shared/forms';
+import { FormInput, FormDateInput, FormSelect } from '../../../components/ui/forms';
 
 interface PatientInfoFormProps {
     data: any;

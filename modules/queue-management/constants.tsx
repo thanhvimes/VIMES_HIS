@@ -1,166 +1,119 @@
 
+import { ServiceItem, ServiceType, MedicalRecord } from './types';
+import { NavItemType } from '../../types';
+import { Squares2X2Icon, TvIcon, UserGroupIcon, ComputerDesktopIcon, CogIcon, HeartIcon } from '../../components/Icons';
 import React from 'react';
-import { NavItemType } from '../../types/common';
-import { 
-  Squares2X2Icon, 
-  UserIcon, 
-  ComputerDesktopIcon, 
-  ReceiptTextIcon, 
-  ClockIcon, 
-  AdjustmentsHorizontalIcon,
-} from '../../components/Icons';
-import { Department } from './types';
+
+export const SERVICE_CATALOG: ServiceItem[] = [
+  { id: 'S001', name: 'Khám Nội tổng quát', unit: 'Lần', price: 150000, type: ServiceType.TECHNICAL, description: 'Khám lâm sàng chung' },
+  { id: 'S002', name: 'Chụp X-Quang Ngực thẳng', unit: 'Lần', price: 120000, type: ServiceType.TECHNICAL },
+  { id: 'S003', name: 'Siêu âm ổ bụng tổng quát', unit: 'Lần', price: 200000, type: ServiceType.TECHNICAL },
+  { id: 'S004', name: 'Xét nghiệm công thức máu (24 chỉ số)', unit: 'Lần', price: 90000, type: ServiceType.TECHNICAL },
+  { id: 'S005', name: 'MRI Sọ não', unit: 'Lần', price: 2500000, type: ServiceType.TECHNICAL },
+  { id: 'M001', name: 'Paracetamol 500mg', unit: 'Viên', price: 500, type: ServiceType.MEDICINE },
+  { id: 'M002', name: 'Augmentin 625mg', unit: 'Viên', price: 15000, type: ServiceType.MEDICINE },
+  { id: 'M003', name: 'Nước muối sinh lý 0.9%', unit: 'Chai', price: 10000, type: ServiceType.MEDICINE },
+  { id: 'M004', name: 'Vitamin C 500mg', unit: 'Vỉ', price: 20000, type: ServiceType.MEDICINE },
+];
+
+export const MOCK_RECORDS: MedicalRecord[] = [
+  {
+    id: 'BN123456',
+    patientName: 'NGUYỄN VĂN A',
+    gender: 'Nam',
+    identityNumber: '001085000001',
+    dob: '20/05/1985',
+    age: 39,
+    address: 'Số 12, Ngõ 5, Đường Láng, Hà Nội',
+    insuranceCard: 'DN4010123456789',
+    visitDate: '25/10/2023 09:30',
+    department: 'Khoa Nội Hô Hấp',
+    doctorName: 'BS.CKI Lê Thị B',
+    reason: 'Ho khan kéo dài, tức ngực về đêm',
+    diagnosis: 'Viêm phế quản cấp / Theo dõi Trào ngược dạ dày',
+    icd10: 'J20.9 - K21.9',
+    vitals: {
+      pulse: 88,
+      temperature: 37.2,
+      bloodPressure: '120/80',
+      respiratoryRate: 20,
+      weight: 72,
+      height: 175,
+      bmi: 23.5,
+      spo2: 98
+    },
+    labResults: [
+      { category: 'Huyết học', name: 'WBC (Bạch cầu)', value: '12.5', unit: 'G/L', reference_range: '4.0-10.0', is_abnormal: true },
+      { category: 'Huyết học', name: 'RBC (Hồng cầu)', value: '4.8', unit: 'T/L', reference_range: '3.8-5.3', is_abnormal: false },
+      { category: 'Huyết học', name: 'PLT (Tiểu cầu)', value: '250', unit: 'G/L', reference_range: '150-450', is_abnormal: false },
+      { category: 'Sinh hóa', name: 'CRP hs', value: '15.0', unit: 'mg/L', reference_range: '< 5.0', is_abnormal: true },
+      { category: 'Sinh hóa', name: 'AST (GOT)', value: '30', unit: 'U/L', reference_range: '< 37', is_abnormal: false },
+    ],
+    imagingResults: [
+      {
+        name: 'X-Quang Ngực Thẳng',
+        conclusion: 'Hình ảnh dày thành phế quản 2 bên rốn phổi.',
+        description: 'Bóng tim không to. Góc sườn hoành sáng. Không thấy hình ảnh tổn thương nhu mô phổi khu trú.',
+        imageUrl: 'https://prod-images-static.radiopaedia.org/images/53322548/3133971a06733230489b2510258100_big_gallery.jpeg'
+      }
+    ],
+    prescription: [
+      { drug_name: 'Augmentin 1g', quantity: '14', unit: 'Viên', dosage: 'Ngày uống 2 lần, mỗi lần 1 viên', instruction: 'Uống sau ăn no' },
+      { drug_name: 'Acetylcystein 200mg', quantity: '20', unit: 'Gói', dosage: 'Ngày uống 2 lần, mỗi lần 1 gói', instruction: 'Hòa tan vào nước' },
+      { drug_name: 'Esomeprazol 40mg', quantity: '14', unit: 'Viên', dosage: 'Ngày uống 1 lần, mỗi lần 1 viên', instruction: 'Uống trước ăn sáng 30 phút' },
+    ]
+  },
+  {
+    id: 'BN987654',
+    patientName: 'TRẦN THỊ C',
+    gender: 'Nữ',
+    identityNumber: '079155000002',
+    dob: '10/12/1955',
+    age: 68,
+    address: 'P. Thảo Điền, TP. Thủ Đức, TP.HCM',
+    insuranceCard: 'HT2791123456789',
+    visitDate: '26/10/2023 14:15',
+    department: 'Khoa Nội Tiết',
+    doctorName: 'ThS.BS Phạm Văn D',
+    reason: 'Mệt mỏi, khát nước nhiều, sụt cân',
+    diagnosis: 'Đái tháo đường type 2 - Rối loạn lipid máu',
+    icd10: 'E11 - E78',
+    vitals: {
+      pulse: 76,
+      temperature: 36.5,
+      bloodPressure: '135/85',
+      respiratoryRate: 18,
+      weight: 60,
+      height: 155,
+      bmi: 25.0,
+      spo2: 99
+    },
+    labResults: [
+      { category: 'Sinh hóa', name: 'Glucose (Lúc đói)', value: '9.8', unit: 'mmol/L', reference_range: '3.9-6.4', is_abnormal: true },
+      { category: 'Sinh hóa', name: 'HbA1c', value: '7.8', unit: '%', reference_range: '< 6.5', is_abnormal: true },
+      { category: 'Sinh hóa', name: 'Cholesterol TP', value: '6.2', unit: 'mmol/L', reference_range: '< 5.2', is_abnormal: true },
+      { category: 'Sinh hóa', name: 'Triglyceride', value: '2.5', unit: 'mmol/L', reference_range: '< 1.7', is_abnormal: true },
+    ],
+    imagingResults: [],
+    prescription: [
+      { drug_name: 'Glucophage XR 750mg', quantity: '60', unit: 'Viên', dosage: 'Ngày uống 2 viên', instruction: 'Uống sau bữa ăn tối' },
+      { drug_name: 'Atorvastatin 20mg', quantity: '30', unit: 'Viên', dosage: 'Ngày uống 1 viên', instruction: 'Uống buổi tối' },
+    ]
+  }
+];
 
 export const QUEUE_NAV_ITEMS: NavItemType[] = [
-    { 
-        name: 'Trung tâm hàng đợi', 
-        path: '/queue-management', 
-        icon: React.createElement(Squares2X2Icon, { className: "w-5 h-5" }), 
-        iconName: 'Squares2X2Icon',
-        group: 'clinical'
-    },
-    { 
-        name: 'Bàn Bác sĩ', 
-        path: '/queue-management/doctor', 
-        icon: React.createElement(UserIcon, { className: "w-5 h-5" }), 
-        iconName: 'UserIcon',
-        group: 'clinical'
-    },
-    { 
-        name: 'Màn hình hiển thị', 
-        path: '/queue-management/display', 
-        icon: React.createElement(ComputerDesktopIcon, { className: "w-5 h-5" }), 
-        iconName: 'ComputerDesktopIcon',
-        group: 'clinical'
-    },
-    { 
-        name: 'Màn hình tổng', 
-        path: '/queue-management/central-display', 
-        icon: React.createElement(Squares2X2Icon, { className: "w-5 h-5" }), 
-        iconName: 'Squares2X2Icon',
-        group: 'clinical'
-    },
-    { 
-        name: 'Kiosk lấy số', 
-        path: '/queue-management/kiosk', 
-        icon: React.createElement(ReceiptTextIcon, { className: "w-5 h-5" }), 
-        iconName: 'ReceiptTextIcon',
-        group: 'support'
-    },
-    { 
-        name: 'Hẹn lịch khám', 
-        path: '/queue-management/appointments', 
-        icon: React.createElement(ClockIcon, { className: "w-5 h-5" }), 
-        iconName: 'ClockIcon',
-        group: 'support'
-    },
-    { 
-        name: 'Cài đặt', 
-        path: '/queue-management/settings', 
-        icon: React.createElement(AdjustmentsHorizontalIcon, { className: "w-5 h-5" }), 
-        iconName: 'AdjustmentsHorizontalIcon',
-        group: 'admin'
-    },
-];
+  { name: 'Bảng điều khiển', path: '/queue-management', icon: React.createElement(Squares2X2Icon, { className: "w-5 h-5" }), iconName: 'Squares2X2Icon' },
+  
+  // Nhóm THIẾT BỊ ĐẦU CUỐI
+  { name: 'Máy lấy số (Kiosk)', path: '/queue-management/kiosk', icon: React.createElement(ComputerDesktopIcon, { className: "w-5 h-5" }), section: 'THIẾT BỊ ĐẦU CUỐI', iconName: 'ComputerDesktopIcon' },
+  { name: 'Bảng hiển thị quầy', path: '/queue-management/display', icon: React.createElement(TvIcon, { className: "w-5 h-5" }), section: 'THIẾT BỊ ĐẦU CUỐI', iconName: 'TvIcon' },
+  { name: 'Bảng sảnh trung tâm', path: '/queue-management/central', icon: React.createElement(TvIcon, { className: "w-5 h-5" }), section: 'THIẾT BỊ ĐẦU CUỐI', iconName: 'TvIcon' },
+  { name: 'Bảng phòng mổ', path: '/queue-management/surgery', icon: React.createElement(HeartIcon, { className: "w-5 h-5" }), section: 'THIẾT BỊ ĐẦU CUỐI', iconName: 'HeartIcon' },
 
-export const DEFAULT_ADS = [
-  {
-    id: 'def-1',
-    title: 'Khám Sức Khỏe Định Kỳ',
-    subtitle: 'Bảo vệ sức khỏe cho bạn và gia đình',
-    desc: 'Gói khám tổng quát giảm giá 20% cho người cao tuổi. Đăng ký ngay tại quầy lễ tân để được tư vấn chi tiết.',
-    bg: 'bg-gradient-to-br from-blue-600 to-indigo-800',
-    icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-20 w-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
-  },
-  {
-    id: 'def-2',
-    title: 'Giữ Gìn Vệ Sinh Chung',
-    subtitle: 'Vì một môi trường bệnh viện sạch đẹp',
-    desc: 'Vui lòng không hút thuốc, vứt rác đúng nơi quy định và giữ trật tự trong khu vực chờ khám.',
-    bg: 'bg-gradient-to-br from-emerald-600 to-teal-800',
-    icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-20 w-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-  },
-  {
-    id: 'def-3',
-    title: 'Tải Ứng Dụng Đặt Lịch',
-    subtitle: 'Không cần xếp hàng, lấy số tại nhà',
-    desc: 'Quét mã QR tại quầy để tải ứng dụng. Đặt lịch khám, xem kết quả xét nghiệm trực tuyến tiện lợi.',
-    bg: 'bg-gradient-to-br from-purple-600 to-fuchsia-800',
-    icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-20 w-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-  }
-];
+  // Nhóm PHỤC VỤ & GỌI SỐ
+  { name: 'Bàn gọi số bác sĩ', path: '/queue-management/operator', icon: React.createElement(UserGroupIcon, { className: "w-5 h-5" }), section: 'PHỤC VỤ & GỌI SỐ', iconName: 'UserGroupIcon' },
 
-export const DEPARTMENTS: Department[] = [
-  {
-    id: 'TN',
-    name: 'Khu Tiếp Đón',
-    type: 'RECEPTION',
-    codePrefix: 'TN',
-    image: 'https://images.unsplash.com/photo-1516387938699-a93567ec168e?auto=format&fit=crop&q=80&w=300',
-    rooms: [
-        { id: 'TN01', name: 'Quầy 01 - Tiếp Đón' },
-        { id: 'TN02', name: 'Quầy 02 - Tiếp Đón BHYT' },
-    ]
-  },
-  {
-    id: 'KKB',
-    name: 'Khoa Khám Bệnh',
-    type: 'CLINIC',
-    codePrefix: 'K',
-    image: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=300',
-    rooms: [
-      { id: 'P101', name: 'P.101 - Khám Nội Tổng Quát' },
-      { id: 'P102', name: 'P.102 - Khám Tiêu Hóa' },
-      { id: 'P103', name: 'P.103 - Khám Tim Mạch' },
-      { id: 'P104', name: 'P.104 - Khám Hô Hấp' },
-    ]
-  },
-  {
-    id: 'CDHA',
-    name: 'Chẩn Đoán Hình Ảnh',
-    type: 'IMAGING',
-    codePrefix: 'HA',
-    image: 'https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&q=80&w=300',
-    rooms: [
-      { id: 'XQ01', name: 'Phòng X-Quang 1' },
-      { id: 'SA01', name: 'Phòng Siêu Âm 1' },
-      { id: 'CT01', name: 'Phòng CT-Scanner' },
-      { id: 'MRI1', name: 'Phòng MRI' },
-    ]
-  },
-  {
-    id: 'XN',
-    name: 'Khoa Xét Nghiệm',
-    type: 'LAB',
-    codePrefix: 'XN',
-    image: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?auto=format&fit=crop&q=80&w=300',
-    rooms: [
-      { id: 'LM01', name: 'Phòng Lấy Mẫu Máu' },
-      { id: 'LM02', name: 'Phòng Lấy Mẫu Nước Tiểu' },
-    ]
-  },
-  {
-    id: 'TC',
-    name: 'Tài Chính & Dược',
-    type: 'PHARMACY',
-    codePrefix: 'DP',
-    image: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&q=80&w=300',
-    rooms: [
-        { id: 'HP01', name: 'Quầy 03 - Thu Viện Phí' },
-        { id: 'BHYT', name: 'Quầy 04 - Duyệt BHYT' },
-        { id: 'DUOC', name: 'Quầy 05 - Cấp Phát Thuốc' },
-    ]
-  },
-  {
-    id: 'PT',
-    name: 'Khu Phẫu Thuật',
-    type: 'SURGERY',
-    codePrefix: 'PT',
-    image: 'https://images.unsplash.com/photo-1551076805-e1869033e561?auto=format&fit=crop&q=80&w=300',
-    rooms: [
-      { id: 'GMHS', name: 'Phòng Hồi Tỉnh (Recovery)' },
-      { id: 'PM01', name: 'Phòng Mổ Số 1 (OR 1)' },
-      { id: 'PM02', name: 'Phòng Mổ Số 2 (OR 2)' },
-    ]
-  }
+  // Cấu hình
+  { name: 'Cấu hình hệ thống QMS', path: '/queue-management/settings', icon: React.createElement(CogIcon, { className: "w-5 h-5" }), section: 'CẤU HÌNH', iconName: 'CogIcon' }
 ];

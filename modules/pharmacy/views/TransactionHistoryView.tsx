@@ -8,7 +8,7 @@ import {
     DocumentTextIcon, ChevronDownIcon
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { FormDateInput } from '../../../components/shared/forms';
+import { FormDateInput } from '../../../components/ui/forms';
 import { mockVouchers, mockWarehouses } from '../data';
 import { formatCurrency, formatDate } from '../../../utils/formatters';
 

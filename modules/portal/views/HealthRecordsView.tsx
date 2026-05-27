@@ -4,7 +4,7 @@ import { portalService } from '../../../services/portalService';
 import { DetailedHistoryRecord } from '../../../types/clinical';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRightIcon, PillIcon, BeakerIcon, FileMedicalIcon, ActivityIcon, PrinterIcon, ImageIcon } from '../icons';
-import PdfPreviewModal from '../../../components/shared/PdfPreviewModal';
+import PdfPreviewModal from '../../../components/ui/PdfPreviewModal';
 
 const HealthRecordsView: React.FC = () => {
     const navigate = useNavigate();

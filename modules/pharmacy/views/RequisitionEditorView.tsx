@@ -10,7 +10,7 @@ import {
 import { useTheme } from '../../../contexts/ThemeContext';
 import { mockRequisitions, mockWarehouses } from '../data';
 import { formatCurrency } from '../../../utils/formatters';
-import Combobox, { ComboboxColumn } from '../../../components/shared/Combobox';
+import Combobox, { ComboboxColumn } from '../../../components/ui/Combobox';
 import { drugList } from '../../consultation/data/catalogs';
 import { DrugItem } from '../../../types';
 

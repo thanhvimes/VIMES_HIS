@@ -1,62 +1,85 @@
+import React, { useState, useEffect } from 'react';
+import DashboardOverview from '../admin/DashboardOverview';
+import ZoningSettings from '../admin/ZoningSettings';
+import { 
+  Settings, 
+  Database, 
+  MapPin, 
+  Layout, 
+  Printer, 
+  Volume2, 
+  ShieldCheck, 
+  Activity,
+  Plus,
+  Trash2,
+  Save,
+  ChevronRight,
+  Monitor,
+  Smartphone,
+  Globe,
+  Lock,
+  Search,
+  CheckCircle2,
+  XCircle,
+  MoreVertical,
+  BarChart
+} from 'lucide-react';
+import { apiFetch } from '../services/apiService';
+import { AppSettings } from '../types';
+import { DISPLAY_TEMPLATES, DisplayTemplate } from '../services/displayTemplates';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { useQueue } from '../context/QueueContext';
-import { Room } from '../types';
-import { DEPARTMENTS } from '../constants';
-import { DISPLAY_TEMPLATES, TEMPLATE_STORAGE_KEY, DisplayTemplate } from '../data/displayTemplates';
-
-interface SettingsProps {
+interface AdminConfigProps {
+  settings: AppSettings;
+  onSave: (s: AppSettings) => void;
   onBack: () => void;
-  onRoomChange: (id: string) => void;
 }
 
-/* ── Mini preview card minh họa màn hình ── */
 const TemplatePreviewCard: React.FC<{ template: DisplayTemplate; isSelected: boolean }> = ({ template, isSelected }) => {
   const p = template.preview || { bg: '#000', headerBg: '#111', accent: '#3b82f6', text: '#fff', subText: '#999', rowEven: '#222', rowOdd: '#111', tickerBg: '#050505', tickerText: '#fff', border: '#333' };
   
   return (
     <div
-      className="rounded-xl overflow-hidden transition-all duration-300 cursor-pointer"
+      className="rounded-[2rem] overflow-hidden border-2 transition-all duration-300 cursor-pointer shadow-sm relative group"
       style={{
         background: p.bg,
-        border: `2px solid ${isSelected ? p.accent : 'rgba(0,0,0,0)'}`,
+        borderColor: isSelected ? p.accent : 'rgba(0,0,0,0.05)',
         boxShadow: isSelected
           ? `0 0 0 2px ${p.accent}40, 0 8px 32px ${p.accent}20`
-          : '0 2px 8px rgba(0,0,0,0.3)',
+          : '0 4px 12px rgba(0,0,0,0.03)',
         transform: isSelected ? 'scale(1.02)' : 'scale(1)',
       }}
     >
       {/* Mini header */}
-      <div className="px-3 py-2 flex items-center justify-between" style={{ background: p.headerBg }}>
+      <div className="px-5 py-3 flex items-center justify-between" style={{ background: p.headerBg }}>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded" style={{ background: p.accent, opacity: 0.8 }} />
-          <div className="h-2 rounded w-16" style={{ background: p.text, opacity: 0.7 }} />
+          <div className="w-3 h-3 rounded" style={{ background: p.accent, opacity: 0.8 }} />
+          <div className="h-1.5 rounded w-12" style={{ background: p.text, opacity: 0.5 }} />
         </div>
-        <div className="text-[8px] font-mono" style={{ color: p.text, opacity: 0.8 }}>17:30</div>
+        <div className="text-[8px] font-mono" style={{ color: p.text, opacity: 0.6 }}>17:30</div>
       </div>
 
       {/* Mini ticker */}
-      <div className="py-1 px-2 flex items-center gap-1 overflow-hidden" style={{ background: p.tickerBg }}>
-        <div className="text-[6px] font-bold px-1 rounded" style={{ background: p.accent + '22', color: p.tickerText }}>TB</div>
-        <div className="h-1.5 rounded flex-1" style={{ background: p.tickerText, opacity: 0.4 }} />
+      <div className="py-1.5 px-3 flex items-center gap-2 overflow-hidden" style={{ background: p.tickerBg }}>
+        <div className="text-[5px] font-bold px-1 rounded" style={{ background: p.accent + '22', color: p.tickerText }}>TB</div>
+        <div className="h-1 rounded flex-1" style={{ background: p.tickerText, opacity: 0.3 }} />
       </div>
 
       {/* Mini body: number + waiting list */}
-      <div className="flex" style={{ height: '68px' }}>
+      <div className="flex" style={{ height: '70px' }}>
         <div className="flex-1 flex items-center justify-center border-r" style={{ borderColor: p.border }}>
-          <span className="font-black font-mono" style={{ fontSize: '18px', color: p.accent, textShadow: `0 0 16px ${p.accent}60` }}>
+          <span className="font-black font-mono" style={{ fontSize: '16px', color: p.accent, textShadow: isSelected ? `0 0 16px ${p.accent}60` : 'none' }}>
             K-007
           </span>
         </div>
         <div className="w-2/5" style={{ background: p.rowOdd }}>
           {['K-008', 'K-009'].map((code, i) => (
-            <div key={code} className="flex items-center gap-1 px-2 py-[3px]"
+            <div key={code} className="flex items-center gap-1 px-2.5 py-[5px]"
               style={{
                 background: i % 2 === 0 ? p.rowEven : p.rowOdd,
                 borderLeft: i === 0 ? `2px solid ${p.accent}` : '2px solid transparent',
               }}>
-              <span className="font-mono font-bold text-[8px]" style={{ color: i === 0 ? p.accent : p.subText }}>{code}</span>
-              <div className="h-1 rounded flex-1" style={{ background: p.text, opacity: 0.1 }} />
+              <span className="font-mono font-bold text-[7px]" style={{ color: i === 0 ? p.accent : p.subText }}>{code}</span>
+              <div className="h-0.5 rounded flex-1" style={{ background: p.text, opacity: 0.05 }} />
             </div>
           ))}
         </div>
@@ -65,243 +88,378 @@ const TemplatePreviewCard: React.FC<{ template: DisplayTemplate; isSelected: boo
   );
 };
 
-export const Settings: React.FC<SettingsProps> = ({ onBack, onRoomChange }) => {
-  const { room, updateRoom, roomId } = useQueue();
-  
-  // Use a fallback to ensure room is never null
-  const initialData = useMemo(() => room || { 
-    id: '', code: '', name: '', doctorName: '', description: '', 
-    startTime: '07:00', endTime: '17:00', avgDuration: 15, 
-    maxCapacity: 50, isActive: true, enabledDefaultAds: [] 
-  }, [room]);
+const AdminConfig: React.FC<AdminConfigProps> = ({ settings, onSave, onBack }) => {
+  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'GENERAL' | 'ZONING' | 'DEVICES' | 'SYSTEM' | 'TEMPLATE'>('DASHBOARD');
+  const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
+  const [isSaving, setIsSaving] = useState(false);
+  const [status, setStatus] = useState({ db: 'ONLINE', his: 'ONLINE', license: 'ACTIVE' });
 
-  const [formData, setFormData] = useState<Room>(initialData);
-  const [isSaved, setIsSaved] = useState(false);
-  const [activeTab, setActiveTab] = useState<'general' | 'appearance' | 'voice'>('general');
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(
-    () => localStorage.getItem(TEMPLATE_STORAGE_KEY) || 'airport-dark'
-  );
+  useEffect(() => {
+    setLocalSettings(settings);
+  }, [settings]);
 
-  useEffect(() => { 
-    if (room) setFormData(room); 
-  }, [room]);
-
-  const handleSave = () => {
-    updateRoom(formData);
-    localStorage.setItem(TEMPLATE_STORAGE_KEY, selectedTemplateId);
-    window.dispatchEvent(new CustomEvent('qms-template-change', { detail: selectedTemplateId }));
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2000);
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await onSave(localSettings);
+      alert("Cấu hình đã được cập nhật thành công!");
+    } catch (e) {
+      alert("Lỗi lưu cấu hình.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const TABS = [
-    { id: 'general',    label: '⚙ Cài đặt chung' },
-    { id: 'appearance', label: '🎨 Giao diện' },
-    { id: 'voice',      label: '🔊 Âm thanh & Loa' },
-  ] as const;
-
   return (
-    <div className="h-full bg-white flex flex-col font-sans overflow-hidden">
-      {/* Header */}
-      <header className="bg-white border-b px-6 py-4 flex justify-between items-center shadow-sm z-10">
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className="text-slate-500 hover:text-blue-600 transition-colors font-medium">← Quay lại</button>
-          <h1 className="text-xl font-bold uppercase tracking-tight text-slate-800">Thiết lập Phòng khám</h1>
-        </div>
-        <button
-          onClick={handleSave}
-          className={`px-6 py-2 rounded-lg font-bold text-white transition-all shadow-md active:scale-95 ${isSaved ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700'}`}
-        >
-          {isSaved ? '✓ Đã lưu thành công' : 'Lưu cài đặt'}
-        </button>
+    <div className="h-full w-full bg-[#f8fafc] flex flex-col overflow-hidden font-sans">
+      
+      {/* Premium Header */}
+      <header className="h-20 bg-white border-b border-slate-200 px-8 flex items-center justify-between z-10 shadow-sm">
+         <div className="flex items-center gap-4">
+            <div className="h-10 w-10 bg-blue-600 rounded-xl flex items-center justify-center text-white">
+               <Settings size={20} />
+            </div>
+            <div>
+               <h1 className="text-lg font-black text-slate-900 uppercase tracking-tight">Hệ thống <span className="text-blue-600">QMS Control</span></h1>
+               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cấu hình & Thiết lập tham số</p>
+            </div>
+         </div>
+
+         <div className="flex items-center gap-4">
+            <button 
+              onClick={onBack}
+              className="px-6 py-2 bg-slate-50 text-slate-500 rounded-xl font-black text-[10px] tracking-widest hover:bg-slate-100 transition-all uppercase"
+            >
+               Thoát
+            </button>
+            <button 
+              onClick={handleSave}
+              disabled={isSaving}
+              className="px-8 py-2 bg-blue-600 text-white rounded-xl font-black text-[10px] tracking-widest shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all uppercase flex items-center gap-2"
+            >
+               {isSaving ? <div className="h-3 w-3 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : <Save size={14} />}
+               Lưu thay đổi
+            </button>
+         </div>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar */}
-        <aside className="w-64 bg-slate-50 border-r p-4 space-y-1 flex-shrink-0">
-          {TABS.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-all text-sm ${
-                activeTab === tab.id 
-                    ? 'bg-white text-blue-600 shadow-sm border border-slate-200 font-bold' 
-                    : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </aside>
+         
+         {/* Navigation Sidebar */}
+         <aside className="w-72 bg-white border-r border-slate-200 p-6 flex flex-col gap-2">
+            {[
+               { id: 'DASHBOARD', label: 'Thống kê & Báo cáo', icon: <BarChart size={18} />, color: 'text-blue-600' },
+               { id: 'GENERAL', label: 'Cấu hình chung', icon: <Globe size={18} />, color: 'text-blue-600' },
+               { id: 'ZONING', label: 'Phân vùng & Quầy', icon: <MapPin size={18} />, color: 'text-emerald-600' },
+               { id: 'DEVICES', label: 'Thiết bị & Phụ kiện', icon: <Monitor size={18} />, color: 'text-purple-600' },
+               { id: 'SYSTEM', label: 'Hệ thống & Bảo mật', icon: <Lock size={18} />, color: 'text-rose-600' },
+               { id: 'TEMPLATE', label: 'Template', icon: <Layout size={18} />, color: 'text-amber-600' }
+            ].map((item) => (
+               <button
+                 key={item.id}
+                 onClick={() => setActiveTab(item.id as any)}
+                 className={`flex items-center gap-4 px-5 py-4 rounded-2xl transition-all font-bold text-sm ${activeTab === item.id ? 'bg-blue-50 text-blue-600 shadow-sm border border-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}
+               >
+                  <span className={activeTab === item.id ? 'text-blue-600' : 'text-slate-400'}>{item.icon}</span>
+                  {item.label}
+                  {activeTab === item.id && <ChevronRight size={14} className="ml-auto" />}
+               </button>
+            ))}
 
-        <main className="flex-1 p-8 overflow-y-auto bg-slate-50/30">
-          <div className="max-w-4xl mx-auto space-y-8">
+            <div className="mt-auto p-6 bg-slate-50 rounded-3xl space-y-4">
+               <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Trạng thái hệ thống</h4>
+               <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                     <span className="text-[10px] font-bold text-slate-500 uppercase">Database</span>
+                     <div className="flex items-center gap-1 text-[9px] font-black text-emerald-500 uppercase">
+                        <CheckCircle2 size={10} /> Trực tuyến
+                     </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                     <span className="text-[10px] font-bold text-slate-500 uppercase">HIS Sync</span>
+                     <div className="flex items-center gap-1 text-[9px] font-black text-emerald-500 uppercase">
+                        <CheckCircle2 size={10} /> Kết nối
+                     </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                     <span className="text-[10px] font-bold text-slate-500 uppercase">License</span>
+                     <div className="flex items-center gap-1 text-[9px] font-black text-blue-500 uppercase">
+                        <ShieldCheck size={10} /> Active
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </aside>
 
-            {/* ═══ TAB 1: GENERAL ═══ */}
-            {activeTab === 'general' && (
-              <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
-                <section className="bg-white p-6 rounded-2xl border shadow-sm space-y-4">
-                  <h3 className="font-bold text-slate-800 border-b pb-2 uppercase tracking-wider text-xs">Thông tin nhận diện</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase">Tên phòng chính thức</label>
-                      <input type="text" value={formData.name || ''}
-                        onChange={e => setFormData({...formData, name: e.target.value})}
-                        className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all" />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase">Tên hiển thị (Tùy chọn)</label>
-                      <input type="text" value={formData.customDisplayName || ''}
-                        onChange={e => setFormData({...formData, customDisplayName: e.target.value})}
-                        className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
-                        placeholder="VD: Phòng khám Nội 101" />
-                    </div>
+         {/* Content Area */}
+         <main className="flex-1 overflow-y-auto p-10 custom-scrollbar">
+            
+            {activeTab === 'DASHBOARD' && (
+               <div className="space-y-10 animate-in fade-in duration-500">
+                  <div className="space-y-2">
+                     <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Báo cáo lưu lượng</h2>
+                     <p className="text-slate-400 text-sm">Tổng quan tình hình tiếp đón và phục vụ bệnh nhân toàn hệ thống.</p>
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase">Bác sĩ / Cán bộ phụ trách</label>
-                    <input type="text" value={formData.doctorName || ''}
-                      onChange={e => setFormData({...formData, doctorName: e.target.value})}
-                      className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all" />
-                  </div>
-                </section>
-
-                <section className="bg-white p-6 rounded-2xl border shadow-sm space-y-4">
-                  <h3 className="font-bold text-slate-800 border-b pb-2 uppercase tracking-wider text-xs">Vị trí & Hoạt động</h3>
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase">
-                      ID Phòng hiện tại: <span className="text-blue-600 font-mono">{roomId}</span>
-                    </label>
-                    <select onChange={e => onRoomChange(e.target.value)} value={roomId}
-                      className="w-full border border-slate-200 rounded-xl p-3 bg-slate-50 text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-500/20">
-                      {(DEPARTMENTS || []).map(d => (
-                        <optgroup key={d.id} label={d.name}>
-                          {d.rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                        </optgroup>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                    <div>
-                      <p className="font-bold text-slate-700 text-sm">Cho phép lấy số (Kiosk)</p>
-                      <p className="text-[11px] text-slate-500">Khi tắt, bệnh nhân chỉ có thể được bác sĩ gọi từ danh sách sẵn có.</p>
-                    </div>
-                    <button
-                      onClick={() => setFormData({...formData, isActive: !formData.isActive})}
-                      className={`w-14 h-8 rounded-full transition-all relative flex-shrink-0 ${formData.isActive ? 'bg-green-500' : 'bg-slate-300'}`}
-                    >
-                      <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-all ${formData.isActive ? 'right-1' : 'left-1'}`} />
-                    </button>
-                  </div>
-                </section>
-              </div>
+                  <DashboardOverview />
+               </div>
             )}
-
-            {/* ═══ TAB 2: APPEARANCE ═══ */}
-            {activeTab === 'appearance' && (
-              <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h2 className="text-xl font-black text-slate-800 tracking-tight">Thư viện giao diện (Template)</h2>
-                    <p className="text-xs text-slate-500 mt-1">Chọn mẫu phù hợp với phong cách của bệnh viện.</p>
+            
+            {activeTab === 'GENERAL' && (
+               <div className="max-w-4xl space-y-10 animate-in fade-in duration-500">
+                  <div className="space-y-2">
+                     <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Thông tin bệnh viện</h2>
+                     <p className="text-slate-400 text-sm">Cấu hình thông tin cơ bản hiển thị trên các màn hình và phiếu in.</p>
                   </div>
-                  <div className="px-3 py-1 bg-amber-50 border border-amber-200 rounded-lg text-[10px] font-bold text-amber-700 uppercase">
-                    Beta: Template v2.0
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-3 gap-6">
-                  {DISPLAY_TEMPLATES.map(t => {
-                    const isSel = t.id === selectedTemplateId;
-                    return (
-                      <div
-                        key={t.id}
-                        className="flex flex-col group"
-                        onClick={() => setSelectedTemplateId(t.id)}
-                      >
-                        <TemplatePreviewCard template={t} isSelected={isSel} />
-                        <div className="mt-3">
-                          <div className="flex items-center gap-2">
-                             <span className="font-bold text-slate-800 text-sm">{t.name}</span>
-                             {isSel && <span className="w-2 h-2 rounded-full bg-blue-500" />}
-                          </div>
-                          <p className="text-[10px] text-slate-500 leading-tight mt-1">{t.description}</p>
+                  <div className="grid grid-cols-2 gap-8">
+                     <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tên bệnh viện</label>
+                        <input 
+                           type="text" 
+                           value={localSettings.hospitalName}
+                           onChange={(e) => setLocalSettings({...localSettings, hospitalName: e.target.value})}
+                           className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-6 font-bold text-slate-700 focus:outline-none focus:border-blue-500 shadow-sm"
+                        />
+                     </div>
+                     <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Hotline CSKH</label>
+                        <input 
+                           type="text" 
+                           value={localSettings.hotline}
+                           onChange={(e) => setLocalSettings({...localSettings, hotline: e.target.value})}
+                           className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-6 font-bold text-slate-700 focus:outline-none focus:border-blue-500 shadow-sm"
+                        />
+                     </div>
+                     <div className="col-span-2 space-y-3">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Mẫu gọi số (Template)</label>
+                        <textarea 
+                           rows={3}
+                           value={localSettings.callingTemplate}
+                           onChange={(e) => setLocalSettings({...localSettings, callingTemplate: e.target.value})}
+                           className="w-full bg-white border border-slate-200 rounded-2xl p-6 font-bold text-slate-700 focus:outline-none focus:border-blue-500 shadow-sm"
+                           placeholder="Mời bệnh nhân {name}, số {ticket}, đến {counter}"
+                        />
+                     </div>
+                  </div>
+
+                  <div className="pt-10 border-t border-slate-200 grid grid-cols-2 gap-12">
+                     <div className="space-y-6">
+                        <div className="flex items-center gap-3">
+                           <Printer size={20} className="text-slate-400" />
+                           <h3 className="font-black text-slate-900 uppercase text-sm">Cấu hình in ấn</h3>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <section className="bg-white p-6 rounded-2xl border shadow-sm">
-                  <h3 className="font-bold text-slate-800 border-b pb-2 uppercase tracking-wider text-xs mb-4">
-                    Nội dung thông báo chạy ngang (Marquee)
-                  </h3>
-                  <textarea
-                    value={formData.marqueeMessage || ''}
-                    onChange={e => setFormData({...formData, marqueeMessage: e.target.value})}
-                    placeholder="VD: Kính mời quý bệnh nhân giữ trật tự tại phòng chờ..."
-                    className="w-full border border-slate-200 rounded-xl p-4 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none resize-none hide-scrollbar"
-                    rows={3}
-                  />
-                  <p className="mt-2 text-[10px] text-slate-400 italic">Mẹo: Sử dụng dấu chấm tròn (•) hoặc gạch đứng (|) để ngăn cách các câu thông báo.</p>
-                </section>
-              </div>
+                        <div className="space-y-4">
+                           <div className="flex items-center justify-between p-5 bg-white border border-slate-100 rounded-2xl shadow-sm">
+                              <div>
+                                 <p className="text-xs font-bold text-slate-700">Tự động in phiếu</p>
+                                 <p className="text-[10px] text-slate-400">Máy in sẽ tự hoạt động sau khi cấp số</p>
+                              </div>
+                              <input type="checkbox" className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" defaultChecked />
+                           </div>
+                           <div className="flex items-center justify-between p-5 bg-white border border-slate-100 rounded-2xl shadow-sm opacity-50">
+                              <div>
+                                 <p className="text-xs font-bold text-slate-700">In mã QR theo dõi</p>
+                                 <p className="text-[10px] text-slate-400">Tích hợp link theo dõi hàng đợi trên Mobile</p>
+                              </div>
+                              <input type="checkbox" className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" defaultChecked />
+                           </div>
+                        </div>
+                     </div>
+                     
+                     <div className="space-y-6">
+                        <div className="flex items-center gap-3">
+                           <Volume2 size={20} className="text-slate-400" />
+                           <h3 className="font-black text-slate-900 uppercase text-sm">Âm thanh & Thông báo</h3>
+                        </div>
+                        <div className="space-y-4">
+                           <div className="flex items-center justify-between p-5 bg-white border border-slate-100 rounded-2xl shadow-sm">
+                              <div>
+                                 <p className="text-xs font-bold text-slate-700">Giọng nói AI (TTS)</p>
+                                 <p className="text-[10px] text-slate-400">Sử dụng công nghệ Text-to-Speech tự động</p>
+                              </div>
+                              <input type="checkbox" className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" defaultChecked />
+                           </div>
+                           <div className="flex items-center justify-between p-5 bg-white border border-slate-100 rounded-2xl shadow-sm">
+                              <div>
+                                 <p className="text-xs font-bold text-slate-700">Âm báo 'Ping-Pong'</p>
+                                 <p className="text-[10px] text-slate-400">Phát âm báo trước khi đọc số</p>
+                              </div>
+                              <input type="checkbox" className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" defaultChecked />
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
             )}
 
-            {/* ═══ TAB 3: VOICE ═══ */}
-            {activeTab === 'voice' && (
-              <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-6">
-                <section className="bg-white p-6 rounded-2xl border shadow-sm space-y-6">
-                  <h3 className="font-bold text-slate-800 border-b pb-2 uppercase tracking-wider text-xs">Phát thanh gọi số</h3>
-                  
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase">Công nghệ giọng nói</label>
-                    <div className="grid grid-cols-2 gap-3">
-                        <button 
-                            onClick={() => setFormData({...formData, voiceConfig: {...(formData.voiceConfig || {} as any), source: 'GEMINI_AI'}})}
-                            className={`p-4 rounded-xl border text-left transition-all ${formData.voiceConfig?.source === 'GEMINI_AI' ? 'border-blue-500 bg-blue-50/50' : 'border-slate-200 hover:border-slate-300'}`}
-                        >
-                            <div className="font-bold text-sm mb-1">Gemini AI Engine</div>
-                            <div className="text-[10px] text-slate-500">Giọng nói tự nhiên, mượt mà (Yêu cầu Internet).</div>
-                        </button>
-                        <button 
-                            onClick={() => setFormData({...formData, voiceConfig: {...(formData.voiceConfig || {} as any), source: 'BROWSER_TTS'}})}
-                            className={`p-4 rounded-xl border text-left transition-all ${formData.voiceConfig?.source === 'BROWSER_TTS' ? 'border-blue-500 bg-blue-50/50' : 'border-slate-200 hover:border-slate-300'}`}
-                        >
-                            <div className="font-bold text-sm mb-1">Browser Native</div>
-                            <div className="text-[10px] text-slate-500">Giọng đọc hệ thống sẵn có (Hoạt động offline).</div>
-                        </button>
-                    </div>
+            {activeTab === 'ZONING' && <ZoningSettings settings={localSettings} />}
+
+            {activeTab === 'SYSTEM' && (
+               <div className="max-w-4xl space-y-10 animate-in fade-in duration-500">
+                  <div className="space-y-2">
+                     <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Theo dõi hệ thống</h2>
+                     <p className="text-slate-400 text-sm">Giám sát hiệu năng và tài nguyên máy chủ VIMES QMS.</p>
                   </div>
 
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase">Mẫu câu thông báo</label>
-                    <input 
-                        type="text" 
-                        value={formData.voiceConfig?.fileBasePath || 'Mời bệnh nhân [NAME], STT [CODE], vào [ROOM]'}
-                        onChange={e => setFormData({...formData, voiceConfig: {...(formData.voiceConfig || {} as any), fileBasePath: e.target.value}})}
-                        className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
-                    />
-                    <div className="mt-2 text-[10px] text-slate-400 flex gap-4 font-mono">
-                        <span>[NAME]: Tên</span><span>[CODE]: Số TT</span><span>[ROOM]: Tên phòng</span>
-                    </div>
-                  </div>
+                  <div className="grid grid-cols-2 gap-8">
+                     <div className="bg-slate-900 rounded-[2.5rem] p-10 space-y-8">
+                        <div className="flex items-center justify-between">
+                           <h4 className="text-[10px] font-black text-white/40 uppercase tracking-widest">CPU Usage</h4>
+                           <Activity size={20} className="text-blue-500 animate-pulse" />
+                        </div>
+                        <div className="space-y-4">
+                           <div className="flex items-end gap-2 h-32 items-end">
+                              {[30, 45, 25, 60, 40, 55, 35, 70, 50, 65, 45, 80].map((h, i) => (
+                                 <div key={i} className="flex-1 bg-blue-600/30 rounded-t-lg transition-all" style={{ height: `${h}%` }}>
+                                    <div className="w-full bg-blue-500 rounded-t-lg" style={{ height: `${h*0.7}%` }}></div>
+                                 </div>
+                              ))}
+                           </div>
+                           <div className="flex justify-between items-center text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                              <span>08:00 AM</span>
+                              <span className="text-blue-400">Peak: 82%</span>
+                              <span>10:30 AM</span>
+                           </div>
+                        </div>
+                     </div>
 
-                  <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                     <span className="text-sm font-bold text-slate-700">Tiếng chuông mở đầu (Chime)</span>
-                     <button
-                        onClick={() => setFormData({...formData, voiceConfig: {...(formData.voiceConfig || {} as any), enableChime: !formData.voiceConfig?.enableChime}})}
-                        className={`w-12 h-6 rounded-full transition-all relative ${formData.voiceConfig?.enableChime ? 'bg-blue-600' : 'bg-slate-300'}`}
-                      >
-                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${formData.voiceConfig?.enableChime ? 'right-1' : 'left-1'}`} />
-                      </button>
+                     <div className="space-y-6">
+                        <div className="p-6 bg-white border border-slate-200 rounded-3xl flex items-center justify-between shadow-sm">
+                           <div className="flex items-center gap-4">
+                              <div className="h-12 w-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center">
+                                 <Database size={24} />
+                              </div>
+                              <div>
+                                 <p className="text-sm font-black text-slate-900">PostgreSQL v15</p>
+                                 <p className="text-[10px] font-bold text-emerald-500 uppercase">Đang chạy (85ms latency)</p>
+                              </div>
+                           </div>
+                           <button className="text-blue-600 font-bold text-[10px] uppercase tracking-widest">Logs</button>
+                        </div>
+                        <div className="p-6 bg-white border border-slate-200 rounded-3xl flex items-center justify-between shadow-sm">
+                           <div className="flex items-center gap-4">
+                              <div className="h-12 w-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center">
+                                 <BarChart size={24} />
+                              </div>
+                              <div>
+                                 <p className="text-sm font-black text-slate-900">SSE Stream</p>
+                                 <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">128 Clients Active</p>
+                              </div>
+                           </div>
+                           <button className="text-blue-600 font-bold text-[10px] uppercase tracking-widest">Dọn dẹp</button>
+                        </div>
+                        <div className="p-6 bg-slate-100/50 rounded-3xl flex items-center justify-between opacity-60">
+                           <div className="flex items-center gap-4">
+                              <div className="h-12 w-12 bg-white text-slate-300 rounded-2xl flex items-center justify-center">
+                                 <Lock size={24} />
+                              </div>
+                              <div>
+                                 <p className="text-sm font-bold text-slate-500 tracking-tight">Security Audit</p>
+                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Chưa quét (3 ngày)</p>
+                              </div>
+                           </div>
+                           <button className="px-4 py-1.5 bg-white border border-slate-200 rounded-lg text-[9px] font-black uppercase tracking-widest">Chạy ngay</button>
+                        </div>
+                     </div>
                   </div>
-                </section>
-              </div>
+               </div>
             )}
 
-          </div>
-        </main>
+            {activeTab === 'TEMPLATE' && (
+               <div className="max-w-6xl space-y-10 animate-in fade-in duration-500">
+                  <div className="flex items-start justify-between">
+                     <div className="space-y-2">
+                        <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Thư viện giao diện (Template)</h2>
+                        <p className="text-slate-400 text-sm">Chọn mẫu phù hợp với phong cách và bộ nhận diện thương hiệu của bệnh viện.</p>
+                     </div>
+                     <div className="px-4 py-1.5 bg-amber-50 border border-amber-200 rounded-xl text-[10px] font-black text-amber-700 uppercase tracking-widest">
+                        Beta: Template v2.0
+                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                     {DISPLAY_TEMPLATES.map((t) => {
+                        const isSel = (localSettings.displayTemplateId || 'airport-dark') === t.id;
+                        return (
+                           <div 
+                              key={t.id} 
+                              onClick={() => setLocalSettings({ ...localSettings, displayTemplateId: t.id })}
+                              className="flex flex-col gap-4 group cursor-pointer"
+                           >
+                              <TemplatePreviewCard template={t} isSelected={isSel} />
+                              <div className="px-2 flex flex-col gap-1">
+                                 <div className="flex items-center justify-between">
+                                    <span className="font-black text-slate-800 text-sm">{t.name}</span>
+                                    {isSel && (
+                                       <span className="px-2.5 py-0.5 bg-blue-100 text-blue-700 text-[8px] font-black uppercase rounded-full tracking-wider">
+                                          Đang dùng
+                                       </span>
+                                    )}
+                                 </div>
+                                 <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">{t.description}</p>
+                                 <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                    {(t.tags || []).map((tag) => (
+                                       <span key={tag} className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[8px] font-bold uppercase rounded-md tracking-wider">
+                                          {tag}
+                                       </span>
+                                    ))}
+                                 </div>
+                              </div>
+                           </div>
+                        );
+                     })}
+                  </div>
+
+                  {/* Marquee Ticker Message Option */}
+                  <div className="bg-white border border-slate-200 rounded-[2rem] p-8 space-y-6 shadow-sm">
+                     <div className="space-y-1">
+                        <h3 className="font-black text-slate-900 uppercase text-sm">Nội dung thông báo chạy ngang (Marquee)</h3>
+                        <p className="text-slate-400 text-xs">Tin nhắn chạy ngang bên dưới màn hình Central Display và Standard Display.</p>
+                     </div>
+                     <div className="space-y-4">
+                        <textarea
+                           rows={3}
+                           value={(localSettings.adConfig?.newsTicker || []).join('\n')}
+                           onChange={(e) => {
+                              const lines = e.target.value.split('\n');
+                              setLocalSettings({
+                                 ...localSettings,
+                                 adConfig: {
+                                    ...(localSettings.adConfig || {}),
+                                    newsTicker: lines
+                                 }
+                              });
+                           }}
+                           placeholder="Kính mời quý bệnh nhân giữ trật tự và theo dõi số thứ tự tại phòng chờ...&#10;Chúc quý khách một ngày khám bệnh an lành!..."
+                           className="w-full bg-white border border-slate-200 rounded-2xl p-6 font-bold text-slate-700 focus:outline-none focus:border-blue-500 shadow-sm"
+                        />
+                        <p className="text-[10px] text-slate-400 font-medium">Mẹo: Mỗi dòng văn bản tương ứng với một lượt tin nhắn chạy ngang (Nhấn Enter để thêm tin nhắn mới).</p>
+                     </div>
+                  </div>
+               </div>
+            )}
+
+         </main>
       </div>
+
+      {/* Global CSS for Custom Scrollbar */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(0,0,0,0.05);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(0,0,0,0.1);
+        }
+      ` }} />
     </div>
   );
 };
+
+export default AdminConfig;

@@ -8,8 +8,8 @@ import {
     BanIcon,
     DocumentPlusIcon 
 } from '../../../../../components/Icons';
-import DocumentTree, { TreeNode } from '../../../../../components/shared/DocumentTree';
-import HtmlFormEditor from '../../../../../components/shared/HtmlFormEditor';
+import DocumentTree, { TreeNode } from '../../../../../components/ui/DocumentTree';
+import HtmlFormEditor from '../../../../../components/ui/HtmlFormEditor';
 import { useTheme } from '../../../../../contexts/ThemeContext';
 
 const mockTemplates: TreeNode[] = [

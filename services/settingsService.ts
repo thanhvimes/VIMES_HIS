@@ -3,7 +3,7 @@
 // ==========================================
 // API client for settings management
 
-const API_BASE = '/api/v1/settings';
+import { apiClient } from './apiClient';
 
 export interface Setting {
     key: string;
@@ -21,13 +21,7 @@ export const settingsService = {
      * Get all settings
      */
     async getAllSettings(): Promise<Setting[]> {
-        const response = await fetch(API_BASE);
-        const data = await response.json();
-
-        if (!data.success) {
-            throw new Error(data.error || 'Failed to fetch settings');
-        }
-
+        const data = await apiClient.get<{ success: boolean; data: Setting[] }>('/settings');
         return data.data;
     },
 
@@ -35,13 +29,7 @@ export const settingsService = {
      * Get settings by category
      */
     async getSettingsByCategory(category: string): Promise<Setting[]> {
-        const response = await fetch(`${API_BASE}/category/${category}`);
-        const data = await response.json();
-
-        if (!data.success) {
-            throw new Error(data.error || 'Failed to fetch settings');
-        }
-
+        const data = await apiClient.get<{ success: boolean; data: Setting[] }>(`/settings/category/${category}`);
         return data.data;
     },
 
@@ -49,13 +37,7 @@ export const settingsService = {
      * Get single setting
      */
     async getSetting(key: string): Promise<Setting> {
-        const response = await fetch(`${API_BASE}/${key}`);
-        const data = await response.json();
-
-        if (!data.success) {
-            throw new Error(data.error || 'Failed to fetch setting');
-        }
-
+        const data = await apiClient.get<{ success: boolean; data: Setting }>(`/settings/${key}`);
         return data.data;
     },
 
@@ -63,20 +45,7 @@ export const settingsService = {
      * Update single setting
      */
     async updateSetting(key: string, value: any): Promise<Setting> {
-        const response = await fetch(`${API_BASE}/${key}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ value }),
-        });
-
-        const data = await response.json();
-
-        if (!data.success) {
-            throw new Error(data.error || 'Failed to update setting');
-        }
-
+        const data = await apiClient.put<{ success: boolean; data: Setting }>(`/settings/${key}`, { value });
         return data.data;
     },
 
@@ -84,52 +53,20 @@ export const settingsService = {
      * Update multiple settings
      */
     async updateMultipleSettings(settings: Array<{ key: string; value: any }>): Promise<void> {
-        const response = await fetch(`${API_BASE}/bulk/update`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ settings }),
-        });
-
-        const data = await response.json();
-
-        if (!data.success) {
-            throw new Error(data.error || 'Failed to update settings');
-        }
+        await apiClient.put<any>('/settings/bulk/update', { settings });
     },
 
     /**
      * Reset to defaults
      */
     async resetToDefaults(category?: string): Promise<void> {
-        const response = await fetch(`${API_BASE}/reset`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ category }),
-        });
-
-        const data = await response.json();
-
-        if (!data.success) {
-            throw new Error(data.error || 'Failed to reset settings');
-        }
+        await apiClient.post<any>('/settings/reset', { category });
     },
 
     /**
      * Clear cache
      */
     async clearCache(): Promise<void> {
-        const response = await fetch(`${API_BASE}/cache/clear`, {
-            method: 'POST',
-        });
-
-        const data = await response.json();
-
-        if (!data.success) {
-            throw new Error(data.error || 'Failed to clear cache');
-        }
+        await apiClient.post<any>('/settings/cache/clear', {});
     },
 };

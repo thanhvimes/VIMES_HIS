@@ -9,6 +9,8 @@ import {
 } from '../../components/Icons';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '../../contexts/SessionContext';
+import { useSystemStore } from '../../stores/useSystemStore';
+import { HospitalLogo } from '../../config/branding';
 
 interface LoginProps {
     onLogin: () => void;
@@ -16,6 +18,7 @@ interface LoginProps {
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
     const { login } = useSession();
+    const { hospitalName, systemName, logoUrl } = useSystemStore();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -69,13 +72,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     <div className="space-y-3">
                         <div className="w-12 h-1 bg-white/40 rounded-full mb-8"></div>
                         <h1 className="text-5xl md:text-7xl font-black tracking-tighter uppercase leading-[0.9] drop-shadow-2xl">
-                            BỆNH VIỆN K 
+                            {hospitalName}
                         </h1>
                         <div className="space-y-1">
                             <h2 className="text-xl md:text-2xl font-extrabold tracking-[0.2em] text-teal-200 uppercase">
                                 VIMES HIS
                             </h2>
-                            <p className="text-blue-100/60 font-medium tracking-widest uppercase text-[10px]">Hệ thống Quản lý Bệnh viện thông minh</p>
+                            <p className="text-blue-100/60 font-medium tracking-widest uppercase text-[10px]">{systemName}</p>
                         </div>
                     </div>
                     <p className="text-blue-50/70 text-base md:text-lg leading-relaxed max-w-sm font-light">
@@ -100,11 +103,15 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     <div className="relative z-10">
                         {/* Mobile-only branding */}
                         <div className="flex md:hidden items-center gap-3 mb-4">
-                            <div className="w-9 h-9 bg-[#17424C] rounded-lg flex items-center justify-center shadow-lg">
-                                <HospitalIcon className="w-5 h-5 text-white" />
+                            <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center shadow-lg overflow-hidden p-1">
+                                {logoUrl ? (
+                                    <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                                ) : (
+                                    <HospitalLogo className="w-6 h-6" />
+                                )}
                             </div>
                             <div>
-                                <h1 className="text-sm font-black text-[#17424C] tracking-tight leading-tight">BỆNH VIỆN K</h1>
+                                <h1 className="text-sm font-black text-[#17424C] tracking-tight leading-tight">{hospitalName}</h1>
                                 <p className="text-[8px] font-bold text-teal-600 tracking-[0.15em] uppercase">VIMES HIS</p>
                             </div>
                         </div>

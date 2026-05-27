@@ -122,21 +122,34 @@ class ScheduleController {
 
         const bookedSlots = await this.getBookedSlots(deptId, roomId, date);
 
-        return allSlots.map(slot => {
-            const booked = bookedSlots.find((b: any) => b.time === slot.time);
-            const bookedCount = booked ? parseInt(booked.booked_count) : 0;
-            const available = slot.max - bookedCount;
+        const isToday = new Date(date).toDateString() === new Date().toDateString();
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
 
-            return {
-                time: slot.time,
-                receptNo: slot.receptNo,
-                type: slot.type,
-                available: available,
-                max: slot.max,
-                status: available > 0 ? 'O' : 'F',
-                roomId: roomId
-            };
-        });
+        return allSlots
+            .filter(slot => {
+                if (!isToday) return true;
+                const [slotHour, slotMinute] = slot.time.split(':').map(Number);
+                if (slotHour > currentHour) return true;
+                if (slotHour === currentHour && slotMinute > currentMinute) return true;
+                return false;
+            })
+            .map(slot => {
+                const booked = bookedSlots.find((b: any) => b.time === slot.time);
+                const bookedCount = booked ? parseInt(booked.booked_count) : 0;
+                const available = slot.max - bookedCount;
+
+                return {
+                    time: slot.time,
+                    receptNo: slot.receptNo,
+                    type: slot.type,
+                    available: available,
+                    max: slot.max,
+                    status: available > 0 ? 'O' : 'F',
+                    roomId: roomId
+                };
+            });
     }
 
     // Helper: Merge slots cùng thời gian từ nhiều phòng

@@ -24,7 +24,20 @@ interface ChartViewProps {
 }
 
 const ChartView: React.FC<ChartViewProps> = ({ initialVitals, patientRecord }) => {
-    const [vitals, setVitals] = useState(initialVitals);
+    // Khởi tạo giá trị mặc định để tránh crash khi dữ liệu null
+    const defaultVitals = {
+        heartRate: 0,
+        temp: 0,
+        bpSys: 0,
+        bpDia: 0,
+        respRate: 0,
+        spO2: 0,
+        weight: 0,
+        height: 0,
+        bmi: 0
+    };
+
+    const [vitals, setVitals] = useState({ ...defaultVitals, ...(initialVitals || {}) });
     const [isEditingVitals, setIsEditingVitals] = useState(false);
     const [patientImage, setPatientImage] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);

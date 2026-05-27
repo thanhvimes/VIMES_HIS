@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { TrashIcon, PlusIcon, PrinterIcon, CurrencyDollarIcon, CreditCardIcon, DocumentReportIcon, ReceiptIcon } from '../../../components/Icons';
-import PdfPreviewModal from '../../../components/shared/PdfPreviewModal';
+import PdfPreviewModal from '../../../components/ui/PdfPreviewModal';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 // --- Types ---

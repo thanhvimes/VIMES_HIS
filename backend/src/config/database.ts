@@ -51,23 +51,39 @@ export const queryWithContext = async (
     params: any[] | undefined, 
     context: { userId: string | number, ip?: string, module?: string }
 ): Promise<QueryResult> => {
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-        // Set session local settings for the trigger to pick up
-        await client.query("SELECT set_config('app.current_user_id', $1, true)", [String(context.userId)]);
-        if (context.ip) await client.query("SELECT set_config('app.client_ip', $1, true)", [context.ip]);
-        if (context.module) await client.query("SELECT set_config('app.context_module', $1, true)", [context.module]);
-        
-        const res = await client.query(text, params);
-        await client.query('COMMIT');
-        return res;
-    } catch (error) {
-        await client.query('ROLLBACK');
-        console.error('Database context query error:', error);
-        throw error;
-    } finally {
-        client.release();
+    const maxRetries = 3;
+    let attempt = 0;
+    while (true) {
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            // Set session local settings for the trigger to pick up
+            await client.query("SELECT set_config('app.current_user_id', $1, true)", [String(context.userId)]);
+            if (context.ip) await client.query("SELECT set_config('app.client_ip', $1, true)", [context.ip]);
+            if (context.module) await client.query("SELECT set_config('app.context_module', $1, true)", [context.module]);
+            
+            const res = await client.query(text, params);
+            await client.query('COMMIT');
+            client.release();
+            return res;
+        } catch (error: any) {
+            try {
+                await client.query('ROLLBACK');
+            } catch (rbError) {
+                // Ignore rollback errors
+            }
+            client.release();
+
+            attempt++;
+            if (attempt < maxRetries && (error.code === '40001' || String(error.message || '').toLowerCase().includes('conflict with recovery'))) {
+                const retryDelay = 500 * attempt;
+                console.warn(`⚠️ DB queryWithContext conflict with recovery (40001). Retrying in ${retryDelay}ms... (Attempt ${attempt}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+                continue;
+            }
+            console.error('Database context query error:', error);
+            throw error;
+        }
     }
 };
 
@@ -75,15 +91,26 @@ export const queryWithContext = async (
  * Standard query for general use
  */
 export const query = async (text: string, params?: any[]): Promise<QueryResult> => {
-    const start = Date.now();
-    try {
-        const res = await pool.query(text, params);
-        const duration = Date.now() - start;
-        console.log('Executed query', { text: text.substring(0, 50) + '...', duration, rows: res.rowCount });
-        return res;
-    } catch (error) {
-        console.error('Database query error:', error);
-        throw error;
+    const maxRetries = 3;
+    let attempt = 0;
+    while (true) {
+        const start = Date.now();
+        try {
+            const res = await pool.query(text, params);
+            const duration = Date.now() - start;
+            console.log('Executed query', { text: text.substring(0, 50) + '...', duration, rows: res.rowCount });
+            return res;
+        } catch (error: any) {
+            attempt++;
+            if (attempt < maxRetries && (error.code === '40001' || String(error.message || '').toLowerCase().includes('conflict with recovery'))) {
+                const retryDelay = 500 * attempt;
+                console.warn(`⚠️ DB query conflict with recovery (40001). Retrying in ${retryDelay}ms... (Attempt ${attempt}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+                continue;
+            }
+            console.error('Database query error:', error);
+            throw error;
+        }
     }
 };
 
@@ -107,17 +134,33 @@ export const hmsQuery = async (req: any, text: string, params?: any[]): Promise<
  * @returns Result of the callback function.
  */
 export const transaction = async <T>(callback: (client: PoolClient) => Promise<T>): Promise<T> => {
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-        const result = await callback(client);
-        await client.query('COMMIT');
-        return result;
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
+    const maxRetries = 3;
+    let attempt = 0;
+    while (true) {
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            const result = await callback(client);
+            await client.query('COMMIT');
+            client.release();
+            return result;
+        } catch (error: any) {
+            try {
+                await client.query('ROLLBACK');
+            } catch (rbError) {
+                // Ignore rollback errors
+            }
+            client.release();
+
+            attempt++;
+            if (attempt < maxRetries && (error.code === '40001' || String(error.message || '').toLowerCase().includes('conflict with recovery'))) {
+                const retryDelay = 500 * attempt;
+                console.warn(`⚠️ DB transaction conflict with recovery (40001). Retrying in ${retryDelay}ms... (Attempt ${attempt}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+                continue;
+            }
+            throw error;
+        }
     }
 };
 

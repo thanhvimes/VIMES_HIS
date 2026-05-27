@@ -11,7 +11,7 @@ import {
     DocumentTextIcon
 } from '../../../components/Icons';
 import { apiClient } from '../../../services/apiClient';
-import { FormDateInput } from '../../../components/shared/forms';
+import { FormDateInput } from '../../../components/ui/forms';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';

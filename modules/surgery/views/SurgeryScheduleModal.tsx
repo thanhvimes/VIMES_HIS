@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { XIcon, SaveIcon, UserGroupIcon, ClockIcon, ScissorsIcon, ActivityIcon } from '../../../components/Icons';
-import { FormDateInput } from '../../../components/shared/forms';
+import { FormDateInput } from '../../../components/ui/forms';
 import { SurgerySchedule, SurgeryResource } from '../../../types';
 
 interface SurgeryScheduleModalProps {

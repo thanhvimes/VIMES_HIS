@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { SearchIcon, LibraryIcon, TrashIcon, EyeIcon } from '../../../components/Icons';
-import ConfirmationModal from '../../../components/shared/ConfirmationModal';
+import ConfirmationModal from '../../../components/ui/ConfirmationModal';
 
 const mockStoredRecords = [
     { id: '21024061', name: 'Nguyễn Văn An', dob: '1988', dept: 'Nội TH', storeDate: '20/10/2023', location: 'Kệ A - Tầng 2 - Hộp 15', status: 'Stored' },

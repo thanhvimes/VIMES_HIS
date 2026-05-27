@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { NavItemType } from '../types/common';
+import { settingsService } from '../services/settingsService';
 import { RECEPTION_NAV_ITEMS } from '../modules/reception/constants';
 import { ONLINE_BOOKING_NAV_ITEMS } from '../modules/online-booking/constants'; // NEW
 import { CONSULTATION_NAV_ITEMS } from '../modules/consultation/constants';
@@ -43,6 +44,10 @@ interface SystemState {
     isMobileSidebarOpen: boolean;
     slides: SlideItem[];
     menuConfig: Record<string, NavItemDTO[]>;
+    hospitalName: string;
+    systemName: string;
+    logoUrl: string;
+    brandingLoaded: boolean;
     toggleSidebar: () => void;
     setMobileSidebarOpen: (isOpen: boolean) => void;
     addSlide: (slide: Omit<SlideItem, 'id'>) => void;
@@ -52,6 +57,8 @@ interface SystemState {
     updateMenuConfig: (moduleId: string, items: NavItemDTO[]) => void;
     resetMenuConfig: (moduleId?: string) => void;
     getModuleNav: (moduleId: string, role?: string) => NavItemType[];
+    fetchBrandingSettings: () => Promise<void>;
+    updateBrandingSettings: (updates: Array<{ key: string; value: any }>) => Promise<void>;
 }
 
 const defaultSlides: SlideItem[] = [
@@ -111,6 +118,10 @@ export const useSystemStore = create<SystemState>()(
             isMobileSidebarOpen: false,
             slides: defaultSlides,
             menuConfig: initialMenuConfig,
+            hospitalName: 'BỆNH VIỆN K',
+            systemName: 'HỆ THỐNG QUẢN LÝ TỔNG THỂ BỆNH VIỆN',
+            logoUrl: '',
+            brandingLoaded: false,
             toggleSidebar: () => set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
             setMobileSidebarOpen: (isOpen) => set({ isMobileSidebarOpen: isOpen }),
             addSlide: (slide) => set((state) => ({ slides: [...state.slides, { ...slide, id: Date.now().toString() }] })),
@@ -154,6 +165,35 @@ export const useSystemStore = create<SystemState>()(
                     return config.filter(item => item.isVisible !== false).map(mapDTOToNavItem);
                 }
                 return defaultItems;
+            },
+            fetchBrandingSettings: async () => {
+                try {
+                    const settings = await settingsService.getSettingsByCategory('general');
+                    const updates: Partial<SystemState> = { brandingLoaded: true };
+                    settings.forEach(s => {
+                        if (s.key === 'general_hospital_name') updates.hospitalName = s.value;
+                        if (s.key === 'general_system_name') updates.systemName = s.value;
+                        if (s.key === 'general_logo_url') updates.logoUrl = s.value;
+                    });
+                    set(updates);
+                } catch (e) {
+                    console.error('Failed to fetch branding settings:', e);
+                }
+            },
+            updateBrandingSettings: async (updates) => {
+                try {
+                    await settingsService.updateMultipleSettings(updates);
+                    const localUpdates: Partial<SystemState> = {};
+                    updates.forEach(u => {
+                        if (u.key === 'general_hospital_name') localUpdates.hospitalName = u.value;
+                        if (u.key === 'general_system_name') localUpdates.systemName = u.value;
+                        if (u.key === 'general_logo_url') localUpdates.logoUrl = u.value;
+                    });
+                    set(localUpdates);
+                } catch (e) {
+                    console.error('Failed to update branding settings:', e);
+                    throw e;
+                }
             }
         }),
         {
