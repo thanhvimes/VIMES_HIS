@@ -106,6 +106,10 @@ const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, setting
 
   useEffect(() => {
     const es = new EventSource(`${getBaseUrl()}/api/queue/events`);
+    es.onopen = () => {
+      console.log('[SurgeryDisplay SSE] Connection established/restored. Syncing data...');
+      fetchPatients(selectedDeptId);
+    };
     es.onmessage = (e) => {
       try {
         const d = JSON.parse(e.data);

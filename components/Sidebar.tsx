@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink, Link, useLocation } from 'react-router-dom';
 import { XIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, HomeIcon } from './Icons';
 import { NavItemType } from '../types';
 
@@ -12,26 +12,32 @@ interface SidebarProps {
   moduleNavItems: NavItemType[] | null;
 }
 
-const NavItem: React.FC<NavItemType & { isCollapsed: boolean }> = ({ name, path, icon, isCollapsed }) => (
-  <NavLink
-    to={path}
-    title={name}
-    className={({ isActive }) =>
-      `flex items-center p-2.5 my-0.5 rounded-md transition-all duration-150 ${isCollapsed ? 'justify-center' : ''
+const NavItem: React.FC<NavItemType & { isCollapsed: boolean }> = ({ name, path, icon, isCollapsed }) => {
+  const location = useLocation();
+  const isActive = path.includes('?') 
+    ? (location.pathname + location.search) === path 
+    : location.pathname === path && location.search === '';
+
+  return (
+    <Link
+      to={path}
+      title={name}
+      className={`flex items-center p-2.5 my-0.5 rounded-md transition-all duration-150 ${isCollapsed ? 'justify-center' : ''
       } ${isActive
         ? 'bg-white/10 text-white font-semibold'
         : 'text-white/60 hover:bg-white/5 hover:text-white'
-      }`
-    }
-  >
-    {React.cloneElement(icon as React.ReactElement<any>, { className: "w-[18px] h-[18px] flex-shrink-0" })}
-    <span className={`ml-3 font-medium whitespace-nowrap transition-all duration-200 overflow-hidden text-[13px] ${isCollapsed ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'}`}>
-      {name}
-    </span>
-  </NavLink>
-);
+      }`}
+    >
+      {React.cloneElement(icon as React.ReactElement<any>, { className: "w-[18px] h-[18px] flex-shrink-0" })}
+      <span className={`ml-3 font-medium whitespace-nowrap transition-all duration-200 overflow-hidden text-[13px] ${isCollapsed ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'}`}>
+        {name}
+      </span>
+    </Link>
+  );
+};
 
 const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen, isCollapsed, onToggleCollapse, moduleNavItems }) => {
+  const location = useLocation();
 
   // Logic render menu có phân nhóm
   const renderNavItems = () => {
@@ -74,18 +80,23 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen, isCollap
       elements.push(
         <li key={item.path} className={isHighlight ? "px-3 mb-2" : "px-3"}>
           {isHighlight ? (
-            <NavLink
-              to={item.path}
-              className={({ isActive }) =>
-                `flex items-center p-2.5 rounded-lg transition-all ${isActive
-                  ? 'bg-white/10 text-white font-bold ring-1 ring-white/20 shadow-sm'
-                  : 'text-white/60 hover:bg-white/5 hover:text-white'
-                } ${isCollapsed ? 'justify-center' : ''}`
-              }
-            >
-              {React.cloneElement(item.icon as React.ReactElement<any>, { className: "w-[18px] h-[18px] flex-shrink-0" })}
-              {!isCollapsed && <span className="ml-3 font-bold text-[13px] uppercase tracking-tight">{item.name}</span>}
-            </NavLink>
+            (() => {
+              const isActive = item.path.includes('?') 
+                ? (location.pathname + location.search) === item.path 
+                : location.pathname === item.path && location.search === '';
+              return (
+                <Link
+                  to={item.path}
+                  className={`flex items-center p-2.5 rounded-lg transition-all ${isActive
+                    ? 'bg-white/10 text-white font-bold ring-1 ring-white/20 shadow-sm'
+                    : 'text-white/60 hover:bg-white/5 hover:text-white'
+                  } ${isCollapsed ? 'justify-center' : ''}`}
+                >
+                  {React.cloneElement(item.icon as React.ReactElement<any>, { className: "w-[18px] h-[18px] flex-shrink-0" })}
+                  {!isCollapsed && <span className="ml-3 font-bold text-[13px] uppercase tracking-tight">{item.name}</span>}
+                </Link>
+              );
+            })()
           ) : (
             <NavItem {...item} isCollapsed={isCollapsed} />
           )}

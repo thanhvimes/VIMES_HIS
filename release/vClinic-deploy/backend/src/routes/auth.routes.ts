@@ -1,18 +1,18 @@
 // ==================== AUTH ROUTES ====================
 // File: backend/src/routes/auth.routes.ts
 
-import { Router } from 'express';
-import { AuthController } from '../controllers/auth.controller';
-import { authMiddleware } from '../middleware/authMiddleware';
+import express from 'express';
+import authController from '../controllers/auth/auth.controller';
+import authMiddleware from '../middleware/authMiddleware';
 
-const router = Router();
-const controller = new AuthController();
+const router = express.Router();
 
-// Public routes (không cần authentication)
-router.post('/login', (req, res) => controller.login(req, res));
-router.post('/logout', (req, res) => controller.logout(req, res));
+// Public routes
+router.post('/login', authController.login.bind(authController));
+router.post('/logout', authController.logout.bind(authController));
 
-// Protected routes (cần authentication)
-router.get('/me', authMiddleware, (req, res) => controller.getCurrentUser(req, res));
+// Protected routes
+router.get('/me', authMiddleware, authController.getCurrentUser.bind(authController));
+router.put('/update-profile', authMiddleware, authController.updateProfile.bind(authController));
 
 export default router;

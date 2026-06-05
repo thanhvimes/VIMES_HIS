@@ -104,6 +104,11 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
     const baseUrl = getBaseUrl();
     const eventSource = new EventSource(`${baseUrl}/api/queue/events`);
 
+    eventSource.onopen = () => {
+      console.log('[SurgeryConsole SSE] Connection established/restored. Syncing data...');
+      loadData();
+    };
+
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);

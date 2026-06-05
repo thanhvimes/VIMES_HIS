@@ -166,6 +166,11 @@ const CentralDisplay: React.FC<CentralDisplayProps> = ({ onBack, settings }) => 
     const baseUrl = getBaseUrl();
     const eventSource = new EventSource(`${baseUrl}/api/queue/events`);
 
+    eventSource.onopen = () => {
+      console.log('[CentralDisplay SSE] Connection established/restored. Syncing data...');
+      fetchInitialData();
+    };
+
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);

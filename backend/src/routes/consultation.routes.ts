@@ -2,7 +2,7 @@
 // File: backend/src/routes/consultation.routes.ts
 
 import express from 'express';
-import consultationController from '../controllers/consultation.controller';
+import consultationController from '../controllers/consultation/consultation.controller';
 import authMiddleware, { requirePermission } from '../middleware/authMiddleware';
 
 const router = express.Router();

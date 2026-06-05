@@ -2,7 +2,7 @@
 // File: backend/src/routes/command_center.routes.ts
 
 import express from 'express';
-import commandCenterController from '../controllers/command_center.controller';
+import commandCenterController from '../controllers/command-center/command_center.controller';
 
 const router = express.Router();
 

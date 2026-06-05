@@ -1,30 +1,31 @@
+// ==================== BOOKING ROUTES ====================
+// File: backend/src/routes/booking.routes.ts
 
-import { Router } from 'express';
-import { BookingController } from '../controllers/booking.controller';
+import express from 'express';
 
-const router = Router();
-const controller = new BookingController();
+// Sub-controllers
+import catalog from '../controllers/booking/catalog.controller';
+import management from '../controllers/booking/management.controller';
 
-// ==================== DANH MỤC ĐỊA GIỚI ====================
-router.get('/locations/provinces', (req, res) => controller.getProvinces(req, res));
-router.get('/locations/wards/:provinceId', (req, res) => controller.getWards(req, res));
+const router = express.Router();
 
-// ==================== CẤU HÌNH & SLOTS ====================
-router.get('/specialities', (req, res) => controller.getSpecialities(req, res));
-router.get('/slots', (req, res) => controller.getAvailableSlots(req, res));
+// ── CATALOGS ─────────────────────────────────────
+router.get('/locations/provinces', catalog.getProvinces.bind(catalog));
+router.get('/locations/wards/:provinceId', catalog.getWards.bind(catalog));
+router.get('/departments', catalog.getDepartments.bind(catalog));
+router.get('/specialities', catalog.getSpecialities.bind(catalog));
+router.get('/rooms/:specialityCode', catalog.getRoomsBySpeciality.bind(catalog));
+router.get('/slots', catalog.getAvailableSlots.bind(catalog));
 
-// ==================== NGHIỆP VỤ BOOKING ====================
-router.get('/list', (req, res) => controller.getBookingList(req, res));
-router.post('/register', (req, res) => controller.registerBooking(req, res));
+// ── BOOKING MANAGEMENT ──────────────────────────
+router.post('/register', management.registerBooking.bind(management));
+router.get('/list', management.getBookingList.bind(management));
+router.post('/:id/approve', management.approveBooking.bind(management));
+router.post('/:id/reject', management.rejectBooking.bind(management));
+router.post('/:id/cancel', management.cancelBooking.bind(management));
+// router.post('/:id/resend-sms', (management as any).resendSMS?.bind(management)); // Support optional re-send
 
-// ==================== DUYỆT & QUẢN LÝ ====================
-router.post('/:id/approve', (req, res) => controller.approveBooking(req, res));
-router.post('/:id/reject', (req, res) => controller.rejectBooking(req, res));
-router.post('/:id/cancel', (req, res) => controller.cancelBooking(req, res));
-router.put('/:id/reschedule', (req, res) => controller.rescheduleBooking(req, res));
-
-// ==================== THỐNG KÊ & NOTIFICATION ====================
-router.get('/statistics', (req, res) => controller.getBookingStatistics(req, res));
-router.post('/:id/resend-sms', (req, res) => controller.resendSMS(req, res));
+// ── STATISTICS ───────────────────────────────────
+router.get('/statistics', management.getStatistics.bind(management));
 
 export default router;

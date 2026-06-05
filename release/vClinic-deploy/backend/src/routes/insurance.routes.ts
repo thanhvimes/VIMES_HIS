@@ -1,12 +1,13 @@
+// ==================== INSURANCE ROUTES ====================
+// File: backend/src/routes/insurance.routes.ts
 
-import { Router } from 'express';
-import { InsuranceController } from '../controllers/insurance.controller';
+import express from 'express';
+import insuranceController from '../controllers/insurance/insurance.controller';
 
-const router = Router();
-const controller = new InsuranceController();
+const router = express.Router();
 
-router.get('/documents', (req, res) => controller.getDocuments(req, res));
-router.post('/documents/send', (req, res) => controller.sendDocuments(req, res));
-router.post('/documents/sign', (req, res) => controller.signDocuments(req, res));
+router.get('/documents', insuranceController.getDocuments.bind(insuranceController));
+router.post('/documents/send', insuranceController.sendDocuments.bind(insuranceController));
+router.post('/documents/sign', insuranceController.signDocuments.bind(insuranceController));
 
 export default router;

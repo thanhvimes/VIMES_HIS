@@ -1,13 +1,41 @@
-
 {
-  "compilerOptions": {
-    "target": "es2016",
-    "module": "commonjs",
-    "rootDir": "./src",
-    "outDir": "./dist",
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "skipLibCheck": true
-  }
+    "compilerOptions": {
+        /* Base Options */
+        "target": "ES2022", /* Modern Node.js versions support ES2022 */
+        "module": "commonjs", /* Use commonjs for standard Node.js projects */
+        "lib": [
+            "ES2022"
+        ], /* Library files to be included in the compilation */
+        "allowJs": true, /* Allow JavaScript files to be compiled */
+        "outDir": "./dist", /* Output directory for compiled files */
+        "rootDir": "../", /* Source directory of .ts files */
+        "removeComments": true, /* Strip comments from output */
+        /* Strict Type-Checking Options */
+        "strict": true, /* Enable all strict type-checking options */
+        "noImplicitAny": false, /* Allow 'any' where type is not provided (easier transition) */
+        "strictNullChecks": true, /* Check for null and undefined */
+        "strictFunctionTypes": true, /* Check function signatures */
+        /* Module Resolution Options */
+        "moduleResolution": "node", /* Resolve modules using Node.js style */
+        "baseUrl": ".", /* Base directory to resolve non-relative module names */
+        "paths": {
+            "*": [
+                "node_modules/*",
+                "src/types/*"
+            ]
+        },
+        "esModuleInterop": true, /* Emit additional JavaScript to ease support for importing CommonJS modules */
+        "forceConsistentCasingInFileNames": true, /* Ensure that casing is correct in imports */
+        /* Advanced Options */
+        "skipLibCheck": true, /* Skip type checking of declaration files */
+        "resolveJsonModule": true /* Include modules with .json extension */
+    },
+    "include": [
+        "src/**/*",
+        "../modules/health-check-sync/backend/**/*"
+    ], /* Include all files in src and modular backend */
+    "exclude": [
+        "node_modules",
+        "dist"
+    ] /* Exclude node_modules and output directory */
 }

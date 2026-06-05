@@ -1,6 +1,8 @@
 const { query } = require('../src/config/database');
 
 const sql = `
+DROP FUNCTION IF EXISTS public.qms_patient_create_booking(text,text,date,text,text,integer,integer,integer,text,text,text,integer,date,text,text,integer,text,text,text,date,boolean,boolean,text);
+
 CREATE OR REPLACE FUNCTION public.qms_patient_create_booking(
     p_cccd text,
     p_ho_ten text,
@@ -46,18 +48,19 @@ AS
       RAISE NOTICE 'Block giờ hẹn đã được đăng ký';
       RETURN -1;
     END IF;
-    -- Kiểm tra xem bệnh nhân đã đăng ký trong ngày chưa
+    -- Kiểm tra xem bệnh nhân đã đăng ký chuyên khoa này trong ngày chưa
     SELECT COUNT(*)
     INTO v_count
     FROM qms_patient
     WHERE qms_contact        = p_so_dien_thoai
-    AND qms_deptid           = p_ma_khoa
+    AND qms_specialty_code   = p_ma_chuyen_khoa
     AND qms_appointment_date = p_ngay_hen
     AND qms_patientname      = p_ho_ten
     AND qms_birthdate        = p_ngay_sinh
-    AND qms_sex              = p_gioi_tinh;
+    AND qms_sex              = p_gioi_tinh
+    AND qms_status           != 'C';
     IF v_count               > 0 THEN
-      RAISE NOTICE 'Chỉ được đăng ký 1 lần trong ngày';
+      RAISE NOTICE 'Bệnh nhân đã có lịch hẹn cho chuyên khoa này trong ngày';
       RETURN -3;
     END IF;
     -- Lấy hse_receptno, nếu không có thì đặt v_receptno = 0
@@ -84,7 +87,7 @@ AS
       (
         qms_idx,
         qms_idcard,
-        qms_idcard_issue_date,
+        qms_idcard_issuedate,
         qms_patientname,
         qms_birthdate,
         qms_sex,

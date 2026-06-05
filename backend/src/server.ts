@@ -39,6 +39,7 @@ import catalogRoutes from './routes/catalog.routes';
 import commandCenterRoutes from './routes/command_center.routes';
 import consultationRoutes from './routes/consultation.routes';
 import insuranceRoutes from './routes/insurance.routes';
+import healthCheckRoutes from './routes/health-check.routes';
 import auditRoutes from './routes/audit.routes';
 import queueRoutes from './routes/queue.routes';
 import qmsRoutes from './routes/qms.routes';
@@ -65,6 +66,7 @@ app.use('/api/v1/catalogs', catalogRoutes);
 app.use('/api/v1/command-center', commandCenterRoutes);
 app.use('/api/v1/consultation', consultationRoutes);
 app.use('/api/v1/insurance', insuranceRoutes);
+app.use('/api/v1/health-check-sync', healthCheckRoutes);
 app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1', queueRoutes);
 app.use('/api', qmsRoutes);
@@ -97,9 +99,11 @@ if (fs.existsSync(frontendPath)) {
 // Start automated jobs
 import scheduleService from './services/schedule.service';
 import { loadBHXHConfig } from './config/bhxh';
+import { loadHealthCheckSettings } from './config/health-check-settings';
 
 scheduleService.setupAutomatedJobs();
 loadBHXHConfig(); // Tải cấu hình BHXH vào memory
+loadHealthCheckSettings(); // Tải cấu hình VNeID KSK vào memory
 
 // Start server
 app.listen(PORT, () => {

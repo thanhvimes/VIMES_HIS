@@ -1,269 +1,278 @@
+// ==================== NOTIFICATION SERVICE ====================
+// File: backend/src/config/services/notification.service.ts
 
-// ==========================================
-// NOTIFICATION SERVICE (Mock Implementation)
-// ==========================================
+import dotenv from 'dotenv';
+import axios from 'axios';
+import smsTemplateService from './sms-template.service';
+import settingsService from './settings.service';
 
-interface SMSConfig {
-    provider: 'mock' | 'esms' | 'vietguys' | 'twilio';
-    apiKey?: string;
-    brandName?: string;
+dotenv.config();
+
+export interface NotificationData {
+    patientName?: string;
+    name?: string;
+    date?: string;
+    bookingDate?: string;
+    time?: string;
+    bookingTime?: string;
+    queueNumber?: string;
+    receptNo?: string;
+    bookingId?: string | number;
+    reason?: string;
+    newDate?: string;
+    newTime?: string;
+    deptId?: string | null;
+    patientType?: string | null;
+    specialtyName?: string;
+    specialty?: string;
+    roomName?: string;
 }
 
-interface EmailConfig {
-    provider: 'mock' | 'gmail' | 'sendgrid';
-    from?: string;
-    smtpHost?: string;
-    smtpPort?: number;
-    smtpUser?: string;
-    smtpPass?: string;
-}
+export type NotificationType =
+    | 'booking_confirmation'
+    | 'booking_approved'
+    | 'booking_cancellation'
+    | 'booking_reschedule'
+    | 'booking_reminder';
 
-interface BookingInfo {
-    bookingId: string;
-    patientName: string;
-    phone: string;
-    email?: string;
-    speciality: string;
-    date: string;
-    time: string;
-    queueNumber?: number;
-}
+class NotificationService {
 
-export class NotificationService {
-    private smsConfig: SMSConfig;
-    private emailConfig: EmailConfig;
+    /**
+     * Gửi SMS
+     * @param phone - Số điện thoại
+     * @param type - Loại thông báo
+     * @param data - Dữ liệu để format message
+     */
+    async sendSMS(phone: string, type: NotificationType, data: NotificationData) {
+        // 1. Kiểm tra cấu hình hệ thống
+        const isSMSEnabled = await settingsService.getValue('notification_sms_enabled', true);
+        if (!isSMSEnabled) {
+            console.log(`[NotificationService] SMS channel is disabled. Skipping ${type} to ${phone}`);
+            return { success: false, message: 'SMS channel disabled' };
+        }
 
-    constructor() {
-        this.smsConfig = {
-            provider: (process.env.SMS_PROVIDER as any) || 'mock',
-            apiKey: process.env.SMS_API_KEY,
-            brandName: process.env.SMS_BRAND_NAME || 'VIMES'
+        // 2. Kiểm tra cấu hình cho từng loại sự kiện
+        const eventSettingMap: Record<string, string> = {
+            'booking_confirmation': 'notification_send_on_create',
+            'booking_approved': 'notification_send_on_approve',
+            'booking_cancellation': 'notification_send_on_cancel',
+            'booking_reschedule': 'notification_send_on_reschedule',
+            'booking_reminder': 'notification_reminder_enabled'
         };
 
-        this.emailConfig = {
-            provider: (process.env.EMAIL_PROVIDER as any) || 'mock',
-            from: process.env.EMAIL_FROM || 'noreply@vimes.vn',
-            smtpHost: process.env.SMTP_HOST,
-            smtpPort: parseInt(process.env.SMTP_PORT || '587'),
-            smtpUser: process.env.SMTP_USER,
-            smtpPass: process.env.SMTP_PASS
+        const settingKey = eventSettingMap[type];
+        if (settingKey) {
+            const isEventEnabled = await settingsService.getValue(settingKey, true);
+            if (!isEventEnabled) {
+                console.log(`[NotificationService] SMS for event ${type} is disabled. Skipping to ${phone}`);
+                return { success: false, message: `SMS for ${type} disabled` };
+            }
+        }
+
+        const provider = process.env.SMS_PROVIDER || 'mock';
+
+        // Get dynamic template from database
+        let templateContent: string | null = null;
+        try {
+            const mappedType = this._mapType(type);
+            const template = await smsTemplateService.getTemplate(
+                mappedType,
+                data.deptId || null,
+                data.patientType || null
+            );
+
+            if (template && template.template_content) {
+                templateContent = this._formatMessage(template.template_content, data);
+            }
+        } catch (error: any) {
+            console.warn(`[NotificationService] No template found for ${type}, using hardcoded fallback.`, error.message);
+        }
+
+        if (provider === 'mock') {
+            return this._sendMockSMS(phone, type, data, templateContent);
+        }
+
+        if (provider === 'caresoft') {
+            return this._sendCaresoftSMS(phone, type, data, templateContent);
+        }
+
+        throw new Error(`Unknown SMS provider: ${provider}`);
+    }
+
+    /**
+     * Gửi Email
+     * @param email - Email address
+     * @param type - Loại thông báo
+     * @param data - Dữ liệu để format message
+     */
+    async sendEmail(email: string, type: NotificationType, data: NotificationData) {
+        const isEmailEnabled = await settingsService.getValue('notification_email_enabled', false);
+        if (!isEmailEnabled) {
+            console.log(`[NotificationService] Email channel is disabled. Skipping ${type} to ${email}`);
+            return { success: false, message: 'Email channel disabled' };
+        }
+
+        const eventSettingMap: Record<string, string> = {
+            'booking_confirmation': 'notification_send_on_create',
+            'booking_approved': 'notification_send_on_approve',
+            'booking_cancellation': 'notification_send_on_cancel',
+            'booking_reschedule': 'notification_send_on_reschedule',
+            'booking_reminder': 'notification_reminder_enabled'
+        };
+
+        const settingKey = eventSettingMap[type];
+        if (settingKey) {
+            const isEventEnabled = await settingsService.getValue(settingKey, true);
+            if (!isEventEnabled) {
+                console.log(`[NotificationService] Email/SMS for event ${type} is disabled. Skipping to ${email}`);
+                return { success: false, message: `Email for ${type} disabled` };
+            }
+        }
+
+        const provider = process.env.EMAIL_PROVIDER || 'mock';
+
+        if (provider === 'mock') {
+            return this._sendMockEmail(email, type, data);
+        }
+
+        throw new Error(`Unknown Email provider: ${provider}`);
+    }
+
+    // ==================== MOCK IMPLEMENTATIONS ====================
+
+    private _sendMockSMS(phone: string, type: NotificationType, data: NotificationData, dynamicContent: string | null = null) {
+        const fallbacks: Record<string, string> = {
+            booking_confirmation: `[${process.env.SMS_BRAND_NAME || 'VIMES'}] Xin chao ${data.patientName || data.name}. Lich kham cua ban: ${data.date} luc ${data.time}. STT: ${data.queueNumber || data.receptNo}. Vui long den dung gio.`,
+            booking_approved: `[${process.env.SMS_BRAND_NAME || 'VIMES'}] Chuc mung ${data.patientName || data.name}! Lich kham vao ${data.date} luc ${data.time} da duoc duyet. STT: ${data.queueNumber || data.receptNo}.`,
+            booking_cancellation: `[${process.env.SMS_BRAND_NAME || 'VIMES'}] Lich kham cua ban ngay ${data.date} luc ${data.time} da bi huy. Ly do: ${data.reason || 'Khong ro'}`,
+            booking_reminder: `[${process.env.SMS_BRAND_NAME || 'VIMES'}] Nhac nho: Ban co lich kham vao ${data.date} luc ${data.time}. STT: ${data.queueNumber || data.receptNo}. Vui long den dung gio.`,
+            booking_reschedule: `[${process.env.SMS_BRAND_NAME || 'VIMES'}] Lich kham cua ban da duoc doi sang ${data.newDate} luc ${data.newTime}.`
+        };
+
+        const message = dynamicContent || fallbacks[type] || 'Thong bao tu VIMES';
+
+        console.log('📱 [MOCK SMS]');
+        console.log(`   To: ${phone} `);
+        console.log(`   Type: ${type} `);
+        console.log(`   Message: ${message} `);
+        console.log('   Status: ✅ Sent (Mock)');
+
+        return {
+            success: true,
+            provider: 'mock',
+            messageId: `SMS - ${Date.now()} `,
+            phone,
+            message
         };
     }
 
-    // ==================== SMS METHODS ====================
+    private _sendMockEmail(email: string, type: NotificationType, data: NotificationData) {
+        const subjects: Record<string, string> = {
+            booking_confirmation: 'Xác nhận đặt lịch khám',
+            booking_cancellation: 'Thông báo hủy lịch khám',
+            booking_reminder: 'Nhắc nhở lịch khám',
+            booking_reschedule: 'Thông báo đổi lịch khám'
+        };
 
-    /**
-     * Gửi SMS xác nhận booking
-     */
-    async sendBookingConfirmation(booking: BookingInfo): Promise<boolean> {
-        const message = this.buildConfirmationMessage(booking);
-        return await this.sendSMS(booking.phone, message);
+        const subject = subjects[type] || 'Thông báo từ VIMES';
+
+        console.log('📧 [MOCK EMAIL]');
+        console.log(`   To: ${email} `);
+        console.log(`   Subject: ${subject} `);
+        console.log(`   Type: ${type} `);
+        console.log(`   Data: `, data);
+        console.log('   Status: ✅ Sent (Mock)');
+
+        return {
+            success: true,
+            provider: 'mock',
+            messageId: `EMAIL - ${Date.now()} `,
+            email,
+            subject
+        };
     }
 
-    /**
-     * Gửi SMS hủy booking
-     */
-    async sendBookingCancellation(booking: BookingInfo, reason: string): Promise<boolean> {
-        const message = `Xin chào ${booking.patientName}. Lịch khám của bạn ngày ${booking.date} lúc ${booking.time} đã bị hủy. Lý do: ${reason}. Vui lòng liên hệ Hotline: 1900xxxx để được hỗ trợ.`;
-        return await this.sendSMS(booking.phone, message);
-    }
+    // ==================== REAL PROVIDER IMPLEMENTATIONS ====================
 
-    /**
-     * Gửi SMS nhắc lịch (trước 1 ngày)
-     */
-    async sendBookingReminder(booking: BookingInfo): Promise<boolean> {
-        const message = `Nhắc lịch khám: ${booking.patientName} có lịch khám tại ${booking.speciality} vào ngày mai ${booking.date} lúc ${booking.time}. Vui lòng đến trước 15 phút. Hotline: 1900xxxx`;
-        return await this.sendSMS(booking.phone, message);
-    }
+    private async _sendCaresoftSMS(phone: string, type: NotificationType, data: NotificationData, dynamicContent: string | null = null) {
+        const url = process.env.SMS_CARESOFT_URL || 'https://api.caresoft.vn/benhvienk/api/v1/sms';
+        const token = process.env.SMS_CARESOFT_TOKEN || 'hl70lbLhwLJqsAk';
+        const serviceId = process.env.SMS_CARESOFT_SERVICE_ID || '214';
 
-    /**
-     * Gửi SMS đổi lịch
-     */
-    async sendBookingReschedule(booking: BookingInfo, newDate: string, newTime: string): Promise<boolean> {
-        const message = `Xin chào ${booking.patientName}. Lịch khám của bạn đã được đổi sang ngày ${newDate} lúc ${newTime}. Khoa: ${booking.speciality}. Hotline: 1900xxxx`;
-        return await this.sendSMS(booking.phone, message);
-    }
+        const fallbacks: Record<string, string> = {
+            booking_confirmation: `[BENH VIEN K] Xin chao ${data.patientName || data.name}. Lich kham cua ban: ${data.date} luc ${data.time}. STT: ${data.queueNumber || data.receptNo}. Vui long den dung gio.`,
+            booking_approved: `[BENH VIEN K] Chuc mung ${data.patientName || data.name}! Lich kham vao ${data.date} luc ${data.time} da duoc duyet. STT: ${data.queueNumber || data.receptNo}.`,
+            booking_cancellation: `[BENH VIEN K] Lich kham cua ban ngay ${data.date} luc ${data.time} da bi huy. Ly do: ${data.reason || 'Khong ro'}`,
+            booking_reminder: `[BENH VIEN K] Nhac nho: Ban co lich kham vao ${data.date} luc ${data.time}. STT: ${data.queueNumber || data.receptNo}. Vui long den dung gio.`,
+            booking_reschedule: `[BENH VIEN K] Lich kham cua ban da duoc doi sang ${data.newDate} luc ${data.newTime}.`
+        };
 
-    /**
-     * Core SMS sending method
-     */
-    private async sendSMS(phone: string, message: string): Promise<boolean> {
-        console.log(`\n========== SMS NOTIFICATION ==========`);
-        console.log(`Provider: ${this.smsConfig.provider}`);
-        console.log(`To: ${phone}`);
-        console.log(`Brand: ${this.smsConfig.brandName}`);
-        console.log(`Message:\n${message}`);
-        console.log(`======================================\n`);
+        const content = dynamicContent || fallbacks[type] || `[BENH VIEN K] Thong bao tu Benh vien K`;
 
-        switch (this.smsConfig.provider) {
-            case 'mock':
-                // Mock implementation - always success
-                await this.delay(500); // Simulate network delay
-                return true;
+        const payload = {
+            sms: {
+                service_id: serviceId,
+                content,
+                phone
+            }
+        };
 
-            case 'esms':
-                return await this.sendViaEsms(phone, message);
+        try {
+            const response = await axios.post(url, payload, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
 
-            case 'vietguys':
-                return await this.sendViaVietguys(phone, message);
+            return {
+                success: true,
+                provider: 'caresoft',
+                messageId: (response.data as any).messageId || `SMS-${Date.now()}`,
+                phone,
+                message: content,
+                response: response.data
+            };
 
-            case 'twilio':
-                return await this.sendViaTwilio(phone, message);
-
-            default:
-                console.error(`Unknown SMS provider: ${this.smsConfig.provider}`);
-                return false;
+        } catch (error: any) {
+            console.error('❌ [CARESOFT SMS] Error:', error.response?.data || error.message);
+            throw new Error(`SMS Exception: ${error.message}`);
         }
     }
 
-    // ==================== EMAIL METHODS ====================
+    // ==================== HELPERS ====================
 
-    /**
-     * Gửi email xác nhận booking
-     */
-    async sendEmailConfirmation(booking: BookingInfo): Promise<boolean> {
-        if (!booking.email) return false;
-
-        const subject = `Xác nhận lịch khám - ${booking.bookingId}`;
-        const html = this.buildConfirmationEmailHTML(booking);
-
-        return await this.sendEmail(booking.email, subject, html);
+    private _mapType(type: NotificationType): string {
+        const map: Record<NotificationType, string> = {
+            'booking_confirmation': 'confirmation',
+            'booking_approved': 'approved',
+            'booking_cancellation': 'cancellation',
+            'booking_reminder': 'reminder',
+            'booking_reschedule': 'reschedule'
+        };
+        return map[type] || 'confirmation';
     }
 
-    /**
-     * Core Email sending method
-     */
-    private async sendEmail(to: string, subject: string, html: string): Promise<boolean> {
-        console.log(`\n========== EMAIL NOTIFICATION ==========`);
-        console.log(`Provider: ${this.emailConfig.provider}`);
-        console.log(`From: ${this.emailConfig.from}`);
-        console.log(`To: ${to}`);
-        console.log(`Subject: ${subject}`);
-        console.log(`========================================\n`);
+    private _formatMessage(template: string, data: NotificationData): string {
+        if (!template) return '';
+        let message = template;
+        const placeholders: Record<string, string> = {
+            '{patientName}': data.patientName || data.name || 'Ong/Ba',
+            '{bookingId}': String(data.bookingId || ''),
+            '{date}': data.date || data.bookingDate || '',
+            '{time}': data.time || data.bookingTime || '',
+            '{specialty}': data.specialtyName || data.specialty || '',
+            '{roomName}': data.roomName || '',
+            '{queueNumber}': data.queueNumber || data.receptNo || '',
+            '{hotline}': process.env.SMS_HOTLINE || '190088664'
+        };
 
-        switch (this.emailConfig.provider) {
-            case 'mock':
-                // Mock implementation - always success
-                await this.delay(500);
-                return true;
-
-            case 'gmail':
-                return await this.sendViaGmail(to, subject, html);
-
-            case 'sendgrid':
-                return await this.sendViaSendgrid(to, subject, html);
-
-            default:
-                console.error(`Unknown email provider: ${this.emailConfig.provider}`);
-                return false;
+        for (const [placeholder, value] of Object.entries(placeholders)) {
+            const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            message = message.replace(new RegExp(escapedPlaceholder, 'g'), value);
         }
-    }
-
-    // ==================== HELPER METHODS ====================
-
-    private buildConfirmationMessage(booking: BookingInfo): string {
-        let msg = `Xin chào ${booking.patientName}. Lịch khám của bạn đã được xác nhận:\n`;
-        msg += `- Khoa: ${booking.speciality}\n`;
-        msg += `- Ngày: ${booking.date}\n`;
-        msg += `- Giờ: ${booking.time}\n`;
-        if (booking.queueNumber) {
-            msg += `- Số thứ tự: ${booking.queueNumber}\n`;
-        }
-        msg += `Vui lòng đến trước 15 phút. Hotline: 1900xxxx`;
-        return msg;
-    }
-
-    private buildConfirmationEmailHTML(booking: BookingInfo): string {
-        return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #0d9488; color: white; padding: 20px; text-align: center; }
-          .content { background: #f9fafb; padding: 30px; }
-          .info-row { margin: 10px 0; }
-          .label { font-weight: bold; color: #0d9488; }
-          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>Xác nhận lịch khám</h1>
-          </div>
-          <div class="content">
-            <p>Xin chào <strong>${booking.patientName}</strong>,</p>
-            <p>Lịch khám của bạn đã được xác nhận với thông tin sau:</p>
-            <div class="info-row"><span class="label">Mã booking:</span> ${booking.bookingId}</div>
-            <div class="info-row"><span class="label">Chuyên khoa:</span> ${booking.speciality}</div>
-            <div class="info-row"><span class="label">Ngày khám:</span> ${booking.date}</div>
-            <div class="info-row"><span class="label">Giờ khám:</span> ${booking.time}</div>
-            ${booking.queueNumber ? `<div class="info-row"><span class="label">Số thứ tự:</span> ${booking.queueNumber}</div>` : ''}
-            <p style="margin-top: 20px;"><strong>Lưu ý:</strong> Vui lòng đến trước 15 phút để làm thủ tục.</p>
-          </div>
-          <div class="footer">
-            <p>Email này được gửi tự động, vui lòng không trả lời.</p>
-            <p>Hotline: 1900xxxx | Email: support@vimes.vn</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-    }
-
-    private delay(ms: number): Promise<void> {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
-    // ==================== PROVIDER IMPLEMENTATIONS ====================
-    // These will be implemented when you choose a real provider
-
-    private async sendViaEsms(phone: string, message: string): Promise<boolean> {
-        // TODO: Implement ESMS.vn API
-        // const response = await fetch('https://rest.esms.vn/MainService.svc/json/SendMultipleMessage_V4_post_json/', {
-        //   method: 'POST',
-        //   headers: { 'Content-Type': 'application/json' },
-        //   body: JSON.stringify({
-        //     ApiKey: this.smsConfig.apiKey,
-        //     SecretKey: process.env.SMS_SECRET_KEY,
-        //     Phone: phone,
-        //     Content: message,
-        //     Brandname: this.smsConfig.brandName,
-        //     SmsType: 2
-        //   })
-        // });
-        console.warn('ESMS provider not implemented yet. Using mock.');
-        return true;
-    }
-
-    private async sendViaVietguys(phone: string, message: string): Promise<boolean> {
-        // TODO: Implement Vietguys API
-        console.warn('Vietguys provider not implemented yet. Using mock.');
-        return true;
-    }
-
-    private async sendViaTwilio(phone: string, message: string): Promise<boolean> {
-        // TODO: Implement Twilio API
-        console.warn('Twilio provider not implemented yet. Using mock.');
-        return true;
-    }
-
-    private async sendViaGmail(to: string, subject: string, html: string): Promise<boolean> {
-        // TODO: Implement Gmail SMTP
-        // const nodemailer = require('nodemailer');
-        // const transporter = nodemailer.createTransporter({...});
-        console.warn('Gmail provider not implemented yet. Using mock.');
-        return true;
-    }
-
-    private async sendViaSendgrid(to: string, subject: string, html: string): Promise<boolean> {
-        // TODO: Implement SendGrid API
-        console.warn('SendGrid provider not implemented yet. Using mock.');
-        return true;
+        return message;
     }
 }
 
-// Export singleton instance
-export const notificationService = new NotificationService();
+export default new NotificationService();

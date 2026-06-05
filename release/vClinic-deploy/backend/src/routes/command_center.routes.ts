@@ -1,14 +1,20 @@
+// ==================== COMMAND CENTER ROUTES ====================
+// File: backend/src/routes/command_center.routes.ts
 
-import { Router } from 'express';
-import { CommandCenterController } from '../controllers/command_center.controller';
+import express from 'express';
+import commandCenterController from '../controllers/command-center/command_center.controller';
 
-const router = Router();
-const controller = new CommandCenterController();
+const router = express.Router();
 
 // === PHÂN HỆ NGOẠI TRÚ (Outpatient) ===
-router.get('/outpatient/kpi', (req, res) => controller.getOutpatientKPI(req, res));
-router.get('/outpatient/flow', (req, res) => controller.getOutpatientFlow(req, res));
-router.get('/outpatient/rooms', (req, res) => controller.getRoomStatus(req, res));
-router.get('/outpatient/queues', (req, res) => controller.getQueueStatus(req, res));
+router.get('/outpatient/kpi', commandCenterController.getOutpatientKPI.bind(commandCenterController));
+router.get('/outpatient/flow', commandCenterController.getOutpatientFlow.bind(commandCenterController));
+router.get('/outpatient/rooms', commandCenterController.getRoomStatus.bind(commandCenterController));
+router.get('/outpatient/queues', commandCenterController.getQueueStatus.bind(commandCenterController));
+
+// === PHÂN HỆ TỔNG HỢP (General) ===
+router.get('/general/beds', commandCenterController.getBedCapacity.bind(commandCenterController));
+router.get('/general/or', commandCenterController.getORStatus.bind(commandCenterController));
+router.get('/general/waits', commandCenterController.getAvgWaitTimes.bind(commandCenterController));
 
 export default router;

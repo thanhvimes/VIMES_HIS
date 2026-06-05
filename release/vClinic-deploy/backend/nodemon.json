@@ -4,7 +4,8 @@
     ],
     "ext": "ts,js,json",
     "ignore": [
-        "src/**/*.spec.ts"
+        "src/**/*.spec.ts",
+        "src/**/*.spec.js"
     ],
-    "exec": "node --require ts-node/register src/server.js"
+    "exec": "ts-node src/server.ts"
 }

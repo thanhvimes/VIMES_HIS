@@ -31,6 +31,26 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
   const [isMuted, setIsMuted] = useState(() => localStorage.getItem('vimes_counter_muted') === 'true');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  const [waitingList, setWaitingList] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
+  const ITEMS_PER_PAGE = 7;
+  
+  const [layoutMode, setLayoutMode] = useState<'fullscreen' | 'split'>(() => {
+    return (localStorage.getItem('vimes_counter_display_layout') as 'fullscreen' | 'split') || 'split';
+  });
+
+  const getBirthYear = (dob: any) => {
+    if (!dob) return '----';
+    const str = String(dob).trim();
+    if (/^\d{4}$/.test(str)) return str;
+    const partsDmy = str.split('/');
+    if (partsDmy.length === 3 && partsDmy[2].length === 4) return partsDmy[2];
+    const partsYmd = str.split('-');
+    if (partsYmd.length >= 1 && partsYmd[0].length === 4) return partsYmd[0];
+    const match = str.match(/\d{4}/);
+    return match ? match[0] : '----';
+  };
+
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -182,6 +202,13 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
     const baseUrl = getBaseUrl();
     const eventSource = new EventSource(`${baseUrl}/api/queue/events`);
 
+    eventSource.onopen = () => {
+      console.log('[SSE] Connection established/restored. Syncing counter info...');
+      if (selectedCounterId) {
+        fetchCounterInfo(selectedCounterId);
+      }
+    };
+
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
@@ -210,6 +237,32 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
 
     return () => { eventSource.close(); clearInterval(clockInterval); };
   }, [selectedCounterId, selectedService, selectedDeptId]);
+
+  // Tự động lật trang khi danh sách chờ quá dài
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [waitingList]);
+
+  useEffect(() => {
+    if (waitingList.length <= ITEMS_PER_PAGE) {
+      setCurrentPage(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setCurrentPage((prev) => {
+        const totalPages = Math.ceil(waitingList.length / ITEMS_PER_PAGE);
+        return (prev + 1) % totalPages;
+      });
+    }, 8000); // Lật trang mỗi 8 giây
+
+    return () => clearInterval(interval);
+  }, [waitingList.length]);
+
+  const paginatedList = waitingList.slice(
+    currentPage * ITEMS_PER_PAGE,
+    (currentPage + 1) * ITEMS_PER_PAGE
+  );
 
   const processNextInQueue = () => {
     if (isSpeakingRef.current || voiceQueueRef.current.length === 0) return;
@@ -259,14 +312,15 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
 
   const fetchCounterInfo = async (id: string) => {
     try {
-      let url = `/api/queue/counter/${id}`;
-      if (selectedService === 'EXECUTION' && selectedDeptId) {
+      let url = `/api/counter/${id}`;
+      if ((selectedService === 'EXECUTION' || selectedService === 'REGISTRATION') && selectedDeptId) {
         url += `?deptId=${selectedDeptId}`;
       }
       const data = await apiFetch(url);
       setCounterInfo(data.counter);
       setTicket(data.currentTicket);
       setPatientName(data.currentName);
+      setWaitingList(data.waitingList || []);
     } catch (e) {
       console.error('Fetch error:', e);
     }
@@ -406,15 +460,37 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
   const formatTime = (d: Date) => d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   const formatDate = (d: Date) => d.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
 
+  const isCDHARoom = () => {
+    const roomName = String(counterInfo?.counter_name || '').toLowerCase();
+    const deptId = String(selectedDeptId || '').toLowerCase();
+    const deptName = String(allDepts.find(d => String(d.id) === selectedDeptId)?.name || '').toLowerCase();
+    const keywords = [
+      'cdha', 'chẩn đoán hình ảnh', 'chan doan hinh anh', 
+      'siêu âm', 'sieu am', 'x-quang', 'xquang', 'mri', 
+      'ct scanner', 'điện tim', 'dien tim', 'điện não', 'dien nao', 
+      'thăm dò', 'tham do', 'nội soi', 'noi soi', 'hình ảnh', 'hinh anh'
+    ];
+    return keywords.some(k => roomName.includes(k) || deptId.includes(k) || deptName.includes(k));
+  };
+
   const getBannerTitle = () => {
     switch (selectedService) {
-      case 'RECEPTION': return 'SỐ THỰ TỰ TIẾP NHẬN';
-      case 'SAMPLING': return 'SỐ THỰ TỰ LẤY MẪU XN';
-      case 'REGISTRATION': return 'SỐ THỰ TỰ LẤY SỐ KHÁM';
-      case 'PAYMENT': return 'SỐ THỰ TỰ THANH TOÁN';
-      case 'DRUG': return 'SỐ THỰ TỰ LĨNH THUỐC';
-      case 'EXECUTION': return 'SỐ THỰ TỰ KHÁM BỆNH';
-      default: return 'SỐ THỰ TỰ GỌI KHÁM';
+      case 'RECEPTION':
+      case 'REGISTRATION':
+        return 'SỐ THỰ TỰ LẤY SỐ KHÁM';
+      case 'SAMPLING':
+        return 'CHỜ LẤY MÁU';
+      case 'PAYMENT':
+        return 'CHỜ THANH TOÁN';
+      case 'DRUG':
+        return 'CHỜ LĨNH THUỐC';
+      case 'EXECUTION':
+        if (isCDHARoom()) {
+          return 'CHỜ THỰC HIỆN';
+        }
+        return 'CHỜ KHÁM';
+      default:
+        return 'SỐ THỰ TỰ GỌI KHÁM';
     }
   };
 
@@ -441,7 +517,7 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-white flex overflow-hidden font-sans">
+    <div className={`fixed inset-0 z-[100] bg-white flex ${layoutMode === 'split' ? 'flex-col' : ''} overflow-hidden font-sans`}>
       
       {/* Floating Controls (For Staff) */}
       <div className="absolute top-4 right-4 z-50 flex gap-2 opacity-10 hover:opacity-100 transition-opacity">
@@ -469,76 +545,183 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
          <button onClick={() => setShowSettings(true)} className="p-3 bg-slate-800 text-white rounded-lg shadow-lg" title="Cài đặt"><Settings /></button>
       </div>
 
-      {/* Sidebar - BÀN SỐ / PHÒNG KHÁM */}
-      <div className={`w-[300px] ${counterInfo?.is_priority ? 'bg-[#ed1c24]' : 'bg-[#2e408a]'} flex flex-col items-center justify-center text-white shrink-0 relative`}>
-         {/* Area name */}
-         <div className="absolute top-0 left-0 right-0 bg-white/10 py-3 text-center">
-            <p className="text-sm font-bold uppercase tracking-widest text-blue-200">{selectedAreaState?.area_name || selectedAreaState?.name || 'Khu vực chung'}</p>
-         </div>
-
-         {/* Counter / Room label & value */}
-         <h2 className="text-2xl font-bold uppercase tracking-[0.2em] mb-2 text-blue-200">{getSidebarTitle()}</h2>
-         <div style={{fontSize: getFontSize()}} className="font-black leading-none px-4 text-center break-words uppercase">
-            {getCounterValue()}
-         </div>
-
-         {/* Clock & Status */}
-         <div className="absolute bottom-0 left-0 right-0 bg-white/10 py-4 text-center">
-            <p className="text-3xl font-extrabold tabular-nums">{formatTime(clock)}</p>
-            <p className="text-xs font-medium text-blue-200 mt-1">{formatDate(clock)}</p>
-            <div className="flex items-center justify-center gap-2 mt-2">
-               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-               <p className="text-[10px] font-bold text-green-300 uppercase tracking-widest">Đang hoạt động</p>
-            </div>
-         </div>
-      </div>
-
-      {/* Main Content - SỐ THỰ TỰ */}
-      <div className="flex-1 flex flex-col min-w-0">
-         {/* Top Banner */}
-         <div className="h-24 bg-[#f0a500] flex items-center justify-center shrink-0">
-            <h1 className="text-4xl font-extrabold uppercase tracking-wider text-white">{getBannerTitle()}</h1>
-         </div>
-
-         {/* Body */}
-         <div className="flex-1 flex flex-col items-center justify-center p-8">
-            <h3 className="text-4xl font-bold text-[#2e408a] uppercase mb-6 tracking-wide">BỆNH NHÂN ĐANG PHỤC VỤ</h3>
-            <div className={`font-black leading-none tabular-nums transition-all duration-300 ${isSpeakingUI ? 'animate-call-flash text-[#2e408a]' : 'text-[#2e408a]'}`} style={{fontSize: 'clamp(10rem, 30vw, 28rem)'}}>
-               {ticket || '0'}
-            </div>
-            
-            {patientName && (
-               <div className="mt-8 text-6xl lg:text-7xl font-black text-slate-800 uppercase border-t-4 border-slate-200 pt-8 w-3/4 text-center tracking-wide leading-tight">
-                  {patientName}
+      {layoutMode === 'split' ? (
+         <>
+            <div className="h-28 bg-[#f0a500] flex shrink-0 border-b border-[#f0a500]/10">
+               {/* Main banner block */}
+               <div className="flex-1 flex items-center justify-center">
+                  <h1 className="text-5xl font-black uppercase tracking-wider text-white">
+                     {getBannerTitle()}
+                  </h1>
                </div>
-            )}
-         </div>
-
-         {/* Lớp phủ kích hoạt âm thanh (Để vượt qua chính sách Autoplay) */}
-         {!hasInteracted && !isMuted && (
-            <div className="absolute inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-20">
-               <button 
-                  onClick={() => {
-                     setHasInteracted(true);
-                     playDingDong(); // Kích hoạt AudioContext
-                     
-                     // Mở khóa Audio HTML5 bằng cách phát một file rỗng
-                     if (audioRef.current) {
-                        audioRef.current.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-                        audioRef.current.play().catch(()=>{});
-                     }
-                  }}
-                  className="bg-yellow-400 hover:bg-yellow-500 text-black px-12 py-10 rounded-[3rem] font-black text-5xl shadow-2xl flex flex-col items-center gap-6 animate-pulse"
-               >
-                  <Volume2 size={80} /> 
-                  <div className="text-center">
-                     <p>BẤM VÀO ĐÂY</p>
-                     <p className="text-2xl mt-2">ĐỂ KÍCH HOẠT LOA TẠI QUẦY</p>
-                  </div>
-               </button>
             </div>
-         )}
-      </div>
+
+            {/* Main Content Body */}
+            <div className="flex-1 flex overflow-hidden">
+               {/* Cột trái: Bệnh nhân đang phục vụ (60%) */}
+               <div className="w-[60%] flex flex-col justify-center items-center p-8 bg-white border-r border-slate-200">
+                  <h3 className="text-4xl font-black text-[#2e408a] uppercase mb-4 tracking-wider text-center">BỆNH NHÂN ĐANG PHỤC VỤ</h3>
+                  
+                  <div 
+                     className={`font-black leading-none tabular-nums transition-all duration-300 text-center ${isSpeakingUI ? 'animate-call-flash text-[#2e408a]' : 'text-[#2e408a]'}`} 
+                     style={{fontSize: 'clamp(12rem, 28vw, 26rem)'}}
+                  >
+                     {ticket || '0'}
+                  </div>
+                  
+                  {patientName ? (
+                     <div className="mt-8 text-6xl lg:text-7xl font-black text-slate-800 uppercase border-t-4 border-slate-200 pt-8 w-[90%] text-center tracking-wide leading-tight break-words">
+                        {patientName}
+                     </div>
+                  ) : (
+                     <div className="mt-8 text-4xl font-black text-slate-350 uppercase border-t-4 border-slate-200 pt-8 w-[90%] text-center tracking-wide">
+                        ĐANG CHỜ GỌI SỐ
+                     </div>
+                  )}
+               </div>
+
+               {/* Cột phải: Danh sách bệnh nhân chờ (40%) */}
+               <div className="w-[40%] flex flex-col bg-slate-50 p-8 overflow-hidden">
+                  {/* Table Header */}
+                  <div className="grid grid-cols-12 gap-4 pb-4 px-4 border-b border-slate-200 mb-4">
+                     <div className="col-span-9 text-xl font-black text-[#2e408a] uppercase tracking-wider">Họ và tên người bệnh</div>
+                     <div className="col-span-3 text-xl font-black text-[#2e408a] uppercase tracking-wider text-right">Năm sinh</div>
+                  </div>
+
+                  {/* Table Body / Cards List */}
+                  <div 
+                     key={currentPage} 
+                     className="flex-1 overflow-hidden space-y-4 pr-2 custom-scrollbar animate-fade-in"
+                  >
+                     {paginatedList && paginatedList.length > 0 ? (
+                        paginatedList.map((item, index) => (
+                           <div 
+                              key={item.id || index}
+                              className="grid grid-cols-12 gap-4 items-center bg-white border border-slate-200/60 hover:border-slate-300 shadow-sm hover:shadow transition-all duration-200 px-6 py-5 rounded-[1.5rem]"
+                           >
+                              {/* Ticket Number & Name */}
+                              <div className="col-span-9 flex items-center gap-4 min-w-0">
+                                 <span className="inline-flex items-center justify-center px-4 py-1.5 bg-[#2e408a]/10 text-[#2e408a] font-extrabold rounded-2xl text-2xl lg:text-3xl tabular-nums shrink-0">
+                                    {item.ticket_number}
+                                 </span>
+                                 <span className="text-2xl lg:text-3xl font-extrabold text-slate-800 uppercase leading-snug truncate">
+                                    {item.patient_name || 'Bệnh nhân'}
+                                 </span>
+                              </div>
+                              {/* Year of birth */}
+                              <div className="col-span-3 text-right text-2xl lg:text-3xl font-black text-slate-500 tabular-nums">
+                                 {getBirthYear(item.dob)}
+                              </div>
+                           </div>
+                        ))
+                     ) : (
+                        <div className="flex flex-col items-center justify-center h-full py-20 text-slate-400">
+                           <p className="text-2xl font-black uppercase tracking-wider">Không có bệnh nhân chờ</p>
+                           <p className="text-base mt-1 text-slate-350">Hàng đợi trống hoặc đã phục vụ hết</p>
+                        </div>
+                     )}
+                  </div>
+
+                  {/* Bộ điều khiển / Chỉ báo lật trang */}
+                  {waitingList.length > ITEMS_PER_PAGE && (
+                     <div className="flex items-center justify-between mt-4 px-4 pt-3 border-t border-slate-200/60">
+                        <span className="text-lg font-black text-[#2e408a]/60 uppercase tracking-wider">
+                           Danh sách chờ ({waitingList.length} BN)
+                        </span>
+                        <div className="flex items-center gap-2">
+                           {Array.from({ length: Math.ceil(waitingList.length / ITEMS_PER_PAGE) }).map((_, i) => (
+                              <button
+                                 key={i}
+                                 onClick={() => setCurrentPage(i)}
+                                 className={`h-3 rounded-full transition-all duration-300 ${
+                                    currentPage === i ? 'w-8 bg-[#2e408a]' : 'w-3 bg-slate-300 hover:bg-[#2e408a]/40'
+                                 }`}
+                                 title={`Trang ${i + 1}`}
+                              />
+                           ))}
+                        </div>
+                        <span className="text-xl font-black text-[#2e408a] bg-[#2e408a]/10 px-4 py-1 rounded-full tabular-nums">
+                           {currentPage + 1} / {Math.ceil(waitingList.length / ITEMS_PER_PAGE)}
+                        </span>
+                     </div>
+                  )}
+               </div>
+            </div>
+         </>
+      ) : (
+         <>
+            {/* Sidebar - BÀN SỐ / PHÒNG KHÁM */}
+            <div className={`w-[300px] ${counterInfo?.is_priority ? 'bg-[#ed1c24]' : 'bg-[#2e408a]'} flex flex-col items-center justify-center text-white shrink-0 relative`}>
+               {/* Area name */}
+               <div className="absolute top-0 left-0 right-0 bg-white/10 py-3 text-center">
+                  <p className="text-sm font-bold uppercase tracking-widest text-blue-200">{selectedAreaState?.area_name || selectedAreaState?.name || 'Khu vực chung'}</p>
+               </div>
+
+               {/* Counter / Room label & value */}
+               <h2 className="text-2xl font-bold uppercase tracking-[0.2em] mb-2 text-blue-200">{getSidebarTitle()}</h2>
+               <div style={{fontSize: getFontSize()}} className="font-black leading-none px-4 text-center break-words uppercase">
+                  {getCounterValue()}
+               </div>
+
+               {/* Clock & Status */}
+               <div className="absolute bottom-0 left-0 right-0 bg-white/10 py-4 text-center">
+                  <p className="text-3xl font-extrabold tabular-nums">{formatTime(clock)}</p>
+                  <p className="text-xs font-medium text-blue-200 mt-1">{formatDate(clock)}</p>
+                  <div className="flex items-center justify-center gap-2 mt-2">
+                     <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                     <p className="text-[10px] font-bold text-green-300 uppercase tracking-widest">Đang hoạt động</p>
+                  </div>
+               </div>
+            </div>
+
+            {/* Main Content - SỐ THỰ TỰ */}
+            <div className="flex-1 flex flex-col min-w-0">
+               {/* Top Banner */}
+               <div className="h-24 bg-[#f0a500] flex items-center justify-center shrink-0">
+                  <h1 className="text-4xl font-extrabold uppercase tracking-wider text-white">{getBannerTitle()}</h1>
+               </div>
+
+               {/* Body */}
+               <div className="flex-1 flex flex-col items-center justify-center p-8">
+                  <h3 className="text-4xl font-bold text-[#2e408a] uppercase mb-6 tracking-wide">BỆNH NHÂN ĐANG PHỤC VỤ</h3>
+                  <div className={`font-black leading-none tabular-nums transition-all duration-300 ${isSpeakingUI ? 'animate-call-flash text-[#2e408a]' : 'text-[#2e408a]'}`} style={{fontSize: 'clamp(10rem, 30vw, 28rem)'}}>
+                     {ticket || '0'}
+                  </div>
+                  
+                  {patientName && (
+                     <div className="mt-8 text-6xl lg:text-7xl font-black text-slate-800 uppercase border-t-4 border-slate-200 pt-8 w-3/4 text-center tracking-wide leading-tight">
+                        {patientName}
+                     </div>
+                  )}
+               </div>
+            </div>
+         </>
+      )}
+
+      {/* Lớp phủ kích hoạt âm thanh (Để vượt qua chính sách Autoplay) */}
+      {!hasInteracted && !isMuted && (
+         <div className="absolute inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-20">
+            <button 
+               onClick={() => {
+                  setHasInteracted(true);
+                  playDingDong(); // Kích hoạt AudioContext
+                  
+                  // Mở khóa Audio HTML5 bằng cách phát một file rỗng
+                  if (audioRef.current) {
+                     audioRef.current.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+                     audioRef.current.play().catch(()=>{});
+                  }
+               }}
+               className="bg-yellow-400 hover:bg-yellow-500 text-black px-12 py-10 rounded-[3rem] font-black text-5xl shadow-2xl flex flex-col items-center gap-6 animate-pulse"
+            >
+               <Volume2 size={80} /> 
+               <div className="text-center">
+                  <p>BẤM VÀO ĐÂY</p>
+                  <p className="text-2xl mt-2">ĐỂ KÍCH HOẠT LOA TẠI QUẦY</p>
+               </div>
+            </button>
+         </div>
+      )}
 
       {/* Settings Modal (Overlay) */}
       {showSettings && (
@@ -628,6 +811,41 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
               </div>
             )}
 
+            {/* Giao diện hiển thị (Layout Mode Selector) */}
+            <div className="mb-6">
+              <label className="block text-sm font-black uppercase tracking-widest text-slate-400 mb-2 ml-1">Giao diện hiển thị</label>
+              <div className="grid grid-cols-2 gap-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLayoutMode('fullscreen');
+                    localStorage.setItem('vimes_counter_display_layout', 'fullscreen');
+                  }}
+                  className={`px-6 py-4 rounded-2xl border-4 transition-all text-center font-black uppercase tracking-wider text-lg ${
+                    layoutMode === 'fullscreen'
+                      ? 'border-[#2e408a] bg-[#2e408a]/5 text-[#2e408a]'
+                      : 'border-transparent bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                  }`}
+                >
+                  Mặc định (Toàn màn hình)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLayoutMode('split');
+                    localStorage.setItem('vimes_counter_display_layout', 'split');
+                  }}
+                  className={`px-6 py-4 rounded-2xl border-4 transition-all text-center font-black uppercase tracking-wider text-lg ${
+                    layoutMode === 'split'
+                      ? 'border-[#2e408a] bg-[#2e408a]/5 text-[#2e408a]'
+                      : 'border-transparent bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                  }`}
+                >
+                  Tách cột (Hiển thị hàng chờ)
+                </button>
+              </div>
+            </div>
+
             {/* List Selection Grid */}
             <div className="max-h-[300px] overflow-y-auto pr-2 custom-scrollbar border border-slate-100 rounded-2xl p-4 bg-slate-50">
               {(selectedService === 'EXECUTION' || selectedService === 'REGISTRATION') ? (
@@ -702,6 +920,14 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
           border: 6px solid #fbbf24;
           border-radius: 2rem;
           padding: 20px 40px;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(15px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fadeIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
       `}} />
     </div>

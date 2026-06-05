@@ -33,6 +33,18 @@ const CounterConsole: React.FC<CounterConsoleProps> = ({ settings, counterId, co
           // For now, we rely on SSE or just basic counts.
           setWaitingCount(waitingReq.length);
       }
+
+      // Đồng bộ thông tin lượt khám hiện tại đang phục vụ tại quầy
+      try {
+        const counterInfo = await apiFetch(`/api/counter/${counterId}`);
+        if (counterInfo && counterInfo.activeTicket) {
+          setCurrentTicket(counterInfo.activeTicket);
+        } else {
+          setCurrentTicket(null);
+        }
+      } catch (err) {
+        console.error('Lỗi khi tải thông tin quầy:', err);
+      }
     } catch (e) {
       console.error("Lỗi tải dữ liệu quầy:", e);
     }
@@ -45,8 +57,8 @@ const CounterConsole: React.FC<CounterConsoleProps> = ({ settings, counterId, co
   }, [loadState]);
 
   // Actions
-  const callNext = async () => {
-    if (loading) return;
+  const callNext = useCallback(async () => {
+    if (loading || currentTicket) return;
     setLoading(true);
     try {
       const res = await apiFetch('/api/queue/call-next', {
@@ -64,9 +76,9 @@ const CounterConsole: React.FC<CounterConsoleProps> = ({ settings, counterId, co
     } finally {
       setLoading(false);
     }
-  };
+  }, [loading, currentTicket, counterId, loadState]);
 
-  const completeTicket = async () => {
+  const completeTicket = useCallback(async () => {
     if (!currentTicket) return;
     setLoading(true);
     try {
@@ -81,9 +93,9 @@ const CounterConsole: React.FC<CounterConsoleProps> = ({ settings, counterId, co
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentTicket, counterId, loadState]);
 
-  const skipTicket = async () => {
+  const skipTicket = useCallback(async () => {
     if (!currentTicket) return;
     setLoading(true);
     try {
@@ -99,9 +111,9 @@ const CounterConsole: React.FC<CounterConsoleProps> = ({ settings, counterId, co
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentTicket, loadState]);
 
-  const callAgain = async () => {
+  const callAgain = useCallback(async () => {
     if (!currentTicket) return;
     setLoading(true);
     try {
@@ -114,13 +126,13 @@ const CounterConsole: React.FC<CounterConsoleProps> = ({ settings, counterId, co
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentTicket]);
 
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Prevent shortcut if typing in an input
-      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) return;
 
       if (e.code === 'Space') {
         e.preventDefault();
@@ -139,7 +151,7 @@ const CounterConsole: React.FC<CounterConsoleProps> = ({ settings, counterId, co
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentTicket, loading]);
+  }, [callNext, completeTicket, skipTicket, callAgain]);
 
   return (
     <div className="flex h-screen bg-gray-50 font-sans">

@@ -18,6 +18,7 @@ import { RECORD_STORAGE_NAV_ITEMS } from '../modules/record-storage/constants';
 import { ADMIN_NAV_ITEMS } from '../modules/admin/constants';
 import { MGMT_REPORTING_NAV_ITEMS } from '../modules/management-reporting/constants';
 import { INSURANCE_NAV_ITEMS } from '../modules/insurance/constants';
+import { HEALTH_CHECK_NAV_ITEMS } from '../modules/health-check-sync/constants';
 import { TELEMEDICINE_NAV_ITEMS } from '../modules/telemedicine/constants';
 import { CRM_NAV_ITEMS } from '../modules/crm/constants';
 import { HR_NAV_ITEMS } from '../modules/hr/constants';
@@ -82,6 +83,7 @@ const defaultMenuConfigRaw: Record<string, NavItemType[]> = {
     admin: ADMIN_NAV_ITEMS,
     'management-reporting': MGMT_REPORTING_NAV_ITEMS,
     insurance: INSURANCE_NAV_ITEMS,
+    'health-check': HEALTH_CHECK_NAV_ITEMS,
     telemedicine: TELEMEDICINE_NAV_ITEMS,
     crm: CRM_NAV_ITEMS,
     hr: HR_NAV_ITEMS,

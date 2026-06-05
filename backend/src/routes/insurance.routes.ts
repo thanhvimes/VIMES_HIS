@@ -2,7 +2,7 @@
 // File: backend/src/routes/insurance.routes.ts
 
 import express from 'express';
-import insuranceController from '../controllers/insurance.controller';
+import insuranceController from '../controllers/insurance/insurance.controller';
 
 const router = express.Router();
 

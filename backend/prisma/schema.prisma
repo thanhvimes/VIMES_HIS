@@ -45,6 +45,29 @@ model BhDocument {
   @@map("bh_document")
 }
 
+// Bảng dữ liệu gửi khám sức khỏe liên thông VNeID (Quyết định 1551/QĐ-BYT)
+model HealthCheckDocument {
+  id              Int       @id @default(autoincrement())
+  patientId       String?   @map("patient_id") @db.VarChar(20)
+  patientName     String?   @map("patient_name") @db.VarChar(100)
+  docNo           String?   @map("doc_no") @db.VarChar(50)   // Mã đợt khám / Mã hồ sơ
+  formType        String    @map("form_type") @db.VarChar(10)   // Loại mẫu (từ 1 đến 17)
+  jsonData        Json?     @map("json_data")                   // Dữ liệu thô lâm sàng thu thập được
+  xmlData         String?   @map("xml_data") @db.Text          // Nội dung XML được generate chuẩn hóa
+  signature       String?   @map("signature") @db.Text          // Chữ ký số Base64
+  signatureType   String    @default("USB") @map("signature_type") @db.VarChar(10) // USB hoặc HSM
+  signatureStatus String    @default("Unsigned") @map("signature_status") @db.VarChar(20) // Unsigned, Signed
+  sendStatus      String    @default("Unsent") @map("send_status") @db.VarChar(20)   // Unsent, Pending, Success, Error
+  sentAt          DateTime? @map("sent_at")
+  transactionId   String?   @map("transaction_id") @db.VarChar(100)
+  errorMessage    String?   @map("error_message") @db.VarChar(500)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("health_check_documents")
+}
+
+
 // ==================== ONLINE BOOKING MODELS ====================
 
 // Bảng đặt lịch khám online

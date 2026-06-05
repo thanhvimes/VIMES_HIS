@@ -133,31 +133,33 @@ const Kiosk: React.FC<KioskProps> = ({ settings, onBack }) => {
   };
 
   return (
-    <div className="h-full w-full bg-slate-900 text-white flex flex-col overflow-hidden font-sans select-none">
+    <div className="h-full w-full bg-gradient-to-tr from-slate-50 to-slate-100 text-slate-800 flex flex-col overflow-hidden font-sans select-none relative">
       
       {/* Header */}
-      <header className="h-24 px-12 flex items-center justify-between border-b border-white/10 bg-black/20 backdrop-blur-md">
+      <header className="h-24 px-12 flex items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md shadow-sm shrink-0 z-10">
         <div className="flex items-center gap-6">
-          <div className="h-16 w-16 bg-white rounded-2xl p-2">
-            <img src={settings.hospitalLogo} alt="Logo" className="w-full h-full object-contain" />
+          <div className="h-16 w-16 bg-white rounded-2xl flex items-center justify-center shadow-md border border-slate-150 shrink-0 p-2">
+             <svg className="w-10 h-10 text-blue-600 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+             </svg>
           </div>
           <div>
-            <h1 className="text-2xl font-black uppercase tracking-tight">{settings.hospitalName}</h1>
-            <p className="text-emerald-400 text-sm font-bold tracking-widest uppercase">Hệ thống cấp số tự động</p>
+            <h1 className="text-2xl font-black uppercase tracking-tight text-slate-900">{settings.hospitalName}</h1>
+            <p className="text-emerald-700 text-sm font-bold tracking-widest uppercase">Hệ thống cấp số tự động</p>
           </div>
         </div>
         
         {step === 'TYPE_SELECTION' ? (
           <button 
             onClick={onBack}
-            className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-2xl transition-all border border-white/10 font-bold uppercase text-[10px] tracking-widest text-slate-400 hover:text-white"
+            className="flex items-center gap-2 px-6 py-3 bg-white hover:bg-slate-50 rounded-2xl transition-all border border-slate-200 font-bold uppercase text-[10px] tracking-widest text-slate-500 hover:text-slate-900 shadow-sm"
           >
             <ArrowLeft size={16} /> Về Portal
           </button>
         ) : (
           <button 
             onClick={resetKiosk}
-            className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-2xl transition-all border border-white/10 font-bold uppercase text-xs text-blue-400 hover:text-blue-300"
+            className="flex items-center gap-2 px-6 py-3 bg-white hover:bg-slate-50 rounded-2xl transition-all border border-slate-200 font-bold uppercase text-xs text-blue-600 hover:text-blue-700 shadow-sm"
           >
             <ArrowLeft size={16} /> Quay lại
           </button>
@@ -170,7 +172,7 @@ const Kiosk: React.FC<KioskProps> = ({ settings, onBack }) => {
         {/* STEP 1: TYPE SELECTION */}
         {step === 'TYPE_SELECTION' && (
           <div className="h-full flex flex-col items-center justify-center space-y-12 animate-in fade-in zoom-in duration-500">
-            <h2 className="text-4xl font-black text-center uppercase tracking-tighter">Chào mừng Quý khách!<br/><span className="text-blue-500">Vui lòng chọn dịch vụ cần thực hiện</span></h2>
+            <h2 className="text-4xl font-black text-center uppercase tracking-tighter text-slate-900">Chào mừng Quý khách!<br/><span className="text-blue-600">Vui lòng chọn dịch vụ cần thực hiện</span></h2>
             
             <div className="grid grid-cols-3 gap-6 w-full max-w-6xl">
               {[
@@ -184,14 +186,14 @@ const Kiosk: React.FC<KioskProps> = ({ settings, onBack }) => {
                 <button
                   key={item.id}
                   onClick={() => { setTicketType(item.id as TicketType); setStep('PATIENT_IDENTIFY'); }}
-                  className={`${item.color} p-6 rounded-[2.5rem] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all flex flex-col items-center text-center space-y-4 border-b-[8px] border-black/20`}
+                  className={`${item.color} p-6 rounded-[2.5rem] shadow-xl shadow-slate-200/50 hover:scale-[1.02] active:scale-95 transition-all flex flex-col items-center text-center space-y-4 border-b-[8px] border-black/20 text-white`}
                 >
                   <div className="p-4 bg-white/20 rounded-2xl">
                     {item.icon}
                   </div>
                   <div>
                     <h3 className="text-xl font-black tracking-tight uppercase mb-1">{item.name}</h3>
-                    <p className="text-white/70 font-medium text-xs line-clamp-2">{item.desc}</p>
+                    <p className="text-white/80 font-medium text-xs line-clamp-2">{item.desc}</p>
                   </div>
                 </button>
               ))}
@@ -202,17 +204,17 @@ const Kiosk: React.FC<KioskProps> = ({ settings, onBack }) => {
         {/* STEP 2: PATIENT IDENTIFY */}
         {step === 'PATIENT_IDENTIFY' && (
           <div className="h-full flex flex-col items-center justify-center space-y-12 animate-in slide-in-from-right duration-500">
-             <div className="w-full max-w-4xl bg-white/5 border border-white/10 rounded-[4rem] p-16 text-center space-y-12 backdrop-blur-xl shadow-2xl">
+             <div className="w-full max-w-4xl bg-white border border-slate-200 rounded-[3rem] p-16 text-center space-y-12 shadow-xl shadow-slate-100/80">
                 <div className="space-y-4">
-                  <h2 className="text-5xl font-black uppercase tracking-tighter">Xác thực thông tin</h2>
-                  <p className="text-xl text-white/50 font-medium italic">Vui lòng quét thẻ BHYT hoặc nhập số CCCD / Mã bệnh nhân</p>
+                  <h2 className="text-5xl font-black uppercase tracking-tighter text-slate-900">Xác thực thông tin</h2>
+                  <p className="text-xl text-slate-500 font-medium italic">Vui lòng quét thẻ BHYT hoặc nhập số CCCD / Mã bệnh nhân</p>
                 </div>
 
                 <div className="flex flex-col items-center gap-10">
                    {/* QR SCAN ANIMATION AREA */}
-                   <div className="relative h-64 w-64 bg-black/40 rounded-3xl border-2 border-emerald-500/30 flex items-center justify-center overflow-hidden">
-                      <Scan size={120} className="text-emerald-500/50" />
-                      <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/20 to-transparent h-1/2 animate-scan"></div>
+                   <div className="relative h-64 w-64 bg-slate-50 rounded-3xl border-2 border-emerald-500/40 flex items-center justify-center overflow-hidden shadow-inner">
+                      <Scan size={120} className="text-emerald-600/50" />
+                      <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/10 to-transparent h-1/2 animate-scan"></div>
                       <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-emerald-500"></div>
                       <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-emerald-500"></div>
                       <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-emerald-500"></div>
@@ -225,24 +227,24 @@ const Kiosk: React.FC<KioskProps> = ({ settings, onBack }) => {
                         value={searchId}
                         onChange={(e) => setSearchId(e.target.value)}
                         placeholder="Nhập mã số tại đây..."
-                        className="flex-1 h-24 bg-white/10 border border-white/20 rounded-3xl px-10 text-4xl font-black focus:outline-none focus:border-blue-500 text-center placeholder:text-white/10"
+                        className="flex-1 h-24 bg-slate-50 border border-slate-200 rounded-3xl px-10 text-4xl font-black focus:outline-none focus:border-blue-500 focus:bg-white focus:shadow-md focus:shadow-blue-500/10 text-slate-800 text-center placeholder:text-slate-300"
                         autoFocus
                       />
                       <button 
                         onClick={() => handleIdentifyPatient()}
                         disabled={loading || !searchId}
-                        className="h-24 w-24 bg-blue-600 rounded-3xl flex items-center justify-center hover:bg-blue-500 transition-colors disabled:bg-white/5"
+                        className="h-24 w-24 bg-blue-600 text-white rounded-3xl flex items-center justify-center hover:bg-blue-500 transition-colors disabled:bg-slate-100 disabled:text-slate-300"
                       >
-                        {loading ? <div className="h-10 w-10 border-4 border-white/20 border-t-white rounded-full animate-spin"></div> : <ChevronRight size={48} />}
+                        {loading ? <div className="h-10 w-10 border-4 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div> : <ChevronRight size={48} />}
                       </button>
                    </div>
                 </div>
 
                 <div className="flex justify-center gap-4">
-                   <span className="px-6 py-3 bg-white/5 rounded-full text-sm font-bold text-white/40 uppercase tracking-widest border border-white/5 flex items-center gap-2">
+                   <span className="px-6 py-3 bg-slate-100 rounded-full text-sm font-bold text-slate-500 uppercase tracking-widest border border-slate-200 flex items-center gap-2">
                      <CreditCard size={16} /> Quét thẻ BHYT
                    </span>
-                   <span className="px-6 py-3 bg-white/5 rounded-full text-sm font-bold text-white/40 uppercase tracking-widest border border-white/5 flex items-center gap-2">
+                   <span className="px-6 py-3 bg-slate-100 rounded-full text-sm font-bold text-slate-500 uppercase tracking-widest border border-slate-200 flex items-center gap-2">
                      <User size={16} /> CCCD / Mã BN
                    </span>
                 </div>
@@ -254,8 +256,8 @@ const Kiosk: React.FC<KioskProps> = ({ settings, onBack }) => {
         {step === 'DEPARTMENT_SELECTION' && (
           <div className="h-full flex flex-col items-center space-y-10 animate-in slide-in-from-right duration-500">
              <div className="text-center space-y-2">
-                <h2 className="text-4xl font-black uppercase tracking-tighter">Chọn chuyên khoa khám</h2>
-                <p className="text-white/50 font-bold uppercase tracking-[0.2em] text-xs">Chào bạn: <span className="text-blue-400">{patientData?.name}</span></p>
+                <h2 className="text-4xl font-black uppercase tracking-tighter text-slate-900">Chọn chuyên khoa khám</h2>
+                <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-xs">Chào bạn: <span className="text-blue-600">{patientData?.name}</span></p>
              </div>
 
              <div className="grid grid-cols-3 gap-6 w-full max-w-6xl overflow-y-auto pr-4 custom-scrollbar">
@@ -273,12 +275,12 @@ const Kiosk: React.FC<KioskProps> = ({ settings, onBack }) => {
                   <button
                     key={dept.code}
                     onClick={() => handlePrintTicket(dept.code)}
-                    className={`h-40 bg-gradient-to-br ${dept.color} border border-white/10 rounded-[2.5rem] p-8 flex flex-col justify-between hover:border-white/40 transition-all hover:-translate-y-1 active:scale-95 text-left`}
+                    className={`h-40 bg-gradient-to-br ${dept.color} border border-slate-200/80 rounded-[2.5rem] p-8 flex flex-col justify-between hover:border-blue-500 hover:shadow-lg hover:shadow-blue-500/5 transition-all hover:-translate-y-1 active:scale-95 text-left bg-white`}
                   >
-                    <div className="h-12 w-12 bg-white/10 rounded-2xl flex items-center justify-center">
+                    <div className="h-12 w-12 bg-white/60 border border-white/30 text-slate-800 rounded-2xl flex items-center justify-center">
                       {dept.icon}
                     </div>
-                    <h4 className="text-xl font-black leading-tight uppercase">{dept.name}</h4>
+                    <h4 className="text-xl font-black leading-tight uppercase text-slate-900">{dept.name}</h4>
                   </button>
                 ))}
              </div>
@@ -289,14 +291,14 @@ const Kiosk: React.FC<KioskProps> = ({ settings, onBack }) => {
         {step === 'PRINTING' && (
           <div className="h-full flex flex-col items-center justify-center space-y-12">
              <div className="relative">
-                <div className="h-48 w-48 border-[12px] border-white/5 border-t-blue-600 rounded-full animate-spin"></div>
+                <div className="h-48 w-48 border-[12px] border-slate-200 border-t-blue-600 rounded-full animate-spin"></div>
                 <div className="absolute inset-0 flex items-center justify-center">
                    <Printer size={64} className="text-blue-600 animate-pulse" />
                 </div>
              </div>
              <div className="text-center space-y-4">
-                <h2 className="text-5xl font-black uppercase tracking-tighter animate-pulse">{printStatus}</h2>
-                <p className="text-xl text-white/40 font-medium">Vui lòng chờ trong giây lát...</p>
+                <h2 className="text-5xl font-black uppercase tracking-tighter animate-pulse text-slate-900">{printStatus}</h2>
+                <p className="text-xl text-slate-500 font-medium">Vui lòng chờ trong giây lát...</p>
              </div>
           </div>
         )}
@@ -304,17 +306,17 @@ const Kiosk: React.FC<KioskProps> = ({ settings, onBack }) => {
         {/* STEP 5: SUCCESS */}
         {step === 'SUCCESS' && (
           <div className="h-full flex flex-col items-center justify-center space-y-12 animate-in zoom-in duration-500">
-             <div className="h-40 w-40 bg-emerald-500 rounded-full flex items-center justify-center shadow-[0_0_80px_rgba(16,185,129,0.4)]">
+             <div className="h-40 w-40 bg-emerald-500 rounded-full flex items-center justify-center shadow-[0_0_80px_rgba(16,185,129,0.3)]">
                 <Printer size={80} className="text-white" />
              </div>
              
              <div className="text-center space-y-6">
-                <h2 className="text-6xl font-black uppercase tracking-tighter">Lấy số thành công!</h2>
-                <p className="text-2xl text-emerald-400 font-black uppercase tracking-widest">Vui lòng nhận phiếu tại khe máy in</p>
+                <h2 className="text-6xl font-black uppercase tracking-tighter text-slate-900">Lấy số thành công!</h2>
+                <p className="text-2xl text-emerald-600 font-black uppercase tracking-widest">Vui lòng nhận phiếu tại khe máy in</p>
              </div>
 
              {lastTicket && (
-               <div className="w-full max-w-md bg-white text-slate-900 rounded-3xl p-10 shadow-2xl space-y-6">
+               <div className="w-full max-w-md bg-white text-slate-900 rounded-3xl p-10 shadow-xl shadow-slate-200/80 border border-slate-200 space-y-6">
                   <div className="text-center border-b-2 border-dashed border-slate-200 pb-6">
                      <p className="font-bold text-slate-400 text-sm uppercase tracking-widest mb-1">{settings.hospitalName}</p>
                      <h3 className="text-6xl font-black tracking-tighter text-blue-600">{lastTicket.ticketNumber}</h3>
@@ -342,34 +344,34 @@ const Kiosk: React.FC<KioskProps> = ({ settings, onBack }) => {
                </div>
              )}
 
-             <p className="text-white/20 font-bold uppercase tracking-widest text-xs">Màn hình sẽ tự động đóng sau 5 giây</p>
+             <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Màn hình sẽ tự động đóng sau 5 giây</p>
           </div>
         )}
 
       </main>
 
       {/* Footer Info */}
-      <footer className="h-20 px-12 border-t border-white/10 flex items-center justify-between bg-black/40">
+      <footer className="h-20 px-12 border-t border-slate-200 flex items-center justify-between bg-white shadow-inner shrink-0 z-10">
         <div className="flex items-center gap-8">
-           <div className="flex items-center gap-3 text-white/40">
+           <div className="flex items-center gap-3 text-slate-500">
               <Clock size={20} />
               <span className="text-sm font-black tracking-widest uppercase">{new Date().toLocaleTimeString()}</span>
            </div>
-           <div className="h-6 w-[1px] bg-white/10"></div>
-           <div className="flex items-center gap-3 text-white/40">
+           <div className="h-6 w-[1px] bg-slate-200"></div>
+           <div className="flex items-center gap-3 text-slate-500">
               <Activity size={20} />
               <span className="text-sm font-black tracking-widest uppercase">Sync: HIS Online</span>
            </div>
         </div>
         
-        <div className="text-white/20 text-[10px] font-black uppercase tracking-[0.3em]">
+        <div className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">
           VIMES QMS Enterprise • Self-Service Kiosk v2.0
         </div>
       </footer>
 
       {/* Background Styling */}
-      <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-blue-600/10 rounded-full blur-[120px] -z-10 pointer-events-none translate-x-1/2 -translate-y-1/2"></div>
-      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-emerald-600/5 rounded-full blur-[100px] -z-10 pointer-events-none -translate-x-1/2 translate-y-1/2"></div>
+      <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-blue-500/5 rounded-full blur-[120px] -z-10 pointer-events-none translate-x-1/2 -translate-y-1/2"></div>
+      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-emerald-500/5 rounded-full blur-[100px] -z-10 pointer-events-none -translate-x-1/2 translate-y-1/2"></div>
     </div>
   );
 };

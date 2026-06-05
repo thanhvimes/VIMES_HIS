@@ -1,6 +1,6 @@
 # vClinic Deployment Package
 
-📦 **Version:** 2026-01-29
+📦 **Version:** 2026-06-03
 
 ## Quick Start
 

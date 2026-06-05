@@ -27,6 +27,7 @@ const ManagementReporting = React.lazy(() => import('./modules/management-report
 const Documents = React.lazy(() => import('./modules/documents/index'));
 const ReportsModule = React.lazy(() => import('./modules/reports/index'));
 const InsuranceModule = React.lazy(() => import('./modules/insurance/index'));
+const HealthCheckSyncModule = React.lazy(() => import('./modules/health-check-sync/index'));
 const Telemedicine = React.lazy(() => import('./modules/telemedicine/index'));
 const CRM = React.lazy(() => import('./modules/crm/index'));
 const HR = React.lazy(() => import('./modules/hr/index'));
@@ -60,6 +61,7 @@ const moduleTitles: { [key: string]: string } = {
   admin: 'Quản trị Hệ thống',
   'management-reporting': 'Báo cáo Quản trị',
   insurance: 'Bảo hiểm Y tế',
+  'health-check': 'Liên thông KSK VNeID',
   telemedicine: 'Hội chẩn từ xa',
   crm: 'CRM & CSKH',
   hr: 'Quản lý Nhân sự',
@@ -72,7 +74,7 @@ const moduleTitles: { [key: string]: string } = {
 
 const WorkspaceLayout: React.FC = () => {
   const { logout, user } = useSession();
-  const { isSidebarCollapsed, toggleSidebar, isMobileSidebarOpen, setMobileSidebarOpen, getModuleNav } = useSystemStore();
+  const { isSidebarCollapsed, toggleSidebar, isMobileSidebarOpen, setMobileSidebarOpen, getModuleNav, menuConfig } = useSystemStore();
   const [isChatVisible, setIsChatVisible] = useState(false);
   const location = useLocation();
 
@@ -90,7 +92,7 @@ const WorkspaceLayout: React.FC = () => {
     const title = moduleTitles[currentModuleRoot] || 'VIMES';
     const navItems = getModuleNav(currentModuleRoot, user?.role);
     return { pageTitle: title, moduleNavItems: navItems };
-  }, [location.pathname, getModuleNav, user?.role]);
+  }, [location.pathname, getModuleNav, user?.role, menuConfig]);
 
   return (
     <div className="flex h-screen bg-background dark:bg-dark-background">
@@ -174,6 +176,7 @@ const StaffSystem: React.FC = () => {
         <Route path="/admin/*" element={<Admin />} />
         <Route path="/management-reporting/*" element={<ManagementReporting />} />
         <Route path="/insurance/*" element={<InsuranceModule />} />
+        <Route path="/health-check/*" element={<HealthCheckSyncModule />} />
         <Route path="/documents/*" element={<Documents />} />
         <Route path="/reports/*" element={<ReportsModule />} />
         <Route path="/command-center/*" element={<CommandCenter />} />

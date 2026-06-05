@@ -20,6 +20,10 @@ import {
   ChevronDown,
   Layers,
   MapPin,
+  Phone,
+  Calendar,
+  Shield,
+  HeartPulse,
 } from 'lucide-react';
 import { apiFetch, getBaseUrl } from '../services/apiService';
 import { AppSettings, KioskType } from '../types';
@@ -40,6 +44,29 @@ const formatTicketTime = (timeStr: any, options?: Intl.DateTimeFormatOptions): s
     return d.toLocaleTimeString([], options || { hour: '2-digit', minute: '2-digit' });
   } catch (e) {
     return '--:--';
+  }
+};
+
+const formatGender = (genderStr: any): string => {
+  if (!genderStr) return 'Chưa xác định';
+  const g = String(genderStr).trim().toUpperCase();
+  if (g === 'M' || g === 'NAM') return 'Nam';
+  if (g === 'F' || g === 'NỮ' || g === 'NU') return 'Nữ';
+  return genderStr;
+};
+
+const formatDob = (dobStr: any): string => {
+  if (!dobStr) return 'Chưa cập nhật';
+  try {
+    const d = new Date(dobStr);
+    if (isNaN(d.getTime())) return dobStr;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const age = new Date().getFullYear() - year;
+    return `${day}/${month}/${year} (${age} tuổi)`;
+  } catch (e) {
+    return dobStr;
   }
 };
 
@@ -182,6 +209,18 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
       
       const historyData = await apiFetch(`/api/queue/history/${activeCounterId}?type=${activeService}&deptId=${selectedDept}`);
       if (Array.isArray(historyData)) setHistory(historyData);
+
+      // Đồng bộ thông tin lượt khám hiện tại đang phục vụ tại quầy
+      try {
+        const counterInfo = await apiFetch(`/api/counter/${activeCounterId}?deptId=${selectedDept}`);
+        if (counterInfo && counterInfo.activeTicket && counterInfo.activeTicket.ticket_number) {
+          setCurrentTicket(counterInfo.activeTicket);
+        } else {
+          setCurrentTicket(null);
+        }
+      } catch (err) {
+        console.error('Lỗi khi tải thông tin quầy:', err);
+      }
     } catch (e) {
       console.error('Error loading data:', e);
     }
@@ -456,6 +495,7 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
     String(t.ticket_number || '').includes(searchQuery)
   );
 
+  console.log('[DEBUG RENDER] currentTicket:', currentTicket);
   return (
     <div className="h-full w-full bg-slate-50 flex overflow-hidden font-sans relative">
       
@@ -673,14 +713,14 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
                   <section className={`flex-1 flex-col gap-6 md:overflow-y-auto pr-0 md:pr-2 custom-scrollbar ${activeTab === 'CONSOLE' ? 'flex' : 'hidden md:flex'}`}>
                      
                      {/* Calling Card */}
-                     <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                     <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col shrink-0">
                         <div className="bg-slate-950 px-8 py-4 flex items-center justify-between">
                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Bệnh nhân hiện tại</span>
                            <div className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-[9px] font-black uppercase border border-blue-500/30">Đang phục vụ</div>
                         </div>
                         
                         <div className="p-10 flex flex-col items-center text-center">
-                           {currentTicket ? (
+                           {currentTicket && currentTicket.ticket_number ? (
                               <>
                                  <h2 className="text-8xl font-black text-blue-600 tracking-tighter mb-4 font-mono">{currentTicket.ticket_number}</h2>
                                  <h3 className="text-3xl font-black text-slate-900 uppercase mb-2 tracking-tight">{currentTicket.patient_name || 'Khách lẻ'}</h3>
@@ -701,11 +741,11 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
                         </div>
 
                         <div className="p-4 md:p-8 bg-slate-50/50 border-t border-slate-100 flex flex-wrap md:flex-nowrap gap-3 md:gap-4">
-                           {currentTicket ? (
+                           {currentTicket && currentTicket.ticket_number ? (
                               <>
                                  <button 
                                    onClick={handleComplete}
-                                   className="flex-1 h-16 bg-emerald-650 hover:bg-emerald-700 text-white rounded-2xl font-black flex items-center justify-center gap-3 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
+                                   className="flex-1 h-16 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black flex items-center justify-center gap-3 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
                                  >
                                     <CheckCircle2 size={24} /> HOÀN TẤT
                                  </button>
@@ -728,7 +768,7 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
                               <button 
                                 onClick={() => handleCallNext()}
                                 disabled={loading}
-                                className="flex-1 h-16 bg-blue-605 hover:bg-blue-700 disabled:bg-slate-200 text-white rounded-2xl font-black flex items-center justify-center gap-4 shadow-xl shadow-blue-600/20 transition-all active:scale-95"
+                                className="flex-1 h-16 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 text-white rounded-2xl font-black flex items-center justify-center gap-4 shadow-xl shadow-blue-600/20 transition-all active:scale-95"
                               >
                                  {loading ? <div className="h-6 w-6 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : <Play size={24} fill="currentColor" />}
                                  GỌI SỐ TIẾP THEO <span className="opacity-50 font-medium text-xs tracking-normal">(SPACE)</span>
@@ -770,34 +810,121 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
 
                      {/* Patient Details Panel */}
                      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 space-y-6">
-                        <div className="flex items-center justify-between">
-                           <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">Thông tin chi tiết</h4>
-                           <button className="text-blue-600 font-bold text-[10px] uppercase tracking-widest hover:text-blue-800 transition-colors">Xem hồ sơ HIS</button>
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                           <div className="flex items-center gap-2">
+                              <div className="h-2.5 w-2.5 bg-blue-600 rounded-full animate-pulse" />
+                              <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">Thông tin chi tiết bệnh nhân</h4>
+                           </div>
+                           <button className="text-blue-600 font-bold text-[10px] uppercase tracking-widest hover:text-blue-800 transition-colors border border-blue-200 hover:border-blue-300 px-3 py-1.5 rounded-full bg-slate-50 hover:bg-blue-50">Xem hồ sơ HIS</button>
                         </div>
                         
-                        {currentTicket ? (
-                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 sm:gap-y-6 gap-x-12">
-                              <div>
-                                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Giới tính</p>
-                                 <p className="text-sm font-bold text-slate-700">{currentTicket.gender || 'Chưa xác định'}</p>
+                        {currentTicket && currentTicket.ticket_number ? (
+                           <div className="space-y-6">
+                              {/* Administrative Info Grid */}
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-4 gap-x-8">
+                                 <div className="space-y-1">
+                                    <div className="flex items-center gap-1.5 text-slate-400">
+                                       <UserCheck size={14} />
+                                       <p className="text-[10px] font-bold uppercase tracking-wider">Giới tính</p>
+                                    </div>
+                                    <p className="text-sm font-bold text-slate-800 bg-slate-50 px-3 py-2 rounded-xl border border-slate-100">
+                                       {formatGender(currentTicket.gender)}
+                                    </p>
+                                 </div>
+                                 <div className="space-y-1">
+                                    <div className="flex items-center gap-1.5 text-slate-400">
+                                       <Calendar size={14} />
+                                       <p className="text-[10px] font-bold uppercase tracking-wider">Ngày sinh / Tuổi</p>
+                                    </div>
+                                    <p className="text-sm font-bold text-slate-800 bg-slate-50 px-3 py-2 rounded-xl border border-slate-100">
+                                       {formatDob(currentTicket.dob)}
+                                    </p>
+                                 </div>
+                                 <div className="space-y-1">
+                                    <div className="flex items-center gap-1.5 text-slate-400">
+                                       <Phone size={14} />
+                                       <p className="text-[10px] font-bold uppercase tracking-wider">Số điện thoại</p>
+                                    </div>
+                                    <p className="text-sm font-bold text-slate-800 bg-slate-50 px-3 py-2 rounded-xl border border-slate-100">
+                                       {currentTicket.phone || 'Chưa cập nhật'}
+                                    </p>
+                                 </div>
+                                 
+                                 <div className="col-span-1 sm:col-span-2 space-y-1">
+                                    <div className="flex items-center gap-1.5 text-slate-400">
+                                       <MapPin size={14} />
+                                       <p className="text-[10px] font-bold uppercase tracking-wider">Địa chỉ liên hệ</p>
+                                    </div>
+                                    <p className="text-sm font-bold text-slate-800 bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 leading-relaxed">
+                                       {currentTicket.address || 'Đang cập nhật...'}
+                                    </p>
+                                 </div>
+                                 <div className="space-y-1">
+                                    <div className="flex items-center gap-1.5 text-slate-400">
+                                       <Shield size={14} />
+                                       <p className="text-[10px] font-bold uppercase tracking-wider">Đối tượng / Thẻ</p>
+                                    </div>
+                                    <p className="text-sm font-bold text-slate-800 bg-slate-50 px-3 py-2 rounded-xl border border-slate-100">
+                                       {currentTicket.object_type === 'BHYT' 
+                                          ? `BHYT (${currentTicket.insurance_number || 'Thiếu số thẻ'})` 
+                                          : 'Viện phí / Dịch vụ'}
+                                    </p>
+                                 </div>
                               </div>
-                              <div>
-                                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Năm sinh</p>
-                                 <p className="text-sm font-bold text-slate-700">{currentTicket.dob || 'N/A'}</p>
+
+                              {/* Reason / Diagnostic section */}
+                              <div className="border-t border-slate-100 pt-4 space-y-1">
+                                 <div className="flex items-center gap-1.5 text-slate-400">
+                                    <MessageSquare size={14} />
+                                    <p className="text-[10px] font-bold uppercase tracking-wider">Lý do khám / Chẩn đoán sơ bộ</p>
+                                 </div>
+                                 <p className="text-sm font-bold text-slate-800 bg-slate-50 px-3 py-2 rounded-xl border border-slate-100">
+                                    {currentTicket.reason || 'Khám sức khỏe / Theo dõi định kỳ'}
+                                 </p>
                               </div>
-                              <div className="col-span-2">
-                                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Địa chỉ</p>
-                                 <p className="text-sm font-bold text-slate-700 leading-relaxed">{currentTicket.address || 'Đang cập nhật...'}</p>
-                              </div>
-                              <div className="col-span-2 pt-4 border-t border-slate-50">
-                                 <div className="flex items-center gap-3">
-                                    <MessageSquare size={16} className="text-slate-400" />
-                                    <p className="text-xs italic text-slate-400">Không có ghi chú đặc biệt cho bệnh nhân này.</p>
+
+                              {/* Vitals Section */}
+                              <div className="border-t border-slate-100 pt-4 space-y-3">
+                                 <div className="flex items-center gap-1.5 text-slate-400">
+                                    <HeartPulse size={14} />
+                                    <p className="text-[10px] font-bold uppercase tracking-wider">Thông số sinh hiệu tiếp đón</p>
+                                 </div>
+                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                    <div className="bg-rose-50/50 border border-rose-100/80 p-3 rounded-2xl flex flex-col justify-center">
+                                       <span className="text-[9px] font-bold text-rose-500 uppercase tracking-widest mb-1">Huyết áp</span>
+                                       <span className="text-sm font-black text-rose-700">
+                                          {currentTicket.bp_sys > 0 || currentTicket.bp_dia > 0 
+                                             ? `${currentTicket.bp_sys}/${currentTicket.bp_dia} mmHg` 
+                                             : '--/--'}
+                                       </span>
+                                    </div>
+                                    <div className="bg-amber-50/50 border border-amber-100/80 p-3 rounded-2xl flex flex-col justify-center">
+                                       <span className="text-[9px] font-bold text-amber-600 uppercase tracking-widest mb-1">Mạch</span>
+                                       <span className="text-sm font-black text-amber-800">
+                                          {currentTicket.pulse > 0 ? `${currentTicket.pulse} lần/phút` : '--'}
+                                       </span>
+                                    </div>
+                                    <div className="bg-blue-50/50 border border-blue-100/80 p-3 rounded-2xl flex flex-col justify-center">
+                                       <span className="text-[9px] font-bold text-blue-600 uppercase tracking-widest mb-1">Nhiệt độ</span>
+                                       <span className="text-sm font-black text-blue-800">
+                                          {currentTicket.temperature > 0 ? `${currentTicket.temperature} °C` : '--'}
+                                       </span>
+                                    </div>
+                                    <div className="bg-emerald-50/50 border border-emerald-100/80 p-3 rounded-2xl flex flex-col justify-center">
+                                       <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Cân nặng / BMI</span>
+                                       <span className="text-sm font-black text-emerald-800">
+                                          {currentTicket.weight > 0 
+                                             ? `${currentTicket.weight} kg (${currentTicket.bmi || '--'})` 
+                                             : '--'}
+                                       </span>
+                                    </div>
                                  </div>
                               </div>
                            </div>
                         ) : (
-                           <div className="py-8 text-center text-slate-300 text-xs italic">Vui lòng gọi bệnh nhân để xem chi tiết</div>
+                           <div className="py-12 text-center text-slate-300 text-sm font-medium italic bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                              Vui lòng gọi bệnh nhân để xem chi tiết thông tin lâm sàng
+                           </div>
                         )}
                      </div>
 
