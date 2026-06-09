@@ -398,12 +398,12 @@ const CentralDisplay: React.FC<CentralDisplayProps> = ({ onBack, settings }) => 
                <p className="text-blue-200 text-[10px] font-black uppercase tracking-[0.2em] mb-1">
                   {(selectedService === 'EXECUTION' || selectedService === 'REGISTRATION') ? 'Khoa điều trị' : 'Khu vực'}
                </p>
-               <p className="text-white text-lg font-bold uppercase">
-                  {(selectedService === 'EXECUTION' || selectedService === 'REGISTRATION') 
-                     ? (allDepts.find(d => String(d.id) === String(selectedDeptId))?.name || selectedDeptId)
-                     : (selectedAreaState?.area_name || selectedAreaState?.name || 'Tất cả')
-                  }
-               </p>
+                <p className="text-white text-lg font-bold">
+                   {((selectedService === 'EXECUTION' || selectedService === 'REGISTRATION') 
+                      ? (allDepts.find(d => String(d.id) === String(selectedDeptId))?.name || selectedDeptId)
+                      : (selectedAreaState?.area_name || selectedAreaState?.name || 'Tất cả')
+                   ).normalize('NFC').toUpperCase()}
+                </p>
             </div>
         </div>
 
@@ -475,15 +475,15 @@ const CentralDisplay: React.FC<CentralDisplayProps> = ({ onBack, settings }) => 
                          className={`flex flex-col border-2 border-black/20 relative ${bgColor} ${isThisCalling ? 'animate-call-flash ring-inset ring-[20px] ring-white z-50 scale-105 shadow-2xl' : ''}`}
                        >
                          <div className="h-16 flex items-center justify-center border-b-2 border-white/20 shrink-0">
-                            <h2 className="text-3xl font-extrabold text-white uppercase truncate px-4">{counter.counter_name}</h2>
+                            <h2 className="text-3xl font-extrabold text-white truncate px-4 py-1 leading-normal">{(counter.counter_name || '').normalize('NFC').toUpperCase()}</h2>
                          </div>
                          <div className="flex-1 flex flex-col items-center justify-center py-4 min-h-0">
                             <div className="font-black text-white leading-none tabular-nums drop-shadow-lg" style={{fontSize: 'clamp(5rem, 15vw, 13rem)'}}>
                                {counter.current_ticket || '---'}
                             </div>
                             {counter.current_name && (
-                               <div className="text-3xl lg:text-4xl font-extrabold text-white uppercase mt-4 px-4 text-center max-w-[95%] tracking-wider break-words leading-tight">
-                                  {counter.current_name}
+                               <div className="text-3xl lg:text-4xl font-extrabold text-white mt-4 px-4 text-center max-w-[95%] tracking-wider break-words leading-tight">
+                                  {(counter.current_name || '').normalize('NFC').toUpperCase()}
                                </div>
                             )}
                          </div>
@@ -782,8 +782,8 @@ const CounterPicker: React.FC<CounterPickerProps> = ({
                      <Check size={18} strokeWidth={4} />
                   </div>
                   <div>
-                     <p className="text-sm font-black text-slate-800 uppercase leading-none">{item.name}</p>
-                     <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">{item.subname}</p>
+                     <p className="text-sm font-black text-slate-800 leading-none">{(item.name || '').normalize('NFC').toUpperCase()}</p>
+                     <p className="text-[10px] font-bold text-slate-400 mt-1">{(item.subname || '').normalize('NFC').toUpperCase()}</p>
                   </div>
                </button>
             );

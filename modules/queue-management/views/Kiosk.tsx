@@ -144,7 +144,7 @@ const Kiosk: React.FC<KioskProps> = ({ settings, onBack }) => {
              </svg>
           </div>
           <div>
-            <h1 className="text-2xl font-black uppercase tracking-tight text-slate-900">{settings.hospitalName}</h1>
+            <h1 className="text-2xl font-black tracking-tight text-slate-900">{(settings.hospitalName || '').normalize('NFC').toUpperCase()}</h1>
             <p className="text-emerald-700 text-sm font-bold tracking-widest uppercase">Hệ thống cấp số tự động</p>
           </div>
         </div>
@@ -257,7 +257,7 @@ const Kiosk: React.FC<KioskProps> = ({ settings, onBack }) => {
           <div className="h-full flex flex-col items-center space-y-10 animate-in slide-in-from-right duration-500">
              <div className="text-center space-y-2">
                 <h2 className="text-4xl font-black uppercase tracking-tighter text-slate-900">Chọn chuyên khoa khám</h2>
-                <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-xs">Chào bạn: <span className="text-blue-600">{patientData?.name}</span></p>
+                <p className="text-slate-500 font-bold tracking-[0.2em] text-xs">CHÀO BẠN: <span className="text-blue-600">{(patientData?.name || '').normalize('NFC').toUpperCase()}</span></p>
              </div>
 
              <div className="grid grid-cols-3 gap-6 w-full max-w-6xl overflow-y-auto pr-4 custom-scrollbar">

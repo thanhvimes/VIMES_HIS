@@ -570,8 +570,8 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
                   </div>
                   
                   {patientName ? (
-                     <div className="mt-8 text-6xl lg:text-7xl font-black text-slate-800 uppercase border-t-4 border-slate-200 pt-8 w-[90%] text-center tracking-wide leading-tight break-words">
-                        {patientName}
+                     <div className="mt-8 text-6xl lg:text-7xl font-black text-slate-800 border-t-4 border-slate-200 pt-8 w-[90%] text-center tracking-wide leading-tight break-words">
+                        {patientName.normalize('NFC').toUpperCase()}
                      </div>
                   ) : (
                      <div className="mt-8 text-4xl font-black text-slate-350 uppercase border-t-4 border-slate-200 pt-8 w-[90%] text-center tracking-wide">
@@ -604,9 +604,9 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
                                  <span className="inline-flex items-center justify-center px-4 py-1.5 bg-[#2e408a]/10 text-[#2e408a] font-extrabold rounded-2xl text-2xl lg:text-3xl tabular-nums shrink-0">
                                     {item.ticket_number}
                                  </span>
-                                 <span className="text-2xl lg:text-3xl font-extrabold text-slate-800 uppercase leading-snug truncate">
-                                    {item.patient_name || 'Bệnh nhân'}
-                                 </span>
+                                  <span className="text-2xl lg:text-3xl font-extrabold text-slate-800 py-0.5 leading-normal truncate">
+                                     {(item.patient_name || 'Bệnh nhân').normalize('NFC').toUpperCase()}
+                                  </span>
                               </div>
                               {/* Year of birth */}
                               <div className="col-span-3 text-right text-2xl lg:text-3xl font-black text-slate-500 tabular-nums">
@@ -654,13 +654,13 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
             <div className={`w-[300px] ${counterInfo?.is_priority ? 'bg-[#ed1c24]' : 'bg-[#2e408a]'} flex flex-col items-center justify-center text-white shrink-0 relative`}>
                {/* Area name */}
                <div className="absolute top-0 left-0 right-0 bg-white/10 py-3 text-center">
-                  <p className="text-sm font-bold uppercase tracking-widest text-blue-200">{selectedAreaState?.area_name || selectedAreaState?.name || 'Khu vực chung'}</p>
+                  <p className="text-sm font-bold tracking-widest text-blue-200">{(selectedAreaState?.area_name || selectedAreaState?.name || 'Khu vực chung').normalize('NFC').toUpperCase()}</p>
                </div>
 
                {/* Counter / Room label & value */}
                <h2 className="text-2xl font-bold uppercase tracking-[0.2em] mb-2 text-blue-200">{getSidebarTitle()}</h2>
-               <div style={{fontSize: getFontSize()}} className="font-black leading-none px-4 text-center break-words uppercase">
-                  {getCounterValue()}
+               <div style={{fontSize: getFontSize()}} className="font-black leading-none px-4 text-center break-words">
+                  {(getCounterValue() || '').normalize('NFC').toUpperCase()}
                </div>
 
                {/* Clock & Status */}
@@ -689,8 +689,8 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
                   </div>
                   
                   {patientName && (
-                     <div className="mt-8 text-6xl lg:text-7xl font-black text-slate-800 uppercase border-t-4 border-slate-200 pt-8 w-3/4 text-center tracking-wide leading-tight">
-                        {patientName}
+                     <div className="mt-8 text-6xl lg:text-7xl font-black text-slate-800 border-t-4 border-slate-200 pt-8 w-3/4 text-center tracking-wide leading-tight">
+                        {patientName.normalize('NFC').toUpperCase()}
                      </div>
                   )}
                </div>
@@ -865,7 +865,7 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
                       }`}
                     >
                       <p className="text-slate-400 font-bold uppercase text-[10px] mb-1">Khoa: {selectedDeptId}</p>
-                      <p className="text-xl font-black text-slate-800 uppercase leading-tight">{room.name}</p>
+                      <p className="text-xl font-black text-slate-800 leading-tight">{(room.name || '').normalize('NFC').toUpperCase()}</p>
                     </button>
                   ))}
                   {allRooms.length === 0 && (
@@ -888,8 +888,8 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
                         : 'border-transparent hover:border-slate-350 shadow-sm'
                       }`}
                     >
-                      <p className="text-slate-400 font-bold uppercase text-[10px] mb-1">{c.area_name || 'Khu vực'}</p>
-                      <p className="text-xl font-black text-slate-800 uppercase leading-tight">{c.counter_name}</p>
+                      <p className="text-slate-400 font-bold text-[10px] mb-1">{(c.area_name || 'Khu vực').normalize('NFC').toUpperCase()}</p>
+                      <p className="text-xl font-black text-slate-800 leading-tight">{(c.counter_name || '').normalize('NFC').toUpperCase()}</p>
                     </button>
                   ))}
                   {allCounters.filter(c => !selectedAreaState || String(c.area_id) === String(selectedAreaState.area_id || selectedAreaState.id)).length === 0 && (
