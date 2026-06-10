@@ -93,7 +93,7 @@ class ReceptionCatalogController {
 
     async getNations(req: Request, res: Response) {
         try {
-            const result = await query(`SELECT hq_idx as id, hq_idx as code, hq_name as name from hms_quoctich ORDER BY hq_index, id`);
+            const result = await query(`SELECT hq_idx as id, hq_idx as code, hq_name as name from hms_quoctich ORDER BY hq_idx, id`);
             return res.json(result.rows);
         } catch (error: any) {
             return res.status(500).json({ error: error.message });

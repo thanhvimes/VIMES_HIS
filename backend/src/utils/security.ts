@@ -1,9 +1,22 @@
 import crypto from 'crypto';
 import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 
-// Load .env from root
-dotenv.config({ path: path.join(__dirname, '../../.env') });
+// Load .env robustly from multiple fallback locations
+const envPath = fs.existsSync(path.join(__dirname, '../../.env'))
+    ? path.join(__dirname, '../../.env')
+    : fs.existsSync(path.join(process.cwd(), '.env'))
+        ? path.join(process.cwd(), '.env')
+        : fs.existsSync(path.join(process.cwd(), 'backend', '.env'))
+            ? path.join(process.cwd(), 'backend', '.env')
+            : null;
+
+if (envPath) {
+    dotenv.config({ path: envPath });
+} else {
+    dotenv.config();
+}
 
 // Encryption configuration constants
 const ALGORITHM = 'aes-256-gcm';

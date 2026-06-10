@@ -8,7 +8,7 @@
         ], /* Library files to be included in the compilation */
         "allowJs": true, /* Allow JavaScript files to be compiled */
         "outDir": "./dist", /* Output directory for compiled files */
-        "rootDir": "../", /* Source directory of .ts files */
+        "rootDir": "./src", /* Source directory of .ts files */
         "removeComments": true, /* Strip comments from output */
         /* Strict Type-Checking Options */
         "strict": true, /* Enable all strict type-checking options */
@@ -31,9 +31,8 @@
         "resolveJsonModule": true /* Include modules with .json extension */
     },
     "include": [
-        "src/**/*",
-        "../modules/health-check-sync/backend/**/*"
-    ], /* Include all files in src and modular backend */
+        "src/**/*"
+    ], /* Include all files in src */
     "exclude": [
         "node_modules",
         "dist"

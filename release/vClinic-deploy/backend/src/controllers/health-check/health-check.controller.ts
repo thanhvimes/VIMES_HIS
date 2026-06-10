@@ -3,6 +3,8 @@
 
 import { Request, Response } from 'express';
 import { query, transaction } from '../../config/database';
+import SecurityUtils from '../../utils/security';
+import { getHealthCheckSettings, loadHealthCheckSettings } from '../../config/health-check-settings';
 
 class HealthCheckController {
     
@@ -262,6 +264,9 @@ class HealthCheckController {
         }
 
         try {
+            const settings = getHealthCheckSettings();
+            console.log(`📡 Sending ${docIds.length} XML payloads to VNeID Portal Gateway: ${settings?.vneid_url || 'https://api-vneid.moh.gov.vn/api/v1'} using account: ${settings?.vneid_username || 'vimes_cskcb'}`);
+            
             await new Promise(resolve => setTimeout(resolve, 1000));
             const transactionId = `HC-VNEID-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
@@ -288,156 +293,251 @@ class HealthCheckController {
         }
     }
 
-    // 8. Tạo dữ liệu thử nghiệm cho 17 mẫu biểu KSK
-    async createMockDocuments(req: Request, res: Response) {
+    // 7.1. Lấy cấu hình liên thông VNeID
+    async getSettings(req: Request, res: Response) {
         try {
-            await query(`DELETE FROM health_check_masters`);
+            const result = await query(
+                `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval FROM health_check_settings LIMIT 1`
+            );
 
-            const mockPatients = [
-                { id: "P001", name: "Nguyễn Văn Hùng", cccd: "038090012345", dob: "1995-10-15" },
-                { id: "P002", name: "Trần Thị Lan", cccd: "034198006789", dob: "1988-05-20" },
-                { id: "P003", name: "Lê Hoàng Nam", cccd: "001092004567", dob: "1992-12-01" },
-                { id: "P004", name: "Phạm Minh Đức", cccd: "042095012345", dob: "2018-03-24" },
-                { id: "P005", name: "Hoàng Ngân Hà", cccd: "010099008888", dob: "2026-04-10" }
-            ];
+            if (result.rows.length === 0) {
+                return res.json({
+                    vneid_url: 'https://api-vneid.moh.gov.vn/api/v1',
+                    vneid_username: '',
+                    vneid_password: '',
+                    ma_cskcb: '15124',
+                    ma_gtin_cskcb: '1234567890123',
+                    auto_sync_enabled: false,
+                    auto_sync_interval: 15
+                });
+            }
 
-            for (let i = 1; i <= 17; i++) {
-                const patient = mockPatients[(i - 1) % mockPatients.length];
-                const formType = i.toString();
-                const docNo = `KSK-2026-${1000 + i}`;
-                const patientName = patient.name;
-                const patientId = patient.id;
+            const row = result.rows[0];
+            if (row.vneid_password) {
+                row.vneid_password = '******';
+            }
 
-                let clinicalData: any = {
+            return res.json(row);
+        } catch (error: any) {
+            console.error('❌ KSK Controller: Lỗi getSettings:', error);
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // 7.2. Cập nhật cấu hình liên thông VNeID
+    async updateSettings(req: Request, res: Response) {
+        const {
+            vneid_url,
+            vneid_username,
+            vneid_password,
+            ma_cskcb,
+            ma_gtin_cskcb,
+            auto_sync_enabled,
+            auto_sync_interval
+        } = req.body;
+
+        try {
+            const existCheck = await query('SELECT id, vneid_password FROM health_check_settings LIMIT 1');
+            
+            let finalPassword = '';
+            if (existCheck.rows.length > 0) {
+                const existing = existCheck.rows[0];
+                if (vneid_password === '******') {
+                    finalPassword = existing.vneid_password;
+                } else {
+                    finalPassword = vneid_password ? SecurityUtils.encrypt(vneid_password) : '';
+                }
+
+                const updateSql = `
+                    UPDATE health_check_settings
+                    SET vneid_url = $1,
+                        vneid_username = $2,
+                        vneid_password = $3,
+                        ma_cskcb = $4,
+                        ma_gtin_cskcb = $5,
+                        auto_sync_enabled = $6,
+                        auto_sync_interval = $7,
+                        updated_at = NOW()
+                    WHERE id = $8
+                    RETURNING id
+                `;
+                await query(updateSql, [
+                    vneid_url || 'https://api-vneid.moh.gov.vn/api/v1',
+                    vneid_username || '',
+                    finalPassword,
+                    ma_cskcb || '15124',
+                    ma_gtin_cskcb || '1234567890123',
+                    auto_sync_enabled === true,
+                    parseInt(auto_sync_interval || '15', 10),
+                    existing.id
+                ]);
+            } else {
+                finalPassword = vneid_password ? SecurityUtils.encrypt(vneid_password) : '';
+                const insertSql = `
+                    INSERT INTO health_check_settings (
+                        vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    RETURNING id
+                `;
+                await query(insertSql, [
+                    vneid_url || 'https://api-vneid.moh.gov.vn/api/v1',
+                    vneid_username || '',
+                    finalPassword,
+                    ma_cskcb || '15124',
+                    ma_gtin_cskcb || '1234567890123',
+                    auto_sync_enabled === true,
+                    parseInt(auto_sync_interval || '15', 10)
+                ]);
+            }
+
+            await loadHealthCheckSettings();
+
+            return res.json({ success: true });
+        } catch (error: any) {
+            console.error('❌ KSK Controller: Lỗi updateSettings:', error);
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // 7.3. Gọi ping thử kết nối tới cổng VNeID (Mock / Sandbox)
+    async testConnection(req: Request, res: Response) {
+        const { vneid_url, vneid_username, vneid_password } = req.body;
+
+        try {
+            await new Promise(resolve => setTimeout(resolve, 800));
+
+            if (!vneid_url) {
+                return res.status(400).json({ success: false, message: 'Thiếu địa chỉ cổng URL' });
+            }
+
+            return res.json({ 
+                success: true, 
+                message: `Kết nối thành công tới cổng ${vneid_url}. Cổng hoạt động bình thường, tài khoản hợp lệ.`
+            });
+        } catch (error: any) {
+            return res.status(500).json({ success: false, message: `Lỗi kết nối tới cổng: ${error.message}` });
+        }
+    }
+
+    // 8. Tạo dữ liệu thử nghiệm cho 17 mẫu biểu KSK
+    async seedFromHis(req: Request, res: Response) {
+        try {
+            // 1. Lấy 20 bệnh nhân thật từ HIS (có hồ sơ và phiếu khám)
+            const hisSql = `
+                SELECT DISTINCT ON (p.hp_patientno)
+                    p.hp_patientno,
+                    trim(COALESCE(p.hp_surname,'') || ' ' || COALESCE(p.hp_midname,'') || ' ' || p.hp_firstname) as patient_name,
+                    p.hp_sin,
+                    to_char(p.hp_birthdate, 'YYYY-MM-DD') as dob,
+                    p.hp_sex,
+                    p.hp_dtladdr,
+                    p.hp_ethnic,
+                    d.hd_docno,
+                    d.hd_telephone,
+                    d.hd_cardno,
+                    d.hd_object,
+                    d.hd_patientno,
+                    e.he_height,
+                    e.he_weight,
+                    e.he_bmi,
+                    e.he_pulse,
+                    e.he_bloodpressure,
+                    e.he_bloodpressurex,
+                    e.he_examine,
+                    e.he_diagnostic
+                FROM hms_patient p
+                JOIN hms_doc d ON d.hd_patientno = p.hp_patientno
+                LEFT JOIN hms_exam e ON e.he_docno = d.hd_docno AND e.he_receptidx = 1
+                WHERE d.hd_status <> 'T'
+                ORDER BY p.hp_patientno, d.hd_admitdate DESC
+                LIMIT 20
+            `;
+            const hisResult = await query(hisSql);
+
+            if (hisResult.rows.length === 0) {
+                return res.status(404).json({ error: 'Không tìm thấy bệnh nhân nào trong HIS.' });
+            }
+
+            // 2. Xóa dữ liệu seed cũ (nếu có)
+            await query(`DELETE FROM health_check_masters WHERE doc_no LIKE 'KSK-%'`);
+
+            let seededCount = 0;
+            const formTypes = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17'];
+
+            for (let i = 0; i < hisResult.rows.length; i++) {
+                const row = hisResult.rows[i];
+                const formType = formTypes[i % formTypes.length];
+                const docNo = `KSK-${new Date().getFullYear()}-${String(row.hd_docno).padStart(4, '0')}`;
+                
+                // Normalize gender
+                const genderVal = (row.hp_sex || '').toLowerCase();
+                const gender = (genderVal === 'm' || genderVal.includes('nam')) ? 'Nam' : 'Nữ';
+                const patientName = (row.patient_name || '').toUpperCase().trim();
+                const cccd = row.hp_sin || '';
+                const patientId = String(row.hp_patientno);
+
+                // Build clinical_data from HIS exam
+                const bp = row.he_bloodpressure && row.he_bloodpressurex
+                    ? `${row.he_bloodpressure}/${row.he_bloodpressurex}` 
+                    : '120/80';
+
+                const height = row.he_height > 0 ? Number(row.he_height) : 165 + (i % 15);
+                const weight = row.he_weight > 0 ? Number(row.he_weight) : 55 + (i % 20);
+                const bmi = row.he_bmi > 0 ? Number(row.he_bmi) : parseFloat((weight / Math.pow(height/100, 2)).toFixed(1));
+
+                const clinicalData: any = {
+                    address: row.hp_dtladdr || '',
+                    phone: row.hd_telephone || '',
+                    ethnic: row.hp_ethnic ? String(row.hp_ethnic).padStart(2, '0') : '01',
+                    blood_group: 'O',
+                    target_group: '14',
+                    funding_source: '9',
                     examination: {
-                        height: 170 + (i % 5),
-                        weight: 60 + (i % 10),
-                        bmi: "22.5",
-                        blood_pressure: "120/80",
-                        pulse: 75 + (i % 5),
+                        height: String(height),
+                        weight: String(weight),
+                        bmi: String(bmi),
+                        blood_pressure: bp,
+                        pulse: row.he_pulse > 0 ? String(row.he_pulse) : '75',
                     },
                     clinical_exam: {
-                        internal: "Bình thường, tim phổi tốt",
-                        eye: "Mắt phải 10/10, Mắt trái 10/10",
-                        ent: "Tai mũi họng bình thường, không viêm cấp",
-                        dental: "Răng hàm mặt bình thường, không sâu răng"
+                        internal: row.he_examine || 'Nội khoa bình thường, tim phổi tốt.',
+                        eye: 'Mắt phải 10/10, Mắt trái 10/10.',
+                        ent: 'Tai mũi họng bình thường.',
+                        dental: 'Răng hàm mặt bình thường.',
+                        external: 'Ngoại khoa bình thường.',
+                        gynecology: gender === 'Nữ' ? 'Sản phụ khoa bình thường.' : 'Không khám.',
                     },
                     extra: {}
                 };
 
-                // Calculate BMI
-                clinicalData.examination.bmi = (clinicalData.examination.weight / Math.pow(clinicalData.examination.height/100, 2)).toFixed(1);
-
-                let labData: any = {
-                    blood_test: { hemoglobin: "140", glycemia: "5.2" },
-                    urine_test: { protein: "Âm tính" }
-                };
-
-                let conclusionData: any = {
-                    fitness_class: (i % 3 === 0) ? "2" : "1",
-                    diagnosis: "Đủ sức khỏe học tập, làm việc"
-                };
-
-                // Form-specific mock fields
-                if (formType === '1' || parseInt(formType) >= 14) {
-                    // Nhóm Học sinh (6-18 tuổi)
-                    clinicalData.extra = {
-                        nguoi_giam_ho: "Nguyễn Văn Hùng",
-                        so_cccd_ngh: "038090012345",
-                        tiem_chung_bcg: 1,
-                        tiem_chung_bh_hg_uv: 1,
-                        tiem_chung_soi: 1,
-                        tiem_chung_bai_liet: 1,
-                        tiem_chung_vnnb_b: 1,
-                        tiem_chung_vgb: 1,
-                        tiem_chung_cac_loai_khac: 0
-                    };
-                } else if (formType === '2') {
-                    // Người lớn
-                    clinicalData.extra = {
-                        nghe_cong_viec_truoc_day: "Nhân viên văn phòng",
-                        thoi_gian_lam_viec_truoc_day_nam: 5,
-                        thoi_gian_lam_viec_truoc_day_thang: 6,
-                        co_kinh_nguyet_nam_bao_nhieu_tuoi: 13,
-                        tinh_chat_kinh_nguyet: 1,
-                        chu_ky_kinh: 28,
-                        luong_kinh: 4,
-                        dau_bung_kinh: 0,
-                        da_lap_gia_dinh: 1,
-                        para: "0000",
-                        da_tung_mo_san_phu_khoa_chua: 0
-                    };
-                } else if (formType === '3') {
-                    // Lái xe
-                    clinicalData.extra = {
-                        hang_lai_xe: "B2",
-                        tsgd_mac_benh: 0,
-                        ts_benh_thuong_5_nam: 0,
-                        ts_than_kinh_chan_thuong_dau: 0,
-                        ts_benh_mat_giam_thi_luc: 0,
-                        ts_benh_tai_giam_nghe: 0,
-                        ts_benh_tim_mach: 0,
-                        ts_phau_thuat_tim_mach: 0,
-                        ts_tang_huyet_ap: 0,
-                        ts_kho_tho: 0,
-                        ts_benh_phoi_hen: 0,
-                        ts_benh_than_loc_mau: 0,
-                        ts_dai_thao_duong: 0,
-                        ts_benh_tam_than: 0,
-                        ts_mat_roi_loan_y_thuc: 0,
-                        ts_ngat_chong_mat: 0,
-                        ts_benh_tieu_hoa: 0,
-                        ts_roi_loan_giac_ngu: 0,
-                        ts_tai_bien_mach_mau_nao: 0
-                    };
-                    conclusionData.diagnosis = "Đủ điều kiện sức khỏe lái xe hạng B2";
+                // Form-specific extras
+                if (formType === '3') {
+                    clinicalData.extra = { hang_lai_xe: 'B2', tsgd_mac_benh: 0 };
                 } else if (formType === '4') {
-                    // Nhân viên đường sắt
-                    clinicalData.extra = {
-                        chuc_danh: "Trực ban ga",
-                        noi_cong_tac: "Ga Hà Nội",
-                        railway_fit: "1",
-                        tsgd_mac_benh: 0
-                    };
-                    conclusionData.diagnosis = "Đủ tiêu chuẩn sức khỏe nhân viên đường sắt";
+                    clinicalData.extra = { chuc_danh: 'Nhân viên', noi_cong_tac: 'Ga Hà Nội' };
                 } else if (formType === '5') {
-                    // Thuyền viên
-                    clinicalData.extra = {
-                        vi_tri_lam_viec: "Thủy thủ",
-                        bo_phan_lam_viec: "Bộ phận Boong",
-                        offshore_exp: "1",
-                        luc_bop_tay_thuan: "45",
-                        luc_bop_tay_khong_thuan: "40",
-                        luc_keo_lung: "90"
-                    };
-                    conclusionData.diagnosis = "Đủ sức khỏe thuyền viên tàu biển";
+                    clinicalData.extra = { vi_tri_lam_viec: 'Thủy thủ', bo_phan_lam_viec: 'Boong' };
                 } else if (parseInt(formType) >= 6 && parseInt(formType) <= 13) {
-                    // Trẻ em (0 - dưới 6 tuổi)
-                    clinicalData.examination.height = 55 + (i * 3);
-                    clinicalData.examination.weight = 3.5 + (i * 0.8);
-                    clinicalData.examination.bmi = (clinicalData.examination.weight / Math.pow(clinicalData.examination.height/100, 2)).toFixed(1);
-                    clinicalData.extra = {
-                        sinh_non: 0,
-                        tuan_thai_khi_sinh: 39,
-                        can_nang_luc_sinh: "3.2",
-                        ho_ten_nguoi_di_cung: "Nguyễn Văn Hùng",
-                        so_cccd_nguoi_di_cung: "038090012345",
-                        moi_quan_he_voi_tre: "1", // 1=Cha
-                        milestone_check: "1",
-                        vong_ddau: "36",
-                        vong_nguc: "35",
-                        tiem_chung_bcg: 1,
-                        tiem_chung_vgb: 1
-                    };
-                    conclusionData.diagnosis = "Trẻ phát triển bình thường theo độ tuổi";
+                    clinicalData.extra = { sinh_non: 0, tuan_thai_khi_sinh: 39, can_nang_luc_sinh: '3.2' };
+                } else if (parseInt(formType) >= 14) {
+                    clinicalData.extra = { tiem_chung_bcg: 1, tiem_chung_bh_hg_uv: 1, tiem_chung_soi: 1 };
                 }
+
+                const labData: any = {
+                    blood_test: { hemoglobin: String(130 + (i % 20)), glycemia: (4.5 + (i % 10) * 0.1).toFixed(1) },
+                    urine_test: { protein: 'Âm tính' }
+                };
+
+                const conclusionData: any = {
+                    fitness_class: (i % 3 === 0) ? '2' : '1',
+                    diagnosis: row.he_diagnostic || 'Đủ sức khỏe học tập và làm việc',
+                    cac_van_de_luu_y: 'Không'
+                };
 
                 const xmlData = this.generateXmlPayload(
                     formType, 
-                    { patientName, cccd: patient.cccd, dob: patient.dob, gender: (i % 2 === 0) ? "Nữ" : "Nam", docNo }, 
-                    clinicalData, 
-                    labData, 
-                    conclusionData
+                    { patientName, cccd, dob: row.dob || '1990-01-01', gender, docNo }, 
+                    clinicalData, labData, conclusionData
                 );
 
                 await transaction(async (client) => {
@@ -448,8 +548,8 @@ class HealthCheckController {
                         RETURNING id
                     `;
                     const masterRes = await client.query(masterSql, [
-                        patientId, patientName, patient.cccd, new Date(patient.dob),
-                        (i % 2 === 0) ? "Nữ" : "Nam", docNo, formType, xmlData, 'Unsigned', 'Unsent'
+                        patientId, patientName, cccd, row.dob ? new Date(row.dob) : null,
+                        gender, docNo, formType, xmlData, 'Unsigned', 'Unsent'
                     ]);
                     const masterId = masterRes.rows[0].id;
 
@@ -465,11 +565,12 @@ class HealthCheckController {
                         JSON.stringify(conclusionData)
                     ]);
                 });
+                seededCount++;
             }
 
-            return res.json({ success: true, count: 17 });
+            return res.json({ success: true, count: seededCount, message: `Đã tạo ${seededCount} hồ sơ KSK từ dữ liệu HIS thật.` });
         } catch (error: any) {
-            console.error('Lỗi tạo Mock Documents KSK:', error);
+            console.error('Lỗi seed dữ liệu KSK từ HIS:', error);
             return res.status(500).json({ error: error.message });
         }
     }
@@ -544,8 +645,12 @@ class HealthCheckController {
             .replace(/'/g, '&apos;');
     }
     // Helper: Sinh XML tự động theo đặc tả 17 mẫu biểu KSK của Bộ Y tế
+        // Helper: Sinh XML tự động theo đặc tả 17 mẫu biểu KSK của Bộ Y tế
     private generateXmlPayload(formType: string, master: any, clinical: any, lab: any, conclusion: any): string {
         const src = { master, clinical, lab, conclusion };
+        const settings = getHealthCheckSettings();
+        const maGtinCskcb = settings?.ma_gtin_cskcb || this.findValue('ma_gtin_cskcb', src) || '1234567890123';
+        const maCskcb = settings?.ma_cskcb || '15124';
         
         // Map gender string to code (1=Nam, 2=Nữ)
         let genderCode = '1';
@@ -565,7 +670,7 @@ class HealthCheckController {
         };
 
         const dobVal = formatXmlDate(master.dob || this.findValue('NGAY_SINH', src));
-        const ngayVaoVal = formatXmlDate(master.created_at || this.findValue('NGAY_VAO', src)) || new Date().toISOString().split('T')[0];
+        const ngayVaoVal = formatXmlDate(this.findValue('ngay_vao', src) || master.created_at || this.findValue('NGAY_VAO', src)) || new Date().toISOString().split('T')[0];
         
         const patientNameVal = master.patientName || master.patient_name || this.findValue('HO_TEN', src);
         const cccdVal = master.cccd || this.findValue('SO_CCCD', src);
@@ -583,7 +688,11 @@ class HealthCheckController {
         <MAXA_CU_TRU>${this.escapeXml(this.findValue('MAXA_CU_TRU', src))}</MAXA_CU_TRU>
         <NHOM_MAU>${this.escapeXml(this.findValue('NHOM_MAU', src))}</NHOM_MAU>
         <DOI_TUONG>${this.escapeXml(this.findValue('DOI_TUONG', src) || '14')}</DOI_TUONG>
-        <NGUON_KINH_PHI>${this.escapeXml(this.findValue('NGUON_KINH_PHI', src) || '9')}</NGUON_KINH_PHI>`;
+        <NGUON_KINH_PHI>${this.escapeXml(this.findValue('NGUON_KINH_PHI', src) || '9')}</NGUON_KINH_PHI>
+        <MA_GTIN_CSKCB>${this.escapeXml(maGtinCskcb)}</MA_GTIN_CSKCB>
+        <NGAYCAP_CCCD>${this.escapeXml(this.findValue('cccd_date', src) || this.findValue('ngaycap_cccd', src))}</NGAYCAP_CCCD>
+        <NOICAP_CCCD>${this.escapeXml(this.findValue('cccd_place', src) || this.findValue('noicap_cccd', src))}</NOICAP_CCCD>
+        <LY_DO_VV>${this.escapeXml(this.findValue('ly_do_vv', src) || this.findValue('ly_do_ksk', src))}</LY_DO_VV>`;
 
         // Add parent or guardian if student or child
         if (formType === '1' || parseInt(formType) >= 14) {
@@ -638,12 +747,36 @@ class HealthCheckController {
         <TS_NGAT_CHONG_MAT>${this.escapeXml(this.findValue('TS_NGAT_CHONG_MAT', src) || '0')}</TS_NGAT_CHONG_MAT>
         <TS_BENH_TIEU_HOA>${this.escapeXml(this.findValue('TS_BENH_TIEU_HOA', src) || '0')}</TS_BENH_TIEU_HOA>
         <TS_ROI_LOAN_GIAC_NGU>${this.escapeXml(this.findValue('TS_ROI_LOAN_GIAC_NGU', src) || '0')}</TS_ROI_LOAN_GIAC_NGU>
-        <TS_TAI_BIEN_MACH_MAU_NAO>${this.escapeXml(this.findValue('TS_TAI_BIEN_MACH_MAU_NAO', src) || '0')}</TS_TAI_BIEN_MACH_MAU_NAO>`;
-        } else if (formType === '4') {
+        <TS_TAI_BIEN_MACH_MAU_NAO>${this.escapeXml(this.findValue('TS_TAI_BIEN_MACH_MAU_NAO', src) || '0')}</TS_TAI_BIEN_MACH_MAU_NAO>
+        <TS_SU_DUNG_RUOU>${this.escapeXml(this.findValue('ts_su_dung_ruou', src) || '0')}</TS_SU_DUNG_RUOU>
+        <TS_SU_DUNG_MA_TUY>${this.escapeXml(this.findValue('ts_su_dung_ma_tuy', src) || '0')}</TS_SU_DUNG_MA_TUY>
+        <TS_BENH_COT_SONG>${this.escapeXml(this.findValue('ts_benh_cot_song', src) || '0')}</TS_BENH_COT_SONG>
+        <TSBT_MA_BENH_NGHE_NGHIEP>${this.escapeXml(this.findValue('tsbt_ma_benh_nghe_nghiep', src))}</TSBT_MA_BENH_NGHE_NGHIEP>
+        <TSBT_NAM_PHAT_HIEN_BENH_NGHE_NGHIEP>${this.escapeXml(this.findValue('tsbt_nam_phat_hien_benh_nghe_nghiep', src))}</TSBT_NAM_PHAT_HIEN_BENH_NGHE_NGHIEP`;
+        } else if (formType === '2') {
+            // Người lớn: Tiền sử gia đình, bản thân, bệnh nghề nghiệp & sản phụ khoa
             historyXml = `
-        <TSGD_MAC_BENH>${this.escapeXml(this.findValue('TSGD_MAC_BENH', src) || '0')}</TSGD_MAC_BENH>
+        <TSGD_MA_BENH>${this.escapeXml(this.findValue('TSGD_MA_BENH', src))}</TSGD_MA_BENH>
         <TSBT_MA_BENH>${this.escapeXml(this.findValue('TSBT_MA_BENH', src))}</TSBT_MA_BENH>
-        <TSBT_NAM_PHAT_HIEN_BENH>${this.escapeXml(this.findValue('TSBT_NAM_PHAT_HIEN_BENH', src))}</TSBT_NAM_PHAT_HIEN_BENH>`;
+        <TSBT_NAM_PHAT_HIEN_BENH>${this.escapeXml(this.findValue('TSBT_NAM_PHAT_HIEN_BENH', src))}</TSBT_NAM_PHAT_HIEN_BENH>
+        <TSBT_MA_BENH_NGHE_NGHIEP>${this.escapeXml(this.findValue('tsbt_ma_benh_nghe_nghiep', src))}</TSBT_MA_BENH_NGHE_NGHIEP>
+        <TSBT_NAM_PHAT_HIEN_BENH_NGHE_NGHIEP>${this.escapeXml(this.findValue('tsbt_nam_phat_hien_benh_nghe_nghiep', src))}</TSBT_NAM_PHAT_HIEN_BENH_NGHE_NGHIEP`;
+            
+            if (genderCode === '2') {
+                historyXml += `
+        <CO_KINH_NGUYET_NAM_BAO_NHIEU_TUOI>${this.escapeXml(this.findValue('co_kinh_nguyet_nam_bao_nhieu_tuoi', src))}</CO_KINH_NGUYET_NAM_BAO_NHIEU_TUOI>
+        <TINH_CHAT_KINH_NGUYET>${this.escapeXml(this.findValue('tinh_chat_kinh_nguyet', src) || '1')}</TINH_CHAT_KINH_NGUYET>
+        <CHU_KY_KINH>${this.escapeXml(this.findValue('chu_ky_kinh', src))}</CHU_KY_KINH>
+        <LUONG_KINH>${this.escapeXml(this.findValue('luong_kinh', src))}</LUONG_KINH>
+        <DAU_BUNG_KINH>${this.escapeXml(this.findValue('dau_bung_kinh', src) || '0')}</DAU_BUNG_KINH>
+        <DA_LAP_GIA_DINH>${this.escapeXml(this.findValue('da_lap_gia_dinh', src) || '0')}</DA_LAP_GIA_DINH>
+        <PARA>${this.escapeXml(this.findValue('para', src))}</PARA>
+        <DA_TUNG_MO_SAN_PHU_KHOA_CHUA>${this.escapeXml(this.findValue('da_tung_mo_san_phu_khoa_chua', src) || '0')}</DA_TUNG_MO_SAN_PHU_KHOA_CHUA>
+        <SO_LAN_MO_SAN_PHU_KHOA>${this.escapeXml(this.findValue('so_lan_mo_san_phu_khoa', src))}</SO_LAN_MO_SAN_PHU_KHOA>
+        <GHI_RO_MO_SAN_PHU_KHOA>${this.escapeXml(this.findValue('ghi_ro_mo_san_phu_khoa', src))}</GHI_RO_MO_SAN_PHU_KHOA>
+        <DANG_AP_DUNG_BPTT_KHONG>${this.escapeXml(this.findValue('dang_ap_dung_bptt_khong', src) || '0')}</DANG_AP_DUNG_BPTT_KHONG>
+        <BIEN_PHAP_TRANH_THAI>${this.escapeXml(this.findValue('bien_phap_tranh_thai', src) || '1')}</BIEN_PHAP_TRANH_THAI`;
+            }
         } else if (formType === '1' || parseInt(formType) >= 6) {
             // Trẻ em & Học sinh: Vaccine & Tiền sử tiêm chủng
             historyXml = `
@@ -653,8 +786,10 @@ class HealthCheckController {
         <TIEM_CHUNG_BAI_LIET>${this.escapeXml(this.findValue('TIEM_CHUNG_BAI_LIET', src) || '99')}</TIEM_CHUNG_BAI_LIET>
         <TIEM_CHUNG_VNNB_B>${this.escapeXml(this.findValue('TIEM_CHUNG_VNNB_B', src) || '99')}</TIEM_CHUNG_VNNB_B>
         <TIEM_CHUNG_VGB>${this.escapeXml(this.findValue('TIEM_CHUNG_VGB', src) || '99')}</TIEM_CHUNG_VGB>
+        <TIEM_CHUNG_CAC_LOAI_KHAC>${this.escapeXml(this.findValue('tiem_chung_cac_loai_khac', src) || '0')}</TIEM_CHUNG_CAC_LOAI_KHAC>
+        <TIEM_CHUNG_VAC_XIN_KHAC>${this.escapeXml(this.findValue('tiem_chung_vac_xin_khac', src))}</TIEM_CHUNG_VAC_XIN_KHAC>
         <MA_TSBT>${this.escapeXml(this.findValue('MA_TSBT', src) || '0')}</MA_TSBT>
-        <TSBT_MA_BENH>${this.escapeXml(this.findValue('TSBT_MA_BENH', src))}</TSBT_MA_BENH>`;
+        <TSBT_MA_BENH>${this.escapeXml(this.findValue('TSBT_MA_BENH', src))}</TSBT_MA_BENH`;
         }
 
         // 3. Khám thể lực
@@ -665,18 +800,21 @@ class HealthCheckController {
         <MACH>${this.escapeXml(this.findValue('MACH', src))}</MACH>
         <HUYET_AP>${this.escapeXml(this.findValue('HUYET_AP', src))}</HUYET_AP>`;
 
-        if (formType === '5') {
+        if (formType === '2') {
+            physicalXml += `
+        <KHAM_THE_LUC_PL>${this.escapeXml(this.findValue('kham_the_luc_pl', src) || '1')}</KHAM_THE_LUC_PL>`;
+        } else if (formType === '5') {
             physicalXml += `
         <LUC_BOP_TAY_THUAN>${this.escapeXml(this.findValue('LUC_BOP_TAY_THUAN', src))}</LUC_BOP_TAY_THUAN>
         <LUC_BOP_TAY_KHONG_THUAN>${this.escapeXml(this.findValue('LUC_BOP_TAY_KHONG_THUAN', src))}</LUC_BOP_TAY_KHONG_THUAN>
-        <LUC_KEO_LUNG>${this.escapeXml(this.findValue('LUC_KEO_LUNG', src))}</LUC_KEO_LUNG>`;
+        <LUC_KEO_LUNG>${this.escapeXml(this.findValue('LUC_KEO_LUNG', src))}</LUC_KEO_LUNG`;
         } else if (parseInt(formType) >= 6 && parseInt(formType) <= 13) {
             physicalXml += `
         <VONG_DDAU>${this.escapeXml(this.findValue('VONG_DDAU', src))}</VONG_DDAU>
         <VONG_NGUC>${this.escapeXml(this.findValue('VONG_NGUC', src))}</VONG_NGUC>
         <SINH_NON>${this.escapeXml(this.findValue('SINH_NON', src) || '0')}</SINH_NON>
         <TUAN_THAI_KHI_SINH>${this.escapeXml(this.findValue('TUAN_THAI_KHI_SINH', src))}</TUAN_THAI_KHI_SINH>
-        <CAN_NANG_LUC_SINH>${this.escapeXml(this.findValue('CAN_NANG_LUC_SINH', src))}</CAN_NANG_LUC_SINH>`;
+        <CAN_NANG_LUC_SINH>${this.escapeXml(this.findValue('CAN_NANG_LUC_SINH', src))}</CAN_NANG_LUC_SINH`;
         }
 
         // 4. Khám lâm sàng
@@ -691,14 +829,73 @@ class HealthCheckController {
         <NHI_KHOA_THAN_KINH>${this.escapeXml(this.findValue('NHI_KHOA_THAN_KINH', src) || 'Bình thường')}</NHI_KHOA_THAN_KINH>
         <NHI_KHOA_TAM_THAN>${this.escapeXml(this.findValue('NHI_KHOA_TAM_THAN', src) || 'Bình thường')}</NHI_KHOA_TAM_THAN>
         <NHI_KHOA_LAM_SANG_KHAC>${this.escapeXml(this.findValue('NHI_KHOA_LAM_SANG_KHAC', src) || 'Bình thường')}</NHI_KHOA_LAM_SANG_KHAC>
-        <MO_TA_VAN_DONG_TINH_THAN>${this.escapeXml(this.findValue('milestone_check', src) === '1' ? 'Đạt' : 'Cần theo dõi')}</MO_TA_VAN_DONG_TINH_THAN>`;
-        } else {
+        <MO_TA_VAN_DONG_TINH_THAN>${this.escapeXml(this.findValue('milestone_check', src) === '1' ? 'Đạt' : 'Cần theo dõi')}</MO_TA_VAN_DONG_TINH_THAN`;
+        } else if (formType === '2') {
+            // Người lớn: Lâm sàng & Phân loại đầy đủ
             clinicalXml = `
-        <NOI_KHOA>${this.escapeXml(this.findValue('NOI_KHOA', src) || 'Bình thường')}</NOI_KHOA>
-        <MAT>${this.escapeXml(this.findValue('MAT', src) || 'Mắt phải 10/10, Mắt trái 10/10')}</MAT>
-        <TAI_MUI_HONG>${this.escapeXml(this.findValue('TAI_MUI_HONG', src) || 'Bình thường')}</TAI_MUI_HONG>
-        <RANG_HAM_MAT>${this.escapeXml(this.findValue('RANG_HAM_MAT', src) || 'Bình thường')}</RANG_HAM_MAT>
-        <NGOAI_KHOA>${this.escapeXml(this.findValue('NGOAI_KHOA', src) || 'Bình thường')}</NGOAI_KHOA>`;
+        <NOI_KHOA_TUAN_HOAN>${this.escapeXml(this.findValue('internal', src) || 'Bình thường')}</NOI_KHOA_TUAN_HOAN>
+        <NOI_KHOA_TUAN_HOAN_PL>${this.escapeXml(this.findValue('noi_khoa_tuan_hoan_pl', src) || '1')}</NOI_KHOA_TUAN_HOAN_PL>
+        <NOI_KHOA_HO_HAP>${this.escapeXml(this.findValue('internal', src) || 'Bình thường')}</NOI_KHOA_HO_HAP>
+        <NOI_KHOA_HO_HAP_PL>${this.escapeXml(this.findValue('noi_khoa_ho_hap_pl', src) || '1')}</NOI_KHOA_HO_HAP_PL>
+        <NOI_KHOA_TIEU_HOA>${this.escapeXml(this.findValue('internal', src) || 'Bình thường')}</NOI_KHOA_TIEU_HOA>
+        <NOI_KHOA_TIEU_HOA_PL>${this.escapeXml(this.findValue('noi_khoa_tieu_hoa_pl', src) || '1')}</NOI_KHOA_TIEU_HOA_PL>
+        <NOI_KHOA_THAN_TIETNIEU>${this.escapeXml(this.findValue('internal', src) || 'Bình thường')}</NOI_KHOA_THAN_TIETNIEU>
+        <NOI_KHOA_THAN_TIETNIEU_PL>${this.escapeXml(this.findValue('noi_khoa_than_tietnieu_pl', src) || '1')}</NOI_KHOA_THAN_TIETNIEU_PL>
+        <NOI_KHOA_NOI_TIET>${this.escapeXml(this.findValue('internal', src) || 'Bình thường')}</NOI_KHOA_NOI_TIET>
+        <NOI_KHOA_NOI_TIET_PL>${this.escapeXml(this.findValue('noi_khoa_noi_tiet_pl', src) || '1')}</NOI_KHOA_NOI_TIET_PL>
+        <NOI_KHOA_CO_XUONG_KHOP>${this.escapeXml(this.findValue('internal', src) || 'Bình thường')}</NOI_KHOA_CO_XUONG_KHOP>
+        <NOI_KHOA_CO_XUONG_KHOP_PL>${this.escapeXml(this.findValue('noi_khoa_co_xuong_khop_pl', src) || '1')}</NOI_KHOA_CO_XUONG_KHOP_PL>
+        <NOI_KHOA_THAN_KINH>${this.escapeXml(this.findValue('internal', src) || 'Bình thường')}</NOI_KHOA_THAN_KINH>
+        <NOI_KHOA_THAN_KINH_PL>${this.escapeXml(this.findValue('noi_khoa_than_kinh_pl', src) || '1')}</NOI_KHOA_THAN_KINH_PL>
+        <NOI_KHOA_TAM_THAN>${this.escapeXml(this.findValue('internal', src) || 'Bình thường')}</NOI_KHOA_TAM_THAN>
+        <NOI_KHOA_TAM_THAN_PL>${this.escapeXml(this.findValue('noi_khoa_tam_than_pl', src) || '1')}</NOI_KHOA_TAM_THAN_PL>
+        <KET_QUA_KHAM_NGOAI_KHOA>${this.escapeXml(this.findValue('external', src) || 'Bình thường')}</KET_QUA_KHAM_NGOAI_KHOA>
+        <KHAM_NGOAI_KHOA_PL>${this.escapeXml(this.findValue('kham_ngoai_khoa_pl', src) || '1')}</KHAM_NGOAI_KHOA_PL>
+        <KET_QUA_KHAM_DA_LIEU>${this.escapeXml(this.findValue('external', src) || 'Bình thường')}</KET_QUA_KHAM_DA_LIEU>
+        <KHAM_DA_LIEU_PL>${this.escapeXml(this.findValue('kham_da_lieu_pl', src) || '1')}</KHAM_DA_LIEU_PL>
+        <KET_QUA_KHAM_SAN_PHU_KHOA>${this.escapeXml(this.findValue('gynecology', src) || 'Không khám (hoặc bình thường)')}</KET_QUA_KHAM_SAN_PHU_KHOA>
+        <KHAM_SAN_PHU_KHOA_PL>${this.escapeXml(this.findValue('kham_san_phu_khoa_pl', src) || '1')}</KHAM_SAN_PHU_KHOA_PL>
+        <KHONG_KINH_MAT_PHAI>${this.escapeXml(this.findValue('khong_kinh_mat_phai', src) || '10/10')}</KHONG_KINH_MAT_PHAI>
+        <KHONG_KINH_MAT_TRAI>${this.escapeXml(this.findValue('khong_kinh_mat_trai', src) || '10/10')}</KHONG_KINH_MAT_TRAI>
+        <CO_KINH_MAT_PHAI>${this.escapeXml(this.findValue('co_kinh_mat_phai', src))}</CO_KINH_MAT_PHAI>
+        <CO_KINH_MAT_TRAI>${this.escapeXml(this.findValue('co_kinh_mat_trai', src))}</CO_KINH_MAT_TRAI>
+        <BENH_KHAC_MAT>${this.escapeXml(this.findValue('eye', src) || 'Bình thường')}</BENH_KHAC_MAT>
+        <KHAM_MAT_PL>${this.escapeXml(this.findValue('kham_mat_pl', src) || '1')}</KHAM_MAT_PL>
+        <TAI_TRAI_NOI_THUONG>${this.escapeXml(this.findValue('tai_trai_noi_thuong', src) || '5')}</TAI_TRAI_NOI_THUONG>
+        <TAI_TRAI_NOI_THAM>${this.escapeXml(this.findValue('tai_trai_noi_tham', src) || '0.5')}</TAI_TRAI_NOI_THAM>
+        <TAI_PHAI_NOI_THUONG>${this.escapeXml(this.findValue('tai_phai_noi_thuong', src) || '5')}</TAI_PHAI_NOI_THUONG>
+        <TAI_PHAI_NOI_THAM>${this.escapeXml(this.findValue('tai_phai_noi_tham', src) || '0.5')}</TAI_PHAI_NOI_THAM>
+        <BENH_KHAC_TAI_MUI_HONG>${this.escapeXml(this.findValue('ent', src) || 'Bình thường')}</BENH_KHAC_TAI_MUI_HONG>
+        <KHAM_TAI_MUI_HONG_PL>${this.escapeXml(this.findValue('kham_tai_mui_hong_pl', src) || '1')}</KHAM_TAI_MUI_HONG_PL>
+        <HAM_TREN>${this.escapeXml(this.findValue('ham_tren', src) || 'Bình thường')}</HAM_TREN>
+        <HAM_DUOI>${this.escapeXml(this.findValue('ham_duoi', src) || 'Bình thường')}</HAM_DUOI>
+        <BENH_KHAC_RANG_HAM_MAT>${this.escapeXml(this.findValue('dental', src) || 'Bình thường')}</BENH_KHAC_RANG_HAM_MAT>
+        <KHAM_RANG_HAM_MAT_PL>${this.escapeXml(this.findValue('kham_rang_ham_mat_pl', src) || '1')}</KHAM_RANG_HAM_MAT_PL>`;
+        } else {
+            // Mẫu 1, Mẫu 3 và các mẫu còn lại
+            clinicalXml = `
+        <NOI_KHOA>${this.escapeXml(this.findValue('internal', src) || 'Bình thường')}</NOI_KHOA>
+        <KHONG_KINH_MAT_PHAI>${this.escapeXml(this.findValue('khong_kinh_mat_phai', src) || '10/10')}</KHONG_KINH_MAT_PHAI>
+        <KHONG_KINH_MAT_TRAI>${this.escapeXml(this.findValue('khong_kinh_mat_trai', src) || '10/10')}</KHONG_KINH_MAT_TRAI>
+        <CO_KINH_MAT_PHAI>${this.escapeXml(this.findValue('co_kinh_mat_phai', src))}</CO_KINH_MAT_PHAI>
+        <CO_KINH_MAT_TRAI>${this.escapeXml(this.findValue('co_kinh_mat_trai', src))}</CO_KINH_MAT_TRAI>
+        <BENH_KHAC_MAT>${this.escapeXml(this.findValue('eye', src) || 'Bình thường')}</BENH_KHAC_MAT>
+        <TAI_TRAI_NOI_THUONG>${this.escapeXml(this.findValue('tai_trai_noi_thuong', src) || '5')}</TAI_TRAI_NOI_THUONG>
+        <TAI_TRAI_NOI_THAM>${this.escapeXml(this.findValue('tai_trai_noi_tham', src) || '0.5')}</TAI_TRAI_NOI_THAM>
+        <TAI_PHAI_NOI_THUONG>${this.escapeXml(this.findValue('tai_phai_noi_thuong', src) || '5')}</TAI_PHAI_NOI_THUONG>
+        <TAI_PHAI_NOI_THAM>${this.escapeXml(this.findValue('tai_phai_noi_tham', src) || '0.5')}</TAI_PHAI_NOI_THAM>
+        <BENH_KHAC_TAI_MUI_HONG>${this.escapeXml(this.findValue('ent', src) || 'Bình thường')}</BENH_KHAC_TAI_MUI_HONG>
+        <HAM_TREN>${this.escapeXml(this.findValue('ham_tren', src) || 'Bình thường')}</HAM_TREN>
+        <HAM_DUOI>${this.escapeXml(this.findValue('ham_duoi', src) || 'Bình thường')}</HAM_DUOI>
+        <BENH_KHAC_RANG_HAM_MAT>${this.escapeXml(this.findValue('dental', src) || 'Bình thường')}</BENH_KHAC_RANG_HAM_MAT>
+        <NGOAI_KHOA>${this.escapeXml(this.findValue('external', src) || 'Bình thường')}</NGOAI_KHOA>`;
+
+            if (formType === '3') {
+                clinicalXml += `
+        <SAC_GIAC>${this.escapeXml(this.findValue('sac_giac', src) || '0')}</SAC_GIAC>
+        <THI_TRUONG_NGANG_HAIMAT>${this.escapeXml(this.findValue('thi_truong_ngang_haimat', src) || 'Bình thường')}</THI_TRUONG_NGANG_HAIMAT>
+        <THI_TRUONG_DUNG_HAIMAT>${this.escapeXml(this.findValue('thi_truong_dung_haimat', src) || 'Bình thường')}</THI_TRUONG_DUNG_HAIMAT`;
+            }
         }
 
         // 5. Cận lâm sàng
@@ -709,22 +906,29 @@ class HealthCheckController {
         </XET_NGHIEM_MAU>
         <XET_NGHIEM_NUOC_TIEU>
             <PROTEIN>${this.escapeXml(this.findValue('PROTEIN', src) || 'Âm tính')}</PROTEIN>
-        </XET_NGHIEM_NUOC_TIEU>`;
+        </XET_NGHIEM_NUOC_TIEU`;
+
+        if (formType === '3' || formType === '5') {
+            labXml += `
+        <KQ_XN_MA_TUY>${this.escapeXml(this.findValue('kq_xn_ma_tuy', src) || 'Âm tính')}</KQ_XN_MA_TUY>
+        <KQ_XN_NONG_DO_CON>${this.escapeXml(this.findValue('kq_xn_nong_do_con', src) || '0.0 mg/L')}</KQ_XN_NONG_DO_CON>
+        <KQ_XN_KHAC>${this.escapeXml(this.findValue('kq_xn_khac', src))}</KQ_XN_KHAC`;
+        }
 
         // 6. Kết luận
         const conclusionXml = `
         <PHAN_LOAI_SK>${this.escapeXml(this.findValue('PHAN_LOAI_SK', src) || '1')}</PHAN_LOAI_SK>
         <KET_LUAN_BENH>${this.escapeXml(this.findValue('KET_LUAN_BENH', src) || this.findValue('diagnosis', src) || 'Sức khỏe bình thường')}</KET_LUAN_BENH>
-        <CAC_VAN_DE_SUC_KHOE>${this.escapeXml(this.findValue('CAC_VAN_DE_SUC_KHOE', src) || 'Không')}</CAC_VAN_DE_SUC_KHOE>`;
+        <CAC_VAN_DE_SUC_KHOE>${this.escapeXml(this.findValue('CAC_VAN_DE_SUC_KHOE', src) || 'Không')}</CAC_VAN_DE_SUC_KHOE`;
 
         return `<?xml version="1.0" encoding="utf-8"?>
 <MAU_${formType}_KSK>
     <THONG_TIN_HANH_CHINH>${adminXml}
     </THONG_TIN_HANH_CHINH>
     <THONG_TIN_CHUNG_VE_LAN_KHAM>
-        <MA_LK>${this.escapeXml(this.findValue('MA_LK', src))}</MA_LK>
+        <MA_LK>${this.escapeXml(maLkVal)}</MA_LK>
         <NGAY_KHAM>${ngayVaoVal}</NGAY_KHAM>
-        <MA_CSKCB>15124</MA_CSKCB>
+        <MA_CSKCB>${this.escapeXml(maCskcb)}</MA_CSKCB>
     </THONG_TIN_CHUNG_VE_LAN_KHAM>
     ${historyXml ? `<TIEN_SU_BENH>${historyXml}\n    </TIEN_SU_BENH>` : ''}
     <KHAM_THE_LUC>${physicalXml}

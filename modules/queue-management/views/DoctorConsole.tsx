@@ -24,6 +24,7 @@ import {
   Calendar,
   Shield,
   HeartPulse,
+  CalendarDays,
 } from 'lucide-react';
 import { apiFetch, getBaseUrl } from '../services/apiService';
 import { AppSettings, KioskType } from '../types';
@@ -74,10 +75,52 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
   const [currentTicket, setCurrentTicket] = useState<any>(null);
   const [waitingList, setWaitingList] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
+  const [concludingList, setConcludingList] = useState<any[]>([]);
+  const [examinedList, setExaminedList] = useState<any[]>([]);
+  const [surgeryList, setSurgeryList] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({ waiting: 0, served: 0, avgTime: 0 });
-  const [activeTab, setActiveTab] = useState<'CONSOLE' | 'WAITING' | 'HISTORY' | 'TRANSFER'>('CONSOLE');
+  const [activeTab, setActiveTab] = useState<'CONSOLE' | 'WAITING' | 'CONCLUDING' | 'EXAMINED' | 'TRANSFER' | 'P' | 'S' | 'R' | 'F' | 'HIS_SURGERIES'>('CONSOLE');
   const effectiveTab = activeTab === 'CONSOLE' ? 'WAITING' : activeTab;
+
+  // Custom dialog states
+  const [dialogConfig, setDialogConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'alert' | 'confirm';
+    onConfirm?: () => void;
+    onCancel?: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'alert'
+  });
+
+  const showAlertDialog = (message: string, title = 'Thông báo') => {
+    setDialogConfig({
+      isOpen: true,
+      title,
+      message,
+      type: 'alert',
+      onConfirm: () => setDialogConfig(prev => ({ ...prev, isOpen: false }))
+    });
+  };
+
+  const showConfirmDialog = (message: string, onConfirm: () => void, title = 'Xác nhận yêu cầu') => {
+    setDialogConfig({
+      isOpen: true,
+      title,
+      message,
+      type: 'confirm',
+      onConfirm: () => {
+        setDialogConfig(prev => ({ ...prev, isOpen: false }));
+        onConfirm();
+      },
+      onCancel: () => setDialogConfig(prev => ({ ...prev, isOpen: false }))
+    });
+  };
 
   // Search filter
   const [searchQuery, setSearchQuery] = useState('');
@@ -191,11 +234,45 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
   // Load Queue Data
   const loadData = useCallback(async () => {
     try {
-      if (activeService === 'SURGERY') return;
+      if (activeService === 'SURGERY') {
+        try {
+          const list = await apiFetch(`/api/queue/surgery-waiting-list`);
+          if (Array.isArray(list)) {
+            setSurgeryList(list);
+          }
+        } catch (err) {
+          console.error('Error fetching surgery list in parent:', err);
+        }
+        return;
+      }
       if (!activeCounterId || isNaN(activeCounterId)) return;
       
-      const waiting = await apiFetch(`/api/queue/waiting-list/${activeCounterId}?type=${activeService}&deptId=${selectedDept}`);
-      if (Array.isArray(waiting)) setWaitingList(waiting);
+      try {
+        const resObj = await apiFetch(`/api/queue/patients-by-status/${activeCounterId}?type=${activeService}&deptId=${selectedDept}`);
+        if (resObj && resObj.success && resObj.data) {
+          setWaitingList(resObj.data.waiting || []);
+          setConcludingList(resObj.data.concluding || []);
+          setExaminedList(resObj.data.examined || []);
+        } else {
+          // Fallback if structure is unexpected
+          const waiting = await apiFetch(`/api/queue/waiting-list/${activeCounterId}?type=${activeService}&deptId=${selectedDept}`);
+          if (Array.isArray(waiting)) setWaitingList(waiting);
+          const historyData = await apiFetch(`/api/queue/history/${activeCounterId}?type=${activeService}&deptId=${selectedDept}`);
+          if (Array.isArray(historyData)) {
+            setHistory(historyData);
+            setExaminedList(historyData);
+          }
+        }
+      } catch (err) {
+        console.warn('Lỗi gọi API patients-by-status, đang fallback về API cũ:', err);
+        const waiting = await apiFetch(`/api/queue/waiting-list/${activeCounterId}?type=${activeService}&deptId=${selectedDept}`);
+        if (Array.isArray(waiting)) setWaitingList(waiting);
+        const historyData = await apiFetch(`/api/queue/history/${activeCounterId}?type=${activeService}&deptId=${selectedDept}`);
+        if (Array.isArray(historyData)) {
+          setHistory(historyData);
+          setExaminedList(historyData);
+        }
+      }
       
       const statsData = await apiFetch(`/api/queue/stats/${activeCounterId}?type=${activeService}&deptId=${selectedDept}`);
       if (statsData && statsData.data) {
@@ -206,9 +283,6 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
         };
         setStats(computedStats);
       }
-      
-      const historyData = await apiFetch(`/api/queue/history/${activeCounterId}?type=${activeService}&deptId=${selectedDept}`);
-      if (Array.isArray(historyData)) setHistory(historyData);
 
       // Đồng bộ thông tin lượt khám hiện tại đang phục vụ tại quầy
       try {
@@ -241,7 +315,7 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
       try {
         const data = JSON.parse(event.data);
         console.log('[OperatorConsole SSE] Event received:', data);
-        if (data.type === 'QUEUE_UPDATED') {
+        if (data.type === 'QUEUE_UPDATED' || data.type === 'SURGERY_UPDATED') {
           loadData();
         }
       } catch (e) {
@@ -262,6 +336,10 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
     if (service === 'SURGERY') {
        setActiveTab('CONSOLE');
        return;
+    }
+
+    if (service !== 'EXECUTION' && activeTab === 'CONCLUDING') {
+      setActiveTab('CONSOLE');
     }
 
     if (service === 'EXECUTION') {
@@ -347,12 +425,12 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
       if (res && res.data) {
         setCurrentTicket(res.data);
       } else {
-        alert("Hết bệnh nhân đang chờ.");
+        showAlertDialog("Hiện tại không có bệnh nhân nào trong danh sách đang chờ.", "Hết bệnh nhân");
       }
       loadData();
     } catch (e) { 
       console.error(e); 
-      alert(e instanceof Error ? e.message : 'Lỗi gọi bệnh nhân');
+      showAlertDialog(e instanceof Error ? e.message : 'Lỗi gọi bệnh nhân', 'Lỗi hệ thống');
     }
     finally { setLoading(false); }
   };
@@ -406,7 +484,7 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
       loadData();
     } catch (e) {
       console.error(e);
-      alert(e instanceof Error ? e.message : 'Lỗi gọi lại bệnh nhân');
+      showAlertDialog(e instanceof Error ? e.message : 'Lỗi gọi lại bệnh nhân', 'Lỗi hệ thống');
     } finally {
       setLoading(false);
     }
@@ -415,35 +493,44 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
   const handleCallSpecific = async (ticketId: string) => {
     if (loading) return;
     
-    if (currentTicket) {
-      const confirmChange = window.confirm("Đang có bệnh nhân đang phục vụ. Bạn có muốn hoàn tất bệnh nhân hiện tại và gọi bệnh nhân mới chỉ định này không?");
-      if (!confirmChange) return;
-      
+    const proceedCall = async () => {
+      setLoading(true);
       try {
-        await apiFetch('/api/queue/complete', {
+        const res = await apiFetch('/api/queue/call-specific', {
           method: 'POST',
-          body: JSON.stringify({ ticketId: currentTicket.id, counterId: activeCounterId })
+          body: JSON.stringify({ ticketId, counterId: activeCounterId })
         });
+        if (res && res.data) {
+          setCurrentTicket(res.data);
+        }
+        loadData();
       } catch (e) {
-        console.error('Lỗi hoàn tất bệnh nhân hiện tại:', e);
+        console.error(e);
+        showAlertDialog(e instanceof Error ? e.message : 'Lỗi gọi bệnh nhân chỉ định', 'Lỗi hệ thống');
+      } finally {
+        setLoading(false);
       }
-    }
+    };
 
-    setLoading(true);
-    try {
-      const res = await apiFetch('/api/queue/call-specific', {
-        method: 'POST',
-        body: JSON.stringify({ ticketId, counterId: activeCounterId })
-      });
-      if (res && res.data) {
-        setCurrentTicket(res.data);
-      }
-      loadData();
-    } catch (e) {
-      console.error(e);
-      alert(e instanceof Error ? e.message : 'Lỗi gọi bệnh nhân chỉ định');
-    } finally {
-      setLoading(false);
+    if (currentTicket) {
+      showConfirmDialog(
+        "Đang có bệnh nhân đang phục vụ. Bạn có muốn hoàn tất bệnh nhân hiện tại và gọi bệnh nhân mới chỉ định này không?",
+        async () => {
+          try {
+            await apiFetch('/api/queue/complete', {
+              method: 'POST',
+              body: JSON.stringify({ ticketId: currentTicket.id, counterId: activeCounterId })
+            });
+            await proceedCall();
+          } catch (e) {
+            console.error('Lỗi hoàn tất bệnh nhân hiện tại:', e);
+            await proceedCall();
+          }
+        },
+        "Xác nhận đổi bệnh nhân"
+      );
+    } else {
+      await proceedCall();
     }
   };
 
@@ -490,6 +577,16 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
     String(t.ticket_number || '').includes(searchQuery)
   );
 
+  const filteredConcludingList = concludingList.filter(t => 
+    (t.patient_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    String(t.ticket_number || '').includes(searchQuery)
+  );
+
+  const filteredExaminedList = examinedList.filter(t => 
+    (t.patient_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    String(t.ticket_number || '').includes(searchQuery)
+  );
+
   const filteredHistory = history.filter(t => 
     (t.patient_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     String(t.ticket_number || '').includes(searchQuery)
@@ -515,15 +612,29 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
               className={`flex flex-col items-center justify-center transition-all ${activeTab === 'WAITING' ? 'text-blue-400 font-bold scale-105' : 'text-slate-400 hover:text-white'}`}
             >
                <Users size={18} />
-               <span className="text-[8px] font-black uppercase mt-1">Chờ ({waitingList.length})</span>
+               <span className="text-[8px] font-black uppercase mt-1">
+                  {activeService === 'EXECUTION' ? 'Đang chờ' : 'Đang đợi'} ({waitingList.length})
+               </span>
             </button>
 
+            {activeService === 'EXECUTION' && (
+               <button 
+                 onClick={() => setActiveTab('CONCLUDING')}
+                 className={`flex flex-col items-center justify-center transition-all ${activeTab === 'CONCLUDING' ? 'text-blue-400 font-bold scale-105' : 'text-slate-400 hover:text-white'}`}
+               >
+                  <Clock size={18} />
+                  <span className="text-[8px] font-black uppercase mt-1">Chờ kết luận ({concludingList.length})</span>
+               </button>
+            )}
+
             <button 
-              onClick={() => setActiveTab('HISTORY')}
-              className={`flex flex-col items-center justify-center transition-all ${activeTab === 'HISTORY' ? 'text-blue-400 font-bold scale-105' : 'text-slate-400 hover:text-white'}`}
+              onClick={() => setActiveTab('EXAMINED')}
+              className={`flex flex-col items-center justify-center transition-all ${activeTab === 'EXAMINED' ? 'text-blue-400 font-bold scale-105' : 'text-slate-400 hover:text-white'}`}
             >
-               <History size={18} />
-               <span className="text-[8px] font-black uppercase mt-1">Lịch sử</span>
+               <CheckCircle2 size={18} />
+               <span className="text-[8px] font-black uppercase mt-1">
+                  {activeService === 'EXECUTION' ? 'Đã khám' : 'Đã thực hiện'} ({examinedList.length})
+               </span>
             </button>
 
             <button 
@@ -556,25 +667,127 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
          </button>
          
          <div className="flex-1 flex flex-col gap-4">
-            {activeService !== 'SURGERY' && (
+            {activeService !== 'SURGERY' ? (
                <>
                   <button 
                     onClick={() => setActiveTab('WAITING')}
-                    className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all ${effectiveTab === 'WAITING' ? 'bg-slate-800 text-blue-400' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+                    className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all relative ${effectiveTab === 'WAITING' ? 'bg-slate-800 text-blue-400' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+                    title={activeService === 'EXECUTION' ? 'Đang chờ' : 'Đang đợi'}
                   >
                      <Users size={20} />
+                     {waitingList.length > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-blue-600 text-white rounded-full text-[9px] font-black h-4 w-4 flex items-center justify-center border border-slate-900">{waitingList.length}</span>
+                     )}
                   </button>
+                  {activeService === 'EXECUTION' && (
+                     <button 
+                       onClick={() => setActiveTab('CONCLUDING')}
+                       className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all relative ${effectiveTab === 'CONCLUDING' ? 'bg-slate-800 text-blue-400' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+                       title="Chờ kết luận"
+                     >
+                        <Clock size={20} />
+                        {concludingList.length > 0 && (
+                           <span className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full text-[9px] font-black h-4 w-4 flex items-center justify-center border border-slate-900">{concludingList.length}</span>
+                        )}
+                     </button>
+                  )}
                   <button 
-                    onClick={() => setActiveTab('HISTORY')}
-                    className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all ${effectiveTab === 'HISTORY' ? 'bg-slate-800 text-blue-400' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+                    onClick={() => setActiveTab('EXAMINED')}
+                    className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all relative ${effectiveTab === 'EXAMINED' ? 'bg-slate-800 text-blue-400' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+                    title={activeService === 'EXECUTION' ? 'Đã khám' : 'Đã thực hiện'}
                   >
-                     <History size={20} />
+                     <CheckCircle2 size={20} />
+                     {examinedList.length > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-emerald-600 text-white rounded-full text-[9px] font-black h-4 w-4 flex items-center justify-center border border-slate-900">{examinedList.length}</span>
+                     )}
                   </button>
                   <button 
                     onClick={() => setActiveTab('TRANSFER')}
                     className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all ${effectiveTab === 'TRANSFER' ? 'bg-slate-800 text-blue-400' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+                    title="Chuyển quầy"
                   >
                      <ArrowRightLeft size={20} />
+                  </button>
+               </>
+            ) : (
+               <>
+                  {/* Bảng phẫu thuật (Tổng quan) */}
+                  <button 
+                    onClick={() => setActiveTab('CONSOLE')}
+                    className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all relative ${activeTab === 'CONSOLE' ? 'bg-slate-800 text-blue-400' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+                    title="Bảng phẫu thuật"
+                  >
+                     <Activity size={20} />
+                     {surgeryList.filter(s => s.status !== 'F').length > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-blue-650 text-white rounded-full text-[9px] font-black h-4 w-4 flex items-center justify-center border border-slate-900">
+                           {surgeryList.filter(s => s.status !== 'F').length}
+                        </span>
+                     )}
+                  </button>
+
+                  {/* Chuẩn bị (P) */}
+                  <button 
+                    onClick={() => setActiveTab('P')}
+                    className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all relative ${activeTab === 'P' ? 'bg-slate-800 text-blue-400' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+                    title="Chuẩn bị (P)"
+                  >
+                     <Users size={20} />
+                     {surgeryList.filter(s => s.status === 'P').length > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-blue-600 text-white rounded-full text-[9px] font-black h-4 w-4 flex items-center justify-center border border-slate-900">
+                           {surgeryList.filter(s => s.status === 'P').length}
+                        </span>
+                     )}
+                  </button>
+
+                  {/* Đang mổ (S) */}
+                  <button 
+                    onClick={() => setActiveTab('S')}
+                    className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all relative ${activeTab === 'S' ? 'bg-slate-800 text-rose-500' : 'text-slate-500 hover:text-rose-500 hover:bg-slate-800'}`}
+                    title="Đang mổ (S)"
+                  >
+                     <Play size={20} fill={activeTab === 'S' ? 'currentColor' : 'none'} />
+                     {surgeryList.filter(s => s.status === 'S').length > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-rose-600 text-white rounded-full text-[9px] font-black h-4 w-4 flex items-center justify-center border border-slate-900">
+                           {surgeryList.filter(s => s.status === 'S').length}
+                        </span>
+                     )}
+                  </button>
+
+                  {/* Hồi tỉnh (R) */}
+                  <button 
+                    onClick={() => setActiveTab('R')}
+                    className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all relative ${activeTab === 'R' ? 'bg-slate-800 text-amber-500' : 'text-slate-500 hover:text-amber-500 hover:bg-slate-800'}`}
+                    title="Hồi tỉnh (R)"
+                  >
+                     <Clock size={20} />
+                     {surgeryList.filter(s => s.status === 'R').length > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full text-[9px] font-black h-4 w-4 flex items-center justify-center border border-slate-900">
+                           {surgeryList.filter(s => s.status === 'R').length}
+                        </span>
+                     )}
+                  </button>
+
+                  {/* Đã về khoa (F) */}
+                  <button 
+                    onClick={() => setActiveTab('F')}
+                    className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all relative ${activeTab === 'F' ? 'bg-slate-800 text-emerald-500' : 'text-slate-500 hover:text-emerald-500 hover:bg-slate-800'}`}
+                    title="Đã về khoa (F)"
+                  >
+                     <CheckCircle2 size={20} />
+                     {surgeryList.filter(s => s.status === 'F').length > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-emerald-600 text-white rounded-full text-[9px] font-black h-4 w-4 flex items-center justify-center border border-slate-900">
+                           {surgeryList.filter(s => s.status === 'F').length}
+                        </span>
+                     )}
+                  </button>
+
+                  {/* Lấy ca mổ HIS */}
+                  <button 
+                    onClick={() => setActiveTab('HIS_SURGERIES')}
+                    className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all ${activeTab === 'HIS_SURGERIES' ? 'bg-slate-800 text-blue-400' : 'text-slate-500 hover:text-white hover:bg-slate-800'}`}
+                    title="Lấy ca mổ HIS"
+                  >
+                     <CalendarDays size={20} />
                   </button>
                </>
             )}
@@ -706,6 +919,10 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
                   surgeryRooms={rooms}
                   selectedDept={selectedDept}
                   onLogout={onLogout}
+                  surgeryList={surgeryList}
+                  loadData={loadData}
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
                />
             ) : (
                <>
@@ -745,16 +962,16 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
                               <>
                                  <button 
                                    onClick={handleComplete}
-                                   className="flex-1 h-16 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black flex items-center justify-center gap-3 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
+                                   className="flex-[2] h-16 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black flex items-center justify-center gap-3 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
                                  >
-                                    <CheckCircle2 size={24} /> HOÀN TẤT
+                                    <CheckCircle2 size={24} /> HOÀN TẤT <span className="opacity-50 font-medium text-[10px] tracking-normal ml-1">(ENTER)</span>
                                  </button>
                                  <button 
                                    onClick={handleRecall}
-                                   className="h-16 w-16 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-2xl flex items-center justify-center transition-all shadow-sm active:scale-95"
+                                   className="flex-[1.5] h-16 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-black flex items-center justify-center gap-3 shadow-lg shadow-amber-500/20 transition-all active:scale-95"
                                    title="Gọi lại (F2)"
                                  >
-                                    <Bell size={24} />
+                                    <Bell size={24} /> GỌI LẠI <span className="opacity-50 font-medium text-[10px] tracking-normal ml-1">(F2)</span>
                                  </button>
                                  <button 
                                    onClick={handleSkip}
@@ -784,7 +1001,9 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
                               <Users size={24} />
                            </div>
                            <div>
-                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Đang chờ</p>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                 {activeService === 'EXECUTION' ? 'Đang chờ' : 'Đang đợi'}
+                              </p>
                               <p className="text-2xl font-black text-slate-900">{waitingList.length}</p>
                            </div>
                         </div>
@@ -936,10 +1155,32 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
                      <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex-1 flex flex-col">
                         <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">
-                              {effectiveTab === 'WAITING' ? 'Hàng chờ hiện tại' : effectiveTab === 'HISTORY' ? 'Lịch sử phục vụ' : 'Chuyển quầy'}
+                              {effectiveTab === 'WAITING' 
+                                 ? (activeService === 'EXECUTION' ? 'Danh sách đang chờ' : 'Danh sách đang đợi') 
+                                 : effectiveTab === 'CONCLUDING' 
+                                    ? 'Danh sách chờ kết luận' 
+                                    : effectiveTab === 'EXAMINED' 
+                                       ? (activeService === 'EXECUTION' ? 'Danh sách đã khám' : 'Danh sách đã thực hiện') 
+                                       : effectiveTab === 'TRANSFER' 
+                                          ? 'Chuyển quầy' 
+                                          : 'Lịch sử phục vụ'}
                            </h3>
-                           <div className="h-6 w-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-[10px] font-black">
-                              {effectiveTab === 'WAITING' ? waitingList.length : history.length}
+                           <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-black ${
+                              effectiveTab === 'WAITING' 
+                                 ? 'bg-blue-100 text-blue-600' 
+                                 : effectiveTab === 'CONCLUDING' 
+                                    ? 'bg-amber-100 text-amber-600' 
+                                    : effectiveTab === 'EXAMINED' 
+                                       ? 'bg-emerald-100 text-emerald-600' 
+                                       : 'bg-slate-100 text-slate-600'
+                           }`}>
+                              {effectiveTab === 'WAITING' 
+                                 ? waitingList.length 
+                                 : effectiveTab === 'CONCLUDING' 
+                                    ? concludingList.length 
+                                    : effectiveTab === 'EXAMINED' 
+                                       ? examinedList.length 
+                                       : history.length}
                            </div>
                         </div>
 
@@ -949,7 +1190,9 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
                                  {waitingList.length === 0 ? (
                                     <div className="py-20 text-center flex flex-col items-center gap-4">
                                        <AlertCircle size={32} className="text-slate-200" />
-                                       <p className="text-xs text-slate-400 font-bold uppercase italic">Không có ai trong hàng chờ</p>
+                                       <p className="text-xs text-slate-400 font-bold uppercase italic">
+                                          {activeService === 'EXECUTION' ? 'Không có bệnh nhân đang chờ' : 'Không có ai đang đợi'}
+                                       </p>
                                     </div>
                                  ) : (
                                     filteredWaitingList.map((t) => (
@@ -974,22 +1217,63 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
                               </div>
                            )}
 
-                           {effectiveTab === 'HISTORY' && (
+                           {effectiveTab === 'CONCLUDING' && (
                               <div className="space-y-3">
-                                 {history.length === 0 ? (
+                                 {concludingList.length === 0 ? (
                                     <div className="py-20 text-center flex flex-col items-center gap-4">
-                                       <AlertCircle size={32} className="text-slate-250" />
-                                       <p className="text-xs text-slate-400 font-bold uppercase italic">Chưa phục vụ ca nào hôm nay</p>
+                                       <AlertCircle size={32} className="text-slate-200" />
+                                       <p className="text-xs text-slate-400 font-bold uppercase italic">Không có bệnh nhân chờ kết luận</p>
                                     </div>
                                  ) : (
-                                    filteredHistory.map((t) => (
-                                       <div key={t.id} className="p-4 rounded-2xl border border-slate-100 bg-white flex justify-between items-center opacity-70 hover:opacity-100 transition-opacity">
+                                    filteredConcludingList.map((t) => (
+                                       <div 
+                                          key={t.id} 
+                                          onClick={() => handleCallSpecific(t.id)}
+                                          className="p-4 rounded-2xl border border-amber-100 bg-amber-50/35 hover:border-amber-300 transition-all cursor-pointer group"
+                                       >
+                                          <div className="flex justify-between items-start mb-2">
+                                             <span className="text-xl font-black text-amber-700">{t.ticket_number}</span>
+                                             <span className="text-[9px] font-black text-slate-400 uppercase">{formatTicketTime(t.served_at || t.created_at)}</span>
+                                          </div>
+                                          <div className="flex justify-between items-center">
+                                             <span className="text-xs font-bold text-slate-600 uppercase line-clamp-1">{t.patient_name || 'Khách lẻ'}</span>
+                                             <div className="flex items-center gap-2">
+                                                <span className="text-[9px] font-black text-amber-600 uppercase bg-amber-100/50 px-2 py-0.5 rounded-full">Chờ kết luận</span>
+                                                <button className="h-8 w-8 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-slate-400 opacity-0 group-hover:opacity-100 hover:text-amber-600 transition-all">
+                                                   <Play size={14} fill="currentColor" />
+                                                </button>
+                                             </div>
+                                          </div>
+                                       </div>
+                                    ))
+                                 )}
+                              </div>
+                           )}
+
+                           {effectiveTab === 'EXAMINED' && (
+                              <div className="space-y-3">
+                                 {examinedList.length === 0 ? (
+                                    <div className="py-20 text-center flex flex-col items-center gap-4">
+                                       <AlertCircle size={32} className="text-slate-250" />
+                                       <p className="text-xs text-slate-400 font-bold uppercase italic">
+                                          {activeService === 'EXECUTION' ? 'Không có bệnh nhân đã khám' : 'Chưa thực hiện ca nào'}
+                                       </p>
+                                    </div>
+                                 ) : (
+                                    filteredExaminedList.map((t) => (
+                                       <div 
+                                          key={t.id} 
+                                          onClick={() => handleCallSpecific(t.id)}
+                                          className="p-4 rounded-2xl border border-slate-100 bg-white hover:border-emerald-300 transition-all cursor-pointer group flex justify-between items-center opacity-85 hover:opacity-100"
+                                       >
                                           <div>
                                              <div className="font-black text-slate-800 tracking-tight">{t.ticket_number}</div>
                                              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.patient_name || 'Khách lẻ'}</div>
                                           </div>
-                                          <div className="text-right">
-                                             <div className="text-[10px] font-black text-emerald-500 uppercase">Hoàn tất</div>
+                                          <div className="text-right flex flex-col items-end gap-1">
+                                             <span className="text-[9px] font-black text-emerald-600 uppercase bg-emerald-50 px-2 py-0.5 rounded-full">
+                                                {activeService === 'EXECUTION' ? 'Đã khám' : 'Đã thực hiện'}
+                                             </span>
                                              <div className="text-[9px] text-slate-400">{formatTicketTime(t.served_at || t.created_at)}</div>
                                           </div>
                                        </div>
@@ -1024,6 +1308,48 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
          </div>
 
       </main>
+
+      {/* Custom Dialog Modal */}
+      {dialogConfig.isOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2rem] max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden transform scale-100 transition-all duration-300">
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-3">
+              <div className={`h-8 w-8 rounded-full flex items-center justify-center ${dialogConfig.type === 'confirm' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
+                <AlertCircle size={18} />
+              </div>
+              <h5 className="text-xs font-black text-slate-800 uppercase tracking-widest">{dialogConfig.title}</h5>
+            </div>
+            
+            {/* Modal Content */}
+            <div className="p-6 pt-4">
+              <p className="text-slate-600 text-xs font-bold leading-relaxed">{dialogConfig.message}</p>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-end gap-3">
+              {dialogConfig.type === 'confirm' && (
+                <button
+                  onClick={dialogConfig.onCancel}
+                  className="px-5 py-2.5 bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95"
+                >
+                  Hủy bỏ
+                </button>
+              )}
+              <button
+                onClick={dialogConfig.onConfirm}
+                className={`px-5 py-2.5 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-lg ${
+                  dialogConfig.type === 'confirm' 
+                    ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20' 
+                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20'
+                }`}
+              >
+                Đồng ý
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

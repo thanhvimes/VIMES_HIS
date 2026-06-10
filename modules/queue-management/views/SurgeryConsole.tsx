@@ -20,17 +20,23 @@ interface SurgeryConsoleProps {
   departments: any[];
   selectedDept: string;
   onLogout: () => void;
+  surgeryList: any[];
+  loadData: () => Promise<void>;
+  activeTab: 'CONSOLE' | 'WAITING' | 'CONCLUDING' | 'EXAMINED' | 'TRANSFER' | 'P' | 'S' | 'R' | 'F' | 'HIS_SURGERIES';
+  setActiveTab: (tab: any) => void;
 }
 
 export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({ 
   settings, 
   departments, 
   selectedDept,
-  onLogout
+  onLogout,
+  surgeryList,
+  loadData,
+  activeTab,
+  setActiveTab
 }) => {
-  const [surgeryList, setSurgeryList] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'CONSOLE' | 'WAITING' | 'HISTORY' | 'HIS_SURGERIES'>('CONSOLE');
   const [surgeryRooms, setSurgeryRooms] = useState<any[]>([]);
   
   // Tự động tải danh sách phòng mổ
@@ -81,49 +87,7 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
   // Search filter
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Load Queue Data
-  const loadData = useCallback(async () => {
-    try {
-      const list = await apiFetch(`/api/queue/surgery-waiting-list`);
-      if (Array.isArray(list)) {
-        setSurgeryList(list);
-      }
-    } catch (e) {
-      console.error('Error loading surgery list:', e);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 10000);
-    return () => clearInterval(interval);
-  }, [loadData]);
-
-  // SSE EventSource for updates
-  useEffect(() => {
-    const baseUrl = getBaseUrl();
-    const eventSource = new EventSource(`${baseUrl}/api/queue/events`);
-
-    eventSource.onopen = () => {
-      console.log('[SurgeryConsole SSE] Connection established/restored. Syncing data...');
-      loadData();
-    };
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'SURGERY_UPDATED' || data.type === 'QUEUE_UPDATED') {
-          loadData();
-        }
-      } catch (e) {
-        console.error('Error parsing SSE event:', e);
-      }
-    };
-
-    return () => {
-      eventSource.close();
-    };
-  }, [loadData]);
+  // Dữ liệu ca mổ (surgeryList, loadData) đã được đồng bộ qua props từ cha DoctorConsole
 
   // Set default assignRoom when surgeryRooms loads
   useEffect(() => {
@@ -234,10 +198,14 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
     return `${yyyy}-${mm}-${dd} ${timeStr}:00`;
   };
 
-  const filteredSurgeryList = surgeryList.filter(p => 
+  const filteredBySearch = surgeryList.filter(p => 
     (p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
     String(p.docNo || '').includes(searchQuery)
   );
+
+  const filteredSurgeryList = activeTab === 'CONSOLE'
+    ? filteredBySearch
+    : filteredBySearch.filter(p => p.status === activeTab);
 
   return (
     <>
@@ -284,18 +252,7 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
          </button>
       </div>
 
-      {/* Desktop Sidebar overrides for deskop view (handled by parent context, but active tab links mapped here) */}
-      <div className="absolute top-24 left-4 z-40 hidden md:flex flex-col gap-2">
-        <button 
-          onClick={() => setActiveTab(activeTab === 'HIS_SURGERIES' ? 'CONSOLE' : 'HIS_SURGERIES')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase transition-all shadow-md ${
-            activeTab === 'HIS_SURGERIES' ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-          }`}
-        >
-          <CalendarDays size={16} />
-          {activeTab === 'HIS_SURGERIES' ? 'Bảng phẫu thuật' : 'Lấy ca mổ HIS'}
-        </button>
-      </div>
+      {/* Cụm nút chuyển đổi cũ đã được đưa lên Sidebar bên trái của cha */}
 
       <div className="flex-1 flex flex-col md:flex-row gap-4 md:gap-6 pt-10 md:pt-0 overflow-y-auto md:overflow-hidden w-full">
         {activeTab === 'HIS_SURGERIES' ? (
@@ -474,7 +431,10 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
                    
                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
                       {/* P status stats */}
-                      <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-center gap-3">
+                      <div 
+                         onClick={() => setActiveTab('P')}
+                         className="bg-slate-50 border border-slate-100 p-4 rounded-2xl flex items-center gap-3 cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all"
+                      >
                          <div className="h-10 w-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center font-bold text-xs">P</div>
                          <div>
                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Chuẩn bị</p>
@@ -482,7 +442,10 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
                          </div>
                       </div>
                       {/* S status stats */}
-                      <div className="bg-rose-50/55 border border-rose-100 p-4 rounded-2xl flex items-center gap-3 relative overflow-hidden">
+                      <div 
+                         onClick={() => setActiveTab('S')}
+                         className="bg-rose-50/55 border border-rose-100 p-4 rounded-2xl flex items-center gap-3 relative overflow-hidden cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all"
+                      >
                          <div className="absolute top-2 right-2 flex h-2 w-2">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                             <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
@@ -494,7 +457,10 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
                          </div>
                       </div>
                       {/* R status stats */}
-                      <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-2xl flex items-center gap-3">
+                      <div 
+                         onClick={() => setActiveTab('R')}
+                         className="bg-blue-50/50 border border-blue-100 p-4 rounded-2xl flex items-center gap-3 cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all"
+                      >
                          <div className="h-10 w-10 bg-blue-55 text-blue-600 rounded-xl flex items-center justify-center font-bold text-xs">R</div>
                          <div>
                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-blue-600">Hồi tỉnh</p>
@@ -502,7 +468,10 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
                          </div>
                       </div>
                       {/* F status stats */}
-                      <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-2xl flex items-center gap-3">
+                      <div 
+                         onClick={() => setActiveTab('F')}
+                         className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-2xl flex items-center gap-3 cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all"
+                      >
                          <div className="h-10 w-10 bg-emerald-55 text-emerald-600 rounded-xl flex items-center justify-center font-bold text-xs">F</div>
                          <div>
                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-emerald-600">Đã về khoa</p>

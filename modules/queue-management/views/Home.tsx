@@ -131,29 +131,35 @@ const Portal: React.FC<PortalProps> = ({ onNavigate, settings, onLogout }) => {
   }, [selectedDept]);
 
   const fetchRooms = async (deptId: string) => {
+    console.log(`[Home] Fetching rooms for department ID: ${deptId}...`);
     try {
       const data = await apiFetch(`/api/departments/${deptId}/rooms`);
+      console.log(`[Home] Fetch rooms success. Rooms:`, data);
       setRooms(data || []);
     } catch (e) {
-      console.error('Fetch rooms error:', e);
+      console.error(`[Home] Fetch rooms error for department ${deptId}:`, e);
     }
   };
 
   const fetchAreas = async () => {
+    console.log('[Home] Fetching zoning areas...');
     try {
       const data = await apiFetch('/api/zoning/areas');
+      console.log('[Home] Fetch areas success. Areas:', data);
       setAreas(data);
     } catch (e) {
-      console.error('Fetch areas error:', e);
+      console.error('[Home] Fetch areas error:', e);
     }
   };
 
   const fetchDepartments = async () => {
+    console.log('[Home] Fetching departments...');
     try {
       const data = await apiFetch('/api/departments');
+      console.log('[Home] Fetch departments success. Departments:', data);
       setDepartments(data);
     } catch (e) {
-      console.error('Fetch departments error:', e);
+      console.error('[Home] Fetch departments error:', e);
     }
   };
 
@@ -162,30 +168,37 @@ const Portal: React.FC<PortalProps> = ({ onNavigate, settings, onLogout }) => {
     : areas;
 
   const handleSelectArea = (areaId: string) => {
+    console.log('[Home] handleSelectArea called with areaId:', areaId);
     const area = areas.find(a => String(a.area_id || a.id) === areaId);
     if (area) {
+      console.log('[Home] Selected area object:', area);
       localStorage.setItem('vimes_selected_area', JSON.stringify(area));
       setSelectedArea(area);
     }
   };
 
   const handleSelectDept = (dept: string) => {
+    console.log('[Home] handleSelectDept called with deptId:', dept);
     setSelectedDept(dept);
     localStorage.setItem('vimes_selected_dept', dept);
     setSelectedRoom(null);
     localStorage.removeItem('vimes_selected_room');
     if (selectedArea && (selectedArea.dept_code || 'Chưa phân khoa') !== dept && dept !== '') {
+        console.log('[Home] Resetting selected area due to department mismatch');
         setSelectedArea(null);
         localStorage.removeItem('vimes_selected_area');
     }
   };
 
   const handleSelectRoom = (roomId: string) => {
+    console.log('[Home] handleSelectRoom called with roomId:', roomId);
     const room = rooms.find(r => String(r.id) === roomId);
     if (room) {
+      console.log('[Home] Selected room object:', room);
       localStorage.setItem('vimes_selected_room', JSON.stringify(room));
       setSelectedRoom(room);
     } else {
+      console.log('[Home] Selected room not found in list, clearing selection');
       setSelectedRoom(null);
       localStorage.removeItem('vimes_selected_room');
     }

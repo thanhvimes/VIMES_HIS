@@ -3,11 +3,24 @@
 
 import { Pool, PoolClient, QueryResult } from 'pg';
 import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import SecurityUtils from '../utils/security';
 
-// Load .env from root
-dotenv.config({ path: path.join(__dirname, '../../.env') });
+// Load .env robustly from multiple fallback locations
+const envPath = fs.existsSync(path.join(__dirname, '../../.env'))
+    ? path.join(__dirname, '../../.env')
+    : fs.existsSync(path.join(process.cwd(), '.env'))
+        ? path.join(process.cwd(), '.env')
+        : fs.existsSync(path.join(process.cwd(), 'backend', '.env'))
+            ? path.join(process.cwd(), 'backend', '.env')
+            : null;
+
+if (envPath) {
+    dotenv.config({ path: envPath });
+} else {
+    dotenv.config();
+}
 
 // Resolve DB User and Password with Security Utils
 const dbUser = SecurityUtils.resolveSecret(process.env.DB_USER || '');

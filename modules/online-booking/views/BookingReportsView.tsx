@@ -17,6 +17,7 @@ import {
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { bookingService, BookingStatistics } from '../../../services/bookingService';
+import { FormDateInput } from '../../../components/ui/forms';
 
 const BookingReportsView: React.FC = () => {
     const { fontSettings, theme } = useTheme();
@@ -99,18 +100,18 @@ const BookingReportsView: React.FC = () => {
                     <div className="flex flex-col gap-1">
                         <span className="text-[10px] font-black text-slate-400 uppercase ml-1">Khoảng ngày (DD-MM-YYYY)</span>
                         <div className="flex items-center bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-1">
-                            <input
-                                type="date"
+                            <FormDateInput
                                 value={dateRange.from}
                                 onChange={e => setDateRange({ ...dateRange, from: e.target.value })}
-                                className="bg-transparent text-xs font-bold p-1.5 outline-none date-input-picker"
+                                containerClassName="flex-grow"
+                                className="bg-transparent text-xs font-bold p-1.5 outline-none date-input-picker w-24 text-center !border-none !focus:ring-0"
                             />
                             <span className="text-slate-400 mx-1">-</span>
-                            <input
-                                type="date"
+                            <FormDateInput
                                 value={dateRange.to}
                                 onChange={e => setDateRange({ ...dateRange, to: e.target.value })}
-                                className="bg-transparent text-xs font-bold p-1.5 outline-none date-input-picker"
+                                containerClassName="flex-grow"
+                                className="bg-transparent text-xs font-bold p-1.5 outline-none date-input-picker w-24 text-center !border-none !focus:ring-0"
                             />
                         </div>
                     </div>

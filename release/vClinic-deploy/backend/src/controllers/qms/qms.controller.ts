@@ -166,6 +166,7 @@ export class QmsController {
 
   // 6. GET DEPARTMENTS
   static async getDepartments(req: Request, res: Response) {
+    console.log('[API/Departments] Querying sys_dept...');
     try {
       const data = await safeQuery(
         `SELECT sd_id as id, sd_name as name FROM sys_dept WHERE sd_isactive ='Y' ORDER BY sd_name`,
@@ -178,8 +179,10 @@ export class QmsController {
           { id: 'NHI', name: 'Khoa Nhi' }
         ]
       );
+      console.log(`[API/Departments] Found ${data?.length || 0} departments.`);
       res.json(data);
     } catch (e: any) {
+      console.error('[API/Departments] Error querying departments:', e);
       res.status(500).json({ error: e.message });
     }
   }

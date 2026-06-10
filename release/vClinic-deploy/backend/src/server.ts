@@ -99,9 +99,11 @@ if (fs.existsSync(frontendPath)) {
 // Start automated jobs
 import scheduleService from './services/schedule.service';
 import { loadBHXHConfig } from './config/bhxh';
+import { loadHealthCheckSettings } from './config/health-check-settings';
 
 scheduleService.setupAutomatedJobs();
 loadBHXHConfig(); // Tải cấu hình BHXH vào memory
+loadHealthCheckSettings(); // Tải cấu hình VNeID KSK vào memory
 
 // Start server
 app.listen(PORT, () => {

@@ -17,9 +17,9 @@ call npx cap sync android
 if %errorlevel% neq 0 exit /b %errorlevel%
 echo Building APK...
 cd android
-call gradlew.bat assembleDebug
+call gradlew.bat assembleRelease
 cd ..
 echo.
 echo APK Built successfully!
-echo Location: android\app\build\outputs\apk\debug\app-debug.apk
+echo Location: android\app\build\outputs\apk\release\app-release.apk
 pause

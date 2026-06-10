@@ -27,6 +27,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { bookingService, OnlineBookingRecord, BookingSpeciality } from '../../../services/bookingService';
 import { formatDate } from '../../../utils/formatters';
+import { FormDateInput } from '../../../components/ui/forms';
 import BookingPrintTemplate from '../components/BookingPrintTemplate';
 import QuickSpecialityBookingModal from '../components/QuickSpecialityBookingModal';
 
@@ -229,15 +230,13 @@ const BookingManagementView: React.FC = () => {
                             />
                         </div>
                     </div>
-                    <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Ngày khám</label>
-                        <input
-                            type="date"
-                            value={dateFilter}
-                            onChange={e => setDateFilter(e.target.value)}
-                            className={`w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-sm font-bold ${fontSettings.controls}`}
-                        />
-                    </div>
+                    <FormDateInput
+                        label="Ngày khám"
+                        labelClassName="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1"
+                        value={dateFilter}
+                        onChange={e => setDateFilter(e.target.value)}
+                        className={`w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-sm font-bold ${fontSettings.controls}`}
+                    />
                     <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Chuyên khoa</label>
                         <select

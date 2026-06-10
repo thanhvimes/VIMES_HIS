@@ -547,7 +547,7 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
 
       {layoutMode === 'split' ? (
          <>
-            <div className="h-28 bg-[#f0a500] flex shrink-0 border-b border-[#f0a500]/10">
+            <div className="h-28 bg-gradient-to-r from-[#2e408a] to-[#3f57c6] flex shrink-0 border-b border-white/10 shadow-md">
                {/* Main banner block */}
                <div className="flex-1 flex items-center justify-center">
                   <h1 className="text-5xl font-black uppercase tracking-wider text-white">
@@ -677,7 +677,7 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
             {/* Main Content - SỐ THỰ TỰ */}
             <div className="flex-1 flex flex-col min-w-0">
                {/* Top Banner */}
-               <div className="h-24 bg-[#f0a500] flex items-center justify-center shrink-0">
+                <div className="h-24 bg-gradient-to-r from-[#2e408a] to-[#3f57c6] flex items-center justify-center shrink-0 shadow-md">
                   <h1 className="text-4xl font-extrabold uppercase tracking-wider text-white">{getBannerTitle()}</h1>
                </div>
 

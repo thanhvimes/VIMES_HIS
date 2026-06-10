@@ -79,6 +79,7 @@ router.get('/queue/waiting-list/:counterId', QmsController.getWaitingList);
 router.get('/queue/waiting-list/area/:areaId', QmsController.getWaitingListByArea);
 router.get('/queue/waiting/:counterId', QmsController.getWaitingList); // Fallback
 router.get('/queue/waiting-by-area/:areaId', QmsController.getWaitingListByArea); // Fallback
+router.get('/queue/patients-by-status/:counterId', QmsController.getPatientsByStatus);
 
 router.get('/queue/stats/:counterId', QmsController.getStats);
 router.get('/queue/history/:counterId', QmsController.getHistory);
@@ -93,9 +94,14 @@ router.post('/queue/surgery/add-from-his', QmsController.addSurgeryFromHis);
 router.post('/queue/add-surgery-from-his', QmsController.addSurgeryFromHis); // Fallback
 
 // Displays
-router.get('/display/:areaId', QmsController.getDisplay);
-router.get('/central', QmsController.getCentral);
-router.get('/counter/:id', QmsController.getCounterInfo);
+router.get('/queue/display/:areaId', QmsController.getDisplay);
+router.get('/display/:areaId', QmsController.getDisplay); // Fallback
+
+router.get('/queue/central', QmsController.getCentral);
+router.get('/central', QmsController.getCentral); // Fallback
+
+router.get('/queue/counter/:id', QmsController.getCounterInfo);
+router.get('/counter/:id', QmsController.getCounterInfo); // Fallback
 
 // SSE Event Stream
 router.get('/queue/events', QmsController.sseEvents);

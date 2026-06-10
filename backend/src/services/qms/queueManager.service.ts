@@ -84,11 +84,19 @@ export class QueueManagerService {
       }
 
       // STEP 2: Complete previous calling patient (if any)
-      await client.query(`
-        UPDATE hms_exam_pending 
-        SET hep_pending = 'A' 
-        WHERE hep_roomid::text = $1::text AND hep_pending = 'C' AND hep_date = CURRENT_DATE
-      `, [String(counterId)]);
+      if (type === 'EXECUTION' && deptCode) {
+        await client.query(`
+          UPDATE hms_exam_pending 
+          SET hep_pending = 'A' 
+          WHERE hep_roomid::text = $1::text AND hep_deptid = $2 AND hep_pending = 'C' AND hep_date = CURRENT_DATE
+        `, [String(counterId), deptCode]);
+      } else {
+        await client.query(`
+          UPDATE hms_exam_pending 
+          SET hep_pending = 'A' 
+          WHERE hep_roomid::text = $1::text AND hep_pending = 'C' AND hep_date = CURRENT_DATE
+        `, [String(counterId)]);
+      }
 
       // STEP 3: FIND NEXT PATIENT
       let nextPatient;
@@ -246,7 +254,22 @@ export class QueueManagerService {
     }
   }
 
-  static async complete(counterId: string | number): Promise<void> {
+  static async complete(counterId: string | number, ticketId?: string): Promise<void> {
+    if (ticketId) {
+      const parts = String(ticketId).split('-');
+      const docNo = parseInt(parts[0]);
+      const receptNo = parseInt(parts[1]);
+      if (!isNaN(docNo) && !isNaN(receptNo)) {
+        await pool.query(`
+          UPDATE hms_exam_pending 
+          SET hep_pending = 'A' 
+          WHERE hep_docno = $1 AND hep_receptno = $2 AND hep_date = CURRENT_DATE
+        `, [docNo, receptNo]);
+        broadcast({ type: 'QUEUE_UPDATED', counterId }, 'global');
+        return;
+      }
+    }
+
     await pool.query(`
       UPDATE hms_exam_pending 
       SET hep_pending = 'A' 

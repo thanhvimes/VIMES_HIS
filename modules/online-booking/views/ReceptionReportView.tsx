@@ -17,6 +17,7 @@ import {
 import { useTheme } from '../../../contexts/ThemeContext';
 import { bookingService, OnlineBookingRecord, BookingSpeciality } from '../../../services/bookingService';
 import { formatDate } from '../../../utils/formatters';
+import { FormDateInput } from '../../../components/ui/forms';
 import BookingPrintTemplate from '../components/BookingPrintTemplate';
 
 const ReceptionReportView: React.FC = () => {
@@ -176,30 +177,26 @@ const ReceptionReportView: React.FC = () => {
                         className={`w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 text-sm font-bold ${fontSettings.controls}`}
                     />
                 </div>
-                <div className="lg:col-span-1">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Từ ngày</label>
-                    <input
-                        type="date"
-                        value={fromDate}
-                        onChange={e => {
-                            setFromDate(e.target.value);
-                            setMonthFilter('');
-                        }}
-                        className={`w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-sm ${fontSettings.controls}`}
-                    />
-                </div>
-                <div className="lg:col-span-1">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Đến ngày</label>
-                    <input
-                        type="date"
-                        value={toDate}
-                        onChange={e => {
-                            setToDate(e.target.value);
-                            setMonthFilter('');
-                        }}
-                        className={`w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-sm ${fontSettings.controls}`}
-                    />
-                </div>
+                <FormDateInput
+                    label="Từ ngày"
+                    labelClassName="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1"
+                    value={fromDate}
+                    onChange={e => {
+                        setFromDate(e.target.value);
+                        setMonthFilter('');
+                    }}
+                    className={`w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-sm ${fontSettings.controls}`}
+                />
+                <FormDateInput
+                    label="Đến ngày"
+                    labelClassName="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1"
+                    value={toDate}
+                    onChange={e => {
+                        setToDate(e.target.value);
+                        setMonthFilter('');
+                    }}
+                    className={`w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-sm ${fontSettings.controls}`}
+                />
                 <div className="lg:col-span-1">
                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Khoa / Phòng</label>
                     <select
@@ -266,14 +263,14 @@ const ReceptionReportView: React.FC = () => {
                                             <div className="font-mono text-indigo-600 font-bold text-xs">{b_item.docNo || '---'}</div>
                                         </td>
                                         <td className="p-4">
-                                            <div className="font-bold text-slate-700 dark:text-slate-200">{b_item.bookingDate}</div>
+                                            <div className="font-bold text-slate-700 dark:text-slate-200">{b_item.bookingDate ? formatDate(b_item.bookingDate.split('T')[0]) : '---'}</div>
                                             <div className="text-xs text-blue-600 font-black flex items-center gap-1 mt-0.5">
                                                 <ClockIcon className="w-3 h-3" /> {b_item.bookingTime}
                                             </div>
                                         </td>
                                         <td className="p-4">
                                             <div className="font-black text-slate-800 dark:text-white uppercase text-sm">{b_item.patientName}</div>
-                                            <div className="text-[10px] text-slate-500 font-bold mt-0.5">{b_item.gender === 'M' ? 'Nam' : 'Nữ'}, {b_item.birthDate}</div>
+                                            <div className="text-[10px] text-slate-500 font-bold mt-0.5">{b_item.gender === 'M' ? 'Nam' : 'Nữ'}, {b_item.birthDate ? formatDate(b_item.birthDate.split('T')[0]) : '---'}</div>
                                         </td>
                                         <td className="p-4">
                                             <div className="flex items-center gap-1.5 text-sm font-bold text-slate-600 dark:text-slate-300">

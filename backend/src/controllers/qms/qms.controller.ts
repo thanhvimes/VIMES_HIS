@@ -166,6 +166,7 @@ export class QmsController {
 
   // 6. GET DEPARTMENTS
   static async getDepartments(req: Request, res: Response) {
+    console.log('[API/Departments] Querying sys_dept...');
     try {
       const data = await safeQuery(
         `SELECT sd_id as id, sd_name as name FROM sys_dept WHERE sd_isactive ='Y' ORDER BY sd_name`,
@@ -178,8 +179,10 @@ export class QmsController {
           { id: 'NHI', name: 'Khoa Nhi' }
         ]
       );
+      console.log(`[API/Departments] Found ${data?.length || 0} departments.`);
       res.json(data);
     } catch (e: any) {
+      console.error('[API/Departments] Error querying departments:', e);
       res.status(500).json({ error: e.message });
     }
   }
@@ -801,8 +804,8 @@ export class QmsController {
 
   static async complete(req: Request, res: Response) {
     try {
-      const { counterId } = req.body;
-      await QueueManagerService.complete(counterId);
+      const { counterId, ticketId } = req.body;
+      await QueueManagerService.complete(counterId, ticketId);
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -1149,6 +1152,109 @@ export class QmsController {
     }
   }
 
+  // 23b. GET PATIENTS BY STATUS FOR COUNTER
+  static async getPatientsByStatus(req: Request, res: Response) {
+    try {
+      const { counterId } = req.params;
+      if (!counterId || counterId === 'undefined' || counterId === 'NaN') {
+        return res.json({ success: true, data: { waiting: [], concluding: [], examined: [] } });
+      }
+      const { type, deptId } = req.query;
+      let deptCode = deptId ? String(deptId) : null;
+
+      if (!deptCode && type === 'EXECUTION') {
+        const roomRes = await pool.query('SELECT hrl_deptid::text as dept_code FROM hms_roomlist WHERE hrl_id::text = $1::text', [counterId]);
+        if (roomRes.rows.length > 0) {
+          deptCode = roomRes.rows[0].dept_code;
+        }
+      }
+
+      // Query all patients for this counter today
+      let query = `
+          SELECT 
+              ep.hep_docno || '-' || ep.hep_receptno AS id,
+              ep.hep_receptno AS ticket_number,
+              trim(p.hp_surname ||' '|| p.hp_midname ||' '|| p.hp_firstname) AS patient_name,
+              false AS is_priority,
+              ep.hep_date AS created_at,
+              ep.hep_date AS served_at,
+              ep.hep_pending,
+              d.hd_status,
+              CASE WHEN ep.hep_type = 'E' THEN 'REGISTRATION' ELSE 'EXECUTION' END AS kiosk_type,
+              ep.hep_docno AS doc_no,
+              ep.hep_deptid AS dept_code,
+              ep.hep_roomid AS room_id
+          FROM hms_exam_pending ep
+          LEFT JOIN hms_doc d ON d.hd_docno = ep.hep_docno
+          LEFT JOIN hms_patient p ON p.hp_patientno = d.hd_patientno
+          WHERE ep.hep_date = CURRENT_DATE
+      `;
+      const params: any[] = [];
+
+      if (type === 'EXECUTION') {
+        query += ` AND ep.hep_type IN ('E', 'I')`;
+        if (deptCode) {
+          query += ` AND ep.hep_deptid = $1 AND ep.hep_roomid::text = $2::text`;
+          params.push(deptCode, counterId);
+        } else {
+          query += ` AND ep.hep_roomid::text = $1::text`;
+          params.push(counterId);
+        }
+      } else {
+        const hepType = (type === 'SAMPLING') ? 'I' : 'E';
+        query += ` AND ep.hep_type = $1`;
+        params.push(hepType);
+
+        if (deptCode) {
+          query += ` AND ep.hep_deptid = $2 AND ep.hep_roomid::text = $3::text`;
+          params.push(deptCode, counterId);
+        } else {
+          query += ` AND ep.hep_roomid::text = $2::text`;
+          params.push(counterId);
+        }
+      }
+
+      const result = await pool.query(query, params);
+      const rows = result.rows;
+
+      const waiting: any[] = [];
+      const concluding: any[] = [];
+      const examined: any[] = [];
+
+      for (const row of rows) {
+        if (row.hep_pending === 'O') {
+          waiting.push(row);
+        } else if (row.hep_pending === 'A') {
+          if (type === 'EXECUTION') {
+            if (row.hd_status === 'O') {
+              concluding.push(row);
+            } else {
+              examined.push(row);
+            }
+          } else {
+            examined.push(row);
+          }
+        }
+      }
+
+      // Sort
+      waiting.sort((a, b) => a.ticket_number - b.ticket_number);
+      concluding.sort((a, b) => b.ticket_number - a.ticket_number);
+      examined.sort((a, b) => b.ticket_number - a.ticket_number);
+
+      res.json({
+        success: true,
+        data: {
+          waiting,
+          concluding,
+          examined
+        }
+      });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
+
   // 24. GET DISPLAY FOR LCD
   static async getDisplay(req: Request, res: Response) {
     try {
@@ -1218,7 +1324,7 @@ export class QmsController {
   static async getCentral(req: Request, res: Response) {
     try {
       const { areaId, serviceType, deptId } = req.query;
-      if (serviceType === 'EXECUTION') {
+      if (serviceType === 'EXECUTION' || serviceType === 'REGISTRATION') {
         let query = `
             SELECT 
                 r.hrl_id AS counter_id,
@@ -1292,7 +1398,7 @@ export class QmsController {
               d.hd_telephone AS phone,
               e.he_diagnostic AS reason,
               CASE 
-                  WHEN d.hd_object IN (2, 4, 6) THEN 'BHYT'
+                  WHEN d.hd_object IN ('2', '4', '6') THEN 'BHYT'
                   ELSE 'Dịch vụ'
               END AS object_type,
               COALESCE(e.he_pulse, 0) AS pulse,
@@ -1306,7 +1412,7 @@ export class QmsController {
           LEFT JOIN hms_doc d ON d.hd_docno = ep.hep_docno
           LEFT JOIN hms_patient p ON p.hp_patientno = d.hd_patientno
           LEFT JOIN hms_exam e ON e.he_docno = ep.hep_docno AND e.he_receptidx = COALESCE(ep.hep_receptidx, 1)
-          WHERE ep.hep_roomid = $1 AND ep.hep_pending = 'C' AND ep.hep_date = CURRENT_DATE
+          WHERE ep.hep_roomid = $1::integer AND ep.hep_pending = 'C' AND ep.hep_date = CURRENT_DATE
       `;
       const currentParams: any[] = [id];
       if (deptId) {
@@ -1336,7 +1442,7 @@ export class QmsController {
       }
       
       if (!counterObj) {
-        const counterRes = await pool.query('SELECT counter_id, counter_name, area_id FROM kiosk_counters WHERE counter_id = $1', [id]);
+        const counterRes = await pool.query('SELECT counter_id, counter_name, area_id FROM kiosk_counters WHERE counter_id = $1::integer', [id]);
         if (counterRes.rows.length > 0) {
           counterObj = counterRes.rows[0];
           areaId = counterObj.area_id;
@@ -1383,9 +1489,10 @@ export class QmsController {
             WHERE ep.hep_pending = 'O' 
               AND ep.hep_date = CURRENT_DATE
               AND ep.hep_type IN ('E', 'I')
-              AND ep.hep_roomid = $1
+              AND ep.hep_roomid = $1::integer
+              AND ep.hep_deptid = $2
             ORDER BY ep.hep_receptno ASC
-        `, [id]);
+        `, [id, counterObj.dept_code]);
       } else {
         waitingRes = await pool.query(`
             SELECT 
@@ -1403,8 +1510,8 @@ export class QmsController {
             WHERE ep.hep_pending = 'O' 
               AND ep.hep_date = CURRENT_DATE
               AND (
-                  (ep.hep_roomid IN (SELECT counter_id FROM kiosk_counters WHERE area_id = $2) AND $2 > 0) OR
-                  (ep.hep_roomid = $1 AND ($2 IS NULL OR $2 = 0)) OR
+                  (ep.hep_roomid IN (SELECT counter_id FROM kiosk_counters WHERE area_id = $2::integer) AND $2::integer > 0) OR
+                  (ep.hep_roomid = $1::integer AND ($2 IS NULL OR $2::integer = 0)) OR
                   (ep.hep_roomid IS NULL OR ep.hep_roomid = 0)
               )
             ORDER BY ep.hep_receptno ASC
@@ -1414,12 +1521,13 @@ export class QmsController {
       let servedQuery = `
           SELECT COUNT(*) as served_count
           FROM hms_exam_pending
-          WHERE hep_roomid = $1 AND hep_pending = 'A' AND hep_date = CURRENT_DATE
+          WHERE hep_roomid = $1::integer AND hep_pending = 'A' AND hep_date = CURRENT_DATE
       `;
       const servedParams: any[] = [id];
-      if (deptId) {
+      const effectiveDeptId = deptId || (counterObj.is_room ? counterObj.dept_code : null);
+      if (effectiveDeptId) {
         servedQuery += ` AND hep_deptid = $2`;
-        servedParams.push(deptId);
+        servedParams.push(effectiveDeptId);
       }
       const servedCountRes = await pool.query(servedQuery, servedParams);
 

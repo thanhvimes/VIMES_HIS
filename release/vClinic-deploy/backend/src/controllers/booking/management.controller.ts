@@ -99,7 +99,7 @@ class BookingManagementController {
             const bookingDetails = await query(`
                 SELECT q.*, s.ss_desc as "specialtyName", rl.hrl_roomname as "roomName"
                 FROM qms_patient q
-                LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND k.hrk_deptid = q.qms_deptid)
+                LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND k.hrk_deptid = q.qms_deptid AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
                 LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code = k.hrk_code::varchar)
                 LEFT JOIN hms_roomlist rl ON (rl.hrl_deptid = q.qms_deptid AND rl.hrl_id = q.qms_roomid)
                 WHERE q.qms_idx = $1
@@ -155,7 +155,7 @@ class BookingManagementController {
             FROM qms_patient q
             LEFT JOIN sys_dept d ON (d.sd_id = q.qms_deptid)
             LEFT JOIN hms_roomlist hrl ON (hrl.hrl_deptid = q.qms_deptid AND hrl.hrl_id = q.qms_roomid)
-            LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND k.hrk_deptid = q.qms_deptid)
+            LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND k.hrk_deptid = q.qms_deptid AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
             LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code = k.hrk_code::varchar)
             WHERE q.qms_type = 'ONL'
         `;
@@ -173,7 +173,7 @@ class BookingManagementController {
                 paramIndex++;
             }
 
-            sql += ' ORDER BY qms_appointment_date DESC, qms_appointment_time DESC';
+            sql += ' ORDER BY qms_appointment_date ASC, qms_appointment_time ASC';
             const result = await query(sql, params);
             return res.json(result.rows);
 
@@ -203,7 +203,7 @@ class BookingManagementController {
             const bookingResult = await query(`
                 SELECT q.*, s.ss_desc as "specialtyName", rl.hrl_roomname as "roomName"
                 FROM qms_patient q
-                LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND k.hrk_deptid = q.qms_deptid)
+                LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND k.hrk_deptid = q.qms_deptid AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
                 LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code = k.hrk_code::varchar)
                 LEFT JOIN hms_roomlist rl ON (rl.hrl_deptid = q.qms_deptid AND rl.hrl_id = q.qms_roomid)
                 WHERE q.qms_idx = $1
