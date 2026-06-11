@@ -10,7 +10,6 @@ import {
   ShieldCheck,
   Activity,
   ChevronDown,
-  Globe,
   Settings,
   Bell,
   Briefcase,
@@ -493,17 +492,17 @@ const Portal: React.FC<PortalProps> = ({ onNavigate, settings, onLogout }) => {
                             onNavigate(item.view);
                         }
                     }}
-                    className={`group relative bg-white p-6 rounded-[2.5rem] border shadow-sm transition-all duration-300 h-[280px] flex flex-col text-left ${isLocked && !isBypassed ? 'opacity-50 grayscale cursor-not-allowed border-slate-200' : `hover:shadow-xl hover:-translate-y-1 ${item.bgClass}`}`}
+                    className={`group relative bg-white p-5 rounded-[2rem] border shadow-sm transition-all duration-300 h-[220px] flex flex-col text-left ${isLocked && !isBypassed ? 'opacity-50 grayscale cursor-not-allowed border-slate-200' : `hover:shadow-xl hover:-translate-y-1 ${item.bgClass}`}`}
                   >
                     {isLocked && !isBypassed && (
                         <div className="absolute top-4 right-4 bg-slate-100 text-slate-400 p-1 rounded-full">
                            <Lock size={14} />
                         </div>
                     )}
-                    <div className={`mb-6 p-4 rounded-2xl w-fit transition-transform duration-500 ${isLocked && !isBypassed ? 'bg-slate-50' : 'bg-slate-50 group-hover:scale-110'}`}>
+                    <div className={`mb-4 p-3 rounded-2xl w-fit transition-transform duration-500 ${isLocked && !isBypassed ? 'bg-slate-50' : 'bg-slate-50 group-hover:scale-110'}`}>
                       {item.icon}
                     </div>
-                    <h4 className="text-xl font-black text-slate-900 mb-1 uppercase tracking-tight">{item.title}</h4>
+                    <h4 className="text-lg font-black text-slate-900 mb-1 uppercase tracking-tight">{item.title}</h4>
                     <p className="text-slate-400 font-bold text-[9px] mb-4 uppercase tracking-widest">{item.subtitle}</p>
                     <p className="text-slate-500 text-xs leading-relaxed line-clamp-3">
                       {isLocked && !isBypassed 
@@ -522,24 +521,6 @@ const Portal: React.FC<PortalProps> = ({ onNavigate, settings, onLogout }) => {
 
             </div>
 
-            {/* Patient Portal Link */}
-              <button
-                className="group bg-slate-900 p-6 rounded-[2.5rem] border border-slate-800 shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 text-left flex flex-col h-[280px]"
-                onClick={() => window.open('/patient', '_blank')}
-              >
-                <div className="mb-6 p-4 bg-slate-800 rounded-2xl w-fit group-hover:scale-110 transition-transform duration-500 text-emerald-400">
-                  <Globe size={24} />
-                </div>
-                <h4 className="text-xl font-black text-white mb-1 uppercase tracking-tight text-emerald-400">Cổng Bệnh nhân</h4>
-                <p className="text-slate-500 font-bold text-[9px] mb-4 uppercase tracking-widest">Mobile Tracking</p>
-                <p className="text-slate-400 text-xs leading-relaxed">
-                  Trang theo dõi số thứ tự trực tuyến dành cho bệnh nhân qua QR code.
-                </p>
-                
-                <div className="mt-auto flex items-center gap-2 text-slate-600 font-black text-[9px] tracking-[0.2em] group-hover:text-emerald-400 transition-colors uppercase">
-                  Xem bản xem trước <ChevronRight size={12} className="group-hover:translate-x-1 transition-transform" />
-                </div>
-              </button>
             </div>
           </div>
         </main>

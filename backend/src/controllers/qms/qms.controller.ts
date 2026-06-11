@@ -1596,7 +1596,7 @@ export class QmsController {
           FROM hms_operation o
           LEFT JOIN hms_doc d ON d.hd_docno = o.ho_docno
           LEFT JOIN hms_patient p ON p.hp_patientno = COALESCE(o.ho_patientno, d.hd_patientno)
-          LEFT JOIN hms_operation_board ob ON ob.hob_docno = o.ho_docno 
+          INNER JOIN hms_operation_board ob ON ob.hob_docno = o.ho_docno 
               AND DATE(ob.hob_date) = CURRENT_DATE
           LEFT JOIN hms_roomlist r ON r.hrl_id::text = COALESCE(ob.hob_roomid::text, o.ho_roomid::text)
           LEFT JOIN sys_dept sd ON sd.sd_id = o.ho_deptid
