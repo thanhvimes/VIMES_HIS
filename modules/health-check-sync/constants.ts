@@ -2,6 +2,8 @@ import React from 'react';
 import { 
     Squares2X2Icon,
     DocumentPlusIcon,
+    DocumentTextIcon,
+    PrinterIcon,
     SignatureIcon,
     CloudUploadIcon,
     CheckBadgeIcon,
@@ -17,35 +19,35 @@ export const HEALTH_CHECK_NAV_ITEMS: NavItemType[] = [
         iconName: 'Squares2X2Icon' 
     },
     {
-        name: '1. Tạo mới hồ sơ KSK',
+        name: 'Hồ sơ sức khỏe',
         path: '/health-check?step=create',
         section: 'QUY TRÌNH LIÊN THÔNG',
         icon: React.createElement(DocumentPlusIcon, { className: "w-5 h-5" }),
         iconName: 'DocumentPlusIcon'
     },
     {
-        name: '2. Hồ sơ chờ ký số',
-        path: '/health-check?step=pending-sign',
+        name: 'Danh sách hồ sơ',
+        path: '/health-check?step=manage',
         section: 'QUY TRÌNH LIÊN THÔNG',
-        icon: React.createElement(SignatureIcon, { className: "w-5 h-5" }),
-        iconName: 'SignatureIcon'
+        icon: React.createElement(DocumentTextIcon, { className: "w-5 h-5" }),
+        iconName: 'DocumentTextIcon'
     },
     {
-        name: '3. Hồ sơ chờ đồng bộ',
-        path: '/health-check?step=pending-send',
+        name: 'Quản lý in code',
+        path: '/health-check?step=print-code',
+        section: 'QUY TRÌNH LIÊN THÔNG',
+        icon: React.createElement(PrinterIcon, { className: "w-5 h-5" }),
+        iconName: 'PrinterIcon'
+    },
+    {
+        name: 'Đồng bộ dữ liệu',
+        path: '/health-check?step=sync',
         section: 'QUY TRÌNH LIÊN THÔNG',
         icon: React.createElement(CloudUploadIcon, { className: "w-5 h-5" }),
         iconName: 'CloudUploadIcon'
     },
     {
-        name: '4. Lịch sử liên thông',
-        path: '/health-check?step=history',
-        section: 'QUY TRÌNH LIÊN THÔNG',
-        icon: React.createElement(CheckBadgeIcon, { className: "w-5 h-5" }),
-        iconName: 'CheckBadgeIcon'
-    },
-    {
-        name: '5. Thiết lập liên thông',
+        name: 'Cấu hình thiết lập',
         path: '/health-check?step=settings',
         section: 'QUY TRÌNH LIÊN THÔNG',
         icon: React.createElement(AdjustmentsHorizontalIcon, { className: "w-5 h-5" }),

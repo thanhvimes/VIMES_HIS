@@ -36,7 +36,7 @@ const Dashboard: React.FC<DashboardProps> = ({ documents }) => {
                         <p className="text-3xl font-extrabold text-slate-800 dark:text-white mt-1">{total}</p>
                         <p className="text-[10px] text-slate-400 mt-1">Đã lưu trong database</p>
                     </div>
-                    <div className="p-3 rounded-full bg-blue-500 shadow-sm text-white">
+                    <div className="p-3 rounded-full bg-[#0f766e] shadow-sm text-white">
                         <PaperAirplaneIcon className="w-5 h-5"/>
                     </div>
                 </div>
@@ -80,7 +80,7 @@ const Dashboard: React.FC<DashboardProps> = ({ documents }) => {
                 {/* Simulated Chart Container */}
                 <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 lg:col-span-2 flex flex-col">
                     <h3 className="font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                        <ChartBarIcon className="w-5 h-5 text-blue-600"/> Biểu đồ đồng bộ VNeID theo 17 Mẫu biểu KSK
+                        <ChartBarIcon className="w-5 h-5 text-[#0f766e]"/> Biểu đồ đồng bộ VNeID theo 17 Mẫu biểu KSK
                     </h3>
                     <div className="flex-1 min-h-[240px] bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-700 flex flex-col justify-end p-4">
                         {/* Mock Bar Chart */}
@@ -94,7 +94,7 @@ const Dashboard: React.FC<DashboardProps> = ({ documents }) => {
                                         <div className="text-[10px] font-bold text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity mb-1">{count}</div>
                                         <div 
                                             style={{ height: `${heightPercent}px` }} 
-                                            className={`w-4 rounded-t transition-all ${isSelected ? 'bg-blue-600 group-hover:bg-blue-700' : 'bg-slate-200 dark:bg-slate-800'}`}
+                                            className={`w-4 rounded-t transition-all ${isSelected ? 'bg-[#0f766e] group-hover:bg-[#0d645c]' : 'bg-slate-200 dark:bg-slate-800'}`}
                                         ></div>
                                         <span className="text-[9px] text-slate-400 mt-2 font-mono">M{i+1}</span>
                                     </div>

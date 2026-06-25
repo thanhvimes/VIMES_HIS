@@ -1,28 +1,21 @@
-// ==================== DOCUMENT LIST COMPONENT ====================
-// File: modules/health-check-sync/components/DocumentList.tsx
+// ==================== SYNC DATA LIST COMPONENT ====================
+// File: modules/health-check-sync/components/SyncDataList.tsx
 
 import React from 'react';
 import { 
     CheckCircleIcon, 
-    ExclamationCircleIcon, 
     RefreshIcon, 
-    SignatureIcon, 
-    EyeIcon,
-    PencilIcon,
-    TrashIcon,
-    PrinterIcon,
-    DocumentTextIcon,
-    PaperAirplaneIcon
+    DocumentTextIcon, 
+    PaperAirplaneIcon,
+    EyeIcon
 } from '../../../components/Icons';
 import { formatDateTime } from '../../../utils/formatters';
 
-interface DocumentListProps {
+interface SyncDataListProps {
     documents: any[];
     selectedIds: Set<string>;
     onToggleSelect: (id: string) => void;
     onSelectAll: (checked: boolean) => void;
-    onEdit: (doc: any) => void;
-    onDelete: (id: string) => void;
     onViewXml: (doc: any) => void;
     onPrint: (doc: any) => void;
     onSend?: (doc: any) => void;
@@ -31,13 +24,11 @@ interface DocumentListProps {
     onSeed?: () => void;
 }
 
-const DocumentList: React.FC<DocumentListProps> = ({
+const SyncDataList: React.FC<SyncDataListProps> = ({
     documents,
     selectedIds,
     onToggleSelect,
     onSelectAll,
-    onEdit,
-    onDelete,
     onViewXml,
     onPrint,
     onSend,
@@ -45,7 +36,6 @@ const DocumentList: React.FC<DocumentListProps> = ({
     getFormColor,
     onSeed
 }) => {
-
     const getStatusBadge = (status: string) => {
         switch(status) {
             case 'Success': 
@@ -92,8 +82,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                             </th>
                             <th className="p-4">Hồ sơ / Bệnh nhân</th>
                             <th className="p-4">Loại biểu mẫu</th>
-                            <th className="p-4">Người nhập / Ngày tạo</th>
-                            <th className="p-4">Trạng thái E-MCH</th>
+                            <th className="p-4">Trạng thái liên thông</th>
                             <th className="p-4">Chi tiết giao dịch</th>
                             <th className="p-4 text-right w-44">Hành động</th>
                         </tr>
@@ -101,16 +90,13 @@ const DocumentList: React.FC<DocumentListProps> = ({
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                         {documents.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="p-12 text-center">
+                                <td colSpan={6} className="p-12 text-center">
                                     <div className="flex flex-col items-center justify-center space-y-3 py-6">
                                         <div className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-full text-slate-400">
                                             <RefreshIcon className="w-8 h-8 animate-pulse text-teal-500" />
                                         </div>
                                         <div className="text-slate-700 dark:text-slate-300 font-bold text-sm">
-                                            Không tìm thấy dữ liệu khám sức khỏe nào
-                                        </div>
-                                        <div className="text-slate-400 dark:text-slate-500 text-xs max-w-sm">
-                                            Để bắt đầu sử dụng và thử nghiệm liên thông VNeID, vui lòng nhấn nút dưới đây để đồng bộ dữ liệu mẫu từ hệ thống HIS.
+                                            Không tìm thấy dữ liệu đồng bộ
                                         </div>
                                         {onSeed && (
                                             <button
@@ -118,7 +104,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                                 className="mt-2 px-5 py-2.5 bg-[#0f766e] hover:bg-[#0d9488] text-white rounded-lg text-xs font-bold shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                                             >
                                                 <RefreshIcon className="w-4 h-4" />
-                                                Khởi tạo dữ liệu mẫu từ HIS
+                                                Đồng bộ thủ công từ HIS
                                             </button>
                                         )}
                                     </div>
@@ -157,46 +143,16 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                             {getFormName(doc.form_type)}
                                         </span>
                                     </td>
-                                    <td className="p-4 text-xs text-slate-600 dark:text-slate-300">
-                                        <div className="font-medium">Trần Đại Đồng</div>
-                                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">{formatDateTime(doc.created_at)}</div>
-                                    </td>
                                     <td className="p-4">
                                         {getStatusBadge(doc.send_status)}
                                     </td>
-                                    <td className="p-4 max-w-[200px] break-words text-xs text-rose-800 dark:text-rose-400 font-bold uppercase leading-tight">
+                                    <td className="p-4 max-w-[250px] break-words text-xs text-rose-800 dark:text-rose-400 font-bold uppercase leading-tight">
                                         {doc.send_status === 'Error' && (doc.error_message || 'HTTP Status code 400')}
                                     </td>
                                     <td className="p-4 text-right">
                                         <div className="flex justify-end items-center gap-1.5">
-                                            {/* Nút phụ: In, Sửa, Xóa */}
-                                            <div className="flex items-center gap-1 mr-2 border-r border-slate-200 dark:border-slate-700 pr-2">
-                                                <button 
-                                                    onClick={() => onPrint(doc)}
-                                                    className="p-1 text-slate-400 hover:text-orange-600 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-                                                    title="In biểu mẫu KSK"
-                                                >
-                                                    <PrinterIcon className="w-4 h-4"/>
-                                                </button>
-                                                <button 
-                                                    onClick={() => onEdit(doc)}
-                                                    className="p-1 text-slate-400 hover:text-[#0f766e] rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-                                                    title="Sửa hồ sơ"
-                                                >
-                                                    <PencilIcon className="w-4 h-4"/>
-                                                </button>
-                                                <button 
-                                                    onClick={() => onDelete(doc.id)}
-                                                    className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-                                                    title="Xóa hồ sơ"
-                                                >
-                                                    <TrashIcon className="w-4 h-4"/>
-                                                </button>
-                                            </div>
-
-                                            {/* Khối 3 nút chính theo style ảnh mẫu */}
                                             <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white shadow-sm flex-shrink-0">
-                                                {/* XML */}
+                                                {/* XML Preview */}
                                                 <button 
                                                     onClick={() => onViewXml(doc)}
                                                     className="flex flex-col items-center justify-center w-11 h-11 bg-white hover:bg-slate-50 text-slate-500 transition border-r border-slate-200 focus:outline-none cursor-pointer"
@@ -206,7 +162,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                                     <span className="text-[8px] font-extrabold uppercase mt-0.5 tracking-wider">XML</span>
                                                 </button>
 
-                                                {/* Xem */}
+                                                {/* Preview */}
                                                 <button 
                                                     onClick={() => onPrint(doc)}
                                                     className="flex flex-col items-center justify-center w-11 h-11 bg-white hover:bg-emerald-50/50 text-[#0f766e] transition border-r border-slate-200 focus:outline-none cursor-pointer"
@@ -216,7 +172,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                                     <span className="text-[8px] font-extrabold uppercase mt-0.5 tracking-wider">Xem</span>
                                                 </button>
 
-                                                {/* Gửi */}
+                                                {/* Send VNeID */}
                                                 <button 
                                                     onClick={() => onSend && onSend(doc)}
                                                     className="flex flex-col items-center justify-center w-11 h-11 bg-[#0f766e] hover:bg-[#0d9488] text-white transition focus:outline-none cursor-pointer"
@@ -242,4 +198,4 @@ const DocumentList: React.FC<DocumentListProps> = ({
     );
 };
 
-export default DocumentList;
+export default SyncDataList;
