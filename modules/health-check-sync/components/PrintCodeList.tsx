@@ -8,7 +8,7 @@ import {
     RefreshIcon
 } from '../../../components/Icons';
 import { formatDateTime } from '../../../utils/formatters';
-import { Code39Barcode } from '../forms/PrintBarcodeForm';
+import { Code128Barcode } from '../forms/PrintBarcodeForm';
 
 interface PrintCodeListProps {
     documents: any[];
@@ -140,7 +140,7 @@ const PrintCodeList: React.FC<PrintCodeListProps> = ({
                                         <div className="inline-flex flex-col items-center gap-1">
                                             {/* Real Dynamic Code39 Barcode */}
                                             <div className="bg-white p-2 border border-slate-200 rounded flex flex-col items-center shadow-sm select-none">
-                                                <Code39Barcode value={doc.doc_no} height={26} />
+                                                <Code128Barcode value={doc.doc_no} height={26} />
                                                 <span className="text-[8.5px] font-mono font-bold text-slate-600 mt-1">{doc.doc_no}</span>
                                             </div>
                                         </div>

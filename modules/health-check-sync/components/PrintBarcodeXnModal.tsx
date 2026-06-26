@@ -5,7 +5,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Code39Barcode } from '../forms/PrintBarcodeForm';
+import { Code128Barcode } from '../forms/PrintBarcodeForm';
 
 // ========== TYPES ==========
 
@@ -422,7 +422,7 @@ const PrintBarcodeXnModal: React.FC<PrintBarcodeXnModalProps> = ({
                                                         {/* Barcode preview */}
                                                         <div className={`mt-3 flex items-center gap-3 transition-opacity ${isChecked ? 'opacity-100' : 'opacity-40'}`}>
                                                             <div className="bg-white border border-slate-200 rounded-lg px-2 py-1 inline-flex flex-col items-center shadow-sm">
-                                                                <Code39Barcode value={order.orderNo} height={20} />
+                                                                <Code128Barcode value={order.orderNo} height={20} />
                                                                 <span className="text-[8px] font-mono text-slate-600 mt-0.5 font-bold">{order.orderNo}</span>
                                                             </div>
                                                             {isChecked && (

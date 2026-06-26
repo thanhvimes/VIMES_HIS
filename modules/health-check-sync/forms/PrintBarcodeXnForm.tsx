@@ -6,7 +6,7 @@
 import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useSystemStore } from '../../../stores/useSystemStore';
-import { Code39Barcode } from './PrintBarcodeForm';
+import { Code128Barcode } from './PrintBarcodeForm';
 import { PatientWithOrders, LabOrder } from '../components/PrintBarcodeXnModal';
 
 // ========== TYPES ==========
@@ -261,7 +261,7 @@ const PrintBarcodeXnForm: React.FC<PrintBarcodeXnFormProps> = ({
                                         </div>
                                     )}
                                     <div style={{ textAlign: 'center', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <Code39Barcode value={order.orderNo} height={18} />
+                                        <Code128Barcode value={order.orderNo} height={18} />
                                     </div>
                                     <div style={{ lineHeight: 1.1 }}>
                                         <div style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -305,7 +305,7 @@ const PrintBarcodeXnForm: React.FC<PrintBarcodeXnFormProps> = ({
 
                                 {/* Barcode */}
                                 <div style={{ textAlign: 'center', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0.5mm 0' }}>
-                                    <Code39Barcode value={order.orderNo} height={cfg.barcodeH} />
+                                    <Code128Barcode value={order.orderNo} height={cfg.barcodeH} />
                                 </div>
 
                                 {/* Info */}
