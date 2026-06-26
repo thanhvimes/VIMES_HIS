@@ -60,7 +60,13 @@ const PrintBarcodeXnForm: React.FC<PrintBarcodeXnFormProps> = ({
 
     React.useEffect(() => {
         window.document.body.appendChild(portalContainer);
+        // Tự động gọi in ngay khi mount để rút gọn thao tác cho user
+        const timer = setTimeout(() => {
+            handlePrint();
+        }, 300);
+
         return () => {
+            clearTimeout(timer);
             if (window.document.body.contains(portalContainer)) {
                 window.document.body.removeChild(portalContainer);
             }
@@ -85,10 +91,12 @@ const PrintBarcodeXnForm: React.FC<PrintBarcodeXnFormProps> = ({
 
         window.print();
 
+        // Cleanup và tự động đóng form quay lại modal danh sách
         setTimeout(() => {
             const el = document.getElementById(styleId);
             if (el) el.remove();
-        }, 2000);
+            onClose();
+        }, 1000);
     };
 
     if (!payload || payload.length === 0) return null;

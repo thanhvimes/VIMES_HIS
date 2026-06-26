@@ -214,7 +214,13 @@ const PrintBarcodeForm: React.FC<PrintBarcodeFormProps> = ({
 
     React.useEffect(() => {
         window.document.body.appendChild(portalContainer);
+        // Tự động gọi in ngay khi mount để rút gọn thao tác cho user
+        const timer = setTimeout(() => {
+            handlePrint();
+        }, 300);
+
         return () => {
+            clearTimeout(timer);
             if (window.document.body.contains(portalContainer)) {
                 window.document.body.removeChild(portalContainer);
             }
@@ -241,11 +247,12 @@ const PrintBarcodeForm: React.FC<PrintBarcodeFormProps> = ({
 
         window.print();
 
-        // Cleanup sau 2 giây
+        // Cleanup sau khi in và tự động đóng form quay về danh sách
         setTimeout(() => {
             const el = document.getElementById(styleId);
             if (el) el.remove();
-        }, 2000);
+            onClose();
+        }, 1000);
     };
 
     if (!documents || documents.length === 0) return null;
