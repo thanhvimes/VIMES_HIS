@@ -25,6 +25,8 @@ import { doctorOptions, diagnosisOptions, DoctorItem, CatalogItem } from '../../
 import SubDiagnosisModal from './modals/SubDiagnosisModal';
 import AIAnalysisModal from './modals/AIAnalysisModal';
 import VitalSignsModal from './modals/VitalSignsModal';
+import { SPECIALTY_FORM_REGISTRY, generateSpecialtySummary } from './specialties';
+import ICDSelection from '../components/ICDSelection';
 
 const DEMO_PDF_URL = 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf';
 
@@ -51,11 +53,17 @@ const ExamineView: React.FC<{ age?: number; gender?: string }> = ({ age, gender 
 
     useEffect(() => {
         const loadData = async () => {
-            if (!docNo || !patientId) return;
+            if (!patientId) return;
             setIsLoading(true);
             try {
                 // Load clinical record
-                const data = await consultationService.getClinicalRecordByDocNo(parseInt(docNo));
+                let data: ClinicalRecord;
+                if (docNo) {
+                    data = await consultationService.getClinicalRecordByDocNo(parseInt(docNo));
+                } else {
+                    data = await consultationService.getClinicalRecord(patientId);
+                }
+                
                 if (!data.endTime) {
                     const now = new Date();
                     data.endTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
@@ -64,13 +72,14 @@ const ExamineView: React.FC<{ age?: number; gender?: string }> = ({ age, gender 
                 setOriginalRecord(JSON.parse(JSON.stringify(data)));
 
                 // Load patient profile (allergies, history, etc.)
-                const profile = await consultationService.getPatientProfile(patientId, docNo);
+                const profile = await consultationService.getPatientProfile(patientId, docNo || undefined);
                 setPatientProfile(profile);
             } catch (error) {
                 console.error("Failed to load record", error);
                 // Fallback: Tạo một record trống để tránh crash màn hình
                 const emptyRecord: any = {
-                    docNo: parseInt(docNo),
+                    docNo: docNo ? parseInt(docNo) : 21000001,
+                    patientId: patientId,
                     patientName: "Bệnh nhân",
                     examDate: new Date().toISOString(), // Bổ sung ngày giờ mặc định
                     history: "",
@@ -86,9 +95,37 @@ const ExamineView: React.FC<{ age?: number; gender?: string }> = ({ age, gender 
             }
         };
         loadData();
-    }, [docNo]);
+    }, [docNo, patientId]);
 
-    const handleUpdate = () => setMode('EDIT');
+    const handleUpdate = () => {
+        setMode('EDIT');
+        if (record) {
+            const isBHYT = patientProfile?.insuranceNumber || patientProfile?.patientType === 'BHYT';
+            if (isBHYT) {
+                const minWaitMinutes = patientProfile?.minWaitTime || 15;
+                const minExamMinutes = patientProfile?.minExamDuration || 15;
+                const createdTime = patientProfile?.createdDate ? new Date(patientProfile.createdDate) : new Date();
+                const now = new Date();
+                
+                let adjustedExamDate = new Date(record.examDate || now);
+                const waitThreshold = new Date(createdTime.getTime() + minWaitMinutes * 60 * 1000);
+                if (now < waitThreshold) {
+                    adjustedExamDate = waitThreshold;
+                    addNotification("Thông tin BHYT", `Tự động điều chỉnh giờ khám tới ${adjustedExamDate.toLocaleTimeString('vi-VN')} để đủ thời gian chờ chỉ định tối thiểu (${minWaitMinutes} phút)`, "info");
+                }
+                
+                const adjustedEndDate = new Date(adjustedExamDate.getTime() + minExamMinutes * 60 * 1000);
+                const endHours = adjustedEndDate.getHours().toString().padStart(2, '0');
+                const endMinutes = adjustedEndDate.getMinutes().toString().padStart(2, '0');
+                
+                setRecord(prev => prev ? {
+                    ...prev,
+                    examDate: adjustedExamDate.toISOString().slice(0, 16),
+                    endTime: `${endHours}:${endMinutes}`
+                } : null);
+            }
+        }
+    };
     
     const handleCancel = () => {
         if (originalRecord && window.confirm("Hủy bỏ các thay đổi hiện tại?")) {
@@ -97,15 +134,68 @@ const ExamineView: React.FC<{ age?: number; gender?: string }> = ({ age, gender 
         }
     };
 
+    const getAutoConclusion = (mainDisease?: ICD10, subDiseases?: ICD10[]) => {
+        if (!mainDisease) return '';
+        let text = `[${mainDisease.code}] ${mainDisease.name}`;
+        if (subDiseases && subDiseases.length > 0) {
+            text += '; ' + subDiseases.map(d => `[${d.code}] ${d.name}`).join('; ');
+        }
+        return text;
+    };
+
     const handleSave = async () => {
         if (!record || !record.mainDisease) {
             addNotification("Cảnh báo", "Vui lòng chọn chẩn đoán bệnh chính (ICD10)", "warning");
             return;
         }
 
+        const isBHYT = patientProfile?.insuranceNumber || patientProfile?.patientType === 'BHYT';
+        if (isBHYT) {
+            if (!record.vitals?.weight || record.vitals.weight <= 0) {
+                addNotification("Cảnh báo", "Đối tượng BHYT bắt buộc phải nhập cân nặng!", "warning");
+                return;
+            }
+            if (!record.initialDiagnosis || record.initialDiagnosis.trim().length < 5) {
+                addNotification("Cảnh báo", "Đối tượng BHYT yêu cầu nhập chẩn đoán ban đầu (tối thiểu 5 ký tự)!", "warning");
+                return;
+            }
+
+            const minExamMinutes = patientProfile?.minExamDuration || 15;
+            const examDateObj = new Date(record.examDate);
+            const [endH, endM] = record.endTime ? record.endTime.split(':').map(Number) : [0, 0];
+            const endDateObj = new Date(examDateObj);
+            endDateObj.setHours(endH);
+            endDateObj.setMinutes(endM);
+            
+            const diffMs = endDateObj.getTime() - examDateObj.getTime();
+            const diffMins = diffMs / (1000 * 60);
+            
+            if (diffMins < minExamMinutes) {
+                addNotification("Cảnh báo BHYT", `Giờ kết thúc khám phải sau giờ bắt đầu ít nhất ${minExamMinutes} phút để tránh xuất toán!`, "warning");
+                return;
+            }
+
+            const maxDailyExams = patientProfile?.maxDailyExams || 65;
+            const currentDoctorExams = patientProfile?.doctorDailyExamCount || 0;
+            if (currentDoctorExams >= maxDailyExams) {
+                addNotification("Cảnh báo xuất toán", `Bác sĩ đã khám ${currentDoctorExams}/${maxDailyExams} ca trong ngày. Nếu tiếp tục khám BHYT sẽ bị xuất toán!`, "error");
+                return;
+            }
+
+            if (patientProfile?.hasPriorExamSameDoctor) {
+                const proceed = window.confirm("Một bác sĩ chỉ được khám 1 phiếu khám của bệnh nhân. Khám chuyên khoa thứ 2 sẽ bị xuất toán! Bạn có chắc chắn muốn tiếp tục?");
+                if (!proceed) return;
+            }
+        }
+
         setIsLoading(true);
         try {
-            const savedRecord = await consultationService.saveClinicalRecord(record);
+            const currentType = record.he_type || 1;
+            let recordToSave = { ...record };
+            if (currentType > 1) {
+                recordToSave.clinicalExam = generateSpecialtySummary(currentType, record.specialtyData || {});
+            }
+            const savedRecord = await consultationService.saveClinicalRecord(recordToSave);
             setRecord(savedRecord);
             setOriginalRecord(JSON.parse(JSON.stringify(savedRecord)));
             setMode('VIEW');
@@ -136,8 +226,14 @@ const ExamineView: React.FC<{ age?: number; gender?: string }> = ({ age, gender 
 
     const handleMainDiseaseChange = (value: string, item?: CatalogItem) => {
         if (item) {
-            handleInputChange('mainDisease', { code: item.code, name: item.name });
-            if (!record?.initialDiagnosis) handleInputChange('initialDiagnosis', item.name);
+            const mainDisease = { code: item.code, name: item.name };
+            const conclusion = getAutoConclusion(mainDisease, record?.subDiseases);
+            setRecord(prev => prev ? {
+                ...prev,
+                mainDisease,
+                initialDiagnosis: prev.initialDiagnosis || item.name,
+                conclusion: prev.conclusion || conclusion
+            } : null);
         }
     };
 
@@ -171,6 +267,8 @@ const ExamineView: React.FC<{ age?: number; gender?: string }> = ({ age, gender 
     if (!record) return <div className="p-10 text-center opacity-50">Đang khởi tạo dữ liệu khám...</div>;
 
     const isEditable = mode === 'EDIT';
+    const currentType = record.he_type || 1;
+    const SpecialtyForm = SPECIALTY_FORM_REGISTRY[currentType] || SPECIALTY_FORM_REGISTRY[1];
 
     return (
         <div className="flex flex-col h-full gap-4 animate-fade-in relative pb-16">
@@ -204,7 +302,7 @@ const ExamineView: React.FC<{ age?: number; gender?: string }> = ({ age, gender 
                     {/* SECTION: ADMIN & LÂM SÀNG */}
                     <div className={`bg-white dark:bg-slate-800 p-5 rounded-xl border transition-all duration-300 ${isEditable ? 'border-blue-500 ring-4 ring-blue-500/10' : 'border-slate-200 dark:border-slate-700'}`}>
                          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-5">
-                                <div className="md:col-span-3">
+                                <div className="md:col-span-2">
                                     <Combobox<DoctorItem>
                                         label="Bác sĩ khám bệnh"
                                         value={record.doctorName}
@@ -217,6 +315,30 @@ const ExamineView: React.FC<{ age?: number; gender?: string }> = ({ age, gender 
                                     />
                                 </div>
                                 <div className="md:col-span-2">
+                                    <label className="enterprise-label">Chuyên khoa khám</label>
+                                    {isEditable ? (
+                                        <select 
+                                            value={currentType}
+                                            onChange={(e) => handleInputChange('he_type', parseInt(e.target.value))}
+                                            className="enterprise-input font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-800 focus:ring-blue-500 focus:border-blue-500"
+                                        >
+                                            <option value={1}>Đa khoa / Nội khoa</option>
+                                            <option value={2}>Chuyên khoa Mắt (Ophthalmology)</option>
+                                            <option value={3}>Chuyên khoa Sản (Obstetrics)</option>
+                                            <option value={4}>Tai Mũi Họng (ENT)</option>
+                                            <option value={5}>Răng Hàm Mặt (Dental)</option>
+                                            <option value={6}>Y Học Cổ Truyền (Traditional Medicine)</option>
+                                        </select>
+                                    ) : (
+                                        <input 
+                                            type="text" 
+                                            readOnly 
+                                            className="enterprise-input font-bold text-blue-600 dark:text-blue-400 bg-slate-50 dark:bg-slate-900/50"
+                                            value={currentType === 2 ? 'Chuyên khoa Mắt' : currentType === 3 ? 'Chuyên khoa Sản' : currentType === 4 ? 'Tai Mũi Họng (ENT)' : currentType === 5 ? 'Răng Hàm Mặt (Dental)' : currentType === 6 ? 'Y Học Cổ Truyền (YHCT)' : 'Đa khoa / Nội khoa'}
+                                        />
+                                    )}
+                                </div>
+                                <div className="md:col-span-1">
                                     <label className="enterprise-label">Ngày & Giờ khám</label>
                                     <input 
                                         type="datetime-local" 
@@ -236,45 +358,40 @@ const ExamineView: React.FC<{ age?: number; gender?: string }> = ({ age, gender 
                                         className="enterprise-input text-center font-bold text-blue-600"
                                     />
                                 </div>
-                         </div>
+                          </div>
 
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <div className="flex flex-col gap-1.5">
-                                <label className="enterprise-label flex items-center justify-between">
-                                    Quá trình bệnh lý
-                                    <span className="text-[10px] text-slate-400 normal-case font-normal">Triệu chứng & Diễn biến</span>
-                                </label>
-                                <textarea 
-                                    value={record.history} 
-                                    onChange={(e) => handleInputChange('history', e.target.value)}
-                                    disabled={!isEditable}
-                                    rows={5}
-                                    className="enterprise-input h-auto py-2 leading-relaxed min-h-[120px]"
-                                    placeholder="Ví dụ: Bệnh nhân sốt cao 3 ngày, ho có đờm..."
-                                />
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                                <label className="enterprise-label flex items-center justify-between">
-                                    Khám lâm sàng
-                                    <span className="text-[10px] text-slate-400 normal-case font-normal">Ghi nhận thực thể</span>
-                                </label>
-                                <textarea 
-                                    value={record.clinicalExam}
-                                    onChange={(e) => handleInputChange('clinicalExam', e.target.value)}
-                                    disabled={!isEditable}
-                                    rows={5}
-                                    className="enterprise-input h-auto py-2 leading-relaxed min-h-[120px]"
-                                    placeholder="Ví dụ: Phổi có rale ẩm, họng đỏ..."
-                                />
-                            </div>
-                        </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                             <div className="flex flex-col gap-1.5">
+                                 <label className="enterprise-label flex items-center justify-between">
+                                     Quá trình bệnh lý
+                                     <span className="text-[10px] text-slate-400 normal-case font-normal">Triệu chứng & Diễn biến</span>
+                                 </label>
+                                 <textarea 
+                                     value={record.history} 
+                                     onChange={(e) => handleInputChange('history', e.target.value)}
+                                     disabled={!isEditable}
+                                     rows={8}
+                                     className="enterprise-input h-auto py-2 leading-relaxed min-h-[220px]"
+                                     placeholder="Ví dụ: Bệnh nhân sốt cao 3 ngày, ho có đờm..."
+                                 />
+                             </div>
+                             <div className="flex flex-col">
+                                 <SpecialtyForm 
+                                     data={record.specialtyData || {}}
+                                     onChange={(newData) => handleInputChange('specialtyData', newData)}
+                                     clinicalExam={record.clinicalExam}
+                                     onClinicalExamChange={(val) => handleInputChange('clinicalExam', val)}
+                                     disabled={!isEditable}
+                                 />
+                             </div>
+                         </div>
                     </div>
 
                     {/* SECTION: CHẨN ĐOÁN */}
                     <div className={`bg-white dark:bg-slate-800 p-5 rounded-xl border transition-all duration-300 ${isEditable ? 'border-amber-500 ring-4 ring-amber-500/10' : 'border-slate-200 dark:border-slate-700'}`}>
                          <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold uppercase text-xs tracking-widest">
-                                <ActivityIcon className="w-4 h-4"/> Chẩn Đoán Bệnh Lý
+                                <ActivityIcon className="w-4 h-4"/> {currentType === 6 || patientProfile?.deptId === 'YHCT' ? 'Chẩn đoán YHCT & YHHĐ' : 'Chẩn Đoán Bệnh Lý'}
                             </div>
                             <button 
                                 onClick={handleAskAI}
@@ -285,43 +402,71 @@ const ExamineView: React.FC<{ age?: number; gender?: string }> = ({ age, gender 
                             </button>
                         </div>
                          
-                         <div className="space-y-5">
-                                <Combobox<CatalogItem>
-                                    label="Bệnh chính (Mã ICD10)"
-                                    value={record.mainDisease ? `${record.mainDisease.code} - ${record.mainDisease.name}` : ''}
-                                    onChange={handleMainDiseaseChange}
-                                    options={diagnosisOptions}
-                                    columns={icdColumns}
-                                    disabled={!isEditable}
-                                    required
-                                    placeholder="Nhập mã hoặc tên bệnh lý..."
-                                    displayValue={(item) => `${item.code} - ${item.name}`}
-                                />
-                                
-                                <div className="flex items-start gap-3">
-                                    <div className="flex-1">
-                                        <label className="enterprise-label">Bệnh kèm theo (Sub ICD)</label>
-                                        <div className="min-h-[42px] p-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900 flex flex-wrap gap-1.5 items-center">
-                                            {record.subDiseases && record.subDiseases.length > 0 ? (
-                                                record.subDiseases.map((d, idx) => (
-                                                    <span key={idx} className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                                                        <span className="bg-blue-200 dark:bg-blue-700 px-1 rounded mr-1.5">{d.code}</span> {d.name}
-                                                    </span>
-                                                ))
-                                            ) : (
-                                                <span className="text-slate-400 italic text-xs pl-2">Chưa chọn bệnh kèm theo</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <button 
-                                        onClick={() => setIsSubDiagModalOpen(true)}
-                                        disabled={!isEditable}
-                                        className="mt-6 p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-md active:scale-95 disabled:opacity-50"
-                                    >
-                                        <ListBulletIcon className="w-5 h-5" />
-                                    </button>
-                                </div>
-                         </div>
+                         {isEditable ? (
+                             <ICDSelection
+                                 mainDisease={record.mainDisease}
+                                 subDiseases={record.subDiseases || []}
+                                 onMainDiseaseChange={(disease) => {
+                                     const conclusion = getAutoConclusion(disease, record.subDiseases);
+                                     setRecord(prev => prev ? {
+                                         ...prev,
+                                         mainDisease: disease,
+                                         initialDiagnosis: prev.initialDiagnosis || disease.name,
+                                         conclusion: prev.conclusion || conclusion
+                                     } : null);
+                                 }}
+                                 onSubDiseasesChange={(diseases) => {
+                                     const conclusion = getAutoConclusion(record.mainDisease, diseases);
+                                     setRecord(prev => prev ? {
+                                         ...prev,
+                                         subDiseases: diseases,
+                                         conclusion: prev.conclusion || conclusion
+                                     } : null);
+                                 }}
+                                 isYHCT={currentType === 6 || patientProfile?.deptId === 'YHCT'}
+                             />
+                         ) : (
+                             <div className="space-y-4">
+                                 <div>
+                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                                         {currentType === 6 || patientProfile?.deptId === 'YHCT' ? 'Bệnh chính YHHĐ (Mã ICD10)' : 'Bệnh chính (Mã ICD10)'}
+                                     </span>
+                                     {record.mainDisease ? (
+                                         <div className="p-3 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-lg">
+                                             <span className="font-mono font-bold text-blue-600 dark:text-blue-400 mr-2 bg-blue-100 dark:bg-blue-900 px-1.5 py-0.5 rounded text-sm">
+                                                 {record.mainDisease.code}
+                                             </span>
+                                             <span className="font-bold text-slate-700 dark:text-slate-200">
+                                                 {record.mainDisease.name}
+                                             </span>
+                                             {(currentType === 6 || patientProfile?.deptId === 'YHCT') && record.mainDisease.yhctCode && (
+                                                 <p className="text-xs text-slate-500 italic mt-1 pl-2 border-l border-slate-300">
+                                                     YHCT: [{record.mainDisease.yhctCode}] {record.mainDisease.yhctName}
+                                                 </p>
+                                             )}
+                                         </div>
+                                     ) : (
+                                         <span className="text-slate-400 italic text-xs">Chưa chọn bệnh chính</span>
+                                     )}
+                                 </div>
+                                 <div>
+                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                                         Bệnh kèm theo (Sub ICD)
+                                     </span>
+                                     <div className="flex flex-wrap gap-1.5">
+                                         {record.subDiseases && record.subDiseases.length > 0 ? (
+                                             record.subDiseases.map((d, idx) => (
+                                                 <span key={idx} className="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-slate-50 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                                     <span className="bg-slate-200 dark:bg-slate-700 px-1 rounded mr-1.5 font-mono">{d.code}</span> {d.name}
+                                                 </span>
+                                             ))
+                                         ) : (
+                                             <span className="text-slate-400 italic text-xs">Không có bệnh kèm theo</span>
+                                         )}
+                                     </div>
+                                 </div>
+                             </div>
+                         )}
                     </div>
 
                     {/* SECTION: KẾT LUẬN & ĐIỀU TRỊ */}
@@ -359,71 +504,71 @@ const ExamineView: React.FC<{ age?: number; gender?: string }> = ({ age, gender 
                 {/* RIGHT: VITAL SIGNS & CLINICAL SUMMARY */}
                 <div className="lg:col-span-1 space-y-4">
                      {/* Medical Monitor Style Vital Signs */}
-                     <div className="bg-slate-900 rounded-xl shadow-xl overflow-hidden border-2 border-slate-700">
-                        <div className="bg-gradient-to-r from-red-900/40 to-slate-900 px-4 py-2 border-b border-slate-700 flex justify-between items-center">
-                            <h4 className="font-black text-red-500 text-[11px] uppercase tracking-tighter flex items-center gap-2">
-                                <ActivityIcon className="w-3 h-3 animate-pulse"/> Medical Monitor
+                      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                        <div className="bg-slate-50 dark:bg-slate-900/50 px-4 py-2.5 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                            <h4 className="font-bold text-slate-700 dark:text-slate-200 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                                <ActivityIcon className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400"/> Bảng theo dõi sinh hiệu
                             </h4>
-                            <span className="text-[10px] text-slate-500 font-mono">Live Data</span>
+                            <span className="text-[10px] text-slate-400 font-mono">Chỉ số đo</span>
                         </div>
-                        <div className="p-4 space-y-4">
+                        <div className="p-4 space-y-3.5">
                             {/* BP & Heart Rate */}
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="bg-slate-800/50 p-2 rounded border border-slate-700">
-                                    <span className="text-[9px] text-green-500 font-bold uppercase block mb-1">Mạch (HR)</span>
-                                    <div className="flex items-baseline gap-1">
-                                        <span className="text-3xl font-black text-green-400 font-mono leading-none">
+                                <div className="bg-slate-50/50 dark:bg-slate-900/10 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700">
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase block mb-1">Mạch (HR)</span>
+                                    <div className="flex items-baseline gap-0.5">
+                                        <span className="text-xl font-bold text-slate-800 dark:text-slate-100 font-mono leading-none">
                                             {record.vitals?.pulse || '--'}
                                         </span>
-                                        <span className="text-[9px] text-green-700 font-bold">bpm</span>
+                                        <span className="text-[9px] text-slate-400 font-medium">bpm</span>
                                     </div>
                                 </div>
-                                <div className="bg-slate-800/50 p-2 rounded border border-slate-700">
-                                    <span className="text-[9px] text-blue-500 font-bold uppercase block mb-1">Huyết áp (BP)</span>
-                                    <div className="flex items-baseline gap-1">
-                                        <span className="text-2xl font-black text-blue-400 font-mono leading-none">
+                                <div className="bg-slate-50/50 dark:bg-slate-900/10 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700">
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase block mb-1">Huyết áp (BP)</span>
+                                    <div className="flex items-baseline gap-0.5">
+                                        <span className="text-lg font-bold text-slate-800 dark:text-slate-100 font-mono leading-none">
                                             {record.vitals?.bpSystolic || '--'}/{record.vitals?.bpDiastolic || '--'}
                                         </span>
-                                        <span className="text-[9px] text-blue-700 font-bold">mmHg</span>
+                                        <span className="text-[9px] text-slate-400 font-medium">mmHg</span>
                                     </div>
                                 </div>
                             </div>
                             {/* SpO2 & Temp */}
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="bg-slate-800/50 p-2 rounded border border-slate-700">
-                                    <span className="text-[9px] text-cyan-500 font-bold uppercase block mb-1">SpO2</span>
-                                    <div className="flex items-baseline gap-1">
-                                        <span className="text-2xl font-black text-cyan-400 font-mono leading-none">
+                                <div className="bg-slate-50/50 dark:bg-slate-900/10 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700">
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase block mb-1">SpO2</span>
+                                    <div className="flex items-baseline gap-0.5">
+                                        <span className="text-xl font-bold text-slate-800 dark:text-slate-100 font-mono leading-none">
                                             {record.vitals?.spo2 || '--'}
                                         </span>
-                                        <span className="text-[9px] text-cyan-700 font-bold">%</span>
+                                        <span className="text-[9px] text-slate-400 font-medium">%</span>
                                     </div>
                                 </div>
-                                <div className="bg-slate-800/50 p-2 rounded border border-slate-700">
-                                    <span className="text-[9px] text-amber-500 font-bold uppercase block mb-1">Nhiệt độ</span>
-                                    <div className="flex items-baseline gap-1">
-                                        <span className="text-2xl font-black text-amber-400 font-mono leading-none">
+                                <div className="bg-slate-50/50 dark:bg-slate-900/10 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700">
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase block mb-1">Nhiệt độ</span>
+                                    <div className="flex items-baseline gap-0.5">
+                                        <span className="text-xl font-bold text-slate-800 dark:text-slate-100 font-mono leading-none">
                                             {record.vitals?.temperature || '--'}
                                         </span>
-                                        <span className="text-[9px] text-amber-700 font-bold">°C</span>
+                                        <span className="text-[9px] text-slate-400 font-medium">°C</span>
                                     </div>
                                 </div>
                             </div>
                             {/* BMI */}
-                            <div className="bg-slate-800/50 p-2 rounded border border-slate-700">
+                            <div className="bg-slate-50/50 dark:bg-slate-900/10 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-[9px] text-indigo-400 font-bold uppercase">Chỉ số BMI</span>
-                                    <span className="text-[10px] font-black text-indigo-300 font-mono">
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase">Chỉ số BMI</span>
+                                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200 font-mono">
                                         {record.vitals?.bmi || '--'} <span className="text-[8px] opacity-60">kg/m²</span>
                                     </span>
                                 </div>
                                 {record.vitals?.bmi && (
-                                    <div className="mt-1.5 h-1 w-full bg-slate-700 rounded-full overflow-hidden">
+                                    <div className="mt-1.5 h-1 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                                         <div 
                                             className={`h-full rounded-full ${
-                                                record.vitals.bmi < 18.5 ? 'bg-blue-400' :
-                                                record.vitals.bmi < 25 ? 'bg-emerald-400' :
-                                                record.vitals.bmi < 30 ? 'bg-yellow-400' : 'bg-red-400'
+                                                record.vitals.bmi < 18.5 ? 'bg-blue-500' :
+                                                record.vitals.bmi < 25 ? 'bg-emerald-500' :
+                                                record.vitals.bmi < 30 ? 'bg-amber-500' : 'bg-red-500'
                                             }`}
                                             style={{ width: `${Math.min((record.vitals.bmi / 40) * 100, 100)}%` }}
                                         ></div>
@@ -431,15 +576,15 @@ const ExamineView: React.FC<{ age?: number; gender?: string }> = ({ age, gender 
                                 )}
                             </div>
                         </div>
-                        <div className="bg-slate-800 p-2 text-center">
+                        <div className="bg-slate-50 dark:bg-slate-900/30 p-2 text-center border-t border-slate-200 dark:border-slate-700">
                             <button 
                                 onClick={() => setIsVitalSignsModalOpen(true)}
-                                className="text-[10px] font-bold text-slate-400 hover:text-white uppercase tracking-widest transition-colors"
+                                className="text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 uppercase tracking-widest transition-colors w-full"
                             >
                                 Cập nhật sinh hiệu
                             </button>
                         </div>
-                     </div>
+                      </div>
 
                       {/* Allergy Alerts */}
                       {(patientProfile?.allergies || patientProfile?.drugallergy) && (
@@ -506,7 +651,14 @@ const ExamineView: React.FC<{ age?: number; gender?: string }> = ({ age, gender 
                     isOpen={isSubDiagModalOpen}
                     onClose={() => setIsSubDiagModalOpen(false)}
                     initialDiseases={record?.subDiseases || []}
-                    onSave={(diseases) => handleInputChange('subDiseases', diseases)}
+                    onSave={(diseases) => {
+                        const conclusion = getAutoConclusion(record.mainDisease, diseases);
+                        setRecord(prev => prev ? {
+                            ...prev,
+                            subDiseases: diseases,
+                            conclusion: prev.conclusion || conclusion
+                        } : null);
+                    }}
                 />
             )}
 

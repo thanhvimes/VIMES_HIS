@@ -479,7 +479,7 @@ const Portal: React.FC<PortalProps> = ({ onNavigate, settings, onLogout }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {portalItems.map((item) => {
                 const isRoomBasedMode = selectedService === 'EXECUTION' || selectedService === 'REGISTRATION';
-                const isLocked = !selectedService || !selectedDept || (isRoomBasedMode ? !selectedRoom : !selectedArea);
+                const isLocked = false;
                 const isBypassed = item.id === 'SETTINGS_ADMIN' || item.id === 'SURGERY';
                 return (
                   <button

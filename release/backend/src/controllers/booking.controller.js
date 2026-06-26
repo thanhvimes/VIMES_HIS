@@ -219,8 +219,11 @@ class BookingController {
                 });
             }
 
+            // Normalize gender to 'M' or 'F' before database call (fallback to 'F')
+            const dbGender = (gender && (gender.toLowerCase() === 'm' || gender.toLowerCase().includes('nam'))) ? 'M' : 'F';
+
             // Gọi stored procedure qms_patient_create_booking (MỚI: 20 tham số)
-            console.log('� Calling qms_patient_create_booking with fixed mapping...');
+            console.log('🚀 Calling qms_patient_create_booking with fixed mapping...');
 
             const result = await db.query(`
                 SELECT qms_patient_create_booking(
@@ -233,7 +236,7 @@ class BookingController {
                 idCard,             // p_cccd (1)
                 name,               // p_ho_ten (2)
                 birthDate,          // p_ngay_sinh (3)
-                gender,             // p_gioi_tinh (4)
+                dbGender,           // p_gioi_tinh (4)
                 ethnic || '1',      // p_dan_toc (5)
                 provinceId,         // p_ma_tinh (6)
                 districtId,         // p_ma_quan_huyen (7)

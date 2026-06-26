@@ -183,7 +183,7 @@ CREATE TABLE IF NOT EXISTS public.qms_patient
     qms_createddate timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     qms_updatedby character varying(15) COLLATE pg_catalog."default",
     qms_updateddate timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    qms_idx integer NOT NULL DEFAULT nextval('qms_patient_qms_idx_seq'::regclass),
+    qms_idx integer NOT NULL DEFAULT nextval('qms_idx_asq'::regclass),
     qms_idcard character varying(32) COLLATE pg_catalog."default",
     qms_patientname character varying(65) COLLATE pg_catalog."default" NOT NULL,
     qms_sex character varying(1) COLLATE pg_catalog."default" NOT NULL,
@@ -206,7 +206,7 @@ CREATE TABLE IF NOT EXISTS public.qms_patient
     qms_cardid character varying(20) COLLATE pg_catalog."default",
     qms_comment character varying(512) COLLATE pg_catalog."default",
     qms_reason character varying(512) COLLATE pg_catalog."default",
-    qms_type character varying(1) COLLATE pg_catalog."default",
+    qms_type character varying(10) COLLATE pg_catalog."default",
     qms_receptno integer,
     qms_tungay date,
     qms_denngay date,
@@ -618,7 +618,7 @@ BEGIN
 	
 	v_examdate := TO_TIMESTAMP(p_examdate, 'YYYY-MM-DD HH24:MI:SS');
 	v_gender := 'F';
-	IF(lower(p_gender) = 'nam') THEN
+	IF(lower(p_gender) = 'nam' OR lower(p_gender) = 'm') THEN
 	  v_gender := 'M';
 	END IF;
 	

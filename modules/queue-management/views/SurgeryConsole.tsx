@@ -38,6 +38,7 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [surgeryRooms, setSurgeryRooms] = useState<any[]>([]);
+  const [surgeryTables, setSurgeryTables] = useState<any[]>([]);
   
   // Tự động tải danh sách phòng mổ
   useEffect(() => {
@@ -47,6 +48,23 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
         if (data.length > 0) setAssignRoom(data[0].id);
       }
     }).catch(e => console.error('Error fetching surgery rooms:', e));
+  }, []);
+
+  // Tự động tải danh sách bàn mổ
+  useEffect(() => {
+    const currentUserStr = localStorage.getItem('currentUser');
+    const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+    const userId = currentUser?.userId || currentUser?.user?.userId || currentUser?.su_userid || currentUser?.username || '';
+
+    apiFetch(`/api/queue/surgery-tables?userId=${encodeURIComponent(userId)}`).then(data => {
+      if (Array.isArray(data)) {
+        setSurgeryTables(data);
+        if (data.length > 0) {
+          setAssignTable(data[0].id);
+          setTransTable(data[0].id);
+        }
+      }
+    }).catch(e => console.error('Error fetching surgery tables:', e));
   }, []);
   
   // Surgery HIS search states
@@ -67,7 +85,7 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
 
   // Board assignment parameters for the selected HIS patient
   const [assignRoom, setAssignRoom] = useState<string | number>(1);
-  const [assignTable, setAssignTable] = useState<number>(1);
+  const [assignTable, setAssignTable] = useState<string | number>(1);
   const [assignStatus, setAssignStatus] = useState<string>('P');
   const [assignRetTime, setAssignRetTime] = useState<number>(45);
   const [assignRetDept, setAssignRetDept] = useState<string>('KB');
@@ -79,7 +97,7 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
   // Surgery transition form states
   const [transitionPatient, setTransitionPatient] = useState<any>(null);
   const [transitionType, setTransitionType] = useState<'RECOVERY' | 'FINISHED' | null>(null);
-  const [transTable, setTransTable] = useState<number>(1);
+  const [transTable, setTransTable] = useState<string | number>(1);
   const [transRetTime, setTransRetTime] = useState<number>(45);
   const [transConsciousTime, setTransConsciousTime] = useState<string>('');
   const [transRetDept, setTransRetDept] = useState<string>('KB');
@@ -176,7 +194,7 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
   const startTransitionToRecovery = (patient: any) => {
     setTransitionPatient(patient);
     setTransitionType('RECOVERY');
-    setTransTable(patient.operationTable || 1);
+    setTransTable(patient.operationTable || (surgeryTables[0]?.id || 1));
     setTransRetTime(patient.returnTimeMinutes || 45);
     
     const d = new Date();
@@ -375,7 +393,7 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
                                            onClick={() => {
                                               setSelectedHisPatient(patient);
                                               setAssignRoom(patient.room_id || 1);
-                                              setAssignTable(1);
+                                              setAssignTable(patient.operation_table || (surgeryTables[0]?.id || 1));
                                               setAssignStatus(patient.board_status || 'P');
                                               setAssignRetTime(45);
                                               setAssignRetDept(patient.dept_id || 'KB');
@@ -392,7 +410,7 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
                                         onClick={() => {
                                            setSelectedHisPatient(patient);
                                            setAssignRoom(patient.room_id || 1);
-                                           setAssignTable(1);
+                                           setAssignTable(patient.operation_table || (surgeryTables[0]?.id || 1));
                                            setAssignStatus('P');
                                            setAssignRetTime(45);
                                            setAssignRetDept(patient.dept_id || 'KB');
@@ -641,11 +659,11 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
                                               <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Bàn mổ số</label>
                                               <select 
                                                  value={transTable} 
-                                                 onChange={(e) => setTransTable(parseInt(e.target.value) || 1)}
+                                                 onChange={(e) => setTransTable(parseInt(e.target.value) || e.target.value)}
                                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:border-blue-500 text-slate-700 cursor-pointer"
                                               >
-                                                 {Array.from({ length: 10 }, (_, i) => i + 1).map((num) => (
-                                                    <option key={num} value={num}>Bàn mổ {num}</option>
+                                                 {surgeryTables.map((t) => (
+                                                    <option key={t.id} value={t.id}>{t.name}</option>
                                                  ))}
                                               </select>
                                            </div>
@@ -840,11 +858,11 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
                         <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5">Bàn mổ</label>
                         <select 
                            value={assignTable}
-                           onChange={(e) => setAssignTable(parseInt(e.target.value) || 1)}
+                           onChange={(e) => setAssignTable(parseInt(e.target.value) || e.target.value)}
                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:border-blue-500 text-slate-700 cursor-pointer"
                         >
-                           {Array.from({ length: 10 }, (_, i) => i + 1).map((num) => (
-                              <option key={num} value={num}>Bàn mổ {num}</option>
+                           {surgeryTables.map((t) => (
+                              <option key={t.id} value={t.id}>{t.name}</option>
                            ))}
                         </select>
                      </div>

@@ -21,6 +21,7 @@ const safeQuery = async (queryText: string, params: any[] = [], mockReturn: any[
   }
 };
 
+
 // Remove Vietnamese tones helper
 function removeVietnameseTones(str: string): string {
   str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
@@ -163,6 +164,7 @@ export class QmsController {
       res.status(500).json({ error: e.message });
     }
   }
+
 
   // 6. GET DEPARTMENTS
   static async getDepartments(req: Request, res: Response) {
@@ -537,40 +539,7 @@ export class QmsController {
     }
   }
 
-  static async getRecordImagingResults(req: Request, res: Response) {
-    const { recordId } = req.params;
-    try {
-      const data = await safeQuery(`
-        SELECT hfg_name AS category,
-            hfl_name         AS name,
-            hfl_unit         AS unit,
-            CASE
-                WHEN lower(hpr_name) IN('conclusion', 'result')
-                THEN hpr_desc
-                ELSE ''
-            END AS conclusion,
-            CASE
-                WHEN lower(hpr_name) IN('remark')
-                THEN hpr_desc
-                ELSE ''
-            END AS description,                
-            CASE
-                WHEN lower(hpr_name) IN('url')
-                THEN hpr_desc
-                ELSE ''
-            END AS imageUrl
-        FROM hms_pacsorderline
-        LEFT JOIN hms_pacs_result ON (hpr_orderid=hpcl_orderid AND hpr_itemid=hpcl_itemid)
-        LEFT JOIN hms_fee_list ON (hfl_feeid=hpcl_itemid)
-        LEFT JOIN hms_fee_group ON (hfg_id=hfl_groupid)
-        WHERE hpcl_docno = $1            
-        AND lower(hpr_name) IN('remark', 'result', 'conclusion', 'url')
-        ORDER BY category, hpcl_orderid, hfl_idx`, [recordId]);
-      res.json(data);
-    } catch (err: any) {
-      res.json([]);
-    }
-  }
+
 
   static async getRecordPrescription(req: Request, res: Response) {
     const { recordId } = req.params;
@@ -603,31 +572,6 @@ export class QmsController {
             AND hpo_orderstatus IN('A', 'P')
             GROUP BY hpo_orderid, hpo_orderdate, hpo_doctor, hpol_orderid, hpou_qtyorder, hpol_line, hpol_product_id, hpol_productname, hpol_productuom, hpol_generic, hpol_usage, hpol_content, mpei_ham_luong, mpei_ten_thuoc
             ORDER BY hpol_orderid, hpol_line`, [recordId]);
-      res.json(data);
-    } catch (err: any) {
-      res.json([]);
-    }
-  }
-
-  static async getRecordImages(req: Request, res: Response) {
-    const { recordId } = req.params;
-    try {
-      const data = await safeQuery(`
-        SELECT hpcl_itemid AS id,
-        hfl_name         AS description,
-        ''        	   AS uploadDate,
-        hfl_groupid      AS type,
-        CASE
-            WHEN lower(hpr_name) = 'url'
-            THEN hpr_desc
-            ELSE ''
-        END AS url
-        FROM hmsv_paraclinicline
-        LEFT JOIN hms_pacs_result ON (hpr_orderid=hpcl_orderid AND hpr_itemid=hpcl_itemid)
-        LEFT JOIN hms_fee_list ON (hfl_feeid=hpcl_itemid)
-        WHERE hpcl_docno = $1
-        AND hpcl_type = 'P'
-        AND lower(hpr_name) IN('url')`, [recordId]);
       res.json(data);
     } catch (err: any) {
       res.json([]);
@@ -779,8 +723,9 @@ export class QmsController {
   // 19. QUEUE COMMAND WORKFLOWS
   static async callNext(req: Request, res: Response) {
     try {
-      const { counterId, isPriority, type, deptId } = req.body;
-      if (!counterId) return res.status(400).json({ error: 'Thiếu counterId' });
+      const { isPriority, type, deptId } = req.body;
+      const counterId = req.body.counterId || req.body.roomId || req.body.hep_roomid;
+      if (!counterId) return res.status(400).json({ error: 'Thiếu counterId/roomId/hep_roomid' });
       const calledTicket = await QueueManagerService.callNext(counterId, isPriority, type, deptId);
       if (!calledTicket) {
         return res.json({ success: true, message: `Hết bệnh nhân đang chờ`, data: null });
@@ -794,7 +739,10 @@ export class QmsController {
   static async callAgain(req: Request, res: Response) {
     try {
       const { ticketId } = req.body;
-      const ticket = await QueueManagerService.callAgain(ticketId);
+      const docNo = req.body.docNo || req.body.hep_docno;
+      const receptNo = req.body.receptNo || req.body.hep_receptno;
+      const deptId = req.body.deptId || req.body.hep_deptid;
+      const ticket = await QueueManagerService.callAgain(ticketId, docNo, receptNo, deptId);
       if (!ticket) return res.status(404).json({ error: 'Không tìm thấy lượt gọi' });
       res.json({ success: true, data: ticket });
     } catch (e: any) {
@@ -804,8 +752,12 @@ export class QmsController {
 
   static async complete(req: Request, res: Response) {
     try {
-      const { counterId, ticketId } = req.body;
-      await QueueManagerService.complete(counterId, ticketId);
+      const { ticketId } = req.body;
+      const counterId = req.body.counterId || req.body.roomId || req.body.hep_roomid;
+      const docNo = req.body.docNo || req.body.hep_docno;
+      const receptNo = req.body.receptNo || req.body.hep_receptno;
+      const deptId = req.body.deptId || req.body.hep_deptid;
+      await QueueManagerService.complete(counterId, ticketId, docNo, receptNo, deptId);
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -815,9 +767,10 @@ export class QmsController {
   static async skip(req: Request, res: Response) {
     try {
       const { ticketId } = req.body;
-      if (ticketId) {
-        await QueueManagerService.skip(ticketId);
-      }
+      const docNo = req.body.docNo || req.body.hep_docno;
+      const receptNo = req.body.receptNo || req.body.hep_receptno;
+      const deptId = req.body.deptId || req.body.hep_deptid;
+      await QueueManagerService.skip(ticketId, docNo, receptNo, deptId);
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -827,7 +780,10 @@ export class QmsController {
   static async transfer(req: Request, res: Response) {
     try {
       const { ticketId, targetRoomId, targetAreaId, notes } = req.body;
-      await QueueManagerService.transfer(ticketId, targetRoomId, targetAreaId, notes);
+      const docNo = req.body.docNo || req.body.hep_docno;
+      const receptNo = req.body.receptNo || req.body.hep_receptno;
+      const deptId = req.body.deptId || req.body.hep_deptid;
+      await QueueManagerService.transfer(ticketId, targetRoomId, targetAreaId, notes, docNo, receptNo, deptId);
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -836,11 +792,24 @@ export class QmsController {
 
   static async callSpecific(req: Request, res: Response) {
     try {
-      const { ticketId, counterId } = req.body;
-      const parts = String(ticketId).split('-');
-      const docNo = parseInt(parts[0]);
-      const receptNo = parseInt(parts[1]);
-      if (isNaN(docNo) || isNaN(receptNo)) return res.status(400).json({ error: 'Mã số không hợp lệ' });
+      const { ticketId } = req.body;
+      let docNo = req.body.docNo || req.body.hep_docno;
+      let receptNo = req.body.receptNo || req.body.hep_receptno;
+      const deptId = req.body.deptId || req.body.hep_deptid;
+      const counterId = req.body.counterId || req.body.roomId || req.body.hep_roomid;
+
+      if (!counterId) return res.status(400).json({ error: 'Thiếu counterId/roomId/hep_roomid' });
+
+      if (!docNo && ticketId) {
+        const parts = String(ticketId).split('-');
+        docNo = parseInt(parts[0]);
+        receptNo = parseInt(parts[1]);
+      }
+
+      const dNo = docNo ? parseInt(String(docNo)) : NaN;
+      const rNo = receptNo ? parseInt(String(receptNo)) : NaN;
+
+      if (isNaN(dNo) || isNaN(rNo)) return res.status(400).json({ error: 'Mã số không hợp lệ (docNo & receptNo)' });
 
       await pool.query(`
           UPDATE hms_exam_pending 
@@ -848,11 +817,20 @@ export class QmsController {
           WHERE hep_roomid = $1 AND hep_pending = 'C' AND hep_date = CURRENT_DATE
       `, [counterId]);
 
-      const info = await pool.query(`
-          SELECT hep_deptid, hep_receptidx, hep_roomid 
-          FROM hms_exam_pending 
-          WHERE hep_docno = $1 AND hep_receptno = $2 AND hep_date = CURRENT_DATE
-      `, [docNo, receptNo]);
+      let info;
+      if (deptId) {
+        info = await pool.query(`
+            SELECT hep_deptid, hep_receptidx, hep_roomid 
+            FROM hms_exam_pending 
+            WHERE hep_docno = $1 AND hep_receptno = $2 AND hep_deptid = $3 AND hep_date = CURRENT_DATE
+        `, [dNo, rNo, deptId]);
+      } else {
+        info = await pool.query(`
+            SELECT hep_deptid, hep_receptidx, hep_roomid 
+            FROM hms_exam_pending 
+            WHERE hep_docno = $1 AND hep_receptno = $2 AND hep_date = CURRENT_DATE
+        `, [dNo, rNo]);
+      }
       
       if (info.rows.length === 0) return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu' });
       
@@ -862,11 +840,11 @@ export class QmsController {
             UPDATE hms_exam_pending
             SET hep_roomid = $1
             WHERE hep_docno = $2 AND hep_receptno = $3 AND hep_date = CURRENT_DATE
-        `, [counterId, docNo, receptNo]);
+        `, [counterId, dNo, rNo]);
       }
       
       await pool.query("SELECT hms_exam_pending_call($1, $2, $3, $4, $5)", [
-        docNo,
+        dNo,
         row.hep_deptid,
         counterId,
         row.hep_receptidx,
@@ -888,7 +866,7 @@ export class QmsController {
           LEFT JOIN hms_doc d ON d.hd_docno = ep.hep_docno
           LEFT JOIN hms_patient p ON p.hp_patientno = d.hd_patientno
           WHERE ep.hep_docno = $1 AND ep.hep_deptid = $2 AND ep.hep_roomid = $3 AND ep.hep_date = CURRENT_DATE
-      `, [docNo, row.hep_deptid, counterId]);
+      `, [dNo, row.hep_deptid, counterId]);
 
       if (result.rows.length > 0) {
         const ticket = result.rows[0];
@@ -1584,6 +1562,7 @@ export class QmsController {
               COALESCE(ob.hob_status, o.ho_status, 'P') as status,
               ss.ss_desc as status_desc,
               ob.hob_operation_table as operation_table,
+              t.hst_name as table_name,
               ob.hob_rettime as return_time_minutes,
               ob.hob_retdept as return_dept_id,
               rd.sd_name as return_dept_name,
@@ -1598,7 +1577,8 @@ export class QmsController {
           LEFT JOIN hms_patient p ON p.hp_patientno = COALESCE(o.ho_patientno, d.hd_patientno)
           INNER JOIN hms_operation_board ob ON ob.hob_docno = o.ho_docno 
               AND DATE(ob.hob_date) = CURRENT_DATE
-          LEFT JOIN hms_roomlist r ON r.hrl_id::text = COALESCE(ob.hob_roomid::text, o.ho_roomid::text)
+          LEFT JOIN hms_roomlist r ON  hrl_deptid = o.ho_deptid AND r.hrl_id::text = COALESCE(ob.hob_roomid::text, o.ho_roomid::text)
+          LEFT JOIN hms_surgery_table t ON t.hst_idx = ob.hob_operation_table
           LEFT JOIN sys_dept sd ON sd.sd_id = o.ho_deptid
           LEFT JOIN sys_dept rd ON rd.sd_id = ob.hob_retdept
           LEFT JOIN sys_sel ss ON ss.ss_id = 'hms_operation_status' AND ss.ss_code = COALESCE(ob.hob_status, o.ho_status, 'P')
@@ -1632,7 +1612,7 @@ export class QmsController {
         docNo: row.doc_no,
         name: row.patient_name || 'Không rõ tên',
         birthYear: row.birth_year || '----',
-        room: row.room_name || ('Phòng mổ ' + (row.room_id || 1)),
+        room: row.table_name ? `${row.room_name} - ${row.table_name}` : (row.room_name || ('Phòng mổ ' + (row.room_id || 1))),
         roomId: row.room_id,
         expectedTime: row.expected_time || '--:--',
         time: row.entrance_time || '--:--',
@@ -1771,7 +1751,7 @@ export class QmsController {
           LEFT JOIN hms_patient p ON p.hp_patientno = COALESCE(o.ho_patientno, d.hd_patientno)
           LEFT JOIN sys_dept sd ON sd.sd_id = o.ho_deptid
           LEFT JOIN hms_operation_board ob ON ob.hob_docno = o.ho_docno AND DATE(ob.hob_date) = CURRENT_DATE
-          LEFT JOIN hms_roomlist r ON r.hrl_id::text = COALESCE(ob.hob_roomid::text, o.ho_roomid::text)
+          LEFT JOIN hms_roomlist r ON  hrl_deptid = o.ho_deptid AND r.hrl_id::text = COALESCE(ob.hob_roomid::text, o.ho_roomid::text)
           WHERE 1=1
       `;
       const params: any[] = [];
@@ -1830,17 +1810,55 @@ export class QmsController {
           ORDER BY hrl_name
       `;
       const result = await safeQuery(sql, [], []);
-      if (result.length > 0) {
-        return res.json(result);
+      return res.json(result);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  }
+
+  // 29c. GET ALL SURGERY TABLES
+  static async getSurgeryTables(req: Request, res: Response) {
+    try {
+      const { userId } = req.query;
+      let xorgId: string | null = null;
+
+      if (userId) {
+        const userRes = await pool.query(
+          'SELECT su_xorg_id FROM sys_user WHERE su_userid = $1',
+          [String(userId)]
+        );
+        if (userRes.rows.length > 0) {
+          xorgId = userRes.rows[0].su_xorg_id;
+        }
       }
-      // Fallback if empty
-      res.json([
-        { id: '1', name: 'Phòng mổ số 1' },
-        { id: '2', name: 'Phòng mổ số 2' },
-        { id: '3', name: 'Phòng mổ số 3' },
-        { id: '4', name: 'Phòng mổ số 4' },
-        { id: '5', name: 'Phòng mổ số 5' }
-      ]);
+
+      let sql = '';
+      let params: any[] = [];
+
+      if (xorgId) {
+        sql = `
+          SELECT hst_idx as id, hst_name as name 
+          FROM hms_surgery_table 
+          WHERE hst_xorg_id = $1 OR hst_xorg_id IS NULL OR hst_xorg_id = ''
+          ORDER BY hst_name
+        `;
+        params = [xorgId];
+      } else {
+        // Fallback: Return all tables if user has no specific facility code
+        sql = `
+          SELECT hst_idx as id, hst_name as name 
+          FROM hms_surgery_table 
+          ORDER BY hst_name
+        `;
+      }
+
+      try {
+        const queryRes = await pool.query(sql, params);
+        const result = queryRes.rows.map(r => ({ id: r.id, name: r.name }));
+        return res.json(result);
+      } catch (err: any) {
+        res.status(500).json({ error: err.message });
+      }
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }

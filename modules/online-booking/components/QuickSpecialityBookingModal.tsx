@@ -26,6 +26,7 @@ const QuickSpecialityBookingModal: React.FC<QuickSpecialityBookingModalProps> = 
     const [availableSlots, setAvailableSlots] = useState<BookingSlot[]>([]);
     const [isLoadingSlots, setIsLoadingSlots] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedPeriod, setSelectedPeriod] = useState<'morning' | 'afternoon'>('morning');
 
     // Form
     const [selectedSpeciality, setSelectedSpeciality] = useState('');
@@ -57,6 +58,18 @@ const QuickSpecialityBookingModal: React.FC<QuickSpecialityBookingModalProps> = 
             setAvailableSlots([]);
         }
     }, [selectedSpeciality, selectedDate, userInfo]);
+
+    // Auto-select period based on available slots when they change
+    useEffect(() => {
+        if (availableSlots.length > 0) {
+            if (selectedTime) {
+                setSelectedPeriod(selectedTime < '12:00' ? 'morning' : 'afternoon');
+            } else {
+                const hasMorning = availableSlots.some(s => s.time < '12:00');
+                setSelectedPeriod(hasMorning ? 'morning' : 'afternoon');
+            }
+        }
+    }, [availableSlots]);
 
     const handleSubmit = async () => {
         if (!selectedSpeciality) {
@@ -235,25 +248,60 @@ const QuickSpecialityBookingModal: React.FC<QuickSpecialityBookingModalProps> = 
                                 Không có khung giờ khả dụng cho ngày này
                             </div>
                         ) : (
-                            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
-                                {availableSlots.map(s => (
+                            <div className="space-y-4">
+                                <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700 max-w-xs">
                                     <button
-                                        key={s.time}
-                                        onClick={() => setSelectedTime(s.time)}
-                                        disabled={s.status === 'F'}
-                                        className={`p-2.5 rounded-xl border-2 text-sm font-black transition-all ${s.status === 'F'
-                                                ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed opacity-50'
-                                                : selectedTime === s.time
-                                                    ? 'border-teal-500 bg-teal-600 text-white shadow-xl scale-105 ring-4 ring-teal-100'
-                                                    : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-teal-200 hover:scale-105'
-                                            }`}
+                                        type="button"
+                                        onClick={() => setSelectedPeriod('morning')}
+                                        className={`flex-1 py-1.5 text-xs font-black rounded-lg transition-all uppercase tracking-wider flex items-center justify-center gap-1.5 ${
+                                            selectedPeriod === 'morning'
+                                                ? 'bg-teal-600 text-white shadow-md'
+                                                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                        }`}
                                     >
-                                        {s.time}
-                                        <div className="text-[9px] font-normal opacity-70 mt-0.5">
-                                            {s.available}/{s.max}
-                                        </div>
+                                        ☀️ Sáng ({availableSlots.filter(s => s.time < '12:00').length})
                                     </button>
-                                ))}
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedPeriod('afternoon')}
+                                        className={`flex-1 py-1.5 text-xs font-black rounded-lg transition-all uppercase tracking-wider flex items-center justify-center gap-1.5 ${
+                                            selectedPeriod === 'afternoon'
+                                                ? 'bg-teal-600 text-white shadow-md'
+                                                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                        }`}
+                                    >
+                                        🌙 Chiều ({availableSlots.filter(s => s.time >= '12:00').length})
+                                    </button>
+                                </div>
+
+                                {availableSlots.filter(s => selectedPeriod === 'morning' ? s.time < '12:00' : s.time >= '12:00').length === 0 ? (
+                                    <div className="text-center py-6 text-slate-400 text-sm italic">
+                                        Không có khung giờ khả dụng cho buổi {selectedPeriod === 'morning' ? 'sáng' : 'chiều'}
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
+                                        {availableSlots
+                                            .filter(s => selectedPeriod === 'morning' ? s.time < '12:00' : s.time >= '12:00')
+                                            .map(s => (
+                                                <button
+                                                    key={s.time}
+                                                    onClick={() => setSelectedTime(s.time)}
+                                                    disabled={s.status === 'F'}
+                                                    className={`p-2.5 rounded-xl border-2 text-sm font-black transition-all ${s.status === 'F'
+                                                            ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed opacity-50'
+                                                            : selectedTime === s.time
+                                                                ? 'border-teal-500 bg-teal-600 text-white shadow-xl scale-105 ring-4 ring-teal-100'
+                                                                : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-teal-200 hover:scale-105'
+                                                        }`}
+                                                >
+                                                    {s.time}
+                                                    <div className="text-[9px] font-normal opacity-70 mt-0.5">
+                                                        {s.available}/{s.max}
+                                                    </div>
+                                                </button>
+                                            ))}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

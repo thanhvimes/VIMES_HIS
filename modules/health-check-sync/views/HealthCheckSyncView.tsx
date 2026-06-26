@@ -14,7 +14,8 @@ import {
     DocumentTextIcon,
     PlusIcon,
     AdjustmentsHorizontalIcon,
-    DocumentArrowDownIcon
+    DocumentArrowDownIcon,
+    PrinterIcon
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { healthCheckService } from '../../../services/healthCheckService';
@@ -31,8 +32,14 @@ import PrintCodeList from '../components/PrintCodeList';
 import SyncDataList from '../components/SyncDataList';
 import DynamicForm from '../forms/DynamicForm';
 import PrintForm from '../forms/PrintForm';
+import SettingsTab from '../components/SettingsTab';
+import XmlPreviewModal from '../components/modals/XmlPreviewModal';
+import HisSeedingFilterModal from '../components/modals/HisSeedingFilterModal';
+import PrintBarcodeForm from '../forms/PrintBarcodeForm';
+import PrintBarcodeXnForm, { PrintXnPayload } from '../forms/PrintBarcodeXnForm';
+import PrintBarcodeXnModal from '../components/PrintBarcodeXnModal';
 
-type ViewMode = 'LIST' | 'CREATE' | 'EDIT' | 'PRINT';
+type ViewMode = 'LIST' | 'CREATE' | 'EDIT' | 'PRINT' | 'PRINT_BARCODE' | 'PRINT_BARCODE_XN';
 
 const getLocalDateString = () => {
     const d = new Date();
@@ -52,9 +59,6 @@ const HealthCheckSyncView: React.FC = () => {
     
     // Seeding Filter Modal States
     const [isSeedModalOpen, setIsSeedModalOpen] = useState(false);
-    const [seedStartDate, setSeedStartDate] = useState('');
-    const [seedEndDate, setSeedEndDate] = useState('');
-    const [seedWorkplaceId, setSeedWorkplaceId] = useState('');
     const [workplaces, setWorkplaces] = useState<CatalogItem[]>([]);
 
     // View States
@@ -78,20 +82,40 @@ const HealthCheckSyncView: React.FC = () => {
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [activeXmlDoc, setActiveXmlDoc] = useState<any | null>(null);
 
-    // Settings States
-    const [vneidUrl, setVneidUrl] = useState('https://api-vneid.moh.gov.vn/api/v1');
-    const [vneidUsername, setVneidUsername] = useState('');
-    const [vneidPassword, setVneidPassword] = useState('');
-    const [maCskcb, setMaCskcb] = useState('15124');
-    const [maGtinCskcb, setMaGtinCskcb] = useState('1234567890123');
-    const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
-    const [autoSyncInterval, setAutoSyncInterval] = useState(15);
-    const [showPassword, setShowPassword] = useState(false);
-    const [isSettingsLoading, setIsSettingsLoading] = useState(false);
-    const [isSavingSettings, setIsSavingSettings] = useState(false);
-    const [isTestingSettings, setIsTestingSettings] = useState(false);
+    // Contracts States
+    const [contracts, setContracts] = useState<any[]>([]);
+    const [isContractsLoading, setIsContractsLoading] = useState(false);
+
+    // Barcode settings state loaded from VNeID configuration
+    const [barcodeLabelSizeXn, setBarcodeLabelSizeXn] = useState('50x30');
+    const [barcodeLabelSizeKsk, setBarcodeLabelSizeKsk] = useState('50x30');
+    const [barcodeShowHospital, setBarcodeShowHospital] = useState(true);
+    const [barcodeShowDate, setBarcodeShowDate] = useState(true);
+    const [barcodeShowSampleType, setBarcodeShowSampleType] = useState(true);
+
+    // Barcode print action states
+    const [activeBarcodeDocs, setActiveBarcodeDocs] = useState<any[]>([]);
+    const [isPrintXnModalOpen, setIsPrintXnModalOpen] = useState(false);
+    const [xnPrintPayload, setXnPrintPayload] = useState<PrintXnPayload[]>([]);
+
+    const loadSettings = async () => {
+        try {
+            const settings = await healthCheckService.getSettings();
+            if (settings) {
+                setBarcodeLabelSizeXn(settings.barcode_label_size_xn || '50x30');
+                setBarcodeLabelSizeKsk(settings.barcode_label_size_ksk || '50x30');
+                setBarcodeShowHospital(settings.barcode_show_hospital !== false);
+                setBarcodeShowDate(settings.barcode_show_date !== false);
+                setBarcodeShowSampleType(settings.barcode_show_sample_type !== false);
+            }
+        } catch (error) {
+            console.error("Failed to load settings in HealthCheckSyncView:", error);
+        }
+    };
+
 
     useEffect(() => {
+        loadSettings();
         try {
             useSystemStore.getState().resetMenuConfig('health-check');
         } catch (error) {
@@ -99,34 +123,21 @@ const HealthCheckSyncView: React.FC = () => {
         }
     }, []);
 
-    // Fetch settings
-    const loadSettings = async () => {
-        setIsSettingsLoading(true);
+    const loadContracts = async () => {
+        setIsContractsLoading(true);
         try {
-            const settings = await healthCheckService.getSettings();
-            if (settings) {
-                setVneidUrl(settings.vneid_url || 'https://api-vneid.moh.gov.vn/api/v1');
-                setVneidUsername(settings.vneid_username || '');
-                setVneidPassword(settings.vneid_password || '');
-                setMaCskcb(settings.ma_cskcb || '15124');
-                setMaGtinCskcb(settings.ma_gtin_cskcb || '1234567890123');
-                setAutoSyncEnabled(settings.auto_sync_enabled === true);
-                setAutoSyncInterval(settings.auto_sync_interval || 15);
-            }
+            const data = await healthCheckService.getContracts();
+            setContracts(data);
         } catch (error) {
-            console.error("Failed to load settings:", error);
+            console.error("Failed to load contracts:", error);
+            toast.error("Không thể tải danh sách gói khám!");
         } finally {
-            setIsSettingsLoading(false);
+            setIsContractsLoading(false);
         }
     };
 
-
     const handleOpenSeedModal = () => {
-        const todayStr = getLocalDateString();
-        setSeedStartDate(todayStr);
-        setSeedEndDate(todayStr);
-        setSeedWorkplaceId('');
-        setIsSeedModalOpen(true);
+        handleSeedFromHis({ startDate, endDate });
     };
 
     // Tải danh mục công ty khi mở modal đồng bộ HIS
@@ -158,7 +169,11 @@ const HealthCheckSyncView: React.FC = () => {
             const res = await healthCheckService.seedFromHis(filters);
             if (res.success) {
                 toast.success(res.message || `Đồng bộ thành công ${res.count} hồ sơ từ HIS!`, { id: toastId });
-                await loadData();
+                if (stepParam === 'sync') {
+                    await loadContracts();
+                } else {
+                    await loadData();
+                }
                 setIsSeedModalOpen(false); // Đóng modal sau khi đồng bộ thành công
             } else {
                 toast.error(res.message || "Lấy dữ liệu từ HIS thất bại.", { id: toastId });
@@ -167,42 +182,6 @@ const HealthCheckSyncView: React.FC = () => {
             toast.error("Lỗi đồng bộ từ HIS: " + error.message, { id: toastId });
         } finally {
             setIsSeeding(false);
-        }
-    };
-
-    const handleSaveSettings = async () => {
-        setIsSavingSettings(true);
-        try {
-            await healthCheckService.updateSettings({
-                vneid_url: vneidUrl,
-                vneid_username: vneidUsername,
-                vneid_password: vneidPassword,
-                ma_cskcb: maCskcb,
-                ma_gtin_cskcb: maGtinCskcb,
-                auto_sync_enabled: autoSyncEnabled,
-                auto_sync_interval: autoSyncInterval
-            });
-            toast.success("Đã lưu cấu hình liên thông thành công!");
-        } catch (error: any) {
-            toast.error("Lỗi khi lưu cấu hình: " + error.message);
-        } finally {
-            setIsSavingSettings(false);
-        }
-    };
-
-    const handleTestConnection = async () => {
-        setIsTestingSettings(true);
-        try {
-            const res = await healthCheckService.testConnection({
-                vneid_url: vneidUrl,
-                vneid_username: vneidUsername,
-                vneid_password: vneidPassword
-            });
-            toast.success(res.message || "Kết nối thành công!");
-        } catch (error: any) {
-            toast.error("Kết nối thất bại: " + error.message);
-        } finally {
-            setIsTestingSettings(false);
         }
     };
 
@@ -235,15 +214,16 @@ const HealthCheckSyncView: React.FC = () => {
         setStartDate(todayStr);
         setEndDate(todayStr);
 
-        if (stepParam === 'settings') {
-            loadSettings();
-        } else {
+        if (stepParam === 'sync') {
+            loadContracts();
+        } else if (!stepParam.startsWith('settings')) {
             loadData();
         }
 
-        if (stepParam === 'sync') {
-            handleOpenSeedModal();
+        if (stepParam === 'print-code') {
+            loadSettings();
         }
+
         setSelectedIds(new Set()); // Reset selections
     }, [stepParam]);
 
@@ -652,51 +632,34 @@ const HealthCheckSyncView: React.FC = () => {
         return <PrintForm document={activeDocument} onClose={() => setViewMode('LIST')} />;
     }
 
+    if (viewMode === 'PRINT_BARCODE' && activeBarcodeDocs.length > 0) {
+        return (
+            <PrintBarcodeForm 
+                documents={activeBarcodeDocs} 
+                onClose={() => setViewMode('LIST')} 
+                defaultLabelSize={barcodeLabelSizeKsk as any}
+                showHospital={barcodeShowHospital}
+                showDate={barcodeShowDate}
+                showSampleType={barcodeShowSampleType}
+            />
+        );
+    }
+
+    if (viewMode === 'PRINT_BARCODE_XN' && xnPrintPayload.length > 0) {
+        return (
+            <PrintBarcodeXnForm 
+                payload={xnPrintPayload} 
+                onClose={() => setViewMode('LIST')} 
+                defaultLabelSize={barcodeLabelSizeXn as any}
+                showHospital={barcodeShowHospital}
+                showDate={barcodeShowDate}
+                showSampleType={barcodeShowSampleType}
+            />
+        );
+    }
+
     return (
         <div className="h-full flex flex-col space-y-4">
-            {/* Header - hidden during CREATE/EDIT to maximize form space */}
-            {viewMode === 'LIST' && (
-                <div className="bg-[#0f766e] text-white p-4 rounded-xl shadow-md flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="flex items-center gap-2">
-                        <span className="p-2 bg-white/10 rounded-lg">
-                            <PaperAirplaneIcon className="w-6 h-6 text-white -rotate-45" />
-                        </span>
-                        <div>
-                            <h1 className="text-lg font-bold tracking-tight">
-                                Quản lý Liên thông Khám sức khỏe
-                            </h1>
-                            <p className="text-emerald-100/70 text-xs">Đồng bộ dữ liệu KSK lên Cổng VNeID theo QĐ 1551/QĐ-BYT</p>
-                        </div>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
-                        {stepParam !== 'settings' && (
-                            <button 
-                                onClick={handleOpenSeedModal}
-                                disabled={isLoading || isSending || isSigning || isSeeding}
-                                className="px-4 py-2 bg-transparent hover:bg-white/10 text-white border border-white/30 hover:border-white/50 rounded-lg font-bold shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 transition-all text-xs active:scale-95 cursor-pointer"
-                            >
-                                {isSeeding ? <RefreshIcon className="w-3.5 h-3.5 animate-spin"/> : <RefreshIcon className="w-3.5 h-3.5"/>}
-                                Lấy dữ liệu mới từ HIS
-                            </button>
-                        )}
-
-                        <button
-                            onClick={() => {
-                                if (stepParam === 'settings') {
-                                    setSearchParams({ step: 'manage' });
-                                } else {
-                                    setSearchParams({ step: 'settings' });
-                                }
-                            }}
-                            className="px-4 py-2 bg-white hover:bg-emerald-50 text-[#0f766e] rounded-lg font-bold shadow-sm flex items-center justify-center gap-2 transition-all text-xs active:scale-95 cursor-pointer"
-                        >
-                            <AdjustmentsHorizontalIcon className="w-3.5 h-3.5" />
-                            {stepParam === 'settings' ? 'Về danh sách' : 'Cấu hình cổng'}
-                        </button>
-                    </div>
-                </div>
-            )}
 
             {viewMode === 'LIST' ? (
                 <>
@@ -706,36 +669,30 @@ const HealthCheckSyncView: React.FC = () => {
                     )}
 
                     {/* Filter toolbar and Table only shown on non-dashboard workflow steps */}
-                    {stepParam !== 'dashboard' && stepParam !== 'settings' && (
+                    {stepParam !== 'dashboard' && !stepParam.startsWith('settings') && (
                         <>
                             <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                                     {/* Từ ngày */}
                                     <div className="space-y-1">
                                         <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Từ ngày</label>
-                                        <div className="relative">
-                                            <input 
-                                                type="text"
-                                                placeholder="dd/mm/yyyy"
-                                                value={getFilterDateDisplay(startDate)}
-                                                onChange={e => handleFilterDateChange(e.target.value, setStartDate)}
-                                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                                            />
-                                        </div>
+                                        <input
+                                            type="date"
+                                            value={startDate}
+                                            onChange={e => setStartDate(e.target.value)}
+                                            className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white"
+                                        />
                                     </div>
 
                                     {/* Đến ngày */}
                                     <div className="space-y-1">
                                         <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Đến ngày</label>
-                                        <div className="relative">
-                                            <input 
-                                                type="text"
-                                                placeholder="dd/mm/yyyy"
-                                                value={getFilterDateDisplay(endDate)}
-                                                onChange={e => handleFilterDateChange(e.target.value, setEndDate)}
-                                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                                            />
-                                        </div>
+                                        <input
+                                            type="date"
+                                            value={endDate}
+                                            onChange={e => setEndDate(e.target.value)}
+                                            className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white"
+                                        />
                                     </div>
 
                                     {/* Loại danh mục (formFilter) */}
@@ -811,16 +768,6 @@ const HealthCheckSyncView: React.FC = () => {
                                         </span>
                                     </div>
 
-                                    {/* Switch Hiện debug */}
-                                    <div className="flex items-center gap-2 border-l border-slate-200 dark:border-slate-700 pl-4">
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" className="sr-only peer" defaultChecked />
-                                            <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-teal-600"></div>
-                                        </label>
-                                        <span className="text-xs font-bold text-rose-600 flex items-center gap-1">
-                                            🐞 Hiện debug
-                                        </span>
-                                    </div>
 
                                     {/* Số bản ghi/trang */}
                                     <div className="flex items-center gap-2 text-xs font-medium text-slate-500 border-l border-slate-200 dark:border-slate-700 pl-4">
@@ -853,7 +800,7 @@ const HealthCheckSyncView: React.FC = () => {
                                     )}
 
                                     {stepParam === 'pending-sign' && (
-                                        <button 
+                        <button 
                                             onClick={handleSignDocuments}
                                             disabled={selectedIds.size === 0 || isLoading || isSending || isSigning}
                                             className="px-4 py-2 bg-white border border-[#0f766e] text-[#0f766e] hover:bg-emerald-50 rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition text-xs active:scale-95 cursor-pointer"
@@ -871,6 +818,17 @@ const HealthCheckSyncView: React.FC = () => {
                                         <CloudUploadIcon className="w-4 h-4"/>
                                         Gửi liên thông mục đã chọn ({selectedIds.size})
                                     </button>
+
+                                    {stepParam === 'print-code' && (
+                                        <button 
+                                            onClick={() => setIsPrintXnModalOpen(true)}
+                                            className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-bold flex items-center gap-1.5 transition-all text-xs active:scale-95 cursor-pointer shadow-sm animate-in fade-in"
+                                            title="In Barcode Xét Nghiệm"
+                                        >
+                                            <PrinterIcon className="w-4 h-4"/>
+                                            In Barcode Xét Nghiệm
+                                        </button>
+                                    )}
 
                                     <button 
                                         onClick={handleExportExcel}
@@ -895,24 +853,21 @@ const HealthCheckSyncView: React.FC = () => {
                                         setActiveDocument(doc);
                                         setViewMode('PRINT');
                                     }}
+                                    onPrintBarcode={(docs) => {
+                                        setActiveBarcodeDocs(docs);
+                                        setViewMode('PRINT_BARCODE');
+                                    }}
                                     getFormName={getFormName}
                                     getFormColor={getFormColor}
                                 />
                             ) : stepParam === 'sync' ? (
                                 <SyncDataList
-                                    documents={filteredDocuments}
-                                    selectedIds={selectedIds}
-                                    onToggleSelect={handleToggleSelect}
-                                    onSelectAll={handleSelectAll}
-                                    onViewXml={(doc) => setActiveXmlDoc(doc)}
-                                    onPrint={(doc) => {
-                                        setActiveDocument(doc);
-                                        setViewMode('PRINT');
-                                    }}
-                                    onSend={handleSendSingleDocument}
-                                    getFormName={getFormName}
-                                    getFormColor={getFormColor}
-                                    onSeed={handleOpenSeedModal}
+                                    contracts={contracts}
+                                    isLoading={isContractsLoading}
+                                    onSeed={handleSeedFromHis}
+                                    startDate={startDate}
+                                    endDate={endDate}
+                                    searchTerm={searchTerm}
                                 />
                             ) : (
                                 <DocumentList
@@ -939,144 +894,22 @@ const HealthCheckSyncView: React.FC = () => {
                         </>
                     )}
 
-                    {stepParam === 'settings' && (
-                        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm max-w-3xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom duration-200">
-                            <div className="border-b border-slate-100 dark:border-slate-700 pb-4">
-                                <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                                    <AdjustmentsHorizontalIcon className="w-6 h-6 text-[#0f766e]"/> Cấu hình liên thông cổng VNeID
+                    {stepParam.startsWith('settings') && (
+                        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 animate-in fade-in duration-300">
+                            <div className="mb-6">
+                                <h2 className="text-xl font-bold text-[#0f766e] dark:text-teal-400 mb-1 flex items-center gap-2">
+                                    <AdjustmentsHorizontalIcon className="w-6 h-6" />
+                                    {stepParam === 'settings-barcode' ? 'Cấu hình in Barcode' : 'Cấu hình kết nối VNeID'}
                                 </h2>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                    Thiết lập các tham số kết nối, mã cơ sở y tế và đồng bộ tự động lên cổng sức khỏe điện tử VNeID.
+                                <p className="text-sm text-slate-500 dark:text-slate-400">
+                                    {stepParam === 'settings-barcode' ? 'Thiết lập kích thước và nội dung hiển thị trên tem in Barcode.' : 'Thiết lập các tham số kết nối, mã cơ sở y tế và đồng bộ tự động lên cổng sức khỏe điện tử VNeID.'}
                                 </p>
                             </div>
-
-                            {isSettingsLoading ? (
-                                <div className="py-10 text-center flex flex-col items-center justify-center text-slate-500 dark:text-slate-400">
-                                    <RefreshIcon className="w-10 h-10 animate-spin text-teal-500 mb-2"/>
-                                    Đang tải cấu hình thiết lập...
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="md:col-span-2 space-y-1">
-                                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300">URL Cổng liên thông (Sandbox / Production)</label>
-                                        <input
-                                            type="text"
-                                            value={vneidUrl}
-                                            onChange={e => setVneidUrl(e.target.value)}
-                                            className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-sm focus:ring-2 focus:ring-teal-500"
-                                            placeholder="https://api-vneid.moh.gov.vn/api/v1"
-                                        />
-                                    </div>
-
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Tài khoản Cổng VNeID</label>
-                                        <input
-                                            type="text"
-                                            value={vneidUsername}
-                                            onChange={e => setVneidUsername(e.target.value)}
-                                            className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-sm focus:ring-2 focus:ring-teal-500"
-                                            placeholder="Nhập tên tài khoản..."
-                                        />
-                                    </div>
-
-                                    <div className="space-y-1 relative">
-                                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Mật khẩu Cổng VNeID</label>
-                                        <div className="relative">
-                                            <input
-                                                type={showPassword ? "text" : "password"}
-                                                value={vneidPassword}
-                                                onChange={e => setVneidPassword(e.target.value)}
-                                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-sm focus:ring-2 focus:ring-teal-500 pr-10"
-                                                placeholder="Nhập mật khẩu..."
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowPassword(!showPassword)}
-                                                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
-                                            >
-                                                {showPassword ? "Ẩn" : "Hiện"}
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Mã cơ sở KCB (MA_CSKCB - 5 ký tự)</label>
-                                        <input
-                                            type="text"
-                                            maxLength={5}
-                                            value={maCskcb}
-                                            onChange={e => setMaCskcb(e.target.value)}
-                                            className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-sm focus:ring-2 focus:ring-teal-500"
-                                            placeholder="15124"
-                                        />
-                                    </div>
-
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Mã GLN Cơ sở (MA_GTIN_CSKCB - 13 ký tự)</label>
-                                        <input
-                                            type="text"
-                                            maxLength={13}
-                                            value={maGtinCskcb}
-                                            onChange={e => setMaGtinCskcb(e.target.value)}
-                                            className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-sm focus:ring-2 focus:ring-teal-500"
-                                            placeholder="1234567890123"
-                                        />
-                                    </div>
-
-                                    <div className="md:col-span-2 border-t border-slate-100 dark:border-slate-700 pt-4 mt-2 space-y-4">
-                                        <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-700/30 p-3.5 rounded-lg border border-slate-200/50 dark:border-slate-700">
-                                            <div>
-                                                <div className="text-sm font-bold text-slate-800 dark:text-white">Tự động đồng bộ liên thông</div>
-                                                <div className="text-xs text-slate-500 dark:text-slate-400">Đẩy dữ liệu hồ sơ đã được ký số đầy đủ lên cổng một cách tự động.</div>
-                                            </div>
-                                            <label className="relative inline-flex items-center cursor-pointer">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={autoSyncEnabled}
-                                                    onChange={e => setAutoSyncEnabled(e.target.checked)}
-                                                    className="sr-only peer"
-                                                />
-                                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-teal-300 dark:peer-focus:ring-teal-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-[#0f766e]"></div>
-                                            </label>
-                                        </div>
-
-                                        {autoSyncEnabled && (
-                                            <div className="flex items-center gap-3 p-3 bg-teal-50/50 dark:bg-teal-900/10 rounded-lg border border-teal-100 dark:border-teal-900/30">
-                                                <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">Tần suất đồng bộ tự động:</span>
-                                                <select
-                                                    value={autoSyncInterval}
-                                                    onChange={e => setAutoSyncInterval(parseInt(e.target.value))}
-                                                    className="p-1.5 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-sm"
-                                                >
-                                                    <option value={5}>Mỗi 5 phút</option>
-                                                    <option value={15}>Mỗi 15 phút</option>
-                                                    <option value={30}>Mỗi 30 phút</option>
-                                                    <option value={60}>Mỗi 1 giờ</option>
-                                                </select>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="md:col-span-2 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-700 pt-4">
-                                        <button
-                                            type="button"
-                                            disabled={isTestingSettings || isSavingSettings}
-                                            onClick={handleTestConnection}
-                                            className="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg font-bold text-sm transition disabled:opacity-50"
-                                        >
-                                            {isTestingSettings ? "Đang ping..." : "Kiểm tra kết nối"}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            disabled={isTestingSettings || isSavingSettings}
-                                            onClick={handleSaveSettings}
-                                            className="px-5 py-2 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-lg font-bold text-sm shadow-md transition disabled:opacity-50"
-                                        >
-                                            {isSavingSettings ? "Đang lưu..." : "Lưu cấu hình"}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
+                            <SettingsTab 
+                                onSaved={loadSettings} 
+                                defaultTab={stepParam === 'settings-barcode' ? 'BARCODE' : 'VNEID'}
+                                hideTabs={true}
+                            />
                         </div>
                     )}
                 </>
@@ -1091,124 +924,33 @@ const HealthCheckSyncView: React.FC = () => {
             )}
 
             {/* XML Preview Modal */}
-            {activeXmlDoc && (
-                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in duration-200">
-                        {/* Modal Header */}
-                        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/80 rounded-t-xl">
-                            <div>
-                                <h3 className="text-lg font-bold text-slate-800 dark:text-white">XML Preview: {activeXmlDoc.patient_name}</h3>
-                                <p className="text-xs text-slate-500 mt-0.5">{getFormName(activeXmlDoc.form_type)} - Số: {activeXmlDoc.doc_no}</p>
-                            </div>
-                            <button 
-                                onClick={() => setActiveXmlDoc(null)}
-                                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg transition text-lg font-bold"
-                            >
-                                ✕
-                            </button>
-                        </div>
-                        {/* Modal Content */}
-                        <div className="p-4 flex-1 overflow-auto bg-slate-950 text-slate-200 font-mono text-xs border border-slate-800 flex flex-col">
-                            <div className="text-teal-400 font-bold mb-2">// RAW XML BODY //</div>
-                            <pre className="whitespace-pre-wrap flex-1">{activeXmlDoc.xml_data}</pre>
-                            {activeXmlDoc.signature && (
-                                <div className="mt-4 pt-4 border-t border-slate-800">
-                                    <div className="text-green-400 font-bold mb-1">// DIGITAL SIGNATURE VALUE ({activeXmlDoc.signature_type}) //</div>
-                                    <div className="text-slate-500 break-all">{activeXmlDoc.signature}</div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
+            <XmlPreviewModal 
+                activeXmlDoc={activeXmlDoc} 
+                onClose={() => setActiveXmlDoc(null)} 
+                getFormName={getFormName} 
+            />
 
             {/* HIS Seeding Filter Modal */}
-            {isSeedModalOpen && (
-                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-md flex flex-col border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in duration-200">
-                        {/* Modal Header */}
-                        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/80 rounded-t-xl">
-                            <div>
-                                <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2 font-sans">
-                                    <RefreshIcon className="w-5 h-5 text-emerald-600"/> Đồng bộ dữ liệu khám từ HIS
-                                </h3>
-                                <p className="text-xs text-slate-500 mt-0.5 font-sans">Chọn điều kiện lọc để đồng bộ danh sách khám</p>
-                            </div>
-                            <button 
-                                onClick={() => setIsSeedModalOpen(false)}
-                                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg transition text-lg font-bold"
-                            >
-                                ✕
-                            </button>
-                        </div>
-                        {/* Modal Body */}
-                        <div className="p-6 space-y-4">
-                            {/* Date filters */}
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-600 dark:text-slate-300 font-sans">Thời gian khám (Từ ngày)</label>
-                                <FormDateInput
-                                    label=""
-                                    value={seedStartDate}
-                                    onChange={e => setSeedStartDate(e.target.value)}
-                                    placeholder="dd/mm/yyyy"
-                                    className="w-full !p-2.5 !h-auto border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white"
-                                />
-                            </div>
+            <HisSeedingFilterModal 
+                isOpen={isSeedModalOpen}
+                onClose={() => setIsSeedModalOpen(false)}
+                onSeed={handleSeedFromHis}
+                isSeeding={isSeeding}
+                workplaces={workplaces}
+                fontSettings={fontSettings}
+            />
 
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-600 dark:text-slate-300 font-sans">Thời gian khám (Đến ngày)</label>
-                                <FormDateInput
-                                    label=""
-                                    value={seedEndDate}
-                                    onChange={e => setSeedEndDate(e.target.value)}
-                                    placeholder="dd/mm/yyyy"
-                                    className="w-full !p-2.5 !h-auto border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white"
-                                />
-                            </div>
-
-                            {/* Workplace filter */}
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-600 dark:text-slate-300 font-sans">Nơi làm việc / Công ty</label>
-                                <select
-                                    value={seedWorkplaceId}
-                                    onChange={e => setSeedWorkplaceId(e.target.value)}
-                                    className={`w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none cursor-pointer ${fontSettings.controls}`}
-                                >
-                                    <option value="">-- Tất cả công ty --</option>
-                                    {workplaces.map(w => (
-                                        <option key={w.id} value={w.code}>{w.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* Modal Footer */}
-                        <div className="p-4 bg-slate-50 dark:bg-slate-900/80 rounded-b-xl border-t border-slate-200 dark:border-slate-800 flex justify-end gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setIsSeedModalOpen(false)}
-                                className="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600 rounded-lg font-bold text-xs transition font-sans"
-                            >
-                                Hủy bỏ
-                            </button>
-                            <button
-                                type="button"
-                                disabled={isSeeding}
-                                onClick={() => {
-                                    handleSeedFromHis({
-                                        startDate: seedStartDate,
-                                        endDate: seedEndDate,
-                                        workplaceId: seedWorkplaceId
-                                    });
-                                }}
-                                className="px-5 py-2 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-lg font-bold text-xs shadow-md transition flex items-center gap-1.5 disabled:opacity-50 font-sans active:scale-95 cursor-pointer"
-                            >
-                                {isSeeding && <RefreshIcon className="w-3.5 h-3.5 animate-spin"/>}
-                                Đồng bộ ngay
-                            </button>
-                        </div>
-                    </div>
-                </div>
+            {/* Print Barcode XN Modal */}
+            {isPrintXnModalOpen && (
+                <PrintBarcodeXnModal 
+                    patients={documents} 
+                    onClose={() => setIsPrintXnModalOpen(false)} 
+                    onPrint={(payload) => {
+                        setXnPrintPayload(payload);
+                        setViewMode('PRINT_BARCODE_XN');
+                        setIsPrintXnModalOpen(false);
+                    }}
+                />
             )}
         </div>
     );

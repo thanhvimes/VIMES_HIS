@@ -19,6 +19,7 @@ const Equipment = React.lazy(() => import('./modules/equipment/index'));
 const Billing = React.lazy(() => import('./modules/billing/index'));
 const LabResults = React.lazy(() => import('./modules/lab-results/index'));
 const ImagingResults = React.lazy(() => import('./modules/imaging-results/index'));
+const PacsRisModule = React.lazy(() => import('./modules/pacs-ris/index'));
 const Pharmacy = React.lazy(() => import('./modules/pharmacy/index'));
 const MedicalSupplies = React.lazy(() => import('./modules/medical-supplies/index'));
 const RecordStorage = React.lazy(() => import('./modules/record-storage/index'));
@@ -55,6 +56,7 @@ const moduleTitles: { [key: string]: string } = {
   billing: 'Viện phí',
   'lab-results': 'KQ Xét nghiệm',
   'imaging-results': 'KQ Hình ảnh',
+  'pacs-ris': 'Chẩn đoán Hình ảnh & PACS-RIS',
   pharmacy: 'Dược & Vật tư',
   'medical-supplies': 'Vật tư Y tế',
   'record-storage': 'Lưu trữ hồ sơ',
@@ -170,6 +172,7 @@ const StaffSystem: React.FC = () => {
         <Route path="/billing/*" element={<Billing />} />
         <Route path="/lab-results/*" element={<LabResults />} />
         <Route path="/imaging-results/*" element={<ImagingResults />} />
+        <Route path="/pacs-ris/*" element={<PacsRisModule />} />
         <Route path="/pharmacy/*" element={<Pharmacy />} />
         <Route path="/medical-supplies/*" element={<MedicalSupplies />} />
         <Route path="/record-storage/*" element={<RecordStorage />} />

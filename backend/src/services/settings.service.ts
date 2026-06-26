@@ -54,6 +54,12 @@ class SettingsService {
                     VALUES ('general_hospital_name', 'BỆNH VIỆN K', 'string', 'general', 'Hospital name for display', true)
                     ON CONFLICT (setting_key) DO NOTHING
                 `);
+                // Ensure general_parent_org
+                await query(`
+                    INSERT INTO hms_booking_settings (setting_key, setting_value, setting_type, category, description, is_system)
+                    VALUES ('general_parent_org', 'SỞ Y TẾ THÀNH PHỐ HÀ NỘI', 'string', 'general', 'Parent organization name (e.g. Sở Y tế)', true)
+                    ON CONFLICT (setting_key) DO NOTHING
+                `);
             } catch (e) {
                 console.error('Failed to ensure default settings:', e);
             }
@@ -66,31 +72,41 @@ class SettingsService {
      * Get core hospital details from sys_company table
      */
     private async getCompanyInfo(): Promise<any> {
+        // 1. Try process.env facility ID
         try {
             const facilityId = process.env.FACILITY_ID || process.env.BRANCH_ID || process.env.COMPANY_ID;
             if (facilityId) {
                 const res = await query(
-                    'SELECT sc_id, sc_name, sc_fullname, sc_phone, sc_email, sc_address, sc_website FROM sys_company WHERE sc_id = $1',
+                    'SELECT sc_id, sc_name, sc_phone, sc_email, sc_address, sc_website, sc_pname FROM sys_company WHERE sc_id = $1',
                     [facilityId]
                 );
                 if (res.rows.length > 0) return res.rows[0];
             }
+        } catch (e) {
+            console.warn('Failed to query sys_company by facilityId:', e);
+        }
 
-            // Fallback to matching with reporthost from hms_config
+        // 2. Try matching reporthost from hms_config (if exists)
+        try {
             const resMatch = await query(`
-                SELECT sc_id, sc_name, sc_fullname, sc_phone, sc_email, sc_address, sc_website 
+                SELECT sc_id, sc_name, sc_phone, sc_email, sc_address, sc_website, sc_pname 
                 FROM sys_company 
                 WHERE sc_reporthost = (SELECT reporthost FROM hms_config LIMIT 1)
             `);
             if (resMatch.rows.length > 0) return resMatch.rows[0];
-
-            // Final fallback: return first row
-            const resFallback = await query('SELECT sc_id, sc_name, sc_fullname, sc_phone, sc_email, sc_address, sc_website FROM sys_company LIMIT 1');
-            return resFallback.rows[0] || null;
         } catch (e) {
-            console.error('Failed to query sys_company table:', e);
-            return null;
+            // Ignore missing columns or missing tables on this fallback path
         }
+
+        // 3. Final fallback: return first row of sys_company
+        try {
+            const resFallback = await query('SELECT sc_id, sc_name, sc_phone, sc_email, sc_address, sc_website, sc_pname FROM sys_company LIMIT 1');
+            if (resFallback.rows.length > 0) return resFallback.rows[0];
+        } catch (e) {
+            console.error('Final fallback query sys_company failed:', e);
+        }
+
+        return null;
     }
 
     /**
@@ -100,15 +116,18 @@ class SettingsService {
         await this.ensureDefaultSettings();
 
         // Handle sys_company keys dynamically
-        const companyKeys = ['general_hospital_name', 'general_hotline', 'general_email', 'general_address', 'general_website'];
+        const companyKeys = ['general_hospital_name', 'general_parent_org', 'general_hotline', 'general_email', 'general_address', 'general_website'];
         if (companyKeys.includes(key)) {
             const company = await this.getCompanyInfo();
             if (company) {
                 let value = '';
                 let desc = '';
                 if (key === 'general_hospital_name') {
-                    value = company.sc_fullname || company.sc_name || '';
+                    value = company.sc_name || '';
                     desc = 'Hospital name for display and SMS';
+                } else if (key === 'general_parent_org') {
+                    value = company.sc_pname || '';
+                    desc = 'Parent organization name (e.g. Sở Y tế)';
                 } else if (key === 'general_hotline') {
                     value = company.sc_phone || '';
                     desc = 'Hospital hotline number';
@@ -177,7 +196,8 @@ class SettingsService {
             const company = await this.getCompanyInfo();
             if (company) {
                 settings = settings.map(setting => {
-                    if (setting.key === 'general_hospital_name') setting.value = company.sc_fullname || company.sc_name || '';
+                    if (setting.key === 'general_hospital_name') setting.value = company.sc_name || '';
+                    if (setting.key === 'general_parent_org') setting.value = company.sc_pname || '';
                     if (setting.key === 'general_hotline') setting.value = company.sc_phone || '';
                     if (setting.key === 'general_email') setting.value = company.sc_email || '';
                     if (setting.key === 'general_address') setting.value = company.sc_address || '';
@@ -208,7 +228,8 @@ class SettingsService {
         const company = await this.getCompanyInfo();
         if (company) {
             settings = settings.map(setting => {
-                if (setting.key === 'general_hospital_name') setting.value = company.sc_fullname || company.sc_name || '';
+                if (setting.key === 'general_hospital_name') setting.value = company.sc_name || '';
+                if (setting.key === 'general_parent_org') setting.value = company.sc_pname || '';
                 if (setting.key === 'general_hotline') setting.value = company.sc_phone || '';
                 if (setting.key === 'general_email') setting.value = company.sc_email || '';
                 if (setting.key === 'general_address') setting.value = company.sc_address || '';
@@ -228,14 +249,17 @@ class SettingsService {
         
         const safeUpdatedBy = String(updatedBy || 'system').substring(0, 100);
 
-        const companyKeys = ['general_hospital_name', 'general_hotline', 'general_email', 'general_address', 'general_website'];
+        const companyKeys = ['general_hospital_name', 'general_parent_org', 'general_hotline', 'general_email', 'general_address', 'general_website'];
         if (companyKeys.includes(key)) {
             const company = await this.getCompanyInfo();
             if (company) {
                 let sql = '';
                 let params: any[] = [];
                 if (key === 'general_hospital_name') {
-                    sql = 'UPDATE sys_company SET sc_fullname = $1::varchar, sc_name = UPPER($1::varchar) WHERE sc_id = $2';
+                    sql = 'UPDATE sys_company SET sc_name = UPPER($1::varchar) WHERE sc_id = $2';
+                    params = [value, company.sc_id];
+                } else if (key === 'general_parent_org') {
+                    sql = 'UPDATE sys_company SET sc_pname = $1 WHERE sc_id = $2';
                     params = [value, company.sc_id];
                 } else if (key === 'general_hotline') {
                     sql = 'UPDATE sys_company SET sc_phone = $1 WHERE sc_id = $2';

@@ -65,9 +65,8 @@ export const CatalogProvider: React.FC<{ children: ReactNode }> = ({ children })
             setNations(nats);
             setRelationships(rels);
             setRoomsAll(rms);
-            
             console.log(`Context: Loaded ${rms.length} rooms. (Status: P:${provs.length}, D:${depts.length}, E:${eths.length})`);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Critical failure in CatalogContext", error);
         } finally {
             setIsLoading(false);

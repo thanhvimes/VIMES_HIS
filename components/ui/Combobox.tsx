@@ -109,10 +109,33 @@ function Combobox<T extends Record<string, any>>({
             const matched = options.find(o => {
                 const oId = String(o.id ?? o.code ?? '').trim();
                 const oName = String(getDisplayValue(o)).trim();
-                return oId === strVal || oName === strVal;
+                const oRef = String(o.refcode ?? o.ref_code ?? '').trim();
+                
+                // Exact match
+                if (oId === strVal || oName === strVal) return true;
+                
+                // Country reference code match (case-insensitive)
+                if (oRef && oRef.toLowerCase() === strVal.toLowerCase()) return true;
+                
+                // Fallback for Vietnam: if value is "VN" or "vn", and option has code/ID 190 or name "Việt Nam"
+                if (strVal.toLowerCase() === 'vn' && (oId === '190' || oName === 'Việt Nam')) return true;
+                
+                // Numeric normalization match (e.g. "01" vs "1")
+                const normId = /^\d+$/.test(oId) ? String(parseInt(oId, 10)) : oId.toLowerCase();
+                const normVal = /^\d+$/.test(strVal) ? String(parseInt(strVal, 10)) : strVal.toLowerCase();
+                if (normId === normVal) return true;
+                
+                return false;
             });
             if (matched) {
-                setSearchTerm(getDisplayValue(matched));
+                const disp = getDisplayValue(matched);
+                setSearchTerm(disp);
+                
+                // Normalize parent value in parent component if there is a mismatch (e.g., "01" -> "1" or "VN" -> "190")
+                const cleanCode = String(matched.id ?? matched.code ?? disp);
+                if (cleanCode !== String(value) && String(value) !== disp) {
+                    onChange(cleanCode, matched);
+                }
                 return;
             }
         }
@@ -121,29 +144,59 @@ function Combobox<T extends Record<string, any>>({
 
     // Filter logic
     const filteredOptions = useMemo(() => {
-        if (!searchTerm && !isOpen) return options;
         const query = removeVietnameseTones(String(searchTerm || '')).toLowerCase();
+        let result: T[] = [];
+        
+        // Check if searchTerm matches the display value of the currently matched/selected option.
+        // If it matches exactly, it means the dropdown was just opened, and the user hasn't typed anything new.
+        // In this case, we bypass filters and display all options.
+        const isDisplayingSelected = (() => {
+            if (!value || !options.length) return false;
+            const strVal = String(value).trim();
+            const matched = options.find(o => {
+                const oId = String(o.id ?? o.code ?? '').trim();
+                const oName = String(getDisplayValue(o)).trim();
+                const oRef = String(o.refcode ?? o.ref_code ?? '').trim();
+                
+                if (oId === strVal || oName === strVal) return true;
+                if (oRef && oRef.toLowerCase() === strVal.toLowerCase()) return true;
+                
+                // Fallback for Vietnam: if value is "VN" or "vn", and option has code/ID 190 or name "Việt Nam"
+                if (strVal.toLowerCase() === 'vn' && (oId === '190' || oName === 'Việt Nam')) return true;
+                
+                const normId = /^\d+$/.test(oId) ? String(parseInt(oId, 10)) : oId.toLowerCase();
+                const normVal = /^\d+$/.test(strVal) ? String(parseInt(strVal, 10)) : strVal.toLowerCase();
+                return normId === normVal;
+            });
+            if (!matched) return false;
+            return getDisplayValue(matched) === searchTerm;
+        })();
+        
+        if ((!searchTerm && !isOpen) || isDisplayingSelected) {
+            result = options;
+        } else {
+            if (filterFunction) {
+                result = options.filter(opt => filterFunction(opt, query));
+            } else {
+                result = options.filter(item => {
+                    const currentDisplay = getDisplayValue(item);
+                    if (currentDisplay && currentDisplay === searchTerm) return true;
 
-        if (filterFunction) {
-            return options.filter(opt => filterFunction(opt, query));
+                    const matchesField = (val: any) => {
+                        const normalizedVal = removeVietnameseTones(String(val || '')).toLowerCase();
+                        return normalizedVal.includes(query);
+                    };
+
+                    if (columns) {
+                        return columns.some(col => matchesField(item[col.key as keyof T]));
+                    }
+                    return matchesField(currentDisplay);
+                });
+            }
         }
 
-        return options.filter(item => {
-            // Check exact display match
-            const currentDisplay = getDisplayValue(item);
-            if (currentDisplay && currentDisplay === searchTerm) return true;
-
-            const matchesField = (val: any) => {
-                const normalizedVal = removeVietnameseTones(String(val || '')).toLowerCase();
-                return normalizedVal.includes(query);
-            };
-
-            if (columns) {
-                return columns.some(col => matchesField(item[col.key as keyof T]));
-            }
-            return matchesField(currentDisplay);
-        });
-    }, [searchTerm, options, filterFunction, columns, isOpen]);
+        return result;
+    }, [searchTerm, value, options, filterFunction, columns, isOpen]);
 
     useEffect(() => {
         setActiveIndex(0);

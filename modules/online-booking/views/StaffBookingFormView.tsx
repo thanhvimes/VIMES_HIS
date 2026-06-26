@@ -26,6 +26,7 @@ const StaffBookingFormView: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isLoadingSearch, setIsLoadingSearch] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedPeriod, setSelectedPeriod] = useState<'morning' | 'afternoon'>('morning');
 
     // Master Data
     const [specialities, setSpecialities] = useState<BookingSpeciality[]>([]);
@@ -107,6 +108,18 @@ const StaffBookingFormView: React.FC = () => {
             setAvailableSlots([]);
         }
     }, [bookingData.specialityId, bookingData.date, userInfo]);
+
+    // Auto-select period based on available slots when they change
+    useEffect(() => {
+        if (availableSlots.length > 0) {
+            if (bookingData.time) {
+                setSelectedPeriod(bookingData.time < '12:00' ? 'morning' : 'afternoon');
+            } else {
+                const hasMorning = availableSlots.some(s => s.time < '12:00');
+                setSelectedPeriod(hasMorning ? 'morning' : 'afternoon');
+            }
+        }
+    }, [availableSlots]);
     // Duplicate CCCD Check & Auto-fill
     useEffect(() => {
         const checkDuplicateCCCD = async () => {
@@ -135,6 +148,36 @@ const StaffBookingFormView: React.FC = () => {
 
         checkDuplicateCCCD();
     }, [bookingData.identityCard, bookingData.patientId, addNotification]);
+
+    // Duplicate Phone Check & Auto-fill
+    useEffect(() => {
+        const checkDuplicatePhone = async () => {
+            if (bookingData.phone.length === 10 && !bookingData.patientId) {
+                try {
+                    const result = await receptionService.getPatientByRecordNumber(bookingData.phone);
+                    if (result) {
+                        setBookingData(prev => ({
+                            ...prev,
+                            patientId: result.id,
+                            name: result.name,
+                            phone: result.phone || prev.phone,
+                            dob: result.dob,
+                            gender: result.gender,
+                            addressDetail: result.address || prev.addressDetail,
+                            provinceId: result.provinceId?.toString() || prev.provinceId,
+                            wardId: result.wardId?.toString() || prev.wardId,
+                            identityCard: result.identityCard || prev.identityCard
+                        }));
+                        addNotification("SĐT đã tồn tại", `Bệnh nhân: ${result.name} đã có trên hệ thống HIS. Thông tin đã được tự động điền.`, "info", undefined, true);
+                    }
+                } catch (error) {
+                    console.error('Error checking duplicate phone:', error);
+                }
+            }
+        };
+
+        checkDuplicatePhone();
+    }, [bookingData.phone, bookingData.patientId, addNotification]);
 
     const handleSearch = async () => {
         if (!searchQuery.trim()) return;
@@ -233,7 +276,7 @@ const StaffBookingFormView: React.FC = () => {
 
             const res = await bookingService.registerBooking({
                 idCard: bookingData.identityCard,
-                name: bookingData.name,
+                name: bookingData.name.normalize('NFC').toLocaleUpperCase('vi-VN'),
                 birthDate: convertDate(bookingData.dob),
                 gender: bookingData.gender,
                 provinceId: bookingData.provinceId ? parseInt(bookingData.provinceId) : undefined,
@@ -351,25 +394,60 @@ const StaffBookingFormView: React.FC = () => {
                                         Không có slot khả dụng cho ngày này
                                     </div>
                                 ) : (
-                                    <div className={`grid grid-cols-3 gap-2.5 ${errors.time ? 'ring-2 ring-red-100 rounded-2xl p-1' : ''}`}>
-                                        {availableSlots.map(s => (
+                                    <div className="space-y-4">
+                                        <div className="flex bg-slate-150 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
                                             <button
-                                                key={s.time}
-                                                onClick={() => setBookingData({ ...bookingData, time: s.time })}
-                                                disabled={s.status === 'F'}
-                                                className={`p-3 rounded-xl border-2 text-sm font-black transition-all ${s.status === 'F'
-                                                    ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed opacity-50'
-                                                    : bookingData.time === s.time
-                                                        ? 'border-orange-500 bg-orange-600 text-white shadow-xl scale-105 ring-4 ring-orange-100'
-                                                        : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-orange-200 hover:scale-105'
-                                                    }`}
+                                                type="button"
+                                                onClick={() => setSelectedPeriod('morning')}
+                                                className={`flex-1 py-2 text-xs font-black rounded-lg transition-all uppercase tracking-wider flex items-center justify-center gap-1.5 ${
+                                                    selectedPeriod === 'morning'
+                                                        ? 'bg-teal-600 text-white shadow-md'
+                                                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                                }`}
                                             >
-                                                {s.time}
-                                                <div className="text-[9px] font-normal opacity-70 mt-0.5 uppercase tracking-tighter">
-                                                    {s.available}/{s.max}
-                                                </div>
+                                                ☀️ Sáng ({availableSlots.filter(s => s.time < '12:00').length})
                                             </button>
-                                        ))}
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedPeriod('afternoon')}
+                                                className={`flex-1 py-2 text-xs font-black rounded-lg transition-all uppercase tracking-wider flex items-center justify-center gap-1.5 ${
+                                                    selectedPeriod === 'afternoon'
+                                                        ? 'bg-teal-600 text-white shadow-md'
+                                                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                                }`}
+                                            >
+                                                🌙 Chiều ({availableSlots.filter(s => s.time >= '12:00').length})
+                                            </button>
+                                        </div>
+
+                                        {availableSlots.filter(s => selectedPeriod === 'morning' ? s.time < '12:00' : s.time >= '12:00').length === 0 ? (
+                                            <div className="text-center py-6 text-slate-400 text-sm italic">
+                                                Không có khung giờ khả dụng cho buổi {selectedPeriod === 'morning' ? 'sáng' : 'chiều'}
+                                            </div>
+                                        ) : (
+                                            <div className={`grid grid-cols-3 gap-2.5 ${errors.time ? 'ring-2 ring-red-100 rounded-2xl p-1' : ''}`}>
+                                                {availableSlots
+                                                    .filter(s => selectedPeriod === 'morning' ? s.time < '12:00' : s.time >= '12:00')
+                                                    .map(s => (
+                                                        <button
+                                                            key={s.time}
+                                                            onClick={() => setBookingData({ ...bookingData, time: s.time })}
+                                                            disabled={s.status === 'F'}
+                                                            className={`p-3 rounded-xl border-2 text-sm font-black transition-all ${s.status === 'F'
+                                                                ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed opacity-50'
+                                                                : bookingData.time === s.time
+                                                                    ? 'border-orange-500 bg-orange-600 text-white shadow-xl scale-105 ring-4 ring-orange-100'
+                                                                    : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-orange-200 hover:scale-105'
+                                                                }`}
+                                                        >
+                                                            {s.time}
+                                                            <div className="text-[9px] font-normal opacity-70 mt-0.5 uppercase tracking-tighter">
+                                                                {s.available}/{s.max}
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

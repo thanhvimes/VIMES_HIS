@@ -17,7 +17,11 @@ router.delete('/documents/:id', healthCheckController.deleteDocument.bind(health
 router.post('/documents/send', healthCheckController.sendDocuments.bind(healthCheckController));
 router.post('/documents/sign', healthCheckController.signDocuments.bind(healthCheckController));
 router.post('/documents/seed-from-his', healthCheckController.seedFromHis.bind(healthCheckController));
+router.post('/documents/mark-printed', healthCheckController.markBarcodePrinted.bind(healthCheckController));
 router.get('/his-patient/:identifier', healthCheckController.getHisPatient.bind(healthCheckController));
+
+// Contracts Endpoint
+router.get('/contracts', healthCheckController.getContracts.bind(healthCheckController));
 
 // Settings Config Endpoints
 router.get('/settings', healthCheckController.getSettings.bind(healthCheckController));

@@ -248,90 +248,104 @@ export const bookingService = {
             ];
         }
 
-        const params = new URLSearchParams();
-        if (filters.fromDate) params.append('fromDate', filters.fromDate);
-        if (filters.toDate) params.append('toDate', filters.toDate);
-        if (filters.status) params.append('status', filters.status);
-        if (filters.speciality) params.append('speciality', filters.speciality);
-        if (filters.search) params.append('search', filters.search);
-
-        const res = await fetch(`${API_BASE_URL}/list?${params.toString()}`);
-        if (!res.ok) {
-            console.error('getBookingList error:', await res.text());
-            return [];
-        }
-        const data = await res.json();
-        return Array.isArray(data) ? data : [];
+        return apiClient.get<OnlineBookingRecord[]>('/booking/list', {
+            fromDate: filters.fromDate,
+            toDate: filters.toDate,
+            status: filters.status,
+            speciality: filters.speciality,
+            search: filters.search
+        });
     },
 
     approveBooking: async (id: number): Promise<{ success: boolean; receptNo: number; message: string }> => {
-        const res = await fetch(`${API_BASE_URL}/${id}/approve`, {
-            method: 'POST'
-        });
-
-        if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.error || 'Duyệt thất bại');
-        }
-
-        return res.json();
+        return apiClient.post<{ success: boolean; receptNo: number; message: string }>(`/booking/${id}/approve`, {});
     },
 
     rejectBooking: async (id: number, reason?: string): Promise<{ success: boolean; message: string }> => {
-        const res = await fetch(`${API_BASE_URL}/${id}/reject`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reason })
-        });
-
-        if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.error || 'Từ chối thất bại');
-        }
-
-        return res.json();
+        return apiClient.post<{ success: boolean; message: string }>(`/booking/${id}/reject`, { reason });
     },
 
     cancelBooking: async (id: number, reason?: string): Promise<{ success: boolean; message: string }> => {
-        const res = await fetch(`${API_BASE_URL}/${id}/cancel`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reason })
-        });
-
-        if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.error || 'Hủy thất bại');
-        }
-
-        return res.json();
+        return apiClient.post<{ success: boolean; message: string }>(`/booking/${id}/cancel`, { reason });
     },
 
     resendSMS: async (id: number): Promise<{ success: boolean; message: string }> => {
-        const res = await fetch(`${API_BASE_URL}/${id}/resend-sms`, {
-            method: 'POST'
-        });
-
-        if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.error || 'Gửi SMS thất bại');
-        }
-
-        return res.json();
+        return apiClient.post<{ success: boolean; message: string }>(`/booking/${id}/resend-sms`, {});
     },
 
     // --- THỐNG KÊ ---
     getBookingStatistics: async (filters: { fromDate?: string; toDate?: string }): Promise<BookingStatistics> => {
-        const params = new URLSearchParams();
-        if (filters.fromDate) params.append('fromDate', filters.fromDate);
-        if (filters.toDate) params.append('toDate', filters.toDate);
-
-        const res = await fetch(`${API_BASE_URL}/statistics?${params.toString()}`);
-        if (!res.ok) throw new Error('Không thể tải thống kê');
-        return res.json();
+        return apiClient.get<BookingStatistics>('/booking/statistics', {
+            fromDate: filters.fromDate,
+            toDate: filters.toDate
+        });
     },
 
     initSlots: async (days: number = 30): Promise<{ success: boolean; message: string }> => {
         return apiClient.post(`/schedule/init`, { days });
+    },
+
+    // --- SỐ ẢO (GHOST BOOKINGS) ---
+    /**
+     * Lấy danh sách số ảo: booking status 'O' đã quá ngày hẹn hoặc đăng ký quá lâu chưa duyệt
+     */
+    getGhostBookings: async (params?: {
+        date?: string;
+        deptId?: string;
+        hoursThreshold?: number;
+    }): Promise<{
+        success: boolean;
+        count: number;
+        ghosts: Array<{
+            id: number;
+            patientName: string;
+            phone: string;
+            birthDate: string;
+            bookingDate: string;
+            bookingTime: string;
+            status: string;
+            deptId: string;
+            roomId: number;
+            deptName: string;
+            roomName: string;
+            createdAt: string;
+            ghostType: 'EXPIRED' | 'STALE' | 'RECENT';
+            ageHours: number;
+        }>;
+        message: string;
+    }> => {
+        return apiClient.get<{
+            success: boolean;
+            count: number;
+            ghosts: any[];
+            message: string;
+        }>('/booking/ghost-bookings', {
+            date: params?.date,
+            deptId: params?.deptId,
+            hoursThreshold: params?.hoursThreshold
+        });
+    },
+
+    /**
+     * Hủy số ảo hàng loạt - giải phóng slot về trạng thái sẵn sàng
+     */
+    cancelGhostBookings: async (params: {
+        ids?: number[];
+        reason?: string;
+        deptId?: string;
+        date?: string;
+        hoursThreshold?: number;
+    }): Promise<{
+        success: boolean;
+        cancelled: number;
+        slotsFreed: number;
+        message: string;
+    }> => {
+        return apiClient.post<{
+            success: boolean;
+            cancelled: number;
+            slotsFreed: number;
+            message: string;
+        }>('/booking/cancel-ghost-bookings', params);
     }
 };

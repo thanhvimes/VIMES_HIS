@@ -22,11 +22,28 @@ export interface HealthCheckDocument {
 }
 
 export const healthCheckService = {
-    getDocumentsList: async (): Promise<HealthCheckDocument[]> => {
+    getDocumentsList: async (filters?: { startDate?: string; endDate?: string; barcodePrinted?: string }): Promise<HealthCheckDocument[]> => {
         try {
-            return await apiClient.get<HealthCheckDocument[]>('/health-check-sync/documents');
+            const params = new URLSearchParams();
+            if (filters) {
+                if (filters.startDate) params.append('startDate', filters.startDate);
+                if (filters.endDate) params.append('endDate', filters.endDate);
+                if (filters.barcodePrinted) params.append('barcodePrinted', filters.barcodePrinted);
+            }
+            const queryStr = params.toString() ? `?${params.toString()}` : '';
+            return await apiClient.get<HealthCheckDocument[]>(`/health-check-sync/documents${queryStr}`);
         } catch (error) {
             console.error("Failed to fetch health check documents:", error);
+            throw error;
+        }
+    },
+
+    markBarcodePrinted: async (docIds: string[]): Promise<boolean> => {
+        try {
+            await apiClient.post('/health-check-sync/documents/mark-printed', { docIds });
+            return true;
+        } catch (error) {
+            console.error("Error marking barcode printed:", error);
             throw error;
         }
     },
@@ -58,9 +75,9 @@ export const healthCheckService = {
         }
     },
 
-    seedFromHis: async (): Promise<{ success: boolean; count: number; message: string }> => {
+    seedFromHis: async (filters?: { startDate?: string; endDate?: string; workplaceId?: string }): Promise<{ success: boolean; count: number; message: string }> => {
         try {
-            return await apiClient.post<{ success: boolean; count: number; message: string }>('/health-check-sync/documents/seed-from-his', {});
+            return await apiClient.post<{ success: boolean; count: number; message: string }>('/health-check-sync/documents/seed-from-his', filters || {});
         } catch (error) {
             console.error("Error seeding documents from HIS:", error);
             throw error;
@@ -99,6 +116,15 @@ export const healthCheckService = {
             return await apiClient.get<any>(`/health-check-sync/his-patient/${identifier}`);
         } catch (error) {
             console.error("Error fetching HIS patient data:", error);
+            throw error;
+        }
+    },
+
+    getContracts: async (): Promise<any[]> => {
+        try {
+            return await apiClient.get<any[]>('/health-check-sync/contracts');
+        } catch (error) {
+            console.error("Failed to fetch health check contracts:", error);
             throw error;
         }
     },

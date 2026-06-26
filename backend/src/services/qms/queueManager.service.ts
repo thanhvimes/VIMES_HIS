@@ -254,20 +254,32 @@ export class QueueManagerService {
     }
   }
 
-  static async complete(counterId: string | number, ticketId?: string): Promise<void> {
-    if (ticketId) {
+  static async complete(counterId: string | number, ticketId?: string, docNo?: any, receptNo?: any, deptId?: any): Promise<void> {
+    let targetDocNo = docNo ? parseInt(String(docNo)) : undefined;
+    let targetReceptNo = receptNo ? parseInt(String(receptNo)) : undefined;
+
+    if (ticketId && (!targetDocNo || !targetReceptNo)) {
       const parts = String(ticketId).split('-');
-      const docNo = parseInt(parts[0]);
-      const receptNo = parseInt(parts[1]);
-      if (!isNaN(docNo) && !isNaN(receptNo)) {
+      targetDocNo = parseInt(parts[0]);
+      targetReceptNo = parseInt(parts[1]);
+    }
+
+    if (targetDocNo && targetReceptNo && !isNaN(targetDocNo) && !isNaN(targetReceptNo)) {
+      if (deptId) {
+        await pool.query(`
+          UPDATE hms_exam_pending 
+          SET hep_pending = 'A' 
+          WHERE hep_docno = $1 AND hep_receptno = $2 AND hep_deptid = $3 AND hep_date = CURRENT_DATE
+        `, [targetDocNo, targetReceptNo, deptId]);
+      } else {
         await pool.query(`
           UPDATE hms_exam_pending 
           SET hep_pending = 'A' 
           WHERE hep_docno = $1 AND hep_receptno = $2 AND hep_date = CURRENT_DATE
-        `, [docNo, receptNo]);
-        broadcast({ type: 'QUEUE_UPDATED', counterId }, 'global');
-        return;
+        `, [targetDocNo, targetReceptNo]);
       }
+      broadcast({ type: 'QUEUE_UPDATED', counterId }, 'global');
+      return;
     }
 
     await pool.query(`
@@ -278,16 +290,30 @@ export class QueueManagerService {
     broadcast({ type: 'QUEUE_UPDATED', counterId }, 'global');
   }
 
-  static async skip(ticketId: string): Promise<void> {
-    const parts = String(ticketId).split('-');
-    const docNo = parseInt(parts[0]);
-    const receptNo = parseInt(parts[1]);
-    if (!isNaN(docNo) && !isNaN(receptNo)) {
-      await pool.query(`
-        UPDATE hms_exam_pending 
-        SET hep_pending = 'A' 
-        WHERE hep_docno = $1 AND hep_receptno = $2 AND hep_date = CURRENT_DATE
-      `, [docNo, receptNo]);
+  static async skip(ticketId: string, docNo?: any, receptNo?: any, deptId?: any): Promise<void> {
+    let targetDocNo = docNo ? parseInt(String(docNo)) : undefined;
+    let targetReceptNo = receptNo ? parseInt(String(receptNo)) : undefined;
+
+    if (ticketId && (!targetDocNo || !targetReceptNo)) {
+      const parts = String(ticketId).split('-');
+      targetDocNo = parseInt(parts[0]);
+      targetReceptNo = parseInt(parts[1]);
+    }
+
+    if (targetDocNo && targetReceptNo && !isNaN(targetDocNo) && !isNaN(targetReceptNo)) {
+      if (deptId) {
+        await pool.query(`
+          UPDATE hms_exam_pending 
+          SET hep_pending = 'A' 
+          WHERE hep_docno = $1 AND hep_receptno = $2 AND hep_deptid = $3 AND hep_date = CURRENT_DATE
+        `, [targetDocNo, targetReceptNo, deptId]);
+      } else {
+        await pool.query(`
+          UPDATE hms_exam_pending 
+          SET hep_pending = 'A' 
+          WHERE hep_docno = $1 AND hep_receptno = $2 AND hep_date = CURRENT_DATE
+        `, [targetDocNo, targetReceptNo]);
+      }
     }
     broadcast({ type: 'QUEUE_UPDATED' }, 'global');
   }
@@ -296,32 +322,64 @@ export class QueueManagerService {
     ticketId: string,
     targetRoomId: number | null,
     targetAreaId?: number | null,
-    notes?: string
+    notes?: string,
+    docNo?: any,
+    receptNo?: any,
+    deptId?: any
   ): Promise<void> {
-    const parts = String(ticketId).split('-');
-    const docNo = parseInt(parts[0]);
-    const receptNo = parseInt(parts[1]);
-    if (!isNaN(docNo) && !isNaN(receptNo)) {
-      await pool.query(`
-        UPDATE hms_exam_pending 
-        SET hep_roomid = $1, hep_pending = 'O', hep_callstatus = NULL
-        WHERE hep_docno = $2 AND hep_receptno = $3 AND hep_date = CURRENT_DATE
-      `, [targetRoomId || 0, docNo, receptNo]);
+    let targetDocNo = docNo ? parseInt(String(docNo)) : undefined;
+    let targetReceptNo = receptNo ? parseInt(String(receptNo)) : undefined;
+
+    if (ticketId && (!targetDocNo || !targetReceptNo)) {
+      const parts = String(ticketId).split('-');
+      targetDocNo = parseInt(parts[0]);
+      targetReceptNo = parseInt(parts[1]);
+    }
+
+    if (targetDocNo && targetReceptNo && !isNaN(targetDocNo) && !isNaN(targetReceptNo)) {
+      if (deptId) {
+        await pool.query(`
+          UPDATE hms_exam_pending 
+          SET hep_roomid = $1, hep_pending = 'O', hep_callstatus = NULL
+          WHERE hep_docno = $2 AND hep_receptno = $3 AND hep_deptid = $4 AND hep_date = CURRENT_DATE
+        `, [targetRoomId || 0, targetDocNo, targetReceptNo, deptId]);
+      } else {
+        await pool.query(`
+          UPDATE hms_exam_pending 
+          SET hep_roomid = $1, hep_pending = 'O', hep_callstatus = NULL
+          WHERE hep_docno = $2 AND hep_receptno = $3 AND hep_date = CURRENT_DATE
+        `, [targetRoomId || 0, targetDocNo, targetReceptNo]);
+      }
     }
     broadcast({ type: 'QUEUE_UPDATED' }, 'global');
   }
 
-  static async callAgain(ticketId: string): Promise<any> {
-    const parts = String(ticketId).split('-');
-    const docNo = parseInt(parts[0]);
-    const receptNo = parseInt(parts[1]);
-    if (isNaN(docNo) || isNaN(receptNo)) return null;
+  static async callAgain(ticketId: string, docNo?: any, receptNo?: any, deptId?: any): Promise<any> {
+    let targetDocNo = docNo ? parseInt(String(docNo)) : undefined;
+    let targetReceptNo = receptNo ? parseInt(String(receptNo)) : undefined;
 
-    const info = await pool.query(`
-      SELECT hep_docno, hep_deptid, hep_roomid, hep_receptidx 
-      FROM hms_exam_pending 
-      WHERE hep_docno = $1 AND hep_receptno = $2 AND hep_date = CURRENT_DATE
-    `, [docNo, receptNo]);
+    if (ticketId && (!targetDocNo || !targetReceptNo)) {
+      const parts = String(ticketId).split('-');
+      targetDocNo = parseInt(parts[0]);
+      targetReceptNo = parseInt(parts[1]);
+    }
+
+    if (!targetDocNo || !targetReceptNo || isNaN(targetDocNo) || isNaN(targetReceptNo)) return null;
+
+    let info;
+    if (deptId) {
+      info = await pool.query(`
+        SELECT hep_docno, hep_deptid, hep_roomid, hep_receptidx 
+        FROM hms_exam_pending 
+        WHERE hep_docno = $1 AND hep_receptno = $2 AND hep_deptid = $3 AND hep_date = CURRENT_DATE
+      `, [targetDocNo, targetReceptNo, deptId]);
+    } else {
+      info = await pool.query(`
+        SELECT hep_docno, hep_deptid, hep_roomid, hep_receptidx 
+        FROM hms_exam_pending 
+        WHERE hep_docno = $1 AND hep_receptno = $2 AND hep_date = CURRENT_DATE
+      `, [targetDocNo, targetReceptNo]);
+    }
 
     if (info.rows.length === 0) return null;
     const row = info.rows[0];

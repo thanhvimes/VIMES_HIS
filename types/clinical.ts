@@ -67,6 +67,7 @@ export interface ImagingResult {
 export interface Signature {
     id: string; // Added id property
     signerName: string;
+    signerUsername?: string; // Optional field for tracking logged-in account
     signerTitle: string;
     signedAt: Date;
     dataUrl: string;
@@ -119,6 +120,8 @@ export interface ClinicalRecord {
     treatmentPlan: string;
     endTime?: string;
     vitals?: VitalSigns;
+    he_type?: number;
+    specialtyData?: any;
 }
 
 export interface OperationRecord {

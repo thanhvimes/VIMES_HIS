@@ -1,9 +1,13 @@
 // ==================== PRINTABLE FORM VIEW ====================
 // File: modules/health-check-sync/forms/PrintForm.tsx
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useSystemStore } from '../../../stores/useSystemStore';
+import html2canvas from 'html2canvas-pro';
+import jsPDF from 'jspdf';
+import PdfPreviewModal from '../../../components/ui/PdfPreviewModal';
+import { useSession } from '../../../contexts/SessionContext';
 
 interface PrintFormProps {
     document: any;
@@ -12,29 +16,191 @@ interface PrintFormProps {
 
 const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
     const { hospitalName, parentOrg, fetchBrandingSettings, brandingLoaded } = useSystemStore();
+    const { user } = useSession();
+    const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+    const [isGenerating, setIsGenerating] = useState(true);
+    const [progress, setProgress] = useState(0);
+    const [signatures, setSignatures] = useState<any[]>([]);
+    const [htmlFallback, setHtmlFallback] = useState(false);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     // Create portal container directly under document.body to avoid parent layout overflow hidden constraints
-    const [portalContainer] = React.useState(() => {
+    const [portalContainer] = useState(() => {
         const div = window.document.createElement('div');
         div.className = 'print-portal-container';
         return div;
     });
 
-    React.useEffect(() => {
+    useEffect(() => {
         window.document.body.appendChild(portalContainer);
         return () => {
             window.document.body.removeChild(portalContainer);
         };
     }, [portalContainer]);
 
-    React.useEffect(() => {
+    useEffect(() => {
+        if (htmlFallback) {
+            portalContainer.classList.add('html-preview-active');
+        } else {
+            portalContainer.classList.remove('html-preview-active');
+        }
+    }, [htmlFallback, portalContainer]);
+
+    useEffect(() => {
         if (!brandingLoaded) {
             fetchBrandingSettings();
         }
     }, [brandingLoaded, fetchBrandingSettings]);
 
-    const handlePrint = () => {
-        window.print();
+    const activeRef = useRef(true);
+
+    useEffect(() => {
+        activeRef.current = true;
+        const timer = setTimeout(() => {
+            if (activeRef.current) {
+                generatePdf();
+            }
+        }, 600);
+
+        return () => {
+            activeRef.current = false;
+            clearTimeout(timer);
+            if (pdfUrl) {
+                URL.revokeObjectURL(pdfUrl);
+            }
+        };
+    }, []);
+
+    const generatePdf = async () => {
+        if (!containerRef.current) {
+            console.error("containerRef is null!");
+            if (activeRef.current) {
+                setIsGenerating(false);
+                setHtmlFallback(true);
+            }
+            return;
+        }
+        
+        let originalFonts: any = null;
+        try {
+            if (window.document && (window.document as any).fonts) {
+                originalFonts = (window.document as any).fonts;
+                const mockFonts = Object.create(Object.getPrototypeOf(originalFonts));
+                Object.defineProperty(mockFonts, 'ready', {
+                    get: () => Promise.resolve(),
+                    configurable: true
+                });
+                
+                // Copy properties
+                for (const key in originalFonts) {
+                    try {
+                        if (typeof originalFonts[key] === 'function') {
+                            mockFonts[key] = originalFonts[key].bind(originalFonts);
+                        } else if (key !== 'ready') {
+                            Object.defineProperty(mockFonts, key, {
+                                get: () => originalFonts[key],
+                                configurable: true
+                            });
+                        }
+                    } catch (e) {}
+                }
+
+                Object.defineProperty(window.document, 'fonts', {
+                    value: mockFonts,
+                    configurable: true,
+                    writable: true
+                });
+            }
+        } catch (e) {
+            console.warn("Failed to mock document.fonts:", e);
+        }
+        
+        try {
+            console.log("Starting PDF generation with fallback timeout...");
+            
+            // Define the rendering logic wrapped in a promise
+            const renderingPromise = (async () => {
+                const pages = containerRef.current!.querySelectorAll('.a4-page');
+                console.log("Found pages:", pages.length);
+                if (pages.length === 0) {
+                    throw new Error("No A4 pages found for PDF generation");
+                }
+
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const total = pages.length;
+
+                for (let i = 0; i < total; i++) {
+                    if (!activeRef.current) return null;
+                    setProgress(Math.round((i / total) * 100));
+                    
+                    const page = pages[i];
+                    console.log(`Rendering page ${i + 1}/${total}...`);
+                    
+                    // Promise.race to ensure each page render doesn't hang more than 4 seconds
+                    const canvas = await Promise.race([
+                        html2canvas(page as HTMLElement, {
+                            scale: 1.5,
+                            useCORS: true,
+                            logging: true,
+                            allowTaint: true,
+                            backgroundColor: '#ffffff'
+                        }),
+                        new Promise<never>((_, reject) => 
+                            setTimeout(() => reject(new Error(`Timeout rendering page ${i + 1}`)), 4000)
+                        )
+                    ]);
+                    
+                    if (!activeRef.current) return null;
+                    const imgData = canvas.toDataURL('image/jpeg', 0.90);
+                    console.log(`Page ${i + 1} rendered, imgData size:`, imgData.length);
+                    if (i > 0) {
+                        pdf.addPage();
+                    }
+                    pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+                }
+
+                if (!activeRef.current) return null;
+                setProgress(100);
+                console.log("PDF pages combined, outputting blob...");
+                const pdfBlob = pdf.output('blob');
+                return URL.createObjectURL(pdfBlob);
+            })();
+
+            // Race the entire rendering process against a 10-second timeout
+            const url = await Promise.race([
+                renderingPromise,
+                new Promise<null>((_, reject) => 
+                    setTimeout(() => reject(new Error("Timeout generating PDF")), 10000)
+                )
+            ]);
+
+            if (!activeRef.current) return;
+            if (url) {
+                setPdfUrl(url);
+                setIsGenerating(false);
+            } else {
+                setHtmlFallback(true);
+                setIsGenerating(false);
+            }
+        } catch (err: any) {
+            console.error("Error generating PDF:", err);
+            if (activeRef.current) {
+                setErrorMsg(err?.message || "Lỗi khởi tạo PDF");
+                setHtmlFallback(true);
+                setIsGenerating(false);
+            }
+        } finally {
+            if (originalFonts) {
+                try {
+                    Object.defineProperty(window.document, 'fonts', {
+                        value: originalFonts,
+                        configurable: true,
+                        writable: true
+                    });
+                } catch (e) {}
+            }
+        }
     };
 
     if (!document) return null;
@@ -120,6 +286,28 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
     };
 
     const getDoctor = (specialty: string) => {
+        const metadataMap: Record<string, string> = {
+            tuan_hoan: 'internal',
+            ho_hap: 'internal',
+            tieu_hoa: 'internal',
+            than_tiet_nieu: 'internal',
+            noi_tiet: 'internal',
+            co_xuong_khop: 'internal',
+            than_kinh: 'internal',
+            tam_than: 'internal',
+            ngoai_khoa: 'surgery',
+            da_lieu: 'dermatology',
+            san_phu_khoa: 'gynecology',
+            mat: 'eye',
+            tai_mui_hong: 'ent',
+            rang_ham_mat: 'dental',
+        };
+        
+        const metaKey = metadataMap[specialty];
+        if (metaKey && clinicalExam.specialty_metadata?.[metaKey]?.doctorName) {
+            return clinicalExam.specialty_metadata[metaKey].doctorName;
+        }
+
         if (clinicalExam[`doctor_${specialty}`]) return clinicalExam[`doctor_${specialty}`];
         if (clinicalExam.doctor_name) return clinicalExam.doctor_name;
         if (['ngoai_khoa', 'da_lieu', 'tai_mui_hong', 'rang_ham_mat'].includes(specialty)) {
@@ -198,6 +386,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
     const isKinhKhongDeu = tinhChatKinh === '0';
     const isDauBungKinh = extra.dau_bung_kinh === '1';
     const isKhongDauBungKinh = extra.dau_bung_kinh === '0' || !extra.dau_bung_kinh;
+
     const isLapGiaDinh = extra.da_lap_gia_dinh === '1';
     const isChuaLapGiaDinh = extra.da_lap_gia_dinh === '0' || !extra.da_lap_gia_dinh;
     const isMoSan = extra.da_tung_mo_san_phu_khoa_chua === '1';
@@ -219,118 +408,245 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
     const xnItemsPage4 = xnItems.slice(5);
 
     return createPortal(
-        <div className="print-wrapper fixed inset-0 bg-slate-100 dark:bg-slate-900 z-50 overflow-auto py-8 px-4 print:p-0 print:bg-white select-text font-serif">
-            <style>{`
-                @media screen {
+        <>
+            {/* 1. Loader screen when generating PDF */}
+            {isGenerating && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex flex-col justify-center items-center text-white">
+                    <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-2xl flex flex-col items-center space-y-4 max-w-sm w-full mx-4">
+                        <div className="w-12 h-12 rounded-full border-4 border-teal-500 border-t-transparent animate-spin"></div>
+                        <div className="text-center font-sans">
+                            <span className="font-bold text-sm block">Đang khởi tạo bản in PDF</span>
+                            <span className="text-xs text-slate-400 mt-1 block">Vui lòng chờ giây lát ({progress}%)</span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 2. PDF Viewer Modal once generated */}
+            {!isGenerating && pdfUrl && (
+                <PdfPreviewModal
+                    isOpen={true}
+                    onClose={onClose}
+                    pdfUrl={pdfUrl}
+                    fileName={`KSK_DinhKy_${document.doc_no || document.patient_name}.pdf`}
+                    isSignable={true}
+                    signatures={signatures}
+                    onSign={(signatureDataUrl, placement, signerName, signerTitle) => {
+                        const newSig = {
+                            id: Math.random().toString(),
+                            signerName: signerName || user?.fullName || document.conclusion_data?.doctor_name || 'Người dùng',
+                            signerUsername: user?.username || '',
+                            signerTitle: signerTitle || (user as any)?.title || 'Nhân viên y tế',
+                            signedAt: new Date(),
+                            dataUrl: signatureDataUrl,
+                            placement
+                        };
+                        setSignatures(prev => [...prev, newSig]);
+                    }}
+                    onDeleteSignature={(index) => {
+                        setSignatures(prev => prev.filter((_, i) => i !== index));
+                    }}
+                    onSubmit={() => {
+                        alert('Trình ký hồ sơ khám sức khỏe thành công!');
+                    }}
+                />
+            )}
+
+            {/* 2.5. HTML Print Fallback Header (Only visible when htmlFallback is true) */}
+            {htmlFallback && (
+                <div className="fixed top-0 left-0 right-0 h-16 bg-slate-900 text-white flex items-center justify-between px-6 shadow-lg z-[999] no-print font-sans">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-amber-500/20 border border-amber-500/30 rounded-lg text-amber-400 text-xs">
+                            <span className="font-bold">Chế độ in HTML dự phòng</span> (Không thể nạp trình xem PDF)
+                        </div>
+                        {errorMsg && (
+                            <span className="text-xs text-slate-400 italic max-w-xs truncate" title={errorMsg}>
+                                Chi tiết: {errorMsg}
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => window.print()}
+                            className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg shadow transition cursor-pointer text-sm"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                            </svg>
+                            <span>In biểu mẫu (Ctrl + P)</span>
+                        </button>
+                        <button
+                            onClick={onClose}
+                            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 rounded-lg transition cursor-pointer text-sm font-semibold"
+                        >
+                            Quay lại
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* 3. Offscreen container for HTML render and PDF capture (or visible preview on fallback) */}
+            <div 
+                ref={containerRef}
+                style={htmlFallback ? {
+                    position: 'relative',
+                    width: '210mm',
+                    margin: '64px auto 0 auto',
+                    background: '#f8fafc',
+                    padding: '24px 0',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '24px',
+                    zIndex: 10,
+                    opacity: 1,
+                    pointerEvents: 'auto'
+                } : {
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '210mm',
+                    height: '1px',
+                    overflow: 'hidden',
+                    opacity: 0.01,
+                    zIndex: -9999,
+                    pointerEvents: 'none'
+                }}
+                className={`a4-page-content font-serif select-text ${htmlFallback ? 'html-preview-mode' : ''}`}
+            >
+                <style>{`
+                    /* Override modern oklch variables at the container scope for html2canvas compatibility */
+                    .a4-page-content, .a4-page-content * {
+                        --color-black: #000000 !important;
+                        --color-white: #ffffff !important;
+                        --color-slate-50: #f8fafc !important;
+                        --color-slate-100: #f1f5f9 !important;
+                        --color-slate-200: #e2e8f0 !important;
+                        --color-slate-300: #cbd5e1 !important;
+                        --color-slate-400: #94a3b8 !important;
+                        --color-slate-500: #64748b !important;
+                        --color-slate-600: #475569 !important;
+                        --color-slate-700: #334155 !important;
+                        --color-slate-800: #1e293b !important;
+                        --color-slate-900: #0f172a !important;
+                        --color-teal-50: #f0fdfa !important;
+                        --color-teal-100: #ccfbf1 !important;
+                        --color-teal-200: #99f6e4 !important;
+                        --color-teal-300: #5eead4 !important;
+                        --color-teal-400: #2dd4bf !important;
+                        --color-teal-500: #14b8a6 !important;
+                        --color-teal-600: #0d9488 !important;
+                        --color-teal-700: #0f766e !important;
+                        --color-teal-800: #115e59 !important;
+                        --color-teal-900: #134e4a !important;
+                        --color-green-50: #f0fdf4 !important;
+                        --color-green-100: #dcfce7 !important;
+                        --color-green-200: #bbf7d0 !important;
+                        --color-green-300: #86efac !important;
+                        --color-green-400: #4ade80 !important;
+                        --color-green-500: #22c55e !important;
+                        --color-green-600: #16a34a !important;
+                        --color-green-700: #15803d !important;
+                        --color-green-800: #166534 !important;
+                        --color-green-900: #14532d !important;
+                        --color-purple-50: #faf5ff !important;
+                        --color-purple-100: #f3e8ff !important;
+                        --color-purple-200: #e9d5ff !important;
+                        --color-purple-300: #d8b4fe !important;
+                        --color-purple-400: #c084fc !important;
+                        --color-purple-500: #a855f7 !important;
+                        --color-purple-600: #9333ea !important;
+                        --color-purple-700: #7e22ce !important;
+                        --color-purple-800: #6b21a8 !important;
+                        --color-purple-900: #581c87 !important;
+                    }
+
                     .a4-page {
                         width: 210mm;
                         height: 297mm;
                         padding: 15mm 15mm 15mm 20mm;
-                        margin: 0 auto 2rem auto;
                         background: white;
                         color: black;
-                        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
-                        border-radius: 4px;
                         position: relative;
                         box-sizing: border-box;
+                        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
                     }
-                }
-                @media print {
-                    #root {
-                        display: none !important;
+                    .a4-page-content {
+                        font-family: "Times New Roman", Times, serif !important;
+                        line-height: 1.4;
+                        font-size: 13.5px;
+                        color: black;
                     }
-                    @page {
-                        size: A4;
-                        margin: 0;
+                    .a4-table {
+                        border-collapse: collapse;
+                        width: 100%;
                     }
-                    body {
-                        background-color: white !important;
-                        background: white !important;
-                        color: black !important;
-                        -webkit-print-color-adjust: exact;
-                        print-color-adjust: exact;
+                    .a4-table th, .a4-table td {
+                        border: 1px solid black !important;
+                        padding: 4px 6px;
                     }
-                    .print-portal-container {
-                        display: block !important;
-                        position: static !important;
-                        overflow: visible !important;
-                        height: auto !important;
-                        width: 100% !important;
-                        background: white !important;
-                        padding: 0 !important;
-                        margin: 0 !important;
-                    }
-                    .print-wrapper {
-                        position: static !important;
-                        overflow: visible !important;
-                        height: auto !important;
-                        width: 100% !important;
-                        padding: 0 !important;
-                        margin: 0 !important;
-                        background: white !important;
-                    }
-                    .a4-page {
-                        width: 210mm !important;
-                        height: 297mm !important;
-                        padding: 15mm 15mm 15mm 20mm !important;
-                        margin: 0 !important;
-                        box-shadow: none !important;
-                        background: transparent !important;
-                        page-break-after: always !important;
-                        break-after: page !important;
-                        position: relative !important;
-                        box-sizing: border-box !important;
-                    }
-                    .no-print {
-                        display: none !important;
-                    }
-                    * {
-                        scrollbar-width: none !important;
-                    }
-                    *::-webkit-scrollbar {
-                        display: none !important;
-                    }
-                }
-                .a4-page-content {
-                    font-family: "Times New Roman", Times, serif !important;
-                    line-height: 1.4;
-                    font-size: 13.5px;
-                    color: black;
-                    text-rendering: optimizeLegibility !important;
-                    -webkit-font-smoothing: antialiased !important;
-                }
-                .a4-page-content, 
-                .a4-page-content * {
-                    font-family: "Times New Roman", Times, serif !important;
-                }
-                .a4-table {
-                    border-collapse: collapse;
-                    width: 100%;
-                }
-                .a4-table th, .a4-table td {
-                    border: 1px solid black !important;
-                    padding: 4px 6px;
-                }
-            `}</style>
-            
-            {/* Control Panel (Hidden during printing) */}
-            <div className="mb-6 max-w-[210mm] mx-auto p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex justify-between items-center print:hidden no-print shadow-sm font-sans">
-                <div>
-                    <span className="text-sm font-sans font-bold text-slate-800 dark:text-white block">Xem trước bản in KSK Định kỳ (4 trang A4)</span>
-                    <span className="text-xs font-sans text-slate-500 dark:text-slate-400">Đã thiết kế chuẩn kích thước, khoảng cách và phông chữ theo QĐ 1551/QĐ-BYT Bộ Y Tế.</span>
-                </div>
-                <div className="flex gap-2">
-                    <button onClick={onClose} className="px-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-sm font-bold rounded-lg text-slate-700 dark:text-slate-200 font-sans transition">
-                        Quay lại
-                    </button>
-                    <button onClick={handlePrint} className="px-6 py-2 bg-[#0f766e] hover:bg-[#0d645c] text-white text-sm font-bold rounded-lg shadow-md hover:shadow-lg transition font-sans">
-                        In biểu mẫu
-                    </button>
-                </div>
-            </div>
 
-            {/* A4 Content Container */}
-            <div className="a4-page-content select-text">
+                    /* Dynamic print portal fixed positioning on screen */
+                    .print-portal-container.html-preview-active {
+                        position: fixed !important;
+                        top: 0 !important;
+                        left: 0 !important;
+                        width: 100vw !important;
+                        height: 100vh !important;
+                        z-index: 99999 !important;
+                        background: #cbd5e1 !important;
+                        overflow-y: auto !important;
+                    }
+                    
+                    @media print {
+                        /* Hide everything else */
+                        body {
+                            background: white !important;
+                            color: black !important;
+                        }
+                        #root, .fixed, .absolute:not(.print-portal-container *), .no-print {
+                            display: none !important;
+                            height: 0 !important;
+                            padding: 0 !important;
+                            margin: 0 !important;
+                        }
+                        .print-portal-container, .print-portal-container.html-preview-active {
+                            display: block !important;
+                            position: absolute !important;
+                            left: 0 !important;
+                            top: 0 !important;
+                            width: 210mm !important;
+                            height: auto !important;
+                            margin: 0 !important;
+                            padding: 0 !important;
+                            background: white !important;
+                            overflow-y: visible !important;
+                            z-index: auto !important;
+                        }
+                        .a4-page-content {
+                            position: static !important;
+                            width: 210mm !important;
+                            height: auto !important;
+                            margin: 0 !important;
+                            padding: 0 !important;
+                            background: white !important;
+                            display: block !important;
+                            opacity: 1 !important;
+                            z-index: auto !important;
+                        }
+                        .a4-page {
+                            width: 210mm !important;
+                            height: 297mm !important;
+                            padding: 15mm 15mm 15mm 20mm !important;
+                            margin: 0 !important;
+                            box-shadow: none !important;
+                            page-break-after: always !important;
+                            break-after: page !important;
+                            position: relative !important;
+                            background: white !important;
+                        }
+                    }
+                `}</style>
                 
                 {/* ==================== PAGE 1 ==================== */}
                 <div className="a4-page">
@@ -991,7 +1307,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                 </div>
 
             </div>
-        </div>,
+        </>,
         portalContainer
     );
 };

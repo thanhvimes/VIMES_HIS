@@ -1,9 +1,7 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { ScanBarcode, Camera, Printer as PrinterIcon, Loader2, CheckCircle, AlertCircle, CreditCard, FileCode, Upload, RotateCcw, Eye, Usb, RefreshCw, ShieldCheck, Receipt, StickyNote, Terminal, Type, Hash, Zap } from 'lucide-react';
+import { ScanBarcode, Camera, Printer as PrinterIcon, Loader2, CheckCircle, AlertCircle, CreditCard, Eye, Usb, RefreshCw, ShieldCheck, Receipt, StickyNote, Terminal, Type, Hash, Zap } from 'lucide-react';
 import { AppSettings, PrinterConfig, ScanInputMode } from '../../types';
-import { printTicket, DEFAULT_HTML_TEMPLATE } from '../../services/printerService';
-import { DEFAULT_IMAGE_TEMPLATE } from '../../services/ticketTemplate';
+import { printTicket } from '../../services/printerService';
 import { Capacitor } from '@capacitor/core';
 
 interface DeviceTabProps {
@@ -14,7 +12,6 @@ interface DeviceTabProps {
 const DeviceTab: React.FC<DeviceTabProps> = ({ settings, onUpdate }) => {
     const [isTestingPrinter, setIsTestingPrinter] = useState(false);
     const [printerStatus, setPrinterStatus] = useState<'idle' | 'success' | 'error'>('idle');
-    const [showTemplateEditor, setShowTemplateEditor] = useState(false);
 
     // Test Logs
     const [testLogs, setTestLogs] = useState<string[]>([]);
@@ -23,8 +20,6 @@ const DeviceTab: React.FC<DeviceTabProps> = ({ settings, onUpdate }) => {
     // USB Printer State
     const [usbPrinters, setUsbPrinters] = useState<any[]>([]);
     const [isScanningUsb, setIsScanningUsb] = useState(false);
-
-    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Auto-scroll logs
     useEffect(() => {
@@ -79,29 +74,7 @@ const DeviceTab: React.FC<DeviceTabProps> = ({ settings, onUpdate }) => {
         }
     };
 
-    const handleImportTemplate = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const content = event.target?.result as string;
-            if (content) {
-                updatePrinterConfig({ printTemplate: content });
-                alert('Đã nhập mẫu in thành công!');
-            }
-        };
-        reader.readAsText(file);
-    };
-
-    const handleResetTemplate = () => {
-        if (window.confirm('Hành động này sẽ ghi đè mẫu in hiện tại bằng mẫu mặc định. Bạn có chắc chắn không?')) {
-            const defaultTemplate = settings.printerConfig.printMode === 'IMAGE'
-                ? DEFAULT_IMAGE_TEMPLATE
-                : DEFAULT_HTML_TEMPLATE;
-            updatePrinterConfig({ printTemplate: defaultTemplate });
-        }
-    };
 
     // Import Printer dynamically or assume it's available globally via Capacitor if registered?
     // Better to use the dynamic import or the one I added in existing button.
@@ -574,46 +547,7 @@ const DeviceTab: React.FC<DeviceTabProps> = ({ settings, onUpdate }) => {
                                 </div>
                             )}
 
-                            <div className="col-span-2 border border-gray-200 rounded-xl overflow-hidden bg-gray-50">
-                                <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
-                                    <button onClick={() => setShowTemplateEditor(!showTemplateEditor)} className="flex items-center gap-2 font-bold text-gray-700 hover:text-emerald-600">
-                                        <FileCode size={20} /> {showTemplateEditor ? 'Ẩn Template Editor' : 'Chỉnh sửa Template'}
-                                    </button>
-                                    <div className="flex gap-2">
-                                        <input type="file" ref={fileInputRef} className="hidden" accept=".html,.txt,.tspl" onChange={handleImportTemplate} />
-                                        <button onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg" title="Nhập File"><Upload size={18} /></button>
-                                        <button onClick={handleResetTemplate} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg" title="Reset Mặc định"><RotateCcw size={18} /></button>
-                                    </div>
-                                </div>
 
-                                {showTemplateEditor && (
-                                    <div className="p-4 animate-fade-in">
-                                        <div className="mb-2 p-3 bg-yellow-50 text-yellow-800 text-xs rounded-xl border border-yellow-100 flex flex-wrap gap-x-4 gap-y-2">
-                                            <div className="w-full font-bold mb-1">Từ khóa động (Placeholders):</div>
-                                            <code>{`{{hospitalName}}`}</code>
-                                            <code>{`{{ticketNumber}}`}</code>
-                                            <code>{`{{patientName}}`}</code>
-                                            <code>{`{{patientId}}`}</code>
-                                            <code>{`{{department}}`}</code>
-                                            <code>{`{{time}}`}</code>
-                                            <code>{`{{dob}}`}</code>
-                                            <code>{`{{gender}}`}</code>
-                                            <code>{`{{address}}`}</code>
-                                            <code>{`{{barcode}}`}</code>
-                                        </div>
-                                        <textarea
-                                            className="w-full h-80 p-4 font-mono text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none leading-relaxed"
-                                            value={settings.printerConfig.printTemplate || (settings.printerConfig.printMode === 'IMAGE' ? DEFAULT_IMAGE_TEMPLATE : DEFAULT_HTML_TEMPLATE)}
-                                            onChange={e => updatePrinterConfig({ printTemplate: e.target.value })}
-                                            placeholder="Nhập mã lệnh in tại đây..."
-                                            spellCheck={false}
-                                        />
-                                        <p className="mt-2 text-[10px] text-gray-400 italic">
-                                            * Chế độ Hình ảnh hỗ trợ HTML/CSS đầy đủ. Chế độ Văn bản chỉ hỗ trợ lệnh ESC/POS.
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
                         </div>
 
                         <div className="bg-gray-900 rounded-xl p-4 font-mono text-xs overflow-hidden">

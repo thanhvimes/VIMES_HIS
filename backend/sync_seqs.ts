@@ -17,6 +17,9 @@ async function sync() {
         // hms_exam receptidx
         await query(`SELECT setval('hms_exam_he_receptidx_asq', COALESCE((SELECT MAX(he_receptidx) FROM hms_exam), 0) + 1, false)`);
         
+        // qms_patient qms_idx_asq
+        await query(`SELECT setval('qms_idx_asq', COALESCE((SELECT MAX(qms_idx) FROM qms_patient), 0) + 1, false)`);
+        
         console.log("Success: Sequences synced.");
         process.exit(0);
     } catch (e: any) {

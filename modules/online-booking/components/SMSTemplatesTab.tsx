@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Setting } from '../../../services/settingsService';
 import { useSession } from '../../../contexts/SessionContext';
 import { smsTemplateService, SMSTemplate } from '../../../services/smsTemplateService';
+import { bookingService, LocationItem } from '../../../services/bookingService';
 
 interface Props {
     settings: Setting[];
@@ -10,12 +11,14 @@ interface Props {
 }
 
 const SMSTemplatesTab: React.FC<Props> = ({ settings }) => {
-    const { user } = useSession();
+    const { userInfo } = useSession();
     const [templates, setTemplates] = useState<Record<string, SMSTemplate>>({});
     const [selectedTemplate, setSelectedTemplate] = useState<string>('');
     const [patientType, setPatientType] = useState<string>('ALL'); // 'ALL', 'DV', 'BH'
     const [loading, setLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [departments, setDepartments] = useState<LocationItem[]>([]);
+    const [selectedDept, setSelectedDept] = useState<string>('ALL');
     const [previewData, setPreviewData] = useState({
         patientName: 'Nguyễn Văn A',
         date: '25/01/2026',
@@ -31,15 +34,37 @@ const SMSTemplatesTab: React.FC<Props> = ({ settings }) => {
         roomName: 'Phòng 237 - Khám nội'
     });
 
-    // Load templates from backend based on patient type
+    // Fetch departments on mount
+    useEffect(() => {
+        const loadDepartments = async () => {
+            try {
+                const data = await bookingService.getDepartments();
+                setDepartments(data);
+            } catch (error) {
+                console.error('Error fetching departments:', error);
+            }
+        };
+        loadDepartments();
+    }, []);
+
+    // Set default department from logged in user (userInfo.deptId)
+    useEffect(() => {
+        if (userInfo?.deptId) {
+            setSelectedDept(userInfo.deptId);
+        } else if (departments.length > 0) {
+            setSelectedDept('ALL');
+        }
+    }, [userInfo, departments]);
+
+    // Load templates from backend based on patient type and department
     useEffect(() => {
         loadTemplates();
-    }, [patientType, user?.deptCode]);
+    }, [patientType, selectedDept]);
 
     const loadTemplates = async () => {
         try {
             setLoading(true);
-            const deptCode = user?.deptCode || null;
+            const deptCode = selectedDept === 'ALL' ? null : selectedDept;
             const pType = patientType === 'ALL' ? null : patientType;
 
             // Load EFFECTIVE templates for this dept/patient type combination
@@ -158,7 +183,7 @@ const SMSTemplatesTab: React.FC<Props> = ({ settings }) => {
     const handleSave = async () => {
         try {
             setIsSaving(true);
-            const deptCode = user?.deptCode || null;
+            const deptCode = selectedDept === 'ALL' ? null : selectedDept;
             const pType = patientType === 'ALL' ? null : patientType;
 
             // Save or update each template
@@ -220,27 +245,46 @@ const SMSTemplatesTab: React.FC<Props> = ({ settings }) => {
                 <p className="text-slate-600">Tùy chỉnh nội dung tin nhắn SMS gửi cho bệnh nhân</p>
             </div>
 
-            {/* Patient Type Selector */}
+            {/* Context Selector (Department and Patient Type) */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center gap-4">
-                    <label className="text-sm font-semibold text-blue-900">Đối tượng bệnh nhân:</label>
-                    <select
-                        value={patientType}
-                        onChange={(e) => setPatientType(e.target.value)}
-                        className="px-4 py-2 border border-blue-300 rounded-lg bg-white text-sm font-medium focus:ring-2 focus:ring-blue-500"
-                    >
-                        <option value="ALL">Tất cả đối tượng</option>
-                        <option value="DV">Dịch vụ</option>
-                        <option value="BH">Bảo hiểm</option>
-                    </select>
-                    {user?.deptCode && (
-                        <span className="text-sm text-blue-700">
-                            📍 Khoa: <strong>{user.deptCode}</strong>
+                <div className="flex flex-wrap items-center gap-6">
+                    <div className="flex items-center gap-3">
+                        <label className="text-sm font-semibold text-blue-900 whitespace-nowrap">Khoa điều trị:</label>
+                        <select
+                            value={selectedDept}
+                            onChange={(e) => setSelectedDept(e.target.value)}
+                            className="px-4 py-2 border border-blue-300 rounded-lg bg-white text-sm font-medium focus:ring-2 focus:ring-blue-500 min-w-[200px]"
+                        >
+                            <option value="ALL">Tất cả khoa (Mặc định)</option>
+                            {departments.map((dept) => (
+                                <option key={dept.id} value={dept.id}>
+                                    [{dept.id}] {dept.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <label className="text-sm font-semibold text-blue-900 whitespace-nowrap">Đối tượng bệnh nhân:</label>
+                        <select
+                            value={patientType}
+                            onChange={(e) => setPatientType(e.target.value)}
+                            className="px-4 py-2 border border-blue-300 rounded-lg bg-white text-sm font-medium focus:ring-2 focus:ring-blue-500 min-w-[150px]"
+                        >
+                            <option value="ALL">Tất cả đối tượng</option>
+                            <option value="DV">Dịch vụ</option>
+                            <option value="BH">Bảo hiểm</option>
+                        </select>
+                    </div>
+
+                    {userInfo?.deptId && (
+                        <span className="text-sm text-blue-700 font-medium">
+                            📍 Khoa làm việc: <strong>{userInfo.deptId}</strong>
                         </span>
                     )}
                 </div>
                 <p className="text-xs text-blue-600 mt-2">
-                    💡 Template sẽ được lưu theo khoa <strong>{user?.deptCode || 'hiện tại'}</strong> và đối tượng đã chọn
+                    💡 Template sẽ được lưu theo khoa <strong>{selectedDept === 'ALL' ? 'mặc định' : selectedDept}</strong> và đối tượng đã chọn
                 </p>
             </div>
 

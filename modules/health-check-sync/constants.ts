@@ -47,11 +47,18 @@ export const HEALTH_CHECK_NAV_ITEMS: NavItemType[] = [
         iconName: 'CloudUploadIcon'
     },
     {
-        name: 'Cấu hình thiết lập',
-        path: '/health-check?step=settings',
-        section: 'QUY TRÌNH LIÊN THÔNG',
-        icon: React.createElement(AdjustmentsHorizontalIcon, { className: "w-5 h-5" }),
-        iconName: 'AdjustmentsHorizontalIcon'
+        name: 'Cấu hình VNeID',
+        path: '/health-check?step=settings-vneid',
+        section: 'CẤU HÌNH THIẾT LẬP',
+        icon: React.createElement(CloudUploadIcon, { className: "w-5 h-5" }),
+        iconName: 'CloudUploadIcon'
+    },
+    {
+        name: 'Cấu hình in Barcode',
+        path: '/health-check?step=settings-barcode',
+        section: 'CẤU HÌNH THIẾT LẬP',
+        icon: React.createElement(PrinterIcon, { className: "w-5 h-5" }),
+        iconName: 'PrinterIcon'
     }
 ];
 

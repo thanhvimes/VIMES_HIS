@@ -20,6 +20,12 @@ interface SurgeryWaitingRoomProps {
 }
 
 const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, settings }) => {
+  const theme = settings?.customTheme || {
+    bg: '#f8fafc',
+    headerBg: '#2e408a',
+    text: '#ffffff',
+    accent: '#2e408a'
+  };
   const [currentTime, setCurrentTime] = useState(new Date());
   const [patients, setPatients] = useState<Patient[]>([]);
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
@@ -232,7 +238,10 @@ const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, setting
   const page = patients.slice(currentPage * itemsPerPage, currentPage * itemsPerPage + itemsPerPage);
 
   return (
-    <div className="fixed inset-0 z-[100] bg-slate-50 text-slate-800 flex flex-col overflow-hidden font-sans">
+    <div 
+      className="fixed inset-0 z-[100] text-slate-800 flex flex-col overflow-hidden font-sans"
+      style={{ backgroundColor: theme.bg }}
+    >
       
       <style dangerouslySetInnerHTML={{ __html: `
         @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap');
@@ -261,7 +270,10 @@ const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, setting
       `}} />
 
       {/* Header */}
-      <div className="px-8 py-4 bg-[#1E3B8B] flex justify-between items-center shadow-md relative z-10">
+      <div 
+        className="px-8 py-4 flex justify-between items-center shadow-md relative z-10"
+        style={{ backgroundColor: theme.headerBg }}
+      >
         <div className="flex items-center gap-6">
           <button
             onClick={onBack}
@@ -278,7 +290,7 @@ const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, setting
             <h1 className="text-3xl font-black uppercase tracking-wider text-white">
               {settings.hospitalName || 'BỆNH VIỆN ĐA KHOA VIMES'}
             </h1>
-            <p className="text-lg text-slate-300 mt-0.5 font-bold tracking-wide flex items-center gap-2">
+            <p className="text-lg text-slate-300 mt-0.5 font-bold tracking-wide flex items-center gap-2" style={{ color: `${theme.text}b3` }}>
               <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
               KHU VỰC PHÒNG MỔ &bull; BẢNG TRẠNG THÁI NGƯỜI BỆNH
             </p>
@@ -320,10 +332,10 @@ const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, setting
           </button>
 
           <div className="text-right border-l border-white/20 pl-6">
-            <div className="text-4xl font-mono font-bold text-white tracking-wide">
+            <div className="text-4xl font-mono font-bold text-white tracking-wide" style={{ color: theme.text }}>
               {currentTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </div>
-            <div className="text-sm font-semibold text-slate-300 uppercase tracking-widest mt-1">
+            <div className="text-sm font-semibold uppercase tracking-widest mt-1" style={{ color: `${theme.text}b3` }}>
               {currentTime.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
             </div>
           </div>
@@ -355,7 +367,8 @@ const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, setting
               alignItems: 'center',
               padding: '0 24px 16px 24px',
               borderBottom: '2px solid #F1F5F9',
-            }} className="text-2xl font-black text-[#1E3B8B] uppercase tracking-wider mb-6">
+              color: theme.accent
+            }} className="text-2xl font-black uppercase tracking-wider mb-6">
               <div>Họ và tên người bệnh</div>
               <div className="text-center">Năm sinh</div>
               <div className="text-center">Phòng thực hiện</div>
@@ -401,7 +414,7 @@ const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, setting
                       </div>
 
                       {/* Room */}
-                      <div className="text-3xl font-extrabold text-[#2e408a] text-center uppercase tracking-wide">
+                      <div className="text-3xl font-extrabold text-center uppercase tracking-wide" style={{ color: theme.accent }}>
                         {p.room}
                       </div>
 
@@ -445,7 +458,11 @@ const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, setting
                     <button
                       key={i}
                       onClick={() => setCurrentPage(i)}
-                      className={`w-3.5 h-3.5 rounded-full transition-all duration-300 ${currentPage === i ? 'bg-[#1E3B8B] scale-125' : 'bg-slate-200 hover:bg-slate-300'}`}
+                      className="w-3.5 h-3.5 rounded-full transition-all duration-300"
+                      style={{
+                        backgroundColor: currentPage === i ? theme.accent : '#e2e8f0',
+                        transform: currentPage === i ? 'scale(1.25)' : 'scale(1)'
+                      }}
                     />
                   ))}
                 </div>
@@ -465,12 +482,17 @@ const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, setting
         </div>
         <div className="relative flex overflow-x-hidden w-full items-center">
           <div className="animate-marquee-run whitespace-nowrap text-lg text-slate-600 font-bold tracking-wide flex">
-            <span className="pr-12">
-              Thông tin trên màn hình chỉ mang tính chất tham khảo. Người nhà vui lòng giữ trật tự chung, theo dõi bảng hiển thị hoặc chờ thông báo trực tiếp từ nhân viên y tế tại sảnh chờ. Hotline hỗ trợ khẩn cấp khu vực phòng mổ: {settings.hotline || '1900 1000'} --- VIMES QMS xin cảm ơn!
-            </span>
-            <span>
-              Thông tin trên màn hình chỉ mang tính chất tham khảo. Người nhà vui lòng giữ trật tự chung, theo dõi bảng hiển thị hoặc chờ thông báo trực tiếp từ nhân viên y tế tại sảnh chờ. Hotline hỗ trợ khẩn cấp khu vực phòng mổ: {settings.hotline || '1900 1000'} --- VIMES QMS xin cảm ơn!
-            </span>
+            {(() => {
+               const tickerText = (settings.adConfig?.newsTicker && settings.adConfig.newsTicker.filter(Boolean).length > 0)
+                  ? settings.adConfig.newsTicker.filter(Boolean).join(' --- ')
+                  : `Thông tin trên màn hình chỉ mang tính chất tham khảo. Người nhà vui lòng giữ trật tự chung, theo dõi bảng hiển thị hoặc chờ thông báo trực tiếp từ nhân viên y tế tại sảnh chờ. Hotline hỗ trợ khẩn cấp khu vực phòng mổ: ${settings.hotline || '1900 1000'} --- VIMES QMS xin cảm ơn!`;
+               return (
+                  <>
+                     <span className="pr-12">{tickerText}</span>
+                     <span>{tickerText}</span>
+                  </>
+               );
+            })()}
           </div>
         </div>
       </div>

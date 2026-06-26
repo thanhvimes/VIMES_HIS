@@ -1493,7 +1493,7 @@ export class QmsController {
           LEFT JOIN hms_patient p ON p.hp_patientno = COALESCE(o.ho_patientno, d.hd_patientno)
           INNER JOIN hms_operation_board ob ON ob.hob_docno = o.ho_docno 
               AND DATE(ob.hob_date) = CURRENT_DATE
-          LEFT JOIN hms_roomlist r ON r.hrl_id::text = COALESCE(ob.hob_roomid::text, o.ho_roomid::text)
+          LEFT JOIN hms_roomlist r ON  hrl_deptid = o.ho_deptid AND r.hrl_id::text = COALESCE(ob.hob_roomid::text, o.ho_roomid::text)
           LEFT JOIN sys_dept sd ON sd.sd_id = o.ho_deptid
           LEFT JOIN sys_dept rd ON rd.sd_id = ob.hob_retdept
           LEFT JOIN sys_sel ss ON ss.ss_id = 'hms_operation_status' AND ss.ss_code = COALESCE(ob.hob_status, o.ho_status, 'P')
@@ -1666,7 +1666,7 @@ export class QmsController {
           LEFT JOIN hms_patient p ON p.hp_patientno = COALESCE(o.ho_patientno, d.hd_patientno)
           LEFT JOIN sys_dept sd ON sd.sd_id = o.ho_deptid
           LEFT JOIN hms_operation_board ob ON ob.hob_docno = o.ho_docno AND DATE(ob.hob_date) = CURRENT_DATE
-          LEFT JOIN hms_roomlist r ON r.hrl_id::text = COALESCE(ob.hob_roomid::text, o.ho_roomid::text)
+          LEFT JOIN hms_roomlist r ON  hrl_deptid = o.ho_deptid AND r.hrl_id::text = COALESCE(ob.hob_roomid::text, o.ho_roomid::text)
           WHERE 1=1
       `;
       const params: any[] = [];

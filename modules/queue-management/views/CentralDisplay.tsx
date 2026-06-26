@@ -30,6 +30,12 @@ interface CentralDisplayProps {
 }
 
 const CentralDisplay: React.FC<CentralDisplayProps> = ({ onBack, settings }) => {
+  const theme = settings?.customTheme || {
+    bg: '#f8fafc',
+    headerBg: '#2e408a',
+    text: '#ffffff',
+    accent: '#2e408a'
+  };
   const [counters, setCounters] = useState<CounterState[]>([]);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
   const [isMuted, setIsMuted] = useState(() => localStorage.getItem('vimes_central_muted') === 'true');
@@ -382,10 +388,16 @@ const CentralDisplay: React.FC<CentralDisplayProps> = ({ onBack, settings }) => 
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-white flex flex-col overflow-hidden font-sans">
+    <div 
+      className="fixed inset-0 z-[100] flex flex-col overflow-hidden font-sans"
+      style={{ backgroundColor: theme.bg }}
+    >
       
       {/* Header */}
-      <div className="h-24 bg-[#2e408a] flex items-center px-8 shrink-0 relative">
+      <div 
+        className="h-24 flex items-center px-8 shrink-0 relative"
+        style={{ background: theme.headerBg }}
+      >
         {/* Left: Back + Area */}
         <div className="flex items-center gap-6 w-1/3">
            <button 
@@ -395,10 +407,10 @@ const CentralDisplay: React.FC<CentralDisplayProps> = ({ onBack, settings }) => 
              <ChevronRight className="rotate-180 text-white" size={24} />
            </button>
             <div className="text-left">
-               <p className="text-blue-200 text-[10px] font-black uppercase tracking-[0.2em] mb-1">
+               <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1" style={{ color: `${theme.text}b3` }}>
                   {(selectedService === 'EXECUTION' || selectedService === 'REGISTRATION') ? 'Khoa điều trị' : 'Khu vực'}
                </p>
-                <p className="text-white text-lg font-bold">
+                <p className="text-lg font-bold" style={{ color: theme.text }}>
                    {((selectedService === 'EXECUTION' || selectedService === 'REGISTRATION') 
                       ? (allDepts.find(d => String(d.id) === String(selectedDeptId))?.name || selectedDeptId)
                       : (selectedAreaState?.area_name || selectedAreaState?.name || 'Tất cả')
@@ -409,7 +421,7 @@ const CentralDisplay: React.FC<CentralDisplayProps> = ({ onBack, settings }) => 
 
         {/* Center: Title */}
         <div className="flex-1 text-center">
-           <h1 className="text-4xl font-black uppercase text-white tracking-tighter">
+           <h1 className="text-4xl font-black uppercase tracking-tighter" style={{ color: theme.text }}>
              BẢNG ĐIỀU KHIỂN TRUNG TÂM
            </h1>
         </div>
@@ -417,10 +429,10 @@ const CentralDisplay: React.FC<CentralDisplayProps> = ({ onBack, settings }) => 
         {/* Right: Clock + Settings */}
         <div className="flex items-center justify-end gap-6 w-1/3">
            <div className="text-right">
-              <p className="text-white text-3xl font-black tabular-nums leading-none">
+              <p className="text-3xl font-black tabular-nums leading-none" style={{ color: theme.text }}>
                  {clock.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </p>
-              <p className="text-blue-200 text-[10px] font-bold uppercase tracking-widest mt-1">
+              <p className="text-[10px] font-bold uppercase tracking-widest mt-1" style={{ color: `${theme.text}b3` }}>
                  {clock.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
               </p>
            </div>
@@ -466,13 +478,14 @@ const CentralDisplay: React.FC<CentralDisplayProps> = ({ onBack, settings }) => 
                    {counters.map((counter, index) => {
                      const isThisCalling = isSpeakingUI && String(callingCounterId) === String(counter.counter_id);
                      console.log(`[Display] Counter ${counter.counter_id} calling status:`, isThisCalling);
-                     // Blue for normal, Red for priority
-                     const bgColor = counter.is_priority ? 'bg-[#ed1c24]' : 'bg-[#2e408a]';
+                     // Custom Theme accent for normal, Red for priority
+                     const cellBg = counter.is_priority ? '#ed1c24' : theme.accent;
                      
                      return (
                        <div 
                          key={counter.counter_id}
-                         className={`flex flex-col border-2 border-black/20 relative ${bgColor} ${isThisCalling ? 'animate-call-flash ring-inset ring-[20px] ring-white z-50 scale-105 shadow-2xl' : ''}`}
+                         className={`flex flex-col border-2 border-black/20 relative ${isThisCalling ? 'animate-call-flash ring-inset ring-[20px] ring-white z-50 scale-105 shadow-2xl' : ''}`}
+                         style={{ backgroundColor: cellBg }}
                        >
                          <div className="h-16 flex items-center justify-center border-b-2 border-white/20 shrink-0">
                             <h2 className="text-3xl font-extrabold text-white truncate px-4 py-1 leading-normal">{(counter.counter_name || '').normalize('NFC').toUpperCase()}</h2>

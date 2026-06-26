@@ -45,16 +45,12 @@ router.get('/patient/:searchId/visits', QmsController.getPatientVisits); // Fall
 router.get('/records/:recordId', QmsController.getMedicalRecord);
 router.get('/records/:recordId/vitals', QmsController.getRecordVitals);
 router.get('/records/:recordId/lab-results', QmsController.getRecordLabResults);
-router.get('/records/:recordId/imaging-results', QmsController.getRecordImagingResults);
 router.get('/records/:recordId/prescription', QmsController.getRecordPrescription);
-router.get('/records/:recordId/images', QmsController.getRecordImages);
 
 router.get('/his/record/:recordId', QmsController.getMedicalRecord); // Fallback
 router.get('/his/record/:recordId/vitals', QmsController.getRecordVitals); // Fallback
 router.get('/his/record/:recordId/lab', QmsController.getRecordLabResults); // Fallback
-router.get('/his/record/:recordId/imaging', QmsController.getRecordImagingResults); // Fallback
 router.get('/his/record/:recordId/prescription', QmsController.getRecordPrescription); // Fallback
-router.get('/his/record/:recordId/images', QmsController.getRecordImages); // Fallback
 
 // Services & Catalog
 router.get('/services', QmsController.getServices);
@@ -89,6 +85,7 @@ router.get('/queue/surgery-waiting-list', QmsController.getSurgeryWaitingList);
 router.post('/queue/surgery/status', QmsController.updateSurgeryStatus);
 router.post('/queue/update-surgery-status', QmsController.updateSurgeryStatus); // Fallback
 router.get('/queue/surgery-rooms', QmsController.getSurgeryRooms);
+router.get('/queue/surgery-tables', QmsController.getSurgeryTables);
 router.get('/queue/his-surgeries', QmsController.getHisSurgeries);
 router.post('/queue/surgery/add-from-his', QmsController.addSurgeryFromHis);
 router.post('/queue/add-surgery-from-his', QmsController.addSurgeryFromHis); // Fallback

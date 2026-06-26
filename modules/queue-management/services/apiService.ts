@@ -31,10 +31,10 @@ export const getBaseUrl = () => {
     } catch (e) {}
   }
 
-  // 3. Chế độ DEV: Nếu chạy Vite (3000/5173) và chưa có cấu hình, mặc định trỏ về port 3000
+  // 3. Chế độ DEV: Nếu chạy Vite (3000/5173) và chưa có cấu hình, mặc định trỏ về port 3001 (do port 3000 đã bị chiếm bởi VIMESPortal)
   const isDevPort = ['3000', '5173'].includes(window.location.port);
   if (isDevPort && (url === window.location.origin || url.includes('localhost'))) {
-    url = `http://${window.location.hostname}:3000`;
+    url = `http://${window.location.hostname}:3001`;
   }
 
   return url.replace(/\/$/, '');

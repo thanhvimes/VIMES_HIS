@@ -21,7 +21,9 @@ import {
     CheckIcon,
     ClipboardListIcon,
     XIcon,
-    DocumentPlusIcon
+    DocumentPlusIcon,
+    ExclamationTriangleIcon,
+    ShieldCheckIcon
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useNotification } from '../../../contexts/NotificationContext';
@@ -48,6 +50,14 @@ const BookingManagementView: React.FC = () => {
     const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
     const [printBooking, setPrintBooking] = useState<OnlineBookingRecord | null>(null);
     const [quickBookingTarget, setQuickBookingTarget] = useState<OnlineBookingRecord | null>(null);
+
+    // Ghost Booking State
+    const [showGhostModal, setShowGhostModal] = useState(false);
+    const [ghostBookings, setGhostBookings] = useState<any[]>([]);
+    const [isLoadingGhosts, setIsLoadingGhosts] = useState(false);
+    const [isCancellingGhosts, setIsCancellingGhosts] = useState(false);
+    const [selectedGhostIds, setSelectedGhostIds] = useState<Set<number>>(new Set());
+    const [ghostHoursThreshold, setGhostHoursThreshold] = useState(2);
 
     const loadData = async () => {
         setIsLoading(true);
@@ -135,6 +145,83 @@ const BookingManagementView: React.FC = () => {
         }, 100);
     };
 
+    // Ghost Booking handlers
+    const handleOpenGhostModal = async () => {
+        setShowGhostModal(true);
+        setIsLoadingGhosts(true);
+        setSelectedGhostIds(new Set());
+        try {
+            const res = await bookingService.getGhostBookings({ hoursThreshold: ghostHoursThreshold });
+            setGhostBookings(res.ghosts || []);
+        } catch (err: any) {
+            addNotification('Lỗi', err.message || 'Không thể tải số ảo', 'error', undefined, true);
+        } finally {
+            setIsLoadingGhosts(false);
+        }
+    };
+
+    const handleRefreshGhosts = async () => {
+        setIsLoadingGhosts(true);
+        setSelectedGhostIds(new Set());
+        try {
+            const res = await bookingService.getGhostBookings({ hoursThreshold: ghostHoursThreshold });
+            setGhostBookings(res.ghosts || []);
+        } catch (err: any) {
+            addNotification('Lỗi', err.message || 'Không thể tải số ảo', 'error', undefined, true);
+        } finally {
+            setIsLoadingGhosts(false);
+        }
+    };
+
+    const handleCancelGhosts = async () => {
+        const idsToCancel = selectedGhostIds.size > 0
+            ? Array.from(selectedGhostIds)
+            : ghostBookings.map((g: any) => g.id);
+
+        if (idsToCancel.length === 0) {
+            addNotification('Thông báo', 'Không có số ảo nào để hủy', 'info', undefined, true);
+            return;
+        }
+
+        const confirmed = window.confirm(`Xác nhận hủy ${idsToCancel.length} số ảo? Thao tác này sẽ giải phóng các khung giờ tương ứng.`);
+        if (!confirmed) return;
+
+        setIsCancellingGhosts(true);
+        try {
+            const res = await bookingService.cancelGhostBookings({
+                ids: idsToCancel,
+                reason: 'Hủy số ảo - quá hạn chờ duyệt'
+            });
+            addNotification(
+                'Hoàn thành',
+                `Đã hủy ${res.cancelled} số ảo, giải phóng ${res.slotsFreed} khung giờ`,
+                'success', undefined, true
+            );
+            setShowGhostModal(false);
+            loadData(); // Reload booking list
+        } catch (err: any) {
+            addNotification('Lỗi', err.message || 'Không thể hủy số ảo', 'error', undefined, true);
+        } finally {
+            setIsCancellingGhosts(false);
+        }
+    };
+
+    const toggleGhostSelection = (id: number) => {
+        setSelectedGhostIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    };
+
+    const toggleAllGhosts = () => {
+        if (selectedGhostIds.size === ghostBookings.length) {
+            setSelectedGhostIds(new Set());
+        } else {
+            setSelectedGhostIds(new Set(ghostBookings.map((g: any) => g.id)));
+        }
+    };
+
     const filteredBookings = useMemo(() => {
         return bookings.filter(b => {
             const matchesSearch = b.patientName.toLowerCase().includes(searchTerm.toLowerCase()) || b.phone.includes(searchTerm);
@@ -183,6 +270,16 @@ const BookingManagementView: React.FC = () => {
                 </div>
 
                 <div className="flex gap-2">
+                    {/* Ghost Booking Button - shows badge count if any */}
+                    <button
+                        onClick={handleOpenGhostModal}
+                        disabled={isLoading}
+                        className="relative p-2.5 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-xl border border-purple-200 dark:border-purple-800 hover:bg-purple-100 transition shadow-sm flex items-center gap-2 font-bold text-sm"
+                        title="Tìm và hủy số ảo - booking chờ duyệt đã quá hạn"
+                    >
+                        <ExclamationTriangleIcon className="w-5 h-5" />
+                        Hủy số ảo
+                    </button>
                     <button
                         onClick={async () => {
                             if (!window.confirm("Bạn có muốn khởi tạo khung giờ khám cho 30 ngày tới không?")) return;
@@ -416,6 +513,183 @@ const BookingManagementView: React.FC = () => {
                     onClose={() => setQuickBookingTarget(null)}
                     onSuccess={loadData}
                 />
+            )}
+
+            {/* Ghost Booking Modal */}
+            {showGhostModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-purple-600 to-purple-800">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-white/20 rounded-xl">
+                                    <ExclamationTriangleIcon className="w-6 h-6 text-white" />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-black text-white">Hủy Số Ảo</h2>
+                                    <p className="text-purple-200 text-xs font-medium mt-0.5">Booking chờ duyệt quá hạn — chiếm slot nhưng không có bệnh nhân thực tế</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowGhostModal(false)} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition">
+                                <XIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Filter bar */}
+                        <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex flex-wrap items-center gap-3">
+                            <div className="flex items-center gap-2">
+                                <label className="text-xs font-black text-slate-500 uppercase whitespace-nowrap">Ngưỡng chờ (giờ):</label>
+                                <select
+                                    value={ghostHoursThreshold}
+                                    onChange={e => setGhostHoursThreshold(Number(e.target.value))}
+                                    className="p-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 font-bold"
+                                >
+                                    <option value={1}>1 giờ</option>
+                                    <option value={2}>2 giờ</option>
+                                    <option value={4}>4 giờ</option>
+                                    <option value={8}>8 giờ</option>
+                                    <option value={24}>24 giờ</option>
+                                </select>
+                            </div>
+                            <button
+                                onClick={handleRefreshGhosts}
+                                disabled={isLoadingGhosts}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-bold hover:bg-slate-300 transition"
+                            >
+                                <RefreshIcon className={`w-4 h-4 ${isLoadingGhosts ? 'animate-spin' : ''}`} />
+                                Làm mới
+                            </button>
+                            <div className="ml-auto">
+                                {ghostBookings.length > 0 && (
+                                    <span className="text-sm font-black text-purple-600 dark:text-purple-400">
+                                        Tìm thấy {ghostBookings.length} số ảo
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Table */}
+                        <div className="flex-1 overflow-auto">
+                            {isLoadingGhosts ? (
+                                <div className="flex items-center justify-center h-48 gap-3 text-slate-400">
+                                    <RefreshIcon className="w-6 h-6 animate-spin" />
+                                    <span className="font-bold">Đang quét số ảo...</span>
+                                </div>
+                            ) : ghostBookings.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-48 gap-3 text-slate-400">
+                                    <ShieldCheckIcon className="w-12 h-12 text-green-400" />
+                                    <div className="text-center">
+                                        <p className="font-black text-green-600 dark:text-green-400 text-base">Hệ thống sạch!</p>
+                                        <p className="text-sm">Không tìm thấy số ảo nào cần xử lý.</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-slate-50 dark:bg-slate-900 text-[10px] font-black text-slate-500 uppercase tracking-widest sticky top-0">
+                                        <tr>
+                                            <th className="p-3 w-10">
+                                                <input
+                                                    type="checkbox"
+                                                    className="rounded"
+                                                    checked={selectedGhostIds.size === ghostBookings.length}
+                                                    onChange={toggleAllGhosts}
+                                                />
+                                            </th>
+                                            <th className="p-3">Bệnh nhân</th>
+                                            <th className="p-3">Ngày hẹn</th>
+                                            <th className="p-3">Khung giờ</th>
+                                            <th className="p-3">Khoa</th>
+                                            <th className="p-3">Phòng</th>
+                                            <th className="p-3 text-center">Loại</th>
+                                            <th className="p-3 text-right">Tuổi (giờ)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                                        {ghostBookings.map((g: any) => (
+                                            <tr
+                                                key={g.id}
+                                                onClick={() => toggleGhostSelection(g.id)}
+                                                className={`cursor-pointer transition-colors ${
+                                                    selectedGhostIds.has(g.id)
+                                                        ? 'bg-purple-50 dark:bg-purple-900/20'
+                                                        : 'hover:bg-slate-50 dark:hover:bg-slate-700/30'
+                                                }`}
+                                            >
+                                                <td className="p-3">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="rounded"
+                                                        checked={selectedGhostIds.has(g.id)}
+                                                        onChange={() => toggleGhostSelection(g.id)}
+                                                        onClick={e => e.stopPropagation()}
+                                                    />
+                                                </td>
+                                                <td className="p-3">
+                                                    <div className="font-bold text-slate-800 dark:text-white">{g.patientName}</div>
+                                                    <div className="text-xs text-slate-500 flex items-center gap-1">
+                                                        <PhoneIcon className="w-3 h-3" /> {g.phone}
+                                                    </div>
+                                                </td>
+                                                <td className="p-3">
+                                                    <div className="font-bold text-slate-700 dark:text-slate-200">{g.bookingDate ? formatDate(g.bookingDate) : '---'}</div>
+                                                </td>
+                                                <td className="p-3">
+                                                    <div className="font-mono font-bold text-blue-600">{g.bookingTime}</div>
+                                                </td>
+                                                <td className="p-3 text-xs text-slate-600 dark:text-slate-300">{g.deptName || g.deptId}</td>
+                                                <td className="p-3 text-xs text-slate-600 dark:text-slate-300">{g.roomName || `P.${g.roomId}`}</td>
+                                                <td className="p-3 text-center">
+                                                    {g.ghostType === 'EXPIRED' ? (
+                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-red-100 text-red-700 border border-red-200">QUÁ HẠN</span>
+                                                    ) : (
+                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-700 border border-amber-200">CHỜ LÂU</span>
+                                                    )}
+                                                </td>
+                                                <td className="p-3 text-right">
+                                                    <span className={`font-mono font-bold text-sm ${
+                                                        g.ageHours > 24 ? 'text-red-600' : g.ageHours > 8 ? 'text-amber-600' : 'text-slate-500'
+                                                    }`}>
+                                                        {parseFloat(g.ageHours).toFixed(1)}h
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+
+                        {/* Footer Actions */}
+                        <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex items-center justify-between gap-3">
+                            <div className="text-xs text-slate-500 font-medium">
+                                {selectedGhostIds.size > 0
+                                    ? <span className="text-purple-600 font-black">Đã chọn {selectedGhostIds.size} / {ghostBookings.length} bản ghi</span>
+                                    : <span>Chọn bản ghi để hủy riêng lẻ, hoặc để trống để hủy tất cả</span>
+                                }
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setShowGhostModal(false)}
+                                    className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-sm hover:bg-slate-300 transition"
+                                >
+                                    Đóng
+                                </button>
+                                <button
+                                    onClick={handleCancelGhosts}
+                                    disabled={isCancellingGhosts || ghostBookings.length === 0}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition shadow-md disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    {isCancellingGhosts ? (
+                                        <RefreshIcon className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <TrashIcon className="w-4 h-4" />
+                                    )}
+                                    {isCancellingGhosts ? 'Đang hủy...' : `Hủy ${selectedGhostIds.size > 0 ? selectedGhostIds.size : ghostBookings.length} số ảo`}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

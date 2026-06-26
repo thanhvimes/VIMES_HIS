@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { VitalSigns } from '../../../../types';
+import { VitalSigns } from '../../../../../types';
 import VitalSignsForm from '../../components/VitalSignsForm';
 
 interface VitalSignsModalProps {

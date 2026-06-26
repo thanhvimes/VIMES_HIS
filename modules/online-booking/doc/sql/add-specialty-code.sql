@@ -132,7 +132,7 @@ DECLARE
 BEGIN
 	v_examdate := TO_TIMESTAMP(p_examdate, 'YYYY-MM-DD HH24:MI:SS');
 	v_gender := 'F';
-	IF(lower(p_gender) = 'nam') THEN v_gender := 'M'; END IF;
+	IF(lower(p_gender) = 'nam' OR lower(p_gender) = 'm') THEN v_gender := 'M'; END IF;
 	
     -- 1. XỬ LÝ BỆNH NHÂN (HMS_PATIENT)
     IF p_identity_number IS NOT NULL AND p_identity_number <> '' THEN

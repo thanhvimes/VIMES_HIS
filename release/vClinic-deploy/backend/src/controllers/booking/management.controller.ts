@@ -69,6 +69,9 @@ class BookingManagementController {
                 assignedRoomId = roomsWithSlotResult.rows[0].hrk_id;
             }
 
+            // Normalize gender to 'M' or 'F' before stored procedure call (fallback to 'F')
+            const dbGender = (gender && (gender.toLowerCase() === 'm' || gender.toLowerCase().includes('nam'))) ? 'M' : 'F';
+
             // Call stored procedure qms_patient_create_booking
             const result = await query(`
                 SELECT qms_patient_create_booking(
@@ -79,7 +82,7 @@ class BookingManagementController {
                     $21, $22, $23
                 ) as booking_id;
             `, [
-                idCard, name, birthDate, gender, ethnic || '1',
+                idCard, name, birthDate, dbGender, ethnic || '1',
                 provinceId, districtId, wardId, address, phone,
                 userDeptId, assignedRoomId, bookingDate, bookingTime, reason,
                 occupation || 0, doctor || '', email || '', 'ONL',

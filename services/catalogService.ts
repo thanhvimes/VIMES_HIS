@@ -125,6 +125,12 @@ class CatalogService {
         );
     }
 
+    public async getDoctors(): Promise<CatalogItem[]> {
+        return this.getCached('doctors', () =>
+            apiClient.get<CatalogItem[]>('/reception/catalogs/doctors')
+        );
+    }
+
     public async getNations(): Promise<CatalogItem[]> {
         return this.getCached('nations', () =>
             apiClient.get<CatalogItem[]>('/reception/catalogs/nations')

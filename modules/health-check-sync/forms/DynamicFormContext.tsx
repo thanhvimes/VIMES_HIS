@@ -18,6 +18,12 @@ export interface DynamicFormContextType {
     setHisSyncMessage: React.Dispatch<React.SetStateAction<{ type: 'success' | 'error', text: string } | null>>;
     handleFetchHisData: () => Promise<void>;
 
+    // State for Specialty Exam tabs
+    specialtyMetadata: Record<string, { doctorId: string, status: string, updatedAt: string }>;
+    setSpecialtyMetadata: React.Dispatch<React.SetStateAction<Record<string, { doctorId: string, status: string, updatedAt: string }>>>;
+    doctors: CatalogItem[];
+    setDoctors: React.Dispatch<React.SetStateAction<CatalogItem[]>>;
+
     // 1. Administrative & Lookup State
     patientId: string;
     setPatientId: React.Dispatch<React.SetStateAction<string>>;

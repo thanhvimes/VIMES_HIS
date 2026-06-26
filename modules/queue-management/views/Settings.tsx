@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import DashboardOverview from '../admin/DashboardOverview';
 import ZoningSettings from '../admin/ZoningSettings';
 import { 
@@ -22,11 +22,16 @@ import {
   CheckCircle2,
   XCircle,
   MoreVertical,
-  BarChart
+  BarChart,
+  FileCode,
+  Upload,
+  RotateCcw
 } from 'lucide-react';
 import { apiFetch } from '../services/apiService';
 import { AppSettings } from '../types';
-import { DISPLAY_TEMPLATES, DisplayTemplate } from '../services/displayTemplates';
+import { DEFAULT_THEME_COLORS, CustomTheme } from '../services/displayTemplates';
+import { DEFAULT_HTML_TEMPLATE } from '../services/printerService';
+import { DEFAULT_IMAGE_TEMPLATE } from '../services/ticketTemplate';
 
 interface AdminConfigProps {
   settings: AppSettings;
@@ -34,55 +39,51 @@ interface AdminConfigProps {
   onBack: () => void;
 }
 
-const TemplatePreviewCard: React.FC<{ template: DisplayTemplate; isSelected: boolean }> = ({ template, isSelected }) => {
-  const p = template.preview || { bg: '#000', headerBg: '#111', accent: '#3b82f6', text: '#fff', subText: '#999', rowEven: '#222', rowOdd: '#111', tickerBg: '#050505', tickerText: '#fff', border: '#333' };
+const TemplatePreviewCard: React.FC<{ customTheme?: { bg: string; headerBg: string; text: string; accent: string } }> = ({ customTheme }) => {
+  const p = customTheme || DEFAULT_THEME_COLORS;
   
   return (
     <div
-      className="rounded-[2rem] overflow-hidden border-2 transition-all duration-300 cursor-pointer shadow-sm relative group"
+      className="rounded-[2.5rem] overflow-hidden border border-slate-200/60 shadow-xl relative w-full max-w-sm mx-auto"
       style={{
         background: p.bg,
-        borderColor: isSelected ? p.accent : 'rgba(0,0,0,0.05)',
-        boxShadow: isSelected
-          ? `0 0 0 2px ${p.accent}40, 0 8px 32px ${p.accent}20`
-          : '0 4px 12px rgba(0,0,0,0.03)',
-        transform: isSelected ? 'scale(1.02)' : 'scale(1)',
       }}
     >
       {/* Mini header */}
-      <div className="px-5 py-3 flex items-center justify-between" style={{ background: p.headerBg }}>
+      <div className="px-6 py-4 flex items-center justify-between" style={{ background: p.headerBg }}>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded" style={{ background: p.accent, opacity: 0.8 }} />
-          <div className="h-1.5 rounded w-12" style={{ background: p.text, opacity: 0.5 }} />
+          <div className="w-3.5 h-3.5 rounded-full" style={{ background: p.text, opacity: 0.9 }} />
+          <div className="h-2 rounded w-24" style={{ background: p.text, opacity: 0.5 }} />
         </div>
-        <div className="text-[8px] font-mono" style={{ color: p.text, opacity: 0.6 }}>17:30</div>
-      </div>
-
-      {/* Mini ticker */}
-      <div className="py-1.5 px-3 flex items-center gap-2 overflow-hidden" style={{ background: p.tickerBg }}>
-        <div className="text-[5px] font-bold px-1 rounded" style={{ background: p.accent + '22', color: p.tickerText }}>TB</div>
-        <div className="h-1 rounded flex-1" style={{ background: p.tickerText, opacity: 0.3 }} />
+        <div className="text-[10px] font-mono font-black" style={{ color: p.text, opacity: 0.8 }}>17:30:00</div>
       </div>
 
       {/* Mini body: number + waiting list */}
-      <div className="flex" style={{ height: '70px' }}>
-        <div className="flex-1 flex items-center justify-center border-r" style={{ borderColor: p.border }}>
-          <span className="font-black font-mono" style={{ fontSize: '16px', color: p.accent, textShadow: isSelected ? `0 0 16px ${p.accent}60` : 'none' }}>
+      <div className="flex" style={{ height: '120px' }}>
+        <div className="flex-1 flex flex-col items-center justify-center border-r border-slate-200/40">
+          <span className="text-[10px] font-black uppercase opacity-40 mb-1" style={{ color: p.accent }}>Đang gọi</span>
+          <span className="font-black font-mono text-3xl tracking-tight" style={{ color: p.accent }}>
             K-007
           </span>
         </div>
-        <div className="w-2/5" style={{ background: p.rowOdd }}>
+        <div className="w-[45%] flex flex-col justify-center gap-1.5 p-4" style={{ background: 'rgba(0,0,0,0.01)' }}>
           {['K-008', 'K-009'].map((code, i) => (
-            <div key={code} className="flex items-center gap-1 px-2.5 py-[5px]"
+            <div key={code} className="flex items-center justify-between px-3 py-2 rounded-xl"
               style={{
-                background: i % 2 === 0 ? p.rowEven : p.rowOdd,
-                borderLeft: i === 0 ? `2px solid ${p.accent}` : '2px solid transparent',
+                background: i === 0 ? `${p.accent}15` : 'transparent',
+                borderLeft: i === 0 ? `3px solid ${p.accent}` : '3px solid transparent',
               }}>
-              <span className="font-mono font-bold text-[7px]" style={{ color: i === 0 ? p.accent : p.subText }}>{code}</span>
-              <div className="h-0.5 rounded flex-1" style={{ background: p.text, opacity: 0.05 }} />
+              <span className="font-mono font-bold text-xs" style={{ color: i === 0 ? p.accent : 'rgba(0,0,0,0.4)' }}>{code}</span>
+              <span className="text-[8px] font-bold opacity-30" style={{ color: i === 0 ? p.accent : 'rgba(0,0,0,0.8)' }}>1985</span>
             </div>
           ))}
         </div>
+      </div>
+      
+      {/* Mini ticker */}
+      <div className="py-2.5 px-4 flex items-center gap-2 overflow-hidden border-t border-slate-200/40" style={{ background: 'rgba(0,0,0,0.02)' }}>
+        <div className="text-[8px] font-black px-2 py-0.5 rounded text-white" style={{ background: p.accent }}>TIN TỨC</div>
+        <div className="h-1 rounded flex-1" style={{ background: 'rgba(0,0,0,0.05)' }} />
       </div>
     </div>
   );
@@ -93,6 +94,43 @@ const AdminConfig: React.FC<AdminConfigProps> = ({ settings, onSave, onBack }) =
   const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
   const [isSaving, setIsSaving] = useState(false);
   const [status, setStatus] = useState({ db: 'ONLINE', his: 'ONLINE', license: 'ACTIVE' });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportTemplate = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (content) {
+        setLocalSettings({
+          ...localSettings,
+          printerConfig: {
+            ...(localSettings.printerConfig || { enabled: true, type: 'DRIVER', language: 'ESC', printerName: 'Máy in 1', ipAddress: '127.0.0.1', port: 9100, printTemplate: '' }),
+            printTemplate: content
+          }
+        });
+        alert('Đã nhập mẫu in thành công!');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleResetTemplate = () => {
+    if (window.confirm('Hành động này sẽ ghi đè mẫu in hiện tại bằng mẫu mặc định. Bạn có chắc chắn không?')) {
+      const defaultTemplate = localSettings.printerConfig?.printMode === 'IMAGE'
+        ? DEFAULT_IMAGE_TEMPLATE
+        : DEFAULT_HTML_TEMPLATE;
+      setLocalSettings({
+        ...localSettings,
+        printerConfig: {
+          ...(localSettings.printerConfig || { enabled: true, type: 'DRIVER', language: 'ESC', printerName: 'Máy in 1', ipAddress: '127.0.0.1', port: 9100, printTemplate: '' }),
+          printTemplate: defaultTemplate
+        }
+      });
+    }
+  };
 
   useEffect(() => {
     setLocalSettings(settings);
@@ -369,45 +407,79 @@ const AdminConfig: React.FC<AdminConfigProps> = ({ settings, onSave, onBack }) =
                <div className="max-w-6xl space-y-10 animate-in fade-in duration-500">
                   <div className="flex items-start justify-between">
                      <div className="space-y-2">
-                        <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Thư viện giao diện (Template)</h2>
-                        <p className="text-slate-400 text-sm">Chọn mẫu phù hợp với phong cách và bộ nhận diện thương hiệu của bệnh viện.</p>
+                        <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Thiết lập màu sắc động</h2>
+                        <p className="text-slate-400 text-sm">Tự tùy chỉnh màu sắc cho 3 màn hình hiển thị (Bảng gọi số tại quầy, Bảng gọi số trung tâm, Bảng phòng mổ).</p>
                      </div>
-                     <div className="px-4 py-1.5 bg-amber-50 border border-amber-200 rounded-xl text-[10px] font-black text-amber-700 uppercase tracking-widest">
-                        Beta: Template v2.0
-                     </div>
+                     <button
+                        onClick={() => {
+                           if (window.confirm('Bạn có chắc chắn muốn khôi phục về tone màu mặc định gốc của vClinic?')) {
+                              setLocalSettings({
+                                 ...localSettings,
+                                 customTheme: { ...DEFAULT_THEME_COLORS }
+                              });
+                           }
+                        }}
+                        className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 border border-slate-200 transition-all active:scale-95 shadow-sm"
+                     >
+                        <RotateCcw size={14} />
+                        Khôi phục mặc định
+                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                     {DISPLAY_TEMPLATES.map((t) => {
-                        const isSel = (localSettings.displayTemplateId || 'airport-dark') === t.id;
-                        return (
-                           <div 
-                              key={t.id} 
-                              onClick={() => setLocalSettings({ ...localSettings, displayTemplateId: t.id })}
-                              className="flex flex-col gap-4 group cursor-pointer"
-                           >
-                              <TemplatePreviewCard template={t} isSelected={isSel} />
-                              <div className="px-2 flex flex-col gap-1">
-                                 <div className="flex items-center justify-between">
-                                    <span className="font-black text-slate-800 text-sm">{t.name}</span>
-                                    {isSel && (
-                                       <span className="px-2.5 py-0.5 bg-blue-100 text-blue-700 text-[8px] font-black uppercase rounded-full tracking-wider">
-                                          Đang dùng
-                                       </span>
-                                    )}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+                     {/* Left: Color Pickers */}
+                     <div className="lg:col-span-7 bg-white border border-slate-200 rounded-[2.5rem] p-8 space-y-8 shadow-sm">
+                        <div className="space-y-1">
+                           <h3 className="font-black text-slate-800 uppercase text-base">Bộ cấu hình màu sắc</h3>
+                           <p className="text-slate-400 text-xs">Bấm trực tiếp vào các ô màu bên dưới để thay đổi theo ý muốn.</p>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                           {[
+                              { label: 'Màu nền chính', key: 'bg', desc: 'Màu nền tổng thể của màn hình' },
+                              { label: 'Màu nền Header', key: 'headerBg', desc: 'Màu nền thanh tiêu đề phía trên' },
+                              { label: 'Màu chữ tiêu đề', key: 'text', desc: 'Màu chữ tên bệnh viện, đồng hồ' },
+                              { label: 'Màu nhấn & Số gọi', key: 'accent', desc: 'Màu số thứ tự hiển thị nổi bật' }
+                           ].map((colorOpt) => {
+                              const val = localSettings.customTheme?.[colorOpt.key as 'bg'|'headerBg'|'text'|'accent'] || DEFAULT_THEME_COLORS[colorOpt.key as 'bg'|'headerBg'|'text'|'accent'];
+                              return (
+                                 <div key={colorOpt.key} className="space-y-2.5 p-4 rounded-2xl bg-slate-50/50 border border-slate-100">
+                                    <div className="flex flex-col">
+                                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{colorOpt.label}</label>
+                                       <span className="text-[10px] text-slate-400 font-medium">{colorOpt.desc}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
+                                       <input 
+                                          type="color" 
+                                          value={val}
+                                          onChange={(e) => {
+                                             const updatedTheme = {
+                                                ...DEFAULT_THEME_COLORS,
+                                                ...(localSettings.customTheme || {}),
+                                                [colorOpt.key]: e.target.value
+                                             };
+                                             setLocalSettings({
+                                                ...localSettings,
+                                                customTheme: updatedTheme
+                                             });
+                                          }}
+                                          className="h-8 w-8 rounded-lg cursor-pointer border-none bg-transparent"
+                                       />
+                                       <span className="font-mono text-xs font-bold text-slate-600 uppercase">{val}</span>
+                                    </div>
                                  </div>
-                                 <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">{t.description}</p>
-                                 <div className="flex flex-wrap gap-1.5 mt-1.5">
-                                    {(t.tags || []).map((tag) => (
-                                       <span key={tag} className="px-2 py-0.5 bg-slate-100 text-slate-500 text-[8px] font-bold uppercase rounded-md tracking-wider">
-                                          {tag}
-                                       </span>
-                                    ))}
-                                 </div>
-                              </div>
-                           </div>
-                        );
-                     })}
+                              );
+                           })}
+                        </div>
+                     </div>
+
+                     {/* Right: Live Preview Panel */}
+                     <div className="lg:col-span-5 flex flex-col gap-6">
+                        <div className="bg-slate-100/50 border border-slate-200/50 rounded-[2.5rem] p-8 flex flex-col items-center justify-center min-h-[340px] relative">
+                           <span className="absolute top-4 left-6 text-[9px] font-black text-slate-400 uppercase tracking-widest">Xem trước thời gian thực (Preview)</span>
+                           <TemplatePreviewCard customTheme={localSettings.customTheme} />
+                        </div>
+                     </div>
                   </div>
 
                   {/* Marquee Ticker Message Option */}
@@ -434,6 +506,74 @@ const AdminConfig: React.FC<AdminConfigProps> = ({ settings, onSave, onBack }) =
                            className="w-full bg-white border border-slate-200 rounded-2xl p-6 font-bold text-slate-700 focus:outline-none focus:border-blue-500 shadow-sm"
                         />
                         <p className="text-[10px] text-slate-400 font-medium">Mẹo: Mỗi dòng văn bản tương ứng với một lượt tin nhắn chạy ngang (Nhấn Enter để thêm tin nhắn mới).</p>
+                     </div>
+                  </div>
+
+                  {/* Ticket Print Template Editor */}
+                  <div className="bg-white border border-slate-200 rounded-[2rem] p-8 space-y-6 shadow-sm">
+                     <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                           <h3 className="font-black text-slate-900 uppercase text-sm flex items-center gap-2">
+                              <FileCode size={20} className="text-slate-400" /> Mẫu in phiếu lấy số (Ticket Print Template)
+                           </h3>
+                           <p className="text-slate-400 text-xs">Cấu hình mẫu in ra cho bệnh nhân khi cấp số tại trạm Kiosk.</p>
+                        </div>
+                        <div className="flex gap-2">
+                           <input 
+                              type="file" 
+                              ref={fileInputRef} 
+                              className="hidden" 
+                              accept=".html,.txt,.tspl" 
+                              onChange={handleImportTemplate} 
+                           />
+                           <button 
+                              onClick={() => fileInputRef.current?.click()} 
+                              className="p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-xl transition-all" 
+                              title="Nhập File"
+                           >
+                              <Upload size={16} />
+                           </button>
+                           <button 
+                              onClick={handleResetTemplate} 
+                              className="p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-xl transition-all" 
+                              title="Reset Mặc định"
+                           >
+                              <RotateCcw size={16} />
+                           </button>
+                        </div>
+                     </div>
+
+                     <div className="space-y-4">
+                        <div className="p-3 bg-yellow-50 text-yellow-800 text-xs rounded-xl border border-yellow-100 flex flex-wrap gap-x-4 gap-y-2">
+                           <div className="w-full font-bold mb-1">Từ khóa động (Placeholders):</div>
+                           <code>{`{{hospitalName}}`}</code>
+                           <code>{`{{ticketNumber}}`}</code>
+                           <code>{`{{patientName}}`}</code>
+                           <code>{`{{patientId}}`}</code>
+                           <code>{`{{department}}`}</code>
+                           <code>{`{{time}}`}</code>
+                           <code>{`{{dob}}`}</code>
+                           <code>{`{{gender}}`}</code>
+                           <code>{`{{address}}`}</code>
+                           <code>{`{{barcode}}`}</code>
+                        </div>
+                        <textarea
+                           rows={12}
+                           value={localSettings.printerConfig?.printTemplate || (localSettings.printerConfig?.printMode === 'IMAGE' ? DEFAULT_IMAGE_TEMPLATE : DEFAULT_HTML_TEMPLATE)}
+                           onChange={(e) => {
+                              setLocalSettings({
+                                 ...localSettings,
+                                 printerConfig: {
+                                    ...(localSettings.printerConfig || { enabled: true, type: 'DRIVER', language: 'ESC', printerName: 'Máy in 1', ipAddress: '127.0.0.1', port: 9100, printTemplate: '' }),
+                                    printTemplate: e.target.value
+                                 }
+                              });
+                           }}
+                           placeholder="Nhập mã HTML / TSPL / ESCPOS..."
+                           className="w-full bg-white border border-slate-200 rounded-2xl p-6 font-mono text-xs text-slate-700 focus:outline-none focus:border-blue-500 shadow-sm leading-relaxed"
+                           spellCheck={false}
+                        />
+                        <p className="text-[10px] text-slate-400 font-medium">Mẹo: Chế độ hình ảnh hỗ trợ HTML/CSS đầy đủ. Chế độ văn bản chỉ hỗ trợ lệnh ESC/POS cơ bản.</p>
                      </div>
                   </div>
                </div>

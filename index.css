@@ -55,6 +55,7 @@
   font-size: 13px;
   height: 32px;
   padding: 0 10px;
+  line-height: normal;
   width: 100%;
   color: #323130;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;

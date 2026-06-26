@@ -21,6 +21,12 @@ interface CounterDisplayProps {
 }
 
 const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => {
+  const theme = settings?.customTheme || {
+    bg: '#f8fafc',
+    headerBg: '#2e408a',
+    text: '#ffffff',
+    accent: '#2e408a'
+  };
   const [ticket, setTicket] = useState<string | null>(null);
   const [patientName, setPatientName] = useState<string | null>(null);
   const [isCalling, setIsCalling] = useState(false);
@@ -517,7 +523,10 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
   };
 
   return (
-    <div className={`fixed inset-0 z-[100] bg-white flex ${layoutMode === 'split' ? 'flex-col' : ''} overflow-hidden font-sans`}>
+    <div 
+      className={`fixed inset-0 z-[100] flex ${layoutMode === 'split' ? 'flex-col' : ''} overflow-hidden font-sans`}
+      style={{ backgroundColor: theme.bg }}
+    >
       
       {/* Floating Controls (For Staff) */}
       <div className="absolute top-4 right-4 z-50 flex gap-2 opacity-10 hover:opacity-100 transition-opacity">
@@ -547,10 +556,13 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
 
       {layoutMode === 'split' ? (
          <>
-            <div className="h-28 bg-gradient-to-r from-[#2e408a] to-[#3f57c6] flex shrink-0 border-b border-white/10 shadow-md">
+            <div 
+              className="h-28 flex shrink-0 border-b border-white/10 shadow-md"
+              style={{ background: theme.headerBg }}
+            >
                {/* Main banner block */}
                <div className="flex-1 flex items-center justify-center">
-                  <h1 className="text-5xl font-black uppercase tracking-wider text-white">
+                  <h1 className="text-5xl font-black uppercase tracking-wider" style={{ color: theme.text }}>
                      {getBannerTitle()}
                   </h1>
                </div>
@@ -559,12 +571,15 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
             {/* Main Content Body */}
             <div className="flex-1 flex overflow-hidden">
                {/* Cột trái: Bệnh nhân đang phục vụ (60%) */}
-               <div className="w-[60%] flex flex-col justify-center items-center p-8 bg-white border-r border-slate-200">
-                  <h3 className="text-4xl font-black text-[#2e408a] uppercase mb-4 tracking-wider text-center">BỆNH NHÂN ĐANG PHỤC VỤ</h3>
+               <div className="w-[60%] flex flex-col justify-center items-center p-8 border-r border-slate-200" style={{ backgroundColor: theme.bg }}>
+                  <h3 className="text-4xl font-black uppercase mb-4 tracking-wider text-center" style={{ color: theme.accent }}>BỆNH NHÂN ĐANG PHỤC VỤ</h3>
                   
                   <div 
-                     className={`font-black leading-none tabular-nums transition-all duration-300 text-center ${isSpeakingUI ? 'animate-call-flash text-[#2e408a]' : 'text-[#2e408a]'}`} 
-                     style={{fontSize: 'clamp(12rem, 28vw, 26rem)'}}
+                     className={`font-black leading-none tabular-nums transition-all duration-300 text-center ${isSpeakingUI ? 'animate-call-flash' : ''}`} 
+                     style={{
+                       fontSize: 'clamp(12rem, 28vw, 26rem)',
+                       color: theme.accent
+                     }}
                   >
                      {ticket || '0'}
                   </div>
@@ -581,11 +596,11 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
                </div>
 
                {/* Cột phải: Danh sách bệnh nhân chờ (40%) */}
-               <div className="w-[40%] flex flex-col bg-slate-50 p-8 overflow-hidden">
+               <div className="w-[40%] flex flex-col p-8 overflow-hidden" style={{ backgroundColor: theme.bg }}>
                   {/* Table Header */}
                   <div className="grid grid-cols-12 gap-4 pb-4 px-4 border-b border-slate-200 mb-4">
-                     <div className="col-span-9 text-xl font-black text-[#2e408a] uppercase tracking-wider">Họ và tên người bệnh</div>
-                     <div className="col-span-3 text-xl font-black text-[#2e408a] uppercase tracking-wider text-right">Năm sinh</div>
+                     <div className="col-span-9 text-xl font-black uppercase tracking-wider" style={{ color: theme.accent }}>Họ và tên người bệnh</div>
+                     <div className="col-span-3 text-xl font-black uppercase tracking-wider text-right" style={{ color: theme.accent }}>Năm sinh</div>
                   </div>
 
                   {/* Table Body / Cards List */}
@@ -601,7 +616,10 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
                            >
                               {/* Ticket Number & Name */}
                               <div className="col-span-9 flex items-center gap-4 min-w-0">
-                                 <span className="inline-flex items-center justify-center px-4 py-1.5 bg-[#2e408a]/10 text-[#2e408a] font-extrabold rounded-2xl text-2xl lg:text-3xl tabular-nums shrink-0">
+                                 <span 
+                                    className="inline-flex items-center justify-center px-4 py-1.5 font-extrabold rounded-2xl text-2xl lg:text-3xl tabular-nums shrink-0"
+                                    style={{ color: theme.accent, backgroundColor: `${theme.accent}1a` }}
+                                 >
                                     {item.ticket_number}
                                  </span>
                                   <span className="text-2xl lg:text-3xl font-extrabold text-slate-800 py-0.5 leading-normal truncate">
@@ -625,7 +643,7 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
                   {/* Bộ điều khiển / Chỉ báo lật trang */}
                   {waitingList.length > ITEMS_PER_PAGE && (
                      <div className="flex items-center justify-between mt-4 px-4 pt-3 border-t border-slate-200/60">
-                        <span className="text-lg font-black text-[#2e408a]/60 uppercase tracking-wider">
+                        <span className="text-lg font-black uppercase tracking-wider" style={{ color: `${theme.accent}99` }}>
                            Danh sách chờ ({waitingList.length} BN)
                         </span>
                         <div className="flex items-center gap-2">
@@ -633,14 +651,19 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
                               <button
                                  key={i}
                                  onClick={() => setCurrentPage(i)}
-                                 className={`h-3 rounded-full transition-all duration-300 ${
-                                    currentPage === i ? 'w-8 bg-[#2e408a]' : 'w-3 bg-slate-300 hover:bg-[#2e408a]/40'
-                                 }`}
+                                 className="h-3 rounded-full transition-all duration-300"
+                                 style={{
+                                    width: currentPage === i ? '32px' : '12px',
+                                    backgroundColor: currentPage === i ? theme.accent : 'rgba(0,0,0,0.15)'
+                                 }}
                                  title={`Trang ${i + 1}`}
                               />
                            ))}
                         </div>
-                        <span className="text-xl font-black text-[#2e408a] bg-[#2e408a]/10 px-4 py-1 rounded-full tabular-nums">
+                        <span 
+                           className="text-xl font-black px-4 py-1 rounded-full tabular-nums"
+                           style={{ color: theme.accent, backgroundColor: `${theme.accent}1a` }}
+                        >
                            {currentPage + 1} / {Math.ceil(waitingList.length / ITEMS_PER_PAGE)}
                         </span>
                      </div>
@@ -651,22 +674,28 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
       ) : (
          <>
             {/* Sidebar - BÀN SỐ / PHÒNG KHÁM */}
-            <div className={`w-[300px] ${counterInfo?.is_priority ? 'bg-[#ed1c24]' : 'bg-[#2e408a]'} flex flex-col items-center justify-center text-white shrink-0 relative`}>
+            <div 
+               className="w-[300px] flex flex-col items-center justify-center shrink-0 relative"
+               style={{ 
+                 backgroundColor: counterInfo?.is_priority ? '#ed1c24' : theme.headerBg,
+                 color: theme.text
+               }}
+            >
                {/* Area name */}
                <div className="absolute top-0 left-0 right-0 bg-white/10 py-3 text-center">
-                  <p className="text-sm font-bold tracking-widest text-blue-200">{(selectedAreaState?.area_name || selectedAreaState?.name || 'Khu vực chung').normalize('NFC').toUpperCase()}</p>
+                  <p className="text-sm font-bold tracking-widest opacity-80" style={{ color: theme.text }}>{(selectedAreaState?.area_name || selectedAreaState?.name || 'Khu vực chung').normalize('NFC').toUpperCase()}</p>
                </div>
 
                {/* Counter / Room label & value */}
-               <h2 className="text-2xl font-bold uppercase tracking-[0.2em] mb-2 text-blue-200">{getSidebarTitle()}</h2>
-               <div style={{fontSize: getFontSize()}} className="font-black leading-none px-4 text-center break-words">
+               <h2 className="text-2xl font-bold uppercase tracking-[0.2em] mb-2 opacity-80" style={{ color: theme.text }}>{getSidebarTitle()}</h2>
+               <div style={{fontSize: getFontSize(), color: theme.text}} className="font-black leading-none px-4 text-center break-words">
                   {(getCounterValue() || '').normalize('NFC').toUpperCase()}
                </div>
 
                {/* Clock & Status */}
                <div className="absolute bottom-0 left-0 right-0 bg-white/10 py-4 text-center">
-                  <p className="text-3xl font-extrabold tabular-nums">{formatTime(clock)}</p>
-                  <p className="text-xs font-medium text-blue-200 mt-1">{formatDate(clock)}</p>
+                  <p className="text-3xl font-extrabold tabular-nums" style={{ color: theme.text }}>{formatTime(clock)}</p>
+                  <p className="text-xs font-medium opacity-80 mt-1" style={{ color: theme.text }}>{formatDate(clock)}</p>
                   <div className="flex items-center justify-center gap-2 mt-2">
                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                      <p className="text-[10px] font-bold text-green-300 uppercase tracking-widest">Đang hoạt động</p>
@@ -675,16 +704,25 @@ const CounterDisplay: React.FC<CounterDisplayProps> = ({ onBack, settings }) => 
             </div>
 
             {/* Main Content - SỐ THỰ TỰ */}
-            <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 flex flex-col min-w-0" style={{ backgroundColor: theme.bg }}>
                {/* Top Banner */}
-                <div className="h-24 bg-gradient-to-r from-[#2e408a] to-[#3f57c6] flex items-center justify-center shrink-0 shadow-md">
-                  <h1 className="text-4xl font-extrabold uppercase tracking-wider text-white">{getBannerTitle()}</h1>
+                <div 
+                  className="h-24 flex items-center justify-center shrink-0 shadow-md"
+                  style={{ background: theme.headerBg }}
+                >
+                  <h1 className="text-4xl font-extrabold uppercase tracking-wider" style={{ color: theme.text }}>{getBannerTitle()}</h1>
                </div>
 
                {/* Body */}
                <div className="flex-1 flex flex-col items-center justify-center p-8">
-                  <h3 className="text-4xl font-bold text-[#2e408a] uppercase mb-6 tracking-wide">BỆNH NHÂN ĐANG PHỤC VỤ</h3>
-                  <div className={`font-black leading-none tabular-nums transition-all duration-300 ${isSpeakingUI ? 'animate-call-flash text-[#2e408a]' : 'text-[#2e408a]'}`} style={{fontSize: 'clamp(10rem, 30vw, 28rem)'}}>
+                  <h3 className="text-4xl font-bold uppercase mb-6 tracking-wide" style={{ color: theme.accent }}>BỆNH NHÂN ĐANG PHỤC VỤ</h3>
+                  <div 
+                     className={`font-black leading-none tabular-nums transition-all duration-300 ${isSpeakingUI ? 'animate-call-flash' : ''}`} 
+                     style={{
+                       fontSize: 'clamp(10rem, 30vw, 28rem)',
+                       color: theme.accent
+                     }}
+                  >
                      {ticket || '0'}
                   </div>
                   

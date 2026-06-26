@@ -10,7 +10,7 @@ import { useCatalogs } from '../../../contexts/CatalogContext';
 import { catalogService, CatalogItem } from '../../../services/catalogService';
 import AdminTab from './tabs/AdminTab';
 import HistoryTab from './tabs/HistoryTab';
-import ExamTab from './tabs/ExamTab';
+import ExamContainer from './tabs/exam/ExamContainer';
 import LabTab from './tabs/LabTab';
 import ConclusionTab from './tabs/ConclusionTab';
 
@@ -20,6 +20,48 @@ interface DynamicFormProps {
     onSave: (formData: any) => void;
     onCancel: () => void;
     onChangeFormType?: (type: string) => void;
+}
+
+// Local Error Boundary Component to capture Tab rendering errors
+class TabErrorBoundary extends React.Component<any, any> {
+    state: { hasError: boolean; error: any };
+    props: any;
+    setState: any;
+    constructor(props: any) {
+        super(props);
+        this.state = { hasError: false, error: null };
+    }
+
+    static getDerivedStateFromError(error: any) {
+        return { hasError: true, error };
+    }
+
+    componentDidCatch(error: any, errorInfo: any) {
+        console.error("TabErrorBoundary caught an error", error, errorInfo);
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="p-6 bg-red-50 border border-red-200 rounded-lg text-red-800">
+                    <h4 className="font-bold text-md mb-2">Đã xảy ra lỗi khi tải tab Khám lâm sàng:</h4>
+                    <pre className="text-xs bg-red-100 p-4 rounded overflow-auto max-h-60 font-mono">
+                        {this.state.error?.toString()}
+                        {"\n\nStack:\n"}
+                        {this.state.error?.stack}
+                    </pre>
+                    <button 
+                        type="button" 
+                        onClick={() => this.setState({ hasError: false, error: null })}
+                        className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold text-xs"
+                    >
+                        Thử lại
+                    </button>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
 }
 
 const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave, onCancel, onChangeFormType }) => {
@@ -44,6 +86,10 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                 // Đổ dữ liệu hành chính
                 if (data.patient_id) setPatientId(data.patient_id);
                 if (data.patient_name) setPatientName(data.patient_name.toUpperCase());
+                if (data.doc_no) {
+                    const currentYear = new Date().getFullYear();
+                    setDocNo(`KSK-${currentYear}-${data.doc_no}`);
+                }
                 if (data.cccd) setCccd(data.cccd);
                 if (data.dob) setDob(new Date(data.dob).toISOString().split('T')[0]);
                 if (data.gender) setGender(data.gender);
@@ -572,10 +618,22 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
     const [paraclinicalItems, setParaclinicalItems] = useState<any[]>(initialData?.lab_data?.paraclinical_items || []);
     const [labSubTab, setLabSubTab] = useState<'XN' | 'HA' | 'TD'>('XN');
 
+    // Specialty Exam states
+    const [specialtyMetadata, setSpecialtyMetadata] = useState<Record<string, { doctorId: string, status: string, updatedAt: string }>>(
+        initialData?.clinical_data?.specialty_metadata || {}
+    );
+    const [doctors, setDoctors] = useState<CatalogItem[]>([]);
+
     useEffect(() => {
         catalogService.getWorkplaces().then(data => {
             setWorkplaces(data);
         }).catch(() => setWorkplaces([]));
+    }, []);
+
+    useEffect(() => {
+        catalogService.getDoctors().then(data => {
+            setDoctors(data);
+        }).catch(() => setDoctors([]));
     }, []);
 
     useEffect(() => {
@@ -691,6 +749,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                     vong_nguc_tb: vongNgucTrungBinh,
                 },
                 clinical_exam: {
+                    specialty_metadata: specialtyMetadata,
                     internal: internalExam,
                     eye: eyeExam,
                     ent: entExam,
@@ -1498,8 +1557,12 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
             setKetLuanLoaiSucKhoe,
             errors,
             setErrors,
+            specialtyMetadata,
+            setSpecialtyMetadata,
+            doctors,
+            setDoctors,
         }}>
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-300">
+        <form onSubmit={handleSubmit} autoComplete="off" spellCheck={false} className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-300">
             {/* Header */}
             <div className="bg-[#0f766e] p-6 text-white flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                 <div className="flex-shrink-0">
@@ -1616,7 +1679,11 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                 
                 {activeTab === 'admin' && <AdminTab />}
                 {activeTab === 'history' && <HistoryTab />}
-                {activeTab === 'exam' && <ExamTab />}
+                {activeTab === 'exam' && (
+                    <TabErrorBoundary>
+                        <ExamContainer />
+                    </TabErrorBoundary>
+                )}
                 {activeTab === 'lab' && <LabTab />}
                 {activeTab === 'conclusion' && <ConclusionTab />}
             </div>

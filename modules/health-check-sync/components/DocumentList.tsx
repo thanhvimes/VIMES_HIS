@@ -91,6 +91,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                 />
                             </th>
                             <th className="p-4">Hồ sơ / Bệnh nhân</th>
+                            <th className="p-4 w-36">Số hồ sơ</th>
                             <th className="p-4">Loại biểu mẫu</th>
                             <th className="p-4">Người nhập / Ngày tạo</th>
                             <th className="p-4">Trạng thái E-MCH</th>
@@ -101,7 +102,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                         {documents.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="p-12 text-center">
+                                <td colSpan={8} className="p-12 text-center">
                                     <div className="flex flex-col items-center justify-center space-y-3 py-6">
                                         <div className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-full text-slate-400">
                                             <RefreshIcon className="w-8 h-8 animate-pulse text-teal-500" />
@@ -141,8 +142,6 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                     <td className="p-4">
                                         <div className="font-bold text-slate-900 dark:text-white text-[13px]">{doc.patient_name}</div>
                                         <div className="text-[11px] text-slate-500 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 font-mono mt-0.5">
-                                            <span className="font-bold text-slate-700 dark:text-slate-300">BA: {doc.doc_no}</span>
-                                            <span className="text-slate-300">|</span>
                                             <span>NS: {doc.dob ? new Date(doc.dob).toLocaleDateString('vi-VN') : 'N/A'}</span>
                                             {doc.cccd && (
                                                 <>
@@ -151,6 +150,9 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                                 </>
                                             )}
                                         </div>
+                                    </td>
+                                    <td className="p-4 font-mono font-bold text-slate-900 dark:text-white text-[13px]">
+                                        {doc.doc_no}
                                     </td>
                                     <td className="p-4">
                                         <span className="px-3 py-1 rounded-full bg-[#0f766e] text-white text-[10px] font-extrabold uppercase tracking-wide">
@@ -169,33 +171,29 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                     </td>
                                     <td className="p-4 text-right">
                                         <div className="flex justify-end items-center gap-1.5">
-                                            {/* Nút phụ: In, Sửa, Xóa */}
-                                            <div className="flex items-center gap-1 mr-2 border-r border-slate-200 dark:border-slate-700 pr-2">
-                                                <button 
-                                                    onClick={() => onPrint(doc)}
-                                                    className="p-1 text-slate-400 hover:text-orange-600 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-                                                    title="In biểu mẫu KSK"
-                                                >
-                                                    <PrinterIcon className="w-4 h-4"/>
-                                                </button>
-                                                <button 
-                                                    onClick={() => onEdit(doc)}
-                                                    className="p-1 text-slate-400 hover:text-[#0f766e] rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-                                                    title="Sửa hồ sơ"
-                                                >
-                                                    <PencilIcon className="w-4 h-4"/>
-                                                </button>
+                                            {/* Nút phụ: Xóa */}
+                                            <div className="flex items-center mr-2">
                                                 <button 
                                                     onClick={() => onDelete(doc.id)}
-                                                    className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                                                    className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
                                                     title="Xóa hồ sơ"
                                                 >
                                                     <TrashIcon className="w-4 h-4"/>
                                                 </button>
                                             </div>
 
-                                            {/* Khối 3 nút chính theo style ảnh mẫu */}
+                                            {/* Khối 4 nút chính theo style ảnh mẫu */}
                                             <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white shadow-sm flex-shrink-0">
+                                                {/* Sửa */}
+                                                <button 
+                                                    onClick={() => onEdit(doc)}
+                                                    className="flex flex-col items-center justify-center w-11 h-11 bg-white hover:bg-slate-50 text-slate-500 transition border-r border-slate-200 focus:outline-none cursor-pointer"
+                                                    title="Sửa hồ sơ"
+                                                >
+                                                    <PencilIcon className="w-4 h-4 text-slate-400"/>
+                                                    <span className="text-[8px] font-extrabold uppercase mt-0.5 tracking-wider">Sửa</span>
+                                                </button>
+
                                                 {/* XML */}
                                                 <button 
                                                     onClick={() => onViewXml(doc)}

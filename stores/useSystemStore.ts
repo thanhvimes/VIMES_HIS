@@ -11,6 +11,7 @@ import { PHARMACY_NAV_ITEMS } from '../modules/pharmacy/constants';
 import { MEDICAL_SUPPLIES_NAV_ITEMS } from '../modules/medical-supplies/constants';
 import { LAB_RESULTS_NAV_ITEMS } from '../modules/lab-results/constants';
 import { IMAGING_RESULTS_NAV_ITEMS } from '../modules/imaging-results/constants';
+import { PACS_RIS_NAV_ITEMS } from '../modules/pacs-ris/constants';
 import { INPATIENT_NAV_ITEMS, DOCTOR_NAV_ITEMS, NURSE_NAV_ITEMS } from '../modules/inpatient-treatment/constants';
 import { SURGERY_NAV_ITEMS } from '../modules/surgery/constants';
 import { EQUIPMENT_NAV_ITEMS } from '../modules/equipment/constants';
@@ -46,6 +47,7 @@ interface SystemState {
     slides: SlideItem[];
     menuConfig: Record<string, NavItemDTO[]>;
     hospitalName: string;
+    parentOrg: string;
     systemName: string;
     logoUrl: string;
     brandingLoaded: boolean;
@@ -76,6 +78,7 @@ const defaultMenuConfigRaw: Record<string, NavItemType[]> = {
     'medical-supplies': MEDICAL_SUPPLIES_NAV_ITEMS,
     'lab-results': LAB_RESULTS_NAV_ITEMS,
     'imaging-results': IMAGING_RESULTS_NAV_ITEMS,
+    'pacs-ris': PACS_RIS_NAV_ITEMS,
     'inpatient-treatment': INPATIENT_NAV_ITEMS,
     surgery: SURGERY_NAV_ITEMS,
     equipment: EQUIPMENT_NAV_ITEMS,
@@ -121,6 +124,7 @@ export const useSystemStore = create<SystemState>()(
             slides: defaultSlides,
             menuConfig: initialMenuConfig,
             hospitalName: 'BỆNH VIỆN K',
+            parentOrg: 'SỞ Y TẾ THÀNH PHỐ HÀ NỘI',
             systemName: 'HỆ THỐNG QUẢN LÝ TỔNG THỂ BỆNH VIỆN',
             logoUrl: '',
             brandingLoaded: false,
@@ -174,6 +178,7 @@ export const useSystemStore = create<SystemState>()(
                     const updates: Partial<SystemState> = { brandingLoaded: true };
                     settings.forEach(s => {
                         if (s.key === 'general_hospital_name') updates.hospitalName = s.value;
+                        if (s.key === 'general_parent_org') updates.parentOrg = s.value;
                         if (s.key === 'general_system_name') updates.systemName = s.value;
                         if (s.key === 'general_logo_url') updates.logoUrl = s.value;
                     });
@@ -188,6 +193,7 @@ export const useSystemStore = create<SystemState>()(
                     const localUpdates: Partial<SystemState> = {};
                     updates.forEach(u => {
                         if (u.key === 'general_hospital_name') localUpdates.hospitalName = u.value;
+                        if (u.key === 'general_parent_org') localUpdates.parentOrg = u.value;
                         if (u.key === 'general_system_name') localUpdates.systemName = u.value;
                         if (u.key === 'general_logo_url') localUpdates.logoUrl = u.value;
                     });

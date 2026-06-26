@@ -1,4 +1,4 @@
-﻿≡ƒô¥ TS DB Config Initializing: {
+≡ƒô¥ TS DB Config Initializing: {
   user: '[ENCRYPTED]',
   host: '10.1.3.200',
   database: 'vimes_jsc',
@@ -36,7 +36,7 @@ BEGIN
 	
 	v_examdate := p_examdate::timestamp;
 	v_gender := 'F';
-	IF(lower(p_gender) = 'nam') THEN
+	IF(lower(p_gender) = 'nam' OR lower(p_gender) = 'm') THEN
 	  v_gender := 'M';
 	END IF;
 	

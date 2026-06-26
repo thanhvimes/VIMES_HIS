@@ -94,10 +94,10 @@ class SMSTemplateController {
             }
 
             const template = await smsTemplateService.createTemplate({
-                templateType: template_type,
-                deptCode: dept_code,
-                patientType: patient_type,
-                templateContent: template_content,
+                template_type,
+                dept_code,
+                patient_type,
+                template_content,
                 description,
                 createdBy: String(createdBy)
             } as any);
@@ -125,9 +125,9 @@ class SMSTemplateController {
             const { template_content, description, is_active } = (req as any).body;
             const updatedBy = req.userId || 'system';
             const template = await smsTemplateService.updateTemplate(Number(id), {
-                templateContent: template_content,
+                template_content,
                 description,
-                isActive: is_active,
+                is_active,
                 updatedBy: String(updatedBy)
             } as any);
 

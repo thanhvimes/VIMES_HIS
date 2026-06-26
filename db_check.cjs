@@ -56,20 +56,9 @@ async function checkDb() {
   const client = new Client(dbConfig);
   try {
     await client.connect();
-    console.log('Connected to DB successfully!');
-
-    console.log('\n--- 5 BAN GHI MASTER MOI NHAT ---');
-    const resMaster = await client.query('SELECT id, patient_name, doc_no, form_type, created_at FROM health_check_masters ORDER BY id DESC LIMIT 5');
-    console.log(resMaster.rows);
-
-    console.log('\n--- KET NOI MASTER & DETAIL CO KHONG ---');
-    const resJoin = await client.query(`
-      SELECT m.id, m.patient_name, d.master_id 
-      FROM health_check_masters m 
-      LEFT JOIN health_check_details d ON m.id = d.master_id 
-      ORDER BY m.id DESC LIMIT 5
-    `);
-    console.log(resJoin.rows);
+    console.log('\n--- hms_exam he_receptno distribution ---');
+    const resRecNo = await client.query("SELECT he_receptno, count(*) FROM hms_exam GROUP BY he_receptno ORDER BY count DESC LIMIT 5");
+    console.log(resRecNo.rows);
 
   } catch (err) {
     console.error('Error querying database:', err);

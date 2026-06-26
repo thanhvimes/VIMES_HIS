@@ -54,15 +54,45 @@ class ScheduleController {
             let allSlots: TimeSlot[] = [];
 
             if (specialityCode) {
-                const roomsResult = await query(`
-                    SELECT DISTINCT hrk_id as room_id
-                    FROM hms_roomlist_kios
-                    WHERE hrk_deptid = $1 
-                      AND hrk_code = $2
-                      AND hrk_active = 'Y'
-                `, [deptId, specialityCode]);
+                // Optimized single query to fetch all slots for the specialty's rooms
+                const result = await query(`
+                    SELECT 
+                        hse.hse_roomid as "roomId",
+                        hse.hse_time as time, 
+                        hse.hse_receptno as "receptNo", 
+                        hse.hse_type as type, 
+                        hse.hse_status as status,
+                        COALESCE(q.booked_count, 0) as booked_count
+                    FROM hms_schedule_exam hse
+                    JOIN hms_roomlist_kios k ON (
+                        k.hrk_deptid = hse.hse_deptid 
+                        AND k.hrk_id = hse.hse_roomid
+                    )
+                    LEFT JOIN (
+                        SELECT 
+                            qms_deptid, 
+                            qms_roomid, 
+                            qms_appointment_date, 
+                            qms_appointment_time, 
+                            COUNT(*) as booked_count
+                        FROM qms_patient
+                        WHERE qms_status IN ('O', 'S')
+                          AND qms_appointment_date = $3
+                        GROUP BY qms_deptid, qms_roomid, qms_appointment_date, qms_appointment_time
+                    ) q ON (
+                        q.qms_deptid = hse.hse_deptid
+                        AND q.qms_roomid = hse.hse_roomid
+                        AND q.qms_appointment_date = hse.hse_date
+                        AND q.qms_appointment_time = hse.hse_time
+                    )
+                    WHERE hse.hse_deptid = $1 
+                      AND k.hrk_code = $2
+                      AND k.hrk_active = 'Y'
+                      AND hse.hse_date = $3
+                    ORDER BY hse.hse_time
+                `, [deptId, specialityCode, date]);
 
-                if (roomsResult.rows.length === 0) {
+                if (result.rows.length === 0) {
                     return res.json({
                         success: true,
                         date: date,
@@ -73,18 +103,42 @@ class ScheduleController {
                     });
                 }
 
-                for (const room of roomsResult.rows) {
-                    const roomSlots = await this.getRoomSlots(deptId as string, room.room_id, date as string);
-                    allSlots.push(...roomSlots);
-                }
+                // Get distinct room IDs
+                const roomIds = Array.from(new Set(result.rows.map(r => r.roomId)));
 
-                const mergedSlots = this.mergeSlotsByTime(allSlots);
+                const isToday = new Date(date).toDateString() === new Date().toDateString();
+                const now = new Date();
+                const currentHour = now.getHours();
+                const currentMinute = now.getMinutes();
+
+                const filteredSlots: TimeSlot[] = result.rows
+                    .filter(slot => {
+                        if (!isToday) return true;
+                        const [slotHour, slotMinute] = slot.time.split(':').map(Number);
+                        if (slotHour > currentHour) return true;
+                        if (slotHour === currentHour && slotMinute > currentMinute) return true;
+                        return false;
+                    })
+                    .map(row => {
+                        const available = (row.status === 'O' && Number(row.booked_count || 0) === 0) ? 1 : 0;
+                        return {
+                            time: row.time,
+                            receptNo: row.receptNo,
+                            type: row.type || 'S',
+                            available: available,
+                            max: 1,
+                            status: available > 0 ? 'O' : 'F',
+                            roomId: row.roomId
+                        };
+                    });
+
+                const mergedSlots = this.mergeSlotsByTime(filteredSlots);
 
                 return res.json({
                     success: true,
                     date: date,
                     specialityCode: specialityCode,
-                    totalRooms: roomsResult.rows.length,
+                    totalRooms: roomIds.length,
                     slots: mergedSlots
                 });
 
@@ -104,30 +158,44 @@ class ScheduleController {
         }
     }
 
-    // Helper: Lấy slots của 1 phòng
     async getRoomSlots(deptId: string, roomId: string | number, date: string): Promise<TimeSlot[]> {
-        const schedules = await this.getSchedulesFromDB(deptId, roomId, date);
-        if (schedules.length === 0) return [];
+        const result = await query(`
+            SELECT 
+                hse.hse_time as time, 
+                hse.hse_receptno as "receptNo", 
+                hse.hse_type as type, 
+                hse.hse_status as status,
+                COALESCE(q.booked_count, 0) as booked_count
+            FROM hms_schedule_exam hse
+            LEFT JOIN (
+                SELECT 
+                    qms_deptid, 
+                    qms_roomid, 
+                    qms_appointment_date, 
+                    qms_appointment_time, 
+                    COUNT(*) as booked_count
+                FROM qms_patient
+                WHERE qms_status IN ('O', 'S')
+                  AND qms_appointment_date = $3
+                GROUP BY qms_deptid, qms_roomid, qms_appointment_date, qms_appointment_time
+            ) q ON (
+                q.qms_deptid = hse.hse_deptid
+                AND q.qms_roomid = hse.hse_roomid
+                AND q.qms_appointment_date = hse.hse_date
+                AND q.qms_appointment_time = hse.hse_time
+            )
+            WHERE hse.hse_deptid = $1 AND hse.hse_roomid = $2 AND hse.hse_date = $3
+            ORDER BY hse.hse_time
+        `, [deptId, roomId, date]);
 
-        const allSlots: any[] = [];
-        for (const schedule of schedules) {
-            const slots = this.generateTimeSlots(
-                schedule.start_time,
-                schedule.end_time,
-                schedule.slot_duration,
-                schedule.max_patients
-            );
-            allSlots.push(...slots);
-        }
-
-        const bookedSlots = await this.getBookedSlots(deptId, roomId, date);
+        if (result.rows.length === 0) return [];
 
         const isToday = new Date(date).toDateString() === new Date().toDateString();
         const now = new Date();
         const currentHour = now.getHours();
         const currentMinute = now.getMinutes();
 
-        return allSlots
+        return result.rows
             .filter(slot => {
                 if (!isToday) return true;
                 const [slotHour, slotMinute] = slot.time.split(':').map(Number);
@@ -135,17 +203,14 @@ class ScheduleController {
                 if (slotHour === currentHour && slotMinute > currentMinute) return true;
                 return false;
             })
-            .map(slot => {
-                const booked = bookedSlots.find((b: any) => b.time === slot.time);
-                const bookedCount = booked ? parseInt(booked.booked_count) : 0;
-                const available = slot.max - bookedCount;
-
+            .map(row => {
+                const available = (row.status === 'O' && Number(row.booked_count || 0) === 0) ? 1 : 0;
                 return {
-                    time: slot.time,
-                    receptNo: slot.receptNo,
-                    type: slot.type,
+                    time: row.time,
+                    receptNo: row.receptNo,
+                    type: row.type || 'S',
                     available: available,
-                    max: slot.max,
+                    max: 1,
                     status: available > 0 ? 'O' : 'F',
                     roomId: roomId
                 };
@@ -232,6 +297,52 @@ class ScheduleController {
             GROUP BY qms_appointment_time, qms_receptno
         `, [deptId, roomId, date]);
         return result.rows;
+    }
+
+    // Giải phóng các slot ảo bị khóa nhầm
+    async cleanVirtualSlots(req: Request, res: Response) {
+        try {
+            const { date, deptId } = req.body;
+            
+            let sql = `
+                UPDATE hms_schedule_exam hse
+                SET hse_status = 'O', hse_updateddate = NOW()
+                WHERE hse_status = 'S'
+                  AND hse_date >= CURRENT_DATE
+            `;
+            const params: any[] = [];
+            let paramIndex = 1;
+
+            if (date) {
+                sql += ` AND hse_date = $${paramIndex++}`;
+                params.push(date);
+            }
+            if (deptId) {
+                sql += ` AND hse_deptid = $${paramIndex++}`;
+                params.push(deptId);
+            }
+
+            sql += `
+                AND NOT EXISTS (
+                    SELECT 1 FROM qms_patient q
+                    WHERE q.qms_deptid = hse.hse_deptid
+                      AND q.qms_roomid = hse.hse_roomid
+                      AND q.qms_appointment_date = hse.hse_date
+                      AND q.qms_appointment_time = hse.hse_time
+                      AND q.qms_status IN ('O', 'S')
+                )
+            `;
+
+            const result = await query(sql, params);
+            return res.json({
+                success: true,
+                message: `Đã giải phóng thành công ${result.rowCount} slot ảo.`,
+                releasedCount: result.rowCount
+            });
+        } catch (error: any) {
+            console.error('Error cleaning virtual slots:', error);
+            return res.status(500).json({ error: 'Không thể giải phóng slot ảo: ' + error.message });
+        }
     }
 }
 

@@ -1,0 +1,42 @@
+{
+  "columns": [
+    {
+      "column_name": "hq_idx",
+      "data_type": "integer"
+    },
+    {
+      "column_name": "hq_id",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "hq_name",
+      "data_type": "character varying"
+    },
+    {
+      "column_name": "hq_id_vn",
+      "data_type": "character varying"
+    }
+  ],
+  "samples": [
+    {
+      "hq_idx": 1,
+      "hq_id": "101",
+      "hq_name": "Afghanistan",
+      "hq_id_vn": null
+    },
+    {
+      "hq_idx": 2,
+      "hq_id": "102",
+      "hq_name": "Ai Cập",
+      "hq_id_vn": null
+    }
+  ],
+  "vn": [
+    {
+      "hq_idx": 190,
+      "hq_id": "000",
+      "hq_name": "Việt Nam",
+      "hq_id_vn": null
+    }
+  ]
+}

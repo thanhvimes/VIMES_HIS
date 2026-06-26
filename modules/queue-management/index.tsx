@@ -23,7 +23,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   selectedRooms: [],
   kioskName: 'Hệ thống QMS',
   ipAddress: '127.0.0.1',
-  serverUrl: `http://${window.location.hostname}:3000`,
+  serverUrl: `http://${window.location.hostname}:3001`,
   enableDepartmentSelection: true,
   enableMultiSpecialtySelection: false,
   enabledModules: {
@@ -36,7 +36,12 @@ const DEFAULT_SETTINGS: AppSettings = {
   },
   printerConfig: { enabled: true, type: 'DRIVER', language: 'ESC', printerName: 'Máy in 1', ipAddress: '127.0.0.1', port: 9100, printTemplate: '' },
   adConfig: { screensaverDelaySeconds: 30, slides: [], newsTicker: [] },
-  displayTemplateId: 'airport-dark',
+  customTheme: {
+    bg: '#f8fafc',
+    headerBg: '#2e408a',
+    text: '#ffffff',
+    accent: '#2e408a'
+  },
   bankConfig: {
     bankBin: '970415',
     accountNo: '123456789',
@@ -50,7 +55,15 @@ const QueueManagementModule: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>(() => {
     try {
       const saved = localStorage.getItem('vimesqms_settings');
-      return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.serverUrl && (parsed.serverUrl.includes('localhost:3000') || parsed.serverUrl.includes('127.0.0.1:3000'))) {
+          parsed.serverUrl = parsed.serverUrl.replace(':3000', ':3001');
+          localStorage.setItem('vimesqms_settings', JSON.stringify(parsed));
+        }
+        return { ...DEFAULT_SETTINGS, ...parsed };
+      }
+      return DEFAULT_SETTINGS;
     } catch (e) {
       console.error('Failed to parse vimesqms_settings:', e);
       return DEFAULT_SETTINGS;

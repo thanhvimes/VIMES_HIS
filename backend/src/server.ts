@@ -1,4 +1,3 @@
-
 // ==================== MAIN SERVER ====================
 // File: backend/src/server.ts
 
@@ -20,8 +19,45 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Serve uploaded files (e.g. PACS files)
+const uploadsPath = path.resolve(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsPath)) {
+    fs.mkdirSync(uploadsPath, { recursive: true });
+}
+app.use('/uploads', express.static(uploadsPath));
+
+
 // Logging middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
+    const start = Date.now();
+    const originalJson = res.json;
+    let responseBody: any = null;
+
+    res.json = function(body) {
+        responseBody = body;
+        return originalJson.apply(this, arguments as any);
+    };
+
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        const logLine = `${new Date().toISOString()} - ${req.method} ${req.originalUrl || req.url} - Status: ${res.statusCode} - Duration: ${duration}ms\n`;
+        
+        let extraInfo = '';
+        if (req.path.includes('/catalogs') || req.path.includes('/reception/catalogs')) {
+            if (res.statusCode >= 400) {
+                extraInfo += `  Error Body: ${JSON.stringify(responseBody)}\n`;
+            } else if (responseBody) {
+                const count = Array.isArray(responseBody) ? responseBody.length : 'not an array';
+                extraInfo += `  Response Count: ${count}\n`;
+            }
+        }
+        
+        // Log request info directly to console to avoid writing to db_debug.log (stops Vite HMR loops)
+        if (extraInfo) {
+            console.log(extraInfo.trim());
+        }
+    });
+
     console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
     next();
 });
@@ -43,6 +79,8 @@ import healthCheckRoutes from './routes/health-check.routes';
 import auditRoutes from './routes/audit.routes';
 import queueRoutes from './routes/queue.routes';
 import qmsRoutes from './routes/qms.routes';
+import pacsRoutes from './routes/pacs.routes';
+
 
 // API Health check
 app.get('/api/health', (req: Request, res: Response) => {
@@ -51,6 +89,12 @@ app.get('/api/health', (req: Request, res: Response) => {
         message: 'VIMES Backend API (TypeScript)',
         version: '1.0.0'
     });
+});
+
+app.post('/api/debug-log', (req: Request, res: Response) => {
+    const { message } = req.body;
+    console.log(`[FRONTEND DEBUG] ${new Date().toISOString()} - ${message}`);
+    res.json({ success: true });
 });
 
 // Register API routes
@@ -70,6 +114,7 @@ app.use('/api/v1/health-check-sync', healthCheckRoutes);
 app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1', queueRoutes);
 app.use('/api', qmsRoutes);
+app.use('/api', pacsRoutes);
 
 // Error handling middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
@@ -96,14 +141,18 @@ if (fs.existsSync(frontendPath)) {
     });
 }
 
+import { runDbDiagnostics } from './utils/debugDb';
+
 // Start automated jobs
 import scheduleService from './services/schedule.service';
 import { loadBHXHConfig } from './config/bhxh';
 import { loadHealthCheckSettings } from './config/health-check-settings';
+import { startHealthCheckSyncWorker } from './services/health-check-sync.service';
 
 scheduleService.setupAutomatedJobs();
 loadBHXHConfig(); // Tải cấu hình BHXH vào memory
 loadHealthCheckSettings(); // Tải cấu hình VNeID KSK vào memory
+startHealthCheckSyncWorker(); // Khởi chạy auto sync VNeID chạy ngầm
 
 // Start server
 app.listen(PORT, () => {
@@ -113,6 +162,11 @@ app.listen(PORT, () => {
     console.log(`🌐 http://localhost:${PORT}`);
     console.log(`📊 Database: ${process.env.DB_NAME || 'Not configured'}`);
     console.log('='.repeat(50));
+    
+    // Run diagnostics asynchronously (Disabled to prevent Vite watch reloads)
+    // runDbDiagnostics().catch(err => console.error("Diagnostics failed:", err));
 });
 
 export default app;
+// Force nodemon restart to compile new database fix code. (Updated diagnostics run 2)
+

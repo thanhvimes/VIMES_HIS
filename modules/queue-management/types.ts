@@ -201,6 +201,12 @@ export interface AppSettings {
   callingTemplate?: string; // NEW: Template for calling message (e.g., "Mời bệnh nhân {name} số {number} đến quầy {counter}")
   adConfig: AdConfig;
   displayTemplateId?: string;
+  customTheme?: {
+    bg: string;
+    headerBg: string;
+    text: string;
+    accent: string;
+  };
 
   bankConfig: {
     bankBin: string;

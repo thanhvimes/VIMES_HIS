@@ -13,8 +13,43 @@ interface PatientInfoFormProps {
 
 const PatientInfoForm: React.FC<PatientInfoFormProps> = ({ data, errors, onChange, provinces, wards }) => {
     // Standardize heights and aesthetics to be uniform and premium
-    const inputBaseClass = "h-11 bg-slate-50 dark:bg-slate-900/50 font-bold text-slate-900 dark:text-white placeholder-slate-400 text-base shadow-sm rounded-xl";
+    const inputBaseClass = "!h-12 py-1.5 bg-slate-50 dark:bg-slate-900/50 font-bold text-slate-900 dark:text-white placeholder-slate-400 text-sm shadow-sm rounded-xl leading-normal";
     const labelClass = "text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider";
+
+    const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        const normalizedValue = value.normalize('NFC');
+
+        // 1. Update the name in parent state with NFC normalized value only (NO toUpperCase here)
+        // Visual uppercase is handled by CSS text-transform:uppercase on the input element
+        onChange({
+            ...e,
+            target: {
+                ...e.target,
+                name: 'name',
+                value: normalizedValue
+            }
+        });
+
+        // 2. Guess gender based on common Vietnamese middle names (check both cases)
+        const lowerValue = normalizedValue.toLowerCase();
+        const words = lowerValue.trim().split(/\s+/);
+        let guessedGender = '';
+        if (words.includes('thị')) {
+            guessedGender = 'F'; // Nữ
+        } else if (words.includes('văn')) {
+            guessedGender = 'M'; // Nam
+        }
+
+        if (guessedGender && guessedGender !== data.gender) {
+            onChange({
+                target: {
+                    name: 'gender',
+                    value: guessedGender
+                }
+            } as any);
+        }
+    };
 
     return (
         <div className="space-y-4">
@@ -25,10 +60,11 @@ const PatientInfoForm: React.FC<PatientInfoFormProps> = ({ data, errors, onChang
                         label="Họ và tên bệnh nhân *"
                         name="name"
                         value={data.name}
-                        onChange={onChange}
+                        onChange={handleNameChange}
                         className={inputBaseClass}
                         labelClassName={labelClass}
-                        placeholder="NGUYỄN VĂN A"
+                        placeholder="Nguyễn Văn A"
+                        style={{ textTransform: 'uppercase' }}
                     />
                 </div>
                 <div className="col-span-4">

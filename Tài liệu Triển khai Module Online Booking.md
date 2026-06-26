@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS public.qms_patient
     qms_doctor character varying(15),
     
     -- Phân loại & Đối tượng
-    qms_type character varying(1) DEFAULT 'O',   -- ONL=Online, KIO=Kiosk
+    qms_type character varying(10) DEFAULT 'O',   -- ONL=Online, KIO=Kiosk
     qms_is_insurance boolean DEFAULT FALSE,     -- Có BHYT hay không
     qms_is_priority boolean DEFAULT FALSE,      -- Đối tượng ưu tiên
     
@@ -121,7 +121,14 @@ AS $BODY$
     v_idx      INTEGER;
     v_receptno INTEGER;
     v_count    INTEGER;
+    v_sex      VARCHAR(1);
   BEGIN
+    -- Chuẩn hóa giới tính về 'M' hoặc 'F'
+    v_sex := 'F';
+    IF (lower(p_gioi_tinh) = 'nam' OR lower(p_gioi_tinh) = 'm') THEN
+      v_sex := 'M';
+    END IF;
+
     -- 1. Kiểm tra Slot có còn trống không
     SELECT COUNT(*) INTO v_count FROM hms_schedule_exam
     WHERE hse_date = p_ngay_hen AND hse_deptid = p_ma_khoa AND hse_roomid = p_ma_phong_kham
@@ -136,6 +143,7 @@ AS $BODY$
     WHERE qms_contact = p_so_dien_thoai 
       AND qms_specialty_code = p_ma_chuyen_khoa
       AND qms_appointment_date = p_ngay_hen
+      AND qms_sex = v_sex
       AND qms_status != 'C';
       
     IF v_count > 0 THEN RETURN -3; END IF; 
@@ -157,7 +165,7 @@ AS $BODY$
         qms_reason, qms_status, qms_receptno, qms_occupation, qms_doctor, qms_type,
         qms_is_priority, qms_is_insurance, qms_specialty_code
     ) VALUES (
-        v_idx, p_cccd, p_ngay_cap_cccd, p_ho_ten, p_ngay_sinh, p_gioi_tinh, 
+        v_idx, p_cccd, p_ngay_cap_cccd, p_ho_ten, p_ngay_sinh, v_sex, 
         (CASE WHEN p_dan_toc = '' THEN NULL ELSE p_dan_toc::INTEGER END), 
         p_ma_tinh, p_ma_quan_huyen, p_ma_phuong_xa, p_dia_chi_chi_tiet, p_so_dien_thoai,
         p_email, p_ma_khoa, p_ma_phong_kham, p_ngay_hen, p_gio_hen,

@@ -8,9 +8,20 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,  // Frontend port
       host: '0.0.0.0',
+      watch: {
+        ignored: [
+          '**/db_debug.log',
+          '**/bhxh_debug_dump.json',
+          '**/all_patients.json',
+          '**/backend/src/tts_cache/**',
+          '**/*.log',
+          '**/*.mp3',
+          '**/node_modules/**'
+        ]
+      },
       proxy: {
         '/api': {
-          target: 'http://localhost:3000',  // Backend port
+          target: 'http://localhost:3001',  // Backend port
           changeOrigin: true,
           secure: false,
         }
