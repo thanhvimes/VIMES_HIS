@@ -580,6 +580,8 @@ export interface DynamicFormContextType {
     setCacVanDeLuuY: React.Dispatch<React.SetStateAction<string>>;
     ketLuanLoaiSucKhoe: string;
     setKetLuanLoaiSucKhoe: React.Dispatch<React.SetStateAction<string>>;
+    conclusionDoctorId: string;
+    setConclusionDoctorId: React.Dispatch<React.SetStateAction<string>>;
 
     errors: Record<string, string>;
     setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>;

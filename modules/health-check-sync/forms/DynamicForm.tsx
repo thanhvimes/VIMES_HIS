@@ -8,6 +8,7 @@ import { healthCheckService } from '../../../services/healthCheckService';
 import { DynamicFormContext } from './DynamicFormContext';
 import { useCatalogs } from '../../../contexts/CatalogContext';
 import { catalogService, CatalogItem } from '../../../services/catalogService';
+import { useSession } from '../../../contexts/SessionContext';
 import AdminTab from './tabs/AdminTab';
 import HistoryTab from './tabs/HistoryTab';
 import ExamContainer from './tabs/exam/ExamContainer';
@@ -66,6 +67,7 @@ class TabErrorBoundary extends React.Component<any, any> {
 
 const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave, onCancel, onChangeFormType }) => {
     const { fontSettings } = useTheme();
+    const { user } = useSession();
     const [activeTab, setActiveTab] = useState<'admin' | 'history' | 'exam' | 'lab' | 'conclusion'>('admin');
     
     // State for HIS Sync
@@ -613,6 +615,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
     const [noiTietDinhDuongChuyenHoa, setNoiTietDinhDuongChuyenHoa] = useState(initialData?.clinical_data?.clinical_exam?.noi_tiet_dinh_duong_chuyen_hoa || 'Bình thường');
     const [roiLoanHanhViTamThan, setRoiLoanHanhViTamThan] = useState(initialData?.clinical_data?.clinical_exam?.roi_loan_hanh_vi_tam_than || 'Bình thường');
     const [ketLuanLoaiSucKhoe, setKetLuanLoaiSucKhoe] = useState(initialData?.conclusion_data?.ket_luan_loai_suc_khoe || '1');
+    const [conclusionDoctorId, setConclusionDoctorId] = useState(initialData?.conclusion_data?.doctor_id || '');
 
     // Dynamic services state (paraclinical grid)
     const [paraclinicalItems, setParaclinicalItems] = useState<any[]>(initialData?.lab_data?.paraclinical_items || []);
@@ -635,6 +638,12 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
             setDoctors(data);
         }).catch(() => setDoctors([]));
     }, []);
+
+    useEffect(() => {
+        if (!conclusionDoctorId && user?.userId) {
+            setConclusionDoctorId(user.userId);
+        }
+    }, [user, conclusionDoctorId]);
 
     useEffect(() => {
         if (maTinhCuTru) {
@@ -1003,7 +1012,8 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                 kha_nang_chiu_song: khaNangChiuSong,
                 han_che: hanChe,
                 yeu_cau_deo_kinh: yeuCauDeoKinh,
-                ket_luan_loai_suc_khoe: ketLuanLoaiSucKhoe
+                ket_luan_loai_suc_khoe: ketLuanLoaiSucKhoe,
+                doctor_id: conclusionDoctorId
             }
         };
         
@@ -1555,6 +1565,8 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
             setCacVanDeLuuY,
             ketLuanLoaiSucKhoe,
             setKetLuanLoaiSucKhoe,
+            conclusionDoctorId,
+            setConclusionDoctorId,
             errors,
             setErrors,
             specialtyMetadata,

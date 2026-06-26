@@ -20,13 +20,18 @@ const ConclusionTab: React.FC = () => {
         setYeuCauDeoKinh,
         ketLuanLoaiSucKhoe,
         setKetLuanLoaiSucKhoe,
+        doctors,
+        conclusionDoctorId,
+        setConclusionDoctorId,
     } = useDynamicFormContext();
+
+    const doctorsList = doctors || [];
 
     return (
         <div className="space-y-6 animate-fadeIn">
             <div className="modern-card p-6">
                 <h4 className="text-sm font-bold text-[#0f766e] dark:text-teal-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">IV.2. Kết luận sức khỏe chung</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Phân loại sức khỏe chung</label>
                         <select value={fitnessClass} onChange={e => setFitnessClass(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold text-[#0f766e] dark:text-teal-400">
@@ -35,6 +40,21 @@ const ConclusionTab: React.FC = () => {
                             <option value="3">Loại III : Trung bình</option>
                             <option value="4">Loại IV : Yếu</option>
                             <option value="5">Loại V : Rất yếu</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Bác sĩ kết luận</label>
+                        <select 
+                            value={conclusionDoctorId} 
+                            onChange={e => setConclusionDoctorId(e.target.value)} 
+                            className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
+                        >
+                            <option value="">-- Chọn bác sĩ --</option>
+                            {doctorsList.map((doc: any) => (
+                                <option key={doc.id} value={doc.id}>
+                                    {doc.name}
+                                </option>
+                            ))}
                         </select>
                     </div>
                     <div className="md:col-span-2">
