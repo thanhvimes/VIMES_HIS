@@ -8,6 +8,7 @@ import html2canvas from 'html2canvas-pro';
 import jsPDF from 'jspdf';
 import PdfPreviewModal from '../../../components/ui/PdfPreviewModal';
 import { useSession } from '../../../contexts/SessionContext';
+import { catalogService } from '../../../services/catalogService';
 
 interface PrintFormProps {
     document: any;
@@ -23,7 +24,12 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
     const [signatures, setSignatures] = useState<any[]>([]);
     const [htmlFallback, setHtmlFallback] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [doctors, setDoctors] = useState<any[]>([]);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        catalogService.getDoctors().then(setDoctors).catch(() => {});
+    }, []);
 
     // Create portal container directly under document.body to avoid parent layout overflow hidden constraints
     const [portalContainer] = useState(() => {
@@ -137,22 +143,22 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                     const page = pages[i];
                     console.log(`Rendering page ${i + 1}/${total}...`);
                     
-                    // Promise.race to ensure each page render doesn't hang more than 4 seconds
+                    // Promise.race to ensure each page render doesn't hang more than 6 seconds
                     const canvas = await Promise.race([
                         html2canvas(page as HTMLElement, {
-                            scale: 1.5,
+                            scale: 2, // Tăng scale lên 2 để chữ nét hơn (chuẩn in ấn)
                             useCORS: true,
-                            logging: true,
+                            logging: false,
                             allowTaint: true,
                             backgroundColor: '#ffffff'
                         }),
                         new Promise<never>((_, reject) => 
-                            setTimeout(() => reject(new Error(`Timeout rendering page ${i + 1}`)), 4000)
+                            setTimeout(() => reject(new Error(`Timeout rendering page ${i + 1}`)), 6000)
                         )
                     ]);
                     
                     if (!activeRef.current) return null;
-                    const imgData = canvas.toDataURL('image/jpeg', 0.90);
+                    const imgData = canvas.toDataURL('image/jpeg', 1.0);
                     console.log(`Page ${i + 1} rendered, imgData size:`, imgData.length);
                     if (i > 0) {
                         pdf.addPage();
@@ -167,11 +173,11 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                 return URL.createObjectURL(pdfBlob);
             })();
 
-            // Race the entire rendering process against a 10-second timeout
+            // Race the entire rendering process against a 20-second timeout
             const url = await Promise.race([
                 renderingPromise,
                 new Promise<null>((_, reject) => 
-                    setTimeout(() => reject(new Error("Timeout generating PDF")), 10000)
+                    setTimeout(() => reject(new Error("Timeout generating PDF")), 20000)
                 )
             ]);
 
@@ -285,6 +291,14 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
         return names[pl] || `${pl}`;
     };
 
+    const getConclusionDoctorName = () => {
+        if (conclusion.doctor_id) {
+            const found = doctors.find(d => String(d.id || d.hee_employee_id) === String(conclusion.doctor_id));
+            if (found) return found.name || found.hee_fullname;
+        }
+        return conclusion.doctor_name || 'BSCKI. Hà Thị Thanh Mai';
+    };
+
     const getDoctor = (specialty: string) => {
         const metadataMap: Record<string, string> = {
             tuan_hoan: 'internal',
@@ -304,6 +318,12 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
         };
         
         const metaKey = metadataMap[specialty];
+        const docMeta = clinical.specialty_metadata?.[metaKey] || clinicalExam.specialty_metadata?.[metaKey];
+        if (docMeta?.doctorId) {
+            const found = doctors.find(d => String(d.id || d.hee_employee_id) === String(docMeta.doctorId));
+            if (found) return found.name || found.hee_fullname;
+        }
+
         if (metaKey && clinicalExam.specialty_metadata?.[metaKey]?.doctorName) {
             return clinicalExam.specialty_metadata[metaKey].doctorName;
         }
@@ -311,9 +331,9 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
         if (clinicalExam[`doctor_${specialty}`]) return clinicalExam[`doctor_${specialty}`];
         if (clinicalExam.doctor_name) return clinicalExam.doctor_name;
         if (['ngoai_khoa', 'da_lieu', 'tai_mui_hong', 'rang_ham_mat'].includes(specialty)) {
-            return conclusion.doctor_name || 'BSCKI. Hà Thị Thanh Mai';
+            return getConclusionDoctorName();
         }
-        return 'Administrator';
+        return getConclusionDoctorName();
     };
 
     const formatEyeExam = () => {
@@ -1070,12 +1090,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                                         if (tdItems.length === 0) {
                                             return (
                                                 <tr className="h-7">
-                                                    <td className="text-center">1</td>
-                                                    <td className="text-left font-semibold">Điện tim thường</td>
-                                                    <td className="text-center">lần</td>
-                                                    <td className="text-left text-[11px]">Bình thường</td>
-                                                    <td className="text-left font-bold text-teal-800">Bình thường</td>
-                                                    <td></td>
+                                                    <td colSpan={6} className="text-center py-2 text-slate-500 italic">Không có dữ liệu thăm dò chức năng</td>
                                                 </tr>
                                             );
                                         }
@@ -1114,12 +1129,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                                         if (haItems.length === 0) {
                                             return (
                                                 <tr className="h-7">
-                                                    <td className="text-center">1</td>
-                                                    <td className="text-left font-semibold">Chụp X-quang ngực thẳng</td>
-                                                    <td className="text-center">lần</td>
-                                                    <td className="text-left text-[11px]">Bình thường</td>
-                                                    <td className="text-left font-bold text-teal-800">Bình thường</td>
-                                                    <td></td>
+                                                    <td colSpan={6} className="text-center py-2 text-slate-500 italic">Không có dữ liệu chẩn đoán hình ảnh</td>
                                                 </tr>
                                             );
                                         }
@@ -1155,24 +1165,11 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                                 <tbody>
                                     {(() => {
                                         if (xnItemsPage3.length === 0) {
-                                            // Fallback mock first 5 items matching PDF exactly
-                                            const mockPage3 = [
-                                                { stt: 1, name: 'Thời gian thromboplastin một phần hoạt hóa (APTT: Activated Partial Thromboplastin Time), (tên khác: TCK) bằng máy tự động', unit: 'Lần', ref: '' },
-                                                { stt: 2, name: 'APTT-ratio', unit: 'Ratio', ref: '0.8-1.2' },
-                                                { stt: 3, name: 'APTT-s', unit: 'S', ref: '25-35' },
-                                                { stt: 4, name: 'Nghiệm pháp Coombs gián tiếp (kỹ thuật Scangel/Gelcard trên máy bán tự động)', unit: 'Lần', ref: '' },
-                                                { stt: 5, name: 'Định lượng TSH (Thyroid Stimulating hormone) [Máu]', unit: 'µIU/mL', ref: '0.2-4.2' },
-                                            ];
-                                            return mockPage3.map((x, idx) => (
-                                                <tr key={idx} className="h-8">
-                                                    <td className="text-center">{x.stt}</td>
-                                                    <td className="text-left font-semibold">{x.name}</td>
-                                                    <td className="text-center">{x.unit}</td>
-                                                    <td className="text-center">{x.ref}</td>
-                                                    <td className="text-center font-bold text-teal-800"></td>
-                                                    <td></td>
+                                            return (
+                                                <tr className="h-8">
+                                                    <td colSpan={6} className="text-center py-2 text-slate-500 italic">Không có dữ liệu xét nghiệm</td>
                                                 </tr>
-                                            ));
+                                            );
                                         }
                                         return xnItemsPage3.map((item: any, idx: number) => (
                                             <tr key={idx} className="h-8">
@@ -1196,46 +1193,20 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                 {/* ==================== PAGE 4 ==================== */}
                 <div className="a4-page">
                     {/* Continuing Xét nghiệm table */}
-                    <table className="a4-table w-full text-[12px] text-center">
-                        <thead>
-                            <tr className="bg-slate-50 font-bold">
-                                <th className="w-[8%] text-center">STT</th>
-                                <th className="w-[42%] text-center">Tên chỉ định</th>
-                                <th className="w-[12%] text-center">Đơn vị</th>
-                                <th className="w-[18%] text-center">Khoảng tham chiếu</th>
-                                <th className="w-[12%] text-center">Kết quả</th>
-                                <th className="w-[8%] text-center">Ghi chú</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {(() => {
-                                if (xnItemsPage4.length === 0) {
-                                    // Fallback mock items starting from 6 matching PDF exactly
-                                    const mockPage4 = [
-                                        { stt: 6, name: 'Tổng phân tích nước tiểu (Bằng máy tự động)', unit: 'Lần', ref: '' },
-                                        { stt: 7, name: 'BIL', unit: 'µmol/l', ref: 'NEG-17' },
-                                        { stt: 8, name: 'BLD', unit: 'Cells/µl', ref: 'NEG-10' },
-                                        { stt: 9, name: 'GLU', unit: 'Mmol/l', ref: 'NORM-3' },
-                                        { stt: 10, name: 'KET', unit: 'Mmol/l', ref: 'NEG-0.5' },
-                                        { stt: 11, name: 'LEU', unit: 'Cells/µl', ref: 'NEG-25', val: '5.5' },
-                                        { stt: 12, name: 'NIT', unit: 'Lần', ref: 'NEG' },
-                                        { stt: 13, name: 'Ph', unit: 'L', ref: '4.8-7.4' },
-                                        { stt: 14, name: 'PRO', unit: 'G/l', ref: 'NEG-0.25' },
-                                        { stt: 15, name: 'SG', unit: '0', ref: '1.005-1.025' },
-                                        { stt: 16, name: 'URO', unit: 'µmol/l', ref: 'NORM-17' },
-                                    ];
-                                    return mockPage4.map((x, idx) => (
-                                        <tr key={idx} className="h-7.5">
-                                            <td className="text-center">{x.stt}</td>
-                                            <td className="text-left font-semibold">{x.name}</td>
-                                            <td className="text-center">{x.unit}</td>
-                                            <td className="text-center">{x.ref}</td>
-                                            <td className="text-center font-bold text-teal-800">{x.val || ''}</td>
-                                            <td></td>
-                                        </tr>
-                                    ));
-                                }
-                                return xnItemsPage4.map((item: any, idx: number) => (
+                    {xnItemsPage4.length > 0 && (
+                        <table className="a4-table w-full text-[12px] text-center mb-4">
+                            <thead>
+                                <tr className="bg-slate-50 font-bold">
+                                    <th className="w-[8%] text-center">STT</th>
+                                    <th className="w-[42%] text-center">Tên chỉ định</th>
+                                    <th className="w-[12%] text-center">Đơn vị</th>
+                                    <th className="w-[18%] text-center">Khoảng tham chiếu</th>
+                                    <th className="w-[12%] text-center">Kết quả</th>
+                                    <th className="w-[8%] text-center">Ghi chú</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {xnItemsPage4.map((item: any, idx: number) => (
                                     <tr key={idx} className="h-7.5">
                                         <td className="text-center">{idx + 6}</td>
                                         <td className="text-left font-semibold">{item.service_name}</td>
@@ -1244,10 +1215,10 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                                         <td className="text-center font-bold text-teal-800">{item.value}</td>
                                         <td>{item.notes}</td>
                                     </tr>
-                                ));
-                            })()}
-                        </tbody>
-                    </table>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
                     
                     <h2 className="font-bold text-[14px] uppercase border-b border-black pb-0.5 mt-5 mb-2">V. KẾT LUẬN</h2>
                     
@@ -1299,7 +1270,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                                 <div className="h-16"></div>
                             )}
                             
-                            <span className="font-bold text-[14px] mt-1 text-slate-900 block">{conclusion.doctor_name || 'BSCKI. Hà Thị Thanh Mai'}</span>
+                            <span className="font-bold text-[14px] mt-1 text-slate-900 block">{getConclusionDoctorName()}</span>
                         </div>
                     </div>
 

@@ -94,7 +94,8 @@ const DocumentList: React.FC<DocumentListProps> = ({
                             <th className="p-4 w-36">Số hồ sơ</th>
                             <th className="p-4">Loại biểu mẫu</th>
                             <th className="p-4">Người nhập / Ngày tạo</th>
-                            <th className="p-4">Trạng thái E-MCH</th>
+                            <th className="p-4">Trạng thái khám</th>
+                            <th className="p-4">Trạng thái liên thông</th>
                             <th className="p-4">Chi tiết giao dịch</th>
                             <th className="p-4 text-right w-44">Hành động</th>
                         </tr>
@@ -102,7 +103,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                         {documents.length === 0 ? (
                             <tr>
-                                <td colSpan={8} className="p-12 text-center">
+                                <td colSpan={9} className="p-12 text-center">
                                     <div className="flex flex-col items-center justify-center space-y-3 py-6">
                                         <div className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-full text-slate-400">
                                             <RefreshIcon className="w-8 h-8 animate-pulse text-teal-500" />
@@ -154,20 +155,51 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                     <td className="p-4 font-mono font-bold text-slate-900 dark:text-white text-[13px]">
                                         {doc.doc_no}
                                     </td>
-                                    <td className="p-4">
-                                        <span className="px-3 py-1 rounded-full bg-[#0f766e] text-white text-[10px] font-extrabold uppercase tracking-wide">
-                                            {getFormName(doc.form_type)}
-                                        </span>
+                                    <td className="p-4 text-[13px] text-slate-700 dark:text-slate-300 font-medium">
+                                        {getFormName(doc.form_type)}
                                     </td>
                                     <td className="p-4 text-xs text-slate-600 dark:text-slate-300">
                                         <div className="font-medium">Trần Đại Đồng</div>
                                         <div className="text-[10px] text-slate-400 font-mono mt-0.5">{formatDateTime(doc.created_at)}</div>
                                     </td>
                                     <td className="p-4">
+                                        {(() => {
+                                            const isDone = doc.conclusion_data?.fitness_class || doc.conclusion_data?.ket_luan_loai_suc_khoe || doc.conclusion_data?.diagnosis;
+                                            return isDone ? (
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                                                    Đã kết luận
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                                    Đang khám
+                                                </span>
+                                            );
+                                        })()}
+                                    </td>
+                                    <td className="p-4">
                                         {getStatusBadge(doc.send_status)}
                                     </td>
-                                    <td className="p-4 max-w-[200px] break-words text-xs text-rose-800 dark:text-rose-400 font-bold uppercase leading-tight">
-                                        {doc.send_status === 'Error' && (doc.error_message || 'HTTP Status code 400')}
+                                    <td className="p-4 max-w-[200px] break-words text-xs leading-tight">
+                                        {doc.send_status === 'Error' && (
+                                            <div className="text-rose-800 dark:text-rose-400 font-bold uppercase mb-1">
+                                                {doc.error_message || 'Lỗi gửi cổng'}
+                                            </div>
+                                        )}
+                                        {doc.response_log ? (
+                                            <div 
+                                                className="text-[10px] text-slate-500 font-mono line-clamp-2 cursor-pointer hover:text-teal-600 hover:underline"
+                                                title="Nhấn để xem chi tiết log"
+                                                onClick={() => {
+                                                    alert(`CHI TIẾT LOG PHẢN HỒI TỪ CỔNG:\n\n${doc.response_log}`);
+                                                }}
+                                            >
+                                                Log: {doc.response_log}
+                                            </div>
+                                        ) : doc.transaction_id ? (
+                                            <span className="font-mono text-slate-500 text-[11px]">{doc.transaction_id}</span>
+                                        ) : (
+                                            <span className="text-slate-400">-</span>
+                                        )}
                                     </td>
                                     <td className="p-4 text-right">
                                         <div className="flex justify-end items-center gap-1.5">
@@ -184,14 +216,14 @@ const DocumentList: React.FC<DocumentListProps> = ({
 
                                             {/* Khối 4 nút chính theo style ảnh mẫu */}
                                             <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white shadow-sm flex-shrink-0">
-                                                {/* Sửa */}
+                                                {/* Khám */}
                                                 <button 
                                                     onClick={() => onEdit(doc)}
                                                     className="flex flex-col items-center justify-center w-11 h-11 bg-white hover:bg-slate-50 text-slate-500 transition border-r border-slate-200 focus:outline-none cursor-pointer"
-                                                    title="Sửa hồ sơ"
+                                                    title="Khám bệnh / Nhập liệu"
                                                 >
                                                     <PencilIcon className="w-4 h-4 text-slate-400"/>
-                                                    <span className="text-[8px] font-extrabold uppercase mt-0.5 tracking-wider">Sửa</span>
+                                                    <span className="text-[8px] font-extrabold uppercase mt-0.5 tracking-wider">Khám</span>
                                                 </button>
 
                                                 {/* XML */}
@@ -204,14 +236,14 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                                     <span className="text-[8px] font-extrabold uppercase mt-0.5 tracking-wider">XML</span>
                                                 </button>
 
-                                                {/* Xem */}
+                                                {/* In */}
                                                 <button 
                                                     onClick={() => onPrint(doc)}
                                                     className="flex flex-col items-center justify-center w-11 h-11 bg-white hover:bg-emerald-50/50 text-[#0f766e] transition border-r border-slate-200 focus:outline-none cursor-pointer"
-                                                    title="Xem chi tiết"
+                                                    title="In phiếu KSK / PDF"
                                                 >
                                                     <EyeIcon className="w-4 h-4 text-[#0f766e]"/>
-                                                    <span className="text-[8px] font-extrabold uppercase mt-0.5 tracking-wider">Xem</span>
+                                                    <span className="text-[8px] font-extrabold uppercase mt-0.5 tracking-wider">In</span>
                                                 </button>
 
                                                 {/* Gửi */}

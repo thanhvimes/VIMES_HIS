@@ -332,17 +332,18 @@ function Combobox<T extends Record<string, any>>({
                 </div>
             )}
 
-            <ul ref={listRef} className="max-h-72 overflow-y-auto overflow-x-hidden custom-scrollbar rounded-b-md text-sm">
+            <ul ref={listRef} className="max-h-72 overflow-y-auto overflow-x-hidden custom-scrollbar rounded-b-md p-1.5 text-sm">
                 {filteredOptions.length > 0 ? (
-                    filteredOptions.map((option, index) => {
+                    <>
+                    {filteredOptions.slice(0, 100).map((option, index) => {
                         const isActive = index === activeIndex;
                         return (
                             <li
                                 key={index}
-                                className={`px-2 py-1.5 cursor-pointer border-b border-slate-50 dark:border-slate-700/20 last:border-0 transition-colors duration-75
+                                className={`px-3 py-2 cursor-pointer transition-all duration-150 rounded-md mb-[2px] last:mb-0
                                     ${isActive
-                                        ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200'
-                                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                                        ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 font-medium'
+                                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50'
                                     }
                                 `}
                                 onClick={() => handleSelect(option)}
@@ -369,7 +370,13 @@ function Combobox<T extends Record<string, any>>({
                                 )}
                             </li>
                         );
-                    })
+                    })}
+                        {filteredOptions.length > 100 && (
+                            <li className="px-3 py-2 text-center text-xs font-medium text-slate-400 dark:text-slate-500 bg-slate-50/50 dark:bg-slate-800/50 rounded-md mt-1 italic pointer-events-none">
+                                Đang hiển thị 100 / {filteredOptions.length} kết quả. Vui lòng gõ thêm để lọc...
+                            </li>
+                        )}
+                    </>
                 ) : (
                     <li className="px-4 py-5 italic text-center text-slate-400 dark:text-slate-500 text-sm">
                         {searchTerm ? 'Không tìm thấy kết quả.' : 'Nhập từ khóa để tìm kiếm...'}
@@ -389,8 +396,8 @@ function Combobox<T extends Record<string, any>>({
                 </label>
             )}
             <div ref={inputWrapperRef} className={`relative group flex items-center ${!hasHeightClass ? 'h-8' : 'h-full'}`}>
-                <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none z-10">
-                    {!searchTerm && <SearchIcon className={`h-4 w-4 transition-colors ${isOpen ? 'text-blue-500' : 'text-slate-400 group-focus-within:text-blue-500'}`} />}
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                    <SearchIcon className={`h-4 w-4 transition-colors ${isOpen ? 'text-blue-500' : 'text-slate-400 group-focus-within:text-blue-500'}`} />
                 </div>
                 <input
                     ref={inputRef}

@@ -118,8 +118,59 @@ const AdminTab: React.FC = () => {
         wards,
         workplaces,
         errors,
-        setErrors
+        setErrors,
+        isLocked,
+        handleAutofillTab,
+        coKinhHaiMat,
+        coKinhMatPhai,
+        coKinhMatTrai,
+        khongKinhHaiMat,
+        khongKinhMatPhai,
+        khongKinhMatTrai,
+        sacGiac,
     } = useDynamicFormContext();
+
+    const getDriverWarnings = () => {
+        if (formType !== '3' || !licenseClass) return [];
+        const warnings: string[] = [];
+
+        const parseVisual = (val: string) => {
+            if (!val) return 10;
+            const match = val.match(/^(\d+)\/10/);
+            if (match) return parseInt(match[1]);
+            const num = parseFloat(val);
+            if (!isNaN(num)) return num <= 1 ? num * 10 : num;
+            return 10;
+        };
+
+        const hasGlasses = coKinhHaiMat || coKinhMatPhai || coKinhMatTrai;
+        const rightEye = parseVisual(hasGlasses ? coKinhMatPhai : khongKinhMatPhai);
+        const leftEye = parseVisual(hasGlasses ? coKinhMatTrai : khongKinhMatTrai);
+
+        if (licenseClass === 'A1') {
+            const total = rightEye + leftEye;
+            if (total < 8) {
+                warnings.push("Thị lực cả hai mắt cộng lại có kính dưới 8/10 (Quy định: tối thiểu >= 8/10 đối với hạng A1).");
+            }
+        } else {
+            const bestEye = Math.max(rightEye, leftEye);
+            const worstEye = Math.min(rightEye, leftEye);
+            if (bestEye < 8) {
+                warnings.push("Thị lực mắt tốt có kính dưới 8/10 (Quy định: tối thiểu >= 8/10 đối với hạng B2, C, D, E, F).");
+            }
+            if (worstEye < 5) {
+                warnings.push("Thị lực mắt kém có kính dưới 5/10 (Quy định: tối thiểu >= 5/10 đối với hạng B2, C, D, E, F).");
+            }
+        }
+
+        if (sacGiac === '1' || sacGiac === '2') {
+            warnings.push("Bệnh nhân bị mù màu hoặc rối loạn sắc giác đỏ - lục (Không đủ điều kiện lái xe hạng B2, C, D, E, F).");
+        }
+
+        return warnings;
+    };
+
+    const driverWarnings = getDriverWarnings();
 
     const commonColumns = [
         { key: 'code', label: 'Mã', width: '25%' },
@@ -174,6 +225,45 @@ const AdminTab: React.FC = () => {
                 </div>
             )}
 
+            {/* Action Row: Autofill Tab */}
+            {!isLocked && (
+                <div className="flex justify-end">
+                    <button
+                        type="button"
+                        onClick={() => handleAutofillTab('admin')}
+                        className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40 text-[#0f766e] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:shadow active:scale-95"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                        Điền nhanh kết quả mặc định (Hành chính)
+                    </button>
+                </div>
+            )}
+
+            {driverWarnings.length > 0 && (
+                <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/30 p-4 rounded-xl text-rose-800 dark:text-rose-400 text-xs space-y-1.5 animate-fadeIn">
+                    <h5 className="font-bold flex items-center gap-1.5 uppercase text-rose-900 dark:text-rose-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                            <line x1="12" y1="9" x2="12" y2="13"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                        Cảnh báo tiêu chuẩn sức khỏe lái xe (Hạng {licenseClass})
+                    </h5>
+                    <ul className="list-disc pl-4 space-y-1 font-semibold">
+                        {driverWarnings.map((warn, idx) => (
+                            <li key={idx}>{warn}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+            <fieldset disabled={isLocked} className="space-y-6">
             <div>
                 <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">I.1. Thông tin cơ bản bệnh nhân</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -254,6 +344,7 @@ const AdminTab: React.FC = () => {
                             Giới tính <span className="text-red-500">*</span>
                         </label>
                         <select value={gender} onChange={e => setGender(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                            <option value="">-- Chọn giới tính --</option>
                             <option value="Nam">Nam</option>
                             <option value="Nữ">Nữ</option>
                         </select>
@@ -398,6 +489,7 @@ const AdminTab: React.FC = () => {
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Nhóm máu</label>
                         <select value={bloodGroup} onChange={e => setBloodGroup(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                            <option value="">-- Chọn nhóm máu --</option>
                             <option value="A">A</option>
                             <option value="B">B</option>
                             <option value="AB">AB</option>
@@ -407,6 +499,7 @@ const AdminTab: React.FC = () => {
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Đối tượng khám</label>
                         <select value={targetGroup} onChange={e => setTargetGroup(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                            <option value="">-- Chọn đối tượng --</option>
                             <option value="11">Học sinh phổ thông</option>
                             <option value="12">Sinh viên đại học/cao đẳng</option>
                             <option value="13">Người lao động</option>
@@ -416,6 +509,7 @@ const AdminTab: React.FC = () => {
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Nguồn kinh phí khám</label>
                         <select value={fundingSource} onChange={e => setFundingSource(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                            <option value="">-- Chọn nguồn kinh phí --</option>
                             <option value="1">Ngân sách Trung ương</option>
                             <option value="2">Ngân sách Địa phương</option>
                             <option value="3">Quỹ Bảo hiểm y tế</option>
@@ -538,6 +632,7 @@ const AdminTab: React.FC = () => {
                                          <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-1 py-0.2 rounded border border-amber-200/30">* Thủ công</span>
                                      </label>
                                      <select value={escortRelation} onChange={e => setEscortRelation(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                                         <option value="">-- Chọn quan hệ --</option>
                                          <option value="1">Cha</option>
                                          <option value="2">Mẹ</option>
                                          <option value="3">Ông/Bà</option>
@@ -596,6 +691,7 @@ const AdminTab: React.FC = () => {
                                          <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-1 py-0.2 rounded border border-amber-200/30">* Thủ công</span>
                                      </label>
                                      <select value={railwayFit} onChange={e => setRailwayFit(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                                         <option value="">-- Chọn đạt chuẩn --</option>
                                          <option value="1">Đủ tiêu chuẩn nhân viên chạy tàu</option>
                                          <option value="0">Không đủ tiêu chuẩn</option>
                                      </select>
@@ -625,6 +721,7 @@ const AdminTab: React.FC = () => {
                                          <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-1 py-0.2 rounded border border-amber-200/30">* Thủ công</span>
                                      </label>
                                      <select value={offshoreExp} onChange={e => setOffshoreExp(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                                         <option value="">-- Chọn khả năng --</option>
                                          <option value="1">Đạt (Sức chịu sóng tốt)</option>
                                          <option value="2">Khả năng trung bình</option>
                                          <option value="3">Kém / Say sóng nặng</option>
@@ -645,6 +742,7 @@ const AdminTab: React.FC = () => {
                                  <div>
                                      <label className="block text-xs font-bold text-slate-500 mb-1">Khu vực hoạt động</label>
                                      <select value={khuVucHoatDongTau} onChange={e => setKhuVucHoatDongTau(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                                         <option value="">-- Chọn khu vực --</option>
                                          <option value="1">Trong nước</option>
                                          <option value="2">Quốc tế</option>
                                      </select>
@@ -654,6 +752,7 @@ const AdminTab: React.FC = () => {
                     </div>
                 </div>
             )}
+            </fieldset>
         </div>
     );
 };

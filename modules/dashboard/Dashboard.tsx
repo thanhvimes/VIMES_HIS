@@ -45,21 +45,21 @@ const MODULE_CARDS: ModuleCardConfig[] = [
     { id: 'online-booking', title: 'Đăng ký Online', description: 'Đặt lịch khám, duyệt lịch hẹn và cấu hình khung giờ tiếp nhận.', path: '/online-booking', icon: <CalendarPlusIcon className="w-10 h-10" />, color: 'sky', allowedRoles: ['admin', 'receptionist', 'doctor', 'nurse', 'technician', 'accountant', 'pharmacist', 'hr', 'director'] },
     { id: 'queue-management', title: 'QMS – Gọi số', description: 'Gọi số tự động, màn hình hiển thị phòng khám và Kiosk self-service.', path: '/queue-management', icon: <TvIcon className="w-10 h-10" />, color: 'blue', allowedRoles: ['admin', 'receptionist', 'nurse', 'doctor', 'technician'] },
     { id: 'health-check-sync', title: 'Liên thông KSK VNeID', description: 'Đồng bộ 17 mẫu biểu khám sức khỏe lên ứng dụng VNeID theo QĐ 1551.', path: '/health-check', icon: <PaperAirplaneIcon className="w-10 h-10" />, color: 'blue', allowedRoles: ['admin', 'doctor', 'accountant'] },
-
-    { id: 'reception', title: 'Tiếp nhận & Điều phối', description: 'Đăng ký tại quầy, phân luồng khám bệnh và quản lý hàng đợi.', path: '/reception', icon: <UserGroupIcon className="w-10 h-10" />, color: 'teal', allowedRoles: ['admin', 'receptionist', 'nurse', 'doctor'] }, { id: 'clinical', title: 'Khám bệnh (EMR)', description: 'Khám, chẩn đoán, kê đơn thuốc và quản lý hồ sơ bệnh án điện tử.', path: '/consultation', icon: <HospitalIcon className="w-10 h-10" />, color: 'blue', allowedRoles: ['admin', 'doctor'] },
-    { id: 'inpatient', title: 'Điều trị nội trú', description: 'Quản lý buồng bệnh, theo dõi y lệnh và chăm sóc bệnh nhân.', path: '/inpatient-treatment', icon: <ClipboardListIcon className="w-10 h-10" />, color: 'indigo', allowedRoles: ['admin', 'doctor', 'nurse'] },
-    { id: 'surgery', title: 'Phẫu thuật – Thủ thuật', description: 'Lên lịch mổ, quản lý ekip và tường trình phẫu thuật.', path: '/surgery', icon: <VideoCameraIcon className="w-10 h-10" />, color: 'rose', allowedRoles: ['admin', 'doctor', 'nurse'] },
-    { id: 'lab', title: 'Xét nghiệm (LIS)', description: 'Quản lý chỉ định, kết nối máy xét nghiệm và trả kết quả tự động.', path: '/lab-results', icon: <BeakerIcon className="w-10 h-10" />, color: 'cyan', allowedRoles: ['admin', 'doctor', 'technician'] },
-    { id: 'imaging', title: 'CĐHA & PACS', description: 'X-Quang, Siêu âm, CT, MRI – xem ảnh DICOM trực tiếp.', path: '/imaging-results', icon: <VideoCameraIcon className="w-10 h-10" />, color: 'purple', allowedRoles: ['admin', 'doctor', 'technician'] },
-    { id: 'pacs-ris', title: 'Hệ thống PACS-RIS', description: 'Trạm làm việc đọc kết quả chẩn đoán và trình xem ảnh y khoa CornerstoneJS.', path: '/pacs-ris', icon: <TvIcon className="w-10 h-10" />, color: 'indigo', allowedRoles: ['admin', 'doctor', 'technician'] },
-    { id: 'pharmacy', title: 'Dược & Kho thuốc', description: 'Nhập – xuất – tồn, cấp phát thuốc và cảnh báo hạn sử dụng.', path: '/pharmacy', icon: <ArchiveIcon className="w-10 h-10" />, color: 'emerald', allowedRoles: ['admin', 'pharmacist', 'accountant'] },
-    { id: 'medical-supplies', title: 'Vật tư y tế', description: 'Quản lý vật tư tiêu hao, hóa chất và công cụ dụng cụ.', path: '/medical-supplies', icon: <TagIcon className="w-10 h-10" />, color: 'indigo', allowedRoles: ['admin', 'pharmacist', 'accountant', 'nurse'] },
-    { id: 'billing', title: 'Viện phí & Thu ngân', description: 'Thanh toán, tạm ứng, quyết toán và xuất hóa đơn điện tử.', path: '/billing', icon: <CurrencyDollarIcon className="w-10 h-10" />, color: 'green', allowedRoles: ['admin', 'accountant', 'receptionist'] },
-    { id: 'insurance', title: 'Bảo hiểm y tế', description: 'Giám định hồ sơ, kiểm tra thẻ BHYT và xuất dữ liệu cổng BHXH.', path: '/insurance', icon: <ShieldCheckIcon className="w-10 h-10" />, color: 'orange', allowedRoles: ['admin', 'accountant', 'doctor'] },
-    { id: 'hr', title: 'Nhân sự (HR)', description: 'Hồ sơ nhân viên, chấm công FaceID và tính lương tự động.', path: '/hr', icon: <UserGroupIcon className="w-10 h-10" />, color: 'slate', allowedRoles: ['admin', 'hr'] },
-    { id: 'reports', title: 'Báo cáo & Thống kê', description: 'Dashboard BI, phân tích KPI và báo cáo quản trị thông minh.', path: '/management-reporting', icon: <ChartBarIcon className="w-10 h-10" />, color: 'red', allowedRoles: ['admin', 'doctor', 'accountant'] },
-    { id: 'admin', title: 'Quản trị hệ thống', description: 'Cấu hình tham số, phân quyền người dùng và nhật ký hoạt động.', path: '/admin', icon: <CogIcon className="w-10 h-10" />, color: 'slate', allowedRoles: ['admin', 'doctor', 'director', 'hr', 'accountant', 'pharmacist', 'receptionist', 'nurse', 'technician'] }
-
+    /*
+        { id: 'reception', title: 'Tiếp nhận & Điều phối', description: 'Đăng ký tại quầy, phân luồng khám bệnh và quản lý hàng đợi.', path: '/reception', icon: <UserGroupIcon className="w-10 h-10" />, color: 'teal', allowedRoles: ['admin', 'receptionist', 'nurse', 'doctor'] }, { id: 'clinical', title: 'Khám bệnh (EMR)', description: 'Khám, chẩn đoán, kê đơn thuốc và quản lý hồ sơ bệnh án điện tử.', path: '/consultation', icon: <HospitalIcon className="w-10 h-10" />, color: 'blue', allowedRoles: ['admin', 'doctor'] },
+        { id: 'inpatient', title: 'Điều trị nội trú', description: 'Quản lý buồng bệnh, theo dõi y lệnh và chăm sóc bệnh nhân.', path: '/inpatient-treatment', icon: <ClipboardListIcon className="w-10 h-10" />, color: 'indigo', allowedRoles: ['admin', 'doctor', 'nurse'] },
+        { id: 'surgery', title: 'Phẫu thuật – Thủ thuật', description: 'Lên lịch mổ, quản lý ekip và tường trình phẫu thuật.', path: '/surgery', icon: <VideoCameraIcon className="w-10 h-10" />, color: 'rose', allowedRoles: ['admin', 'doctor', 'nurse'] },
+        { id: 'lab', title: 'Xét nghiệm (LIS)', description: 'Quản lý chỉ định, kết nối máy xét nghiệm và trả kết quả tự động.', path: '/lab-results', icon: <BeakerIcon className="w-10 h-10" />, color: 'cyan', allowedRoles: ['admin', 'doctor', 'technician'] },
+        { id: 'imaging', title: 'CĐHA & PACS', description: 'X-Quang, Siêu âm, CT, MRI – xem ảnh DICOM trực tiếp.', path: '/imaging-results', icon: <VideoCameraIcon className="w-10 h-10" />, color: 'purple', allowedRoles: ['admin', 'doctor', 'technician'] },
+        { id: 'pacs-ris', title: 'Hệ thống PACS-RIS', description: 'Trạm làm việc đọc kết quả chẩn đoán và trình xem ảnh y khoa CornerstoneJS.', path: '/pacs-ris', icon: <TvIcon className="w-10 h-10" />, color: 'indigo', allowedRoles: ['admin', 'doctor', 'technician'] },
+        { id: 'pharmacy', title: 'Dược & Kho thuốc', description: 'Nhập – xuất – tồn, cấp phát thuốc và cảnh báo hạn sử dụng.', path: '/pharmacy', icon: <ArchiveIcon className="w-10 h-10" />, color: 'emerald', allowedRoles: ['admin', 'pharmacist', 'accountant'] },
+        { id: 'medical-supplies', title: 'Vật tư y tế', description: 'Quản lý vật tư tiêu hao, hóa chất và công cụ dụng cụ.', path: '/medical-supplies', icon: <TagIcon className="w-10 h-10" />, color: 'indigo', allowedRoles: ['admin', 'pharmacist', 'accountant', 'nurse'] },
+        { id: 'billing', title: 'Viện phí & Thu ngân', description: 'Thanh toán, tạm ứng, quyết toán và xuất hóa đơn điện tử.', path: '/billing', icon: <CurrencyDollarIcon className="w-10 h-10" />, color: 'green', allowedRoles: ['admin', 'accountant', 'receptionist'] },
+        { id: 'insurance', title: 'Bảo hiểm y tế', description: 'Giám định hồ sơ, kiểm tra thẻ BHYT và xuất dữ liệu cổng BHXH.', path: '/insurance', icon: <ShieldCheckIcon className="w-10 h-10" />, color: 'orange', allowedRoles: ['admin', 'accountant', 'doctor'] },
+        { id: 'hr', title: 'Nhân sự (HR)', description: 'Hồ sơ nhân viên, chấm công FaceID và tính lương tự động.', path: '/hr', icon: <UserGroupIcon className="w-10 h-10" />, color: 'slate', allowedRoles: ['admin', 'hr'] },
+        { id: 'reports', title: 'Báo cáo & Thống kê', description: 'Dashboard BI, phân tích KPI và báo cáo quản trị thông minh.', path: '/management-reporting', icon: <ChartBarIcon className="w-10 h-10" />, color: 'red', allowedRoles: ['admin', 'doctor', 'accountant'] },
+        { id: 'admin', title: 'Quản trị hệ thống', description: 'Cấu hình tham số, phân quyền người dùng và nhật ký hoạt động.', path: '/admin', icon: <CogIcon className="w-10 h-10" />, color: 'slate', allowedRoles: ['admin', 'doctor', 'director', 'hr', 'accountant', 'pharmacist', 'receptionist', 'nurse', 'technician'] }
+    */
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -133,7 +133,7 @@ const DashboardHero = () => {
                 </div>
                 <div className="hidden md:block shrink-0"><DateTimeWidget /></div>
             </div>
-        </div>
+        </div >
     );
 };
 

@@ -3,6 +3,7 @@ import { query } from '../../config/database';
 import SecurityUtils from '../../utils/security';
 import { loadHealthCheckSettings } from '../../config/health-check-settings';
 import { restartHealthCheckSyncWorker } from '../../services/health-check-sync.service';
+import axios from 'axios';
 
 class SettingsController {
     
@@ -10,7 +11,7 @@ class SettingsController {
     async getSettings(req: Request, res: Response) {
         try {
             const result = await query(
-                `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type FROM health_check_settings LIMIT 1`
+                `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync FROM health_check_settings LIMIT 1`
             );
 
             if (result.rows.length === 0) {
@@ -26,7 +27,8 @@ class SettingsController {
                     barcode_label_size_ksk: '50x30',
                     barcode_show_hospital: true,
                     barcode_show_date: true,
-                    barcode_show_sample_type: true
+                    barcode_show_sample_type: true,
+                    allow_unsigned_sync: false
                 });
             }
 
@@ -56,7 +58,8 @@ class SettingsController {
             barcode_label_size_ksk,
             barcode_show_hospital,
             barcode_show_date,
-            barcode_show_sample_type
+            barcode_show_sample_type,
+            allow_unsigned_sync
         } = req.body;
 
         try {
@@ -85,8 +88,9 @@ class SettingsController {
                         barcode_show_hospital = $10,
                         barcode_show_date = $11,
                         barcode_show_sample_type = $12,
+                        allow_unsigned_sync = $13,
                         updated_at = NOW()
-                    WHERE id = $13
+                    WHERE id = $14
                     RETURNING id
                 `;
                 await query(updateSql, [
@@ -102,6 +106,7 @@ class SettingsController {
                     barcode_show_hospital !== false,
                     barcode_show_date !== false,
                     barcode_show_sample_type !== false,
+                    allow_unsigned_sync === true,
                     existing.id
                 ]);
             } else {
@@ -109,8 +114,9 @@ class SettingsController {
                 const insertSql = `
                     INSERT INTO health_check_settings (
                         vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval,
-                        barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                        barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type,
+                        allow_unsigned_sync
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                     RETURNING id
                 `;
                 await query(insertSql, [
@@ -125,7 +131,8 @@ class SettingsController {
                     barcode_label_size_ksk || '50x30',
                     barcode_show_hospital !== false,
                     barcode_show_date !== false,
-                    barcode_show_sample_type !== false
+                    barcode_show_sample_type !== false,
+                    allow_unsigned_sync === true
                 ]);
             }
 
@@ -139,23 +146,48 @@ class SettingsController {
         }
     }
 
-    // 7.3. Gọi ping thử kết nối tới cổng VNeID (Mock / Sandbox)
+    // 7.3. Gọi ping thử kết nối tới cổng VNeID
     async testConnection(req: Request, res: Response) {
         const { vneid_url, vneid_username, vneid_password } = req.body;
 
         try {
-            await new Promise(resolve => setTimeout(resolve, 800));
-
             if (!vneid_url) {
                 return res.status(400).json({ success: false, message: 'Thiếu địa chỉ cổng URL' });
             }
 
-            return res.json({ 
-                success: true, 
-                message: `Kết nối thành công tới cổng ${vneid_url}. Cổng hoạt động bình thường, tài khoản hợp lệ.`
-            });
+            const originUrl = vneid_url.includes('/api/v1') 
+                ? vneid_url.split('/api/v1')[0] 
+                : vneid_url;
+
+            console.log(`📡 [VNeID Portal] Testing connection to login at: ${originUrl}/api/auth/login`);
+
+            const loginRes = await axios.post(`${originUrl}/api/auth/login`, {
+                username: vneid_username || '',
+                password: vneid_password || ''
+            }, {
+                headers: { 'Content-Type': 'application/json', 'Accept': '*/*' },
+                timeout: 8000
+            }) as any;
+
+            const token = loginRes.data?.data?.token || loginRes.data?.token || loginRes.data?.data;
+            if (token) {
+                return res.json({ 
+                    success: true, 
+                    message: `Kết nối thành công tới cổng ${vneid_url}. Cổng hoạt động bình thường, tài khoản hợp lệ.`
+                });
+            } else {
+                return res.json({ 
+                    success: false, 
+                    message: `Cổng kết nối thành công nhưng không trả về mã Token xác thực. Phản hồi: ${JSON.stringify(loginRes.data)}`
+                });
+            }
         } catch (error: any) {
-            return res.status(500).json({ success: false, message: `Lỗi kết nối tới cổng: ${error.message}` });
+            console.error('❌ KSK Controller: Lỗi testConnection:', error);
+            const errMsg = error.response?.data ? JSON.stringify(error.response.data) : error.message;
+            return res.json({ 
+                success: false, 
+                message: `Lỗi kết nối tới cổng: ${error.response?.status || 500} - ${errMsg}` 
+            });
         }
     }
 

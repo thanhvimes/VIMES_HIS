@@ -585,6 +585,11 @@ export interface DynamicFormContextType {
 
     errors: Record<string, string>;
     setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+
+    // Workflow optimizations
+    isLocked: boolean;
+    setIsLocked: React.Dispatch<React.SetStateAction<boolean>>;
+    handleAutofillTab: (tabKey: string) => void;
 }
 
 export const DynamicFormContext = createContext<DynamicFormContextType | undefined>(undefined);

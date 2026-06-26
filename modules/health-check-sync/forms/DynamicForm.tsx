@@ -296,16 +296,16 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
     const [patientName, setPatientName] = useState(initialData?.patient_name || '');
     const [cccd, setCccd] = useState(initialData?.cccd || '');
     const [dob, setDob] = useState(initialData?.dob ? new Date(initialData.dob).toISOString().split('T')[0] : '');
-    const [gender, setGender] = useState(initialData?.gender || 'Nam');
+    const [gender, setGender] = useState(initialData?.gender || '');
     const [docNo, setDocNo] = useState(initialData?.doc_no || `KSK-${Date.now()}`);
     const [address, setAddress] = useState(initialData?.clinical_data?.address || '');
     const [phone, setPhone] = useState(initialData?.clinical_data?.phone || '');
     const [ethnic, setEthnic] = useState(initialData?.clinical_data?.ethnic || '01');
     const [cccdDate, setCccdDate] = useState(initialData?.clinical_data?.cccd_date || '');
     const [cccdPlace, setCccdPlace] = useState(initialData?.clinical_data?.cccd_place || '');
-    const [bloodGroup, setBloodGroup] = useState(initialData?.clinical_data?.blood_group || 'O');
-    const [targetGroup, setTargetGroup] = useState(initialData?.clinical_data?.target_group || '14');
-    const [fundingSource, setFundingSource] = useState(initialData?.clinical_data?.funding_source || '9');
+    const [bloodGroup, setBloodGroup] = useState(initialData?.clinical_data?.blood_group || '');
+    const [targetGroup, setTargetGroup] = useState(initialData?.clinical_data?.target_group || '');
+    const [fundingSource, setFundingSource] = useState(initialData?.clinical_data?.funding_source || '');
     
     // Hành chính bổ sung QĐ 1551
     const [maGtinCskcb, setMaGtinCskcb] = useState(initialData?.clinical_data?.ma_gtin_cskcb || '');
@@ -319,42 +319,42 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
     const [guardianCccd, setGuardianCccd] = useState(initialData?.clinical_data?.extra?.so_cccd_ngh || '');
     const [escortName, setEscortName] = useState(initialData?.clinical_data?.extra?.ho_ten_nguoi_di_cung || '');
     const [escortCccd, setEscortCccd] = useState(initialData?.clinical_data?.extra?.so_cccd_nguoi_di_cung || '');
-    const [escortRelation, setEscortRelation] = useState(initialData?.clinical_data?.extra?.moi_quan_he_voi_tre || '1');
+    const [escortRelation, setEscortRelation] = useState(initialData?.clinical_data?.extra?.moi_quan_he_voi_tre || '');
     const [licenseClass, setLicenseClass] = useState(initialData?.clinical_data?.extra?.hang_lai_xe || 'B2');
     const [chucDanh, setChucDanh] = useState(initialData?.clinical_data?.extra?.chuc_danh || '');
     const [noiCongTac, setNoiCongTac] = useState(initialData?.clinical_data?.extra?.noi_cong_tac || '');
     const [viTriLamViec, setViTriLamViec] = useState(initialData?.clinical_data?.extra?.vi_tri_lam_viec || '');
     const [boPhanLamViec, setBoPhanLamViec] = useState(initialData?.clinical_data?.extra?.bo_phan_lam_viec || '');
-    const [offshoreExp, setOffshoreExp] = useState(initialData?.clinical_data?.extra?.offshore_exp || '1');
-    const [railwayFit, setRailwayFit] = useState(initialData?.clinical_data?.extra?.railway_fit || '1');
+    const [offshoreExp, setOffshoreExp] = useState(initialData?.clinical_data?.extra?.offshore_exp || '');
+    const [railwayFit, setRailwayFit] = useState(initialData?.clinical_data?.extra?.railway_fit || '');
 
     // 2. Tiền sử bệnh & tiêm chủng
-    const [tsgdMacBenh, setTsgdMacBenh] = useState(initialData?.clinical_data?.extra?.tsgd_mac_benh || '0');
+    const [tsgdMacBenh, setTsgdMacBenh] = useState(initialData?.clinical_data?.extra?.tsgd_mac_benh || '');
     const [tsgdMaBenh, setTsgdMaBenh] = useState(initialData?.clinical_data?.extra?.tsgd_ma_benh || '');
     const [tsbtMaBenh, setTsbtMaBenh] = useState(initialData?.clinical_data?.extra?.tsbt_ma_benh || '');
     const [tsbtNamPhatHienBenh, setTsbtNamPhatHienBenh] = useState(initialData?.clinical_data?.extra?.tsbt_nam_phat_hien_benh || '');
-    const [tiemChungBcg, setTiemChungBcg] = useState(initialData?.clinical_data?.extra?.tiem_chung_bcg || '99');
-    const [tiemChungBhHgUv, setTiemChungBhHgUv] = useState(initialData?.clinical_data?.extra?.tiem_chung_bh_hg_uv || '99');
-    const [tiemChungSoi, setTiemChungSoi] = useState(initialData?.clinical_data?.extra?.tiem_chung_soi || '99');
-    const [tiemChungBaiLiet, setTiemChungBaiLiet] = useState(initialData?.clinical_data?.extra?.tiem_chung_bai_liet || '99');
-    const [tiemChungVnnbB, setTiemChungVnnbB] = useState(initialData?.clinical_data?.extra?.tiem_chung_vnnb_b || '99');
-    const [tiemChungVgb, setTiemChungVgb] = useState(initialData?.clinical_data?.extra?.tiem_chung_vgb || '99');
-    const [tiemChungCacLoaiKhac, setTiemChungCacLoaiKhac] = useState(initialData?.clinical_data?.extra?.tiem_chung_cac_loai_khac || '0');
+    const [tiemChungBcg, setTiemChungBcg] = useState(initialData?.clinical_data?.extra?.tiem_chung_bcg || '');
+    const [tiemChungBhHgUv, setTiemChungBhHgUv] = useState(initialData?.clinical_data?.extra?.tiem_chung_bh_hg_uv || '');
+    const [tiemChungSoi, setTiemChungSoi] = useState(initialData?.clinical_data?.extra?.tiem_chung_soi || '');
+    const [tiemChungBaiLiet, setTiemChungBaiLiet] = useState(initialData?.clinical_data?.extra?.tiem_chung_bai_liet || '');
+    const [tiemChungVnnbB, setTiemChungVnnbB] = useState(initialData?.clinical_data?.extra?.tiem_chung_vnnb_b || '');
+    const [tiemChungVgb, setTiemChungVgb] = useState(initialData?.clinical_data?.extra?.tiem_chung_vgb || '');
+    const [tiemChungCacLoaiKhac, setTiemChungCacLoaiKhac] = useState(initialData?.clinical_data?.extra?.tiem_chung_cac_loai_khac || '');
     const [tiemChungVacXinKhac, setTiemChungVacXinKhac] = useState(initialData?.clinical_data?.extra?.tiem_chung_vac_xin_khac || '');
 
     // Tiền sử sản phụ khoa (nữ)
     const [coKinhNguyetNamBaoNhieuTuoi, setCoKinhNguyetNamBaoNhieuTuoi] = useState(initialData?.clinical_data?.extra?.co_kinh_nguyet_nam_bao_nhieu_tuoi || '');
-    const [tinhChatKinhNguyet, setTinhChatKinhNguyet] = useState(initialData?.clinical_data?.extra?.tinh_chat_kinh_nguyet || '1');
+    const [tinhChatKinhNguyet, setTinhChatKinhNguyet] = useState(initialData?.clinical_data?.extra?.tinh_chat_kinh_nguyet || '');
     const [chuKyKinh, setChuKyKinh] = useState(initialData?.clinical_data?.extra?.chu_ky_kinh || '');
     const [luongKinh, setLuongKinh] = useState(initialData?.clinical_data?.extra?.luong_kinh || '');
-    const [dauBungKinh, setDauBungKinh] = useState(initialData?.clinical_data?.extra?.dau_bung_kinh || '0');
-    const [daLapGiaDinh, setDaLapGiaDinh] = useState(initialData?.clinical_data?.extra?.da_lap_gia_dinh || '0');
+    const [dauBungKinh, setDauBungKinh] = useState(initialData?.clinical_data?.extra?.dau_bung_kinh || '');
+    const [daLapGiaDinh, setDaLapGiaDinh] = useState(initialData?.clinical_data?.extra?.da_lap_gia_dinh || '');
     const [para, setPara] = useState(initialData?.clinical_data?.extra?.para || '');
-    const [daTungMoSanPhuKhoaChua, setDaTungMoSanPhuKhoaChua] = useState(initialData?.clinical_data?.extra?.da_tung_mo_san_phu_khoa_chua || '0');
+    const [daTungMoSanPhuKhoaChua, setDaTungMoSanPhuKhoaChua] = useState(initialData?.clinical_data?.extra?.da_tung_mo_san_phu_khoa_chua || '');
     const [soLanMoSanPhuKhoa, setSoLanMoSanPhuKhoa] = useState(initialData?.clinical_data?.extra?.so_lan_mo_san_phu_khoa || '');
     const [ghiRoMoSanPhuKhoa, setGhiRoMoSanPhuKhoa] = useState(initialData?.clinical_data?.extra?.ghi_ro_mo_san_phu_khoa || '');
-    const [dangApDungBpttKhong, setDangApDungBpttKhong] = useState(initialData?.clinical_data?.extra?.dang_ap_dung_bptt_khong || '0');
-    const [bienPhapTranhThai, setBienPhapTranhThai] = useState(initialData?.clinical_data?.extra?.bien_phap_tranh_thai || '1');
+    const [dangApDungBpttKhong, setDangApDungBpttKhong] = useState(initialData?.clinical_data?.extra?.dang_ap_dung_bptt_khong || '');
+    const [bienPhapTranhThai, setBienPhapTranhThai] = useState(initialData?.clinical_data?.extra?.bien_phap_tranh_thai || '');
 
     // Checkboxes & Tiền sử Lái xe / Bệnh nghề nghiệp bổ sung
     const [ts5Nam, setTs5Nam] = useState(initialData?.clinical_data?.extra?.ts_benh_thuong_5_nam || 0);
@@ -387,7 +387,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
     const [bp, setBp] = useState(initialData?.clinical_data?.examination?.blood_pressure || '');
     const [vongDau, setVongDau] = useState(initialData?.clinical_data?.extra?.vong_ddau || '');
     const [vongNguc, setVongNguc] = useState(initialData?.clinical_data?.extra?.vong_nguc || '');
-    const [sinhNon, setSinhNon] = useState(initialData?.clinical_data?.extra?.sinh_non || '0');
+    const [sinhNon, setSinhNon] = useState(initialData?.clinical_data?.extra?.sinh_non || '');
     const [tuanThai, setTuanThai] = useState(initialData?.clinical_data?.extra?.tuan_thai_khi_sinh || '');
     const [birthWeight, setBirthWeight] = useState(initialData?.clinical_data?.extra?.can_nang_luc_sinh || '');
     const [lucBopTayThuan, setLucBopTayThuan] = useState(initialData?.clinical_data?.extra?.luc_bop_tay_thuan || '');
@@ -407,74 +407,74 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
     }, [height, weight]);
 
     // 4. Clinical specialty results
-    const [internalExam, setInternalExam] = useState(initialData?.clinical_data?.clinical_exam?.internal || 'Bình thường, tim phổi đều rõ');
-    const [eyeExam, setEyeExam] = useState(initialData?.clinical_data?.clinical_exam?.eye || 'Mắt phải 10/10, Mắt trái 10/10');
-    const [entExam, setEntExam] = useState(initialData?.clinical_data?.clinical_exam?.ent || 'Tai mũi họng bình thường, không viêm cấp');
-    const [dentalExam, setDentalExam] = useState(initialData?.clinical_data?.clinical_exam?.dental || 'Răng hàm mặt bình thường, không sâu răng');
-    const [externalExam, setExternalExam] = useState(initialData?.clinical_data?.clinical_exam?.external || 'Ngoại khoa bình thường');
-    const [dermatologyExam, setDermatologyExam] = useState(initialData?.clinical_data?.clinical_exam?.dermatology || 'Da liễu bình thường');
-    const [gynExam, setGynExam] = useState(initialData?.clinical_data?.clinical_exam?.gynecology || 'Không khám (hoặc bình thường)');
+    const [internalExam, setInternalExam] = useState(initialData?.clinical_data?.clinical_exam?.internal || '');
+    const [eyeExam, setEyeExam] = useState(initialData?.clinical_data?.clinical_exam?.eye || '');
+    const [entExam, setEntExam] = useState(initialData?.clinical_data?.clinical_exam?.ent || '');
+    const [dentalExam, setDentalExam] = useState(initialData?.clinical_data?.clinical_exam?.dental || '');
+    const [externalExam, setExternalExam] = useState(initialData?.clinical_data?.clinical_exam?.external || '');
+    const [dermatologyExam, setDermatologyExam] = useState(initialData?.clinical_data?.clinical_exam?.dermatology || '');
+    const [gynExam, setGynExam] = useState(initialData?.clinical_data?.clinical_exam?.gynecology || '');
     
     // Khám lâm sàng chuyên khoa chi tiết QĐ 1551
-    const [khongKinhMatPhai, setKhongKinhMatPhai] = useState(initialData?.clinical_data?.clinical_exam?.khong_kinh_mat_phai || '10/10');
-    const [khongKinhMatTrai, setKhongKinhMatTrai] = useState(initialData?.clinical_data?.clinical_exam?.khong_kinh_mat_trai || '10/10');
+    const [khongKinhMatPhai, setKhongKinhMatPhai] = useState(initialData?.clinical_data?.clinical_exam?.khong_kinh_mat_phai || '');
+    const [khongKinhMatTrai, setKhongKinhMatTrai] = useState(initialData?.clinical_data?.clinical_exam?.khong_kinh_mat_trai || '');
     const [coKinhMatPhai, setCoKinhMatPhai] = useState(initialData?.clinical_data?.clinical_exam?.co_kinh_mat_phai || '');
     const [coKinhMatTrai, setCoKinhMatTrai] = useState(initialData?.clinical_data?.clinical_exam?.co_kinh_mat_trai || '');
-    const [khongKinhHaiMat, setKhongKinhHaiMat] = useState(initialData?.clinical_data?.clinical_exam?.khong_kinh_hai_mat || '10/10');
+    const [khongKinhHaiMat, setKhongKinhHaiMat] = useState(initialData?.clinical_data?.clinical_exam?.khong_kinh_hai_mat || '');
     const [coKinhHaiMat, setCoKinhHaiMat] = useState(initialData?.clinical_data?.clinical_exam?.co_kinh_hai_mat || '');
     const [sacGiac, setSacGiac] = useState(initialData?.clinical_data?.clinical_exam?.sac_giac || '0');
-    const [thiTruongNgangHaiMat, setThiTruongNgangHaiMat] = useState(initialData?.clinical_data?.clinical_exam?.thi_truong_ngang_haimat || 'Bình thường');
-    const [thiTruongDungHaiMat, setThiTruongDungHaiMat] = useState(initialData?.clinical_data?.clinical_exam?.thi_truong_dung_haimat || 'Bình thường');
+    const [thiTruongNgangHaiMat, setThiTruongNgangHaiMat] = useState(initialData?.clinical_data?.clinical_exam?.thi_truong_ngang_haimat || '');
+    const [thiTruongDungHaiMat, setThiTruongDungHaiMat] = useState(initialData?.clinical_data?.clinical_exam?.thi_truong_dung_haimat || '');
 
-    const [taiTraiNoiThuong, setTaiTraiNoiThuong] = useState(initialData?.clinical_data?.clinical_exam?.tai_trai_noi_thuong || '5');
-    const [taiTraiNoiTham, setTaiTraiNoiTham] = useState(initialData?.clinical_data?.clinical_exam?.tai_trai_noi_tham || '0.5');
-    const [taiPhaiNoiThuong, setTaiPhaiNoiThuong] = useState(initialData?.clinical_data?.clinical_exam?.tai_phai_noi_thuong || '5');
-    const [taiPhaiNoiTham, setTaiPhaiNoiTham] = useState(initialData?.clinical_data?.clinical_exam?.tai_phai_noi_tham || '0.5');
+    const [taiTraiNoiThuong, setTaiTraiNoiThuong] = useState(initialData?.clinical_data?.clinical_exam?.tai_trai_noi_thuong || '');
+    const [taiTraiNoiTham, setTaiTraiNoiTham] = useState(initialData?.clinical_data?.clinical_exam?.tai_trai_noi_tham || '');
+    const [taiPhaiNoiThuong, setTaiPhaiNoiThuong] = useState(initialData?.clinical_data?.clinical_exam?.tai_phai_noi_thuong || '');
+    const [taiPhaiNoiTham, setTaiPhaiNoiTham] = useState(initialData?.clinical_data?.clinical_exam?.tai_phai_noi_tham || '');
 
-    const [hamTren, setHamTren] = useState(initialData?.clinical_data?.clinical_exam?.ham_tren || 'Bình thường');
-    const [hamDuoi, setHamDuoi] = useState(initialData?.clinical_data?.clinical_exam?.ham_duoi || 'Bình thường');
+    const [hamTren, setHamTren] = useState(initialData?.clinical_data?.clinical_exam?.ham_tren || '');
+    const [hamDuoi, setHamDuoi] = useState(initialData?.clinical_data?.clinical_exam?.ham_duoi || '');
 
     // Phân loại chuyên khoa (Mẫu 2)
-    const [khamTheLucPl, setKhamTheLucPl] = useState(initialData?.clinical_data?.clinical_exam?.kham_the_luc_pl || '1');
-    const [noiKhoaTuanHoanPl, setNoiKhoaTuanHoanPl] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_tuan_hoan_pl || '1');
-    const [noiKhoaHoHapPl, setNoiKhoaHoHapPl] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_ho_hap_pl || '1');
-    const [noiKhoaTieuHoaPl, setNoiKhoaTieuHoaPl] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_tieu_hoa_pl || '1');
-    const [noiKhoaThanTietnieuPl, setNoiKhoaThanTietnieuPl] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_than_tietnieu_pl || '1');
-    const [noiKhoaNoiTietPl, setNoiKhoaNoiTietPl] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_noi_tiet_pl || '1');
-    const [noiKhoaCoXuongKhopPl, setNoiKhoaCoXuongKhopPl] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_co_xuong_khop_pl || '1');
-    const [noiKhoaThanKinhPl, setNoiKhoaThanKinhPl] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_than_kinh_pl || '1');
-    const [noiKhoaTamThanPl, setNoiKhoaTamThanPl] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_tam_than_pl || '1');
-    const [khamNgoaiKhoaPl, setKhamNgoaiKhoaPl] = useState(initialData?.clinical_data?.clinical_exam?.kham_ngoai_khoa_pl || '1');
-    const [khamDaLieuPl, setKhamDaLieuPl] = useState(initialData?.clinical_data?.clinical_exam?.kham_da_lieu_pl || '1');
-    const [khamSanPhuKhoaPl, setKhamSanPhuKhoaPl] = useState(initialData?.clinical_data?.clinical_exam?.kham_san_phu_khoa_pl || '1');
-    const [khamMatPl, setKhamMatPl] = useState(initialData?.clinical_data?.clinical_exam?.kham_mat_pl || '1');
-    const [khamTaiMuiHongPl, setKhamTaiMuiHongPl] = useState(initialData?.clinical_data?.clinical_exam?.kham_tai_mui_hong_pl || '1');
-    const [khamRangHamMatPl, setKhamRangHamMatPl] = useState(initialData?.clinical_data?.clinical_exam?.kham_rang_ham_mat_pl || '1');
+    const [khamTheLucPl, setKhamTheLucPl] = useState(initialData?.clinical_data?.clinical_exam?.kham_the_luc_pl || '');
+    const [noiKhoaTuanHoanPl, setNoiKhoaTuanHoanPl] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_tuan_hoan_pl || '');
+    const [noiKhoaHoHapPl, setNoiKhoaHoHapPl] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_ho_hap_pl || '');
+    const [noiKhoaTieuHoaPl, setNoiKhoaTieuHoaPl] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_tieu_hoa_pl || '');
+    const [noiKhoaThanTietnieuPl, setNoiKhoaThanTietnieuPl] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_than_tietnieu_pl || '');
+    const [noiKhoaNoiTietPl, setNoiKhoaNoiTietPl] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_noi_tiet_pl || '');
+    const [noiKhoaCoXuongKhopPl, setNoiKhoaCoXuongKhopPl] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_co_xuong_khop_pl || '');
+    const [noiKhoaThanKinhPl, setNoiKhoaThanKinhPl] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_than_kinh_pl || '');
+    const [noiKhoaTamThanPl, setNoiKhoaTamThanPl] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_tam_than_pl || '');
+    const [khamNgoaiKhoaPl, setKhamNgoaiKhoaPl] = useState(initialData?.clinical_data?.clinical_exam?.kham_ngoai_khoa_pl || '');
+    const [khamDaLieuPl, setKhamDaLieuPl] = useState(initialData?.clinical_data?.clinical_exam?.kham_da_lieu_pl || '');
+    const [khamSanPhuKhoaPl, setKhamSanPhuKhoaPl] = useState(initialData?.clinical_data?.clinical_exam?.kham_san_phu_khoa_pl || '');
+    const [khamMatPl, setKhamMatPl] = useState(initialData?.clinical_data?.clinical_exam?.kham_mat_pl || '');
+    const [khamTaiMuiHongPl, setKhamTaiMuiHongPl] = useState(initialData?.clinical_data?.clinical_exam?.kham_tai_mui_hong_pl || '');
+    const [khamRangHamMatPl, setKhamRangHamMatPl] = useState(initialData?.clinical_data?.clinical_exam?.kham_rang_ham_mat_pl || '');
 
     // Nhi khoa (Forms 6 - 13)
-    const [nhiTuanHoan, setNhiTuanHoan] = useState(initialData?.clinical_data?.clinical_exam?.nhi_tuan_hoan || 'Bình thường');
-    const [nhiHoHap, setNhiHoHap] = useState(initialData?.clinical_data?.clinical_exam?.nhi_ho_hap || 'Bình thường');
-    const [nhiTieuHoa, setNhiTieuHoa] = useState(initialData?.clinical_data?.clinical_exam?.nhi_tieu_hoa || 'Bình thường');
-    const [nhiTietNieu, setNhiTietNieu] = useState(initialData?.clinical_data?.clinical_exam?.nhi_tiet_nieu || 'Bình thường');
-    const [nhiThanKinh, setNhiThanKinh] = useState(initialData?.clinical_data?.clinical_exam?.nhi_than_kinh || 'Bình thường');
-    const [nhiTamThan, setNhiTamThan] = useState(initialData?.clinical_data?.clinical_exam?.nhi_tam_than || 'Bình thường');
-    const [nhiKhac, setNhiKhac] = useState(initialData?.clinical_data?.clinical_exam?.nhi_khac || 'Bình thường');
+    const [nhiTuanHoan, setNhiTuanHoan] = useState(initialData?.clinical_data?.clinical_exam?.nhi_tuan_hoan || '');
+    const [nhiHoHap, setNhiHoHap] = useState(initialData?.clinical_data?.clinical_exam?.nhi_ho_hap || '');
+    const [nhiTieuHoa, setNhiTieuHoa] = useState(initialData?.clinical_data?.clinical_exam?.nhi_tieu_hoa || '');
+    const [nhiTietNieu, setNhiTietNieu] = useState(initialData?.clinical_data?.clinical_exam?.nhi_tiet_nieu || '');
+    const [nhiThanKinh, setNhiThanKinh] = useState(initialData?.clinical_data?.clinical_exam?.nhi_than_kinh || '');
+    const [nhiTamThan, setNhiTamThan] = useState(initialData?.clinical_data?.clinical_exam?.nhi_tam_than || '');
+    const [nhiKhac, setNhiKhac] = useState(initialData?.clinical_data?.clinical_exam?.nhi_khac || '');
     const [milestoneCheck, setMilestoneCheck] = useState(initialData?.clinical_data?.extra?.milestone_check || '1');
 
     // 5. Paraclinical/Labs
-    const [hemoglobin, setHemoglobin] = useState(initialData?.lab_data?.blood_test?.hemoglobin || '140');
-    const [glycemia, setGlycemia] = useState(initialData?.lab_data?.blood_test?.glycemia || '5.2');
-    const [protein, setProtein] = useState(initialData?.lab_data?.urine_test?.protein || 'Âm tính');
+    const [hemoglobin, setHemoglobin] = useState(initialData?.lab_data?.blood_test?.hemoglobin || '');
+    const [glycemia, setGlycemia] = useState(initialData?.lab_data?.blood_test?.glycemia || '');
+    const [protein, setProtein] = useState(initialData?.lab_data?.urine_test?.protein || '');
     
     // Xét nghiệm bổ sung QĐ 1551 (Lái xe, thuyền viên...)
-    const [kqXnMaiTuy, setKqXnMaiTuy] = useState(initialData?.lab_data?.kq_xn_ma_tuy || 'Âm tính');
-    const [kqXnNongDoCon, setKqXnNongDoCon] = useState(initialData?.lab_data?.kq_xn_nong_do_con || '0.0 mg/L');
+    const [kqXnMaiTuy, setKqXnMaiTuy] = useState(initialData?.lab_data?.kq_xn_ma_tuy || '');
+    const [kqXnNongDoCon, setKqXnNongDoCon] = useState(initialData?.lab_data?.kq_xn_nong_do_con || '');
     const [kqXnKhac, setKqXnKhac] = useState(initialData?.lab_data?.kq_xn_khac || '');
 
     // 6. Conclusion
-    const [fitnessClass, setFitnessClass] = useState(initialData?.conclusion_data?.fitness_class || '1');
-    const [diagnosis, setDiagnosis] = useState(initialData?.conclusion_data?.diagnosis || 'Đủ sức khỏe học tập và làm việc');
-    const [cacVanDeLuuY, setCacVanDeLuuY] = useState(initialData?.conclusion_data?.cac_van_de_luu_y || 'Không');
+    const [fitnessClass, setFitnessClass] = useState(initialData?.conclusion_data?.fitness_class || '');
+    const [diagnosis, setDiagnosis] = useState(initialData?.conclusion_data?.diagnosis || '');
+    const [cacVanDeLuuY, setCacVanDeLuuY] = useState(initialData?.conclusion_data?.cac_van_de_luu_y || '');
 
     // Validation state
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -485,34 +485,34 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
     const [workplaces, setWorkplaces] = useState<CatalogItem[]>([]);
 
     // Specialized eye vision states (QĐ 1551 & Mẫu 4/5)
-    const [xaKhongKinhMatPhai, setXaKhongKinhMatPhai] = useState(initialData?.clinical_data?.clinical_exam?.xa_khong_kinh_mat_phai || '10/10');
-    const [xaKhongKinhMatTrai, setXaKhongKinhMatTrai] = useState(initialData?.clinical_data?.clinical_exam?.xa_khong_kinh_mat_trai || '10/10');
-    const [xaKhongKinhHaiMat, setXaKhongKinhHaiMat] = useState(initialData?.clinical_data?.clinical_exam?.xa_khong_kinh_hai_mat || '10/10');
+    const [xaKhongKinhMatPhai, setXaKhongKinhMatPhai] = useState(initialData?.clinical_data?.clinical_exam?.xa_khong_kinh_mat_phai || '');
+    const [xaKhongKinhMatTrai, setXaKhongKinhMatTrai] = useState(initialData?.clinical_data?.clinical_exam?.xa_khong_kinh_mat_trai || '');
+    const [xaKhongKinhHaiMat, setXaKhongKinhHaiMat] = useState(initialData?.clinical_data?.clinical_exam?.xa_khong_kinh_hai_mat || '');
     const [xaCoKinhMatPhai, setXaCoKinhMatPhai] = useState(initialData?.clinical_data?.clinical_exam?.xa_co_kinh_mat_phai || '');
     const [xaCoKinhMatTrai, setXaCoKinhMatTrai] = useState(initialData?.clinical_data?.clinical_exam?.xa_co_kinh_mat_trai || '');
     const [xaCoKinhHaiMat, setXaCoKinhHaiMat] = useState(initialData?.clinical_data?.clinical_exam?.xa_co_kinh_hai_mat || '');
     
-    const [ganKhongKinhMatPhai, setGanKhongKinhMatPhai] = useState(initialData?.clinical_data?.clinical_exam?.gan_khong_kinh_mat_phai || '10/10');
-    const [ganKhongKinhMatTrai, setGanKhongKinhMatTrai] = useState(initialData?.clinical_data?.clinical_exam?.gan_khong_kinh_mat_trai || '10/10');
-    const [ganKhongKinhHaiMat, setGanKhongKinhHaiMat] = useState(initialData?.clinical_data?.clinical_exam?.gan_khong_kinh_hai_mat || '10/10');
+    const [ganKhongKinhMatPhai, setGanKhongKinhMatPhai] = useState(initialData?.clinical_data?.clinical_exam?.gan_khong_kinh_mat_phai || '');
+    const [ganKhongKinhMatTrai, setGanKhongKinhMatTrai] = useState(initialData?.clinical_data?.clinical_exam?.gan_khong_kinh_mat_trai || '');
+    const [ganKhongKinhHaiMat, setGanKhongKinhHaiMat] = useState(initialData?.clinical_data?.clinical_exam?.gan_khong_kinh_hai_mat || '');
     const [ganCoKinhMatPhai, setGanCoKinhMatPhai] = useState(initialData?.clinical_data?.clinical_exam?.gan_co_kinh_mat_phai || '');
     const [ganCoKinhMatTrai, setGanCoKinhMatTrai] = useState(initialData?.clinical_data?.clinical_exam?.gan_co_kinh_mat_trai || '');
     const [ganCoKinhHaiMat, setGanCoKinhHaiMat] = useState(initialData?.clinical_data?.clinical_exam?.gan_co_kinh_hai_mat || '');
     
-    const [khamMatThiTruongPhai, setKhamMatThiTruongPhai] = useState(initialData?.clinical_data?.clinical_exam?.kham_mat_thi_truong_phai || 'Bình thường');
-    const [khamMatThiTruongTrai, setKhamMatThiTruongTrai] = useState(initialData?.clinical_data?.clinical_exam?.kham_mat_thi_truong_trai || 'Bình thường');
+    const [khamMatThiTruongPhai, setKhamMatThiTruongPhai] = useState(initialData?.clinical_data?.clinical_exam?.kham_mat_thi_truong_phai || '');
+    const [khamMatThiTruongTrai, setKhamMatThiTruongTrai] = useState(initialData?.clinical_data?.clinical_exam?.kham_mat_thi_truong_trai || '');
 
     // Specialized hearing/audiometry check states (QĐ 1551 & Mẫu 4/5)
-    const [taiPhai500hz, setTaiPhai500hz] = useState(initialData?.clinical_data?.clinical_exam?.tai_phai_500hz || '20');
-    const [taiTrai500hz, setTaiTrai500hz] = useState(initialData?.clinical_data?.clinical_exam?.tai_trai_500hz || '20');
-    const [taiPhai2000hz, setTaiPhai2000hz] = useState(initialData?.clinical_data?.clinical_exam?.tai_phai_2000hz || '20');
-    const [taiTrai2000hz, setTaiTrai2000hz] = useState(initialData?.clinical_data?.clinical_exam?.tai_trai_2000hz || '20');
-    const [taiPhai3000hz, setTaiPhai3000hz] = useState(initialData?.clinical_data?.clinical_exam?.tai_phai_3000hz || '20');
-    const [taiTrai3000hz, setTaiTrai3000hz] = useState(initialData?.clinical_data?.clinical_exam?.tai_trai_3000hz || '20');
-    const [taiPhai4000hz, setTaiPhai4000hz] = useState(initialData?.clinical_data?.clinical_exam?.tai_phai_4000hz || '20');
-    const [taiTrai4000hz, setTaiTrai4000hz] = useState(initialData?.clinical_data?.clinical_exam?.tai_trai_4000hz || '20');
-    const [taiPhai6000hz, setTaiPhai6000hz] = useState(initialData?.clinical_data?.clinical_exam?.tai_phai_6000hz || '20');
-    const [taiTrai6000hz, setTaiTrai6000hz] = useState(initialData?.clinical_data?.clinical_exam?.tai_trai_6000hz || '20');
+    const [taiPhai500hz, setTaiPhai500hz] = useState(initialData?.clinical_data?.clinical_exam?.tai_phai_500hz || '');
+    const [taiTrai500hz, setTaiTrai500hz] = useState(initialData?.clinical_data?.clinical_exam?.tai_trai_500hz || '');
+    const [taiPhai2000hz, setTaiPhai2000hz] = useState(initialData?.clinical_data?.clinical_exam?.tai_phai_2000hz || '');
+    const [taiTrai2000hz, setTaiTrai2000hz] = useState(initialData?.clinical_data?.clinical_exam?.tai_trai_2000hz || '');
+    const [taiPhai3000hz, setTaiPhai3000hz] = useState(initialData?.clinical_data?.clinical_exam?.tai_phai_3000hz || '');
+    const [taiTrai3000hz, setTaiTrai3000hz] = useState(initialData?.clinical_data?.clinical_exam?.tai_trai_3000hz || '');
+    const [taiPhai4000hz, setTaiPhai4000hz] = useState(initialData?.clinical_data?.clinical_exam?.tai_phai_4000hz || '');
+    const [taiTrai4000hz, setTaiTrai4000hz] = useState(initialData?.clinical_data?.clinical_exam?.tai_trai_4000hz || '');
+    const [taiPhai6000hz, setTaiPhai6000hz] = useState(initialData?.clinical_data?.clinical_exam?.tai_phai_6000hz || '');
+    const [taiTrai6000hz, setTaiTrai6000hz] = useState(initialData?.clinical_data?.clinical_exam?.tai_trai_6000hz || '');
 
     // Occupational & other extra states
     const [maCskcb, setMaCskcb] = useState(initialData?.clinical_data?.extra?.ma_cskcb || '');
@@ -555,7 +555,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
     const [kqTaiMuiHong, setKqTaiMuiHong] = useState(initialData?.clinical_data?.clinical_exam?.kq_tai_mui_hong || 'Bình thường');
     const [kqCoXuongKhop, setKqCoXuongKhop] = useState(initialData?.clinical_data?.clinical_exam?.kq_co_xuong_khop || 'Bình thường');
     const [kqNoiTietChuyenHoa, setKqNoiTietChuyenHoa] = useState(initialData?.clinical_data?.clinical_exam?.kq_noi_tiet_chuyen_hoa || 'Bình thường');
-    const [duTieuChuanDkPtgtDuongSat, setDuTieuChuanDkPtgtDuongSat] = useState(initialData?.conclusion_data?.du_tieu_chuan_dk_ptgt_duong_sat || '1');
+    const [duTieuChuanDkPtgtDuongSat, setDuTieuChuanDkPtgtDuongSat] = useState(initialData?.conclusion_data?.du_tieu_chuan_dk_ptgt_duong_sat || '');
 
     const [lucKeoThan, setLucKeoThan] = useState(initialData?.clinical_data?.extra?.luc_keo_than || '');
     const [haTamThu, setHaTamThu] = useState(initialData?.clinical_data?.examination?.ha_tam_thu || '');
@@ -586,46 +586,215 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
     const [triglycerid, setTriglycerid] = useState(initialData?.lab_data?.blood_test?.triglycerid || '');
     const [hdl, setHdl] = useState(initialData?.lab_data?.blood_test?.hdl || '');
     const [ldl, setLdl] = useState(initialData?.lab_data?.blood_test?.ldl || '');
-    const [rpr, setRpr] = useState(initialData?.lab_data?.blood_test?.rpr || '0');
-    const [tpha, setTpha] = useState(initialData?.lab_data?.blood_test?.tpha || '0');
-    const [hbsag, setHbsag] = useState(initialData?.lab_data?.blood_test?.hbsag || '0');
-    const [hbeag, setHbeag] = useState(initialData?.lab_data?.blood_test?.hbeag || '0');
-    const [hcvab, setHcvab] = useState(initialData?.lab_data?.blood_test?.hcvab || '0');
-    const [havab, setHavab] = useState(initialData?.lab_data?.blood_test?.havab || '0');
-    const [hiv, setHiv] = useState(initialData?.lab_data?.blood_test?.hiv || '0');
+    const [rpr, setRpr] = useState(initialData?.lab_data?.blood_test?.rpr || '');
+    const [tpha, setTpha] = useState(initialData?.lab_data?.blood_test?.tpha || '');
+    const [hbsag, setHbsag] = useState(initialData?.lab_data?.blood_test?.hbsag || '');
+    const [hbeag, setHbeag] = useState(initialData?.lab_data?.blood_test?.hbeag || '');
+    const [hcvab, setHcvab] = useState(initialData?.lab_data?.blood_test?.hcvab || '');
+    const [havab, setHavab] = useState(initialData?.lab_data?.blood_test?.havab || '');
+    const [hiv, setHiv] = useState(initialData?.lab_data?.blood_test?.hiv || '');
     const [xnKhac, setXnKhac] = useState(initialData?.lab_data?.xn_khac || '');
     const [nongDoConMau, setNongDoConMau] = useState(initialData?.lab_data?.nong_do_con_mau || '');
-    const [nuocTieuMaTuy, setNuocTieuMaTuy] = useState(initialData?.lab_data?.nuoc_tieu_test_nhanh?.ma_tuy || '0');
-    const [nuocTieuAmphetamine, setNuocTieuAmphetamine] = useState(initialData?.lab_data?.nuoc_tieu_test_nhanh?.amphetamine || '0');
+    const [nuocTieuMaTuy, setNuocTieuMaTuy] = useState(initialData?.lab_data?.nuoc_tieu_test_nhanh?.ma_tuy || '');
+    const [nuocTieuAmphetamine, setNuocTieuAmphetamine] = useState(initialData?.lab_data?.nuoc_tieu_test_nhanh?.amphetamine || '');
     const [nuocTieuDuong, setNuocTieuDuong] = useState(initialData?.lab_data?.nuoc_tieu_test_nhanh?.duong || '');
     const [nuocTieuProtein, setNuocTieuProtein] = useState(initialData?.lab_data?.nuoc_tieu_test_nhanh?.protein || '');
     const [nuocTieuKhac, setNuocTieuKhac] = useState(initialData?.lab_data?.nuoc_tieu_test_nhanh?.khac || '');
-
+ 
     // Diagnostics & Imaging
     const [ketQuaChanDoanHinhAnh, setKetQuaChanDoanHinhAnh] = useState(initialData?.lab_data?.imaging?.ket_qua || 'Bình thường');
     const [ketQuaDienTim, setKetQuaDienTim] = useState(initialData?.lab_data?.ecg?.ket_qua || 'Nhịp xoang đều');
     const [chucNangHoHap, setChucNangHoHap] = useState(initialData?.lab_data?.spiro?.ket_qua || 'Bình thường');
     const [ketQuaSieuAmBung, setKetQuaSieuAmBung] = useState(initialData?.lab_data?.us?.ket_qua || 'Bình thường');
-
+ 
     // Conclusion extra
-    const [khaNangChiuSong, setKhaNangChiuSong] = useState(initialData?.conclusion_data?.kha_nang_chiu_song || '1');
-    const [hanChe, setHanChe] = useState(initialData?.conclusion_data?.han_che || '0');
-    const [yeuCauDeoKinh, setYeuCauDeoKinh] = useState(initialData?.conclusion_data?.yeu_cau_deo_kinh || '0');
+    const [khaNangChiuSong, setKhaNangChiuSong] = useState(initialData?.conclusion_data?.kha_nang_chiu_song || '');
+    const [hanChe, setHanChe] = useState(initialData?.conclusion_data?.han_che || '');
+    const [yeuCauDeoKinh, setYeuCauDeoKinh] = useState(initialData?.conclusion_data?.yeu_cau_deo_kinh || '');
     const [vongNgucTrungBinh, setVongNgucTrungBinh] = useState(initialData?.clinical_data?.examination?.vong_nguc_tb || '');
     const [noiTietDinhDuongChuyenHoa, setNoiTietDinhDuongChuyenHoa] = useState(initialData?.clinical_data?.clinical_exam?.noi_tiet_dinh_duong_chuyen_hoa || 'Bình thường');
     const [roiLoanHanhViTamThan, setRoiLoanHanhViTamThan] = useState(initialData?.clinical_data?.clinical_exam?.roi_loan_hanh_vi_tam_than || 'Bình thường');
-    const [ketLuanLoaiSucKhoe, setKetLuanLoaiSucKhoe] = useState(initialData?.conclusion_data?.ket_luan_loai_suc_khoe || '1');
+    const [ketLuanLoaiSucKhoe, setKetLuanLoaiSucKhoe] = useState(initialData?.conclusion_data?.ket_luan_loai_suc_khoe || '');
     const [conclusionDoctorId, setConclusionDoctorId] = useState(initialData?.conclusion_data?.doctor_id || '');
 
     // Dynamic services state (paraclinical grid)
     const [paraclinicalItems, setParaclinicalItems] = useState<any[]>(initialData?.lab_data?.paraclinical_items || []);
     const [labSubTab, setLabSubTab] = useState<'XN' | 'HA' | 'TD'>('XN');
 
-    // Specialty Exam states
-    const [specialtyMetadata, setSpecialtyMetadata] = useState<Record<string, { doctorId: string, status: string, updatedAt: string }>>(
-        initialData?.clinical_data?.specialty_metadata || {}
-    );
+    // Workflow optimizations
+    const [isLocked, setIsLocked] = useState(initialData?.status === 'ĐÃ_KẾT_LUẬN' || initialData?.is_locked || false);
+    const [specialtyMetadata, setSpecialtyMetadata] = useState<Record<string, { doctorId: string, status: string, updatedAt: string }>>(initialData?.specialty_metadata || {});
     const [doctors, setDoctors] = useState<CatalogItem[]>([]);
+    const [confirmConfig, setConfirmConfig] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        confirmText?: string;
+        cancelText?: string;
+        severity?: 'warning' | 'danger' | 'info' | 'success';
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => {}
+    });
+
+    const handleAutofillTab = (tabKey: string) => {
+        if (tabKey === 'admin') {
+            if (!gender) setGender('Nam');
+            if (!bloodGroup) setBloodGroup('O');
+            if (!targetGroup) setTargetGroup('13');
+            if (!fundingSource) setFundingSource('4');
+        } else if (tabKey === 'history') {
+            if (!tsgdMacBenh) setTsgdMacBenh('0');
+            if (!tiemChungBcg) setTiemChungBcg('1');
+            if (!tiemChungBhHgUv) setTiemChungBhHgUv('1');
+            if (!tiemChungSoi) setTiemChungSoi('1');
+            if (!tiemChungBaiLiet) setTiemChungBaiLiet('1');
+            if (!tiemChungVnnbB) setTiemChungVnnbB('1');
+            if (!tiemChungVgb) setTiemChungVgb('1');
+            if (!tiemChungCacLoaiKhac) setTiemChungCacLoaiKhac('0');
+            if (gender === 'Nữ') {
+                if (!tinhChatKinhNguyet) setTinhChatKinhNguyet('1');
+                if (!dauBungKinh) setDauBungKinh('0');
+                if (!daLapGiaDinh) setDaLapGiaDinh('0');
+                if (!dangApDungBpttKhong) setDangApDungBpttKhong('0');
+                if (!daTungMoSanPhuKhoaChua) setDaTungMoSanPhuKhoaChua('0');
+            }
+        } else if (tabKey === 'exam') {
+            // Physical defaults
+            if (!height) setHeight('168');
+            if (!weight) setWeight('60');
+            if (!pulse) setPulse('75');
+            if (!bp) setBp('120/80');
+            if (!khamTheLucPl) setKhamTheLucPl('1');
+            if (isChild && !sinhNon) setSinhNon('0');
+
+            // Specialty categories Pl
+            if (!noiKhoaTuanHoanPl) setNoiKhoaTuanHoanPl('1');
+            if (!noiKhoaHoHapPl) setNoiKhoaHoHapPl('1');
+            if (!noiKhoaTieuHoaPl) setNoiKhoaTieuHoaPl('1');
+            if (!noiKhoaThanTietnieuPl) setNoiKhoaThanTietnieuPl('1');
+            if (!noiKhoaNoiTietPl) setNoiKhoaNoiTietPl('1');
+            if (!noiKhoaCoXuongKhopPl) setNoiKhoaCoXuongKhopPl('1');
+            if (!noiKhoaThanKinhPl) setNoiKhoaThanKinhPl('1');
+            if (!noiKhoaTamThanPl) setNoiKhoaTamThanPl('1');
+            if (!khamNgoaiKhoaPl) setKhamNgoaiKhoaPl('1');
+            if (!khamDaLieuPl) setKhamDaLieuPl('1');
+            if (!khamSanPhuKhoaPl) setKhamSanPhuKhoaPl('1');
+            if (!khamMatPl) setKhamMatPl('1');
+            if (!khamTaiMuiHongPl) setKhamTaiMuiHongPl('1');
+            if (!khamRangHamMatPl) setKhamRangHamMatPl('1');
+
+            // Detail strings
+            if (!timMach) setTimMach('Bình thường');
+            if (!hoHap) setHoHap('Bình thường');
+            if (!noiKhoaTieuHoa) setNoiKhoaTieuHoa('Bình thường');
+            if (!ganMat) setGanMat('Bình thường');
+            if (!mauCoQuanTaoMau) setMauCoQuanTaoMau('Bình thường');
+            if (!daToChucDuoiDa) setDaToChucDuoiDa('Bình thường');
+            if (!kqCoXuongKhopM5) setKqCoXuongKhopM5('Bình thường');
+            if (!thanKinhM5) setThanKinhM5('Bình thường');
+            if (!khamTaiMuiHongM5) setKhamTaiMuiHongM5('Bình thường');
+            if (!khamMatM5) setKhamMatM5('Bình thường');
+            if (!khamMatThiGiacMau) setKhamMatThiGiacMau('1');
+            if (!noiTietDinhDuongChuyenHoa) setNoiTietDinhDuongChuyenHoa('Bình thường');
+            if (!roiLoanHanhViTamThan) setRoiLoanHanhViTamThan('Bình thường');
+
+            // Detail texts for forms
+            if (!internalExam) setInternalExam('Tim đều, phổi trong, các cơ quan bình thường.');
+            if (!externalExam) setExternalExam('Hệ vận động, xương khớp bình thường.');
+            if (!eyeExam) setEyeExam('Mắt sáng, không đỏ, kết mạc bình thường.');
+            if (!entExam) setEntExam('Tai sạch, màng nhĩ hai bên bình thường.');
+            if (!dentalExam) setDentalExam('Răng đều, không sâu, niêm mạc sạch.');
+            if (!dermatologyExam) setDermatologyExam('Da sạch, không sẹo lồi, không nấm ngứa.');
+            if (!gynExam) setGynExam('Cơ quan sinh dục ngoài bình thường.');
+
+            // Measurements
+            if (!taiPhaiNoiThuong) setTaiPhaiNoiThuong('5');
+            if (!taiPhaiNoiTham) setTaiPhaiNoiTham('0.5');
+            if (!taiTraiNoiThuong) setTaiTraiNoiThuong('5');
+            if (!taiTraiNoiTham) setTaiTraiNoiTham('0.5');
+            if (!hamTren) setHamTren('Bình thường');
+            if (!hamDuoi) setHamDuoi('Bình thường');
+
+            // Vision
+            if (!khongKinhMatPhai) setKhongKinhMatPhai('10/10');
+            if (!khongKinhMatTrai) setKhongKinhMatTrai('10/10');
+            if (!khongKinhHaiMat) setKhongKinhHaiMat('10/10');
+            if (!sacGiac) setSacGiac('0');
+            if (!thiTruongNgangHaiMat) setThiTruongNgangHaiMat('Bình thường');
+            if (!thiTruongDungHaiMat) setThiTruongDungHaiMat('Bình thường');
+        } else if (tabKey === 'lab') {
+            if (!rpr) setRpr('0');
+            if (!tpha) setTpha('0');
+            if (!hbsag) setHbsag('0');
+            if (!hbeag) setHbeag('0');
+            if (!havab) setHavab('0');
+            if (!hcvab) setHcvab('0');
+            if (!hiv) setHiv('0');
+            if (!nuocTieuMaTuy) setNuocTieuMaTuy('0');
+            if (!nuocTieuAmphetamine) setNuocTieuAmphetamine('0');
+            if (!nongDoConMau) setNongDoConMau('0');
+            if (!kqXnMaiTuy) setKqXnMaiTuy('Âm tính');
+            if (!kqXnNongDoCon) setKqXnNongDoCon('0');
+            if (!nuocTieuDuong) setNuocTieuDuong('Âm tính (-)');
+            if (!nuocTieuProtein) setNuocTieuProtein('Âm tính (-)');
+            if (!ketQuaChanDoanHinhAnh) setKetQuaChanDoanHinhAnh('Bình thường');
+            if (!ketQuaDienTim) setKetQuaDienTim('Nhịp xoang đều');
+            if (!chucNangHoHap) setChucNangHoHap('Bình thường');
+            if (!ketQuaSieuAmBung) setKetQuaSieuAmBung('Bình thường');
+        } else if (tabKey === 'conclusion') {
+            if (!khaNangChiuSong) setKhaNangChiuSong('1');
+            if (!hanChe) setHanChe('0');
+            if (!yeuCauDeoKinh) setYeuCauDeoKinh('0');
+            if (!duTieuChuanDkPtgtDuongSat) setDuTieuChuanDkPtgtDuongSat('1');
+        }
+    };
+
+    // Auto suggest physical class based on BMI, BP and Pulse
+    useEffect(() => {
+        if (!height || !weight) return;
+        const hMeter = parseFloat(height) / 100;
+        const wKg = parseFloat(weight);
+        if (hMeter > 0 && wKg > 0) {
+            const calculatedBmi = wKg / (hMeter * hMeter);
+            setBmi(calculatedBmi.toFixed(1));
+            
+            // Auto suggest category
+            let suggestedPl = '1';
+            
+            // Check BP
+            if (bp) {
+                const bpParts = bp.split('/');
+                if (bpParts.length === 2) {
+                    const sys = parseInt(bpParts[0]);
+                    const dia = parseInt(bpParts[1]);
+                    if (sys >= 160 || dia >= 100) {
+                        suggestedPl = '4';
+                    } else if (sys >= 140 || dia >= 90) {
+                        suggestedPl = '3';
+                    } else if (sys >= 130 || dia >= 85) {
+                        suggestedPl = '2';
+                    }
+                }
+            }
+            
+            // Check BMI
+            const bmiVal = calculatedBmi;
+            if (bmiVal >= 30.0) {
+                suggestedPl = String(Math.max(parseInt(suggestedPl), 3));
+            } else if (bmiVal >= 25.0 || bmiVal < 18.5) {
+                suggestedPl = String(Math.max(parseInt(suggestedPl), 2));
+            }
+            
+            // Only update if currently blank
+            if (khamTheLucPl === '') {
+                setKhamTheLucPl(suggestedPl);
+            }
+        }
+    }, [height, weight, bp, khamTheLucPl]);
 
     useEffect(() => {
         catalogService.getWorkplaces().then(data => {
@@ -638,6 +807,19 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
             setDoctors(data);
         }).catch(() => setDoctors([]));
     }, []);
+
+    useEffect(() => {
+        healthCheckService.getSettings().then(settings => {
+            if (settings) {
+                if (!initialData?.clinical_data?.extra?.ma_cskcb) {
+                    setMaCskcb(settings.ma_cskcb || '');
+                }
+                if (!initialData?.clinical_data?.ma_gtin_cskcb) {
+                    setMaGtinCskcb(settings.ma_gtin_cskcb || '');
+                }
+            }
+        }).catch(err => console.error("Failed to load settings in DynamicForm:", err));
+    }, [initialData]);
 
     useEffect(() => {
         if (!conclusionDoctorId && user?.userId) {
@@ -1573,61 +1755,89 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
             setSpecialtyMetadata,
             doctors,
             setDoctors,
+            isLocked,
+            setIsLocked,
+            handleAutofillTab,
         }}>
         <form onSubmit={handleSubmit} autoComplete="off" spellCheck={false} className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-300">
-            {/* Header */}
-            <div className="bg-[#0f766e] p-6 text-white flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                <div className="flex-shrink-0">
-                    <span className="text-xs font-bold uppercase tracking-widest bg-white/20 px-2.5 py-0.5 rounded-full text-teal-100">
-                        Quy định 1551/QĐ-BYT
-                    </span>
-                    <h3 className="text-xl font-bold mt-1 text-white">
-                        {initialData ? "Chỉnh sửa hồ sơ Khám sức khỏe" : "Tạo mới hồ sơ Khám sức khỏe"}
-                    </h3>
+            {isLocked && (
+                <div className="bg-emerald-600 text-white px-5 py-2.5 flex items-center gap-2 text-sm font-bold shadow-inner">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0110 0v4"/>
+                    </svg>
+                    <span>Hồ sơ đã được Khóa &amp; Ký số liên thông quốc gia. Không thể chỉnh sửa.</span>
                 </div>
+            )}
+            {/* Header */}
+            <div className="bg-[#0f766e] px-5 py-3 text-white flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
+                {/* Left: Back button + Patient Info */}
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                    {/* Nút Back */}
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        title="Quay lại danh sách"
+                        className="flex-shrink-0 flex items-center gap-1.5 bg-white/15 hover:bg-white/25 border border-white/20 text-white rounded-lg px-3 py-2 text-xs font-bold transition-all duration-150 cursor-pointer"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M19 12H5M12 5l-7 7 7 7"/>
+                        </svg>
+                        <span className="hidden sm:inline">Danh sách</span>
+                    </button>
 
-                {/* Patient Info Banner */}
-                {patientName && (
-                    <div className="flex-1 bg-white/10 backdrop-blur-sm border border-white/15 rounded-xl px-4 py-2 flex flex-wrap gap-x-6 gap-y-1.5 items-center text-xs text-teal-100 shadow-inner max-w-3xl lg:mx-4 w-full lg:w-auto">
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-extrabold uppercase text-teal-200 tracking-wider">Bệnh nhân:</span>
-                            <span className="font-extrabold text-white uppercase text-sm">{patientName}</span>
-                        </div>
+                    {/* Patient Info - hiển thị thẳng không có ô bo */}
+                    <div className="flex-1 min-w-0 flex flex-wrap gap-x-6 gap-y-1 items-center">
+                        {patientName ? (
+                            <div className="flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-teal-200 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                                </svg>
+                                <span className="font-extrabold text-white uppercase text-base tracking-wide">{patientName}</span>
+                            </div>
+                        ) : (
+                            <span className="italic text-teal-300 text-sm">Chưa có thông tin bệnh nhân</span>
+                        )}
                         {patientId && (
                             <div className="flex items-center gap-1.5">
-                                <span className="text-[10px] font-extrabold uppercase text-teal-200 tracking-wider">Mã HS:</span>
-                                <span className="font-mono font-bold text-white bg-white/10 px-2 py-0.5 rounded">{patientId}</span>
+                                <span className="text-[11px] font-extrabold uppercase text-teal-200 tracking-wider">Mã HS:</span>
+                                <span className="font-mono font-bold text-white text-sm">{patientId}</span>
                             </div>
                         )}
                         {cccd && (
                             <div className="flex items-center gap-1.5">
-                                <span className="text-[10px] font-extrabold uppercase text-teal-200 tracking-wider">Số CCCD:</span>
-                                <span className="font-mono font-bold text-white bg-white/10 px-2 py-0.5 rounded">{cccd}</span>
+                                <span className="text-[11px] font-extrabold uppercase text-teal-200 tracking-wider">CCCD:</span>
+                                <span className="font-mono font-bold text-white text-sm">{cccd}</span>
                             </div>
                         )}
                         {dob && (
                             <div className="flex items-center gap-1.5">
-                                <span className="text-[10px] font-extrabold uppercase text-teal-200 tracking-wider">Năm sinh:</span>
-                                <span className="font-bold text-white">{new Date(dob).getFullYear()}</span>
+                                <span className="text-[11px] font-extrabold uppercase text-teal-200 tracking-wider">Năm sinh:</span>
+                                <span className="font-bold text-white text-sm">{new Date(dob).getFullYear()}</span>
                             </div>
                         )}
                         {gender && (
                             <div className="flex items-center gap-1.5">
-                                <span className="text-[10px] font-extrabold uppercase text-teal-200 tracking-wider">Giới tính:</span>
-                                <span className="font-bold text-white">{gender}</span>
+                                <span className="text-[11px] font-extrabold uppercase text-teal-200 tracking-wider">Giới tính:</span>
+                                <span className="font-bold text-white text-sm">{gender}</span>
                             </div>
                         )}
                     </div>
-                )}
+                </div>
 
                 <div className="flex items-center gap-3 self-stretch lg:self-auto flex-shrink-0">
-                    {!initialData && onChangeFormType ? (
+                    {onChangeFormType ? (
                         <div className="flex flex-col items-start lg:items-end gap-1 w-full lg:w-auto">
-                            <span className="text-[10px] uppercase tracking-wider text-teal-200 font-bold">Chọn mẫu biểu áp dụng:</span>
+                            <span className="text-[10px] uppercase tracking-wider text-teal-200 font-bold">Mẫu biểu áp dụng:</span>
                             <select
                                 value={formType}
-                                onChange={e => onChangeFormType(e.target.value)}
-                                className="bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm font-bold focus:ring-2 focus:ring-white focus:outline-none cursor-pointer w-full lg:w-[280px]"
+                                onChange={e => {
+                                    if (window.confirm("Thay đổi mẫu biểu áp dụng có thể thay đổi cấu trúc và làm mất các trường dữ liệu đặc thù. Bạn có chắc chắn muốn thay đổi?")) {
+                                        onChangeFormType(e.target.value);
+                                    }
+                                }}
+                                disabled={isLocked}
+                                className="bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm font-bold focus:ring-2 focus:ring-white focus:outline-none cursor-pointer w-full lg:w-[280px] disabled:opacity-55 disabled:cursor-not-allowed"
                                 style={{ colorScheme: 'dark' }}
                             >
                                 <optgroup label="Nhóm Phổ Biến" className="text-slate-800 bg-white">
@@ -1701,15 +1911,109 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
             </div>
 
             {/* Footer Buttons */}
-            <div className="flex justify-end gap-3 bg-slate-50 dark:bg-slate-800/80 px-6 py-4 border-t border-slate-200 dark:border-slate-700">
-                <button type="button" onClick={onCancel} className="px-5 py-2.5 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 transition-all">
-                    Hủy bỏ
-                </button>
-                <button type="submit" className="px-8 py-2.5 bg-[#0f766e] hover:bg-[#0d9488] text-white rounded-xl text-sm font-bold shadow-lg shadow-teal-500/20 hover:shadow-teal-500/30 transition-all duration-200">
-                    Lưu hồ sơ KSK
-                </button>
+            <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/80 px-6 py-4 border-t border-slate-200 dark:border-slate-700">
+                <div>
+                    {isLocked ? (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setConfirmConfig({
+                                    isOpen: true,
+                                    title: "Mở khóa hồ sơ",
+                                    message: "Bạn có chắc chắn muốn mở khóa hồ sơ khám sức khỏe này?",
+                                    confirmText: "Đồng ý mở khóa",
+                                    cancelText: "Hủy bỏ",
+                                    severity: "warning",
+                                    onConfirm: () => setIsLocked(false)
+                                });
+                            }}
+                            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+                        >
+                            Mở khóa hồ sơ
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setConfirmConfig({
+                                    isOpen: true,
+                                    title: "Khóa & Ký Số",
+                                    message: "Bạn có chắc chắn muốn Khóa & Ký số hồ sơ này? Sau khi khóa sẽ không thể chỉnh sửa dữ liệu.",
+                                    confirmText: "Khóa & Ký Số",
+                                    cancelText: "Hủy bỏ",
+                                    severity: "success",
+                                    onConfirm: () => setIsLocked(true)
+                                });
+                            }}
+                            className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+                        >
+                            Khóa &amp; Ký Số
+                        </button>
+                    )}
+                </div>
+                <div className="flex gap-3">
+                    <button type="button" onClick={onCancel} className="px-5 py-2.5 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer">
+                        Hủy bỏ
+                    </button>
+                    {!isLocked && (
+                        <button type="submit" className="px-8 py-2.5 bg-[#0f766e] hover:bg-[#0d9488] text-white rounded-xl text-sm font-bold shadow-lg shadow-teal-500/20 hover:shadow-teal-500/30 transition-all duration-200 cursor-pointer">
+                            Lưu hồ sơ KSK
+                        </button>
+                    )}
+                </div>
             </div>
         </form>
+
+        {confirmConfig.isOpen && (
+            <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/60 backdrop-blur-sm z-[999] flex justify-center items-center p-4 animate-fadeIn">
+                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-md p-6 overflow-hidden transform transition-all scale-100 duration-200">
+                    <div className="flex items-start gap-4">
+                        <div className={`flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full ${
+                            confirmConfig.severity === 'danger' ? 'bg-rose-100 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400' :
+                            confirmConfig.severity === 'success' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400' :
+                            'bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400'
+                        }`}>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                                <line x1="12" y1="9" x2="12" y2="13"/>
+                                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </svg>
+                        </div>
+                        <div className="flex-1 space-y-1">
+                            <h3 className="text-base font-extrabold text-slate-800 dark:text-white uppercase tracking-wide">
+                                {confirmConfig.title}
+                            </h3>
+                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 leading-relaxed">
+                                {confirmConfig.message}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="mt-6 flex flex-row-reverse gap-3 justify-end sm:justify-start">
+                        <button
+                            type="button"
+                            className={`px-4 py-2 text-xs font-bold text-white rounded-xl shadow-md transition-all active:scale-95 cursor-pointer ${
+                                confirmConfig.severity === 'danger' ? 'bg-rose-600 hover:bg-rose-500 shadow-rose-500/10' :
+                                confirmConfig.severity === 'success' ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/10' :
+                                'bg-amber-600 hover:bg-amber-500 shadow-amber-500/10'
+                            }`}
+                            onClick={() => {
+                                confirmConfig.onConfirm();
+                                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                            }}
+                        >
+                            {confirmConfig.confirmText || 'Đồng ý'}
+                        </button>
+                        <button
+                            type="button"
+                            className="px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-600 transition-all cursor-pointer"
+                            onClick={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                        >
+                            {confirmConfig.cancelText || 'Hủy bỏ'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
         </DynamicFormContext.Provider>
     );
 };

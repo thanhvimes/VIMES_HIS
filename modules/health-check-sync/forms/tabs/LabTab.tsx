@@ -69,10 +69,29 @@ const LabTab: React.FC = () => {
         setKetQuaSieuAmBung,
         xnKhac,
         setXnKhac,
+        isLocked,
+        handleAutofillTab,
     } = useDynamicFormContext();
 
     return (
         <div className="space-y-6 animate-fadeIn">
+            {/* Action Row: Autofill Tab */}
+            {!isLocked && (
+                <div className="flex justify-end">
+                    <button
+                        type="button"
+                        onClick={() => handleAutofillTab('lab')}
+                        className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40 text-[#0f766e] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:shadow active:scale-95"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        Điền nhanh kết quả mặc định (Cận lâm sàng)
+                    </button>
+                </div>
+            )}
+            <fieldset disabled={isLocked} className="space-y-6 w-full">
             <div>
                 <h4 className="text-sm font-bold text-[#0f766e] dark:text-teal-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">IV.1. Kết quả Cận lâm sàng / Chỉ định dịch vụ từ HIS</h4>
                 
@@ -388,6 +407,7 @@ const LabTab: React.FC = () => {
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">Xét nghiệm Ma túy (4 chất)</label>
                                 <select value={kqXnMaiTuy} onChange={e => setKqXnMaiTuy(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold">
+                                    <option value="">-- Chọn kết quả --</option>
                                     <option value="Âm tính">Âm tính</option>
                                     <option value="Dương tính">Dương tính (Có sử dụng chất kích thích)</option>
                                 </select>
@@ -458,10 +478,12 @@ const LabTab: React.FC = () => {
                                 <label className="block text-xs font-bold text-slate-500 mb-1">Phản ứng giang mai (RPR / TPHA)</label>
                                 <div className="flex gap-2">
                                     <select value={rpr} onChange={e => setRpr(e.target.value)} className="w-1/2 p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold">
+                                        <option value="">RPR</option>
                                         <option value="0">RPR (-)</option>
                                         <option value="1">RPR (+)</option>
                                     </select>
                                     <select value={tpha} onChange={e => setTpha(e.target.value)} className="w-1/2 p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold">
+                                        <option value="">TPHA</option>
                                         <option value="0">TPHA (-)</option>
                                         <option value="1">TPHA (+)</option>
                                     </select>
@@ -471,10 +493,12 @@ const LabTab: React.FC = () => {
                                 <label className="block text-xs font-bold text-slate-500 mb-1">Viêm gan B (HBsAg / HBeAg)</label>
                                 <div className="flex gap-2">
                                     <select value={hbsag} onChange={e => setHbsag(e.target.value)} className="w-1/2 p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold">
+                                        <option value="">HBsAg</option>
                                         <option value="0">HBsAg (-)</option>
                                         <option value="1">HBsAg (+)</option>
                                     </select>
                                     <select value={hbeag} onChange={e => setHbeag(e.target.value)} className="w-1/2 p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold">
+                                        <option value="">HBeAg</option>
                                         <option value="0">HBeAg (-)</option>
                                         <option value="1">HBeAg (+)</option>
                                     </select>
@@ -484,10 +508,12 @@ const LabTab: React.FC = () => {
                                 <label className="block text-xs font-bold text-slate-500 mb-1">Viêm gan A, C (HAV Ab / HCV Ab)</label>
                                 <div className="flex gap-2">
                                     <select value={havab} onChange={e => setHavab(e.target.value)} className="w-1/2 p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold">
+                                        <option value="">HAV</option>
                                         <option value="0">HAV (-)</option>
                                         <option value="1">HAV (+)</option>
                                     </select>
                                     <select value={hcvab} onChange={e => setHcvab(e.target.value)} className="w-1/2 p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold">
+                                        <option value="">HCV</option>
                                         <option value="0">HCV (-)</option>
                                         <option value="1">HCV (+)</option>
                                     </select>
@@ -496,6 +522,7 @@ const LabTab: React.FC = () => {
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">HIV</label>
                                 <select value={hiv} onChange={e => setHiv(e.target.value)} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold">
+                                    <option value="">-- Chọn kết quả --</option>
                                     <option value="0">HIV Âm tính (-)</option>
                                     <option value="1">HIV Dương tính (+)</option>
                                 </select>
@@ -511,6 +538,7 @@ const LabTab: React.FC = () => {
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">Nước tiểu - Ma túy (4 chất)</label>
                                 <select value={nuocTieuMaTuy} onChange={e => setNuocTieuMaTuy(e.target.value)} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold">
+                                    <option value="">-- Chọn kết quả --</option>
                                     <option value="0">Âm tính (-)</option>
                                     <option value="1">Dương tính (+)</option>
                                 </select>
@@ -518,6 +546,7 @@ const LabTab: React.FC = () => {
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">Nước tiểu - Amphetamine</label>
                                 <select value={nuocTieuAmphetamine} onChange={e => setNuocTieuAmphetamine(e.target.value)} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold">
+                                    <option value="">-- Chọn kết quả --</option>
                                     <option value="0">Âm tính (-)</option>
                                     <option value="1">Dương tính (+)</option>
                                 </select>
@@ -569,6 +598,7 @@ const LabTab: React.FC = () => {
                     </div>
                 )}
             </div>
+            </fieldset>
         </div>
     );
 };

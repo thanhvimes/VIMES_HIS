@@ -25,11 +25,29 @@ const InternalMedTab: React.FC = () => {
         noiKhoaCoXuongKhopPl, setNoiKhoaCoXuongKhopPl,
         noiKhoaThanKinhPl, setNoiKhoaThanKinhPl,
         noiKhoaTamThanPl, setNoiKhoaTamThanPl,
-        kqNoiTietChuyenHoa, setKqNoiTietChuyenHoa
+        kqNoiTietChuyenHoa, setKqNoiTietChuyenHoa,
+        isLocked,
+        handleAutofillTab,
     } = useDynamicFormContext();
 
     return (
         <SpecialtyCard specialtyKey="internal" title="Khám Nội Khoa">
+            {!isLocked && (
+                <div className="flex justify-end mb-4">
+                    <button
+                        type="button"
+                        onClick={() => handleAutofillTab('exam')}
+                        className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40 text-[#0f766e] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer shadow-sm hover:shadow active:scale-95"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        Điền nhanh kết quả mặc định
+                    </button>
+                </div>
+            )}
+            <fieldset disabled={isLocked} className="space-y-4 w-full">
             {isChild ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -56,6 +74,7 @@ const InternalMedTab: React.FC = () => {
                         <textarea value={kqTimMach} onChange={e => setKqTimMach(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
                         {formType === '2' && (
                             <select value={noiKhoaTuanHoanPl} onChange={e => setNoiKhoaTuanHoanPl(e.target.value)} className="w-full mt-1 p-2 border rounded text-xs">
+                                <option value="">-- Phân loại --</option>
                                 <option value="1">Loại I</option><option value="2">Loại II</option><option value="3">Loại III</option><option value="4">Loại IV</option><option value="5">Loại V</option>
                             </select>
                         )}
@@ -65,6 +84,7 @@ const InternalMedTab: React.FC = () => {
                         <textarea value={kqHoHap} onChange={e => setKqHoHap(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
                         {formType === '2' && (
                             <select value={noiKhoaHoHapPl} onChange={e => setNoiKhoaHoHapPl(e.target.value)} className="w-full mt-1 p-2 border rounded text-xs">
+                                <option value="">-- Phân loại --</option>
                                 <option value="1">Loại I</option><option value="2">Loại II</option><option value="3">Loại III</option><option value="4">Loại IV</option><option value="5">Loại V</option>
                             </select>
                         )}
@@ -74,6 +94,7 @@ const InternalMedTab: React.FC = () => {
                         <textarea value={noiKhoaTieuHoa} onChange={e => setNoiKhoaTieuHoa(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
                         {formType === '2' && (
                             <select value={noiKhoaTieuHoaPl} onChange={e => setNoiKhoaTieuHoaPl(e.target.value)} className="w-full mt-1 p-2 border rounded text-xs">
+                                <option value="">-- Phân loại --</option>
                                 <option value="1">Loại I</option><option value="2">Loại II</option><option value="3">Loại III</option><option value="4">Loại IV</option><option value="5">Loại V</option>
                             </select>
                         )}
@@ -83,6 +104,7 @@ const InternalMedTab: React.FC = () => {
                         <textarea value={kqNoiTiet || kqNoiTietChuyenHoa} onChange={e => { setKqNoiTiet(e.target.value); setKqNoiTietChuyenHoa(e.target.value); }} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
                         {formType === '2' && (
                             <select value={noiKhoaNoiTietPl} onChange={e => setNoiKhoaNoiTietPl(e.target.value)} className="w-full mt-1 p-2 border rounded text-xs">
+                                <option value="">-- Phân loại --</option>
                                 <option value="1">Loại I</option><option value="2">Loại II</option><option value="3">Loại III</option><option value="4">Loại IV</option><option value="5">Loại V</option>
                             </select>
                         )}
@@ -92,6 +114,7 @@ const InternalMedTab: React.FC = () => {
                         <textarea value={kqCoXuongKhop} onChange={e => setKqCoXuongKhop(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
                         {formType === '2' && (
                             <select value={noiKhoaCoXuongKhopPl} onChange={e => setNoiKhoaCoXuongKhopPl(e.target.value)} className="w-full mt-1 p-2 border rounded text-xs">
+                                <option value="">-- Phân loại --</option>
                                 <option value="1">Loại I</option><option value="2">Loại II</option><option value="3">Loại III</option><option value="4">Loại IV</option><option value="5">Loại V</option>
                             </select>
                         )}
@@ -101,6 +124,7 @@ const InternalMedTab: React.FC = () => {
                         <textarea value={kqThanKinh} onChange={e => setKqThanKinh(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
                         {formType === '2' && (
                             <select value={noiKhoaThanKinhPl} onChange={e => setNoiKhoaThanKinhPl(e.target.value)} className="w-full mt-1 p-2 border rounded text-xs">
+                                <option value="">-- Phân loại --</option>
                                 <option value="1">Loại I</option><option value="2">Loại II</option><option value="3">Loại III</option><option value="4">Loại IV</option><option value="5">Loại V</option>
                             </select>
                         )}
@@ -110,12 +134,14 @@ const InternalMedTab: React.FC = () => {
                         <textarea value={kqTamThan} onChange={e => setKqTamThan(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
                         {formType === '2' && (
                             <select value={noiKhoaTamThanPl} onChange={e => setNoiKhoaTamThanPl(e.target.value)} className="w-full mt-1 p-2 border rounded text-xs">
+                                <option value="">-- Phân loại --</option>
                                 <option value="1">Loại I</option><option value="2">Loại II</option><option value="3">Loại III</option><option value="4">Loại IV</option><option value="5">Loại V</option>
                             </select>
                         )}
                     </div>
                 </div>
             )}
+            </fieldset>
         </SpecialtyCard>
     );
 };

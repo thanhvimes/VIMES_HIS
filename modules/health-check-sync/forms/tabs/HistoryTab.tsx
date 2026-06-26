@@ -94,11 +94,34 @@ const HistoryTab: React.FC = () => {
         soLanMoSanPhuKhoa,
         setSoLanMoSanPhuKhoa,
         ghiRoMoSanPhuKhoa,
-        setGhiRoMoSanPhuKhoa
+        setGhiRoMoSanPhuKhoa,
+        isLocked,
+        handleAutofillTab,
     } = useDynamicFormContext();
 
     return (
         <div className="space-y-6 animate-fadeIn">
+            {/* Action Row: Autofill Tab */}
+            {!isLocked && (
+                <div className="flex justify-end">
+                    <button
+                        type="button"
+                        onClick={() => handleAutofillTab('history')}
+                        className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40 text-[#0f766e] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:shadow active:scale-95"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                        Điền nhanh kết quả mặc định (Tiền sử)
+                    </button>
+                </div>
+            )}
+
+            <fieldset disabled={isLocked} className="space-y-6">
             {formType === '3' ? (
                 <div>
                     <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">II.1. Tiền sử sức khỏe lái xe (Đánh giá Có/Không)</h4>
@@ -145,6 +168,7 @@ const HistoryTab: React.FC = () => {
                             <div key={i}>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">{v.label}</label>
                                 <select value={v.val} onChange={e => v.set(e.target.value)} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                                    <option value="">-- Chọn trạng thái --</option>
                                     <option value="1">Đã tiêm chủng đầy đủ</option>
                                     <option value="0">Chưa được tiêm chủng</option>
                                     <option value="99">Không nhớ rõ / Chưa có thông tin</option>
@@ -154,6 +178,7 @@ const HistoryTab: React.FC = () => {
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1">Các loại vắc xin khác</label>
                             <select value={tiemChungCacLoaiKhac} onChange={e => setTiemChungCacLoaiKhac(e.target.value)} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                                <option value="">-- Chọn --</option>
                                 <option value="0">Không tiêm loại khác</option>
                                 <option value="1">Có tiêm loại khác</option>
                             </select>
@@ -174,6 +199,7 @@ const HistoryTab: React.FC = () => {
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Gia đình có tiền sử bệnh bẩm sinh/truyền nhiễm</label>
                         <select value={tsgdMacBenh} onChange={e => setTsgdMacBenh(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                            <option value="">-- Chọn --</option>
                             <option value="0">Không có</option>
                             <option value="1">Có mắc bệnh bẩm sinh/mãn tính</option>
                         </select>
@@ -231,6 +257,7 @@ const HistoryTab: React.FC = () => {
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1">Tính chất kinh nguyệt</label>
                             <select value={tinhChatKinhNguyet} onChange={e => setTinhChatKinhNguyet(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                                <option value="">-- Chọn --</option>
                                 <option value="1">Đều</option>
                                 <option value="0">Không đều</option>
                             </select>
@@ -246,6 +273,7 @@ const HistoryTab: React.FC = () => {
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1">Đau bụng kinh</label>
                             <select value={dauBungKinh} onChange={e => setDauBungKinh(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                                <option value="">-- Chọn --</option>
                                 <option value="0">Không</option>
                                 <option value="1">Có</option>
                             </select>
@@ -253,6 +281,7 @@ const HistoryTab: React.FC = () => {
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1">Đã lập gia đình</label>
                             <select value={daLapGiaDinh} onChange={e => setDaLapGiaDinh(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                                <option value="">-- Chọn --</option>
                                 <option value="0">Chưa</option>
                                 <option value="1">Có</option>
                             </select>
@@ -264,6 +293,7 @@ const HistoryTab: React.FC = () => {
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1">Có đang dùng BPTT không</label>
                             <select value={dangApDungBpttKhong} onChange={e => setDangApDungBpttKhong(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                                <option value="">-- Chọn --</option>
                                 <option value="0">Không</option>
                                 <option value="1">Có</option>
                             </select>
@@ -272,6 +302,7 @@ const HistoryTab: React.FC = () => {
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">Biện pháp tránh thai</label>
                                 <select value={bienPhapTranhThai} onChange={e => setBienPhapTranhThai(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                                    <option value="">-- Chọn --</option>
                                     <option value="1">Bao cao su</option>
                                     <option value="2">Thuốc uống tránh thai</option>
                                     <option value="3">Đặt dụng cụ tử cung</option>
@@ -283,6 +314,7 @@ const HistoryTab: React.FC = () => {
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1">Từng mổ sản phụ khoa chưa</label>
                             <select value={daTungMoSanPhuKhoaChua} onChange={e => setDaTungMoSanPhuKhoaChua(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                                <option value="">-- Chọn --</option>
                                 <option value="0">Chưa từng mổ</option>
                                 <option value="1">Có từng mổ</option>
                             </select>
@@ -302,6 +334,7 @@ const HistoryTab: React.FC = () => {
                     </div>
                 </div>
             )}
+            </fieldset>
         </div>
     );
 };

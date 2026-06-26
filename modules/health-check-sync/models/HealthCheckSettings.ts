@@ -13,6 +13,7 @@ export interface SettingsData {
     barcode_show_hospital: boolean;
     barcode_show_date: boolean;
     barcode_show_sample_type: boolean;
+    allow_unsigned_sync: boolean;
 }
 
 export class HealthCheckSettings implements SettingsData {
@@ -28,6 +29,7 @@ export class HealthCheckSettings implements SettingsData {
     barcode_show_hospital: boolean = true;
     barcode_show_date: boolean = true;
     barcode_show_sample_type: boolean = true;
+    allow_unsigned_sync: boolean = false;
 
     constructor(data?: Partial<SettingsData>) {
         if (data) {
@@ -43,6 +45,7 @@ export class HealthCheckSettings implements SettingsData {
             this.barcode_show_hospital = data.barcode_show_hospital !== false;
             this.barcode_show_date = data.barcode_show_date !== false;
             this.barcode_show_sample_type = data.barcode_show_sample_type !== false;
+            this.allow_unsigned_sync = data.allow_unsigned_sync === true;
         }
     }
 
@@ -100,6 +103,7 @@ export class HealthCheckSettings implements SettingsData {
             barcode_show_hospital: this.barcode_show_hospital,
             barcode_show_date: this.barcode_show_date,
             barcode_show_sample_type: this.barcode_show_sample_type,
+            allow_unsigned_sync: this.allow_unsigned_sync,
         };
     }
 }

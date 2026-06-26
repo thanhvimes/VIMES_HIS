@@ -119,10 +119,8 @@ const PrintCodeList: React.FC<PrintCodeListProps> = ({
                                     <td className="p-4 font-mono font-bold text-slate-900 dark:text-white text-[13px]">
                                         {doc.doc_no}
                                     </td>
-                                    <td className="p-4">
-                                        <span className="px-3 py-1 rounded-full bg-[#0f766e] text-white text-[10px] font-extrabold uppercase tracking-wide">
-                                            {getFormName(doc.form_type)}
-                                        </span>
+                                    <td className="p-4 text-[13px] text-slate-700 dark:text-slate-300 font-medium">
+                                        {getFormName(doc.form_type)}
                                     </td>
                                     <td className="p-4 text-xs text-slate-600 dark:text-slate-300 font-mono">
                                         {formatDateTime(doc.created_at)}

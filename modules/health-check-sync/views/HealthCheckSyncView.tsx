@@ -76,6 +76,7 @@ const HealthCheckSyncView: React.FC = () => {
     const [signatureTypeSelect, setSignatureTypeSelect] = useState<'USB' | 'HSM'>('HSM');
     const [signFilter, setSignFilter] = useState<string>('All');
     const [sendFilter, setSendFilter] = useState<string>('All');
+    const [examFilter, setExamFilter] = useState<string>('All');
     const [startDate, setStartDate] = useState<string>(getLocalDateString());
     const [endDate, setEndDate] = useState<string>(getLocalDateString());
     // Selection
@@ -92,6 +93,7 @@ const HealthCheckSyncView: React.FC = () => {
     const [barcodeShowHospital, setBarcodeShowHospital] = useState(true);
     const [barcodeShowDate, setBarcodeShowDate] = useState(true);
     const [barcodeShowSampleType, setBarcodeShowSampleType] = useState(true);
+    const [allowUnsignedSync, setAllowUnsignedSync] = useState(false);
 
     // Barcode print action states
     const [activeBarcodeDocs, setActiveBarcodeDocs] = useState<any[]>([]);
@@ -107,6 +109,7 @@ const HealthCheckSyncView: React.FC = () => {
                 setBarcodeShowHospital(settings.barcode_show_hospital !== false);
                 setBarcodeShowDate(settings.barcode_show_date !== false);
                 setBarcodeShowSampleType(settings.barcode_show_sample_type !== false);
+                setAllowUnsignedSync(settings.allow_unsigned_sync === true);
             }
         } catch (error) {
             console.error("Failed to load settings in HealthCheckSyncView:", error);
@@ -261,6 +264,8 @@ const HealthCheckSyncView: React.FC = () => {
     };
 
     const handleCancelForm = () => {
+        setViewMode('LIST');
+        setActiveDocument(null);
         setSearchParams({ step: 'manage' });
     };
 
@@ -299,10 +304,12 @@ const HealthCheckSyncView: React.FC = () => {
             return;
         }
 
-        const unsignedDocs = documents.filter(d => selectedIds.has(d.id.toString()) && d.signature_status === 'Unsigned');
-        if (unsignedDocs.length > 0) {
-            toast.warning(`Có ${unsignedDocs.length} hồ sơ chưa được ký số. Bạn phải thực hiện ký số trước khi gửi cổng y tế.`);
-            return;
+        if (!allowUnsignedSync) {
+            const unsignedDocs = documents.filter(d => selectedIds.has(d.id.toString()) && d.signature_status === 'Unsigned');
+            if (unsignedDocs.length > 0) {
+                toast.warning(`Có ${unsignedDocs.length} hồ sơ chưa được ký số. Bạn phải thực hiện ký số trước khi gửi cổng y tế.`);
+                return;
+            }
         }
 
         setIsSending(true);
@@ -329,7 +336,7 @@ const HealthCheckSyncView: React.FC = () => {
     };
 
     const handleSendSingleDocument = async (doc: any) => {
-        if (doc.signature_status === 'Unsigned') {
+        if (!allowUnsignedSync && doc.signature_status === 'Unsigned') {
             toast.warning(`Hồ sơ bệnh nhân ${doc.patient_name} chưa được ký số. Bạn phải thực hiện ký số trước khi gửi cổng y tế.`);
             return;
         }
@@ -593,9 +600,17 @@ const HealthCheckSyncView: React.FC = () => {
                 }
             }
 
-            return matchesSearch && matchesSign && matchesSend && matchesDate && matchesForm;
+            // Filter by exam status
+            let matchesExam = true;
+            if (examFilter !== 'All') {
+                const isDone = doc.conclusion_data?.fitness_class || doc.conclusion_data?.ket_luan_loai_suc_khoe || doc.conclusion_data?.diagnosis;
+                if (examFilter === 'Done') matchesExam = !!isDone;
+                if (examFilter === 'InProgress') matchesExam = !isDone;
+            }
+
+            return matchesSearch && matchesSign && matchesSend && matchesDate && matchesForm && matchesExam;
         });
-    }, [documents, searchTerm, formFilter, signFilter, sendFilter, startDate, endDate]);
+    }, [documents, searchTerm, formFilter, signFilter, sendFilter, examFilter, startDate, endDate]);
 
     const getFormName = (type: string) => {
         const names: Record<string, string> = {
@@ -672,7 +687,7 @@ const HealthCheckSyncView: React.FC = () => {
                     {stepParam !== 'dashboard' && !stepParam.startsWith('settings') && (
                         <>
                             <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
                                     {/* Từ ngày */}
                                     <div className="space-y-1">
                                         <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Từ ngày</label>
@@ -718,6 +733,20 @@ const HealthCheckSyncView: React.FC = () => {
                                                     <option key={i+1} value={(i+1).toString()}>Mẫu {i+1}: {getFormName((i+1).toString()).substring(getFormName((i+1).toString()).indexOf(':') + 1).trim()}</option>
                                                 ))}
                                             </optgroup>
+                                        </select>
+                                    </div>
+
+                                    {/* Trạng thái khám (examFilter) */}
+                                    <div className="space-y-1">
+                                        <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Trạng thái khám</label>
+                                        <select 
+                                            value={examFilter}
+                                            onChange={e => setExamFilter(e.target.value)}
+                                            className={`w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none cursor-pointer ${fontSettings.controls}`}
+                                        >
+                                            <option value="All">Tất cả trạng thái</option>
+                                            <option value="Done">Đã kết luận</option>
+                                            <option value="InProgress">Đang khám</option>
                                         </select>
                                     </div>
 
@@ -810,14 +839,16 @@ const HealthCheckSyncView: React.FC = () => {
                                         </button>
                                     )}
 
-                                    <button 
-                                        onClick={handleSendDocuments}
-                                        disabled={selectedIds.size === 0 || isLoading || isSending || isSigning}
-                                        className="px-4 py-2 bg-[#55b1a3] hover:bg-[#43a294] text-white rounded-lg font-bold flex items-center gap-2 disabled:opacity-50 transition-all active:scale-95 text-xs cursor-pointer shadow-sm"
-                                    >
-                                        <CloudUploadIcon className="w-4 h-4"/>
-                                        Gửi liên thông mục đã chọn ({selectedIds.size})
-                                    </button>
+                                    {stepParam !== 'print-code' && stepParam !== 'sync' && (
+                                        <button 
+                                            onClick={handleSendDocuments}
+                                            disabled={selectedIds.size === 0 || isLoading || isSending || isSigning}
+                                            className="px-4 py-2 bg-[#55b1a3] hover:bg-[#43a294] text-white rounded-lg font-bold flex items-center gap-2 disabled:opacity-50 transition-all active:scale-95 text-xs cursor-pointer shadow-sm"
+                                        >
+                                            <CloudUploadIcon className="w-4 h-4"/>
+                                            Gửi liên thông mục đã chọn ({selectedIds.size})
+                                        </button>
+                                    )}
 
                                     {stepParam === 'print-code' && (
                                         <button 
@@ -919,7 +950,13 @@ const HealthCheckSyncView: React.FC = () => {
                     initialData={viewMode === 'EDIT' ? activeDocument : undefined}
                     onSave={handleSaveDocument}
                     onCancel={handleCancelForm}
-                    onChangeFormType={setCreateFormType}
+                    onChangeFormType={(type) => {
+                        if (viewMode === 'EDIT' && activeDocument) {
+                            setActiveDocument(prev => prev ? { ...prev, form_type: type } : null);
+                        } else {
+                            setCreateFormType(type);
+                        }
+                    }}
                 />
             )}
 

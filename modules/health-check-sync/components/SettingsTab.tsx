@@ -24,6 +24,7 @@ const DEFAULT_SETTINGS: SettingsData = {
     ma_gtin_cskcb: '1234567890123',
     auto_sync_enabled: false,
     auto_sync_interval: 15,
+    allow_unsigned_sync: false,
     barcode_label_size_xn: '50x30',
     barcode_label_size_ksk: '50x30',
     barcode_show_hospital: true,
@@ -141,6 +142,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
     // ── Auto sync ─────────────────────────────────────────────────────────────
     const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
     const [autoSyncInterval, setAutoSyncInterval] = useState(15);
+    const [allowUnsignedSync, setAllowUnsignedSync] = useState(false);
 
     // ── Barcode print ─────────────────────────────────────────────────────────
     const [barcodeLabelSizeXn, setBarcodeLabelSizeXn] = useState('50x30');
@@ -172,6 +174,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                 setBarcodeShowHospital(settings.barcode_show_hospital);
                 setBarcodeShowDate(settings.barcode_show_date);
                 setBarcodeShowSampleType(settings.barcode_show_sample_type);
+                setAllowUnsignedSync(settings.allow_unsigned_sync);
             } catch (error) {
                 console.error('Failed to load settings:', error);
                 toast.error('Không thể tải cấu hình. Vui lòng thử lại.');
@@ -198,6 +201,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
             barcode_show_hospital: barcodeShowHospital,
             barcode_show_date: barcodeShowDate,
             barcode_show_sample_type: barcodeShowSampleType,
+            allow_unsigned_sync: allowUnsignedSync,
         });
 
         const validation = settings.validate();
@@ -227,7 +231,11 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                 vneid_username: vneidUsername,
                 vneid_password: vneidPassword,
             });
-            toast.success(res.message || 'Kết nối thành công!');
+            if (res.success) {
+                toast.success(res.message || 'Kết nối thành công!');
+            } else {
+                toast.error(res.message || 'Kết nối thất bại!');
+            }
         } catch (error: any) {
             toast.error('Kết nối thất bại: ' + error.message);
         } finally {
@@ -332,10 +340,10 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                         </FieldGroup>
 
                         {/* Mã CSKCB */}
-                        <FieldGroup label="Mã cơ sở KCB (MA_CSKCB – 5 ký tự)">
+                        <FieldGroup label="Mã cơ sở KCB (MA_CSKCB – 20 ký tự)">
                             <input
                                 type="text"
-                                maxLength={5}
+                                maxLength={20}
                                 value={maCskcb}
                                 onChange={e => setMaCskcb(e.target.value)}
                                 className={inputClass}
@@ -363,6 +371,15 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                                     desc="Đẩy dữ liệu hồ sơ đã được ký số đầy đủ lên cổng một cách tự động."
                                     value={autoSyncEnabled}
                                     onChange={setAutoSyncEnabled}
+                                />
+                            </div>
+
+                            <div className="bg-slate-50 dark:bg-slate-700/30 p-3.5 rounded-lg border border-slate-200/50 dark:border-slate-700">
+                                <ToggleRow
+                                    label="Cho phép liên thông khi chưa ký số"
+                                    desc="Cho phép gửi hồ sơ lên cổng kể cả khi hồ sơ chưa được ký số."
+                                    value={allowUnsignedSync}
+                                    onChange={setAllowUnsignedSync}
                                 />
                             </div>
 

@@ -4,7 +4,151 @@
 import { query } from '../config/database';
 import { getHealthCheckSettings, loadHealthCheckSettings } from '../config/health-check-settings';
 
+import axios from 'axios';
+import crypto from 'crypto';
+
 let syncIntervalKey: NodeJS.Timeout | null = null;
+
+/**
+ * Synchronizes documents to the VNeID gateway portal.
+ * Logs API request and response data to database.
+ */
+export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> {
+    const failedIds: string[] = [];
+    try {
+        const settings = getHealthCheckSettings();
+        if (!settings) {
+            console.error('❌ [VNeID Portal] Settings not loaded.');
+            return docIds;
+        }
+
+        const originUrl = settings.vneid_url.includes('/api/v1') 
+            ? settings.vneid_url.split('/api/v1')[0] 
+            : settings.vneid_url;
+
+        // 1. Authenticate / Login to get token
+        let token = '';
+        let loginResponseLog = '';
+        try {
+            const loginRes: any = await axios.post(`${originUrl}/api/auth/login`, {
+                username: settings.vneid_username,
+                password: settings.vneid_password
+            }, {
+                headers: { 'Content-Type': 'application/json', 'Accept': '*/*' },
+                timeout: 10000
+            });
+            token = loginRes.data?.data?.token || loginRes.data?.token || loginRes.data?.data;
+            loginResponseLog = `Login Success: ${JSON.stringify(loginRes.data)}`;
+        } catch (err: any) {
+            const errMsg = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+            loginResponseLog = `Login Failed: ${err.response?.status || 500} - ${errMsg}`;
+            console.error(`❌ [VNeID Portal] Login error:`, errMsg);
+        }
+
+        // 2. Loop through and push each document
+        for (const docId of docIds) {
+            const docQuery = await query(`SELECT id, doc_no, xml_data, patient_name FROM health_check_masters WHERE id = $1`, [parseInt(docId, 10)]);
+            if (docQuery.rows.length === 0) continue;
+            const doc = docQuery.rows[0];
+
+            if (!token) {
+                await query(`
+                    UPDATE health_check_masters
+                    SET send_status = 'Error',
+                        error_message = 'Đăng nhập cổng thất bại',
+                        response_log = $1,
+                        updated_at = NOW()
+                    WHERE id = $2
+                `, [loginResponseLog, doc.id]);
+                failedIds.push(docId);
+                continue;
+            }
+
+            const base64Xml = Buffer.from(doc.xml_data || '').toString('base64');
+            const now = new Date();
+            const yy = String(now.getFullYear()).slice(-2);
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const uuidStr = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : crypto.randomBytes(16).toString('hex');
+            const msgId = `${settings.ma_cskcb}${yy}${mm}${dd}${uuidStr}`;
+
+            const payload = {
+                header: {
+                    version: "1.0.0",
+                    sender_id: settings.ma_cskcb,
+                    receiver_id: "TDLBYT",
+                    txn_type: "sync_checkup",
+                    msg_id: msgId,
+                    msg_type: "101",
+                    data_type: "xml/base64",
+                    send_datetime: Date.now()
+                },
+                data: {
+                    file_content: base64Xml
+                }
+            };
+
+            let responseLog = '';
+            let sendSuccess = false;
+            let errorMsg = '';
+            let transactionId = msgId;
+
+            try {
+                console.log(`📡 [VNeID Portal] Pushing document ${doc.doc_no} (BN: ${doc.patient_name})`);
+                const pushRes: any = await axios.post(`${originUrl}/api/platform/data-sync/push`, payload, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                        'service-type': '100'
+                    },
+                    timeout: 15000
+                });
+
+                responseLog = JSON.stringify(pushRes.data);
+                const resCode = pushRes.data?.header?.res_code || pushRes.data?.res_code;
+
+                if (pushRes.status === 200 && (resCode === 'CM_SUCCESS' || !resCode)) {
+                    sendSuccess = true;
+                    transactionId = pushRes.data?.header?.txn_id || pushRes.data?.txn_id || msgId;
+                } else {
+                    errorMsg = pushRes.data?.header?.res_msg || pushRes.data?.res_msg || 'Cổng phản hồi mã lỗi tiếp nhận';
+                }
+            } catch (err: any) {
+                sendSuccess = false;
+                const errMsg = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+                errorMsg = `Lỗi kết nối cổng: ${err.response?.status || 500} - ${errMsg}`;
+                responseLog = `Error: ${errorMsg}`;
+                console.error(`❌ [VNeID Portal] Push error for doc ${doc.doc_no}:`, errMsg);
+            }
+
+            if (sendSuccess) {
+                await query(`
+                    UPDATE health_check_masters
+                    SET send_status = 'Success',
+                        sent_at = NOW(),
+                        transaction_id = $1,
+                        response_log = $2,
+                        error_message = NULL,
+                        updated_at = NOW()
+                    WHERE id = $3
+                `, [transactionId, responseLog, doc.id]);
+            } else {
+                await query(`
+                    UPDATE health_check_masters
+                    SET send_status = 'Error',
+                        error_message = $1,
+                        response_log = $2,
+                        updated_at = NOW()
+                    WHERE id = $3
+                `, [errorMsg.slice(0, 500), responseLog, doc.id]);
+                failedIds.push(docId);
+            }
+        }
+    } catch (error: any) {
+        console.error('❌ [VNeID Portal] sendDocumentsToVNeID unexpected error:', error);
+    }
+    return failedIds;
+}
 
 /**
  * Periodically searches for signed, unsent health check documents 
@@ -19,7 +163,7 @@ async function syncUnsentDocuments() {
 
         // Query signed documents that are unsent or had previous errors
         const sql = `
-            SELECT id, patient_name, doc_no, form_type, xml_data
+            SELECT id
             FROM health_check_masters
             WHERE signature_status = 'Signed' AND (send_status = 'Unsent' OR send_status = 'Error')
             LIMIT 50
@@ -31,25 +175,8 @@ async function syncUnsentDocuments() {
 
         console.log(`📡 [Auto Sync VNeID] Found ${res.rows.length} signed, unsent health check documents. Synchronizing now...`);
 
-        const docIds = res.rows.map((row: any) => row.id);
-        const transactionId = `HC-VNEID-AUTO-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-
-        // Simulate network API delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Update documents to Success status
-        const updateSql = `
-            UPDATE health_check_masters
-            SET "send_status" = 'Success',
-                "sent_at" = NOW(),
-                "transaction_id" = $1,
-                "error_message" = NULL,
-                "updated_at" = NOW()
-            WHERE id = ANY($2::int[])
-        `;
-        await query(updateSql, [transactionId, docIds]);
-
-        console.log(`✅ [Auto Sync VNeID] Successfully synchronized ${docIds.length} documents. Transaction: ${transactionId}`);
+        const docIds = res.rows.map((row: any) => row.id.toString());
+        await sendDocumentsToVNeID(docIds);
     } catch (error: any) {
         console.error('❌ [Auto Sync VNeID] Error in auto sync background job:', error.message || error);
     }

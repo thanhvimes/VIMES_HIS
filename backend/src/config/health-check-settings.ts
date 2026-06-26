@@ -18,6 +18,7 @@ export interface HealthCheckSettings {
     barcode_show_hospital?: boolean;
     barcode_show_date?: boolean;
     barcode_show_sample_type?: boolean;
+    allow_unsigned_sync?: boolean;
     created_at?: Date;
     updated_at?: Date;
 }
@@ -32,7 +33,7 @@ let globalHealthCheckSettings: HealthCheckSettings | null = null;
 export async function loadHealthCheckSettings(): Promise<HealthCheckSettings | null> {
     try {
         const result = await query(
-            `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type FROM health_check_settings LIMIT 1`
+            `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync FROM health_check_settings LIMIT 1`
         );
 
         if (result.rows.length > 0) {

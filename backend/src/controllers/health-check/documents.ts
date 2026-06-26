@@ -469,28 +469,8 @@ class DocumentsController {
         }
 
         try {
-            const settings = getHealthCheckSettings();
-            console.log(`📡 Sending ${docIds.length} XML payloads to VNeID Portal Gateway: ${settings?.vneid_url || 'https://api-vneid.moh.gov.vn/api/v1'} using account: ${settings?.vneid_username || 'vimes_cskcb'}`);
-            
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            const transactionId = `HC-VNEID-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-
-            const sql = `
-                UPDATE health_check_masters
-                SET "send_status" = 'Success',
-                    "sent_at" = NOW(),
-                    "transaction_id" = $1,
-                    "updated_at" = NOW(),
-                    "error_message" = NULL
-                WHERE id = ANY($2::int[])
-                RETURNING id
-            `;
-            const intIds = docIds.map(id => parseInt(id));
-            const result = await query(sql, [transactionId, intIds]);
-
-            const updatedIds = result.rows.map((row: any) => row.id.toString());
-            const failedIds = (docIds as string[]).filter(id => !updatedIds.includes(id.toString()));
-
+            const { sendDocumentsToVNeID } = require('../../services/health-check-sync.service');
+            const failedIds = await sendDocumentsToVNeID(docIds.map((id: any) => id.toString()));
             return res.json(failedIds);
         } catch (error: any) {
             console.error('❌ KSK Controller: Lỗi sendDocuments:', error);

@@ -25,11 +25,64 @@ const PhysicalExamTab: React.FC = () => {
         haTamThu, setHaTamThu,
         haTamTruong, setHaTamTruong,
         nhipTim, setNhipTim,
-        vongNgucTrungBinh, setVongNgucTrungBinh
+        vongNgucTrungBinh, setVongNgucTrungBinh,
+        isLocked,
+        handleAutofillTab
     } = useDynamicFormContext();
+
+    const getSuggestedPl = () => {
+        if (!height || !weight) return null;
+        const hMeter = parseFloat(height) / 100;
+        const wKg = parseFloat(weight);
+        if (hMeter <= 0 || wKg <= 0) return null;
+        const calculatedBmi = wKg / (hMeter * hMeter);
+        let suggested = 1;
+        if (bp) {
+            const bpParts = bp.split('/');
+            if (bpParts.length === 2) {
+                const sys = parseInt(bpParts[0]);
+                const dia = parseInt(bpParts[1]);
+                if (sys >= 160 || dia >= 100) suggested = 4;
+                else if (sys >= 140 || dia >= 90) suggested = 3;
+                else if (sys >= 130 || dia >= 85) suggested = 2;
+            }
+        }
+        if (calculatedBmi >= 30.0) suggested = Math.max(suggested, 3);
+        else if (calculatedBmi >= 25.0 || calculatedBmi < 18.5) suggested = Math.max(suggested, 2);
+        return suggested;
+    };
+
+    const suggestedPl = getSuggestedPl();
+    const showSuggestedPlWarning = suggestedPl !== null && khamTheLucPl && parseInt(khamTheLucPl) < suggestedPl;
 
     return (
         <SpecialtyCard specialtyKey="physical" title="Khám Thể lực">
+            {!isLocked && (
+                <div className="flex justify-end mb-4">
+                    <button
+                        type="button"
+                        onClick={() => handleAutofillTab('exam')}
+                        className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40 text-[#0f766e] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer shadow-sm hover:shadow active:scale-95"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        Điền nhanh Thể lực & Lâm sàng
+                    </button>
+                </div>
+            )}
+            {showSuggestedPlWarning && (
+                <div className="mb-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 p-3 rounded-lg text-amber-800 dark:text-amber-400 text-xs font-semibold flex items-center gap-1.5 animate-fadeIn">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                    <span>Lưu ý: Chỉ số BMI hoặc Huyết áp đo được tương ứng với phân loại tối thiểu Loại {suggestedPl}.</span>
+                </div>
+            )}
+            <fieldset disabled={isLocked} className="space-y-4">
             <div className={`grid grid-cols-1 ${formType === '2' ? 'md:grid-cols-6' : 'md:grid-cols-5'} gap-4`}>
                 <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">Chiều cao (cm)</label>
@@ -56,6 +109,7 @@ const PhysicalExamTab: React.FC = () => {
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Phân loại thể lực</label>
                         <select value={khamTheLucPl} onChange={e => setKhamTheLucPl(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold text-[#0f766e] dark:text-teal-400">
+                            <option value="">-- Phân loại --</option>
                             <option value="1">Loại I</option>
                             <option value="2">Loại II</option>
                             <option value="3">Loại III</option>
@@ -80,6 +134,7 @@ const PhysicalExamTab: React.FC = () => {
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Trẻ sinh non</label>
                         <select value={sinhNon} onChange={e => setSinhNon(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                            <option value="">-- Chọn --</option>
                             <option value="0">Không sinh non</option>
                             <option value="1">Có sinh non</option>
                         </select>
@@ -135,6 +190,7 @@ const PhysicalExamTab: React.FC = () => {
                     </div>
                 </>
             )}
+            </fieldset>
         </SpecialtyCard>
     );
 };
