@@ -60,7 +60,8 @@ function generateMockLabOrders(patientId: string, docNo: string): LabOrder[] {
     const today = new Date();
 
     return Array.from({ length: count }, (_, i) => {
-        const orderNo = `XN${docNo.replace(/\D/g, '').slice(-6).padStart(6, '0')}${(i + 1).toString().padStart(2, '0')}`;
+        // Dữ liệu in ra số code = hpc_orderid (không có tiền tố XN, chỉ chứa ID chữ số)
+        const orderNo = `${docNo.replace(/\D/g, '').slice(-6).padStart(6, '0')}${(i + 1).toString().padStart(2, '0')}`;
         return {
             id: `${patientId}-order-${i + 1}`,
             orderNo,
@@ -75,13 +76,52 @@ function generateMockLabOrders(patientId: string, docNo: string): LabOrder[] {
 
 // Chuyển đổi dữ liệu bệnh nhân từ health-check-sync sang PatientWithOrders
 function mapToPatientWithOrders(doc: any): PatientWithOrders {
+    const patientId = doc.id?.toString() || '';
+    
+    // Trích xuất các phiếu xét nghiệm thực tế nếu có
+    const items = doc.lab_data?.paraclinical_items || [];
+    const testItems = items.filter((item: any) => {
+        const groupId = String(item.group_id || '').toUpperCase();
+        return groupId.startsWith('A'); // Nhóm A là Xét nghiệm
+    });
+
+    let labOrders: LabOrder[] = [];
+
+    if (testItems.length > 0) {
+        const ordersMap = new Map<string, LabOrder>();
+        
+        testItems.forEach((item: any) => {
+            const orderId = item.order_id ? String(item.order_id).trim() : '';
+            if (!orderId) return;
+            
+            if (!ordersMap.has(orderId)) {
+                ordersMap.set(orderId, {
+                    id: `${patientId}-order-${orderId}`,
+                    orderNo: orderId, // Giá trị Barcode là hpc_orderid
+                    testName: item.group_name || 'Xét nghiệm tổng hợp',
+                    sampleType: item.sample_type || 'Máu tĩnh mạch',
+                    sampleDate: doc.created_at || new Date().toISOString(),
+                    status: 'pending' as const,
+                    barcodePrinted: doc.barcode_printed === 'Y',
+                });
+            }
+        });
+        
+        labOrders = Array.from(ordersMap.values());
+    }
+
+    // Fallback sang dữ liệu mock nếu không có phiếu thực tế
+    if (labOrders.length === 0) {
+        labOrders = generateMockLabOrders(patientId, doc.doc_no || '');
+    }
+
     return {
-        id: doc.id?.toString() || '',
+        id: patientId,
         patientName: doc.patient_name || '',
         dob: doc.dob || '',
         gender: doc.gender || 'Nam',
         docNo: doc.doc_no || '',
-        labOrders: generateMockLabOrders(doc.id?.toString() || '1', doc.doc_no || ''),
+        labOrders: labOrders,
     };
 }
 
