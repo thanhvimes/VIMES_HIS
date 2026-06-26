@@ -30,6 +30,9 @@ const DEFAULT_SETTINGS: SettingsData = {
     barcode_show_hospital: true,
     barcode_show_date: true,
     barcode_show_sample_type: true,
+    barcode_zpl_template_xn: '^XA\n^CF0,26\n^FO30,30^FD{hospital}^FS\n^FO30,70^FD{patient}^FS\n^FO30,105^FD{test}^FS\n^FO30,140^FD{sample_type} - {date}^FS\n^BY2,2,40\n^FO30,175^BCN,,N,N\n^FD{code}^FS\n^FO30,225^FD{code}^FS\n^XZ',
+    barcode_zpl_template_ksk: '^XA\n^CF0,26\n^FO30,30^FD{hospital}^FS\n^FO30,70^FD{patient}^FS\n^FO30,105^FD{form_name}^FS\n^FO30,140^FD{info}^FS\n^BY2,2,40\n^FO30,175^BCN,,N,N\n^FD{code}^FS\n^FO30,225^FD{code}^FS\n^XZ',
+    barcode_printer_name: 'Zebra',
 };
 
 // ─── Reusable sub-components ─────────────────────────────────────────────────
@@ -150,6 +153,9 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
     const [barcodeShowHospital, setBarcodeShowHospital] = useState(true);
     const [barcodeShowDate, setBarcodeShowDate] = useState(true);
     const [barcodeShowSampleType, setBarcodeShowSampleType] = useState(true);
+    const [barcodeZplTemplateXn, setBarcodeZplTemplateXn] = useState('');
+    const [barcodeZplTemplateKsk, setBarcodeZplTemplateKsk] = useState('');
+    const [barcodePrinterName, setBarcodePrinterName] = useState('Zebra');
 
     // ── UI status ─────────────────────────────────────────────────────────────
     const [isLoading, setIsLoading] = useState(false);
@@ -175,6 +181,9 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                 setBarcodeShowDate(settings.barcode_show_date);
                 setBarcodeShowSampleType(settings.barcode_show_sample_type);
                 setAllowUnsignedSync(settings.allow_unsigned_sync);
+                setBarcodeZplTemplateXn(settings.barcode_zpl_template_xn || '');
+                setBarcodeZplTemplateKsk(settings.barcode_zpl_template_ksk || '');
+                setBarcodePrinterName(settings.barcode_printer_name || 'Zebra');
             } catch (error) {
                 console.error('Failed to load settings:', error);
                 toast.error('Không thể tải cấu hình. Vui lòng thử lại.');
@@ -202,6 +211,9 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
             barcode_show_date: barcodeShowDate,
             barcode_show_sample_type: barcodeShowSampleType,
             allow_unsigned_sync: allowUnsignedSync,
+            barcode_zpl_template_xn: barcodeZplTemplateXn,
+            barcode_zpl_template_ksk: barcodeZplTemplateKsk,
+            barcode_printer_name: barcodePrinterName,
         });
 
         const validation = settings.validate();
@@ -455,10 +467,55 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                         </div>
                     </div>
 
+                    {/* Máy in thô & Mẫu ZPL */}
+                    <div className="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 border border-slate-200 dark:border-slate-700 space-y-4">
+                        <div className="text-xs font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-widest">
+                            Cấu hình máy in thô & Mẫu ZPL (In im lặng qua QZ Tray)
+                        </div>
+                        
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Tên máy in nhãn nhắm tới (Printer Name)</label>
+                            <input
+                                type="text"
+                                value={barcodePrinterName}
+                                onChange={e => setBarcodePrinterName(e.target.value)}
+                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                                placeholder="Ví dụ: Zebra, TSC, Xprinter,..."
+                            />
+                            <p className="text-[10px] text-slate-500">Mã in sẽ tìm kiếm máy in chứa cụm từ này trong hệ thống Windows.</p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Mẫu thiết kế ZPL - Xét nghiệm (XN)</label>
+                                <textarea
+                                    value={barcodeZplTemplateXn}
+                                    onChange={e => setBarcodeZplTemplateXn(e.target.value)}
+                                    rows={8}
+                                    className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-xs font-mono focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                                    placeholder="^XA...^XZ"
+                                />
+                                <p className="text-[10px] text-slate-400">Từ khóa thay thế: {"{hospital}"}, {"{patient}"}, {"{test}"}, {"{sample_type}"}, {"{date}"}, {"{code}"}</p>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Mẫu thiết kế ZPL - Khám sức khỏe (KSK)</label>
+                                <textarea
+                                    value={barcodeZplTemplateKsk}
+                                    onChange={e => setBarcodeZplTemplateKsk(e.target.value)}
+                                    rows={8}
+                                    className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-xs font-mono focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                                    placeholder="^XA...^XZ"
+                                />
+                                <p className="text-[10px] text-slate-400">Từ khóa thay thế: {"{hospital}"}, {"{patient}"}, {"{form_name}"}, {"{info}"}, {"{code}"}</p>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Nội dung hiển thị trên tem */}
                     <div className="space-y-3 bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
                         <div className="text-xs font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-widest">
-                            Nội dung hiển thị trên tem
+                            Nội dung hiển thị trên tem (In qua Trình duyệt mặc định)
                         </div>
                         <SmallToggleRow
                             label="Tên cơ sở y tế"

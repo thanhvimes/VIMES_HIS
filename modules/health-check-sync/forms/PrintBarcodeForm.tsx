@@ -4,6 +4,9 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSystemStore } from '../../../stores/useSystemStore';
+import { HealthCheckSettings } from '../models/HealthCheckSettings';
+import { qzPrinterService } from '../../../services/qzPrinterService';
+import { toast } from 'sonner';
 
 interface PrintBarcodeFormProps {
     documents: any[];
@@ -212,15 +215,64 @@ const PrintBarcodeForm: React.FC<PrintBarcodeFormProps> = ({
         return div;
     });
 
+    const printViaQzZpl = async (settings: HealthCheckSettings): Promise<boolean> => {
+        try {
+            const printerName = settings.barcode_printer_name || 'Zebra';
+            const template = settings.barcode_zpl_template_ksk;
+            if (!template) {
+                console.warn("Chưa cấu hình mẫu ZPL cho KSK");
+                return false;
+            }
+
+            for (const doc of documents) {
+                // Replace ZPL template place holders with real values
+                const genderStr = doc.gender || 'Nam';
+                const ageStr = doc.dob ? `NS: ${new Date(doc.dob).getFullYear()}` : 'N/A';
+                const infoStr = `${ageStr} - ${genderStr}`;
+
+                let zpl = template
+                    .replace(/{hospital}/g, hospitalName || 'PHÒNG KHÁM vCLINIC')
+                    .replace(/{patient}/g, doc.patient_name || '')
+                    .replace(/{form_name}/g, getFormNameShort(doc.form_type))
+                    .replace(/{info}/g, infoStr)
+                    .replace(/{code}/g, doc.doc_no || '');
+
+                await qzPrinterService.printZPL(printerName, zpl);
+            }
+            toast.success(`Đã in ${documents.length} tem KSK qua QZ Tray thành công!`);
+            onClose();
+            return true;
+        } catch (err: any) {
+            console.error("ZPL print error via QZ Tray (KSK):", err);
+            toast.error("Không thể in qua QZ Tray: " + err.message + ". Đang chuyển sang chế độ in trình duyệt...");
+            return false;
+        }
+    };
+
     React.useEffect(() => {
         window.document.body.appendChild(portalContainer);
-        // Tự động gọi in ngay khi mount để rút gọn thao tác cho user
-        const timer = setTimeout(() => {
-            handlePrint();
-        }, 300);
+        
+        const runPrint = async () => {
+            try {
+                const settings = await HealthCheckSettings.loadFromServer();
+                // Nếu được thiết lập tên máy in và mẫu ZPL thô, thực hiện in trực tiếp qua QZ Tray
+                if (settings.barcode_printer_name && settings.barcode_zpl_template_ksk) {
+                    const success = await printViaQzZpl(settings);
+                    if (success) return; // In thành công, dừng lại không mở cửa sổ in trình duyệt
+                }
+            } catch (err) {
+                console.warn("QZ Tray print fallback to default browser print (KSK):", err);
+            }
+            
+            // Fallback: Tự động in trình duyệt như cũ
+            setTimeout(() => {
+                handlePrint();
+            }, 300);
+        };
+
+        runPrint();
 
         return () => {
-            clearTimeout(timer);
             if (window.document.body.contains(portalContainer)) {
                 window.document.body.removeChild(portalContainer);
             }

@@ -14,6 +14,9 @@ export interface SettingsData {
     barcode_show_date: boolean;
     barcode_show_sample_type: boolean;
     allow_unsigned_sync: boolean;
+    barcode_zpl_template_xn: string;
+    barcode_zpl_template_ksk: string;
+    barcode_printer_name: string;
 }
 
 export class HealthCheckSettings implements SettingsData {
@@ -30,6 +33,9 @@ export class HealthCheckSettings implements SettingsData {
     barcode_show_date: boolean = true;
     barcode_show_sample_type: boolean = true;
     allow_unsigned_sync: boolean = false;
+    barcode_zpl_template_xn: string = '^XA\n^CF0,26\n^FO30,30^FD{hospital}^FS\n^FO30,70^FD{patient}^FS\n^FO30,105^FD{test}^FS\n^FO30,140^FD{sample_type} - {date}^FS\n^BY2,2,40\n^FO30,175^BCN,,N,N\n^FD{code}^FS\n^FO30,225^FD{code}^FS\n^XZ';
+    barcode_zpl_template_ksk: string = '^XA\n^CF0,26\n^FO30,30^FD{hospital}^FS\n^FO30,70^FD{patient}^FS\n^FO30,105^FD{form_name}^FS\n^FO30,140^FD{info}^FS\n^BY2,2,40\n^FO30,175^BCN,,N,N\n^FD{code}^FS\n^FO30,225^FD{code}^FS\n^XZ';
+    barcode_printer_name: string = 'Zebra';
 
     constructor(data?: Partial<SettingsData>) {
         if (data) {
@@ -46,6 +52,9 @@ export class HealthCheckSettings implements SettingsData {
             this.barcode_show_date = data.barcode_show_date !== false;
             this.barcode_show_sample_type = data.barcode_show_sample_type !== false;
             this.allow_unsigned_sync = data.allow_unsigned_sync === true;
+            this.barcode_zpl_template_xn = data.barcode_zpl_template_xn ?? this.barcode_zpl_template_xn;
+            this.barcode_zpl_template_ksk = data.barcode_zpl_template_ksk ?? this.barcode_zpl_template_ksk;
+            this.barcode_printer_name = data.barcode_printer_name ?? this.barcode_printer_name;
         }
     }
 
@@ -104,6 +113,9 @@ export class HealthCheckSettings implements SettingsData {
             barcode_show_date: this.barcode_show_date,
             barcode_show_sample_type: this.barcode_show_sample_type,
             allow_unsigned_sync: this.allow_unsigned_sync,
+            barcode_zpl_template_xn: this.barcode_zpl_template_xn,
+            barcode_zpl_template_ksk: this.barcode_zpl_template_ksk,
+            barcode_printer_name: this.barcode_printer_name,
         };
     }
 }

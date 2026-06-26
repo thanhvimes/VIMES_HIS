@@ -11,7 +11,7 @@ class SettingsController {
     async getSettings(req: Request, res: Response) {
         try {
             const result = await query(
-                `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync FROM health_check_settings LIMIT 1`
+                `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name FROM health_check_settings LIMIT 1`
             );
 
             if (result.rows.length === 0) {
@@ -28,7 +28,10 @@ class SettingsController {
                     barcode_show_hospital: true,
                     barcode_show_date: true,
                     barcode_show_sample_type: true,
-                    allow_unsigned_sync: false
+                    allow_unsigned_sync: false,
+                    barcode_zpl_template_xn: '^XA\n^CF0,26\n^FO30,30^FD{hospital}^FS\n^FO30,70^FD{patient}^FS\n^FO30,105^FD{test}^FS\n^FO30,140^FD{sample_type} - {date}^FS\n^BY2,2,40\n^FO30,175^BCN,,N,N\n^FD{code}^FS\n^FO30,225^FD{code}^FS\n^XZ',
+                    barcode_zpl_template_ksk: '^XA\n^CF0,26\n^FO30,30^FD{hospital}^FS\n^FO30,70^FD{patient}^FS\n^FO30,105^FD{form_name}^FS\n^FO30,140^FD{info}^FS\n^BY2,2,40\n^FO30,175^BCN,,N,N\n^FD{code}^FS\n^FO30,225^FD{code}^FS\n^XZ',
+                    barcode_printer_name: 'Zebra'
                 });
             }
 
@@ -59,7 +62,10 @@ class SettingsController {
             barcode_show_hospital,
             barcode_show_date,
             barcode_show_sample_type,
-            allow_unsigned_sync
+            allow_unsigned_sync,
+            barcode_zpl_template_xn,
+            barcode_zpl_template_ksk,
+            barcode_printer_name
         } = req.body;
 
         try {
@@ -89,8 +95,11 @@ class SettingsController {
                         barcode_show_date = $11,
                         barcode_show_sample_type = $12,
                         allow_unsigned_sync = $13,
+                        barcode_zpl_template_xn = $14,
+                        barcode_zpl_template_ksk = $15,
+                        barcode_printer_name = $16,
                         updated_at = NOW()
-                    WHERE id = $14
+                    WHERE id = $17
                     RETURNING id
                 `;
                 await query(updateSql, [
@@ -107,6 +116,9 @@ class SettingsController {
                     barcode_show_date !== false,
                     barcode_show_sample_type !== false,
                     allow_unsigned_sync === true,
+                    barcode_zpl_template_xn || '',
+                    barcode_zpl_template_ksk || '',
+                    barcode_printer_name || 'Zebra',
                     existing.id
                 ]);
             } else {
@@ -115,8 +127,8 @@ class SettingsController {
                     INSERT INTO health_check_settings (
                         vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval,
                         barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type,
-                        allow_unsigned_sync
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                        allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
                     RETURNING id
                 `;
                 await query(insertSql, [
@@ -132,7 +144,10 @@ class SettingsController {
                     barcode_show_hospital !== false,
                     barcode_show_date !== false,
                     barcode_show_sample_type !== false,
-                    allow_unsigned_sync === true
+                    allow_unsigned_sync === true,
+                    barcode_zpl_template_xn || '',
+                    barcode_zpl_template_ksk || '',
+                    barcode_printer_name || 'Zebra'
                 ]);
             }
 

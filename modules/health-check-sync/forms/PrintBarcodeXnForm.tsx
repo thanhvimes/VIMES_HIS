@@ -8,6 +8,9 @@ import { createPortal } from 'react-dom';
 import { useSystemStore } from '../../../stores/useSystemStore';
 import { Code128Barcode } from './PrintBarcodeForm';
 import { PatientWithOrders, LabOrder } from '../components/PrintBarcodeXnModal';
+import { HealthCheckSettings } from '../models/HealthCheckSettings';
+import { qzPrinterService } from '../../../services/qzPrinterService';
+import { toast } from 'sonner';
 
 // ========== TYPES ==========
 
@@ -58,15 +61,66 @@ const PrintBarcodeXnForm: React.FC<PrintBarcodeXnFormProps> = ({
         return div;
     });
 
+    const totalLabels = payload.reduce((sum, p) => sum + p.orders.length, 0);
+    const allLabels = payload.flatMap(p =>
+        p.orders.map(order => ({ patient: p.patient, order }))
+    );
+
+    const printViaQzZpl = async (settings: HealthCheckSettings): Promise<boolean> => {
+        try {
+            const printerName = settings.barcode_printer_name || 'Zebra';
+            const template = settings.barcode_zpl_template_xn;
+            if (!template) {
+                console.warn("Chưa cấu hình mẫu ZPL cho Xét nghiệm");
+                return false;
+            }
+
+            for (const item of allLabels) {
+                // Replace ZPL template place holders with real values
+                let zpl = template
+                    .replace(/{hospital}/g, hospitalName || 'PHÒNG KHÁM vCLINIC')
+                    .replace(/{patient}/g, item.patient.patientName)
+                    .replace(/{test}/g, item.order.testName)
+                    .replace(/{sample_type}/g, item.order.sampleType)
+                    .replace(/{date}/g, new Date(item.order.sampleDate).toLocaleDateString('vi-VN'))
+                    .replace(/{code}/g, item.order.orderNo);
+
+                await qzPrinterService.printZPL(printerName, zpl);
+            }
+            toast.success(`Đã in ${totalLabels} tem qua QZ Tray thành công!`);
+            onClose();
+            return true;
+        } catch (err: any) {
+            console.error("ZPL print error via QZ Tray:", err);
+            toast.error("Không thể in qua QZ Tray: " + err.message + ". Đang chuyển sang chế độ in trình duyệt...");
+            return false;
+        }
+    };
+
     React.useEffect(() => {
         window.document.body.appendChild(portalContainer);
-        // Tự động gọi in ngay khi mount để rút gọn thao tác cho user
-        const timer = setTimeout(() => {
-            handlePrint();
-        }, 300);
+        
+        const runPrint = async () => {
+            try {
+                const settings = await HealthCheckSettings.loadFromServer();
+                // Nếu được thiết lập tên máy in và mẫu ZPL thô, thực hiện in trực tiếp qua QZ Tray
+                if (settings.barcode_printer_name && settings.barcode_zpl_template_xn) {
+                    const success = await printViaQzZpl(settings);
+                    if (success) return; // In thành công, dừng lại không mở cửa sổ in trình duyệt
+                }
+            } catch (err) {
+                console.warn("QZ Tray print fallback to default browser print:", err);
+            }
+            
+            // Fallback: Tự động in trình duyệt như cũ
+            setTimeout(() => {
+                handlePrint();
+            }, 300);
+        };
+
+        runPrint();
 
         return () => {
-            clearTimeout(timer);
             if (window.document.body.contains(portalContainer)) {
                 window.document.body.removeChild(portalContainer);
             }
@@ -101,10 +155,6 @@ const PrintBarcodeXnForm: React.FC<PrintBarcodeXnFormProps> = ({
 
     if (!payload || payload.length === 0) return null;
 
-    const totalLabels = payload.reduce((sum, p) => sum + p.orders.length, 0);
-    const allLabels = payload.flatMap(p =>
-        p.orders.map(order => ({ patient: p.patient, order }))
-    );
     const cfg = LABEL_CONFIG[labelSize];
 
     return createPortal(
