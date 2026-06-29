@@ -5,7 +5,8 @@ import React, { useState, useMemo } from 'react';
 import { 
     RefreshIcon, 
     CheckCircleIcon,
-    InformationCircleIcon
+    InformationCircleIcon,
+    AlertCircleIcon
 } from '../../../components/Icons';
 
 interface SyncDataListProps {
@@ -26,6 +27,15 @@ const SyncDataList: React.FC<SyncDataListProps> = ({
     searchTerm
 }) => {
     const [syncingId, setSyncingId] = useState<string | null>(null);
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        contractId: string | null;
+        contractName: string;
+    }>({
+        isOpen: false,
+        contractId: null,
+        contractName: ''
+    });
 
     const filteredContracts = useMemo(() => {
         return contracts.filter(c => {
@@ -56,12 +66,21 @@ const SyncDataList: React.FC<SyncDataListProps> = ({
         });
     }, [contracts, searchTerm, startDate, endDate]);
 
-    const handleSync = async (contractId: string) => {
+    const handleSync = (contractId: string) => {
         const contract = contracts.find(c => String(c.id) === contractId);
         const contractName = contract ? contract.name : '';
-        const confirmMsg = `Bạn có chắc chắn muốn đồng bộ dữ liệu khám từ HIS cho gói khám "${contractName}" không?`;
-        if (!window.confirm(confirmMsg)) return;
+        setConfirmModal({
+            isOpen: true,
+            contractId,
+            contractName
+        });
+    };
 
+    const executeSync = async () => {
+        const { contractId } = confirmModal;
+        if (!contractId) return;
+
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
         setSyncingId(contractId);
         try {
             await onSeed({
@@ -188,6 +207,48 @@ const SyncDataList: React.FC<SyncDataListProps> = ({
             <div className="p-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs text-slate-500">
                 Hiển thị {filteredContracts.length} gói khám sức khỏe
             </div>
+
+            {/* Custom confirmation dialog modal */}
+            {confirmModal.isOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-900 rounded-[2rem] max-w-md w-full shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden transform scale-100 transition-all duration-300 animate-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/60 flex items-center gap-3 bg-slate-50/50 dark:bg-slate-900/50">
+                            <div className="h-10 w-10 rounded-full flex items-center justify-center bg-teal-50 dark:bg-teal-950/30 text-teal-600 dark:text-teal-400">
+                                <AlertCircleIcon className="w-5 h-5" />
+                            </div>
+                            <h5 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Xác nhận đồng bộ</h5>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 pt-5">
+                            <p className="text-slate-600 dark:text-slate-300 text-sm font-medium leading-relaxed">
+                                Bạn có chắc chắn muốn đồng bộ dữ liệu khám từ HIS cho gói khám{' '}
+                                <span className="font-extrabold text-[#0f766e] dark:text-[#2dd4bf]">
+                                    "{confirmModal.contractName}"
+                                </span>{' '}
+                                không?
+                            </p>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 py-4 bg-slate-50/30 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-end gap-3">
+                            <button
+                                onClick={() => setConfirmModal({ isOpen: false, contractId: null, contractName: '' })}
+                                className="px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all active:scale-95 cursor-pointer"
+                            >
+                                Hủy bỏ
+                            </button>
+                            <button
+                                onClick={executeSync}
+                                className="px-5 py-2.5 bg-[#0f766e] hover:bg-[#0d9488] text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all active:scale-95 shadow-md shadow-teal-500/20 hover:shadow-lg hover:shadow-teal-500/30 cursor-pointer"
+                            >
+                                Đồng bộ ngay
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

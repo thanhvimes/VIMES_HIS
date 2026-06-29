@@ -120,12 +120,12 @@ const BARCODE_SIZE_OPTIONS = [
 interface SettingsTabProps {
     /** Optional callback when settings are successfully saved */
     onSaved?: () => void;
-    defaultTab?: 'VNEID' | 'BARCODE';
+    defaultTab?: 'VNEID' | 'BARCODE' | 'RECEPTION_SLIP';
     hideTabs?: boolean;
 }
 
 const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID', hideTabs = false }) => {
-    const [activeSubTab, setActiveSubTab] = useState<'VNEID' | 'BARCODE'>(defaultTab);
+    const [activeSubTab, setActiveSubTab] = useState<'VNEID' | 'BARCODE' | 'RECEPTION_SLIP'>(defaultTab);
 
     // Update activeSubTab when defaultTab changes
     useEffect(() => {
@@ -157,6 +157,9 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
     const [barcodeZplTemplateKsk, setBarcodeZplTemplateKsk] = useState('');
     const [barcodePrinterName, setBarcodePrinterName] = useState('Zebra');
 
+    // ── Reception Slip ────────────────────────────────────────────────────────
+    const [receptionSlipTemplate, setReceptionSlipTemplate] = useState('');
+
     // ── UI status ─────────────────────────────────────────────────────────────
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -184,6 +187,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                 setBarcodeZplTemplateXn(settings.barcode_zpl_template_xn || '');
                 setBarcodeZplTemplateKsk(settings.barcode_zpl_template_ksk || '');
                 setBarcodePrinterName(settings.barcode_printer_name || 'Zebra');
+                setReceptionSlipTemplate(settings.reception_slip_template || '');
             } catch (error) {
                 console.error('Failed to load settings:', error);
                 toast.error('Không thể tải cấu hình. Vui lòng thử lại.');
@@ -214,6 +218,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
             barcode_zpl_template_xn: barcodeZplTemplateXn,
             barcode_zpl_template_ksk: barcodeZplTemplateKsk,
             barcode_printer_name: barcodePrinterName,
+            reception_slip_template: receptionSlipTemplate,
         });
 
         const validation = settings.validate();
@@ -238,13 +243,14 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
     const handleTestConnection = async () => {
         setIsTesting(true);
         try {
-            const res = await healthCheckService.testConnection({
+            const res = await healthCheckService.testVneidConnection({
                 vneid_url: vneidUrl,
                 vneid_username: vneidUsername,
                 vneid_password: vneidPassword,
+                ma_cskcb: maCskcb,
             });
             if (res.success) {
-                toast.success(res.message || 'Kết nối thành công!');
+                toast.success('Kết nối cổng VNeID thành công!');
             } else {
                 toast.error(res.message || 'Kết nối thất bại!');
             }
@@ -275,30 +281,48 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
             {/* Tab header selectors */}
             {!hideTabs && (
                 <div className="flex border-b border-slate-200 dark:border-slate-700">
-                    <button
-                        type="button"
-                        onClick={() => setActiveSubTab('VNEID')}
-                        className={`pb-3 px-4 font-bold text-sm border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
-                            activeSubTab === 'VNEID'
-                                ? 'border-[#0f766e] text-[#0f766e]'
-                                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                        }`}
-                    >
-                        <CloudUploadIcon className="w-4 h-4" />
-                        Kết nối cổng VNeID
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setActiveSubTab('BARCODE')}
-                        className={`pb-3 px-4 font-bold text-sm border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
-                            activeSubTab === 'BARCODE'
-                                ? 'border-[#0f766e] text-[#0f766e]'
-                                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                        }`}
-                    >
-                        <PrinterIcon className="w-4 h-4" />
-                        Cấu hình in Barcode
-                    </button>
+                    {defaultTab === 'VNEID' && (
+                        <button
+                            type="button"
+                            onClick={() => setActiveSubTab('VNEID')}
+                            className={`pb-3 px-4 font-bold text-sm border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+                                activeSubTab === 'VNEID'
+                                    ? 'border-[#0f766e] text-[#0f766e]'
+                                    : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                            }`}
+                        >
+                            <CloudUploadIcon className="w-4 h-4" />
+                            Kết nối cổng VNeID
+                        </button>
+                    )}
+                    {defaultTab === 'BARCODE' && (
+                        <>
+                            <button
+                                type="button"
+                                onClick={() => setActiveSubTab('BARCODE')}
+                                className={`pb-3 px-4 font-bold text-sm border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+                                    activeSubTab === 'BARCODE'
+                                        ? 'border-[#0f766e] text-[#0f766e]'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                }`}
+                            >
+                                <PrinterIcon className="w-4 h-4" />
+                                Cấu hình in Barcode
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveSubTab('RECEPTION_SLIP')}
+                                className={`pb-3 px-4 font-bold text-sm border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+                                    activeSubTab === 'RECEPTION_SLIP'
+                                        ? 'border-[#0f766e] text-[#0f766e]'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                }`}
+                            >
+                                <PrinterIcon className="w-4 h-4" />
+                                Mẫu in phiếu tiếp đón
+                            </button>
+                        </>
+                    )}
                 </div>
             )}
 
@@ -415,7 +439,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                         </div>
                     </div>
                 </section>
-            ) : (
+            ) : activeSubTab === 'BARCODE' ? (
                 /* ══════════════════════════════════════════════════
                     SECTION 2: Barcode Print Configuration
                 ══════════════════════════════════════════════════ */
@@ -534,6 +558,32 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                             desc="In loại mẫu (Máu tĩnh mạch, Nước tiểu...)"
                             value={barcodeShowSampleType}
                             onChange={setBarcodeShowSampleType}
+                        />
+                    </div>
+                </section>
+            ) : (
+                /* ══════════════════════════════════════════════════
+                    SECTION 3: Reception Slip HTML Template
+                ══════════════════════════════════════════════════ */
+                <section className="space-y-4 animate-in fade-in duration-200">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Chỉnh sửa thiết kế mẫu in nhiệt phiếu tiếp đón (khổ 80mm). Hỗ trợ các từ khóa thay thế:
+                        <code className="mx-1 px-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-pink-500">{"{{docNo}}"}</code> (Số hồ sơ),
+                        <code className="mx-1 px-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-pink-500">{"{{name}}"}</code> (Họ tên),
+                        <code className="mx-1 px-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-pink-500">{"{{dob}}"}</code> (Năm sinh),
+                        <code className="mx-1 px-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-pink-500">{"{{cardId}}"}</code> (CCCD),
+                        <code className="mx-1 px-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-pink-500">{"{{address}}"}</code> (Địa chỉ),
+                        <code className="mx-1 px-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-pink-500">{"{{dateStr}}"}</code> (Ngày in).
+                    </p>
+
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Nội dung mẫu in HTML (Khổ 80mm)</label>
+                        <textarea
+                            value={receptionSlipTemplate}
+                            onChange={e => setReceptionSlipTemplate(e.target.value)}
+                            rows={18}
+                            className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-850 text-xs font-mono focus:ring-1 focus:ring-teal-500 focus:outline-none"
+                            placeholder="Nhập mã HTML thiết kế..."
                         />
                     </div>
                 </section>

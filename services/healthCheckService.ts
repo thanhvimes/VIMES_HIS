@@ -120,14 +120,130 @@ export const healthCheckService = {
         }
     },
 
-    getContracts: async (): Promise<any[]> => {
+    getContracts: async (filters?: { startDate?: string; endDate?: string }): Promise<any[]> => {
         try {
-            return await apiClient.get<any[]>('/health-check-sync/contracts');
+            const params = new URLSearchParams();
+            if (filters) {
+                if (filters.startDate) params.append('startDate', filters.startDate);
+                if (filters.endDate) params.append('endDate', filters.endDate);
+            }
+            const queryStr = params.toString() ? `?${params.toString()}` : '';
+            return await apiClient.get<any[]>(`/health-check-sync/contracts${queryStr}`);
         } catch (error) {
             console.error("Failed to fetch health check contracts:", error);
             throw error;
         }
     },
+
+    createContract: async (payload: any): Promise<{ success: boolean; id: number }> => {
+        try {
+            return await apiClient.post<{ success: boolean; id: number }>('/health-check-sync/contracts', payload);
+        } catch (error) {
+            console.error("Error creating health check contract:", error);
+            throw error;
+        }
+    },
+
+    updateContract: async (id: string | number, payload: any): Promise<{ success: boolean }> => {
+        try {
+            return await apiClient.put<{ success: boolean }>(`/health-check-sync/contracts/${id}`, payload);
+        } catch (error) {
+            console.error("Error updating health check contract:", error);
+            throw error;
+        }
+    },
+
+    updateContractStatus: async (id: string | number, status: string): Promise<{ success: boolean }> => {
+        try {
+            return await apiClient.put<{ success: boolean }>(`/health-check-sync/contracts/${id}/status`, { status });
+        } catch (error) {
+            console.error("Error updating health check contract status:", error);
+            throw error;
+        }
+    },
+
+    deleteContract: async (id: string | number): Promise<{ success: boolean; message?: string }> => {
+        try {
+            return await apiClient.delete<{ success: boolean; message?: string }>(`/health-check-sync/contracts/${id}`);
+        } catch (error) {
+            console.error("Error deleting health check contract:", error);
+            throw error;
+        }
+    },
+
+    getContractEmployees: async (id: string | number): Promise<any[]> => {
+        try {
+            return await apiClient.get<any[]>(`/health-check-sync/contracts/${id}/employees`);
+        } catch (error) {
+            console.error("Error fetching health check contract employees:", error);
+            throw error;
+        }
+    },
+
+    importEmployees: async (id: string | number, employees: any[]): Promise<{ success: boolean; count: number }> => {
+        try {
+            return await apiClient.post<{ success: boolean; count: number }>(`/health-check-sync/contracts/${id}/employees/import`, { employees });
+        } catch (error) {
+            console.error("Error importing health check contract employees:", error);
+            throw error;
+        }
+    },
+
+    getContractServices: async (id: string | number): Promise<any[]> => {
+        try {
+            return await apiClient.get<any[]>(`/health-check-sync/contracts/${id}/services`);
+        } catch (error) {
+            console.error("Error fetching contract services:", error);
+            throw error;
+        }
+    },
+
+    addContractServices: async (id: string | number, services: any[]): Promise<{ success: boolean }> => {
+        try {
+            return await apiClient.post<{ success: boolean }>(`/health-check-sync/contracts/${id}/services`, { services });
+        } catch (error) {
+            console.error("Error adding contract services:", error);
+            throw error;
+        }
+    },
+
+    deleteContractService: async (id: string | number, serviceId: number): Promise<{ success: boolean }> => {
+        try {
+            return await apiClient.delete<{ success: boolean }>(`/health-check-sync/contracts/${id}/services/${serviceId}`);
+        } catch (error) {
+            console.error("Error deleting contract service:", error);
+            throw error;
+        }
+    },
+
+    getServiceGroups: async (): Promise<any[]> => {
+        try {
+            return await apiClient.get<any[]>('/health-check-sync/service-groups');
+        } catch (error) {
+            console.error("Error fetching service groups:", error);
+            throw error;
+        }
+    },
+
+    getServicesByGroup: async (groupId: string): Promise<any[]> => {
+        try {
+            return await apiClient.get<any[]>(`/health-check-sync/service-groups/${groupId}/services`);
+        } catch (error) {
+            console.error("Error fetching services by group:", error);
+            throw error;
+        }
+    },
+
+    searchAvailableServices: async (queryStr: string): Promise<any[]> => {
+        try {
+            return await apiClient.get<any[]>(`/health-check-sync/services/search?queryStr=${encodeURIComponent(queryStr)}`);
+        } catch (error) {
+            console.error("Error searching services:", error);
+            throw error;
+        }
+    },
+
+
 
     getSettings: async (): Promise<any> => {
         try {
@@ -152,6 +268,52 @@ export const healthCheckService = {
             return await apiClient.post<{ success: boolean; message: string }>('/health-check-sync/settings/test-connection', payload);
         } catch (error) {
             console.error("Error testing health check connection:", error);
+            throw error;
+        }
+    },
+
+    searchEmployeeByCard: async (queryStr: string, contractId?: string | number): Promise<any[]> => {
+        try {
+            const contractParam = contractId ? `&contractId=${contractId}` : '';
+            return await apiClient.get<any[]>(`/health-check-sync/reception/search?queryStr=${encodeURIComponent(queryStr)}${contractParam}`);
+        } catch (error) {
+            console.error("Error searching employee by card:", error);
+            throw error;
+        }
+    },
+
+    receiveContractEmployee: async (employeeId: number, roomId?: number): Promise<{ success: boolean; message: string; docNo: string; patientNo: string; services: any[] }> => {
+        try {
+            return await apiClient.post<{ success: boolean; message: string; docNo: string; patientNo: string; services: any[] }>('/health-check-sync/reception/receive', { employeeId, roomId });
+        } catch (error) {
+            console.error("Error receiving contract employee:", error);
+            throw error;
+        }
+    },
+
+    getReceptionRooms: async (): Promise<any[]> => {
+        try {
+            return await apiClient.get<any[]>('/health-check-sync/reception/rooms');
+        } catch (error) {
+            console.error("Error fetching reception rooms:", error);
+            throw error;
+        }
+    },
+
+    getExamFees: async (): Promise<any[]> => {
+        try {
+            return await apiClient.get<any[]>('/health-check-sync/reception/exam-fees');
+        } catch (error) {
+            console.error("Error fetching exam fees list:", error);
+            throw error;
+        }
+    },
+
+    updateEmployee: async (id: number, payload: any): Promise<{ success: boolean; message: string }> => {
+        try {
+            return await apiClient.put<{ success: boolean; message: string }>(`/health-check-sync/reception/employee/${id}`, payload);
+        } catch (error) {
+            console.error("Error updating employee info:", error);
             throw error;
         }
     }

@@ -171,3 +171,72 @@
   0% { width: 0%; }
   100% { width: 100%; }
 }
+
+/* --- HEALTH CHECK FORM UNIFICATION --- */
+/* Đồng nhất input (text/number) và select về chiều cao 32px, font 13px, bo góc 4px */
+.health-check-form input[type="text"],
+.health-check-form input[type="number"],
+.health-check-form select {
+  height: 32px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+  font-size: 13px !important;
+  line-height: normal !important;
+  border-radius: 4px !important;
+}
+
+/* Áp dụng màu nền trắng, viền xám mặc định cho các ô nhập liệu khả dụng (không bị disable hay readonly, không có lỗi đỏ) */
+.health-check-form input[type="text"]:not(:disabled):not([readonly]):not(.border-red-500),
+.health-check-form input[type="number"]:not(:disabled):not([readonly]):not(.border-red-500),
+.health-check-form select:not(:disabled):not(.border-red-500) {
+  background-color: #FFFFFF !important;
+  border-color: #D1D5DB !important;
+  color: #323130 !important;
+}
+
+/* Hỗ trợ chế độ tối (Dark Mode) cho các ô nhập liệu khả dụng */
+.dark .health-check-form input[type="text"]:not(:disabled):not([readonly]):not(.border-red-500),
+.dark .health-check-form input[type="number"]:not(:disabled):not([readonly]):not(.border-red-500),
+.dark .health-check-form select:not(:disabled):not(.border-red-500) {
+  background-color: #0F172A !important;
+  border-color: #1E3A5F !important;
+  color: #F1F5F9 !important;
+}
+
+/* Đồng nhất hiệu ứng Focus màu xanh dương thương hiệu */
+.health-check-form input[type="text"]:focus,
+.health-check-form input[type="number"]:focus,
+.health-check-form select:focus {
+  border-color: #0078D4 !important;
+  box-shadow: 0 0 0 1px #0078D4 !important;
+  outline: none !important;
+}
+
+/* Cách điệu thẻ select với mũi tên tùy biến sang trọng giống FormSelect */
+.health-check-form select {
+  padding-right: 2rem !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
+  background-position: right 0.5rem center !important;
+  background-repeat: no-repeat !important;
+  background-size: 1.5em 1.5em !important;
+}
+
+/* Đồng nhất toàn bộ label trong form về chuẩn font size 11px nhỏ gọn, chữ in hoa đẳng cấp */
+.health-check-form label {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: #605E5C !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.025em !important;
+  margin-bottom: 4px !important;
+  display: block !important;
+}
+
+.dark .health-check-form label {
+  color: #94A3B8 !important;
+}

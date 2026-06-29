@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS health_check_masters (
     sent_at TIMESTAMP,
     transaction_id VARCHAR(100),
     error_message VARCHAR(500),
+    barcode_printed VARCHAR(1) DEFAULT 'N' NOT NULL,
+    response_log TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
@@ -45,3 +47,24 @@ CREATE INDEX IF NOT EXISTS idx_hc_masters_doc_no ON health_check_masters(doc_no)
 -- GIN Indexes on JSONB fields inside Detail for deep clinical queries
 CREATE INDEX IF NOT EXISTS idx_hc_details_clinical ON health_check_details USING gin (clinical_data);
 CREATE INDEX IF NOT EXISTS idx_hc_details_lab ON health_check_details USING gin (lab_data);
+
+-- 4. Automatically update updated_at columns
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_health_check_masters_updated_at ON health_check_masters;
+CREATE TRIGGER trg_health_check_masters_updated_at
+BEFORE UPDATE ON health_check_masters
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS trg_health_check_details_updated_at ON health_check_details;
+CREATE TRIGGER trg_health_check_details_updated_at
+BEFORE UPDATE ON health_check_details
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();

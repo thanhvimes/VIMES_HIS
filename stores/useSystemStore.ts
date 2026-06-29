@@ -39,6 +39,7 @@ export interface SlideItem {
 export interface NavItemDTO extends Omit<NavItemType, 'icon'> {
     iconName: string;
     isVisible?: boolean;
+    adminOnly?: boolean;
 }
 
 interface SystemState {
@@ -99,7 +100,8 @@ const mapConstantToDTO = (item: NavItemType): NavItemDTO => ({
     group: item.group,
     section: item.section,
     iconName: item.iconName || 'Squares2X2Icon',
-    isVisible: true
+    isVisible: true,
+    adminOnly: item.adminOnly
 });
 
 const mapDTOToNavItem = (dto: NavItemDTO): NavItemType => {
@@ -165,26 +167,43 @@ export const useSystemStore = create<SystemState>()(
                                 menuConfig: { ...state.menuConfig, [moduleId]: updatedConfig }
                             }));
                         }, 0);
-                        return updatedConfig.filter(item => item.isVisible !== false).map(mapDTOToNavItem);
+                        return updatedConfig
+                        .filter(item => item.isVisible !== false)
+                        .filter(item => !item.adminOnly || role === 'admin')
+                        .map(mapDTOToNavItem);
                     }
 
-                    return config.filter(item => item.isVisible !== false).map(mapDTOToNavItem);
+                    return config
+                    .filter(item => item.isVisible !== false)
+                    .filter(item => !item.adminOnly || role === 'admin')
+                    .map(mapDTOToNavItem);
                 }
                 return defaultItems;
             },
             fetchBrandingSettings: async () => {
                 try {
-                    const settings = await settingsService.getSettingsByCategory('general');
+                    // Primary: get info directly from SYS_COMPANY table
+                    const company = await settingsService.getCompanyInfo();
                     const updates: Partial<SystemState> = { brandingLoaded: true };
-                    settings.forEach(s => {
-                        if (s.key === 'general_hospital_name') updates.hospitalName = s.value;
-                        if (s.key === 'general_parent_org') updates.parentOrg = s.value;
-                        if (s.key === 'general_system_name') updates.systemName = s.value;
-                        if (s.key === 'general_logo_url') updates.logoUrl = s.value;
-                    });
+                    if (company.hospitalName) updates.hospitalName = company.hospitalName;
+                    if (company.parentOrg) updates.parentOrg = company.parentOrg;
                     set(updates);
-                } catch (e) {
-                    console.error('Failed to fetch branding settings:', e);
+                } catch (companyErr) {
+                    console.warn('SYS_COMPANY fetch failed, falling back to settings API:', companyErr);
+                    // Fallback: get from hms_booking_settings (which also queries SYS_COMPANY on backend)
+                    try {
+                        const settings = await settingsService.getSettingsByCategory('general');
+                        const updates: Partial<SystemState> = { brandingLoaded: true };
+                        settings.forEach(s => {
+                            if (s.key === 'general_hospital_name') updates.hospitalName = s.value;
+                            if (s.key === 'general_parent_org') updates.parentOrg = s.value;
+                            if (s.key === 'general_system_name') updates.systemName = s.value;
+                            if (s.key === 'general_logo_url') updates.logoUrl = s.value;
+                        });
+                        set(updates);
+                    } catch (e) {
+                        console.error('Failed to fetch branding settings:', e);
+                    }
                 }
             },
             updateBrandingSettings: async (updates) => {

@@ -62,11 +62,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen, isCollap
         currentSection = item.section;
         if (!isCollapsed) {
           elements.push(
-            <div key={`section-${item.section}`} className="px-4 mt-6 mb-2">
+            <div key={`section-${item.section}-${index}`} className="px-4 mt-6 mb-2">
               <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em]">
                 {item.section}
               </span>
             </div>
+
           );
         } else {
           // Khi thu gọn, chỉ chèn một đường kẻ mờ

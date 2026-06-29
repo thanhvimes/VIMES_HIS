@@ -77,7 +77,7 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
                         title: info.title || '',
                         departmentId: info.deptId,
                         departmentName: info.deptId, // TODO: Get dept name from sys_dept
-                        role: info.groupId === 'M' ? 'admin' : 
+                        role: (info.userId === 'admin' || info.groupId === 'M') ? 'admin' : 
                               info.groupId === 'D' ? 'doctor' : 
                               info.groupId === 'N' ? 'nurse' : 
                               info.groupId === 'R' ? 'receptionist' :
@@ -120,7 +120,7 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
                     title: response.user.title || '',
                     departmentId: response.user.deptId,
                     departmentName: response.user.deptId,
-                    role: response.user.groupId === 'M' ? 'admin' : 
+                    role: (response.user.userId === 'admin' || response.user.groupId === 'M') ? 'admin' : 
                           response.user.groupId === 'D' ? 'doctor' : 
                           response.user.groupId === 'N' ? 'nurse' : 
                           response.user.groupId === 'R' ? 'receptionist' :

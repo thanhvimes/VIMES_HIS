@@ -11,6 +11,8 @@ export interface NavItemType {
   section?: string;
   /** String name of the icon for serialization/dynamic loading */
   iconName?: string;
+  /** If true, this nav item is only visible to admin users */
+  adminOnly?: boolean;
 }
 
 export type NotificationType = 'info' | 'success' | 'warning' | 'error';

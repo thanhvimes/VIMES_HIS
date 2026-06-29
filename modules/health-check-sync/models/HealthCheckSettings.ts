@@ -17,6 +17,7 @@ export interface SettingsData {
     barcode_zpl_template_xn: string;
     barcode_zpl_template_ksk: string;
     barcode_printer_name: string;
+    reception_slip_template: string;
 }
 
 export class HealthCheckSettings implements SettingsData {
@@ -36,6 +37,81 @@ export class HealthCheckSettings implements SettingsData {
     barcode_zpl_template_xn: string = '^XA\n^CF0,26\n^FO30,30^FD{hospital}^FS\n^FO30,70^FD{patient}^FS\n^FO30,105^FD{test}^FS\n^FO30,140^FD{sample_type} - {date}^FS\n^BY2,2,40\n^FO30,175^BCN,,N,N\n^FD{code}^FS\n^FO30,225^FD{code}^FS\n^XZ';
     barcode_zpl_template_ksk: string = '^XA\n^CF0,26\n^FO30,30^FD{hospital}^FS\n^FO30,70^FD{patient}^FS\n^FO30,105^FD{form_name}^FS\n^FO30,140^FD{info}^FS\n^BY2,2,40\n^FO30,175^BCN,,N,N\n^FD{code}^FS\n^FO30,225^FD{code}^FS\n^XZ';
     barcode_printer_name: string = 'Zebra';
+    reception_slip_template: string = `<div class="header">
+    <div class="hospital-name">BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH</div>
+    <div class="title">PHIẾU TIẾP ĐÓN</div>
+</div>
+
+<div class="divider"></div>
+
+<table class="info-table">
+    <tr>
+        <td class="info-label">Số hồ sơ:</td>
+        <td class="info-value" style="font-weight: bold; font-size: 15px;">{{docNo}}</td>
+    </tr>
+    <tr>
+        <td class="info-label">Họ tên:</td>
+        <td class="info-value" style="font-weight: bold; font-size: 15px;">{{name}}</td>
+    </tr>
+    <tr>
+        <td class="info-label">Năm sinh:</td>
+        <td class="info-value">{{dob}}</td>
+    </tr>
+    <tr>
+        <td class="info-label">CCCD:</td>
+        <td class="info-value">{{cardId}}</td>
+    </tr>
+    <tr>
+        <td class="info-label">Địa chỉ:</td>
+        <td class="info-value">{{address}}</td>
+    </tr>
+</table>
+
+<div class="divider"></div>
+
+<div class="barcode-section">
+    <div class="barcode-container">
+        <svg id="barcode"></svg>
+    </div>
+    <div class="barcode-time">In: {{dateStr}}</div>
+</div>
+
+<div class="divider"></div>
+
+<table class="vitals-table">
+    <tr>
+        <td class="vitals-label">Cân nặng:</td>
+        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+        <td class="vitals-unit">kg</td>
+    </tr>
+    <tr>
+        <td class="vitals-label">Chiều cao:</td>
+        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+        <td class="vitals-unit">cm</td>
+    </tr>
+    <tr>
+        <td class="vitals-label">Mạch:</td>
+        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+        <td class="vitals-unit">lần/phút</td>
+    </tr>
+    <tr>
+        <td class="vitals-label">Huyết áp:</td>
+        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+        <td class="vitals-unit">mmHg</td>
+    </tr>
+    <tr>
+        <td class="vitals-label">Mắt phải:</td>
+        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+        <td class="vitals-unit"></td>
+    </tr>
+    <tr>
+        <td class="vitals-label">Mắt trái:</td>
+        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+        <td class="vitals-unit"></td>
+    </tr>
+</table>
+
+<div class="divider" style="margin-top: 15px;"></div>`;
 
     constructor(data?: Partial<SettingsData>) {
         if (data) {
@@ -55,6 +131,7 @@ export class HealthCheckSettings implements SettingsData {
             this.barcode_zpl_template_xn = data.barcode_zpl_template_xn ?? this.barcode_zpl_template_xn;
             this.barcode_zpl_template_ksk = data.barcode_zpl_template_ksk ?? this.barcode_zpl_template_ksk;
             this.barcode_printer_name = data.barcode_printer_name ?? this.barcode_printer_name;
+            this.reception_slip_template = data.reception_slip_template ?? this.reception_slip_template;
         }
     }
 
@@ -116,6 +193,7 @@ export class HealthCheckSettings implements SettingsData {
             barcode_zpl_template_xn: this.barcode_zpl_template_xn,
             barcode_zpl_template_ksk: this.barcode_zpl_template_ksk,
             barcode_printer_name: this.barcode_printer_name,
+            reception_slip_template: this.reception_slip_template,
         };
     }
 }

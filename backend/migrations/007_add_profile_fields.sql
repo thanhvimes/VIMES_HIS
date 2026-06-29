@@ -1,10 +1,15 @@
--- Migration: Add ethnicity, occupation, email to portal_patient_profiles
--- Date: 2026-02-10
+ALTER TABLE sys_user ADD COLUMN IF NOT EXISTS su_dob DATE;
+ALTER TABLE sys_user ADD COLUMN IF NOT EXISTS su_gender VARCHAR(10);
+ALTER TABLE sys_user ADD COLUMN IF NOT EXISTS su_identity_card VARCHAR(20);
+ALTER TABLE sys_user ADD COLUMN IF NOT EXISTS su_email VARCHAR(100);
+ALTER TABLE sys_user ADD COLUMN IF NOT EXISTS su_address TEXT;
 
-ALTER TABLE portal_patient_profiles ADD COLUMN IF NOT EXISTS ethnicity VARCHAR(50);
-ALTER TABLE portal_patient_profiles ADD COLUMN IF NOT EXISTS occupation VARCHAR(100);
-ALTER TABLE portal_patient_profiles ADD COLUMN IF NOT EXISTS email VARCHAR(100);
+ALTER TABLE sys_user ADD COLUMN IF NOT EXISTS su_hms_hmmodule VARCHAR(1);
+ALTER TABLE sys_user ADD COLUMN IF NOT EXISTS su_hms_tramodule VARCHAR(1);
+ALTER TABLE sys_user ADD COLUMN IF NOT EXISTS su_hms_inmodule VARCHAR(1);
+ALTER TABLE sys_user ADD COLUMN IF NOT EXISTS su_hms_nmmodule VARCHAR(1);
+ALTER TABLE sys_user ADD COLUMN IF NOT EXISTS su_hms_tmvmodule VARCHAR(1);
+ALTER TABLE sys_user ADD COLUMN IF NOT EXISTS su_hms_dsmmodule VARCHAR(1);
+ALTER TABLE sys_user ADD COLUMN IF NOT EXISTS su_hms_itsmodule VARCHAR(1);
 
-COMMENT ON COLUMN portal_patient_profiles.ethnicity IS 'Dân tộc';
-COMMENT ON COLUMN portal_patient_profiles.occupation IS 'Nghề nghiệp';
-COMMENT ON COLUMN portal_patient_profiles.email IS 'Địa chỉ email';
+ALTER TABLE IF EXISTS hms_exm_contract ADD COLUMN hec_status character varying(1);

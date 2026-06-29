@@ -584,12 +584,15 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                     .a4-page {
                         width: 210mm;
                         height: 297mm;
-                        padding: 15mm 15mm 15mm 20mm;
+                        padding: 10mm 10mm 10mm 15mm;
                         background: white;
                         color: black;
                         position: relative;
-                        box-sizing: border-box;
+                        box-sizing: border-box !important;
                         box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+                    }
+                    .a4-page * {
+                        box-sizing: border-box !important;
                     }
                     .a4-page-content {
                         font-family: "Times New Roman", Times, serif !important;
@@ -603,7 +606,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                     }
                     .a4-table th, .a4-table td {
                         border: 1px solid black !important;
-                        padding: 4px 6px;
+                        padding: 3px 5px;
                     }
 
                     /* Dynamic print portal fixed positioning on screen */
@@ -657,7 +660,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                         .a4-page {
                             width: 210mm !important;
                             height: 297mm !important;
-                            padding: 15mm 15mm 15mm 20mm !important;
+                            padding: 10mm 10mm 10mm 15mm !important;
                             margin: 0 !important;
                             box-shadow: none !important;
                             page-break-after: always !important;
@@ -788,7 +791,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr className="align-top h-14">
+                                    <tr className="align-top h-10">
                                         <td>
                                             a) {extra.tsbt_ma_benh ? `Bệnh ${extra.tsbt_ma_benh}` : ''}
                                         </td>
@@ -802,19 +805,19 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                                             {extra.tsbt_nam_phat_hien_benh_nghe_nghiep}
                                         </td>
                                     </tr>
-                                    <tr className="align-top h-8">
+                                    <tr className="align-top h-6">
                                         <td>b)</td>
                                         <td></td>
                                         <td>b)</td>
                                         <td></td>
                                     </tr>
-                                    <tr className="align-top h-8">
+                                    <tr className="align-top h-6">
                                         <td>c)</td>
                                         <td></td>
                                         <td>c)</td>
                                         <td></td>
                                     </tr>
-                                    <tr className="align-top h-8">
+                                    <tr className="align-top h-6">
                                         <td>d)</td>
                                         <td></td>
                                         <td>d)</td>
@@ -911,11 +914,11 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             <tr className="font-bold">
                                 <td colSpan={2} className="bg-slate-100/50">1. Nội khoa</td>
                             </tr>
-                            <tr>
+                             <tr>
                                 <td>
-                                    <div className="font-bold">a) Tuần hoàn:</div>
-                                    <div className="pl-4 text-slate-800">{clinicalExam.tim_mach || clinicalExam.kq_tim_mach || 'Bình thường'}</div>
-                                    <div className="pl-4 font-bold text-[11.5px] mt-0.5 text-teal-800">Phân loại: {formatPlText(clinicalExam.noi_khoa_tuan_hoan_pl || '1')}</div>
+                                    <span className="font-bold">a) Tuần hoàn: </span>
+                                    <span className="text-slate-800">{clinicalExam.tim_mach || clinicalExam.kq_tim_mach || 'Bình thường'}</span>
+                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_tuan_hoan_pl || '1')})</span>
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('tuan_hoan')}
@@ -923,9 +926,9 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             </tr>
                             <tr>
                                 <td>
-                                    <div className="font-bold">b) Hô hấp:</div>
-                                    <div className="pl-4 text-slate-800">{clinicalExam.ho_hap || clinicalExam.kq_ho_hap || 'Bình thường'}</div>
-                                    <div className="pl-4 font-bold text-[11.5px] mt-0.5 text-teal-800">Phân loại: {formatPlText(clinicalExam.noi_khoa_ho_hap_pl || '1')}</div>
+                                    <span className="font-bold">b) Hô hấp: </span>
+                                    <span className="text-slate-800">{clinicalExam.ho_hap || clinicalExam.kq_ho_hap || 'Bình thường'}</span>
+                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_ho_hap_pl || '1')})</span>
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('ho_hap')}
@@ -933,9 +936,9 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             </tr>
                             <tr>
                                 <td>
-                                    <div className="font-bold">c) Tiêu hóa:</div>
-                                    <div className="pl-4 text-slate-800">{clinicalExam.noi_khoa_tieu_hoa || clinicalExam.kq_tieu_hoa || 'Bình thường'}</div>
-                                    <div className="pl-4 font-bold text-[11.5px] mt-0.5 text-teal-800">Phân loại: {formatPlText(clinicalExam.noi_khoa_tieu_hoa_pl || '1')}</div>
+                                    <span className="font-bold">c) Tiêu hóa: </span>
+                                    <span className="text-slate-800">{clinicalExam.noi_khoa_tieu_hoa || clinicalExam.kq_tieu_hoa || 'Bình thường'}</span>
+                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_tieu_hoa_pl || '1')})</span>
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('tieu_hoa')}
@@ -943,9 +946,9 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             </tr>
                             <tr>
                                 <td>
-                                    <div className="font-bold">d) Thận-Tiết niệu:</div>
-                                    <div className="pl-4 text-slate-800">{clinicalExam.tiet_nieu_sinh_duc || clinicalExam.kq_tiet_nieu || 'Bình thường'}</div>
-                                    <div className="pl-4 font-bold text-[11.5px] mt-0.5 text-teal-800">Phân loại: {formatPlText(clinicalExam.noi_khoa_than_tietnieu_pl || '1')}</div>
+                                    <span className="font-bold">d) Thận-Tiết niệu: </span>
+                                    <span className="text-slate-800">{clinicalExam.tiet_nieu_sinh_duc || clinicalExam.kq_tiet_nieu || 'Bình thường'}</span>
+                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_than_tietnieu_pl || '1')})</span>
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('than_tiet_nieu')}
@@ -953,9 +956,9 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             </tr>
                             <tr>
                                 <td>
-                                    <div className="font-bold">đ) Nội tiết:</div>
-                                    <div className="pl-4 text-slate-800">{clinicalExam.noi_tiet_dinh_duong_chuyen_hoa || clinicalExam.kq_noi_tiet || 'Bình thường'}</div>
-                                    <div className="pl-4 font-bold text-[11.5px] mt-0.5 text-teal-800">Phân loại: {formatPlText(clinicalExam.noi_khoa_noi_tiet_pl || '1')}</div>
+                                    <span className="font-bold">đ) Nội tiết: </span>
+                                    <span className="text-slate-800">{clinicalExam.noi_tiet_dinh_duong_chuyen_hoa || clinicalExam.kq_noi_tiet || 'Bình thường'}</span>
+                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_noi_tiet_pl || '1')})</span>
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('noi_tiet')}
@@ -963,9 +966,9 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             </tr>
                             <tr>
                                 <td>
-                                    <div className="font-bold">e) Cơ-xương-khớp:</div>
-                                    <div className="pl-4 text-slate-800">{clinicalExam.kq_co_xuong_khop_m5 || clinicalExam.kq_co_xuong_khop || 'Bình thường'}</div>
-                                    <div className="pl-4 font-bold text-[11.5px] mt-0.5 text-teal-800">Phân loại: {formatPlText(clinicalExam.noi_khoa_co_xuong_khop_pl || '1')}</div>
+                                    <span className="font-bold">e) Cơ-xương-khớp: </span>
+                                    <span className="text-slate-800">{clinicalExam.kq_co_xuong_khop_m5 || clinicalExam.kq_co_xuong_khop || 'Bình thường'}</span>
+                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_co_xuong_khop_pl || '1')})</span>
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('co_xuong_khop')}
@@ -973,9 +976,9 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             </tr>
                             <tr>
                                 <td>
-                                    <div className="font-bold">g) Thần kinh:</div>
-                                    <div className="pl-4 text-slate-800">{clinicalExam.noi_khoa_than_kinh || clinicalExam.kq_than_kinh || 'Bình thường'}</div>
-                                    <div className="pl-4 font-bold text-[11.5px] mt-0.5 text-teal-800">Phân loại: {formatPlText(clinicalExam.noi_khoa_than_kinh_pl || '1')}</div>
+                                    <span className="font-bold">g) Thần kinh: </span>
+                                    <span className="text-slate-800">{clinicalExam.noi_khoa_than_kinh || clinicalExam.kq_than_kinh || 'Bình thường'}</span>
+                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_than_kinh_pl || '1')})</span>
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('than_kinh')}
@@ -983,9 +986,9 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             </tr>
                             <tr>
                                 <td>
-                                    <div className="font-bold">h) Tâm thần:</div>
-                                    <div className="pl-4 text-slate-800">{clinicalExam.noi_khoa_tam_than || clinicalExam.kq_tam_than || 'Bình thường'}</div>
-                                    <div className="pl-4 font-bold text-[11.5px] mt-0.5 text-teal-800">Phân loại: {formatPlText(clinicalExam.noi_khoa_tam_than_pl || '1')}</div>
+                                    <span className="font-bold">h) Tâm thần: </span>
+                                    <span className="text-slate-800">{clinicalExam.noi_khoa_tam_than || clinicalExam.kq_tam_than || 'Bình thường'}</span>
+                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_tam_than_pl || '1')})</span>
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('tam_than')}
@@ -1006,9 +1009,9 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                         <tbody>
                             <tr>
                                 <td className="w-[70%]">
-                                    <div className="font-bold">- Ngoại khoa:</div>
-                                    <div className="pl-4 text-slate-800">{clinicalExam.external || clinicalExam.kq_ngoai_khoa || 'Bình thường'}</div>
-                                    <div className="pl-4 font-bold text-[11.5px] mt-0.5 text-teal-800">Phân loại: {formatPlText(clinicalExam.kham_ngoai_khoa_pl || '1')}</div>
+                                    <span className="font-bold">- Ngoại khoa: </span>
+                                    <span className="text-slate-800">{clinicalExam.external || clinicalExam.kq_ngoai_khoa || 'Bình thường'}</span>
+                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.kham_ngoai_khoa_pl || '1')})</span>
                                 </td>
                                 <td className="w-[30%] text-center align-middle font-medium text-slate-700">
                                     {getDoctor('ngoai_khoa')}
@@ -1016,9 +1019,9 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             </tr>
                             <tr>
                                 <td>
-                                    <div className="font-bold">- Da liễu:</div>
-                                    <div className="pl-4 text-slate-800">{clinicalExam.dermatology || clinicalExam.kq_da_lieu || 'Bình thường'}</div>
-                                    <div className="pl-4 font-bold text-[11.5px] mt-0.5 text-teal-800">Phân loại: {formatPlText(clinicalExam.kham_da_lieu_pl || '1')}</div>
+                                    <span className="font-bold">- Da liễu: </span>
+                                    <span className="text-slate-800">{clinicalExam.dermatology || clinicalExam.kq_da_lieu || 'Bình thường'}</span>
+                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.kham_da_lieu_pl || '1')})</span>
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('da_lieu')}
@@ -1026,9 +1029,9 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             </tr>
                             <tr>
                                 <td>
-                                    <div className="font-bold">3. Sản phụ khoa:</div>
-                                    <div className="pl-4 text-slate-800">{clinicalExam.gynecology || 'Bình thường'}</div>
-                                    <div className="pl-4 font-bold text-[11.5px] mt-0.5 text-teal-800">Phân loại: {formatPlText(clinicalExam.kham_san_phu_khoa_pl || '1')}</div>
+                                    <span className="font-bold">3. Sản phụ khoa: </span>
+                                    <span className="text-slate-800">{clinicalExam.gynecology || 'Bình thường'}</span>
+                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.kham_san_phu_khoa_pl || '1')})</span>
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('san_phu_khoa')}
@@ -1036,9 +1039,9 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             </tr>
                             <tr>
                                 <td>
-                                    <div className="font-bold">4. Mắt:</div>
-                                    <div className="pl-4 text-slate-800">{formatEyeExam()}</div>
-                                    <div className="pl-4 font-bold text-[11.5px] mt-0.5 text-teal-800">Phân loại: {formatPlText(clinicalExam.kham_mat_pl || '1')}</div>
+                                    <span className="font-bold">4. Mắt: </span>
+                                    <span className="text-slate-800">{formatEyeExam()}</span>
+                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.kham_mat_pl || '1')})</span>
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('mat')}
@@ -1046,9 +1049,9 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             </tr>
                             <tr>
                                 <td>
-                                    <div className="font-bold">5. Tai - Mũi - Họng:</div>
-                                    <div className="pl-4 text-slate-800">{formatEntExam()}</div>
-                                    <div className="pl-4 font-bold text-[11.5px] mt-0.5 text-teal-800">Phân loại: {formatPlText(clinicalExam.kham_tai_mui_hong_pl || '1')}</div>
+                                    <span className="font-bold">5. Tai - Mũi - Họng: </span>
+                                    <span className="text-slate-800">{formatEntExam()}</span>
+                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.kham_tai_mui_hong_pl || '1')})</span>
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('tai_mui_hong')}
@@ -1056,9 +1059,9 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             </tr>
                             <tr>
                                 <td>
-                                    <div className="font-bold">6. Răng - Hàm - Mặt:</div>
-                                    <div className="pl-4 text-slate-800">{formatDentalExam()}</div>
-                                    <div className="pl-4 font-bold text-[11.5px] mt-0.5 text-teal-800">Phân loại: {formatPlText(clinicalExam.kham_rang_ham_mat_pl || '5')}</div>
+                                    <span className="font-bold">6. Răng - Hàm - Mặt: </span>
+                                    <span className="text-slate-800">{formatDentalExam()}</span>
+                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.kham_rang_ham_mat_pl || '5')})</span>
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('rang_ham_mat')}

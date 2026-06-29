@@ -1,10 +1,6 @@
-// ==================== HEALTH CHECK CONTROLLER ====================
-// File: backend/src/controllers/health-check.controller.ts
-
 import { Request, Response } from 'express';
 import { documentsController } from './documents';
 import { hisIntegrationController } from './his-integration';
-import { settingsController } from './settings';
 
 class HealthCheckController {
     // 1. Lấy danh sách hồ sơ (kèm phân trang, lọc nâng cao)
@@ -42,21 +38,6 @@ class HealthCheckController {
         return documentsController.sendDocuments(req, res);
     }
 
-    // 7.1. Lấy cấu hình liên thông VNeID
-    async getSettings(req: Request, res: Response) {
-        return settingsController.getSettings(req, res);
-    }
-
-    // 7.2. Cập nhật cấu hình liên thông VNeID
-    async updateSettings(req: Request, res: Response) {
-        return settingsController.updateSettings(req, res);
-    }
-
-    // 7.3. Gọi ping thử kết nối tới cổng VNeID (Mock / Sandbox)
-    async testConnection(req: Request, res: Response) {
-        return settingsController.testConnection(req, res);
-    }
-
     // 8. Tạo dữ liệu thử nghiệm cho 17 mẫu biểu KSK từ dữ liệu HIS
     async seedFromHis(req: Request, res: Response) {
         return hisIntegrationController.seedFromHis(req, res);
@@ -65,11 +46,6 @@ class HealthCheckController {
     // 9. Lấy dữ liệu bệnh nhân từ HIS để đồng bộ KSK
     async getHisPatient(req: Request, res: Response) {
         return hisIntegrationController.getHisPatient(req, res);
-    }
-
-    // Lấy danh sách hợp đồng
-    async getContracts(req: Request, res: Response) {
-        return settingsController.getContracts(req, res);
     }
 
     // Đánh dấu đã in barcode

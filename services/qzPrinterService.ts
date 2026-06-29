@@ -71,6 +71,31 @@ class QzPrinterService {
             throw error;
         }
     }
+
+    // 5. Print HTML directly to a thermal printer (silent printing)
+    async printHTML(printerQuery: string, htmlContent: string, options: any = {}): Promise<boolean> {
+        try {
+            await this.connect();
+            const printerName = await this.findPrinter(printerQuery);
+            const config = qz.configs.create(printerName, {
+                margins: options.margins || 0,
+                size: options.size || { width: 80, height: 150 }, // standard thermal receipt width 80mm
+                units: options.units || 'mm'
+            });
+            const data = [{
+                type: 'pixel',
+                format: 'html',
+                flavor: 'plain',
+                data: htmlContent
+            }];
+            await qz.print(config, data);
+            console.log(`🖨️ vClinic: Successfully printed HTML to [${printerName}]`);
+            return true;
+        } catch (error: any) {
+            console.error("🔴 vClinic: Printing HTML error:", error);
+            throw error;
+        }
+    }
 }
 
 export const qzPrinterService = new QzPrinterService();

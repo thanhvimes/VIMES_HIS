@@ -16,6 +16,16 @@ export interface Setting {
     updatedAt?: string;
 }
 
+export interface CompanyInfo {
+    id: string;
+    hospitalName: string;
+    parentOrg: string;
+    address: string;
+    phone: string;
+    email: string;
+    website: string;
+}
+
 export const settingsService = {
     /**
      * Get all settings
@@ -30,6 +40,14 @@ export const settingsService = {
      */
     async getSettingsByCategory(category: string): Promise<Setting[]> {
         const data = await apiClient.get<{ success: boolean; data: Setting[] }>(`/settings/category/${category}`);
+        return data.data;
+    },
+
+    /**
+     * Get hospital info directly from SYS_COMPANY table
+     */
+    async getCompanyInfo(): Promise<CompanyInfo> {
+        const data = await apiClient.get<{ success: boolean; data: CompanyInfo }>('/settings/company-info');
         return data.data;
     },
 

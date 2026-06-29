@@ -71,7 +71,7 @@ class SettingsService {
     /**
      * Get core hospital details from sys_company table
      */
-    private async getCompanyInfo(): Promise<any> {
+    async getCompanyInfo(): Promise<any> {
         // 1. Try process.env facility ID
         try {
             const facilityId = process.env.FACILITY_ID || process.env.BRANCH_ID || process.env.COMPANY_ID;
@@ -88,15 +88,19 @@ class SettingsService {
 
         // 2. Try matching reporthost from hms_config (if exists)
         try {
-            const resMatch = await query(`
-                SELECT sc_id, sc_name, sc_phone, sc_email, sc_address, sc_website, sc_pname 
-                FROM sys_company 
-                WHERE sc_reporthost = (SELECT reporthost FROM hms_config LIMIT 1)
-            `);
-            if (resMatch.rows.length > 0) return resMatch.rows[0];
+            const firstRowRes = await query('SELECT * FROM sys_company LIMIT 1');
+            if (firstRowRes.rows.length > 0 && 'sc_reporthost' in firstRowRes.rows[0]) {
+                const resMatch = await query(`
+                    SELECT sc_id, sc_name, sc_phone, sc_email, sc_address, sc_website, sc_pname 
+                    FROM sys_company 
+                    WHERE sc_reporthost = (SELECT reporthost FROM hms_config LIMIT 1)
+                `);
+                if (resMatch.rows.length > 0) return resMatch.rows[0];
+            }
         } catch (e) {
             // Ignore missing columns or missing tables on this fallback path
         }
+
 
         // 3. Final fallback: return first row of sys_company
         try {
