@@ -223,16 +223,20 @@ class HisIntegrationController {
         };
     }
 
-    // 8. Tạo dữ liệu thử nghiệm cho 17 mẫu biểu KSK từ dữ liệu HIS
+    // 8. Đồng bộ dữ liệu KSK từ HIS — Smart UPSERT (không xóa dữ liệu cũ)
     async seedFromHis(req: Request, res: Response) {
         try {
             const { startDate, endDate, workplaceId } = req.body;
-            
-            // workplaceId now represents the selected contract ID
+
+            // workplaceId đại diện cho contract ID được chọn
             const contractId = workplaceId ? parseInt(String(workplaceId), 10) : null;
             if (!contractId) {
                 return res.status(400).json({ error: 'Vui lòng chọn Hợp đồng Khám sức khỏe để đồng bộ.' });
             }
+
+            // Lấy mẫu KSK cấu hình trên hợp đồng
+            const contractRes = await query('SELECT hec_form_type FROM hms_exm_contract WHERE hec_contract_id = $1', [contractId]);
+            const defaultFormType = contractRes.rows[0]?.hec_form_type || '2';
 
             let sqlFilters = '';
             const queryParams: any[] = [contractId]; // $1
@@ -249,84 +253,103 @@ class HisIntegrationController {
                 paramIndex++;
             }
 
-            // Lấy dữ liệu bệnh nhân từ danh sách gói khám sức khỏe (hms_exm_employee) khớp điều kiện lọc
+            // Lấy danh sách nhân viên từ HIS theo hợp đồng
             const hisSql = `
                 SELECT 
-                    hee.hee_employee_id, 
-                    hee.hee_id,  
-                    trim(hee.hee_surname||' '||hee.hee_midname||' '||hee.hee_firstname) as patient_name, 
-                    to_char(hee.hee_birthdate,'YYYY-MM-DD') as dob, 
-                    hee.hee_sex,
-                    hee.hee_ethnic,
-                    hee.hee_address,
-                    hee.hee_patientno, 
-                    hee.hee_status, 
-                    hee.hee_docno, 
-                    hee.hee_phone, 
-                    to_char(d.hd_admitdate,'DD/MM/YYYY') as admitdate, 
-                    hee.hee_note,
-                    hee.hee_cardid,
+                    hee.hee_employee_id,
+                    hee.hee_id,
+                    trim(hee.hee_surname||' '||hee.hee_midname||' '||hee.hee_firstname) as patient_name,
+                    to_char(hee.hee_birthdate,'YYYY-MM-DD') as dob,
+                    hee.hee_sex, hee.hee_ethnic, hee.hee_address,
+                    hee.hee_patientno, hee.hee_status, hee.hee_docno,
+                    hee.hee_phone, hee.hee_cardid, hee.hee_note,
+                    hee.hee_cardid_date, hee.hee_cardid_place,
+                    hee.hee_guardian_name, hee.hee_guardian_cccd,
+                    to_char(d.hd_admitdate,'DD/MM/YYYY') as admitdate,
                     COALESCE(hms_getusername(d.hd_doctor), 'BS. Nguyễn Văn A') as doctor_name,
-                    d.hd_provid,
-                    d.hd_distid,
-                    d.hd_villid,
-                    d.hd_cardno,
-                    e.he_height,
-                    e.he_weight,
-                    e.he_bmi,
-                    e.he_pulse,
-                    e.he_bloodpressure,
-                    e.he_bloodpressurex,
-                    e.he_examine,
-                    e.he_diagnostic
+                    d.hd_provid, d.hd_distid, d.hd_villid, d.hd_cardno,
+                    e.he_height, e.he_weight, e.he_bmi, e.he_pulse,
+                    e.he_bloodpressure, e.he_bloodpressurex,
+                    e.he_examine, e.he_diagnostic,
+                    e.he_status as exam_status
                 FROM hms_exm_employee hee
-                LEFT JOIN hms_doc d on (d.hd_docno = hee.hee_docno) 
+                LEFT JOIN hms_doc d ON d.hd_docno = hee.hee_docno
                 LEFT JOIN hms_exam e ON e.he_docno = d.hd_docno AND e.he_receptno = 1
-                WHERE hee.hee_contract_id = $1 AND hee.hee_isactive='Y' ${sqlFilters}
+                WHERE hee.hee_contract_id = $1 AND hee.hee_isactive = 'Y' ${sqlFilters}
                 ORDER BY hee.hee_employee_id
-                LIMIT 50
             `;
             const hisResult = await query(hisSql, queryParams);
 
             if (hisResult.rows.length === 0) {
-                return res.status(404).json({ error: 'Không tìm thấy bệnh nhân nào trong hợp đồng KSK này khớp với điều kiện lọc.' });
+                return res.status(404).json({
+                    error: 'Không tìm thấy bệnh nhân nào trong hợp đồng KSK này khớp với điều kiện lọc.'
+                });
             }
 
-            // Xóa dữ liệu seed cũ (nếu có)
-            await query(`DELETE FROM health_check_masters WHERE doc_no LIKE 'KSK-%'`);
+            // =====================================================================
+            // SMART UPSERT — Xử lý từng hồ sơ theo trạng thái hiện tại
+            // KHÔNG xóa dữ liệu cũ như logic trước đây
+            // =====================================================================
+            let insertedCount = 0;      // Tạo mới
+            let fullUpdateCount = 0;    // Cập nhật đầy đủ (chưa có dữ liệu khám)
+            let partialUpdateCount = 0; // Cập nhật hành chính (giữ dữ liệu khám)
+            let skippedSignedCount = 0; // Bỏ qua: đã ký số
+            let skippedSentCount = 0;   // Bỏ qua: đã gửi VNeID
 
-            let seededCount = 0;
-            const formTypes = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17'];
+            // Tải trước tất cả hồ sơ của hợp đồng này để tra cứu nhanh (tránh N+1 query)
+            const existingRes = await query(`
+                SELECT id, his_employee_id, doc_no, signature_status, send_status
+                FROM health_check_masters
+                WHERE his_contract_id = $1
+                   OR (his_contract_id IS NULL AND doc_no LIKE 'KSK-%')
+            `, [contractId]);
+
+            const byHisEmpId = new Map<string, any>();
+            const byDocNo = new Map<string, any>();
+            for (const rec of existingRes.rows) {
+                if (rec.his_employee_id) byHisEmpId.set(String(rec.his_employee_id), rec);
+                if (rec.doc_no) byDocNo.set(rec.doc_no, rec);
+            }
 
             for (let i = 0; i < hisResult.rows.length; i++) {
                 const row = hisResult.rows[i];
-                const formType = formTypes[i % formTypes.length];
+                const hisEmpId = String(row.hee_employee_id);
+                const formType = defaultFormType;
                 const docNo = `KSK-${new Date().getFullYear()}-${String(row.hee_docno || row.hee_employee_id).padStart(4, '0')}`;
-                
+
+                // Tìm hồ sơ hiện tại: ưu tiên theo his_employee_id, fallback theo doc_no
+                const existing = byHisEmpId.get(hisEmpId) || byDocNo.get(docNo);
+
+                // ── Kịch bản 1: Đã gửi VNeID thành công → BỎ QUA ──
+                if (existing && existing.send_status === 'Success') {
+                    skippedSentCount++;
+                    continue;
+                }
+
+                // ── Kịch bản 2: Đã ký số → BỎ QUA ──
+                if (existing && existing.signature_status === 'Signed') {
+                    skippedSignedCount++;
+                    continue;
+                }
+
+                // Chuẩn bị dữ liệu từ HIS
                 const docNoVal = row.hee_docno ? Number(row.hee_docno) : null;
                 const labAndPacs = docNoVal ? await this.fetchStructuredParaclinicalData(docNoVal) : {
-                    hemoglobin: '',
-                    glycemia: '',
-                    protein: '',
-                    kqXnKhac: '',
-                    paraclinical_items: []
+                    hemoglobin: '', glycemia: '', protein: '', kqXnKhac: '', paraclinical_items: []
                 };
 
-                // Normalize gender
                 const genderVal = (row.hee_sex || '').toLowerCase();
                 const gender = (genderVal === 'm' || genderVal.includes('nam') || genderVal === '1') ? 'Nam' : 'Nữ';
                 const patientName = (row.patient_name || '').toUpperCase().trim();
                 const cccd = row.hee_cardid || '';
                 const patientId = String(row.hee_patientno || row.hee_employee_id);
 
-                // Build clinical_data from HIS exam
                 const bp = row.he_bloodpressure && row.he_bloodpressurex
-                    ? `${row.he_bloodpressure}/${row.he_bloodpressurex}` 
-                    : '120/80';
-
+                    ? `${row.he_bloodpressure}/${row.he_bloodpressurex}` : '120/80';
                 const height = row.he_height > 0 ? Number(row.he_height) : 165 + (i % 15);
                 const weight = row.he_weight > 0 ? Number(row.he_weight) : 55 + (i % 20);
-                const bmi = row.he_bmi > 0 ? Number(row.he_bmi) : parseFloat((weight / Math.pow(height/100, 2)).toFixed(1));
+                const bmi = row.he_bmi > 0 ? Number(row.he_bmi) :
+                    parseFloat((weight / Math.pow(height / 100, 2)).toFixed(1));
 
                 const clinicalData: any = {
                     address: row.hee_address || '',
@@ -335,13 +358,13 @@ class HisIntegrationController {
                     matinh_cu_tru: row.hd_provid || '',
                     mahuyen_cu_tru: row.hd_distid || '',
                     maxa_cu_tru: row.hd_villid || '',
-                    blood_group: 'O',
-                    target_group: '14',
-                    funding_source: '9',
+                    cccd_date: row.hee_cardid_date || '',
+                    cccd_place: row.hee_cardid_place || '',
+                    nguoi_giam_ho: row.hee_guardian_name || '',
+                    so_cccd_ngh: row.hee_guardian_cccd || '',
+                    blood_group: 'O', target_group: '14', funding_source: '9',
                     examination: {
-                        height: String(height),
-                        weight: String(weight),
-                        bmi: String(bmi),
+                        height: String(height), weight: String(weight), bmi: String(bmi),
                         blood_pressure: bp,
                         pulse: row.he_pulse > 0 ? String(row.he_pulse) : '75',
                     },
@@ -357,13 +380,11 @@ class HisIntegrationController {
                 };
 
                 const labData: any = {
-                    blood_test: { 
-                        hemoglobin: labAndPacs.hemoglobin || String(130 + (i % 20)), 
-                        glycemia: labAndPacs.glycemia || (4.5 + (i % 10) * 0.1).toFixed(1) 
+                    blood_test: {
+                        hemoglobin: labAndPacs.hemoglobin || String(130 + (i % 20)),
+                        glycemia: labAndPacs.glycemia || (4.5 + (i % 10) * 0.1).toFixed(1)
                     },
-                    urine_test: { 
-                        protein: labAndPacs.protein || 'Âm tính' 
-                    },
+                    urine_test: { protein: labAndPacs.protein || 'Âm tính' },
                     kq_xn_khac: labAndPacs.kqXnKhac || '',
                     paraclinical_items: labAndPacs.paraclinical_items || []
                 };
@@ -374,54 +395,28 @@ class HisIntegrationController {
                         ...clinicalData.clinical_exam,
                         noi_khoa_tam_than: 'Bình thường, tâm thần ổn định',
                         noi_khoa_than_kinh: 'Không phát hiện bệnh lý thần kinh',
-                        sac_giac: '0',
-                        thi_truong_ngang_haimat: 'Bình thường',
-                        thi_truong_dung_haimat: 'Bình thường'
+                        sac_giac: '0', thi_truong_ngang_haimat: 'Bình thường', thi_truong_dung_haimat: 'Bình thường'
                     };
                     clinicalData.extra = {
-                        hang_lai_xe: 'B2',
-                        tsgd_mac_benh: 0,
-                        ts_benh_thuong_5_nam: '0',
-                        ts_than_kinh_chan_thuong_dau: '0',
-                        ts_benh_mat_giam_thi_luc: '0',
-                        ts_benh_tai_giam_nghe: '0',
-                        ts_benh_tim_mach: '0',
-                        ts_phau_thuat_tim_mach: '0',
-                        ts_tang_huyet_ap: '0',
-                        ts_kho_tho: '0',
-                        ts_benh_phoi_hen: '0',
-                        ts_benh_than_loc_mau: '0',
-                        ts_dai_thao_duong: '0',
-                        ts_benh_tam_than: '0',
-                        ts_mat_roi_loan_y_thuc: '0',
-                        ts_ngat_chong_mat: '0',
-                        ts_benh_tieu_hoa: '0',
-                        ts_roi_loan_giac_ngu: '0',
-                        ts_tai_bien_mach_mau_nao: '0',
-                        ts_su_dung_ruou: '0',
-                        ts_su_dung_ma_tuy: '0',
-                        ts_benh_cot_song: '0',
-                        tsgd_ma_benh: '',
-                        tsbt_ma_benh: '',
-                        co_dang_dieu_tri_benh: '0',
-                        ma_benh_dang_dieu_tri: '',
-                        ten_thuoc: ''
+                        hang_lai_xe: 'B2', tsgd_mac_benh: 0, ts_benh_thuong_5_nam: '0',
+                        ts_than_kinh_chan_thuong_dau: '0', ts_benh_mat_giam_thi_luc: '0',
+                        ts_benh_tai_giam_nghe: '0', ts_benh_tim_mach: '0', ts_phau_thuat_tim_mach: '0',
+                        ts_tang_huyet_ap: '0', ts_kho_tho: '0', ts_benh_phoi_hen: '0',
+                        ts_benh_than_loc_mau: '0', ts_dai_thao_duong: '0', ts_benh_tam_than: '0',
+                        ts_mat_roi_loan_y_thuc: '0', ts_ngat_chong_mat: '0', ts_benh_tieu_hoa: '0',
+                        ts_roi_loan_giac_ngu: '0', ts_tai_bien_mach_mau_nao: '0', ts_su_dung_ruou: '0',
+                        ts_su_dung_ma_tuy: '0', ts_benh_cot_song: '0', tsgd_ma_benh: '', tsbt_ma_benh: '',
+                        co_dang_dieu_tri_benh: '0', ma_benh_dang_dieu_tri: '', ten_thuoc: ''
                     };
                 } else if (formType === '4') {
                     clinicalData.clinical_exam = {
                         ...clinicalData.clinical_exam,
-                        kq_tam_than: 'Bình thường',
-                        kq_than_kinh: 'Bình thường',
-                        kq_tim_mach: 'Bình thường',
-                        kq_ho_hap: 'Bình thường',
-                        kq_noi_tiet: 'Bình thường',
-                        kq_ngoai_khoa: 'Bình thường',
-                        kq_da_lieu: 'Bình thường',
-                        kq_tiet_nieu: 'Bình thường',
-                        kq_sinh_duc: 'Bình thường',
-                        kq_tai_mui_hong: 'Bình thường',
-                        kq_co_xuong_khop: 'Bình thường',
-                        kq_noi_tiet_chuyen_hoa: 'Bình thường',
+                        kq_tam_than: 'Bình thường', kq_than_kinh: 'Bình thường',
+                        kq_tim_mach: 'Bình thường', kq_ho_hap: 'Bình thường',
+                        kq_noi_tiet: 'Bình thường', kq_ngoai_khoa: 'Bình thường',
+                        kq_da_lieu: 'Bình thường', kq_tiet_nieu: 'Bình thường',
+                        kq_sinh_duc: 'Bình thường', kq_tai_mui_hong: 'Bình thường',
+                        kq_co_xuong_khop: 'Bình thường', kq_noi_tiet_chuyen_hoa: 'Bình thường',
                     };
                     clinicalData.extra = {
                         chuc_danh: 'Nhân viên gác chắn',
@@ -431,89 +426,42 @@ class HisIntegrationController {
                 } else if (formType === '5') {
                     clinicalData.clinical_exam = {
                         ...clinicalData.clinical_exam,
-                        tim_mach: 'Bình thường',
-                        ho_hap: 'Bình thường',
-                        tiet_nieu_sinh_duc: 'Bình thường',
-                        noi_khoa_tieu_hoa: 'Bình thường',
-                        gan_mat: 'Bình thường',
-                        mau_co_quan_tao_mau: 'Bình thường',
-                        da_to_chuc_duoi_da: 'Bình thường',
-                        kq_co_xuong_khop_m5: 'Bình thường',
-                        than_kinh_m5: 'Bình thường',
-                        ma_benh_ngoai_khoa: 'Bình thường',
-                        kham_tai_mui_hong_m5: 'Bình thường',
-                        kham_mat_m5: 'Bình thường',
-                        benh_khac: 'Không',
-                        noi_tiet_dinh_duong_chuyen_hoa: 'Bình thường',
-                        roi_loan_hanh_vi_tam_than: 'Không',
-                        than_kinh_tam_ly: 'Bình thường',
+                        tim_mach: 'Bình thường', ho_hap: 'Bình thường', tiet_nieu_sinh_duc: 'Bình thường',
+                        noi_khoa_tieu_hoa: 'Bình thường', gan_mat: 'Bình thường', mau_co_quan_tao_mau: 'Bình thường',
+                        da_to_chuc_duoi_da: 'Bình thường', kq_co_xuong_khop_m5: 'Bình thường',
+                        than_kinh_m5: 'Bình thường', ma_benh_ngoai_khoa: 'Bình thường',
+                        kham_tai_mui_hong_m5: 'Bình thường', kham_mat_m5: 'Bình thường',
+                        benh_khac: 'Không', noi_tiet_dinh_duong_chuyen_hoa: 'Bình thường',
+                        roi_loan_hanh_vi_tam_than: 'Không', than_kinh_tam_ly: 'Bình thường',
                         kham_mat_thi_giac_mau: '1',
-                        xa_khong_kinh_mat_phai: '10/10',
-                        xa_khong_kinh_mat_trai: '10/10',
-                        xa_khong_kinh_hai_mat: '10/10',
-                        xa_co_kinh_mat_phai: '',
-                        xa_co_kinh_mat_trai: '',
-                        xa_co_kinh_hai_mat: '',
-                        gan_khong_kinh_mat_phai: '10/10',
-                        gan_khong_kinh_mat_trai: '10/10',
-                        gan_khong_kinh_hai_mat: '10/10',
-                        gan_co_kinh_mat_phai: '',
-                        gan_co_kinh_mat_trai: '',
-                        gan_co_kinh_hai_mat: '',
-                        kham_mat_thi_truong_phai: 'Bình thường',
-                        kham_mat_thi_truong_trai: 'Bình thường',
-                        tai_phai_500hz: '20',
-                        tai_trai_500hz: '20',
-                        tai_phai_2000hz: '20',
-                        tai_trai_2000hz: '20',
-                        tai_phai_3000hz: '20',
-                        tai_trai_3000hz: '20',
-                        tai_phai_4000hz: '20',
-                        tai_trai_4000hz: '20',
-                        tai_phai_6000hz: '20',
-                        tai_trai_6000hz: '20'
+                        xa_khong_kinh_mat_phai: '10/10', xa_khong_kinh_mat_trai: '10/10', xa_khong_kinh_hai_mat: '10/10',
+                        xa_co_kinh_mat_phai: '', xa_co_kinh_mat_trai: '', xa_co_kinh_hai_mat: '',
+                        gan_khong_kinh_mat_phai: '10/10', gan_khong_kinh_mat_trai: '10/10', gan_khong_kinh_hai_mat: '10/10',
+                        gan_co_kinh_mat_phai: '', gan_co_kinh_mat_trai: '', gan_co_kinh_hai_mat: '',
+                        kham_mat_thi_truong_phai: 'Bình thường', kham_mat_thi_truong_trai: 'Bình thường',
+                        tai_phai_500hz: '20', tai_trai_500hz: '20', tai_phai_2000hz: '20', tai_trai_2000hz: '20',
+                        tai_phai_3000hz: '20', tai_trai_3000hz: '20', tai_phai_4000hz: '20', tai_trai_4000hz: '20',
+                        tai_phai_6000hz: '20', tai_trai_6000hz: '20'
                     };
                     clinicalData.extra = {
-                        vi_tri_lam_viec: 'Boong tàu',
-                        bo_phan_lam_viec: 'Vận hành boong',
-                        chuc_danh_tren_tau: 'Thủy thủ',
-                        ten_chu_tau: 'Công ty Vận tải Biển Vinalines',
-                        dia_chi_chu_tau: 'Đống Đa, Hà Nội',
-                        khu_vuc_hoat_dong_tau: '1',
-                        luc_bop_tay_thuan: '45',
-                        luc_bop_tay_khong_thuan: '40',
-                        luc_keo_lung: '90',
-                        luc_keo_than: '95',
-                        ha_tam_thu: '120',
-                        ha_tam_truong: '80',
-                        nhip_tim: '75',
-                        vong_nguc_trung_binh: '88',
-                        kha_nang_chiu_song: '1',
-                        han_che: '0',
-                        yeu_cau_deo_kinh: '0'
+                        vi_tri_lam_viec: 'Boong tàu', bo_phan_lam_viec: 'Vận hành boong',
+                        chuc_danh_tren_tau: 'Thủy thủ', ten_chu_tau: 'Công ty Vận tải Biển Vinalines',
+                        dia_chi_chu_tau: 'Đống Đa, Hà Nội', khu_vuc_hoat_dong_tau: '1',
+                        luc_bop_tay_thuan: '45', luc_bop_tay_khong_thuan: '40',
+                        luc_keo_lung: '90', luc_keo_than: '95',
+                        ha_tam_thu: '120', ha_tam_truong: '80', nhip_tim: '75',
+                        vong_nguc_trung_binh: '88', kha_nang_chiu_song: '1',
+                        han_che: '0', yeu_cau_deo_kinh: '0'
                     };
-                    
-                    labData.chi_so_hc = '4.5';
-                    labData.chi_so_bach_cau = '7.2';
-                    labData.chi_so_tieu_cau = '220';
-                    labData.cong_thuc_bc = 'Neutrophil 60%';
-                    labData.thoi_gian_howell = '12';
-                    labData.cholesterol = '4.8';
-                    labData.triglycerid = '1.5';
-                    labData.hdl = '1.3';
-                    labData.ldl = '2.8';
-                    labData.rpr = '0';
-                    labData.tpha = '0';
-                    labData.hbsag = '0';
-                    labData.hbeag = '0';
-                    labData.hcvab = '0';
-                    labData.havab = '0';
-                    labData.hiv = '0';
-                    labData.nong_do_con_mau = '0';
-                    labData.nuoc_tieu_ma_tuy = '0';
-                    labData.nuoc_tieu_amphetamine = '0';
-                    labData.nuoc_tieu_duong = 'Âm tính';
-                    labData.nuoc_tieu_protein = 'Âm tính';
+                    labData.chi_so_hc = '4.5'; labData.chi_so_bach_cau = '7.2';
+                    labData.chi_so_tieu_cau = '220'; labData.cong_thuc_bc = 'Neutrophil 60%';
+                    labData.thoi_gian_howell = '12'; labData.cholesterol = '4.8';
+                    labData.triglycerid = '1.5'; labData.hdl = '1.3'; labData.ldl = '2.8';
+                    labData.rpr = '0'; labData.tpha = '0'; labData.hbsag = '0';
+                    labData.hbeag = '0'; labData.hcvab = '0'; labData.havab = '0';
+                    labData.hiv = '0'; labData.nong_do_con_mau = '0';
+                    labData.nuoc_tieu_ma_tuy = '0'; labData.nuoc_tieu_amphetamine = '0';
+                    labData.nuoc_tieu_duong = 'Âm tính'; labData.nuoc_tieu_protein = 'Âm tính';
                     labData.nuoc_tieu_khac = '';
                 } else if (parseInt(formType) >= 6 && parseInt(formType) <= 13) {
                     clinicalData.extra = { sinh_non: 0, tuan_thai_khi_sinh: 39, can_nang_luc_sinh: '3.2' };
@@ -521,56 +469,138 @@ class HisIntegrationController {
                     clinicalData.extra = { tiem_chung_bcg: 1, tiem_chung_bh_hg_uv: 1, tiem_chung_soi: 1 };
                 }
 
-                const conclusionData: any = {
+                const hasConclusion = (row.exam_status === 'T') || (row.he_diagnostic && row.he_diagnostic.trim() !== '');
+                const conclusionData: any = hasConclusion ? {
                     fitness_class: (i % 3 === 0) ? '2' : '1',
                     diagnosis: row.he_diagnostic || 'Đủ sức khỏe học tập và làm việc',
                     cac_van_de_luu_y: 'Không',
                     doctor_name: row.doctor_name,
                     ket_luan_loai_suc_khoe: (formType === '5') ? '1' : undefined
-                };
+                } : null;
 
-                const xmlData = generateXmlPayload(
-                    formType, 
-                    { patientName, cccd, dob: row.dob || '1990-01-01', gender, docNo }, 
-                    clinicalData, labData, conclusionData
-                );
+                if (existing) {
+                    // ── Kịch bản 3: Hồ sơ tồn tại, chưa ký, chưa gửi ──
+                    await transaction(async (client) => {
+                        // Kiểm tra xem đã có dữ liệu khám chưa
+                        const detailRes = await client.query(`
+                            SELECT id, conclusion_data FROM health_check_details WHERE master_id = $1 LIMIT 1
+                        `, [existing.id]);
+                        const existingDetail = detailRes.rows[0];
+                        const hasExistingClinicalData = existingDetail && existingDetail.conclusion_data !== null;
 
-                await transaction(async (client) => {
-                    const masterSql = `
-                        INSERT INTO health_check_masters (
-                            patient_id, patient_name, cccd, dob, gender, doc_no, form_type, xml_data, signature_status, send_status
-                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                        RETURNING id
-                    `;
-                    const masterRes = await client.query(masterSql, [
-                        patientId, patientName, cccd, row.dob ? new Date(row.dob) : null,
-                        gender, docNo, formType, xmlData, 'Unsigned', 'Unsent'
-                    ]);
-                    const masterId = masterRes.rows[0].id;
+                        // Luôn cập nhật thông tin hành chính cơ bản
+                        await client.query(`
+                            UPDATE health_check_masters SET
+                                patient_name = $1, cccd = $2, dob = $3, gender = $4, patient_id = $5,
+                                his_employee_id = $6, his_contract_id = $7, his_doc_no = $8, sync_mode = 'HIS', updated_at = NOW()
+                            WHERE id = $9
+                        `, [patientName, cccd, row.dob ? new Date(row.dob) : null, gender,
+                            patientId, hisEmpId, contractId, row.hee_docno ? String(row.hee_docno) : null, existing.id]);
 
-                    const detailSql = `
-                        INSERT INTO health_check_details (
-                            master_id, clinical_data, lab_data, conclusion_data
-                        ) VALUES ($1, $2, $3, $4)
-                    `;
-                    await client.query(detailSql, [
-                        masterId, 
-                        JSON.stringify(clinicalData), 
-                        JSON.stringify(labData), 
-                        JSON.stringify(conclusionData)
-                    ]);
-                });
-                seededCount++;
+                        if (hasExistingClinicalData) {
+                            // ── 3A: Đã có dữ liệu khám → Chỉ merge phần hành chính vào clinical_data ──
+                            const adminPatch = {
+                                address: clinicalData.address, phone: clinicalData.phone,
+                                ethnic: clinicalData.ethnic,
+                                matinh_cu_tru: clinicalData.matinh_cu_tru,
+                                mahuyen_cu_tru: clinicalData.mahuyen_cu_tru,
+                                maxa_cu_tru: clinicalData.maxa_cu_tru,
+                                cccd_date: clinicalData.cccd_date,
+                                cccd_place: clinicalData.cccd_place,
+                                nguoi_giam_ho: clinicalData.nguoi_giam_ho,
+                                so_cccd_ngh: clinicalData.so_cccd_ngh,
+                            };
+                            await client.query(`
+                                UPDATE health_check_details
+                                SET clinical_data = clinical_data || $1::jsonb, updated_at = NOW()
+                                WHERE master_id = $2
+                            `, [JSON.stringify(adminPatch), existing.id]);
+                            partialUpdateCount++;
+                        } else {
+                            // ── 3B: Chưa có dữ liệu khám → Cập nhật đầy đủ từ HIS ──
+                            const xmlData = generateXmlPayload(
+                                formType,
+                                { patientName, cccd, dob: row.dob || '1990-01-01', gender, docNo },
+                                clinicalData, labData, conclusionData
+                            );
+                            await client.query(`
+                                UPDATE health_check_masters SET form_type = $1, xml_data = $2, updated_at = NOW()
+                                WHERE id = $3
+                            `, [formType, xmlData, existing.id]);
+
+                            if (existingDetail) {
+                                await client.query(`
+                                    UPDATE health_check_details
+                                    SET clinical_data = $1, lab_data = $2, conclusion_data = $3, updated_at = NOW()
+                                    WHERE master_id = $4
+                                `, [JSON.stringify(clinicalData), JSON.stringify(labData),
+                                    conclusionData ? JSON.stringify(conclusionData) : null, existing.id]);
+                            } else {
+                                await client.query(`
+                                    INSERT INTO health_check_details (master_id, clinical_data, lab_data, conclusion_data)
+                                    VALUES ($1, $2, $3, $4)
+                                `, [existing.id, JSON.stringify(clinicalData), JSON.stringify(labData),
+                                    conclusionData ? JSON.stringify(conclusionData) : null]);
+                            }
+                            fullUpdateCount++;
+                        }
+                    });
+                } else {
+                    // ── Kịch bản 4: Hồ sơ chưa tồn tại → INSERT MỚI ──
+                    const xmlData = generateXmlPayload(
+                        formType,
+                        { patientName, cccd, dob: row.dob || '1990-01-01', gender, docNo },
+                        clinicalData, labData, conclusionData
+                    );
+                    await transaction(async (client) => {
+                        const masterRes = await client.query(`
+                            INSERT INTO health_check_masters (
+                                patient_id, patient_name, cccd, dob, gender,
+                                doc_no, form_type, xml_data,
+                                signature_status, send_status,
+                                his_employee_id, his_contract_id, his_doc_no, sync_mode
+                            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Unsigned', 'Unsent', $9, $10, $11, 'HIS')
+                            RETURNING id
+                        `, [patientId, patientName, cccd, row.dob ? new Date(row.dob) : null,
+                            gender, docNo, formType, xmlData, hisEmpId, contractId, row.hee_docno ? String(row.hee_docno) : null]);
+                        const masterId = masterRes.rows[0].id;
+
+                        await client.query(`
+                            INSERT INTO health_check_details (master_id, clinical_data, lab_data, conclusion_data)
+                            VALUES ($1, $2, $3, $4)
+                        `, [masterId, JSON.stringify(clinicalData), JSON.stringify(labData),
+                            conclusionData ? JSON.stringify(conclusionData) : null]);
+                    });
+                    insertedCount++;
+                }
             }
 
-            // Cập nhật trạng thái đồng bộ của hợp đồng sang 'P' (Đã đồng bộ)
+            // Cập nhật trạng thái hợp đồng
+            const syncedCount = insertedCount + fullUpdateCount + partialUpdateCount;
             await query(`
-                UPDATE hms_exm_contract 
-                SET hec_status = 'P' 
+                UPDATE hms_exm_contract
+                SET hec_status = 'P', hec_synced_count = $2
                 WHERE hec_contract_id = $1
-            `, [contractId]);
+            `, [contractId, syncedCount]);
 
-            return res.json({ success: true, count: seededCount, message: `Đã tạo ${seededCount} hồ sơ KSK từ dữ liệu HIS thật.` });
+            // Thông báo chi tiết kết quả
+            const parts: string[] = [];
+            if (insertedCount > 0) parts.push(`Tạo mới: ${insertedCount}`);
+            if (fullUpdateCount > 0) parts.push(`Cập nhật: ${fullUpdateCount}`);
+            if (partialUpdateCount > 0) parts.push(`Cập nhật hành chính: ${partialUpdateCount}`);
+            if (skippedSignedCount > 0) parts.push(`Bỏ qua (đã ký): ${skippedSignedCount}`);
+            if (skippedSentCount > 0) parts.push(`Bỏ qua (đã gửi VNeID): ${skippedSentCount}`);
+
+            return res.json({
+                success: true,
+                count: syncedCount,
+                inserted: insertedCount,
+                updated: fullUpdateCount,
+                partial_update: partialUpdateCount,
+                skipped_signed: skippedSignedCount,
+                skipped_sent: skippedSentCount,
+                message: parts.length > 0 ? parts.join(' | ') : `Đồng bộ hoàn tất ${syncedCount} hồ sơ`
+            });
         } catch (error: any) {
             console.error('Lỗi seed dữ liệu KSK từ HIS:', error);
             return res.status(500).json({ error: error.message });
@@ -586,6 +616,7 @@ class HisIntegrationController {
                 SELECT 
                     p.hp_patientno,
                     trim(COALESCE(p.hp_surname,'') || ' ' || COALESCE(p.hp_midname,'') || ' ' || p.hp_firstname) as patient_name,
+                    p.hp_patientid,
                     p.hp_sin,
                     to_char(p.hp_birthdate, 'YYYY-MM-DD') as dob,
                     p.hp_sex,
@@ -641,7 +672,7 @@ class HisIntegrationController {
                     patient_id: String(row.hp_patientno),
                     doc_no: row.hd_docno ? String(row.hd_docno) : identifier,
                     patient_name: String(row.patient_name || '').toUpperCase(),
-                    cccd: String(row.hp_sin || ''),
+                    cccd: String(row.hp_patientid || row.hp_sin || ''),
                     dob: row.dob || '1995-10-15',
                     gender: gender,
                     clinical_data: {

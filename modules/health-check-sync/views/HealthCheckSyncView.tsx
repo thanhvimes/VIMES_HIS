@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useSystemStore } from '../../../stores/useSystemStore';
+import { useSession } from '../../../contexts/SessionContext';
 import { 
     PaperAirplaneIcon, 
     SearchIcon, 
@@ -30,7 +31,10 @@ import Dashboard from '../components/Dashboard';
 import DocumentList from '../components/DocumentList';
 import PrintCodeList from '../components/PrintCodeList';
 import SyncDataList from '../components/SyncDataList';
+import ContractManagement from '../components/ContractManagement';
+import PatientReception from '../components/PatientReception';
 import DynamicForm from '../forms/DynamicForm';
+
 import PrintForm from '../forms/PrintForm';
 import SettingsTab from '../components/SettingsTab';
 import XmlPreviewModal from '../components/modals/XmlPreviewModal';
@@ -51,6 +55,8 @@ const getLocalDateString = () => {
 
 const HealthCheckSyncView: React.FC = () => {
     const { fontSettings } = useTheme();
+    const { user } = useSession();
+    const isAdmin = user?.role === 'admin';
     const [documents, setDocuments] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isSending, setIsSending] = useState(false);
@@ -73,6 +79,7 @@ const HealthCheckSyncView: React.FC = () => {
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
     const [formFilter, setFormFilter] = useState<string>('All');
+    const [contractFilter, setContractFilter] = useState<string>('All');
     const [signatureTypeSelect, setSignatureTypeSelect] = useState<'USB' | 'HSM'>('HSM');
     const [signFilter, setSignFilter] = useState<string>('All');
     const [sendFilter, setSendFilter] = useState<string>('All');
@@ -171,13 +178,32 @@ const HealthCheckSyncView: React.FC = () => {
         try {
             const res = await healthCheckService.seedFromHis(filters);
             if (res.success) {
-                toast.success(res.message || `Đồng bộ thành công ${res.count} hồ sơ từ HIS!`, { id: toastId });
+                // Hiển thị thông báo kết quả chính
+                toast.success(res.message || `Đồng bộ hoàn tất ${res.count} hồ sơ!`, { id: toastId });
+
+                // Hiển thị thêm thông báo cảnh báo nếu có hồ sơ bị bỏ qua
+                if (res.skipped_signed && res.skipped_signed > 0) {
+                    setTimeout(() => {
+                        toast.warning(`⚠️ ${res.skipped_signed} hồ sơ đã ký số — không thể cập nhật, giữ nguyên.`, { duration: 6000 });
+                    }, 500);
+                }
+                if (res.skipped_sent && res.skipped_sent > 0) {
+                    setTimeout(() => {
+                        toast.warning(`⚠️ ${res.skipped_sent} hồ sơ đã gửi VNeID — không thể cập nhật, giữ nguyên.`, { duration: 6000 });
+                    }, 1000);
+                }
+                if (res.partial_update && res.partial_update > 0) {
+                    setTimeout(() => {
+                        toast.info(`ℹ️ ${res.partial_update} hồ sơ đã có dữ liệu khám — chỉ cập nhật thông tin hành chính.`, { duration: 6000 });
+                    }, 1500);
+                }
+
                 if (stepParam === 'sync') {
                     await loadContracts();
                 } else {
                     await loadData();
                 }
-                setIsSeedModalOpen(false); // Đóng modal sau khi đồng bộ thành công
+                setIsSeedModalOpen(false);
             } else {
                 toast.error(res.message || "Lấy dữ liệu từ HIS thất bại.", { id: toastId });
             }
@@ -187,6 +213,7 @@ const HealthCheckSyncView: React.FC = () => {
             setIsSeeding(false);
         }
     };
+
 
     // Tự động chuyển viewMode và tải lại dữ liệu khi URL step parameter thay đổi (click Sidebar)
     useEffect(() => {
@@ -217,9 +244,11 @@ const HealthCheckSyncView: React.FC = () => {
         setStartDate(todayStr);
         setEndDate(todayStr);
 
-        if (stepParam === 'sync') {
+        if (stepParam === 'sync' || stepParam === 'manage') {
             loadContracts();
-        } else if (!stepParam.startsWith('settings')) {
+        }
+        
+        if (stepParam !== 'sync' && !stepParam.startsWith('settings')) {
             loadData();
         }
 
@@ -514,6 +543,79 @@ const HealthCheckSyncView: React.FC = () => {
         toast.success("Xuất file Excel thành công!");
     };
 
+    // Xuất Excel riêng cho trang Đồng bộ dữ liệu (danh sách gói khám/hợp đồng)
+    const handleExportExcelContracts = () => {
+        // Lọc contracts theo từ khóa + ngày (dùng lại logic của SyncDataList)
+        const filtered = contracts.filter(c => {
+            const matchesSearch =
+                (c.code || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (c.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+            if (!matchesSearch) return false;
+
+            const isStartDateValid = startDate && startDate.length === 10;
+            const isEndDateValid = endDate && endDate.length === 10;
+            if (isStartDateValid || isEndDateValid) {
+                if (c.contract_date) {
+                    const parts = c.contract_date.split('/');
+                    if (parts.length === 3) {
+                        const cDateStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                        if (isStartDateValid && cDateStr < startDate) return false;
+                        if (isEndDateValid && cDateStr > endDate) return false;
+                    }
+                } else {
+                    return false;
+                }
+            }
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            toast.warning("Không có dữ liệu để xuất.");
+            return;
+        }
+
+        const fromDateStr = startDate ? getFilterDateDisplay(startDate) : '';
+        const toDateStr = endDate ? getFilterDateDisplay(endDate) : '';
+        let dateSubtitle = fromDateStr && toDateStr
+            ? `Khoảng thời gian: Từ ngày ${fromDateStr} đến ngày ${toDateStr}`
+            : fromDateStr ? `Từ ngày ${fromDateStr}` : toDateStr ? `Đến ngày ${toDateStr}` : 'Tất cả';
+
+        const headerRow = ['STT', 'Mã hợp đồng', 'Tên gói khám / Công ty', 'Ngày hợp đồng', 'Trạng thái', 'Tổng nhân viên', 'Đã đồng bộ', 'Tỷ lệ (%)'];
+        const dataRows = filtered.map((c, idx) => {
+            const progress = c.employee_count > 0 ? Math.round((c.synced_count / c.employee_count) * 100) : 0;
+            return [
+                idx + 1,
+                c.code || '',
+                c.name || '',
+                c.contract_date || '',
+                c.status === 'P' ? 'Đã đồng bộ' : 'Chưa đồng bộ',
+                c.employee_count || 0,
+                c.synced_count || 0,
+                `${progress}%`
+            ];
+        });
+
+        const aoaData = [
+            ['HỆ THỐNG QUẢN LÝ PHÒNG KHÁM VCLINIC'],
+            ['DANH SÁCH ĐỒNG BỘ DỮ LIỆU KHÁM SỨC KHỎE'],
+            [dateSubtitle],
+            [''],
+            headerRow,
+            ...dataRows
+        ];
+
+        const ws = XLSX.utils.aoa_to_sheet(aoaData);
+        ws['!cols'] = [
+            { wch: 6 }, { wch: 20 }, { wch: 35 }, { wch: 16 },
+            { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 10 }
+        ];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'DongBoDuLieu');
+        const timestamp = new Date().toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-');
+        XLSX.writeFile(wb, `DanhSachDongBo_${timestamp}.xlsx`);
+        toast.success('Xuất file Excel thành công!');
+    };
+
     const handleFilterDateChange = (val: string, setter: (v: string) => void) => {
         const rawValue = val;
         const allDigits = rawValue.replace(/\D/g, '').slice(0, 8);
@@ -600,6 +702,12 @@ const HealthCheckSyncView: React.FC = () => {
                 }
             }
 
+            // Filter by contract
+            let matchesContract = true;
+            if (contractFilter !== 'All') {
+                matchesContract = String(doc.his_contract_id) === contractFilter;
+            }
+
             // Filter by exam status
             let matchesExam = true;
             if (examFilter !== 'All') {
@@ -608,9 +716,9 @@ const HealthCheckSyncView: React.FC = () => {
                 if (examFilter === 'InProgress') matchesExam = !isDone;
             }
 
-            return matchesSearch && matchesSign && matchesSend && matchesDate && matchesForm && matchesExam;
+            return matchesSearch && matchesSign && matchesSend && matchesDate && matchesForm && matchesContract && matchesExam;
         });
-    }, [documents, searchTerm, formFilter, signFilter, sendFilter, examFilter, startDate, endDate]);
+    }, [documents, searchTerm, formFilter, contractFilter, signFilter, sendFilter, examFilter, startDate, endDate]);
 
     const getFormName = (type: string) => {
         const names: Record<string, string> = {
@@ -683,11 +791,23 @@ const HealthCheckSyncView: React.FC = () => {
                         <Dashboard documents={documents} />
                     )}
 
+                    {/* Contract Management */}
+                    {stepParam === 'contracts' && (
+                        <ContractManagement />
+                    )}
+
+                    {/* Patient Reception */}
+                    {stepParam === 'reception' && (
+                        <PatientReception />
+                    )}
+
                     {/* Filter toolbar and Table only shown on non-dashboard workflow steps */}
-                    {stepParam !== 'dashboard' && !stepParam.startsWith('settings') && (
+
+                    {stepParam !== 'dashboard' && stepParam !== 'contracts' && stepParam !== 'reception' && !stepParam.startsWith('settings') && (
+
                         <>
                             <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
+                                <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 items-end ${stepParam === 'sync' ? 'lg:grid-cols-3' : 'lg:grid-cols-6'}`}>
                                     {/* Từ ngày */}
                                     <div className="space-y-1">
                                         <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Từ ngày</label>
@@ -710,70 +830,67 @@ const HealthCheckSyncView: React.FC = () => {
                                         />
                                     </div>
 
-                                    {/* Loại danh mục (formFilter) */}
-                                    <div className="space-y-1">
-                                        <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Loại danh mục</label>
-                                        <select 
-                                            value={formFilter}
-                                            onChange={e => setFormFilter(e.target.value)}
-                                            className={`w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none cursor-pointer ${fontSettings.controls}`}
-                                        >
-                                            <option value="All">Tất cả biểu mẫu</option>
-                                            <optgroup label="Theo Nhóm Phổ Biến">
-                                                <option value="2">Mẫu 2: Người lớn (&gt;= 18T)</option>
-                                                <option value="3">Mẫu 3: KSK Lái xe</option>
-                                            </optgroup>
-                                            <optgroup label="Theo Nhóm Đối Tượng">
-                                                <option value="group_children">Nhóm: Trẻ em (Mẫu 6-13)</option>
-                                                <option value="group_students">Nhóm: Học sinh (Mẫu 1, 14-17)</option>
-                                                <option value="group_industry">Nhóm: Đặc thù ngành (Mẫu 4-5)</option>
-                                            </optgroup>
-                                            <optgroup label="Chi tiết 17 mẫu">
-                                                {Array.from({ length: 17 }, (_, i) => (
-                                                    <option key={i+1} value={(i+1).toString()}>Mẫu {i+1}: {getFormName((i+1).toString()).substring(getFormName((i+1).toString()).indexOf(':') + 1).trim()}</option>
+                                    {/* Gói hợp đồng (contractFilter) - ẩn khi ở trang đồng bộ */}
+                                    {stepParam !== 'sync' && (
+                                        <div className="space-y-1">
+                                            <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Gói hợp đồng</label>
+                                            <select 
+                                                value={contractFilter}
+                                                onChange={e => setContractFilter(e.target.value)}
+                                                className={`w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none cursor-pointer ${fontSettings.controls} font-bold`}
+                                            >
+                                                <option value="All">Tất cả hợp đồng</option>
+                                                {contracts.map(c => (
+                                                    <option key={c.id} value={String(c.id)}>{c.code} - {c.name}</option>
                                                 ))}
-                                            </optgroup>
-                                        </select>
-                                    </div>
+                                            </select>
+                                        </div>
+                                    )}
 
-                                    {/* Trạng thái khám (examFilter) */}
-                                    <div className="space-y-1">
-                                        <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Trạng thái khám</label>
-                                        <select 
-                                            value={examFilter}
-                                            onChange={e => setExamFilter(e.target.value)}
-                                            className={`w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none cursor-pointer ${fontSettings.controls}`}
-                                        >
-                                            <option value="All">Tất cả trạng thái</option>
-                                            <option value="Done">Đã kết luận</option>
-                                            <option value="InProgress">Đang khám</option>
-                                        </select>
-                                    </div>
+                                    {/* Trạng thái khám (examFilter) - ẩn khi ở trang đồng bộ */}
+                                    {stepParam !== 'sync' && (
+                                        <div className="space-y-1">
+                                            <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Trạng thái khám</label>
+                                            <select 
+                                                value={examFilter}
+                                                onChange={e => setExamFilter(e.target.value)}
+                                                className={`w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none cursor-pointer ${fontSettings.controls}`}
+                                            >
+                                                <option value="All">Tất cả trạng thái</option>
+                                                <option value="Done">Đã kết luận</option>
+                                                <option value="InProgress">Đang khám</option>
+                                            </select>
+                                        </div>
+                                    )}
 
-                                    {/* Trạng thái gửi (sendFilter) */}
-                                    <div className="space-y-1">
-                                        <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Trạng thái gửi</label>
-                                        <select 
-                                            value={sendFilter}
-                                            onChange={e => setSendFilter(e.target.value)}
-                                            className={`w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none cursor-pointer ${fontSettings.controls}`}
-                                        >
-                                            <option value="All">Tất cả trạng thái</option>
-                                            <option value="Success">Gửi thành công</option>
-                                            <option value="Unsent">Chưa gửi</option>
-                                            <option value="Pending">Đang gửi</option>
-                                            <option value="Error">Thất bại</option>
-                                        </select>
-                                    </div>
+                                    {/* Trạng thái gửi (sendFilter) - ẩn khi ở trang đồng bộ */}
+                                    {stepParam !== 'sync' && (
+                                        <div className="space-y-1">
+                                            <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Trạng thái gửi</label>
+                                            <select 
+                                                value={sendFilter}
+                                                onChange={e => setSendFilter(e.target.value)}
+                                                className={`w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none cursor-pointer ${fontSettings.controls}`}
+                                            >
+                                                <option value="All">Tất cả trạng thái</option>
+                                                <option value="Success">Gửi thành công</option>
+                                                <option value="Unsent">Chưa gửi</option>
+                                                <option value="Pending">Đang gửi</option>
+                                                <option value="Error">Thất bại</option>
+                                            </select>
+                                        </div>
+                                    )}
 
                                     {/* Từ khóa tìm kiếm */}
                                     <div className="space-y-1 relative">
-                                        <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Từ khóa tìm kiếm</label>
+                                        <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">
+                                            {stepParam === 'sync' ? 'Tìm kiếm gói khám / công ty' : 'Từ khóa tìm kiếm'}
+                                        </label>
                                         <div className="flex gap-2">
                                             <div className="relative flex-1">
                                                 <input 
                                                     type="text" 
-                                                    placeholder="Tên BN, số hồ sơ hoặc thẻ BHYT..." 
+                                                    placeholder={stepParam === 'sync' ? 'Mã HĐ, tên gói khám, công ty...' : 'Tên BN, số hồ sơ hoặc thẻ BHYT...'}
                                                     value={searchTerm}
                                                     onChange={e => setSearchTerm(e.target.value)}
                                                     className={`w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none ${fontSettings.controls}`}
@@ -861,15 +978,27 @@ const HealthCheckSyncView: React.FC = () => {
                                         </button>
                                     )}
 
-                                    <button 
-                                        onClick={handleExportExcel}
-                                        disabled={isLoading || filteredDocuments.length === 0}
-                                        className="px-4 py-2 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-lg font-bold flex items-center gap-1.5 transition-all text-xs active:scale-95 cursor-pointer shadow-sm disabled:opacity-50"
-                                        title="Xuất danh sách hiện tại ra file Excel"
-                                    >
-                                        <DocumentArrowDownIcon className="w-4 h-4"/>
-                                        Xuất Excel
-                                    </button>
+                                    {stepParam === 'sync' ? (
+                                        <button 
+                                            onClick={handleExportExcelContracts}
+                                            disabled={isContractsLoading || contracts.length === 0}
+                                            className="px-4 py-2 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-lg font-bold flex items-center gap-1.5 transition-all text-xs active:scale-95 cursor-pointer shadow-sm disabled:opacity-50"
+                                            title="Xuất danh sách gói khám / đồng bộ ra file Excel"
+                                        >
+                                            <DocumentArrowDownIcon className="w-4 h-4"/>
+                                            Xuất Excel
+                                        </button>
+                                    ) : (
+                                        <button 
+                                            onClick={handleExportExcel}
+                                            disabled={isLoading || filteredDocuments.length === 0}
+                                            className="px-4 py-2 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-lg font-bold flex items-center gap-1.5 transition-all text-xs active:scale-95 cursor-pointer shadow-sm disabled:opacity-50"
+                                            title="Xuất danh sách hiện tại ra file Excel"
+                                        >
+                                            <DocumentArrowDownIcon className="w-4 h-4"/>
+                                            Xuất Excel
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
@@ -922,25 +1051,44 @@ const HealthCheckSyncView: React.FC = () => {
                                     onSeed={handleOpenSeedModal}
                                 />
                             )}
+
                         </>
                     )}
 
                     {stepParam.startsWith('settings') && (
                         <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 animate-in fade-in duration-300">
-                            <div className="mb-6">
-                                <h2 className="text-xl font-bold text-[#0f766e] dark:text-teal-400 mb-1 flex items-center gap-2">
-                                    <AdjustmentsHorizontalIcon className="w-6 h-6" />
-                                    {stepParam === 'settings-barcode' ? 'Cấu hình in Barcode' : 'Cấu hình kết nối VNeID'}
-                                </h2>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    {stepParam === 'settings-barcode' ? 'Thiết lập kích thước và nội dung hiển thị trên tem in Barcode.' : 'Thiết lập các tham số kết nối, mã cơ sở y tế và đồng bộ tự động lên cổng sức khỏe điện tử VNeID.'}
-                                </p>
-                            </div>
-                            <SettingsTab 
-                                onSaved={loadSettings} 
-                                defaultTab={stepParam === 'settings-barcode' ? 'BARCODE' : 'VNEID'}
-                                hideTabs={true}
-                            />
+                            {isAdmin ? (
+                                <>
+                                    <div className="mb-6">
+                                        <h2 className="text-xl font-bold text-[#0f766e] dark:text-teal-400 mb-1 flex items-center gap-2">
+                                            <AdjustmentsHorizontalIcon className="w-6 h-6" />
+                                            {stepParam === 'settings-barcode' ? 'Cấu hình in Barcode' : 'Cấu hình kết nối VNeID'}
+                                        </h2>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                                            {stepParam === 'settings-barcode' ? 'Thiết lập kích thước và nội dung hiển thị trên tem in Barcode.' : 'Thiết lập các tham số kết nối, mã cơ sở y tế và đồng bộ tự động lên cổng sức khỏe điện tử VNeID.'}
+                                        </p>
+                                    </div>
+                                    <SettingsTab 
+                                        onSaved={loadSettings} 
+                                        defaultTab={stepParam === 'settings-barcode' ? 'BARCODE' : 'VNEID'}
+                                        hideTabs={stepParam === 'settings-vneid'}
+                                    />
+                                </>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center py-20 text-center">
+                                    <div className="w-20 h-20 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
+                                        <svg className="w-10 h-10 text-red-500 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                                        </svg>
+                                    </div>
+                                    <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-2">
+                                        Không có quyền truy cập
+                                    </h3>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm">
+                                        Chức năng cấu hình này chỉ dành cho quản trị viên hệ thống. Vui lòng liên hệ admin nếu cần hỗ trợ.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </>

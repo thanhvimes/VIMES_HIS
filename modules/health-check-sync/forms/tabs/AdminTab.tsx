@@ -179,7 +179,7 @@ const AdminTab: React.FC = () => {
 
     return (
         <div className="space-y-6 animate-fadeIn">
-            {/* HIS Link Toolbar */}
+            {/* HIS Link Toolbar - Tạm ẩn do đã có cơ chế tự động đồng bộ thời gian thực khi tiếp nhận KSK
             <div className="bg-[#f0fdf4] dark:bg-emerald-950/10 p-4 rounded-xl border border-[#d1fae5] dark:border-emerald-900/30 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="space-y-1">
                     <h5 className="text-xs font-extrabold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -213,6 +213,7 @@ const AdminTab: React.FC = () => {
                     </button>
                 </div>
             </div>
+            */}
 
             {hisSyncMessage && (
                 <div className={`p-3.5 rounded-lg text-xs leading-relaxed flex items-start gap-2 border animate-fadeIn ${
@@ -302,7 +303,8 @@ const AdminTab: React.FC = () => {
                             type="text" 
                             value={cccd} 
                             onChange={e => {
-                                setCccd(e.target.value);
+                                const val = e.target.value.replace(/\D/g, '').slice(0, 12);
+                                setCccd(val);
                                 if (errors.cccd) {
                                     setErrors(prev => {
                                         const updated = { ...prev };
@@ -373,7 +375,8 @@ const AdminTab: React.FC = () => {
                             type="text" 
                             value={phone} 
                             onChange={e => {
-                                setPhone(e.target.value);
+                                const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                setPhone(val);
                                 if (errors.phone) {
                                     setErrors(prev => {
                                         const updated = { ...prev };

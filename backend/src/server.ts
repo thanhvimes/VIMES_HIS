@@ -98,6 +98,7 @@ app.post('/api/debug-log', (req: Request, res: Response) => {
 });
 
 // Register API routes
+
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/booking', bookingRoutes);
 app.use('/api/v1', roomRoutes);
@@ -154,6 +155,34 @@ loadBHXHConfig(); // Tải cấu hình BHXH vào memory
 loadHealthCheckSettings(); // Tải cấu hình VNeID KSK vào memory
 startHealthCheckSyncWorker(); // Khởi chạy auto sync VNeID chạy ngầm
 
+// Auto-apply pending migrations on startup
+async function applyPendingMigrations() {
+    try {
+        const { query } = await import('./config/database');
+        console.log('🔄 Applying pending migrations...');
+        // Migration 031: Add HIS sync tracking columns
+        await query(`ALTER TABLE health_check_masters ADD COLUMN IF NOT EXISTS his_employee_id VARCHAR(50)`);
+        await query(`ALTER TABLE health_check_masters ADD COLUMN IF NOT EXISTS his_contract_id INTEGER`);
+        await query(`ALTER TABLE health_check_masters ADD COLUMN IF NOT EXISTS his_doc_no VARCHAR(50)`);
+        await query(`ALTER TABLE health_check_masters ADD COLUMN IF NOT EXISTS sync_mode VARCHAR(20) DEFAULT 'MANUAL'`);
+        await query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_hc_masters_his_emp_contract ON health_check_masters(his_employee_id, his_contract_id) WHERE his_employee_id IS NOT NULL AND his_contract_id IS NOT NULL`).catch(() => {/* index may already exist */});
+        await query(`CREATE INDEX IF NOT EXISTS idx_hc_masters_his_contract ON health_check_masters(his_contract_id) WHERE his_contract_id IS NOT NULL`).catch(() => {});
+        await query(`CREATE INDEX IF NOT EXISTS idx_hc_masters_his_doc_no ON health_check_masters(his_doc_no) WHERE his_doc_no IS NOT NULL`).catch(() => {});
+        await query(`ALTER TABLE hms_exm_contract ADD COLUMN IF NOT EXISTS hec_synced_count INTEGER DEFAULT 0`).catch(() => {});
+        await query(`ALTER TABLE hms_exm_contract ALTER COLUMN hec_type TYPE character varying(50)`).catch(() => {});
+        await query(`ALTER TABLE hms_exm_contract ADD COLUMN IF NOT EXISTS hec_form_type VARCHAR(10)`).catch(() => {});
+        
+        // Add QĐ 1551 columns to hms_exm_employee table
+        await query(`ALTER TABLE hms_exm_employee ADD COLUMN IF NOT EXISTS hee_cardid_date VARCHAR(50)`).catch(() => {});
+        await query(`ALTER TABLE hms_exm_employee ADD COLUMN IF NOT EXISTS hee_cardid_place VARCHAR(255)`).catch(() => {});
+        await query(`ALTER TABLE hms_exm_employee ADD COLUMN IF NOT EXISTS hee_guardian_name VARCHAR(255)`).catch(() => {});
+        await query(`ALTER TABLE hms_exm_employee ADD COLUMN IF NOT EXISTS hee_guardian_cccd VARCHAR(50)`).catch(() => {});
+        console.log('✅ Migrations applied successfully');
+    } catch (e: any) {
+        console.error('⚠️  Migration warning (non-fatal):', e.message);
+    }
+}
+
 // Start server
 app.listen(PORT, () => {
     console.log('='.repeat(50));
@@ -162,9 +191,9 @@ app.listen(PORT, () => {
     console.log(`🌐 http://localhost:${PORT}`);
     console.log(`📊 Database: ${process.env.DB_NAME || 'Not configured'}`);
     console.log('='.repeat(50));
-    
-    // Run diagnostics asynchronously (Disabled to prevent Vite watch reloads)
-    // runDbDiagnostics().catch(err => console.error("Diagnostics failed:", err));
+
+    // Apply pending DB migrations after server starts
+    applyPendingMigrations();
 });
 
 export default app;
