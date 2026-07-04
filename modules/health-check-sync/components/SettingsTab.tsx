@@ -156,6 +156,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
     const [barcodeZplTemplateXn, setBarcodeZplTemplateXn] = useState('');
     const [barcodeZplTemplateKsk, setBarcodeZplTemplateKsk] = useState('');
     const [barcodePrinterName, setBarcodePrinterName] = useState('Zebra');
+    const [useQzTray, setUseQzTray] = useState(false);
 
     // ── Reception Slip ────────────────────────────────────────────────────────
     const [receptionSlipTemplate, setReceptionSlipTemplate] = useState('');
@@ -187,6 +188,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                 setBarcodeZplTemplateXn(settings.barcode_zpl_template_xn || '');
                 setBarcodeZplTemplateKsk(settings.barcode_zpl_template_ksk || '');
                 setBarcodePrinterName(settings.barcode_printer_name || 'Zebra');
+                setUseQzTray(settings.use_qz_tray === true);
                 setReceptionSlipTemplate(settings.reception_slip_template || '');
             } catch (error) {
                 console.error('Failed to load settings:', error);
@@ -219,6 +221,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
             barcode_zpl_template_ksk: barcodeZplTemplateKsk,
             barcode_printer_name: barcodePrinterName,
             reception_slip_template: receptionSlipTemplate,
+            use_qz_tray: useQzTray,
         });
 
         const validation = settings.validate();
@@ -243,7 +246,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
     const handleTestConnection = async () => {
         setIsTesting(true);
         try {
-            const res = await healthCheckService.testVneidConnection({
+            const res = await healthCheckService.testConnection({
                 vneid_url: vneidUrl,
                 vneid_username: vneidUsername,
                 vneid_password: vneidPassword,
@@ -495,6 +498,15 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                     <div className="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 border border-slate-200 dark:border-slate-700 space-y-4">
                         <div className="text-xs font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-widest">
                             Cấu hình máy in thô & Mẫu ZPL (In im lặng qua QZ Tray)
+                        </div>
+
+                        <div className="border-b border-slate-250/50 dark:border-slate-700 pb-3">
+                            <ToggleRow
+                                label="Sử dụng gửi ra máy in (In im lặng qua QZ Tray)"
+                                desc="Bật để gửi lệnh in trực tiếp tới máy in thô ZPL/HTML qua ứng dụng QZ Tray (in không hiện hộp thoại trình duyệt)."
+                                value={useQzTray}
+                                onChange={setUseQzTray}
+                            />
                         </div>
                         
                         <div className="space-y-1.5">

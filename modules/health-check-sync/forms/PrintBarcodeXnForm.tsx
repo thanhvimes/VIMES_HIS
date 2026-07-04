@@ -103,8 +103,8 @@ const PrintBarcodeXnForm: React.FC<PrintBarcodeXnFormProps> = ({
         const runPrint = async () => {
             try {
                 const settings = await HealthCheckSettings.loadFromServer();
-                // Nếu được thiết lập tên máy in và mẫu ZPL thô, thực hiện in trực tiếp qua QZ Tray
-                if (settings.barcode_printer_name && settings.barcode_zpl_template_xn) {
+                // Nếu được thiết lập sử dụng QZ Tray và tên máy in, mẫu ZPL thô, thực hiện in trực tiếp qua QZ Tray
+                if (settings.use_qz_tray && settings.barcode_printer_name && settings.barcode_zpl_template_xn) {
                     const success = await printViaQzZpl(settings);
                     if (success) return; // In thành công, dừng lại không mở cửa sổ in trình duyệt
                 }

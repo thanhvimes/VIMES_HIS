@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession } from '../../../contexts/SessionContext';
 import { useCatalogs } from '../../../contexts/CatalogContext';
 import { catalogService, CatalogItem } from '../../../services/catalogService';
@@ -7,7 +7,8 @@ import { healthCheckService } from '../../../services/healthCheckService';
 export const useDynamicFormState = (
     formType: string,
     initialData: any,
-    onSave: (formData: any) => void
+    onSave: (formData: any) => void,
+    onPreview?: (formData: any) => void
 ) => {
     const { user } = useSession();
     const { provinces, ethnicities, occupations, nations, getWards } = useCatalogs();
@@ -23,9 +24,10 @@ export const useDynamicFormState = (
     const [patientId, setPatientId] = useState(initialData?.patient_id || `P${Math.floor(1000 + Math.random() * 9000)}`);
     const [patientName, setPatientName] = useState(initialData?.patient_name || '');
     const [cccd, setCccd] = useState(initialData?.cccd || '');
+    const [noCccd, setNoCccd] = useState(initialData?.clinical_data?.no_cccd || false);
     const [dob, setDob] = useState(initialData?.dob ? new Date(initialData.dob).toISOString().split('T')[0] : '');
     const [gender, setGender] = useState(initialData?.gender || '');
-    const [docNo, setDocNo] = useState(initialData?.doc_no || `KSK-${Date.now()}`);
+    const [docNo, setDocNo] = useState(initialData?.doc_no || Date.now().toString());
     const [address, setAddress] = useState(initialData?.clinical_data?.address || '');
     const [phone, setPhone] = useState(initialData?.clinical_data?.phone || '');
     const [ethnic, setEthnic] = useState(initialData?.clinical_data?.ethnic || '01');
@@ -203,6 +205,9 @@ export const useDynamicFormState = (
     const [fitnessClass, setFitnessClass] = useState(initialData?.conclusion_data?.fitness_class || '');
     const [diagnosis, setDiagnosis] = useState(initialData?.conclusion_data?.diagnosis || '');
     const [cacVanDeLuuY, setCacVanDeLuuY] = useState(initialData?.conclusion_data?.cac_van_de_luu_y || '');
+    const [quanLyBenh, setQuanLyBenh] = useState(initialData?.conclusion_data?.quan_ly_benh || '');
+    const [theoDoiTai, setTheoDoiTai] = useState(initialData?.conclusion_data?.theo_doi_tai || '');
+    const [chuyenTuyen, setChuyenTuyen] = useState(initialData?.conclusion_data?.chuyen_tuyen || '');
 
     // Validation state
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -350,12 +355,16 @@ export const useDynamicFormState = (
 
     // Workflow optimizations
     const [isLocked, setIsLocked] = useState(initialData?.status === 'ĐÃ_KẾT_LUẬN' || initialData?.is_locked || false);
-    const [specialtyMetadata, setSpecialtyMetadata] = useState<Record<string, { doctorId: string, status: string, updatedAt: string }>>(initialData?.specialty_metadata || {});
+    const [specialtyMetadata, setSpecialtyMetadata] = useState<Record<string, { doctorId: string, status: string, updatedAt: string }>>(initialData?.clinical_data?.clinical_exam?.specialty_metadata || initialData?.specialty_metadata || {});
+    const specialtyMetadataRef = useRef(specialtyMetadata);
+    useEffect(() => {
+        specialtyMetadataRef.current = specialtyMetadata;
+    }, [specialtyMetadata]);
     const [doctors, setDoctors] = useState<CatalogItem[]>([]);
 
     const handleFetchHisData = async () => {
         if (!hisSearchQuery.trim()) {
-            setHisSyncMessage({ type: 'error', text: 'Vui lòng nhập Mã bệnh nhân hoặc số CCCD để lấy dữ liệu từ HIS' });
+            setHisSyncMessage({ type: 'error', text: 'Vui lòng nhập Số CCCD, Mã hồ sơ hoặc Số điện thoại để tìm kiếm từ HIS' });
             return;
         }
         setIsFetchingHis(true);
@@ -367,8 +376,7 @@ export const useDynamicFormState = (
                 if (data.patient_id) setPatientId(data.patient_id);
                 if (data.patient_name) setPatientName(data.patient_name.toUpperCase());
                 if (data.doc_no) {
-                    const currentYear = new Date().getFullYear();
-                    setDocNo(`KSK-${currentYear}-${data.doc_no}`);
+                    setDocNo(data.doc_no);
                 }
                 if (data.cccd) setCccd(data.cccd);
                 if (data.dob) setDob(new Date(data.dob).toISOString().split('T')[0]);
@@ -544,6 +552,7 @@ export const useDynamicFormState = (
                 if (data.lab_data?.us?.ket_qua) setKetQuaSieuAmBung(data.lab_data.us.ket_qua);
 
                 if (data.lab_data?.paraclinical_items) setParaclinicalItems(data.lab_data.paraclinical_items);
+                if (data.clinical_data?.clinical_exam?.specialty_metadata) setSpecialtyMetadata(data.clinical_data.clinical_exam.specialty_metadata);
                 
                 // Đổ kết luận
                 if (data.conclusion_data?.fitness_class) setFitnessClass(data.conclusion_data.fitness_class);
@@ -554,18 +563,92 @@ export const useDynamicFormState = (
                 if (data.conclusion_data?.han_che) setHanChe(data.conclusion_data.han_che);
                 if (data.conclusion_data?.yeu_cau_deo_kinh) setYeuCauDeoKinh(data.conclusion_data.yeu_cau_deo_kinh);
                 if (data.conclusion_data?.ket_luan_loai_suc_khoe) setKetLuanLoaiSucKhoe(data.conclusion_data.ket_luan_loai_suc_khoe);
+                if (data.conclusion_data?.quan_ly_benh) setQuanLyBenh(data.conclusion_data.quan_ly_benh);
+                if (data.conclusion_data?.theo_doi_tai) setTheoDoiTai(data.conclusion_data.theo_doi_tai);
+                if (data.conclusion_data?.chuyen_tuyen) setChuyenTuyen(data.conclusion_data.chuyen_tuyen);
 
                 setHisSyncMessage({ 
                     type: 'success', 
-                    text: `Đồng bộ thành công dữ liệu HIS của BN: ${data.patient_name}! Hãy rà soát lại và bổ sung các trường đặc thù của Mẫu ${formType}.` 
+                    text: `Tìm thấy dữ liệu hồ sơ của BN: ${data.patient_name}! Vui lòng rà soát lại và bổ sung các trường đặc thù của Mẫu ${formType}.` 
                 });
             } else {
-                setHisSyncMessage({ type: 'error', text: 'Không tìm thấy thông tin bệnh nhân trên hệ thống HIS' });
+                setHisSyncMessage({ type: 'error', text: 'Không tìm thấy hồ sơ KSK đã tiếp nhận cho bệnh nhân này.' });
             }
         } catch (error: any) {
-            setHisSyncMessage({ type: 'error', text: 'Lỗi kết nối hệ thống HIS: ' + error.message });
+            setHisSyncMessage({ type: 'error', text: 'Lỗi khi tìm kiếm dữ liệu: ' + (error.response?.data?.error || error.message) });
         } finally {
             setIsFetchingHis(false);
+        }
+    };
+
+    const [isSyncingParaclinical, setIsSyncingParaclinical] = useState(false);
+
+    const handleSyncParaclinical = async () => {
+        const identifier = patientId || cccd || (docNo ? docNo.split('-').pop() : '');
+        if (!identifier) {
+            setHisSyncMessage({ type: 'error', text: 'Không tìm thấy mã định danh hoặc số hồ sơ bệnh nhân để thực hiện đồng bộ.' });
+            return;
+        }
+
+        setIsSyncingParaclinical(true);
+        setHisSyncMessage(null);
+        try {
+            const data = await healthCheckService.getHisPatient(identifier);
+            if (data && data.lab_data) {
+                const lab = data.lab_data;
+
+                // Cập nhật các trường cận lâm sàng cốt lõi
+                if (lab.blood_test?.hemoglobin) setHemoglobin(lab.blood_test.hemoglobin);
+                if (lab.blood_test?.glycemia) setGlycemia(lab.blood_test.glycemia);
+                if (lab.urine_test?.protein) setProtein(lab.urine_test.protein);
+                if (lab.kq_xn_ma_tuy) setKqXnMaiTuy(lab.kq_xn_ma_tuy);
+                if (lab.kq_xn_nong_do_con) setKqXnNongDoCon(lab.kq_xn_nong_do_con);
+                if (lab.kq_xn_khac) setKqXnKhac(lab.kq_xn_khac);
+
+                if (lab.blood_test?.chi_so_hc) setChiSoHc(lab.blood_test.chi_so_hc);
+                if (lab.blood_test?.chi_so_bach_cau) setChiSoBachCau(lab.blood_test.chi_so_bach_cau);
+                if (lab.blood_test?.chi_so_tieu_cau) setChiSoTieuCau(lab.blood_test.chi_so_tieu_cau);
+                if (lab.blood_test?.cong_thuc_bc) setCongThucBc(lab.blood_test.cong_thuc_bc);
+                if (lab.blood_test?.thoi_gian_howell) setThoiGianHowell(lab.blood_test.thoi_gian_howell);
+
+                if (lab.blood_test?.cholesterol) setCholesterol(lab.blood_test.cholesterol);
+                if (lab.blood_test?.triglycerid) setTriglycerid(lab.blood_test.triglycerid);
+                if (lab.blood_test?.hdl) setHdl(lab.blood_test.hdl);
+                if (lab.blood_test?.ldl) setLdl(lab.blood_test.ldl);
+                if (lab.blood_test?.rpr) setRpr(lab.blood_test.rpr);
+                if (lab.blood_test?.tpha) setTpha(lab.blood_test.tpha);
+                if (lab.blood_test?.hbsag) setHbsag(lab.blood_test.hbsag);
+                if (lab.blood_test?.hbeag) setHbeag(lab.blood_test.hbeag);
+                if (lab.blood_test?.hcvab) setHcvab(lab.blood_test.hcvab);
+                if (lab.blood_test?.havab) setHavab(lab.blood_test.havab);
+                if (lab.blood_test?.hiv) setHiv(lab.blood_test.hiv);
+
+                if (lab.xn_khac) setXnKhac(lab.xn_khac);
+                if (lab.nong_do_con_mau) setNongDoConMau(lab.nong_do_con_mau);
+                if (lab.nuoc_tieu_test_nhanh?.ma_tuy) setNuocTieuMaTuy(lab.nuoc_tieu_test_nhanh.ma_tuy);
+                if (lab.nuoc_tieu_test_nhanh?.amphetamine) setNuocTieuAmphetamine(lab.nuoc_tieu_test_nhanh.amphetamine);
+                if (lab.nuoc_tieu_test_nhanh?.duong) setNuocTieuDuong(lab.nuoc_tieu_test_nhanh.duong);
+                if (lab.nuoc_tieu_test_nhanh?.protein) setNuocTieuProtein(lab.nuoc_tieu_test_nhanh.protein);
+                if (lab.nuoc_tieu_test_nhanh?.khac) setNuocTieuKhac(lab.nuoc_tieu_test_nhanh.khac);
+
+                if (lab.imaging?.ket_qua) setKetQuaChanDoanHinhAnh(lab.imaging.ket_qua);
+                if (lab.ecg?.ket_qua) setKetQuaDienTim(lab.ecg.ket_qua);
+                if (lab.spiro?.ket_qua) setChucNangHoHap(lab.spiro.ket_qua);
+                if (lab.us?.ket_qua) setKetQuaSieuAmBung(lab.us.ket_qua);
+
+                if (lab.paraclinical_items) {
+                    setParaclinicalItems(lab.paraclinical_items);
+                }
+
+                setHisSyncMessage({ type: 'success', text: "Đồng bộ thành công chỉ định và kết quả cận lâm sàng mới nhất từ HIS!" });
+            } else {
+                setHisSyncMessage({ type: 'error', text: "Không tìm thấy kết quả cận lâm sàng của bệnh nhân này trên HIS." });
+            }
+        } catch (error: any) {
+            console.error("Failed to sync paraclinical from HIS:", error);
+            setHisSyncMessage({ type: 'error', text: "Lỗi khi đồng bộ dữ liệu cận lâm sàng từ HIS: " + (error.response?.data?.error || error.message) });
+        } finally {
+            setIsSyncingParaclinical(false);
         }
     };
 
@@ -750,11 +833,104 @@ export const useDynamicFormState = (
         }).catch(err => console.error("Failed to load settings in DynamicForm:", err));
     }, [initialData]);
 
+    // Auto-calculate statuses from initialData on mount if they are not set or 'CHUA_KHAM'
+    useEffect(() => {
+        if (!initialData) return;
+        const savedMetadata = initialData?.clinical_data?.clinical_exam?.specialty_metadata || initialData?.specialty_metadata || {};
+        setSpecialtyMetadata(() => {
+            const updated = { ...savedMetadata };
+            const keys = ['admin', 'history', 'internal', 'eye', 'ent', 'dental', 'external', 'dermatology', 'gynecology', 'conclusion'];
+            
+            keys.forEach(key => {
+                const current = updated[key];
+                if (!current || current.status === 'CHUA_KHAM' || !current.status) {
+                    let hasData = false;
+                    if (key === 'admin') {
+                        hasData = !!(initialData.patient_id || initialData.patient_name);
+                    } else if (key === 'history') {
+                        const ext = initialData.clinical_data?.extra || {};
+                        hasData = !!(ext.tsgd_mac_benh || ext.tsgd_ma_benh || ext.tsbt_ma_benh || ext.ts_benh_thuong_5_nam || initialData.clinical_data?.examination?.height);
+                    } else if (key === 'internal') {
+                        hasData = !!(initialData.clinical_data?.clinical_exam?.internal || initialData.clinical_data?.clinical_exam?.noi_khoa_tuan_hoan_pl);
+                    } else if (key === 'eye') {
+                        hasData = !!(initialData.clinical_data?.clinical_exam?.eye || initialData.clinical_data?.clinical_exam?.kham_mat_pl);
+                    } else if (key === 'ent') {
+                        hasData = !!(initialData.clinical_data?.clinical_exam?.ent || initialData.clinical_data?.clinical_exam?.kham_tai_mui_hong_pl);
+                    } else if (key === 'dental') {
+                        hasData = !!(initialData.clinical_data?.clinical_exam?.dental || initialData.clinical_data?.clinical_exam?.kham_rang_ham_mat_pl);
+                    } else if (key === 'external') {
+                        hasData = !!(initialData.clinical_data?.clinical_exam?.external || initialData.clinical_data?.clinical_exam?.kham_ngoai_khoa_pl);
+                    } else if (key === 'dermatology') {
+                        hasData = !!(initialData.clinical_data?.clinical_exam?.dermatology || initialData.clinical_data?.clinical_exam?.kham_da_lieu_pl);
+                    } else if (key === 'gynecology') {
+                        hasData = !!(initialData.clinical_data?.clinical_exam?.gynecology || initialData.clinical_data?.clinical_exam?.kham_san_phu_khoa_pl);
+                    } else if (key === 'conclusion') {
+                        hasData = !!(initialData.conclusion_data?.fitness_class || initialData.conclusion_data?.diagnosis || initialData.conclusion_data?.ket_luan_loai_suc_khoe);
+                    }
+                    
+                    if (hasData) {
+                        updated[key] = {
+                            doctorId: current?.doctorId || '',
+                            doctorName: current?.doctorName || '',
+                            status: key === 'conclusion' ? 'ĐÃ_KẾT_LUẬN' : 'ĐÃ_KHÁM',
+                            updatedAt: current?.updatedAt || new Date().toISOString()
+                        };
+                    }
+                }
+            });
+            return updated;
+        });
+    }, [initialData]);
+
     useEffect(() => {
         if (!conclusionDoctorId && user?.userId) {
             setConclusionDoctorId(user.userId);
         }
     }, [user, conclusionDoctorId]);
+
+    // Auto-select logged-in user as doctor for unexamined specialties
+    useEffect(() => {
+        if (!user || doctors.length === 0) return;
+
+        // Fallback to previous doctor if patient was already examined
+        const prevDocName = initialData?.conclusion_data?.doctor_name || initialData?.conclusion_data?.doctor_id;
+        const prevDocMatch = prevDocName 
+            ? doctors.find(doc => 
+                String(doc.name).toLowerCase() === String(prevDocName).toLowerCase() || 
+                String(doc.id).toLowerCase() === String(prevDocName).toLowerCase()
+              )
+            : null;
+
+        const match = prevDocMatch || doctors.find(doc => 
+            String(doc.id).toLowerCase() === String(user.userId || user.username || '').toLowerCase() ||
+            String(doc.name).toLowerCase() === String(user.fullname || '').toLowerCase()
+        );
+        
+        const defaultDoctorId = match ? match.id : (user.userId || user.username || '');
+        const defaultDoctorName = match ? match.name : (user.fullname || '');
+
+        setSpecialtyMetadata(prev => {
+            const updated = { ...prev };
+            let hasChanges = false;
+
+            const keys = ['admin', 'history', 'conclusion', 'internal', 'eye', 'ent', 'dental', 'external', 'dermatology', 'gynecology'];
+            keys.forEach(key => {
+                const current = updated[key];
+                // ONLY auto-select doctor if doctorId is completely empty/missing
+                if (!current || !current.doctorId) {
+                    updated[key] = {
+                        doctorId: defaultDoctorId,
+                        doctorName: defaultDoctorName,
+                        status: current?.status || 'CHUA_KHAM',
+                        updatedAt: current?.updatedAt || new Date().toISOString()
+                    };
+                    hasChanges = true;
+                }
+            });
+
+            return hasChanges ? updated : prev;
+        });
+    }, [user, doctors, initialData]);
 
     useEffect(() => {
         if (maTinhCuTru) {
@@ -818,7 +994,7 @@ export const useDynamicFormState = (
         if (patientName.trim() && patientName !== patientName.toUpperCase()) {
             newErrors.patientName = 'Họ và tên phải viết IN HOA có dấu';
         }
-        if (!cccd.trim()) newErrors.cccd = 'Số CCCD/Định danh bắt buộc nhập';
+        if (!noCccd && !cccd.trim()) newErrors.cccd = 'Số CCCD/Định danh bắt buộc nhập';
         if (cccd.trim() && !/^\d{12}$/.test(cccd)) {
             newErrors.cccd = 'Định danh/CCCD phải gồm chính xác 12 chữ số';
         }
@@ -835,12 +1011,68 @@ export const useDynamicFormState = (
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         if (!validateForm()) {
             setActiveTab('admin');
             return;
         }
+
+        // Tự động tính toán trạng thái (CHUA_KHAM -> DA_KHAM / DA_KET_LUAN) dựa trên dữ liệu nhập thực tế
+        const calculatedMetadata = { ...specialtyMetadataRef.current };
+        const keysToProcess = ['admin', 'history', 'internal', 'eye', 'ent', 'dental', 'external', 'dermatology', 'gynecology', 'conclusion'];
+        
+        keysToProcess.forEach(key => {
+            if (!calculatedMetadata[key]) {
+                calculatedMetadata[key] = {
+                    doctorId: '',
+                    doctorName: '',
+                    status: 'CHUA_KHAM',
+                    updatedAt: new Date().toISOString()
+                };
+            }
+            
+            // Nếu chuyên khoa đã được duyệt (ĐÃ_DUYỆT), giữ nguyên trạng thái không đè bằng ĐÃ_KHÁM
+            if (calculatedMetadata[key].status === 'ĐÃ_DUYỆT') {
+                return;
+            }
+            
+            let hasData = false;
+            if (key === 'admin') {
+                hasData = !!(patientId || patientName || cccd || dob);
+            } else if (key === 'history') {
+                hasData = !!(tsgdMacBenh || tsgdMaBenh || tsbtMaBenh || tsbtNamPhatHienBenh || ts5Nam || tsThanKinh || tsMat || tsTai || tsTimMach || tsPhauThuatTim || tsHuyetAp || tsKhoTho || tsPhoiHen || tsThan || tsTieuDuong || tsTamThan || tsYThuc || tsChongMat || tsTieuHoa || tsGiacNgu || tsTaiBien || tsSuDungRuou || tsSuDungMaTuy || tsBenhCotSong || tsbtMaBenhNgheNghiep || height || weight || bp || pulse || khamTheLucPl);
+            } else if (key === 'internal') {
+                hasData = !!(internalExam || noiKhoaTuanHoanPl || noiKhoaHoHapPl || noiKhoaTieuHoaPl || noiKhoaThanTietnieuPl || noiKhoaNoiTietPl || noiKhoaCoXuongKhopPl || noiKhoaThanKinhPl || noiKhoaTamThanPl || kqTimMach || kqHoHap || kqNoiTiet || kqTietNieu || kqSinhDuc || kqCoXuongKhop || kqNoiTietChuyenHoa || timMach || hoHap || tietNieuSinhDuc || noiKhoaTieuHoa || ganMat || mauCoQuanTaoMau || daToChucDuoiDa || kqCoXuongKhopM5 || thanKinhM5 || noiTietDinhDuongChuyenHoa || roiLoanHanhViTamThan);
+            } else if (key === 'eye') {
+                hasData = !!(eyeExam || khamMatPl || khongKinhMatPhai || khongKinhMatTrai || coKinhMatPhai || coKinhMatTrai || sacGiac || thiTruongNgangHaiMat || thiTruongDungHaiMat || khongKinhHaiMat || coKinhHaiMat || xaKhongKinhMatPhai || xaKhongKinhMatTrai || xaKhongKinhHaiMat || xaCoKinhMatPhai || xaCoKinhMatTrai || xaCoKinhHaiMat || ganKhongKinhMatPhai || ganKhongKinhMatTrai || ganKhongKinhHaiMat || ganCoKinhMatPhai || ganCoKinhMatTrai || ganCoKinhHaiMat || khamMatThiTruongPhai || khamMatThiTruongTrai || khamMatM5 || khamMatThiGiacMau);
+            } else if (key === 'ent') {
+                hasData = !!(entExam || khamTaiMuiHongPl || taiTraiNoiThuong || taiTraiNoiTham || taiPhaiNoiThuong || taiPhaiNoiTham || taiPhai500hz || taiTrai500hz || taiPhai2000hz || taiTrai2000hz || taiPhai3000hz || taiTrai3000hz || taiPhai4000hz || taiTrai4000hz || taiPhai6000hz || taiTrai6000hz || khamTaiMuiHongM5 || kqTaiMuiHong);
+            } else if (key === 'dental') {
+                hasData = !!(dentalExam || khamRangHamMatPl || hamTren || hamDuoi);
+            } else if (key === 'external') {
+                hasData = !!(externalExam || khamNgoaiKhoaPl || kqNgoaiKhoa || maBenhNgoaiKhoa);
+            } else if (key === 'dermatology') {
+                hasData = !!(dermatologyExam || khamDaLieuPl || kqDaLieu);
+            } else if (key === 'gynecology') {
+                hasData = !!(gynExam || khamSanPhuKhoaPl || coKinhNguyetNamBaoNhieuTuoi || tinhChatKinhNguyet || chuKyKinh || luongKinh || dauBungKinh || para || daTungMoSanPhuKhoaChua || dangApDungBpttKhong);
+            } else if (key === 'conclusion') {
+                hasData = !!(fitnessClass || diagnosis || ketLuanLoaiSucKhoe);
+            }
+
+            if (hasData) {
+                if (key === 'conclusion') {
+                    calculatedMetadata[key].status = 'ĐÃ_KẾT_LUẬN';
+                } else {
+                    calculatedMetadata[key].status = 'ĐÃ_KHÁM';
+                }
+            } else {
+                calculatedMetadata[key].status = 'CHUA_KHAM';
+            }
+        });
+
+        // Cập nhật lại state để giao diện đồng bộ
+        setSpecialtyMetadata(calculatedMetadata);
         
         const fullPayload = {
             patientId,
@@ -854,6 +1086,7 @@ export const useDynamicFormState = (
                 address,
                 phone,
                 ethnic,
+                no_cccd: noCccd,
                 cccd_date: cccdDate,
                 cccd_place: cccdPlace,
                 blood_group: bloodGroup,
@@ -873,7 +1106,7 @@ export const useDynamicFormState = (
                     vong_nguc_tb: vongNgucTrungBinh,
                 },
                 clinical_exam: {
-                    specialty_metadata: specialtyMetadata,
+                    specialty_metadata: calculatedMetadata,
                     internal: internalExam,
                     eye: eyeExam,
                     ent: entExam,
@@ -1128,11 +1361,307 @@ export const useDynamicFormState = (
                 han_che: hanChe,
                 yeuCauDeoKinh,
                 ket_luan_loai_suc_khoe: ketLuanLoaiSucKhoe,
-                doctor_id: conclusionDoctorId
+                doctor_id: conclusionDoctorId,
+                quan_ly_benh: quanLyBenh,
+                theo_doi_tai: theoDoiTai,
+                chuyen_tuyen: chuyenTuyen
             }
         };
         
         onSave(fullPayload);
+    };
+
+    const handlePreview = () => {
+        const fullPayload = {
+            id: initialData?.id,
+            patientId,
+            patientName: patientName.toUpperCase(),
+            cccd,
+            dob,
+            gender,
+            docNo,
+            formType,
+            clinicalData: {
+                address,
+                phone,
+                ethnic,
+                no_cccd: noCccd,
+                cccd_date: cccdDate,
+                cccd_place: cccdPlace,
+                blood_group: bloodGroup,
+                target_group: targetGroup,
+                funding_source: fundingSource,
+                ma_gtin_cskcb: maGtinCskcb,
+                matinh_cu_tru: maTinhCuTru,
+                maxa_cu_tru: maXaCuTru,
+                ly_do_vv: lyDoVv,
+                ngay_vao: ngayVao,
+                examination: {
+                    height,
+                    weight,
+                    bmi,
+                    blood_pressure: bp,
+                    pulse,
+                    vong_nguc_tb: vongNgucTrungBinh,
+                },
+                clinical_exam: {
+                    specialty_metadata: specialtyMetadata,
+                    internal: internalExam,
+                    eye: eyeExam,
+                    ent: entExam,
+                    dental: dentalExam,
+                    external: externalExam,
+                    dermatology: dermatologyExam,
+                    gynecology: gynExam,
+                    
+                    khong_kinh_mat_phai: khongKinhMatPhai,
+                    khong_kinh_mat_trai: khongKinhMatTrai,
+                    co_kinh_mat_phai: coKinhMatPhai,
+                    co_kinh_mat_trai: coKinhMatTrai,
+                    khong_kinh_hai_mat: khongKinhHaiMat,
+                    co_kinh_hai_mat: coKinhHaiMat,
+                    sac_giac: sacGiac,
+                    thi_truong_ngang_haimat: thiTruongNgangHaiMat,
+                    thi_truong_dung_haimat: thiTruongDungHaiMat,
+                    tai_trai_noi_thuong: taiTraiNoiThuong,
+                    tai_trai_noi_tham: taiTraiNoiTham,
+                    tai_phai_noi_thuong: taiPhaiNoiThuong,
+                    tai_phai_noi_tham: taiPhaiNoiTham,
+                    ham_tren: hamTren,
+                    ham_duoi: hamDuoi,
+                    
+                    xa_khong_kinh_mat_phai: xaKhongKinhMatPhai,
+                    xa_khong_kinh_mat_trai: xaKhongKinhMatTrai,
+                    xa_khong_kinh_hai_mat: xaKhongKinhHaiMat,
+                    xa_co_kinh_mat_phai: xaCoKinhMatPhai,
+                    xa_co_kinh_mat_trai: xaCoKinhMatTrai,
+                    xa_co_kinh_hai_mat: xaCoKinhHaiMat,
+                    
+                    gan_khong_kinh_mat_phai: ganKhongKinhMatPhai,
+                    gan_khong_kinh_mat_trai: ganKhongKinhMatTrai,
+                    gan_khong_kinh_hai_mat: ganKhongKinhHaiMat,
+                    gan_co_kinh_mat_phai: ganCoKinhMatPhai,
+                    gan_co_kinh_mat_trai: ganCoKinhMatTrai,
+                    gan_co_kinh_hai_mat: ganCoKinhHaiMat,
+                    
+                    kham_mat_thi_truong_phai: khamMatThiTruongPhai,
+                    kham_mat_thi_truong_trai: khamMatThiTruongTrai,
+                    
+                    tai_phai_500hz: taiPhai500hz,
+                    tai_trai_500hz: taiTrai500hz,
+                    tai_phai_2000hz: taiPhai2000hz,
+                    tai_trai_2000hz: taiTrai2000hz,
+                    tai_phai_3000hz: taiPhai3000hz,
+                    tai_trai_3000hz: taiTrai3000hz,
+                    tai_phai_4000hz: taiPhai4000hz,
+                    tai_trai_4000hz: taiTrai4000hz,
+                    tai_phai_6000hz: taiPhai6000hz,
+                    tai_trai_6000hz: taiTrai6000hz,
+                    
+                    than_kinh_tam_ly: thanKinhTamLy,
+                    noi_khoa_tam_than: noiKhoaTamThan,
+                    noi_khoa_than_kinh: noiKhoaThanKinh,
+                    kq_tam_than: kqTamThan,
+                    kq_than_kinh: kqThanKinh,
+                    kq_tim_mach: kqTimMach,
+                    kq_ho_hap: kqHoHap,
+                    kq_noi_tiet: kqNoiTiet,
+                    kq_ngoai_khoa: kqNgoaiKhoa,
+                    kq_da_lieu: kqDaLieu,
+                    kq_tiet_nieu: kqTietNieu,
+                    kq_sinh_duc: kqSinhDuc,
+                    kq_tai_mui_hong: kqTaiMuiHong,
+                    kq_co_xuong_khop: kqCoXuongKhop,
+                    kq_noi_tiet_chuyen_hoa: kqNoiTietChuyenHoa,
+                    
+                    tim_mach: timMach,
+                    ho_hap: hoHap,
+                    tiet_nieu_sinh_duc: tietNieuSinhDuc,
+                    noi_khoa_tieu_hoa: noiKhoaTieuHoa,
+                    gan_mat: ganMat,
+                    mau_co_quan_tao_mau: mauCoQuanTaoMau,
+                    da_to_chuc_duoi_da: daToChucDuoiDa,
+                    kq_co_xuong_khop_m5: kqCoXuongKhopM5,
+                    than_kinh_m5: thanKinhM5,
+                    ma_benh_ngoai_khoa: maBenhNgoaiKhoa,
+                    kham_tai_mui_hong_m5: khamTaiMuiHongM5,
+                    kham_mat_m5: khamMatM5,
+                    benh_khac: benhKhac,
+                    kham_mat_thi_giac_mau: khamMatThiGiacMau,
+                    noi_tiet_dinh_duong_chuyen_hoa: noiTietDinhDuongChuyenHoa,
+                    roi_loan_han_vi_tam_than: roiLoanHanhViTamThan,
+                    
+                    kham_the_luc_pl: khamTheLucPl,
+                    noi_khoa_tuan_hoan_pl: noiKhoaTuanHoanPl,
+                    noi_khoa_ho_hap_pl: noiKhoaHoHapPl,
+                    noi_khoa_tieu_hoa_pl: noiKhoaTieuHoaPl,
+                    noi_khoa_than_tietnieu_pl: noiKhoaThanTietnieuPl,
+                    noi_khoa_noi_tiet_pl: noiKhoaNoiTietPl,
+                    noi_khoa_co_xuong_khop_pl: noiKhoaCoXuongKhopPl,
+                    noi_khoa_than_kinh_pl: noiKhoaThanKinhPl,
+                    noi_khoa_tam_than_pl: noiKhoaTamThanPl,
+                    kham_ngoai_khoa_pl: khamNgoaiKhoaPl,
+                    kham_da_lieu_pl: khamDaLieuPl,
+                    kham_san_phu_khoa_pl: khamSanPhuKhoaPl,
+                    kham_mat_pl: khamMatPl,
+                    kham_tai_mui_hong_pl: khamTaiMuiHongPl,
+                    kham_rang_ham_mat_pl: khamRangHamMatPl,
+                    
+                    nhi_tuan_hoan: nhiTuanHoan,
+                    nhi_ho_hap: nhiHoHap,
+                    nhi_tieu_hoa: nhiTieuHoa,
+                    nhi_tiet_nieu: nhiTietNieu,
+                    nhi_than_kinh: nhiThanKinh,
+                    nhi_tam_than: nhiThanKinh,
+                    nhi_khac: nhiKhac
+                },
+                extra: {
+                    nguoi_giam_ho: guardianName,
+                    so_cccd_ngh: guardianCccd,
+                    ho_ten_nguoi_di_cung: escortName,
+                    so_cccd_nguoi_di_cung: escortCccd,
+                    moi_quan_he_voi_tre: escortRelation,
+                    hang_lai_xe: licenseClass,
+                    chuc_danh: chucDanh,
+                    noi_cong_tac: noiCongTac,
+                    vi_tri_lam_viec: viTriLamViec,
+                    bo_phan_lam_viec: boPhanLamViec,
+                    offshore_exp: offshoreExp,
+                    railway_fit: railwayFit,
+                    tsgd_mac_benh: tsgdMacBenh,
+                    tsgd_ma_benh: tsgdMaBenh,
+                    tsbt_ma_benh: tsbtMaBenh,
+                    tsbt_nam_phat_hien_benh: tsbtNamPhatHienBenh,
+                    tiem_chung_bcg: tiemChungBcg,
+                    tiem_chung_bh_hg_uv: tiemChungBhHgUv,
+                    tiem_chung_soi: tiemChungSoi,
+                    tiem_chung_bai_liet: tiemChungBaiLiet,
+                    tiem_chung_vnnb_b: tiemChungVnnbB,
+                    tiem_chung_vgb: tiemChungVgb,
+                    tiem_chung_cac_loai_khac: tiemChungCacLoaiKhac,
+                    tiemChungVacXinKhac,
+                    co_kinh_nguyet_nam_bao_nhieu_tuoi: coKinhNguyetNamBaoNhieuTuoi,
+                    tinh_chat_kinh_nguyet: tinhChatKinhNguyet,
+                    chu_ky_kinh: chuKyKinh,
+                    luong_kinh: luongKinh,
+                    dau_bung_kinh: dauBungKinh,
+                    da_lap_gia_dinh: daLapGiaDinh,
+                    para: para,
+                    da_tung_mo_san_phu_khoa_chua: daTungMoSanPhuKhoaChua,
+                    so_lan_mo_san_phu_khoa: soLanMoSanPhuKhoa,
+                    ghi_ro_mo_san_phu_khoa: ghiRoMoSanPhuKhoa,
+                    dang_ap_dung_bptt_khong: dangApDungBpttKhong,
+                    bien_phap_tranh_thai: bienPhapTranhThai,
+                    ts_benh_thuong_5_nam: ts5Nam,
+                    ts_than_kinh_chan_thuong_dau: tsThanKinh,
+                    ts_benh_mat_giam_thi_luc: tsMat,
+                    ts_benh_tai_giam_nghe: tsTai,
+                    ts_benh_tim_mach: tsTimMach,
+                    ts_phau_thuat_tim_mach: tsPhauThuatTim,
+                    ts_tang_huyet_ap: tsHuyetAp,
+                    ts_kho_tho: tsKhoTho,
+                    ts_benh_phoi_hen: tsPhoiHen,
+                    ts_benh_than_loc_mau: tsThan,
+                    ts_dai_thao_duong: tsTieuDuong,
+                    ts_benh_tam_than: tsTamThan,
+                    ts_mat_roi_loan_y_thuc: tsYThuc,
+                    ts_ngat_chong_mat: tsChongMat,
+                    ts_benh_tieu_hoa: tsTieuHoa,
+                    ts_roi_loan_giac_ngu: tsGiacNgu,
+                    ts_tai_bien_mach_mau_nao: tsTaiBien,
+                    ts_su_dung_ruou: tsSuDungRuou,
+                    ts_su_dung_ma_tuy: tsSuDungMaTuy,
+                    ts_benh_cot_song: tsBenhCotSong,
+                    tsbt_ma_benh_nghe_nghiep: tsbtMaBenhNgheNghiep,
+                    tsbt_nam_phat_hien_benh_nghe_nghiep: tsbtNamPhatHienBenhNgheNghiep,
+                    vong_ddau: vongDau,
+                    vong_nguc: vongNguc,
+                    sinh_non: sinhNon,
+                    tuan_thai_khi_sinh: tuanThai,
+                    can_nang_luc_sinh: birthWeight,
+                    can_nang: weight,
+                    chieu_cao: height,
+                    mach: pulse,
+                    huyet_ap: bp,
+                    luc_bop_tay_thuan: lucBopTayThuan,
+                    luc_bop_tay_khong_thuan: lucBopTayKhongThuan,
+                    luc_keo_lung: lucKeoLung,
+                    milestone_check: milestoneCheck,
+                    ma_cskcb: maCskcb,
+                    quoc_tich: quocTich,
+                    con_thu_may: conThuMay,
+                    tong_so_con: tongSoCon,
+                    matinh_cu_tru_nghme: maTinhCuTruNghMe,
+                    maxa_cu_tru_nghme: maXaCuTruNghMe,
+                    chuc_danh_tren_tau: chucDanhTrenTau,
+                    ten_chu_tau: tenChuTau,
+                    dia_chi_chu_tau: diaChiChuTau,
+                    khu_vuc_hoat_dong_tau: khuVucHoatDongTau,
+                    ma_nghe_nghiep: maNgheNghiep,
+                    noi_cong_tac_hien_tai: noiCongTacHienTai,
+                    ngay_bat_dau_lam_viec_hien_tai: ngayBatDauLamViecHienTai,
+                    nghe_cong_viec_truoc_day: ngheCongViecTruocDay,
+                    thoi_gian_lam_viec_truoc_day_nam: thoiGianLamViecTruocDayNam,
+                    thoi_gian_lam_viec_truoc_day_thang: thoiGianLamViecTruocDayThang,
+                    tu_ngay_lam_viec_truoc_day: tuNgayLamViecTruocDay,
+                    den_ngay_lam_viec_truoc_day: denNgayLamViecTruocDay,
+                    milestones,
+                    ten_thuoc: tenThuoc,
+                    luc_keo_than: lucKeoThan
+                }
+            },
+            labData: {
+                blood_test: {
+                    hemoglobin,
+                    glycemia,
+                    chi_so_hc: chiSoHc,
+                    chi_so_bach_cau: chiSoBachCau,
+                    chi_so_tieu_cau: chiSoTieuCau,
+                    cong_thuc_bc: congThucBc,
+                    thoi_gian_howell: thoiGianHowell,
+                    cholesterol,
+                    triglycerid,
+                    hdl,
+                    ldl,
+                    rpr,
+                    tpha,
+                    hbsag,
+                    hbeag,
+                    hcvab,
+                    havab,
+                    hiv
+                },
+                urine_test: { protein },
+                kq_xn_ma_tuy: kqXnMaiTuy,
+                kq_xn_nong_do_con: kqXnNongDoCon,
+                kq_xn_khac: kqXnKhac,
+                paraclinical_items: paraclinicalItems,
+                xn_khac: xnKhac,
+                nong_do_con_mau: nongDoConMau,
+                nuoc_tieu_test_nhanh: { ma_tuy: nuocTieuMaTuy, amphetamine: nuocTieuAmphetamine, duong: nuocTieuDuong, protein: nuocTieuProtein, khac: nuocTieuKhac },
+                imaging: { ket_qua: ketQuaChanDoanHinhAnh },
+                ecg: { ket_qua: ketQuaDienTim },
+                spiro: { ket_qua: chucNangHoHap },
+                us: { ket_qua: ketQuaSieuAmBung }
+            },
+            conclusionData: {
+                fitness_class: fitnessClass,
+                diagnosis,
+                cac_van_de_luu_y: cacVanDeLuuY,
+                du_tieu_chuan_dk_ptgt_duong_sat: duTieuChuanDkPtgtDuongSat,
+                kha_nang_chiu_song: khaNangChiuSong,
+                han_che: hanChe,
+                yeu_cau_deo_kinh: yeuCauDeoKinh,
+                ket_luan_loai_suc_khoe: ketLuanLoaiSucKhoe,
+                doctor_id: conclusionDoctorId,
+                quan_ly_benh: quanLyBenh,
+                theo_doi_tai: theoDoiTai,
+                chuyen_tuyen: chuyenTuyen
+            }
+        };
+        if (onPreview) {
+            onPreview(fullPayload);
+        }
     };
 
     const isChild = parseInt(formType, 10) >= 6 && parseInt(formType, 10) <= 13;
@@ -1158,6 +1687,8 @@ export const useDynamicFormState = (
         setPatientName,
         cccd,
         setCccd,
+        noCccd,
+        setNoCccd,
         dob,
         setDob,
         gender,
@@ -1681,6 +2212,12 @@ export const useDynamicFormState = (
         setKetLuanLoaiSucKhoe,
         conclusionDoctorId,
         setConclusionDoctorId,
+        quanLyBenh,
+        setQuanLyBenh,
+        theoDoiTai,
+        setTheoDoiTai,
+        chuyenTuyen,
+        setChuyenTuyen,
         errors,
         setErrors,
         specialtyMetadata,
@@ -1689,7 +2226,10 @@ export const useDynamicFormState = (
         setDoctors,
         isLocked,
         setIsLocked,
+        isSyncingParaclinical,
+        handleSyncParaclinical,
         handleAutofillTab,
-        handleSubmit
+        handleSubmit,
+        handlePreview
     };
 };

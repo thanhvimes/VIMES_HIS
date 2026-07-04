@@ -4,6 +4,7 @@ import { SearchIcon, RefreshIcon } from '../../../../components/Icons';
 import Combobox from '../../../../components/ui/Combobox';
 import { FormDateInput } from '../../../../components/ui/forms';
 import { CatalogItem } from '../../../../services/catalogService';
+import { useSession } from '../../../../contexts/SessionContext';
 
 const AdminTab: React.FC = () => {
     const {
@@ -21,6 +22,8 @@ const AdminTab: React.FC = () => {
         setPatientName,
         cccd,
         setCccd,
+        noCccd,
+        setNoCccd,
         dob,
         setDob,
         gender,
@@ -128,7 +131,80 @@ const AdminTab: React.FC = () => {
         khongKinhMatPhai,
         khongKinhMatTrai,
         sacGiac,
+        specialtyMetadata,
+        setSpecialtyMetadata,
+        doctors,
+        handleSubmit,
     } = useDynamicFormContext();
+
+    const { user } = useSession();
+
+    const safeMetadata = specialtyMetadata || {};
+    const adminMetadata = { ...(safeMetadata.admin || { doctorId: '', status: 'CHUA_KHAM' }) };
+    
+    if (!adminMetadata.doctorId && user) {
+        adminMetadata.doctorId = user.userId || '';
+        adminMetadata.doctorName = user.name || '';
+    }
+    
+    const doctorsList = doctors || [];
+
+    const handleAction = (action: 'MỞ_KHÁM' | 'DUYỆT' | 'MỞ_KHÓA' | 'THOÁT') => {
+        const payload = { ...adminMetadata, updatedAt: new Date().toISOString() };
+        if (action === 'MỞ_KHÁM') {
+            payload.status = 'ĐANG_KHÁM';
+            payload.doctorId = user?.userId || '';
+            payload.doctorName = user?.name || '';
+            
+            setSpecialtyMetadata(prev => ({
+                ...prev,
+                admin: payload
+            }));
+        } else if (action === 'DUYỆT') {
+            payload.status = 'ĐÃ_DUYỆT';
+            
+            setSpecialtyMetadata(prev => {
+                const updated = {
+                    ...prev,
+                    admin: payload
+                };
+                setTimeout(() => {
+                    handleSubmit();
+                }, 100);
+                return updated;
+            });
+        } else if (action === 'MỞ_KHÓA') {
+            payload.status = 'ĐANG_KHÁM';
+            
+            setSpecialtyMetadata(prev => ({
+                ...prev,
+                admin: payload
+            }));
+        } else if (action === 'THOÁT') {
+            payload.status = 'CHUA_KHAM';
+            
+            setSpecialtyMetadata(prev => ({
+                ...prev,
+                admin: payload
+            }));
+        }
+    };
+
+    const isTabLocked = isLocked || (adminMetadata.status !== 'ĐANG_KHÁM' && adminMetadata.status !== 'ĐÃ_KHÁM');
+
+    const doctorColumns = [
+        { key: 'id', label: 'Mã người dùng (su_userid)', width: '180px' },
+        { key: 'name', label: 'Họ tên bác sĩ' }
+    ];
+
+    const renderBadge = () => {
+        switch (adminMetadata.status) {
+            case 'ĐANG_KHÁM': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Đang khám</span>;
+            case 'ĐÃ_KHÁM': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Đã khám</span>;
+            case 'ĐÃ_DUYỆT': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-teal-100 text-teal-800">Đã duyệt</span>;
+            default: return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Chưa khám</span>;
+        }
+    };
 
     const getDriverWarnings = () => {
         if (formType !== '3' || !licenseClass) return [];
@@ -179,56 +255,104 @@ const AdminTab: React.FC = () => {
 
     return (
         <div className="space-y-6 animate-fadeIn">
-            {/* HIS Link Toolbar - Tạm ẩn do đã có cơ chế tự động đồng bộ thời gian thực khi tiếp nhận KSK
-            <div className="bg-[#f0fdf4] dark:bg-emerald-950/10 p-4 rounded-xl border border-[#d1fae5] dark:border-emerald-900/30 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="space-y-1">
-                    <h5 className="text-xs font-extrabold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-[#0f766e] animate-pulse"></span>
-                        Đồng bộ dữ liệu từ hệ thống HIS
-                    </h5>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                        Tự động điền thông tin hành chính, thể lực và lâm sàng đã có trên HIS sang phiếu KSK.
-                    </p>
+            {/* Action Row: Search/Sync HIS & Autofill Tab */}
+            {/* Quy trình phê duyệt tab */}
+            <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60 rounded-xl mb-4 gap-4 animate-in fade-in">
+                <div className="flex items-center gap-3">
+                    <span className="font-extrabold text-sm text-[#0f766e] dark:text-teal-400 uppercase tracking-wide">
+                        Quy trình phê duyệt Hành chính &amp; Đặc thù
+                    </span>
+                    {renderBadge()}
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2 lg:w-1/2 justify-end">
-                    <div className="relative flex-1">
-                        <SearchIcon className="absolute left-3 top-3 w-4 h-4 text-slate-400"/>
-                        <input 
-                            type="text" 
-                            placeholder="Nhập Số hồ sơ (VD: 1782352146872)..." 
-                            value={hisSearchQuery}
-                            onChange={e => setHisSearchQuery(e.target.value)}
-                            className="w-full pl-9 pr-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 font-bold"
-                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleFetchHisData(); } }}
+                <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                        <label className="text-xs font-bold text-slate-500">Người nhập liệu:</label>
+                        <Combobox
+                            value={adminMetadata.doctorId}
+                            options={doctorsList}
+                            columns={doctorColumns}
+                            onChange={(val, item) => {
+                                setSpecialtyMetadata(prev => ({
+                                    ...prev,
+                                    admin: {
+                                        ...adminMetadata,
+                                        doctorId: val,
+                                        doctorName: item?.name || '',
+                                        updatedAt: new Date().toISOString()
+                                    }
+                                }));
+                            }}
+                            disabled={isTabLocked}
+                            placeholder="-- Chọn bác sĩ --"
+                            className="min-w-[250px]"
                         />
                     </div>
-                    <button
-                        type="button"
-                        onClick={handleFetchHisData}
-                        disabled={isFetchingHis}
-                        className="px-4 py-2 bg-[#0f766e] hover:bg-[#0d9488] text-white rounded-lg text-sm font-bold shadow-md shadow-teal-500/10 flex items-center justify-center gap-1.5 whitespace-nowrap disabled:opacity-50 transition-all duration-150 active:scale-95 cursor-pointer"
-                    >
-                        {isFetchingHis ? <RefreshIcon className="w-4 h-4 animate-spin"/> : <SearchIcon className="w-4 h-4"/>}
-                        Lấy dữ liệu HIS
-                    </button>
+                    
+                    {adminMetadata.status === 'CHUA_KHAM' || !adminMetadata.status ? (
+                        <button
+                            type="button"
+                            onClick={() => handleAction('MỞ_KHÁM')}
+                            className="px-4 py-1.5 text-xs font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm active:scale-95 transition cursor-pointer"
+                        >
+                            Khám
+                        </button>
+                    ) : (adminMetadata.status === 'ĐANG_KHÁM' || adminMetadata.status === 'ĐÃ_KHÁM') ? (
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => handleAction('DUYỆT')}
+                                className="px-4 py-1.5 text-xs font-bold text-white bg-green-600 rounded-lg hover:bg-green-700 shadow-sm active:scale-95 transition cursor-pointer"
+                            >
+                                Duyệt
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleAction('THOÁT')}
+                                className="px-4 py-1.5 text-xs font-bold text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 shadow-sm active:scale-95 transition cursor-pointer"
+                            >
+                                Thoát
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => handleAction('MỞ_KHÓA')}
+                            className="px-4 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 shadow-sm active:scale-95 transition cursor-pointer"
+                            title="Mở khóa để sửa"
+                        >
+                            Mở khóa
+                        </button>
+                    )}
                 </div>
             </div>
-            */}
 
-            {hisSyncMessage && (
-                <div className={`p-3.5 rounded-lg text-xs leading-relaxed flex items-start gap-2 border animate-fadeIn ${
-                    hisSyncMessage.type === 'success' 
-                        ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900/30 text-green-800 dark:text-green-400' 
-                        : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/30 text-red-800 dark:text-red-400'
-                }`}>
-                    <span className="font-bold">{hisSyncMessage.type === 'success' ? '✓ Thành công:' : '⚠ Lỗi:'}</span>
-                    <span>{hisSyncMessage.text}</span>
-                </div>
-            )}
+            {!isTabLocked && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50 dark:bg-slate-800/40 p-3 rounded-xl border border-slate-200 dark:border-slate-700/60 mb-4">
+                    <div className="flex flex-1 max-w-lg items-center gap-2">
+                        <div className="relative flex-1">
+                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <SearchIcon className="w-4 h-4 text-slate-400" />
+                            </span>
+                            <input 
+                                type="text" 
+                                placeholder="Tìm theo số thẻ CCCD, mã hồ sơ, số điện thoại..." 
+                                value={hisSearchQuery}
+                                onChange={e => setHisSearchQuery(e.target.value)}
+                                className="w-full pl-9 pr-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 font-bold placeholder:text-slate-400 dark:placeholder:text-slate-500 placeholder:font-normal"
+                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleFetchHisData(); } }}
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleFetchHisData}
+                            disabled={isFetchingHis}
+                            className="px-4 py-2 bg-[#0f766e] hover:bg-[#0d9488] text-white rounded-lg text-sm font-bold shadow-md shadow-teal-500/10 flex items-center justify-center gap-1.5 whitespace-nowrap disabled:opacity-50 transition-all duration-150 active:scale-95 cursor-pointer"
+                        >
+                            {isFetchingHis ? <RefreshIcon className="w-4 h-4 animate-spin"/> : <SearchIcon className="w-4 h-4"/>}
+                            Tìm kiếm
+                        </button>
+                    </div>
 
-            {/* Action Row: Autofill Tab */}
-            {!isLocked && (
-                <div className="flex justify-end">
                     <button
                         type="button"
                         onClick={() => handleAutofillTab('admin')}
@@ -243,6 +367,17 @@ const AdminTab: React.FC = () => {
                         </svg>
                         Điền nhanh kết quả mặc định (Hành chính)
                     </button>
+                </div>
+            )}
+
+            {hisSyncMessage && (
+                <div className={`p-3.5 rounded-lg text-xs leading-relaxed flex items-start gap-2 border animate-fadeIn ${
+                    hisSyncMessage.type === 'success' 
+                        ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900/30 text-green-800 dark:text-green-400' 
+                        : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/30 text-red-800 dark:text-red-400'
+                }`}>
+                    <span className="font-bold">{hisSyncMessage.type === 'success' ? '✓ Thành công:' : '⚠ Lỗi:'}</span>
+                    <span>{hisSyncMessage.text}</span>
                 </div>
             )}
 
@@ -264,13 +399,13 @@ const AdminTab: React.FC = () => {
                 </div>
             )}
 
-            <fieldset disabled={isLocked} className="space-y-6">
+            <fieldset disabled={isTabLocked} className="space-y-6">
             <div>
                 <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">I.1. Thông tin cơ bản bệnh nhân</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Mã bệnh nhân</label>
-                        <input type="text" value={patientId} onChange={e => setPatientId(e.target.value)} required className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" />
+                        <input type="text" value={patientId} onChange={e => setPatientId(e.target.value)} required className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-teal-700 dark:text-emerald-400 font-bold" />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">
@@ -290,15 +425,35 @@ const AdminTab: React.FC = () => {
                                 }
                             }} 
                             required 
-                            className={`w-full p-2.5 border rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white ${errors.patientName ? 'border-red-500 bg-red-50/50' : 'border-slate-300 dark:border-slate-600'}`} 
+                            className={`w-full p-2.5 border rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-teal-700 dark:text-emerald-400 font-bold ${errors.patientName ? 'border-red-500 bg-red-50/50' : 'border-slate-300 dark:border-slate-600'}`} 
                             placeholder="NGUYỄN VĂN A" 
                         />
                         {errors.patientName && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.patientName}</p>}
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">
-                            Số định danh / CCCD / Hộ chiếu <span className="text-red-500">*</span>
-                        </label>
+                        <div className="flex justify-between items-center mb-1">
+                            <label className="text-xs font-bold text-slate-500">
+                                Số định danh / CCCD / Hộ chiếu {!noCccd && <span className="text-red-500">*</span>}
+                            </label>
+                            <label className="inline-flex items-center gap-3 cursor-pointer font-normal text-slate-600 dark:text-slate-400 select-none mr-3">
+                                <input
+                                    type="checkbox"
+                                    checked={noCccd}
+                                    onChange={e => {
+                                        setNoCccd(e.target.checked);
+                                        if (e.target.checked) {
+                                            setErrors(prev => {
+                                                const updated = { ...prev };
+                                                delete updated.cccd;
+                                                return updated;
+                                            });
+                                        }
+                                    }}
+                                    className="rounded border-slate-300 text-teal-600 focus:ring-teal-500 h-3.5 w-3.5 m-0 relative top-[1.5px]"
+                                />
+                                <span className="text-[11px] leading-none">Không sử dụng thẻ CCCD</span>
+                            </label>
+                        </div>
                         <input 
                             type="text" 
                             value={cccd} 
@@ -313,7 +468,7 @@ const AdminTab: React.FC = () => {
                                     });
                                 }
                             }} 
-                            required 
+                            required={!noCccd} 
                             className={`w-full p-2.5 border rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white ${errors.cccd ? 'border-red-500 bg-red-50/50' : 'border-slate-300 dark:border-slate-600'}`} 
                             placeholder="038090012345" 
                         />
@@ -503,10 +658,20 @@ const AdminTab: React.FC = () => {
                         <label className="block text-xs font-bold text-slate-500 mb-1">Đối tượng khám</label>
                         <select value={targetGroup} onChange={e => setTargetGroup(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
                             <option value="">-- Chọn đối tượng --</option>
-                            <option value="11">Học sinh phổ thông</option>
-                            <option value="12">Sinh viên đại học/cao đẳng</option>
+                            <option value="1">Người cao tuổi</option>
+                            <option value="2">Người khuyết tật</option>
+                            <option value="3">Người thuộc hộ nghèo, cận nghèo</option>
+                            <option value="4">Người có công</option>
+                            <option value="5">Người mắc bệnh mạn tính</option>
+                            <option value="6">Người sống tại vùng đồng bào dân tộc thiểu số và miền núi</option>
+                            <option value="7">Người sống tại vùng có điều kiện kinh tế - xã hội khó khăn, đặc biệt khó khăn</option>
+                            <option value="8">Người sống tại xã đảo</option>
+                            <option value="9">Người sống tại đặc khu</option>
+                            <option value="10">Trẻ em trong cơ sở giáo dục mầm non</option>
+                            <option value="11">Học sinh trong các cơ sở giáo dục phổ thông</option>
+                            <option value="12">Sinh viên</option>
                             <option value="13">Người lao động</option>
-                            <option value="14">Khác (Người lớn lái xe, thuyền viên...)</option>
+                            <option value="14">Các đối tượng khác</option>
                         </select>
                     </div>
                     <div>

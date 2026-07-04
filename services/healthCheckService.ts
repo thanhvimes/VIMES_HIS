@@ -38,9 +38,9 @@ export const healthCheckService = {
         }
     },
 
-    markBarcodePrinted: async (docIds: string[]): Promise<boolean> => {
+    markBarcodePrinted: async (docIds: string[], samples?: any[]): Promise<boolean> => {
         try {
-            await apiClient.post('/health-check-sync/documents/mark-printed', { docIds });
+            await apiClient.post('/health-check-sync/documents/mark-printed', { docIds, samples });
             return true;
         } catch (error) {
             console.error("Error marking barcode printed:", error);
@@ -314,6 +314,83 @@ export const healthCheckService = {
             return await apiClient.put<{ success: boolean; message: string }>(`/health-check-sync/reception/employee/${id}`, payload);
         } catch (error) {
             console.error("Error updating employee info:", error);
+            throw error;
+        }
+    },
+
+    deleteEmployee: async (id: string | number): Promise<{ success: boolean; message: string }> => {
+        try {
+            return await apiClient.delete<{ success: boolean; message: string }>(`/health-check-sync/employees/${id}`);
+        } catch (error) {
+            console.error("Error deleting employee:", error);
+            throw error;
+        }
+    },
+
+    createEmployee: async (payload: any): Promise<{ success: boolean; message: string; employeeId: number }> => {
+        try {
+            return await apiClient.post<{ success: boolean; message: string; employeeId: number }>('/health-check-sync/employees', payload);
+        } catch (error) {
+            console.error("Error creating employee:", error);
+            throw error;
+        }
+    },
+
+    getSampleSlips: async (filters: { startDate?: string; endDate?: string; deptId?: string }): Promise<any[]> => {
+        try {
+            const params = new URLSearchParams();
+            if (filters.startDate) params.append('startDate', filters.startDate);
+            if (filters.endDate) params.append('endDate', filters.endDate);
+            if (filters.deptId) params.append('deptId', filters.deptId);
+            const queryStr = params.toString() ? `?${params.toString()}` : '';
+            return await apiClient.get<any[]>(`/health-check-sync/samples/slips${queryStr}`);
+        } catch (error) {
+            console.error("Error fetching sample slips:", error);
+            throw error;
+        }
+    },
+
+    getSampleSlipPatients: async (slipId: number): Promise<any[]> => {
+        try {
+            return await apiClient.get<any[]>(`/health-check-sync/samples/slips/${slipId}/patients`);
+        } catch (error) {
+            console.error("Error fetching sample slip patients:", error);
+            throw error;
+        }
+    },
+
+    getPatientTestDetails: async (orderId: number): Promise<any[]> => {
+        try {
+            return await apiClient.get<any[]>(`/health-check-sync/samples/orders/${orderId}/items`);
+        } catch (error) {
+            console.error("Error fetching patient test details:", error);
+            throw error;
+        }
+    },
+
+    getCancelledSamples: async (): Promise<any[]> => {
+        try {
+            return await apiClient.get<any[]>('/health-check-sync/samples/cancelled');
+        } catch (error) {
+            console.error("Error fetching cancelled samples:", error);
+            throw error;
+        }
+    },
+
+    confirmSampleReceipt: async (ids: number[], username?: string): Promise<{ success: boolean }> => {
+        try {
+            return await apiClient.post<{ success: boolean }>('/health-check-sync/samples/receive', { ids, username });
+        } catch (error) {
+            console.error("Error confirming sample receipt:", error);
+            throw error;
+        }
+    },
+
+    cancelSampleReceipt: async (ids: number[], reason: string, username?: string): Promise<{ success: boolean }> => {
+        try {
+            return await apiClient.post<{ success: boolean }>('/health-check-sync/samples/cancel', { ids, reason, username });
+        } catch (error) {
+            console.error("Error cancelling sample receipt:", error);
             throw error;
         }
     }

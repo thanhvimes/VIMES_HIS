@@ -10,13 +10,14 @@ export class ContractsController {
     async getSettings(req: Request, res: Response) {
         try {
             await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS reception_slip_template text`);
+            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS use_qz_tray boolean DEFAULT false`);
             const result = await query(
-                `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, reception_slip_template FROM health_check_settings LIMIT 1`
+                `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, reception_slip_template, use_qz_tray FROM health_check_settings LIMIT 1`
             );
 
             if (result.rows.length === 0) {
                 return res.json({
-                    vneid_url: 'https://api-vneid.moh.gov.vn/api/v1',
+                    vneid_url: 'https://api.emrhub.vn/api/v1',
                     vneid_username: '',
                     vneid_password: '',
                     ma_cskcb: '15124',
@@ -32,6 +33,7 @@ export class ContractsController {
                     barcode_zpl_template_xn: '^XA\n^CF0,26\n^FO30,30^FD{hospital}^FS\n^FO30,70^FD{patient}^FS\n^FO30,105^FD{test}^FS\n^FO30,140^FD{sample_type} - {date}^FS\n^BY2,2,40\n^FO30,175^BCN,,N,N\n^FD{code}^FS\n^FO30,225^FD{code}^FS\n^XZ',
                     barcode_zpl_template_ksk: '^XA\n^CF0,26\n^FO30,30^FD{hospital}^FS\n^FO30,70^FD{patient}^FS\n^FO30,105^FD{form_name}^FS\n^FO30,140^FD{info}^FS\n^BY2,2,40\n^FO30,175^BCN,,N,N\n^FD{code}^FS\n^FO30,225^FD{code}^FS\n^XZ',
                     barcode_printer_name: 'Zebra',
+                    use_qz_tray: false,
                     reception_slip_template: `<div class="header">
     <div class="hospital-name">BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH</div>
     <div class="title">PHIẾU TIẾP ĐÓN</div>
@@ -141,11 +143,13 @@ export class ContractsController {
             barcode_zpl_template_xn,
             barcode_zpl_template_ksk,
             barcode_printer_name,
-            reception_slip_template
+            reception_slip_template,
+            use_qz_tray
         } = req.body;
 
         try {
             await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS reception_slip_template text`);
+            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS use_qz_tray boolean DEFAULT false`);
             const existCheck = await query('SELECT id, vneid_password FROM health_check_settings LIMIT 1');
             
             let finalPassword = '';
@@ -176,12 +180,13 @@ export class ContractsController {
                         barcode_zpl_template_ksk = $15,
                         barcode_printer_name = $16,
                         reception_slip_template = $17,
+                        use_qz_tray = $18,
                         updated_at = NOW()
-                    WHERE id = $18
+                    WHERE id = $19
                     RETURNING id
                 `;
                 await query(updateSql, [
-                    vneid_url || 'https://api-vneid.moh.gov.vn/api/v1',
+                    vneid_url || 'https://api.emrhub.vn/api/v1',
                     vneid_username || '',
                     finalPassword,
                     ma_cskcb || '15124',
@@ -198,6 +203,7 @@ export class ContractsController {
                     barcode_zpl_template_ksk || '',
                     barcode_printer_name || 'Zebra',
                     reception_slip_template || '',
+                    use_qz_tray === true,
                     existing.id
                 ]);
             } else {
@@ -206,12 +212,12 @@ export class ContractsController {
                     INSERT INTO health_check_settings (
                         vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval,
                         barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type,
-                        allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, reception_slip_template
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+                        allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, reception_slip_template, use_qz_tray
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
                     RETURNING id
                 `;
                 await query(insertSql, [
-                    vneid_url || 'https://api-vneid.moh.gov.vn/api/v1',
+                    vneid_url || 'https://api.emrhub.vn/api/v1',
                     vneid_username || '',
                     finalPassword,
                     ma_cskcb || '15124',
@@ -227,7 +233,8 @@ export class ContractsController {
                     barcode_zpl_template_xn || '',
                     barcode_zpl_template_ksk || '',
                     barcode_printer_name || 'Zebra',
-                    reception_slip_template || ''
+                    reception_slip_template || '',
+                    use_qz_tray === true
                 ]);
             }
 
@@ -254,11 +261,30 @@ export class ContractsController {
                 ? vneid_url.split('/api/v1')[0] 
                 : vneid_url;
 
+            let testPassword = vneid_password || '';
+            if (testPassword === '******') {
+                const settingsQuery = await query('SELECT vneid_password FROM health_check_settings LIMIT 1');
+                if (settingsQuery.rows.length > 0) {
+                    const encryptedPass = settingsQuery.rows[0].vneid_password;
+                    if (encryptedPass) {
+                        try {
+                            if (SecurityUtils.isEncrypted(encryptedPass)) {
+                                testPassword = SecurityUtils.resolveSecret(encryptedPass);
+                            } else {
+                                testPassword = SecurityUtils.decrypt(encryptedPass);
+                            }
+                        } catch {
+                            testPassword = SecurityUtils.resolveSecret(encryptedPass);
+                        }
+                    }
+                }
+            }
+
             console.log(`📡 [VNeID Portal] Testing connection to login at: ${originUrl}/api/auth/login`);
 
             const loginRes = await axios.post(`${originUrl}/api/auth/login`, {
                 username: vneid_username || '',
-                password: vneid_password || ''
+                password: testPassword
             }, {
                 headers: { 'Content-Type': 'application/json', 'Accept': '*/*' },
                 timeout: 8000

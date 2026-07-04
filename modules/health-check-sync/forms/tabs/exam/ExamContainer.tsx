@@ -8,10 +8,11 @@ import EntExamTab from './EntExamTab';
 import DentalExamTab from './DentalExamTab';
 import GynecologyTab from './GynecologyTab';
 import { useDynamicFormContext } from '../../DynamicFormContext';
+import { toast } from 'sonner';
 
 const ExamContainer: React.FC = () => {
     const [activeSubTab, setActiveSubTab] = useState('physical');
-    const { formType } = useDynamicFormContext();
+    const { formType, specialtyMetadata } = useDynamicFormContext();
 
     const tabs = [
         { id: 'physical', label: 'Thể lực' },
@@ -23,6 +24,17 @@ const ExamContainer: React.FC = () => {
         { id: 'dental', label: 'Răng Hàm Mặt' },
         { id: 'gynecology', label: 'Sản phụ khoa' },
     ];
+
+    const handleTabClick = (tabId: string) => {
+        if (tabId === activeSubTab) return;
+        const currentMeta = specialtyMetadata?.[activeSubTab];
+        if (currentMeta?.status === 'ĐANG_KHÁM') {
+            const currentTabLabel = tabs.find(t => t.id === activeSubTab)?.label || activeSubTab;
+            toast.warning(`Chuyên khoa "${currentTabLabel}" chưa được Duyệt. Vui lòng nhấn "Duyệt" trước khi chuyển sang chuyên khoa khác!`);
+            return;
+        }
+        setActiveSubTab(tabId);
+    };
 
     const renderContent = () => {
         switch (activeSubTab) {
@@ -50,7 +62,7 @@ const ExamContainer: React.FC = () => {
                         <button
                             type="button"
                             key={tab.id}
-                            onClick={() => setActiveSubTab(tab.id)}
+                            onClick={() => handleTabClick(tab.id)}
                             className={`w-full text-left px-4 py-3 rounded-md text-sm font-medium transition-colors ${
                                 activeSubTab === tab.id
                                     ? 'bg-blue-100 text-blue-700'

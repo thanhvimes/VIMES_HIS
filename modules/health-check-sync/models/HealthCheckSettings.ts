@@ -18,6 +18,7 @@ export interface SettingsData {
     barcode_zpl_template_ksk: string;
     barcode_printer_name: string;
     reception_slip_template: string;
+    use_qz_tray: boolean;
 }
 
 export class HealthCheckSettings implements SettingsData {
@@ -37,6 +38,7 @@ export class HealthCheckSettings implements SettingsData {
     barcode_zpl_template_xn: string = '^XA\n^CF0,26\n^FO30,30^FD{hospital}^FS\n^FO30,70^FD{patient}^FS\n^FO30,105^FD{test}^FS\n^FO30,140^FD{sample_type} - {date}^FS\n^BY2,2,40\n^FO30,175^BCN,,N,N\n^FD{code}^FS\n^FO30,225^FD{code}^FS\n^XZ';
     barcode_zpl_template_ksk: string = '^XA\n^CF0,26\n^FO30,30^FD{hospital}^FS\n^FO30,70^FD{patient}^FS\n^FO30,105^FD{form_name}^FS\n^FO30,140^FD{info}^FS\n^BY2,2,40\n^FO30,175^BCN,,N,N\n^FD{code}^FS\n^FO30,225^FD{code}^FS\n^XZ';
     barcode_printer_name: string = 'Zebra';
+    use_qz_tray: boolean = false;
     reception_slip_template: string = `<div class="header">
     <div class="hospital-name">BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH</div>
     <div class="title">PHIẾU TIẾP ĐÓN</div>
@@ -132,6 +134,7 @@ export class HealthCheckSettings implements SettingsData {
             this.barcode_zpl_template_ksk = data.barcode_zpl_template_ksk ?? this.barcode_zpl_template_ksk;
             this.barcode_printer_name = data.barcode_printer_name ?? this.barcode_printer_name;
             this.reception_slip_template = data.reception_slip_template ?? this.reception_slip_template;
+            this.use_qz_tray = data.use_qz_tray === true;
         }
     }
 
@@ -194,6 +197,7 @@ export class HealthCheckSettings implements SettingsData {
             barcode_zpl_template_ksk: this.barcode_zpl_template_ksk,
             barcode_printer_name: this.barcode_printer_name,
             reception_slip_template: this.reception_slip_template,
+            use_qz_tray: this.use_qz_tray,
         };
     }
 }

@@ -582,6 +582,12 @@ export interface DynamicFormContextType {
     setKetLuanLoaiSucKhoe: React.Dispatch<React.SetStateAction<string>>;
     conclusionDoctorId: string;
     setConclusionDoctorId: React.Dispatch<React.SetStateAction<string>>;
+    quanLyBenh: string;
+    setQuanLyBenh: React.Dispatch<React.SetStateAction<string>>;
+    theoDoiTai: string;
+    setTheoDoiTai: React.Dispatch<React.SetStateAction<string>>;
+    chuyenTuyen: string;
+    setChuyenTuyen: React.Dispatch<React.SetStateAction<string>>;
 
     errors: Record<string, string>;
     setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>;
@@ -589,6 +595,8 @@ export interface DynamicFormContextType {
     // Workflow optimizations
     isLocked: boolean;
     setIsLocked: React.Dispatch<React.SetStateAction<boolean>>;
+    isSyncingParaclinical: boolean;
+    handleSyncParaclinical: () => Promise<void>;
     handleAutofillTab: (tabKey: string) => void;
 }
 

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import JsBarcode from 'jsbarcode';
 import { healthCheckService } from '../../../services/healthCheckService';
 import { SearchIcon, UserGroupIcon, RefreshIcon, CheckCircleIcon, PrinterIcon } from '../../../components/Icons';
 import { toast } from 'sonner';
@@ -81,9 +82,25 @@ const PatientReception: React.FC = () => {
     const { provinces, ethnicities, occupations, nations, getWards } = useCatalogs();
     const [editWards, setEditWards] = useState<CatalogItem[]>([]);
 
+    const barcodeRef = useCallback((node: SVGSVGElement | null) => {
+        if (node && selectedEmployee?.doc_no) {
+            try {
+                JsBarcode(node, selectedEmployee.doc_no, {
+                    format: "CODE128",
+                    width: 1.5,
+                    height: 30,
+                    displayValue: false,
+                    margin: 0
+                });
+            } catch (err) {
+                console.error("JsBarcode rendering failed:", err);
+            }
+        }
+    }, [selectedEmployee?.doc_no]);
+
     const commonColumns = [
-        { key: 'code', label: 'Mã', width: '25%' },
-        { key: 'name', label: 'Tên', width: '75%' }
+        { key: 'code', label: 'Mã', width: '100px' },
+        { key: 'name', label: 'Tên' }
     ];
 
     const getTodayString = () => {
@@ -139,6 +156,13 @@ const PatientReception: React.FC = () => {
     const [receptionInfo, setReceptionInfo] = useState<{
         docNo: string;
         patientNo: string;
+        services: any[];
+    } | null>(null);
+
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    const [previewData, setPreviewData] = useState<{
+        emp: EmployeeSearchResult;
+        docNo: string;
         services: any[];
     } | null>(null);
 
@@ -366,7 +390,12 @@ const PatientReception: React.FC = () => {
                 );
                 
                 setTimeout(() => {
-                    printReceptionSlip(selectedEmployee, res.docNo, res.services);
+                    setPreviewData({
+                        emp: selectedEmployee,
+                        docNo: res.docNo,
+                        services: res.services
+                    });
+                    setIsPreviewOpen(true);
                     
                     // Auto-reset workflow for next scan if enabled
                     if (autoReset) {
@@ -487,7 +516,7 @@ const PatientReception: React.FC = () => {
             .replace(/\{\{dateStr\}\}/g, dateStr);
 
         // 1. Kiểm tra cấu hình máy in để in im lặng qua QZ Tray
-        if (settings?.barcode_printer_name) {
+        if (settings?.use_qz_tray && settings?.barcode_printer_name) {
             try {
                 toast.loading("Đang gửi lệnh in phiếu tiếp đón qua QZ Tray...");
                 const cleanHtmlForQz = `
@@ -734,8 +763,16 @@ const PatientReception: React.FC = () => {
     };
 
     const handleReprintSlip = () => {
-        if (!selectedEmployee || !receptionInfo) return;
-        printReceptionSlip(selectedEmployee, receptionInfo.docNo, receptionInfo.services);
+        const emp = selectedEmployee;
+        const docNo = receptionInfo?.docNo || selectedEmployee?.doc_no;
+        if (!emp || !docNo) return;
+        
+        setPreviewData({
+            emp,
+            docNo,
+            services: receptionInfo?.services || []
+        });
+        setIsPreviewOpen(true);
     };
 
     return (
@@ -896,9 +933,14 @@ const PatientReception: React.FC = () => {
                                         </button>
                                     )}
                                     {selectedEmployee.doc_no ? (
-                                        <span className="bg-emerald-500 text-white text-[10px] font-black px-2 py-1.5 rounded-lg uppercase tracking-wider">
-                                            Mã HS HIS: {selectedEmployee.doc_no}
-                                        </span>
+                                        <>
+                                            <div className="bg-white px-2 py-1 rounded-lg border border-slate-200/80 shadow-sm flex items-center justify-center h-10">
+                                                <svg ref={barcodeRef}></svg>
+                                            </div>
+                                            <span className="bg-emerald-500 text-white text-[10px] font-black px-2 py-1.5 rounded-lg uppercase tracking-wider">
+                                                Mã HS HIS: {selectedEmployee.doc_no}
+                                            </span>
+                                        </>
                                     ) : (
                                         <span className="bg-slate-150 dark:bg-slate-750 text-slate-650 dark:text-slate-350 text-[10px] font-bold px-2 py-1.5 rounded-lg uppercase tracking-wider">
                                             Chờ tiếp đón
@@ -1038,63 +1080,158 @@ const PatientReception: React.FC = () => {
                 )}
             </div>
 
-            {isEditModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col max-h-[90vh]">
-                        <div className="bg-[#0f766e] px-6 py-4 text-white flex justify-between items-center">
-                            <h3 className="text-xs font-black uppercase tracking-wider">Chỉnh sửa thông tin hành chính bệnh nhân</h3>
-                            <button onClick={() => setIsEditModalOpen(false)} className="text-white hover:text-slate-200 cursor-pointer">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+            {isPreviewOpen && previewData && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-900 rounded-[2rem] max-w-sm w-full shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden transform scale-100 transition-all duration-300 animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
+                        {/* Header */}
+                        <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+                            <span className="text-xs font-extrabold text-[#0f766e] dark:text-teal-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <PrinterIcon className="w-4 h-4" />
+                                Xem trước phiếu tiếp đón
+                            </span>
+                            <button onClick={() => setIsPreviewOpen(false)} className="text-slate-400 hover:text-slate-650 dark:hover:text-slate-350 cursor-pointer">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
-                        <div className="p-6 overflow-y-auto space-y-4 flex-1 custom-scrollbar text-xs">
+
+                        {/* Paper Body */}
+                        <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-slate-100 dark:bg-slate-950 flex justify-center">
+                            <div className="bg-white dark:bg-slate-900 text-slate-850 dark:text-slate-200 p-5 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 w-full max-w-[280px] font-mono text-xs flex flex-col gap-3">
+                                <div className="text-center font-bold">
+                                    <div className="text-[10px] text-slate-450 dark:text-slate-500 uppercase tracking-tight">BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH</div>
+                                    <div className="text-sm font-black mt-1 text-slate-800 dark:text-white uppercase tracking-wider">PHIẾU TIẾP ĐÓN</div>
+                                </div>
+
+                                <div className="border-t border-dashed border-slate-300 dark:border-slate-700 my-1"></div>
+
+                                <div className="space-y-1.5 text-[11px]">
+                                    <div className="flex justify-between"><span className="text-slate-450">Số hồ sơ:</span><strong className="text-slate-800 dark:text-white font-bold">{previewData.docNo}</strong></div>
+                                    <div className="flex justify-between"><span className="text-slate-450">Họ tên:</span><strong className="text-slate-800 dark:text-white uppercase font-bold">{previewData.emp.name}</strong></div>
+                                    <div className="flex justify-between"><span className="text-slate-450">Năm sinh:</span><span>{previewData.emp.dob ? previewData.emp.dob.split('-').reverse().join('/') : ''}</span></div>
+                                    <div className="flex justify-between"><span className="text-slate-450">CCCD:</span><span>{previewData.emp.card_id || previewData.emp.cardId || ''}</span></div>
+                                    <div className="flex justify-between"><span className="text-slate-450">Địa chỉ:</span><span className="truncate max-w-[150px]" title={previewData.emp.address}>{previewData.emp.address || 'Chưa có'}</span></div>
+                                </div>
+
+                                <div className="border-t border-dashed border-slate-300 dark:border-slate-700 my-1"></div>
+
+                                {/* Mock Barcode */}
+                                <div className="flex flex-col items-center justify-center py-2 border border-dashed border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900/50">
+                                    <div className="h-10 w-44 bg-gradient-to-r from-slate-800 via-slate-500 to-slate-900 flex items-center justify-center text-[10px] tracking-[6px] font-mono text-white opacity-90 rounded">
+                                        ||||||||||||||||
+                                    </div>
+                                    <span className="text-[10px] font-bold mt-1 text-slate-650 tracking-[1.5px]">{previewData.docNo}</span>
+                                </div>
+
+                                <div className="border-t border-dashed border-slate-300 dark:border-slate-700 my-1"></div>
+
+                                {/* Vital Signs placeholders */}
+                                <table className="w-full text-[11px] space-y-1">
+                                    <tbody>
+                                        <tr><td className="font-bold text-slate-450">Cân nặng:</td><td className="border-b border-dotted border-slate-300 dark:border-slate-700"></td><td className="text-right pl-2 text-slate-500">kg</td></tr>
+                                        <tr><td className="font-bold text-slate-450">Chiều cao:</td><td className="border-b border-dotted border-slate-300 dark:border-slate-700"></td><td className="text-right pl-2 text-slate-500">cm</td></tr>
+                                        <tr><td className="font-bold text-slate-450">Mạch:</td><td className="border-b border-dotted border-slate-300 dark:border-slate-700"></td><td className="text-right pl-2 text-slate-500">lần/phút</td></tr>
+                                        <tr><td className="font-bold text-slate-450">Huyết áp:</td><td className="border-b border-dotted border-slate-300 dark:border-slate-700"></td><td className="text-right pl-2 text-slate-500">mmHg</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="bg-slate-50 dark:bg-slate-900/60 px-5 py-3.5 flex justify-end gap-3 border-t border-slate-100 dark:border-slate-800/60">
+                            <button
+                                onClick={() => setIsPreviewOpen(false)}
+                                className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-650 dark:text-slate-350 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-750 transition cursor-pointer"
+                            >
+                                Đóng
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setIsPreviewOpen(false);
+                                    printReceptionSlip(previewData.emp, previewData.docNo, previewData.services);
+                                }}
+                                className="px-4 py-2 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-xl text-xs font-bold shadow-md shadow-teal-500/10 transition cursor-pointer flex items-center gap-1.5"
+                            >
+                                <PrinterIcon className="w-3.5 h-3.5" />
+                                Thực hiện in
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Edit modal */}
+            {isEditModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-900 rounded-[2rem] max-w-lg w-full shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden transform scale-100 transition-all duration-300 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+                        {/* Header */}
+                        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/60 flex items-center gap-3 bg-slate-50/50 dark:bg-slate-900/50">
+                            <div className="h-10 w-10 rounded-full flex items-center justify-center bg-teal-50 dark:bg-teal-950/30 text-teal-600 dark:text-teal-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                                </svg>
+                            </div>
+                            <h5 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                                Chỉnh sửa thông tin hành chính bệnh nhân
+                            </h5>
+                        </div>
+
+                        {/* Form Body */}
+                        <div className="p-6 flex flex-col gap-4 overflow-y-auto custom-scrollbar text-xs flex-1">
                             <div className="grid grid-cols-3 gap-3">
-                                <div>
-                                    <label className="block text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase mb-1">Họ (đệm)</label>
-                                    <input 
-                                        type="text" 
-                                        value={editForm.surname} 
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Họ (đệm) *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={editForm.surname}
                                         onChange={e => setEditForm(prev => ({ ...prev, surname: e.target.value.toUpperCase() }))}
-                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        placeholder="ĐỖ"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase mb-1">Tên đệm</label>
-                                    <input 
-                                        type="text" 
-                                        value={editForm.midname} 
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Tên đệm</label>
+                                    <input
+                                        type="text"
+                                        value={editForm.midname}
                                         onChange={e => setEditForm(prev => ({ ...prev, midname: e.target.value.toUpperCase() }))}
-                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        placeholder="GIA"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase mb-1">Tên</label>
-                                    <input 
-                                        type="text" 
-                                        value={editForm.firstname} 
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Tên *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={editForm.firstname}
                                         onChange={e => setEditForm(prev => ({ ...prev, firstname: e.target.value.toUpperCase() }))}
-                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        placeholder="HUY"
                                     />
                                 </div>
                             </div>
+
                             <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase mb-1">Ngày sinh</label>
-                                    <input 
-                                        type="date" 
-                                        value={editForm.dob} 
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Ngày sinh *</label>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={editForm.dob}
                                         onChange={e => setEditForm(prev => ({ ...prev, dob: e.target.value }))}
-                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase mb-1">Giới tính</label>
-                                    <select 
-                                        value={editForm.gender} 
+
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Giới tính *</label>
+                                    <select
+                                        required
+                                        value={editForm.gender}
                                         onChange={e => setEditForm(prev => ({ ...prev, gender: e.target.value }))}
-                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white cursor-pointer"
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white cursor-pointer"
                                     >
                                         <option value="Nam">Nam</option>
                                         <option value="Nữ">Nữ</option>
@@ -1103,52 +1240,56 @@ const PatientReception: React.FC = () => {
                                     </select>
                                 </div>
                             </div>
+
                             <div className="grid grid-cols-3 gap-3">
-                                <div>
-                                    <label className="block text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase mb-1">Số CCCD (12 số)</label>
-                                    <input 
-                                        type="text" 
-                                        value={editForm.cardId} 
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Số CCCD (12 số)</label>
+                                    <input
+                                        type="text"
+                                        value={editForm.cardId}
                                         onChange={e => setEditForm(prev => ({ ...prev, cardId: e.target.value }))}
-                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        placeholder="007095001012"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase mb-1">Ngày cấp CCCD</label>
-                                    <input 
-                                        type="text" 
-                                        placeholder="VD: 25/12/2021"
-                                        value={editForm.cardIdDate} 
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Ngày cấp CCCD</label>
+                                    <input
+                                        type="text"
+                                        placeholder="15/12/2024"
+                                        value={editForm.cardIdDate}
                                         onChange={e => setEditForm(prev => ({ ...prev, cardIdDate: e.target.value }))}
-                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase mb-1">Nơi cấp CCCD</label>
-                                    <input 
-                                        type="text" 
-                                        placeholder="Cục CSQLHC về trật tự xã hội"
-                                        value={editForm.cardIdPlace} 
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Nơi cấp CCCD</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Cục C06"
+                                        value={editForm.cardIdPlace}
                                         onChange={e => setEditForm(prev => ({ ...prev, cardIdPlace: e.target.value }))}
-                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
                                     />
                                 </div>
                             </div>
+
                             <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase mb-1">Số điện thoại liên hệ (10 số)</label>
-                                    <input 
-                                        type="text" 
-                                        value={editForm.phone} 
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Số điện thoại liên hệ</label>
+                                    <input
+                                        type="text"
+                                        value={editForm.phone}
                                         onChange={e => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
-                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        placeholder="0909123456"
                                     />
                                 </div>
-                                <div className="relative z-30">
+                                <div className="flex flex-col gap-1.5 relative z-30">
                                     <Combobox<CatalogItem>
                                         label="Dân tộc"
                                         value={editForm.ethnic}
-                                        displayValue={item => item.name}
+                                        displayValue={item => item?.name || ''}
                                         onChange={val => setEditForm(prev => ({ ...prev, ethnic: val }))}
                                         options={ethnicities}
                                         columns={commonColumns}
@@ -1156,23 +1297,24 @@ const PatientReception: React.FC = () => {
                                     />
                                 </div>
                             </div>
+
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="relative z-20">
+                                <div className="flex flex-col gap-1.5 relative z-20">
                                     <Combobox<CatalogItem>
                                         label="Tỉnh / Thành phố"
                                         value={editForm.provId}
-                                        displayValue={item => item.name}
+                                        displayValue={item => item?.name || ''}
                                         onChange={val => setEditForm(prev => ({ ...prev, provId: val, villId: '' }))}
                                         options={provinces}
                                         columns={commonColumns}
                                         placeholder="Chọn tỉnh/thành..."
                                     />
                                 </div>
-                                <div className="relative z-10">
+                                <div className="flex flex-col gap-1.5 relative z-10">
                                     <Combobox<CatalogItem>
                                         label="Phường / Xã"
                                         value={editForm.villId}
-                                        displayValue={item => item.name}
+                                        displayValue={item => item?.name || ''}
                                         onChange={val => setEditForm(prev => ({ ...prev, villId: val }))}
                                         options={editWards}
                                         columns={commonColumns}
@@ -1181,37 +1323,42 @@ const PatientReception: React.FC = () => {
                                     />
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase mb-1">Địa chỉ thường trú</label>
-                                <input 
-                                    type="text" 
-                                    value={editForm.address} 
+
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Địa chỉ thường trú</label>
+                                <input
+                                    type="text"
+                                    value={editForm.address}
                                     onChange={e => setEditForm(prev => ({ ...prev, address: e.target.value }))}
-                                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                    placeholder="Nhập số nhà, tên đường, thôn/xóm..."
                                 />
                             </div>
-                            <div className="grid grid-cols-2 gap-3 border-t border-slate-100 dark:border-slate-700 pt-3">
-                                <div>
-                                    <label className="block text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase mb-1">Họ tên người giám hộ</label>
-                                    <input 
-                                        type="text" 
-                                        value={editForm.guardianName} 
+
+                            <div className="grid grid-cols-2 gap-3 border-t border-slate-100 dark:border-slate-800/60 pt-3">
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Họ tên người giám hộ</label>
+                                    <input
+                                        type="text"
+                                        value={editForm.guardianName}
                                         onChange={e => setEditForm(prev => ({ ...prev, guardianName: e.target.value.toUpperCase() }))}
-                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase mb-1">Số CCCD người giám hộ</label>
-                                    <input 
-                                        type="text" 
-                                        value={editForm.guardianCccd} 
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Số CCCD người giám hộ</label>
+                                    <input
+                                        type="text"
+                                        value={editForm.guardianCccd}
                                         onChange={e => setEditForm(prev => ({ ...prev, guardianCccd: e.target.value }))}
-                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
                                     />
                                 </div>
                             </div>
                         </div>
-                        <div className="bg-slate-50 dark:bg-slate-900/60 px-6 py-4 flex justify-end gap-3 border-t border-slate-100 dark:border-slate-700">
+
+                        {/* Footer Buttons */}
+                        <div className="bg-slate-50 dark:bg-slate-900/60 px-6 py-4 flex justify-end gap-3 border-t border-slate-100 dark:border-slate-800/60">
                             <button
                                 onClick={() => setIsEditModalOpen(false)}
                                 className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-650 dark:text-slate-350 rounded-xl text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-750 transition cursor-pointer"

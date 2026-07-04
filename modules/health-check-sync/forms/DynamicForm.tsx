@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { toast } from 'sonner';
 import { DynamicFormContext } from './DynamicFormContext';
 import { useDynamicFormState } from '../hooks/useDynamicFormState';
 import AdminTab from './tabs/AdminTab';
@@ -17,6 +18,7 @@ interface DynamicFormProps {
     onSave: (formData: any) => void;
     onCancel: () => void;
     onChangeFormType?: (type: string) => void;
+    onPreview?: (formData: any) => void;
 }
 
 // Local Error Boundary Component to capture Tab rendering errors
@@ -61,11 +63,12 @@ class TabErrorBoundary extends React.Component<any, any> {
     }
 }
 
-const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave, onCancel, onChangeFormType }) => {
+const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave, onCancel, onChangeFormType, onPreview }) => {
     const { fontSettings } = useTheme();
     
-    const formState = useDynamicFormState(formType, initialData, onSave);
+    const formState = useDynamicFormState(formType, initialData, onSave, onPreview);
     const {
+        handlePreview,
         activeTab,
         setActiveTab,
         isLocked,
@@ -77,6 +80,50 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
         gender,
         handleSubmit
     } = formState;
+
+    const handleTabChange = (targetTab: string) => {
+        if (targetTab === activeTab) return;
+        
+        const specialtyMetadata = formState.specialtyMetadata || {};
+
+        if (activeTab === 'exam') {
+            const unapprovedKey = Object.keys(specialtyMetadata).find(
+                key => specialtyMetadata[key]?.status === 'ĐANG_KHÁM'
+            );
+            if (unapprovedKey) {
+                const specLabels: Record<string, string> = {
+                    physical: 'Thể lực',
+                    internal: 'Nội khoa',
+                    surgery: 'Ngoại khoa',
+                    dermatology: 'Da liễu',
+                    eye: 'Mắt',
+                    ent: 'Tai Mũi Họng',
+                    dental: 'Răng Hàm Mặt',
+                    gynecology: 'Sản phụ khoa'
+                };
+                const label = specLabels[unapprovedKey] || unapprovedKey;
+                toast.warning(`Chuyên khoa "${label}" chưa được Duyệt. Vui lòng nhấn "Duyệt" trước khi rời khỏi trang Khám lâm sàng!`);
+                return;
+            }
+        }
+
+        if (activeTab === 'admin' && specialtyMetadata.admin?.status === 'ĐANG_KHÁM') {
+            toast.warning(`Thông tin "Hành chính & Đặc thù" chưa được Duyệt. Vui lòng nhấn "Duyệt" trước khi rời khỏi tab!`);
+            return;
+        }
+
+        if (activeTab === 'history' && specialtyMetadata.history?.status === 'ĐANG_KHÁM') {
+            toast.warning(`Thông tin "Tiền sử & Vaccine" chưa được Duyệt. Vui lòng nhấn "Duyệt" trước khi rời khỏi tab!`);
+            return;
+        }
+
+        if (activeTab === 'conclusion' && specialtyMetadata.conclusion?.status === 'ĐANG_KHÁM') {
+            toast.warning(`Thông tin "Kết luận" chưa được Duyệt. Vui lòng nhấn "Duyệt" trước khi rời khỏi tab!`);
+            return;
+        }
+        
+        setActiveTab(targetTab);
+    };
 
     const [confirmConfig, setConfirmConfig] = useState<{
         isOpen: boolean;
@@ -97,7 +144,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
 
     return (
         <DynamicFormContext.Provider value={formState}>
-        <form onSubmit={handleSubmit} autoComplete="off" spellCheck={false} className="health-check-form bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-300">
+        <form onSubmit={handleSubmit} autoComplete="off" spellCheck={false} className="health-check-form flex flex-col h-full bg-white dark:bg-slate-800 rounded-none shadow-none border-0 overflow-hidden transition-all duration-300">
             {isLocked && (
                 <div className="bg-emerald-600 text-white px-5 py-2.5 flex items-center gap-2 text-sm font-bold shadow-inner">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -217,25 +264,49 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
 
             {/* Navigation Tabs */}
             <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-4 overflow-x-auto whitespace-nowrap scrollbar-none flex-nowrap">
-                <button type="button" onClick={() => setActiveTab('admin')} className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${activeTab === 'admin' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                <button type="button" onClick={() => handleTabChange('admin')} className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${activeTab === 'admin' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
                     I. Hành chính &amp; Đặc thù
                 </button>
-                <button type="button" onClick={() => setActiveTab('history')} className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${activeTab === 'history' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                <button 
+                    type="button" 
+                    disabled={!patientName}
+                    onClick={() => handleTabChange('history')} 
+                    className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${!patientName ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent' : activeTab === 'history' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    title={!patientName ? "Vui lòng tìm kiếm/nhập thông tin hành chính bệnh nhân trước" : ""}
+                >
                     II. Tiền sử &amp; Vaccine
                 </button>
-                <button type="button" onClick={() => setActiveTab('exam')} className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${activeTab === 'exam' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                <button 
+                    type="button" 
+                    disabled={!patientName}
+                    onClick={() => handleTabChange('exam')} 
+                    className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${!patientName ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent' : activeTab === 'exam' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    title={!patientName ? "Vui lòng tìm kiếm/nhập thông tin hành chính bệnh nhân trước" : ""}
+                >
                     III. Thể lực &amp; Lâm sàng
                 </button>
-                <button type="button" onClick={() => setActiveTab('lab')} className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${activeTab === 'lab' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                <button 
+                    type="button" 
+                    disabled={!patientName}
+                    onClick={() => handleTabChange('lab')} 
+                    className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${!patientName ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent' : activeTab === 'lab' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    title={!patientName ? "Vui lòng tìm kiếm/nhập thông tin hành chính bệnh nhân trước" : ""}
+                >
                     IV. Cận lâm sàng
                 </button>
-                <button type="button" onClick={() => setActiveTab('conclusion')} className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${activeTab === 'conclusion' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                <button 
+                    type="button" 
+                    disabled={!patientName}
+                    onClick={() => handleTabChange('conclusion')} 
+                    className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${!patientName ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent' : activeTab === 'conclusion' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    title={!patientName ? "Vui lòng tìm kiếm/nhập thông tin hành chính bệnh nhân trước" : ""}
+                >
                     V. Kết luận
                 </button>
             </div>
 
             {/* Content Area */}
-            <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(100vh-360px)] md:max-h-[calc(100vh-380px)] custom-scrollbar scroll-smooth">
+            <div className="px-6 py-5 space-y-6 overflow-y-auto flex-1 min-h-0 custom-scrollbar scroll-smooth">
                 {activeTab === 'admin' && <AdminTab />}
                 {activeTab === 'history' && <HistoryTab />}
                 {activeTab === 'exam' && (
@@ -271,6 +342,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                     ) : (
                         <button
                             type="button"
+                            disabled={!patientName}
                             onClick={() => {
                                 setConfirmConfig({
                                     isOpen: true,
@@ -282,21 +354,28 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                                     onConfirm: () => setIsLocked(true)
                                 });
                             }}
-                            className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+                            className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+                            title={!patientName ? "Vui lòng nhập thông tin bệnh nhân trước khi thực hiện" : ""}
                         >
                             Khóa &amp; Ký Số
                         </button>
                     )}
                 </div>
                 <div className="flex gap-3">
-                    <button type="button" onClick={onCancel} className="px-5 py-2.5 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer">
-                        Hủy bỏ
+                    <button 
+                        type="button" 
+                        onClick={handlePreview} 
+                        className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition-all shadow-md cursor-pointer flex items-center gap-1.5"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        Xem hồ sơ
                     </button>
-                    {!isLocked && (
-                        <button type="submit" className="px-8 py-2.5 bg-[#0f766e] hover:bg-[#0d9488] text-white rounded-xl text-sm font-bold shadow-lg shadow-teal-500/20 hover:shadow-teal-500/30 transition-all duration-200 cursor-pointer">
-                            Lưu hồ sơ KSK
-                        </button>
-                    )}
+                    <button type="button" onClick={onCancel} className="px-5 py-2.5 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer">
+                        Đóng / Quay lại
+                    </button>
                 </div>
             </div>
         </form>

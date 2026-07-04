@@ -10,6 +10,9 @@ const InternalMedTab: React.FC = () => {
         nhiHoHap, setNhiHoHap,
         nhiTieuHoa, setNhiTieuHoa,
         nhiThanKinh, setNhiThanKinh,
+        nhiTietNieu, setNhiTietNieu,
+        nhiTamThan, setNhiTamThan,
+        nhiKhac, setNhiKhac,
         kqTamThan, setKqTamThan,
         kqThanKinh, setKqThanKinh,
         kqTimMach, setKqTimMach,
@@ -26,6 +29,7 @@ const InternalMedTab: React.FC = () => {
         noiKhoaThanKinhPl, setNoiKhoaThanKinhPl,
         noiKhoaTamThanPl, setNoiKhoaTamThanPl,
         kqNoiTietChuyenHoa, setKqNoiTietChuyenHoa,
+        kqTietNieu, setKqTietNieu,
         isLocked,
         handleAutofillTab,
     } = useDynamicFormContext();
@@ -48,8 +52,8 @@ const InternalMedTab: React.FC = () => {
                 </div>
             )}
             <fieldset disabled={isLocked} className="space-y-4 w-full">
-            {isChild ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             {(isChild || formType === '1') ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Tuần hoàn</label>
                         <textarea value={nhiTuanHoan} onChange={e => setNhiTuanHoan(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 h-20" />
@@ -63,8 +67,20 @@ const InternalMedTab: React.FC = () => {
                         <textarea value={nhiTieuHoa} onChange={e => setNhiTieuHoa(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 h-20" />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">Thần kinh / Tâm thần</label>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Thận - Tiết niệu</label>
+                        <textarea value={nhiTietNieu} onChange={e => setNhiTietNieu(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 h-20" />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Thần kinh</label>
                         <textarea value={nhiThanKinh} onChange={e => setNhiThanKinh(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 h-20" />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Tâm thần</label>
+                        <textarea value={nhiTamThan} onChange={e => setNhiTamThan(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 h-20" />
+                    </div>
+                    <div className="md:col-span-2 lg:col-span-3">
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Khám lâm sàng khác</label>
+                        <textarea value={nhiKhac} onChange={e => setNhiKhac(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 h-20" />
                     </div>
                 </div>
             ) : (
@@ -94,6 +110,16 @@ const InternalMedTab: React.FC = () => {
                         <textarea value={noiKhoaTieuHoa} onChange={e => setNoiKhoaTieuHoa(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
                         {formType === '2' && (
                             <select value={noiKhoaTieuHoaPl} onChange={e => setNoiKhoaTieuHoaPl(e.target.value)} className="w-full mt-1 p-2 border rounded text-xs">
+                                <option value="">-- Phân loại --</option>
+                                <option value="1">Loại I</option><option value="2">Loại II</option><option value="3">Loại III</option><option value="4">Loại IV</option><option value="5">Loại V</option>
+                            </select>
+                        )}
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Thận - Tiết niệu</label>
+                        <textarea value={kqTietNieu} onChange={e => setKqTietNieu(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
+                        {formType === '2' && (
+                            <select value={noiKhoaThanTietnieuPl} onChange={e => setNoiKhoaThanTietnieuPl(e.target.value)} className="w-full mt-1 p-2 border rounded text-xs">
                                 <option value="">-- Phân loại --</option>
                                 <option value="1">Loại I</option><option value="2">Loại II</option><option value="3">Loại III</option><option value="4">Loại IV</option><option value="5">Loại V</option>
                             </select>

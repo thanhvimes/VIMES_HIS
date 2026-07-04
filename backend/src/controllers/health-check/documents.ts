@@ -181,30 +181,80 @@ class DocumentsController {
             }
 
             const result = await transaction(async (client) => {
-                const masterSql = `
-                    INSERT INTO health_check_masters (
-                        patient_id, patient_name, cccd, dob, gender, doc_no, form_type, xml_data
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                    RETURNING id
-                `;
-                const masterRes = await client.query(masterSql, [
-                    patientId || null, patientName || '', cccd || '', 
-                    dob ? new Date(dob) : null, gender || 'Nam', 
-                    docNo || `KSK-${Date.now()}`, formType, xmlData
-                ]);
-                const masterId = masterRes.rows[0].id;
+                // Check if doc_no already exists in health_check_masters
+                const existingRes = await client.query(
+                    'SELECT id FROM health_check_masters WHERE doc_no = $1',
+                    [docNo]
+                );
 
-                const detailSql = `
-                    INSERT INTO health_check_details (
-                        master_id, clinical_data, lab_data, conclusion_data
-                    ) VALUES ($1, $2, $3, $4)
-                `;
-                await client.query(detailSql, [
-                    masterId, 
-                    JSON.stringify(clinicalData || {}), 
-                    JSON.stringify(labData || {}), 
-                    JSON.stringify(conclusionData || {})
-                ]);
+                let masterId;
+                if (existingRes.rows.length > 0) {
+                    masterId = existingRes.rows[0].id;
+                    
+                    // UPDATE existing master
+                    const masterSql = `
+                        UPDATE health_check_masters 
+                        SET patient_id = $1, patient_name = $2, cccd = $3, dob = $4, 
+                            gender = $5, xml_data = $6, updated_at = NOW(),
+                            signature_status = 'Unsigned', send_status = 'Unsent'
+                        WHERE id = $7
+                    `;
+                    await client.query(masterSql, [
+                        patientId || null, patientName || '', cccd || '', 
+                        dob ? new Date(dob) : null, gender || 'Nam', 
+                        xmlData, masterId
+                    ]);
+
+                    // UPDATE existing details
+                    const updateDetailRes = await client.query(`
+                        UPDATE health_check_details 
+                        SET clinical_data = $1, lab_data = $2, conclusion_data = $3, updated_at = NOW()
+                        WHERE master_id = $4
+                    `, [
+                        JSON.stringify(clinicalData || {}), 
+                        JSON.stringify(labData || {}), 
+                        JSON.stringify(conclusionData || {}),
+                        masterId
+                    ]);
+
+                    if (updateDetailRes.rowCount === 0) {
+                        await client.query(`
+                            INSERT INTO health_check_details (master_id, clinical_data, lab_data, conclusion_data)
+                            VALUES ($1, $2, $3, $4)
+                        `, [
+                            masterId,
+                            JSON.stringify(clinicalData || {}),
+                            JSON.stringify(labData || {}),
+                            JSON.stringify(conclusionData || {})
+                        ]);
+                    }
+                } else {
+                    // INSERT new master
+                    const masterSql = `
+                        INSERT INTO health_check_masters (
+                            patient_id, patient_name, cccd, dob, gender, doc_no, form_type, xml_data
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                        RETURNING id
+                    `;
+                    const masterRes = await client.query(masterSql, [
+                        patientId || null, patientName || '', cccd || '', 
+                        dob ? new Date(dob) : null, gender || 'Nam', 
+                        docNo || Date.now().toString(), formType, xmlData
+                    ]);
+                    masterId = masterRes.rows[0].id;
+
+                    const detailSql = `
+                        INSERT INTO health_check_details (
+                            master_id, clinical_data, lab_data, conclusion_data
+                        ) VALUES ($1, $2, $3, $4)
+                    `;
+                    await client.query(detailSql, [
+                        masterId, 
+                        JSON.stringify(clinicalData || {}), 
+                        JSON.stringify(labData || {}), 
+                        JSON.stringify(conclusionData || {})
+                    ]);
+                }
 
                 // 2. ĐẨY NGƯỢC DỮ LIỆU VỀ CÁC BẢNG GỐC CỦA HIS (Chỉ khi hpc_status và hpcl_status thuộc nhóm O hoặc S)
                 if (hisDocNo && labData?.paraclinical_items) {
@@ -479,13 +529,14 @@ class DocumentsController {
     }
 
     async markBarcodePrinted(req: Request, res: Response) {
-        const { docIds } = req.body;
+        const { docIds, samples } = req.body;
 
         if (!docIds || !Array.isArray(docIds) || docIds.length === 0) {
             return res.status(400).json({ error: "Danh sách ID hồ sơ không hợp lệ" });
         }
 
         try {
+            // 1. Cập nhật trạng thái in master
             const sql = `
                 UPDATE health_check_masters
                 SET "barcode_printed" = 'Y',
@@ -494,7 +545,36 @@ class DocumentsController {
             `;
             const intIds = docIds.map(id => parseInt(id, 10));
             await query(sql, [intIds]);
-            return res.json({ success: true, message: `Đã đánh dấu ${docIds.length} hồ sơ đã in code.` });
+
+            // 2. Gọi hàm lims_order_getsample của HIS để cập nhật thông tin giao nhận mẫu nếu có
+            if (samples && Array.isArray(samples) && samples.length > 0) {
+                for (const s of samples) {
+                    try {
+                        const callSql = `
+                            SELECT lims_order_getsample(
+                                $1::varchar, 
+                                $2::varchar, 
+                                $3::bigint, 
+                                $4::bigint, 
+                                $5::varchar, 
+                                $6::varchar
+                            )
+                        `;
+                        await query(callSql, [
+                            s.userID ? String(s.userID) : '',
+                            s.deptID ? String(s.deptID) : '',
+                            s.documentNo ? Number(s.documentNo) : 0,
+                            s.orderID ? Number(s.orderID) : 0,
+                            s.sampleArea ? String(s.sampleArea) : '',
+                            s.gateID ? String(s.gateID) : ''
+                        ]);
+                    } catch (dbErr: any) {
+                        console.error(`❌ KSK Controller: Lỗi gọi lims_order_getsample cho order ${s.orderID}:`, dbErr.message);
+                    }
+                }
+            }
+
+            return res.json({ success: true, message: `Đã đánh dấu ${docIds.length} hồ sơ đã in code và cập nhật thông tin HIS.` });
         } catch (error: any) {
             console.error('❌ KSK Controller: Lỗi markBarcodePrinted:', error);
             return res.status(500).json({ error: error.message });

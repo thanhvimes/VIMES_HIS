@@ -52,6 +52,7 @@ class HealthCheckController {
     async markBarcodePrinted(req: Request, res: Response) {
         return documentsController.markBarcodePrinted(req, res);
     }
+
 }
 
 export default new HealthCheckController();

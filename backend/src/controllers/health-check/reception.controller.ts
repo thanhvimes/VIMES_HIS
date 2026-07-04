@@ -369,7 +369,7 @@ export class ReceptionController {
                 const dobStr = dob ? dob.toISOString().split('T')[0] : '1990-01-01';
                 
                 const formType = emp.contract_form_type || '2'; // Sử dụng mẫu cấu hình sẵn trên hợp đồng, mặc định '2'
-                const docNo = `KSK-${new Date().getFullYear()}-${String(newDocNo).padStart(4, '0')}`;
+                const docNo = String(newDocNo);
 
                 const clinicalData: any = {
                     address: emp.hee_address || '',

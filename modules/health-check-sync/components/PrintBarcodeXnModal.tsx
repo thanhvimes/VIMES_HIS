@@ -3,9 +3,12 @@
 // Modal 2 cột: Bên trái - danh sách bệnh nhân chưa in barcode XN
 //              Bên phải - danh sách phiếu XN của bệnh nhân được chọn
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Code128Barcode } from '../forms/PrintBarcodeForm';
+import { catalogService } from '../../../services/catalogService';
+import Combobox from '../../../components/ui/Combobox';
+import { useSession } from '../../../contexts/SessionContext';
 
 // ========== TYPES ==========
 
@@ -26,10 +29,12 @@ export interface PatientWithOrders {
     gender: string;
     docNo: string;         // Số hồ sơ KSK
     labOrders: LabOrder[];
+    contractId: string;
 }
 
 interface PrintBarcodeXnModalProps {
     patients: any[];       // Danh sách bệnh nhân (từ health-check-sync)
+    contracts: any[];      // Danh sách hợp đồng
     onClose: () => void;
     onPrint: (selectedOrders: { patient: PatientWithOrders; orders: LabOrder[] }[]) => void;
 }
@@ -122,6 +127,8 @@ function mapToPatientWithOrders(doc: any): PatientWithOrders {
         gender: doc.gender || 'Nam',
         docNo: doc.doc_no || '',
         labOrders: labOrders,
+        contractId: doc.his_contract_id ? String(doc.his_contract_id) : '',
+        hisDocNo: doc.his_doc_no || '',
     };
 }
 
@@ -157,16 +164,53 @@ const UserIcon: React.FC<{ className?: string }> = ({ className }) => (
     </svg>
 );
 
+const doctorColumns = [
+    { key: 'id', label: 'Mã người dùng (su_userid)', width: '180px' },
+    { key: 'name', label: 'Họ tên nhân viên' }
+];
+
 // ========== MAIN COMPONENT ==========
 
 const PrintBarcodeXnModal: React.FC<PrintBarcodeXnModalProps> = ({
     patients,
+    contracts,
     onClose,
     onPrint,
 }) => {
+    const { user } = useSession();
     const [searchPatient, setSearchPatient] = useState('');
     const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
     const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
+    const [selectedContractId, setSelectedContractId] = useState<string>('All');
+
+    // Sampling Config States
+    const [sampleAreas, setSampleAreas] = useState<any[]>([]);
+    const [sampleGates, setSampleGates] = useState<any[]>([]);
+    const [doctors, setDoctors] = useState<any[]>([]);
+
+    const [selectedArea, setSelectedArea] = useState('');
+    const [selectedGate, setSelectedGate] = useState('');
+    const [selectedCollectorId, setSelectedCollectorId] = useState('');
+
+    useEffect(() => {
+        catalogService.getSysSelItems('hms_sample_area').then(data => {
+            setSampleAreas(data || []);
+            if (data && data.length > 0) setSelectedArea(data[0].code);
+        }).catch(err => console.error("Error loading hms_sample_area", err));
+
+        catalogService.getSysSelItems('hms_sample_gate').then(data => {
+            setSampleGates(data || []);
+            if (data && data.length > 0) setSelectedGate(data[0].code);
+        }).catch(err => console.error("Error loading hms_sample_gate", err));
+
+        catalogService.getDoctors().then(data => {
+            setDoctors(data || []);
+        }).catch(err => console.error("Error loading doctors", err));
+        
+        if (user) {
+            setSelectedCollectorId(user.userId || '');
+        }
+    }, [user]);
 
     // Portal container
     const [portalContainer] = React.useState(() => {
@@ -192,13 +236,15 @@ const PrintBarcodeXnModal: React.FC<PrintBarcodeXnModalProps> = ({
         [patients]
     );
 
-    // Filter bệnh nhân theo tìm kiếm
+    // Filter bệnh nhân theo tìm kiếm và gói khám
     const filteredPatients = useMemo(() =>
-        eligiblePatients.filter(p =>
-            p.patientName.toLowerCase().includes(searchPatient.toLowerCase()) ||
-            p.docNo.toLowerCase().includes(searchPatient.toLowerCase())
-        ),
-        [eligiblePatients, searchPatient]
+        eligiblePatients.filter(p => {
+            const matchesSearch = p.patientName.toLowerCase().includes(searchPatient.toLowerCase()) ||
+                                  p.docNo.toLowerCase().includes(searchPatient.toLowerCase());
+            const matchesContract = selectedContractId === 'All' || p.contractId === selectedContractId;
+            return matchesSearch && matchesContract;
+        }),
+        [eligiblePatients, searchPatient, selectedContractId]
     );
 
     // Bệnh nhân đang được chọn
@@ -236,8 +282,22 @@ const PrintBarcodeXnModal: React.FC<PrintBarcodeXnModalProps> = ({
 
     const handlePrint = () => {
         if (!selectedPatient || selectedOrderIds.size === 0) return;
-        const ordersToprint = selectedPatient.labOrders.filter(o => selectedOrderIds.has(o.id));
-        onPrint([{ patient: selectedPatient, orders: ordersToprint }]);
+        
+        const selectedCollectorName = doctors.find(d => d.id === selectedCollectorId)?.name || '';
+        const ordersToprint = selectedPatient.labOrders
+            .map(o => ({
+                ...o,
+                sampleAreaCode: selectedArea,
+                sampleAreaName: sampleAreas.find(a => a.code === selectedArea)?.name || '',
+                sampleGateCode: selectedGate,
+                sampleGateName: sampleGates.find(g => g.code === selectedGate)?.name || '',
+                collectorId: selectedCollectorId,
+                collectorName: selectedCollectorName,
+                hisDocNo: selectedPatient.hisDocNo || ''
+            }))
+            .filter(o => selectedOrderIds.has(o.id));
+
+        onPrint([{ patient: selectedPatient, orders: ordersToprint as any }]);
     };
 
     return createPortal(
@@ -272,21 +332,37 @@ const PrintBarcodeXnModal: React.FC<PrintBarcodeXnModalProps> = ({
 
                     {/* ===== LEFT COLUMN: Danh sách bệnh nhân ===== */}
                     <div className="w-80 flex-shrink-0 border-r border-slate-200 dark:border-slate-700 flex flex-col bg-slate-50 dark:bg-slate-800/50">
-                        {/* Search */}
-                        <div className="p-3 border-b border-slate-200 dark:border-slate-700">
-                            <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                                <UserIcon className="w-3.5 h-3.5" />
-                                Bệnh nhân chưa in ({eligiblePatients.length})
+                        {/* Search & Filter */}
+                        <div className="p-3 border-b border-slate-200 dark:border-slate-700 space-y-3">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Gói hợp đồng</label>
+                                <select 
+                                    value={selectedContractId}
+                                    onChange={e => setSelectedContractId(e.target.value)}
+                                    className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-750 text-slate-800 dark:text-white font-bold cursor-pointer focus:ring-1 focus:ring-orange-500 focus:outline-none"
+                                >
+                                    <option value="All">Tất cả gói khám</option>
+                                    {contracts.map(c => (
+                                        <option key={c.id} value={String(c.id)}>{c.code} - {c.name}</option>
+                                    ))}
+                                </select>
                             </div>
-                            <div className="relative">
-                                <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                                <input
-                                    type="text"
-                                    placeholder="Tên BN, số hồ sơ..."
-                                    value={searchPatient}
-                                    onChange={e => setSearchPatient(e.target.value)}
-                                    className="w-full pl-8 pr-3 py-2 text-xs border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 focus:ring-2 focus:ring-orange-400 focus:outline-none placeholder:text-slate-400"
-                                />
+
+                            <div className="space-y-1">
+                                <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1.5">
+                                    <UserIcon className="w-3.5 h-3.5" />
+                                    Bệnh nhân chưa in ({filteredPatients.length}/{eligiblePatients.length})
+                                </div>
+                                <div className="relative">
+                                    <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Tên BN, số hồ sơ..."
+                                        value={searchPatient}
+                                        onChange={e => setSearchPatient(e.target.value)}
+                                        className="w-full pl-8 pr-3 py-2 text-xs border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 focus:ring-2 focus:ring-orange-400 focus:outline-none placeholder:text-slate-400 font-semibold"
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -362,6 +438,45 @@ const PrintBarcodeXnModal: React.FC<PrintBarcodeXnModalProps> = ({
                                             }
                                             onChange={e => handleSelectAllOrders(e.target.checked)}
                                             className="w-4 h-4 rounded text-orange-500 focus:ring-orange-400 cursor-pointer"
+                                        />
+                                    </div>
+                                </div>
+                                
+                                {/* Cấu hình lấy mẫu */}
+                                <div className="px-5 py-3 bg-orange-50/40 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-3 gap-4 items-end animate-fadeIn">
+                                    <div>
+                                        <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Khu vực lấy mẫu</label>
+                                        <select 
+                                            value={selectedArea} 
+                                            onChange={e => setSelectedArea(e.target.value)} 
+                                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-750 text-slate-800 dark:text-white font-bold cursor-pointer focus:ring-1 focus:ring-orange-500 focus:outline-none"
+                                        >
+                                            {sampleAreas.map(item => (
+                                                <option key={item.code} value={String(item.code)}>{item.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Cửa lấy mẫu</label>
+                                        <select 
+                                            value={selectedGate} 
+                                            onChange={e => setSelectedGate(e.target.value)} 
+                                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-750 text-slate-800 dark:text-white font-bold cursor-pointer focus:ring-1 focus:ring-orange-500 focus:outline-none"
+                                        >
+                                            {sampleGates.map(item => (
+                                                <option key={item.code} value={String(item.code)}>{item.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Người lấy mẫu</label>
+                                        <Combobox
+                                            value={selectedCollectorId}
+                                            options={doctors}
+                                            columns={doctorColumns}
+                                            onChange={(val) => setSelectedCollectorId(val)}
+                                            placeholder="-- Chọn người lấy mẫu --"
+                                            className="w-full text-xs font-bold"
                                         />
                                     </div>
                                 </div>

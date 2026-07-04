@@ -33,6 +33,28 @@ export const HEALTH_CHECK_NAV_ITEMS: NavItemType[] = [
         icon: React.createElement(DocumentTextIcon, { className: "w-5 h-5" }),
         iconName: 'DocumentTextIcon'
     },
+    {
+        name: 'Đồng bộ dữ liệu',
+        path: '/health-check?step=sync',
+        section: 'TIẾP NHẬN',
+        icon: React.createElement(CloudUploadIcon, { className: "w-5 h-5" }),
+        iconName: 'CloudUploadIcon'
+    },
+
+    {
+        name: 'Quản lý in code',
+        path: '/health-check?step=print-code',
+        section: 'QUẢN LÝ MẪU',
+        icon: React.createElement(PrinterIcon, { className: "w-5 h-5" }),
+        iconName: 'PrinterIcon'
+    },
+    {
+        name: 'Giao nhận mẫu',
+        path: '/health-check?step=sample-tracking',
+        section: 'QUẢN LÝ MẪU',
+        icon: React.createElement(CheckBadgeIcon, { className: "w-5 h-5" }),
+        iconName: 'CheckBadgeIcon'
+    },
 
     {
         name: 'Hồ sơ sức khỏe',
@@ -47,20 +69,6 @@ export const HEALTH_CHECK_NAV_ITEMS: NavItemType[] = [
         section: 'QUY TRÌNH LIÊN THÔNG',
         icon: React.createElement(DocumentTextIcon, { className: "w-5 h-5" }),
         iconName: 'DocumentTextIcon'
-    },
-    {
-        name: 'Quản lý in code',
-        path: '/health-check?step=print-code',
-        section: 'QUY TRÌNH LIÊN THÔNG',
-        icon: React.createElement(PrinterIcon, { className: "w-5 h-5" }),
-        iconName: 'PrinterIcon'
-    },
-    {
-        name: 'Đồng bộ dữ liệu',
-        path: '/health-check?step=sync',
-        section: 'QUY TRÌNH LIÊN THÔNG',
-        icon: React.createElement(CloudUploadIcon, { className: "w-5 h-5" }),
-        iconName: 'CloudUploadIcon'
     },
 
     {

@@ -10,12 +10,40 @@ import PdfPreviewModal from '../../../components/ui/PdfPreviewModal';
 import { useSession } from '../../../contexts/SessionContext';
 import { catalogService } from '../../../services/catalogService';
 
+const COMMON_ICD10 = [
+    { code: 'A09', name: 'Tiêu chảy và viêm dạ dày ruột' },
+    { code: 'A15', name: 'Lao phổi' },
+    { code: 'E11', name: 'Bệnh đái tháo đường không phụ thuộc insulin' },
+    { code: 'E78', name: 'Rối loạn chuyển hóa lipoprotein và tình trạng tăng lipid máu khác' },
+    { code: 'G40', name: 'Bệnh động kinh' },
+    { code: 'H52', name: 'Rối loạn khúc xạ' },
+    { code: 'H83', name: 'Các bệnh tai trong khác (bao gồm điếc do tiếng ồn)' },
+    { code: 'I10', name: 'Bệnh tăng huyết áp vô căn (nguyên phát)' },
+    { code: 'I20', name: 'Cơn đau thắt ngực' },
+    { code: 'I21', name: 'Nhồi máu cơ tim cấp' },
+    { code: 'J00', name: 'Viêm mũi họng cấp tính (cảm thường)' },
+    { code: 'J02', name: 'Viêm họng cấp' },
+    { code: 'J03', name: 'Viêm amidan cấp' },
+    { code: 'J20', name: 'Viêm phế quan cấp' },
+    { code: 'J30', name: 'Viêm mũi dị ứng và viêm mũi vận mạch' },
+    { code: 'J45', name: 'Hen phế quản' },
+    { code: 'J60', name: 'Bệnh bụi phổi silic' },
+    { code: 'K29', name: 'Viêm dạ dày và tá tràng' },
+    { code: 'K35', name: 'Viêm ruột thừa cấp' },
+    { code: 'L23', name: 'Viêm da tiếp xúc dị ứng' },
+    { code: 'M17', name: 'Thoái hóa khớp gối' },
+    { code: 'M54', name: 'Đau lưng' },
+    { code: 'N30', name: 'Viêm bàng quang' },
+    { code: 'R50', name: 'Sốt chưa rõ nguyên nhân' },
+    { code: 'R51', name: 'Đau đầu' }
+];
+
 interface PrintFormProps {
     document: any;
     onClose: () => void;
 }
 
-const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
+const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => {
     const { hospitalName, parentOrg, fetchBrandingSettings, brandingLoaded } = useSystemStore();
     const { user } = useSession();
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -30,6 +58,48 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
     useEffect(() => {
         catalogService.getDoctors().then(setDoctors).catch(() => {});
     }, []);
+
+    const [icd10Names, setIcd10Names] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        const clinicalDataObj = propDoc?.clinical_data || propDoc?.clinicalData || {};
+        const extraObj = clinicalDataObj.extra || {};
+        const codesToFetch: string[] = [];
+        
+        const processCodes = (codeStr: string) => {
+            if (!codeStr) return;
+            codeStr.split(',').map(s => s.trim()).filter(Boolean).forEach(code => {
+                const upper = code.toUpperCase();
+                const inLocal = COMMON_ICD10.some(item => item.code.toUpperCase() === upper);
+                if (!inLocal && !icd10Names[upper] && !codesToFetch.includes(upper)) {
+                    codesToFetch.push(upper);
+                }
+            });
+        };
+
+        const conclusionObj = propDoc?.conclusion_data || propDoc?.conclusionData || {};
+
+        processCodes(extraObj.tsbt_ma_benh);
+        processCodes(extraObj.tsbt_ma_benh_nghe_nghiep);
+        processCodes(conclusionObj.diagnosis);
+
+        if (codesToFetch.length === 0) return;
+
+        codesToFetch.forEach(async (code) => {
+            try {
+                const results = await catalogService.searchIcd10(code);
+                const match = results.find(r => r.code.toUpperCase() === code.toUpperCase());
+                if (match) {
+                    setIcd10Names(prev => ({
+                        ...prev,
+                        [code.toUpperCase()]: match.name
+                    }));
+                }
+            } catch (err) {
+                console.error("Lỗi lấy tên ICD-10 trong bản in:", err);
+            }
+        });
+    }, [propDoc]);
 
     // Create portal container directly under document.body to avoid parent layout overflow hidden constraints
     const [portalContainer] = useState(() => {
@@ -209,7 +279,20 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
         }
     };
 
-    if (!document) return null;
+    if (!propDoc) return null;
+
+    const document = {
+        ...propDoc,
+        patient_name: propDoc.patient_name || propDoc.patientName || '',
+        doc_no: propDoc.doc_no || propDoc.docNo || '',
+        form_type: propDoc.form_type || propDoc.formType || '',
+        cccd: propDoc.cccd || '',
+        dob: propDoc.dob || '',
+        gender: propDoc.gender || '',
+        clinical_data: propDoc.clinical_data || propDoc.clinicalData || {},
+        lab_data: propDoc.lab_data || propDoc.labData || {},
+        conclusion_data: propDoc.conclusion_data || propDoc.conclusionData || {}
+    };
 
     const getFormTitle = (type: string) => {
         const names: Record<string, string> = {
@@ -235,11 +318,11 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
     };
 
     const clinical = document.clinical_data || {};
-    const clinicalExam = clinical.clinical_exam || {};
+    const clinicalExam = clinical.clinical_exam || clinical.clinicalExam || {};
     const extra = clinical.extra || {};
     const lab = document.lab_data || {};
     const conclusion = document.conclusion_data || {};
-    const paraclinicalItems = lab.paraclinical_items || [];
+    const paraclinicalItems = lab.paraclinical_items || lab.paraclinicalItems || [];
 
     // Helper functions for data display
     const getAge = (dobString: any) => {
@@ -291,15 +374,54 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
         return names[pl] || `${pl}`;
     };
 
+    const formatIcd10String = (codeStr: string) => {
+        if (!codeStr) return '';
+        const codes = codeStr.split(',').map(s => s.trim()).filter(Boolean);
+        const formatted = codes.map(code => {
+            const upper = code.toUpperCase();
+            const localMatch = COMMON_ICD10.find(item => item.code.toUpperCase() === upper);
+            if (localMatch) {
+                return `${upper} - ${localMatch.name}`;
+            }
+            const apiMatch = icd10Names[upper];
+            if (apiMatch) {
+                return `${upper} - ${apiMatch}`;
+            }
+            return upper;
+        });
+        return formatted.join(', ');
+    };
+
     const getConclusionDoctorName = () => {
         if (conclusion.doctor_id) {
             const found = doctors.find(d => String(d.id || d.hee_employee_id) === String(conclusion.doctor_id));
             if (found) return found.name || found.hee_fullname;
         }
-        return conclusion.doctor_name || 'BSCKI. Hà Thị Thanh Mai';
+        return conclusion.doctor_name || '';
+    };
+
+    const hasSpecialtyData = (specialty: string) => {
+        if (specialty === 'tuan_hoan') return !!(clinicalExam.tim_mach || clinicalExam.kq_tim_mach || clinicalExam.noi_khoa_tuan_hoan_pl);
+        if (specialty === 'ho_hap') return !!(clinicalExam.ho_hap || clinicalExam.kq_ho_hap || clinicalExam.noi_khoa_ho_hap_pl);
+        if (specialty === 'tieu_hoa') return !!(clinicalExam.noi_khoa_tieu_hoa || clinicalExam.kq_tieu_hoa || clinicalExam.noi_khoa_tieu_hoa_pl);
+        if (specialty === 'than_tiet_nieu') return !!(clinicalExam.tiet_nieu_sinh_duc || clinicalExam.kq_tiet_nieu || clinicalExam.noi_khoa_than_tietnieu_pl);
+        if (specialty === 'noi_tiet') return !!(clinicalExam.noi_tiet_dinh_duong_chuyen_hoa || clinicalExam.kq_noi_tiet || clinicalExam.noi_khoa_noi_tiet_pl);
+        if (specialty === 'co_xuong_khop') return !!(clinicalExam.kq_co_xuong_khop_m5 || clinicalExam.kq_co_xuong_khop || clinicalExam.noi_khoa_co_xuong_khop_pl);
+        if (specialty === 'than_kinh') return !!(clinicalExam.noi_khoa_than_kinh || clinicalExam.kq_than_kinh || clinicalExam.noi_khoa_than_kinh_pl);
+        if (specialty === 'tam_than') return !!(clinicalExam.noi_khoa_tam_than || clinicalExam.kq_tam_than || clinicalExam.noi_khoa_tam_than_pl);
+        if (specialty === 'ngoai_khoa') return !!(clinicalExam.external || clinicalExam.kq_ngoai_khoa || clinicalExam.kham_ngoai_khoa_pl);
+        if (specialty === 'da_lieu') return !!(clinicalExam.dermatology || clinicalExam.kq_da_lieu || clinicalExam.kham_da_lieu_pl);
+        if (specialty === 'san_phu_khoa') return !!(clinicalExam.gynecology || clinicalExam.kham_san_phu_khoa_pl);
+        if (specialty === 'mat') return !!(clinicalExam.eye || clinicalExam.kham_mat_pl || clinicalExam.khong_kinh_mat_phai || clinicalExam.khong_kinh_mat_trai || clinicalExam.co_kinh_mat_phai || clinicalExam.co_kinh_mat_trai);
+        if (specialty === 'tai_mui_hong') return !!(clinicalExam.ent || clinicalExam.kham_tai_mui_hong_pl || clinicalExam.tai_trai_noi_thuong || clinicalExam.tai_phai_noi_thuong);
+        if (specialty === 'rang_ham_mat') return !!(clinicalExam.dental || clinicalExam.kham_rang_ham_mat_pl || clinicalExam.ham_tren || clinicalExam.ham_duoi);
+        return false;
     };
 
     const getDoctor = (specialty: string) => {
+        const hasData = hasSpecialtyData(specialty);
+        if (!hasData) return '';
+
         const metadataMap: Record<string, string> = {
             tuan_hoan: 'internal',
             ho_hap: 'internal',
@@ -337,6 +459,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
     };
 
     const formatEyeExam = () => {
+        if (!hasSpecialtyData('mat')) return '';
         const parts = [];
         if (clinicalExam.khong_kinh_mat_phai || clinicalExam.khong_kinh_mat_trai) {
             parts.push(`KK: MP ${clinicalExam.khong_kinh_mat_phai || '...'}/MT ${clinicalExam.khong_kinh_mat_trai || '...'}`);
@@ -344,16 +467,19 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
         if (clinicalExam.co_kinh_mat_phai || clinicalExam.co_kinh_mat_trai) {
             parts.push(`CK: MP ${clinicalExam.co_kinh_mat_phai || '...'}/MT ${clinicalExam.co_kinh_mat_trai || '...'}`);
         }
-        const otherEyeDiseases = clinicalExam.benh_ve_mat || clinicalExam.benh_mat || 'Không';
-        parts.push(`Bệnh: ${otherEyeDiseases}`);
+        const otherEyeDiseases = clinicalExam.benh_ve_mat || clinicalExam.benh_mat;
+        if (otherEyeDiseases && otherEyeDiseases !== 'Không') {
+            parts.push(`Bệnh: ${otherEyeDiseases}`);
+        }
         
         if (!clinicalExam.khong_kinh_mat_phai && !clinicalExam.khong_kinh_mat_trai && !clinicalExam.co_kinh_mat_phai && !clinicalExam.co_kinh_mat_trai) {
-            return clinicalExam.eye || 'Mắt phải 10/10, Mắt trái 10/10';
+            return clinicalExam.eye || '';
         }
         return parts.join('; ');
     };
 
     const formatEntExam = () => {
+        if (!hasSpecialtyData('tai_mui_hong')) return '';
         const parts = [];
         if (clinicalExam.tai_trai_noi_thuong || clinicalExam.tai_trai_noi_tham) {
             parts.push(`Trái: ${clinicalExam.tai_trai_noi_thuong || '...'} m / nói thầm ${clinicalExam.tai_trai_noi_tham || '...'} m`);
@@ -361,16 +487,19 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
         if (clinicalExam.tai_phai_noi_thuong || clinicalExam.tai_phai_noi_tham) {
             parts.push(`Phải: ${clinicalExam.tai_phai_noi_thuong || '...'} m / nói thầm ${clinicalExam.tai_phai_noi_tham || '...'} m`);
         }
-        const otherEntDiseases = clinicalExam.benh_tai_mui_hong || 'Không';
-        parts.push(`Bệnh: ${otherEntDiseases}`);
+        const otherEntDiseases = clinicalExam.benh_tai_mui_hong;
+        if (otherEntDiseases && otherEntDiseases !== 'Không') {
+            parts.push(`Bệnh: ${otherEntDiseases}`);
+        }
         
         if (!clinicalExam.tai_trai_noi_thuong && !clinicalExam.tai_trai_noi_tham && !clinicalExam.tai_phai_noi_thuong && !clinicalExam.tai_phai_noi_tham) {
-            return clinicalExam.ent || 'Bình thường';
+            return clinicalExam.ent || '';
         }
         return parts.join('; ');
     };
 
     const formatDentalExam = () => {
+        if (!hasSpecialtyData('rang_ham_mat')) return '';
         const parts = [];
         if (clinicalExam.ham_tren) {
             parts.push(`Trên: ${clinicalExam.ham_tren}`);
@@ -378,11 +507,13 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
         if (clinicalExam.ham_duoi) {
             parts.push(`Dưới: ${clinicalExam.ham_duoi}`);
         }
-        const otherDentalDiseases = clinicalExam.benh_rang_ham_mat || 'Không';
-        parts.push(`Bệnh: ${otherDentalDiseases}`);
+        const otherDentalDiseases = clinicalExam.benh_rang_ham_mat;
+        if (otherDentalDiseases && otherDentalDiseases !== 'Không') {
+            parts.push(`Bệnh: ${otherDentalDiseases}`);
+        }
         
         if (!clinicalExam.ham_tren && !clinicalExam.ham_duoi) {
-            return clinicalExam.dental || 'Bình thường';
+            return clinicalExam.dental || '';
         }
         return parts.join('; ');
     };
@@ -422,22 +553,156 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
     const prevJobFrom = clinical.tu_ngay_lam_viec_truoc_day || extra.tu_ngay_lam_viec_truoc_day || '';
     const prevJobTo = clinical.den_ngay_lam_viec_truoc_day || extra.den_ngay_lam_viec_truoc_day || '';
 
-    // Split Xét nghiệm items for Page 3 and Page 4 manually
+    // Split Xét nghiệm items for Page 3 and subsequent pages dynamically
+    const tdItems = paraclinicalItems.filter((x: any) => x.type === 'TD');
+    const haItems = paraclinicalItems.filter((x: any) => x.type === 'HA');
     const xnItems = paraclinicalItems.filter((x: any) => x.type === 'XN');
-    const xnItemsPage3 = xnItems.slice(0, 5);
-    const xnItemsPage4 = xnItems.slice(5);
+
+    // Dynamically calculate how many XN items can fit on Page 3
+    const availableHeight = 1122 - 75 - 40; // A4 height - margins - footer
+    const titleHeight = 50; // IV. CẬN LÂM SÀNG + margins
+    const tdHeight = tdItems.length > 0 ? (35 + 35 + tdItems.length * 30) : 0;
+    const haHeight = haItems.length > 0 ? (35 + 35 + haItems.length * 30) : 0;
+    const xnHeaderHeight = 35 + 35; // III. XÉT NGHIỆM title + table header
+    
+    // Calculate remaining height, leaving a small buffer of 20px
+    const remainingHeightForXn = availableHeight - titleHeight - tdHeight - haHeight - xnHeaderHeight - 20;
+    const CONCLUSION_HEIGHT = 380;
+    const XN_ROW_HEIGHT = 30;
+    
+    let page3XnLimit = Math.max(0, Math.floor(remainingHeightForXn / XN_ROW_HEIGHT));
+    let conclusionOnPage3 = false;
+    
+    // Check if we can fit ALL xnItems AND the conclusion on Page 3
+    if (xnItems.length <= page3XnLimit) {
+        const actualXnHeight = Math.max(1, xnItems.length) * XN_ROW_HEIGHT; // Need at least 1 row for "Không có dữ liệu"
+        if (remainingHeightForXn - actualXnHeight >= CONCLUSION_HEIGHT) {
+            conclusionOnPage3 = true;
+        }
+    }
+
+    const xnItemsPage3 = xnItems.slice(0, page3XnLimit);
+    const remainingXnItems = xnItems.slice(page3XnLimit);
+
+    const dynamicPages: { type: 'table-only' | 'table-and-conclusion' | 'conclusion-only'; items: any[] }[] = [];
+    
+    if (remainingXnItems.length === 0) {
+        if (!conclusionOnPage3) {
+            dynamicPages.push({ type: 'conclusion-only', items: [] });
+        }
+    } else {
+        // Page 4 onwards: table-only or table-and-conclusion
+        const MAX_TABLE_ONLY_ITEMS = 28;
+        const MAX_TABLE_AND_CONCLUSION_ITEMS = 12;
+
+        let tempItems = [...remainingXnItems];
+        while (tempItems.length > 0) {
+            if (tempItems.length <= MAX_TABLE_AND_CONCLUSION_ITEMS) {
+                dynamicPages.push({ type: 'table-and-conclusion', items: tempItems });
+                tempItems = [];
+            } else {
+                dynamicPages.push({ type: 'table-only', items: tempItems.slice(0, MAX_TABLE_ONLY_ITEMS) });
+                tempItems = tempItems.slice(MAX_TABLE_ONLY_ITEMS);
+                
+                // Nếu trang cuối cùng đầy (table-only) và không còn mục nào, vẫn phải thêm trang kết luận
+                if (tempItems.length === 0) {
+                    dynamicPages.push({ type: 'conclusion-only', items: [] });
+                }
+            }
+        }
+    }
+
+    const totalPages = 3 + dynamicPages.length;
+
+    const renderConclusion = () => (
+        <>
+            <h2 className="font-bold text-[14px] uppercase border-b border-black pb-0.5 mt-5 mb-2">V. KẾT LUẬN</h2>
+            
+            <div className="text-[13.5px] space-y-2 leading-relaxed">
+                <div>
+                    <span className="font-bold">1. Phân loại sức khỏe: </span>
+                    <span className="font-bold text-[14px] text-slate-900">Loại {conclusion.fitness_class || 'I'} - {formatFitnessClassName(conclusion.fitness_class || '1')}</span>
+                </div>
+                
+                <div>
+                    <span className="font-bold">2. Các bệnh, tật (nếu có):</span>
+                    <div className="pl-4 font-bold text-slate-800">{conclusion.diagnosis ? formatIcd10String(conclusion.diagnosis) : 'Không phát hiện bất thường'}</div>
+                </div>
+                
+                <div>
+                    <span className="font-bold">3. Quản lý bệnh: </span>
+                    <span>{conclusion.quan_ly_benh || extra.quan_ly_benh || '3. Có bệnh lý được theo dõi'}</span>
+                </div>
+                
+                <div>
+                    <span className="font-bold">4. Theo dõi tại: </span>
+                    <span>{conclusion.theo_doi_tai || extra.theo_doi_tai || hospitalName || 'Bệnh viện đa khoa tỉnh Ninh Bình'}</span>
+                </div>
+                
+                <div>
+                    <span className="font-bold">5. Chuyển tuyến: </span>
+                    <span>{conclusion.chuyen_tuyen || extra.chuyen_tuyen || '1. Không chuyển tuyến'}</span>
+                </div>
+            </div>
+
+            {/* Bác sĩ kết luận + Chữ ký số xác nhận */}
+            <div className="flex justify-end mt-10 text-[13px]">
+                <div className="text-center w-72 flex flex-col items-center">
+                    <span className="italic text-[12.5px] mb-0.5 font-normal">Ngày {getReportDate().day} tháng {getReportDate().month} năm {getReportDate().year}</span>
+                    <strong className="block font-bold uppercase text-[13.5px] tracking-wider mb-2">BÁC SĨ KẾT LUẬN</strong>
+                    
+                    {document.signature_status === 'Signed' ? (
+                        <div className="my-2 p-2 border border-green-600 rounded bg-green-50/50 text-[11px] font-bold text-green-700 leading-tight text-left w-full shadow-sm max-w-[240px] font-sans">
+                            <div className="flex items-center gap-1 mb-1 text-green-800">
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                </svg>
+                                <span>SIGNED DIGITALLY</span>
+                            </div>
+                            By: {hospitalName || 'Phòng khám đa khoa vClinic'}<br/>
+                            Time: {document.updated_at ? new Date(document.updated_at).toLocaleString('vi-VN') : '2026-06-03'}
+                        </div>
+                    ) : (
+                        <div className="h-16"></div>
+                    )}
+                    
+                    <span className="font-bold text-[14px] mt-1 text-slate-900 block">{getConclusionDoctorName()}</span>
+                </div>
+            </div>
+        </>
+    );
 
     return createPortal(
         <>
             {/* 1. Loader screen when generating PDF */}
             {isGenerating && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex flex-col justify-center items-center text-white">
-                    <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-2xl flex flex-col items-center space-y-4 max-w-sm w-full mx-4">
-                        <div className="w-12 h-12 rounded-full border-4 border-teal-500 border-t-transparent animate-spin"></div>
-                        <div className="text-center font-sans">
-                            <span className="font-bold text-sm block">Đang khởi tạo bản in PDF</span>
-                            <span className="text-xs text-slate-400 mt-1 block">Vui lòng chờ giây lát ({progress}%)</span>
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex justify-center items-center">
+                    <div className="bg-teal-900 rounded-2xl border border-teal-800/60 shadow-2xl p-8 flex flex-col items-center gap-5 w-80">
+                        
+                        {/* Spinner */}
+                        <div className="w-10 h-10 rounded-full border-[3px] border-teal-800 border-t-teal-300 animate-spin" />
+
+                        {/* Text */}
+                        <div className="text-center space-y-1">
+                            <p className="text-white font-semibold text-sm">Đang tạo bản in PDF</p>
+                            <p className="text-teal-200/70 text-xs">
+                                {progress < 50 ? 'Đang xử lý nội dung...' : progress < 90 ? 'Đang kết xuất PDF...' : 'Sắp xong...'}
+                            </p>
                         </div>
+
+                        {/* Progress bar */}
+                        <div className="w-full">
+                            <div className="w-full h-1.5 bg-teal-950 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-teal-400 rounded-full transition-all duration-300 ease-out"
+                                    style={{ width: `${progress}%` }}
+                                />
+                            </div>
+                            <div className="flex justify-end mt-1.5">
+                                <span className="text-[11px] text-teal-300/80 font-mono">{progress}%</span>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             )}
@@ -601,11 +866,20 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                         color: black;
                     }
                     .a4-table {
-                        border-collapse: collapse;
+                        border-collapse: separate;
+                        border-spacing: 0;
                         width: 100%;
+                        border-left: 1px solid black !important;
+                        border-top: 1px solid black !important;
+                    }
+                    .a4-table.border-t-0 {
+                        border-top: 0 !important;
                     }
                     .a4-table th, .a4-table td {
-                        border: 1px solid black !important;
+                        border-right: 1px solid black !important;
+                        border-bottom: 1px solid black !important;
+                        border-left: 0 !important;
+                        border-top: 0 !important;
                         padding: 3px 5px;
                     }
 
@@ -622,8 +896,15 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                     }
                     
                     @media print {
-                        /* Hide everything else */
-                        body {
+                        @page {
+                            size: A4;
+                            margin: 0 !important;
+                        }
+                        html, body {
+                            margin: 0 !important;
+                            padding: 0 !important;
+                            width: 210mm !important;
+                            height: 297mm !important;
                             background: white !important;
                             color: black !important;
                         }
@@ -742,9 +1023,12 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                     </div>
 
                     <div className="mt-6 space-y-2.5 text-[13.5px] leading-relaxed">
+                        {/* Mẫu 1 (trẻ em) không có mục Nghề nghiệp / Nơi công tác / Lịch sử nghề */}
+                        {document.form_type !== '1' && (
+                            <>
                         <div>
                             <span className="font-bold">7. Nghề nghiệp: </span>
-                            <span>{clinical.ma_nghe_nghiep || '................................'}</span>
+                            <span>{extra.ten_nghe_nghiep || extra.ma_nghe_nghiep || clinical.ma_nghe_nghiep || '................................'}</span>
                         </div>
 
                         <div>
@@ -771,6 +1055,8 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                                 </div>
                             </div>
                         </div>
+                            </>
+                        )}
 
                         <div className="pt-2">
                             <span className="font-bold">11. Tiền sử bệnh, tật của gia đình:</span>
@@ -793,13 +1079,13 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                                 <tbody>
                                     <tr className="align-top h-10">
                                         <td>
-                                            a) {extra.tsbt_ma_benh ? `Bệnh ${extra.tsbt_ma_benh}` : ''}
+                                            a) {extra.tsbt_ma_benh ? formatIcd10String(extra.tsbt_ma_benh) : ''}
                                         </td>
                                         <td className="text-center font-bold">
                                             {extra.tsbt_nam_phat_hien_benh}
                                         </td>
                                         <td>
-                                            a) {extra.tsbt_ma_benh_nghe_nghiep ? `Bệnh ${extra.tsbt_ma_benh_nghe_nghiep}` : ''}
+                                            a) {extra.tsbt_ma_benh_nghe_nghiep ? formatIcd10String(extra.tsbt_ma_benh_nghe_nghiep) : ''}
                                         </td>
                                         <td className="text-center font-bold">
                                             {extra.tsbt_nam_phat_hien_benh_nghe_nghiep}
@@ -840,7 +1126,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                         </div>
                     </div>
 
-                    <div className="absolute bottom-4 right-8 text-[11px] text-slate-500 font-sans">1/4</div>
+                    <div className="absolute bottom-4 right-8 text-[11px] text-slate-500 font-sans">1/{totalPages}</div>
                 </div>
 
                 {/* ==================== PAGE 2 ==================== */}
@@ -852,15 +1138,17 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                         <div className="pl-4 space-y-1">
                             <div><span className="font-bold">Gia đình:</span> {extra.tsgd_mac_benh === '1' ? 'Mắc bệnh' : 'Không mắc bệnh'} {extra.tsgd_ma_benh ? `(${extra.tsgd_ma_benh})` : ''}</div>
                             <div className="border-t border-dotted border-black my-1"></div>
-                            <div><span className="font-bold">Bản thân:</span> {extra.tsbt_ma_benh ? `Mắc bệnh ${extra.tsbt_ma_benh}` : 'Không phát hiện bất thường'} {extra.tsbt_nam_phat_hien_benh ? `(Phát hiện năm: ${extra.tsbt_nam_phat_hien_benh})` : ''}</div>
+                            <div><span className="font-bold">Bản thân:</span> {extra.tsbt_ma_benh ? `Mắc bệnh ${formatIcd10String(extra.tsbt_ma_benh)}` : 'Không phát hiện bất thường'} {extra.tsbt_nam_phat_hien_benh ? `(Phát hiện năm: ${extra.tsbt_nam_phat_hien_benh})` : ''}</div>
                             <div className="border-t border-dotted border-black my-1"></div>
-                            <div><span className="font-bold">Bệnh nghề nghiệp:</span> {extra.tsbt_ma_benh_nghe_nghiep ? `Mắc bệnh ${extra.tsbt_ma_benh_nghe_nghiep}` : 'Không phát hiện bất thường'} {extra.tsbt_nam_phat_hien_benh_nghe_nghiep ? `(Phát hiện năm: ${extra.tsbt_nam_phat_hien_benh_nghe_nghiep})` : ''}</div>
+                            <div><span className="font-bold">Bệnh nghề nghiệp:</span> {extra.tsbt_ma_benh_nghe_nghiep ? `Mắc bệnh ${formatIcd10String(extra.tsbt_ma_benh_nghe_nghiep)}` : 'Không phát hiện bất thường'} {extra.tsbt_nam_phat_hien_benh_nghe_nghiep ? `(Phát hiện năm: ${extra.tsbt_nam_phat_hien_benh_nghe_nghiep})` : ''}</div>
                             <div className="border-t border-dotted border-black my-1"></div>
                             <div><span className="font-bold">Đang điều trị:</span> {extra.ten_thuoc ? `Có - Thuốc đang dùng: ${extra.ten_thuoc}` : 'Không - Thuốc đang dùng: Không'}</div>
                             <div className="border-t border-dotted border-black my-1"></div>
                         </div>
                     </div>
                     
+                    {/* Mẫu 1 (trẻ em 6-18 tuổi) không có mục Tiền sử sản phụ khoa */}
+                    {document.form_type !== '1' && isNu && (
                     <div className="text-[13.5px] mt-4 space-y-2 leading-relaxed">
                         <h3 className="font-bold">2. Tiền sử sản phụ khoa (Đối với nữ):</h3>
                         <div className="pl-4 grid grid-cols-2 gap-y-2 gap-x-8">
@@ -900,6 +1188,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             </div>
                         </div>
                     </div>
+                    )}
 
                     <h2 className="font-bold text-[14px] uppercase border-b border-black pb-0.5 mt-5 mb-3">III. KHÁM LÂM SÀNG</h2>
                     
@@ -911,14 +1200,66 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             </tr>
                         </thead>
                         <tbody>
+                            {/* ===== MẪU 1: Trẻ 6-18 tuổi – dùng field nhi_* ===== */}
+                            {document.form_type === '1' ? (
+                                <>
+                                <tr className="font-bold">
+                                    <td colSpan={2} className="bg-slate-100/50">1. Khám nhi khoa</td>
+                                </tr>
+                                <tr>
+                                    <td><span className="font-bold">a) Tuần hoàn: </span><span className="text-slate-800">{clinicalExam.nhi_tuan_hoan || ''}</span></td>
+                                    <td className="text-center align-middle font-medium text-slate-700">{getDoctor('tuan_hoan')}</td>
+                                </tr>
+                                <tr>
+                                    <td><span className="font-bold">b) Hô hấp: </span><span className="text-slate-800">{clinicalExam.nhi_ho_hap || ''}</span></td>
+                                    <td className="text-center align-middle font-medium text-slate-700">{getDoctor('ho_hap')}</td>
+                                </tr>
+                                <tr>
+                                    <td><span className="font-bold">c) Tiêu hóa: </span><span className="text-slate-800">{clinicalExam.nhi_tieu_hoa || ''}</span></td>
+                                    <td className="text-center align-middle font-medium text-slate-700">{getDoctor('tieu_hoa')}</td>
+                                </tr>
+                                <tr>
+                                    <td><span className="font-bold">d) Thận - Tiết niệu: </span><span className="text-slate-800">{clinicalExam.nhi_tiet_nieu || ''}</span></td>
+                                    <td className="text-center align-middle font-medium text-slate-700">{getDoctor('than_tiet_nieu')}</td>
+                                </tr>
+                                <tr>
+                                    <td><span className="font-bold">đ) Thần kinh: </span><span className="text-slate-800">{clinicalExam.nhi_than_kinh || ''}</span></td>
+                                    <td className="text-center align-middle font-medium text-slate-700">{getDoctor('than_kinh')}</td>
+                                </tr>
+                                <tr>
+                                    <td><span className="font-bold">e) Tâm thần: </span><span className="text-slate-800">{clinicalExam.nhi_tam_than || ''}</span></td>
+                                    <td className="text-center align-middle font-medium text-slate-700">{getDoctor('tam_than')}</td>
+                                </tr>
+                                <tr>
+                                    <td><span className="font-bold">g) Lâm sàng khác: </span><span className="text-slate-800">{clinicalExam.nhi_khac || ''}</span></td>
+                                    <td className="text-center align-middle font-medium text-slate-700"></td>
+                                </tr>
+                                <tr>
+                                    <td><span className="font-bold">2. Mắt: </span><span className="text-slate-800">{formatEyeExam()}</span></td>
+                                    <td className="text-center align-middle font-medium text-slate-700">{getDoctor('mat')}</td>
+                                </tr>
+                                <tr>
+                                    <td><span className="font-bold">3. Tai - Mũi - Họng: </span><span className="text-slate-800">{formatEntExam()}</span></td>
+                                    <td className="text-center align-middle font-medium text-slate-700">{getDoctor('tai_mui_hong')}</td>
+                                </tr>
+                                <tr>
+                                    <td><span className="font-bold">4. Răng - Hàm - Mặt: </span><span className="text-slate-800">{formatDentalExam()}</span></td>
+                                    <td className="text-center align-middle font-medium text-slate-700">{getDoctor('rang_ham_mat')}</td>
+                                </tr>
+                                </>
+                            ) : (
+                                <>
+                            {/* ===== MẪU 2/3/4/5: Người lớn – dùng field kq_* ===== */}
                             <tr className="font-bold">
                                 <td colSpan={2} className="bg-slate-100/50">1. Nội khoa</td>
                             </tr>
                              <tr>
                                 <td>
                                     <span className="font-bold">a) Tuần hoàn: </span>
-                                    <span className="text-slate-800">{clinicalExam.tim_mach || clinicalExam.kq_tim_mach || 'Bình thường'}</span>
-                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_tuan_hoan_pl || '1')})</span>
+                                    <span className="text-slate-800">{clinicalExam.tim_mach || clinicalExam.kq_tim_mach || ''}</span>
+                                    {clinicalExam.noi_khoa_tuan_hoan_pl && (
+                                        <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_tuan_hoan_pl)})</span>
+                                    )}
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('tuan_hoan')}
@@ -927,8 +1268,10 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             <tr>
                                 <td>
                                     <span className="font-bold">b) Hô hấp: </span>
-                                    <span className="text-slate-800">{clinicalExam.ho_hap || clinicalExam.kq_ho_hap || 'Bình thường'}</span>
-                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_ho_hap_pl || '1')})</span>
+                                    <span className="text-slate-800">{clinicalExam.ho_hap || clinicalExam.kq_ho_hap || ''}</span>
+                                    {clinicalExam.noi_khoa_ho_hap_pl && (
+                                        <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_ho_hap_pl)})</span>
+                                    )}
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('ho_hap')}
@@ -937,8 +1280,10 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             <tr>
                                 <td>
                                     <span className="font-bold">c) Tiêu hóa: </span>
-                                    <span className="text-slate-800">{clinicalExam.noi_khoa_tieu_hoa || clinicalExam.kq_tieu_hoa || 'Bình thường'}</span>
-                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_tieu_hoa_pl || '1')})</span>
+                                    <span className="text-slate-800">{clinicalExam.noi_khoa_tieu_hoa || clinicalExam.kq_tieu_hoa || ''}</span>
+                                    {clinicalExam.noi_khoa_tieu_hoa_pl && (
+                                        <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_tieu_hoa_pl)})</span>
+                                    )}
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('tieu_hoa')}
@@ -947,8 +1292,10 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             <tr>
                                 <td>
                                     <span className="font-bold">d) Thận-Tiết niệu: </span>
-                                    <span className="text-slate-800">{clinicalExam.tiet_nieu_sinh_duc || clinicalExam.kq_tiet_nieu || 'Bình thường'}</span>
-                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_than_tietnieu_pl || '1')})</span>
+                                    <span className="text-slate-800">{clinicalExam.tiet_nieu_sinh_duc || clinicalExam.kq_tiet_nieu || ''}</span>
+                                    {clinicalExam.noi_khoa_than_tietnieu_pl && (
+                                        <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_than_tietnieu_pl)})</span>
+                                    )}
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('than_tiet_nieu')}
@@ -957,8 +1304,10 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             <tr>
                                 <td>
                                     <span className="font-bold">đ) Nội tiết: </span>
-                                    <span className="text-slate-800">{clinicalExam.noi_tiet_dinh_duong_chuyen_hoa || clinicalExam.kq_noi_tiet || 'Bình thường'}</span>
-                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_noi_tiet_pl || '1')})</span>
+                                    <span className="text-slate-800">{clinicalExam.noi_tiet_dinh_duong_chuyen_hoa || clinicalExam.kq_noi_tiet || ''}</span>
+                                    {clinicalExam.noi_khoa_noi_tiet_pl && (
+                                        <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_noi_tiet_pl)})</span>
+                                    )}
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('noi_tiet')}
@@ -967,8 +1316,10 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             <tr>
                                 <td>
                                     <span className="font-bold">e) Cơ-xương-khớp: </span>
-                                    <span className="text-slate-800">{clinicalExam.kq_co_xuong_khop_m5 || clinicalExam.kq_co_xuong_khop || 'Bình thường'}</span>
-                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_co_xuong_khop_pl || '1')})</span>
+                                    <span className="text-slate-800">{clinicalExam.kq_co_xuong_khop_m5 || clinicalExam.kq_co_xuong_khop || ''}</span>
+                                    {clinicalExam.noi_khoa_co_xuong_khop_pl && (
+                                        <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_co_xuong_khop_pl)})</span>
+                                    )}
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('co_xuong_khop')}
@@ -977,8 +1328,10 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             <tr>
                                 <td>
                                     <span className="font-bold">g) Thần kinh: </span>
-                                    <span className="text-slate-800">{clinicalExam.noi_khoa_than_kinh || clinicalExam.kq_than_kinh || 'Bình thường'}</span>
-                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_than_kinh_pl || '1')})</span>
+                                    <span className="text-slate-800">{clinicalExam.noi_khoa_than_kinh || clinicalExam.kq_than_kinh || ''}</span>
+                                    {clinicalExam.noi_khoa_than_kinh_pl && (
+                                        <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_than_kinh_pl)})</span>
+                                    )}
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('than_kinh')}
@@ -987,31 +1340,25 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             <tr>
                                 <td>
                                     <span className="font-bold">h) Tâm thần: </span>
-                                    <span className="text-slate-800">{clinicalExam.noi_khoa_tam_than || clinicalExam.kq_tam_than || 'Bình thường'}</span>
-                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_tam_than_pl || '1')})</span>
+                                    <span className="text-slate-800">{clinicalExam.noi_khoa_tam_than || clinicalExam.kq_tam_than || ''}</span>
+                                    {clinicalExam.noi_khoa_tam_than_pl && (
+                                        <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.noi_khoa_tam_than_pl)})</span>
+                                    )}
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('tam_than')}
                                 </td>
                             </tr>
-                            <tr className="font-bold">
-                                <td colSpan={2} className="bg-slate-100/50">2. Ngoại khoa, Da liễu</td>
+                            <tr className="font-bold bg-slate-100/50 text-center">
+                                <td colSpan={2}>2. Ngoại khoa, Da liễu</td>
                             </tr>
-                        </tbody>
-                    </table>
-
-                    <div className="absolute bottom-4 right-8 text-[11px] text-slate-500 font-sans">2/4</div>
-                </div>
-
-                {/* ==================== PAGE 3 ==================== */}
-                <div className="a4-page">
-                    <table className="a4-table w-full text-[13px] border-t-0">
-                        <tbody>
                             <tr>
                                 <td className="w-[70%]">
                                     <span className="font-bold">- Ngoại khoa: </span>
-                                    <span className="text-slate-800">{clinicalExam.external || clinicalExam.kq_ngoai_khoa || 'Bình thường'}</span>
-                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.kham_ngoai_khoa_pl || '1')})</span>
+                                    <span className="text-slate-800">{clinicalExam.external || clinicalExam.kq_ngoai_khoa || ''}</span>
+                                    {clinicalExam.kham_ngoai_khoa_pl && (
+                                        <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.kham_ngoai_khoa_pl)})</span>
+                                    )}
                                 </td>
                                 <td className="w-[30%] text-center align-middle font-medium text-slate-700">
                                     {getDoctor('ngoai_khoa')}
@@ -1020,8 +1367,10 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             <tr>
                                 <td>
                                     <span className="font-bold">- Da liễu: </span>
-                                    <span className="text-slate-800">{clinicalExam.dermatology || clinicalExam.kq_da_lieu || 'Bình thường'}</span>
-                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.kham_da_lieu_pl || '1')})</span>
+                                    <span className="text-slate-800">{clinicalExam.dermatology || clinicalExam.kq_da_lieu || ''}</span>
+                                    {clinicalExam.kham_da_lieu_pl && (
+                                        <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.kham_da_lieu_pl)})</span>
+                                    )}
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('da_lieu')}
@@ -1030,8 +1379,10 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             <tr>
                                 <td>
                                     <span className="font-bold">3. Sản phụ khoa: </span>
-                                    <span className="text-slate-800">{clinicalExam.gynecology || 'Bình thường'}</span>
-                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.kham_san_phu_khoa_pl || '1')})</span>
+                                    <span className="text-slate-800">{clinicalExam.gynecology || ''}</span>
+                                    {clinicalExam.kham_san_phu_khoa_pl && (
+                                        <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.kham_san_phu_khoa_pl)})</span>
+                                    )}
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('san_phu_khoa')}
@@ -1041,7 +1392,9 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                                 <td>
                                     <span className="font-bold">4. Mắt: </span>
                                     <span className="text-slate-800">{formatEyeExam()}</span>
-                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.kham_mat_pl || '1')})</span>
+                                    {clinicalExam.kham_mat_pl && (
+                                        <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.kham_mat_pl)})</span>
+                                    )}
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('mat')}
@@ -1051,7 +1404,9 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                                 <td>
                                     <span className="font-bold">5. Tai - Mũi - Họng: </span>
                                     <span className="text-slate-800">{formatEntExam()}</span>
-                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.kham_tai_mui_hong_pl || '1')})</span>
+                                    {clinicalExam.kham_tai_mui_hong_pl && (
+                                        <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.kham_tai_mui_hong_pl)})</span>
+                                    )}
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('tai_mui_hong')}
@@ -1061,95 +1416,94 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                                 <td>
                                     <span className="font-bold">6. Răng - Hàm - Mặt: </span>
                                     <span className="text-slate-800">{formatDentalExam()}</span>
-                                    <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.kham_rang_ham_mat_pl || '5')})</span>
+                                    {clinicalExam.kham_rang_ham_mat_pl && (
+                                        <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.kham_rang_ham_mat_pl)})</span>
+                                    )}
                                 </td>
                                 <td className="text-center align-middle font-medium text-slate-700">
                                     {getDoctor('rang_ham_mat')}
                                 </td>
                             </tr>
+                                </>
+                            )}
                         </tbody>
                     </table>
-                    
+
+                    <div className="absolute bottom-4 right-8 text-[11px] text-slate-500 font-sans">2/{totalPages}</div>
+                </div>
+
+                {/* ==================== PAGE 3 ==================== */}
+                <div className="a4-page">
                     <h2 className="font-bold text-[14px] uppercase border-b border-black pb-0.5 mt-5 mb-2">IV. CẬN LÂM SÀNG</h2>
                     
                     <div className="space-y-3.5">
                         {/* I. THĂM DÒ CHỨC NĂNG */}
-                        <div>
-                            <h3 className="font-bold text-[13px] mb-1">I. THĂM DÒ CHỨC NĂNG</h3>
-                            <table className="a4-table w-full text-[12px] text-center">
-                                <thead>
-                                    <tr className="bg-slate-50 font-bold">
-                                        <th className="w-[8%] text-center">STT</th>
-                                        <th className="w-[35%] text-center">Tên chỉ định</th>
-                                        <th className="w-[12%] text-center">Đơn vị</th>
-                                        <th className="w-[20%] text-center">Mô tả</th>
-                                        <th className="w-[15%] text-center">Kết luận</th>
-                                        <th className="w-[10%] text-center">Ghi chú</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {(() => {
-                                        const tdItems = paraclinicalItems.filter((x: any) => x.type === 'TD');
-                                        if (tdItems.length === 0) {
-                                            return (
-                                                <tr className="h-7">
-                                                    <td colSpan={6} className="text-center py-2 text-slate-500 italic">Không có dữ liệu thăm dò chức năng</td>
-                                                </tr>
-                                            );
-                                        }
-                                        return tdItems.map((item: any, idx: number) => (
-                                            <tr key={idx} className="h-7">
-                                                <td className="text-center">{idx + 1}</td>
-                                                <td className="text-left font-semibold">{item.service_name}</td>
-                                                <td className="text-center">{item.unit || 'lần'}</td>
-                                                <td className="text-left text-[11px]">{item.description || 'Bình thường'}</td>
-                                                <td className="text-left font-bold text-teal-800">{item.conclusion || item.value || 'Bình thường'}</td>
-                                                <td>{item.notes}</td>
+                        {(() => {
+                            const tdItems = paraclinicalItems.filter((x: any) => x.type === 'TD');
+                            return tdItems.length > 0 && (
+                                <div>
+                                    <h3 className="font-bold text-[13px] mb-1">I. THĂM DÒ CHỨC NĂNG</h3>
+                                    <table className="a4-table w-full text-[12px] text-center">
+                                        <thead>
+                                            <tr className="bg-slate-50 font-bold">
+                                                <th className="w-[8%] text-center">STT</th>
+                                                <th className="w-[35%] text-center">Tên chỉ định</th>
+                                                <th className="w-[12%] text-center">Đơn vị</th>
+                                                <th className="w-[20%] text-center">Mô tả</th>
+                                                <th className="w-[15%] text-center">Kết luận</th>
+                                                <th className="w-[10%] text-center">Ghi chú</th>
                                             </tr>
-                                        ));
-                                    })()}
-                                </tbody>
-                            </table>
-                        </div>
+                                        </thead>
+                                        <tbody>
+                                            {tdItems.map((item: any, idx: number) => (
+                                                <tr key={idx} className="h-7">
+                                                    <td className="text-center">{idx + 1}</td>
+                                                    <td className="text-left font-semibold">{item.service_name}</td>
+                                                    <td className="text-center">{item.unit || 'lần'}</td>
+                                                    <td className="text-left text-[11px]">{item.description || 'Bình thường'}</td>
+                                                    <td className="text-left font-bold text-teal-800">{item.conclusion || item.value || 'Bình thường'}</td>
+                                                    <td>{item.notes}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            );
+                        })()}
 
                         {/* II. CHẨN ĐOÁN HÌNH ẢNH */}
-                        <div>
-                            <h3 className="font-bold text-[13px] mb-1">II. CHẨN ĐOÁN HÌNH ẢNH</h3>
-                            <table className="a4-table w-full text-[12px] text-center">
-                                <thead>
-                                    <tr className="bg-slate-50 font-bold">
-                                        <th className="w-[8%] text-center">STT</th>
-                                        <th className="w-[35%] text-center">Tên chỉ định</th>
-                                        <th className="w-[12%] text-center">Đơn vị</th>
-                                        <th className="w-[20%] text-center">Mô tả</th>
-                                        <th className="w-[15%] text-center">Kết luận</th>
-                                        <th className="w-[10%] text-center">Ghi chú</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {(() => {
-                                        const haItems = paraclinicalItems.filter((x: any) => x.type === 'HA');
-                                        if (haItems.length === 0) {
-                                            return (
-                                                <tr className="h-7">
-                                                    <td colSpan={6} className="text-center py-2 text-slate-500 italic">Không có dữ liệu chẩn đoán hình ảnh</td>
-                                                </tr>
-                                            );
-                                        }
-                                        return haItems.map((item: any, idx: number) => (
-                                            <tr key={idx} className="h-7">
-                                                <td className="text-center">{idx + 1}</td>
-                                                <td className="text-left font-semibold">{item.service_name}</td>
-                                                <td className="text-center">{item.unit || 'Lần'}</td>
-                                                <td className="text-left text-[11px]">{item.description || 'Bình thường'}</td>
-                                                <td className="text-left font-bold text-teal-800">{item.conclusion || item.value || 'Bình thường'}</td>
-                                                <td>{item.notes}</td>
+                        {(() => {
+                            const haItems = paraclinicalItems.filter((x: any) => x.type === 'HA');
+                            return haItems.length > 0 && (
+                                <div>
+                                    <h3 className="font-bold text-[13px] mb-1">II. CHẨN ĐOÁN HÌNH ẢNH</h3>
+                                    <table className="a4-table w-full text-[12px] text-center">
+                                        <thead>
+                                            <tr className="bg-slate-50 font-bold">
+                                                <th className="w-[8%] text-center">STT</th>
+                                                <th className="w-[35%] text-center">Tên chỉ định</th>
+                                                <th className="w-[12%] text-center">Đơn vị</th>
+                                                <th className="w-[20%] text-center">Mô tả</th>
+                                                <th className="w-[15%] text-center">Kết luận</th>
+                                                <th className="w-[10%] text-center">Ghi chú</th>
                                             </tr>
-                                        ));
-                                    })()}
-                                </tbody>
-                            </table>
-                        </div>
+                                        </thead>
+                                        <tbody>
+                                            {haItems.map((item: any, idx: number) => (
+                                                <tr key={idx} className="h-7">
+                                                    <td className="text-center">{idx + 1}</td>
+                                                    <td className="text-left font-semibold">{item.service_name}</td>
+                                                    <td className="text-center">{item.unit || 'Lần'}</td>
+                                                    <td className="text-left text-[11px]">{item.description || 'Bình thường'}</td>
+                                                    <td className="text-left font-bold text-teal-800">{item.conclusion || item.value || 'Bình thường'}</td>
+                                                    <td>{item.notes}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            );
+                        })()}
 
                         {/* III. XÉT NGHIỆM (Page 3 part) */}
                         <div>
@@ -1189,98 +1543,66 @@ const PrintForm: React.FC<PrintFormProps> = ({ document, onClose }) => {
                             </table>
                         </div>
                     </div>
+                    
+                    {conclusionOnPage3 && (
+                        <div className="pt-8">
+                            {renderConclusion()}
+                        </div>
+                    )}
 
-                    <div className="absolute bottom-4 right-8 text-[11px] text-slate-500 font-sans">3/4</div>
+                    <div className="absolute bottom-4 right-8 text-[11px] text-slate-500 font-sans">3/{totalPages}</div>
                 </div>
 
-                {/* ==================== PAGE 4 ==================== */}
-                <div className="a4-page">
-                    {/* Continuing Xét nghiệm table */}
-                    {xnItemsPage4.length > 0 && (
-                        <table className="a4-table w-full text-[12px] text-center mb-4">
-                            <thead>
-                                <tr className="bg-slate-50 font-bold">
-                                    <th className="w-[8%] text-center">STT</th>
-                                    <th className="w-[42%] text-center">Tên chỉ định</th>
-                                    <th className="w-[12%] text-center">Đơn vị</th>
-                                    <th className="w-[18%] text-center">Khoảng tham chiếu</th>
-                                    <th className="w-[12%] text-center">Kết quả</th>
-                                    <th className="w-[8%] text-center">Ghi chú</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {xnItemsPage4.map((item: any, idx: number) => (
-                                    <tr key={idx} className="h-7.5">
-                                        <td className="text-center">{idx + 6}</td>
-                                        <td className="text-left font-semibold">{item.service_name}</td>
-                                        <td className="text-center">{item.unit || 'Lần'}</td>
-                                        <td className="text-center">{item.reference_range || '-'}</td>
-                                        <td className="text-center font-bold text-teal-800">{item.value}</td>
-                                        <td>{item.notes}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )}
+                {/* ==================== DYNAMIC PAGES ==================== */}
+                {dynamicPages.map((page, pageIdx) => {
+                    const pageNumber = 4 + pageIdx;
+                    let startStt = xnItemsPage3.length + 1;
+                    for (let i = 0; i < pageIdx; i++) {
+                        startStt += dynamicPages[i].items.length;
+                    }
                     
-                    <h2 className="font-bold text-[14px] uppercase border-b border-black pb-0.5 mt-5 mb-2">V. KẾT LUẬN</h2>
-                    
-                    <div className="text-[13.5px] space-y-2 leading-relaxed">
-                        <div>
-                            <span className="font-bold">1. Phân loại sức khỏe: </span>
-                            <span className="font-bold text-[14px] text-slate-900">Loại {conclusion.fitness_class || 'I'} - {formatFitnessClassName(conclusion.fitness_class || '1')}</span>
-                        </div>
-                        
-                        <div>
-                            <span className="font-bold">2. Các bệnh, tật (nếu có):</span>
-                            <div className="pl-4 font-bold text-slate-800">{conclusion.diagnosis || 'Không phát hiện bất thường'}</div>
-                        </div>
-                        
-                        <div>
-                            <span className="font-bold">3. Quản lý bệnh: </span>
-                            <span>{conclusion.quan_ly_benh || extra.quan_ly_benh || '3. Có bệnh lý được theo dõi'}</span>
-                        </div>
-                        
-                        <div>
-                            <span className="font-bold">4. Theo dõi tại: </span>
-                            <span>{conclusion.theo_doi_tai || extra.theo_doi_tai || 'Bệnh viện đa khoa tỉnh Ninh Bình'}</span>
-                        </div>
-                        
-                        <div>
-                            <span className="font-bold">4. Chuyển tuyến: </span>
-                            <span>{conclusion.chuyen_tuyen || extra.chuyen_tuyen || '1. Không chuyển tuyến'}</span>
-                        </div>
-                    </div>
-
-                    {/* Bác sĩ kết luận + Chữ ký số xác nhận */}
-                    <div className="flex justify-end mt-10 text-[13px]">
-                        <div className="text-center w-72 flex flex-col items-center">
-                            <span className="italic text-[12.5px] mb-0.5 font-normal">Ngày {getReportDate().day} tháng {getReportDate().month} năm {getReportDate().year}</span>
-                            <strong className="block font-bold uppercase text-[13.5px] tracking-wider mb-2">BÁC SĨ KẾT LUẬN</strong>
-                            
-                            {document.signature_status === 'Signed' ? (
-                                <div className="my-2 p-2 border border-green-600 rounded bg-green-50/50 text-[11px] font-bold text-green-700 leading-tight text-left w-full shadow-sm max-w-[240px] font-sans">
-                                    <div className="flex items-center gap-1 mb-1 text-green-800">
-                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                        </svg>
-                                        <span>SIGNED DIGITALLY</span>
-                                    </div>
-                                    By: {hospitalName || 'Phòng khám đa khoa vClinic'}<br/>
-                                    Time: {document.updated_at ? new Date(document.updated_at).toLocaleString('vi-VN') : '2026-06-03'}
-                                </div>
-                            ) : (
-                                <div className="h-16"></div>
+                    return (
+                        <div key={pageIdx} className="a4-page">
+                            {/* Continuing Xét nghiệm table */}
+                            {page.items.length > 0 && (
+                                <table className="a4-table w-full text-[12px] text-center mb-4">
+                                    <thead>
+                                        <tr className="bg-slate-50 font-bold">
+                                            <th className="w-[8%] text-center">STT</th>
+                                            <th className="w-[42%] text-center">Tên chỉ định</th>
+                                            <th className="w-[12%] text-center">Đơn vị</th>
+                                            <th className="w-[18%] text-center">Khoảng tham chiếu</th>
+                                            <th className="w-[12%] text-center">Kết quả</th>
+                                            <th className="w-[8%] text-center">Ghi chú</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {page.items.map((item: any, idx: number) => (
+                                            <tr key={idx} className="h-7.5">
+                                                <td className="text-center">{startStt + idx}</td>
+                                                <td className="text-left font-semibold">{item.service_name}</td>
+                                                <td className="text-center">{item.unit || 'Lần'}</td>
+                                                <td className="text-center">{item.reference_range || '-'}</td>
+                                                <td className="text-center font-bold text-teal-800">{item.value}</td>
+                                                <td>{item.notes}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             )}
                             
-                            <span className="font-bold text-[14px] mt-1 text-slate-900 block">{getConclusionDoctorName()}</span>
+                            {/* Conclusion and signature block */}
+                            {(page.type === 'table-and-conclusion' || page.type === 'conclusion-only') && (
+                                <div className={page.type === 'conclusion-only' ? '' : 'pt-8'}>
+                                    {renderConclusion()}
+                                </div>
+                            )}
+                            
+                            <div className="absolute bottom-4 right-8 text-[11px] text-slate-500 font-sans">{pageNumber}/{totalPages}</div>
                         </div>
-                    </div>
-
-                    <div className="absolute bottom-4 right-8 text-[11px] text-slate-500 font-sans">4/4</div>
+                    );
+                })}
                 </div>
-
-            </div>
         </>,
         portalContainer
     );

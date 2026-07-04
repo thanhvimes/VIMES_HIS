@@ -1,6 +1,7 @@
 import React from 'react';
 import { useDynamicFormContext } from '../../DynamicFormContext';
 import SpecialtyCard from './SpecialtyCard';
+import { ICD10MultiSelect } from '../../../components/ICD10MultiSelect';
 
 const SurgeryTab: React.FC = () => {
     const {
@@ -48,10 +49,13 @@ const SurgeryTab: React.FC = () => {
                         </select>
                     </div>
                 )}
-                <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1">Mã bệnh (nếu có)</label>
-                    <input type="text" value={maBenhNgoaiKhoa} onChange={e => setMaBenhNgoaiKhoa(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700" placeholder="Mã ICD-10" />
-                </div>
+                <ICD10MultiSelect
+                    label="Mã bệnh (nếu có)"
+                    value={maBenhNgoaiKhoa}
+                    onChange={setMaBenhNgoaiKhoa}
+                    disabled={isLocked}
+                    placeholder="Mã ICD-10"
+                />
             </div>
             </fieldset>
         </SpecialtyCard>

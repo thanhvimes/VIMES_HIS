@@ -178,20 +178,44 @@ function Combobox<T extends Record<string, any>>({
             if (filterFunction) {
                 result = options.filter(opt => filterFunction(opt, query));
             } else {
-                result = options.filter(item => {
+                const scoredResults = options.map(item => {
                     const currentDisplay = getDisplayValue(item);
-                    if (currentDisplay && currentDisplay === searchTerm) return true;
+                    if (currentDisplay && currentDisplay === searchTerm) {
+                        return { item, score: 200 };
+                    }
 
-                    const matchesField = (val: any) => {
-                        const normalizedVal = removeVietnameseTones(String(val || '')).toLowerCase();
-                        return normalizedVal.includes(query);
+                    let maxScore = 0;
+                    const scoreValue = (val: any) => {
+                        if (val == null) return 0;
+                        const strVal = String(val);
+                        const normalizedVal = removeVietnameseTones(strVal).toLowerCase();
+                        
+                        if (normalizedVal === query || strVal.toLowerCase() === query) return 100;
+                        if (normalizedVal.startsWith(query)) return 50;
+                        
+                        const words = normalizedVal.split(' ');
+                        if (words.some(w => w.startsWith(query))) return 30;
+                        
+                        if (normalizedVal.includes(query)) return 10;
+                        return 0;
                     };
 
                     if (columns) {
-                        return columns.some(col => matchesField(item[col.key as keyof T]));
+                        for (const col of columns) {
+                            const score = scoreValue(item[col.key as keyof T]);
+                            if (score > maxScore) maxScore = score;
+                        }
+                    } else {
+                        maxScore = scoreValue(currentDisplay);
                     }
-                    return matchesField(currentDisplay);
+
+                    return { item, score: maxScore };
                 });
+
+                result = scoredResults
+                    .filter(x => x.score > 0)
+                    .sort((a, b) => b.score - a.score)
+                    .map(x => x.item);
             }
         }
 

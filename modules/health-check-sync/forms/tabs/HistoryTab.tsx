@@ -1,5 +1,9 @@
 import React from 'react';
 import { useDynamicFormContext } from '../DynamicFormContext';
+import { catalogService } from '../../../../services/catalogService';
+import { useSession } from '../../../../contexts/SessionContext';
+import Combobox from '../../../../components/ui/Combobox';
+import { ICD10MultiSelect } from '../../components/ICD10MultiSelect';
 
 const HistoryTab: React.FC = () => {
     const {
@@ -97,12 +101,155 @@ const HistoryTab: React.FC = () => {
         setGhiRoMoSanPhuKhoa,
         isLocked,
         handleAutofillTab,
+        specialtyMetadata,
+        setSpecialtyMetadata,
+        doctors,
+        handleSubmit,
     } = useDynamicFormContext();
+
+    const { user } = useSession();
+
+    const safeMetadata = specialtyMetadata || {};
+    const historyMetadata = { ...(safeMetadata.history || { doctorId: '', status: 'CHUA_KHAM' }) };
+    
+    if (!historyMetadata.doctorId && user) {
+        historyMetadata.doctorId = user.userId || '';
+        historyMetadata.doctorName = user.name || '';
+    }
+
+    const doctorsList = doctors || [];
+
+    const handleAction = (action: 'MỞ_KHÁM' | 'DUYỆT' | 'MỞ_KHÓA' | 'THOÁT') => {
+        const payload = { ...historyMetadata, updatedAt: new Date().toISOString() };
+        if (action === 'MỞ_KHÁM') {
+            payload.status = 'ĐANG_KHÁM';
+            payload.doctorId = user?.userId || '';
+            payload.doctorName = user?.name || '';
+            
+            setSpecialtyMetadata(prev => ({
+                ...prev,
+                history: payload
+            }));
+        } else if (action === 'DUYỆT') {
+            payload.status = 'ĐÃ_DUYỆT';
+            
+            setSpecialtyMetadata(prev => {
+                const updated = {
+                    ...prev,
+                    history: payload
+                };
+                setTimeout(() => {
+                    handleSubmit();
+                }, 100);
+                return updated;
+            });
+        } else if (action === 'MỞ_KHÓA') {
+            payload.status = 'ĐANG_KHÁM';
+            
+            setSpecialtyMetadata(prev => ({
+                ...prev,
+                history: payload
+            }));
+        } else if (action === 'THOÁT') {
+            payload.status = 'CHUA_KHAM';
+            
+            setSpecialtyMetadata(prev => ({
+                ...prev,
+                history: payload
+            }));
+        }
+    };
+
+    const isTabLocked = isLocked || (historyMetadata.status !== 'ĐANG_KHÁM' && historyMetadata.status !== 'ĐÃ_KHÁM');
+
+    const doctorColumns = [
+        { key: 'id', label: 'Mã người dùng (su_userid)', width: '180px' },
+        { key: 'name', label: 'Họ tên bác sĩ' }
+    ];
+
+    const renderBadge = () => {
+        switch (historyMetadata.status) {
+            case 'ĐANG_KHÁM': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Đang khám</span>;
+            case 'ĐÃ_KHÁM': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Đã khám</span>;
+            case 'ĐÃ_DUYỆT': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-teal-100 text-teal-800">Đã duyệt</span>;
+            default: return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Chưa khám</span>;
+        }
+    };
 
     return (
         <div className="space-y-6 animate-fadeIn">
+            {/* Quy trình phê duyệt tab */}
+            <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60 rounded-xl mb-4 gap-4 animate-in fade-in">
+                <div className="flex items-center gap-3">
+                    <span className="font-extrabold text-sm text-[#0f766e] dark:text-teal-400 uppercase tracking-wide">
+                        Quy trình phê duyệt Tiền sử &amp; Vaccine
+                    </span>
+                    {renderBadge()}
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                        <label className="text-xs font-bold text-slate-500">Bác sĩ khám:</label>
+                        <Combobox
+                            value={historyMetadata.doctorId}
+                            options={doctorsList}
+                            columns={doctorColumns}
+                            onChange={(val, item) => {
+                                setSpecialtyMetadata(prev => ({
+                                    ...prev,
+                                    history: {
+                                        ...historyMetadata,
+                                        doctorId: val,
+                                        doctorName: item?.name || '',
+                                        updatedAt: new Date().toISOString()
+                                    }
+                                }));
+                            }}
+                            disabled={isTabLocked}
+                            placeholder="-- Chọn bác sĩ --"
+                            className="min-w-[250px]"
+                        />
+                    </div>
+                    
+                    {historyMetadata.status === 'CHUA_KHAM' || !historyMetadata.status ? (
+                        <button
+                            type="button"
+                            onClick={() => handleAction('MỞ_KHÁM')}
+                            className="px-4 py-1.5 text-xs font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm active:scale-95 transition cursor-pointer"
+                        >
+                            Khám
+                        </button>
+                    ) : (historyMetadata.status === 'ĐANG_KHÁM' || historyMetadata.status === 'ĐÃ_KHÁM') ? (
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => handleAction('DUYỆT')}
+                                className="px-4 py-1.5 text-xs font-bold text-white bg-green-600 rounded-lg hover:bg-green-700 shadow-sm active:scale-95 transition cursor-pointer"
+                            >
+                                Duyệt
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleAction('THOÁT')}
+                                className="px-4 py-1.5 text-xs font-bold text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 shadow-sm active:scale-95 transition cursor-pointer"
+                            >
+                                Thoát
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => handleAction('MỞ_KHÓA')}
+                            className="px-4 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 shadow-sm active:scale-95 transition cursor-pointer"
+                            title="Mở khóa để sửa"
+                        >
+                            Mở khóa
+                        </button>
+                    )}
+                </div>
+            </div>
+
             {/* Action Row: Autofill Tab */}
-            {!isLocked && (
+            {!isTabLocked && (
                 <div className="flex justify-end">
                     <button
                         type="button"
@@ -121,7 +268,7 @@ const HistoryTab: React.FC = () => {
                 </div>
             )}
 
-            <fieldset disabled={isLocked} className="space-y-6">
+            <fieldset disabled={isTabLocked} className="space-y-6">
             {formType === '3' ? (
                 <div>
                     <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">II.1. Tiền sử sức khỏe lái xe (Đánh giá Có/Không)</h4>
@@ -153,7 +300,7 @@ const HistoryTab: React.FC = () => {
                         ))}
                     </div>
                 </div>
-            ) : (
+            ) : formType !== '2' ? (
                 <div>
                     <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">II.1. Lịch sử Tiêm chủng / Vaccine</h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -191,7 +338,7 @@ const HistoryTab: React.FC = () => {
                         )}
                     </div>
                 </div>
-            )}
+            ) : null}
 
             <div>
                 <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">II.2. Tiền sử bệnh bản thân &amp; Gia đình</h4>
@@ -212,10 +359,13 @@ const HistoryTab: React.FC = () => {
                     )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">Mã bệnh bản thân đã/đang điều trị (Mã ICD-10)</label>
-                        <input type="text" value={tsbtMaBenh} onChange={e => setTsbtMaBenh(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="VD: I10, E11..." />
-                    </div>
+                    <ICD10MultiSelect
+                        label="Mã bệnh bản thân đã/đang điều trị (Mã ICD-10)"
+                        value={tsbtMaBenh}
+                        onChange={setTsbtMaBenh}
+                        disabled={isLocked}
+                        placeholder="Tìm theo mã hoặc tên bệnh (VD: I10, E11...)"
+                    />
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Năm phát hiện bệnh</label>
                         <input type="text" value={tsbtNamPhatHienBenh} onChange={e => setTsbtNamPhatHienBenh(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="VD: 2021" />
@@ -231,10 +381,13 @@ const HistoryTab: React.FC = () => {
                 
                 {/* Tiền sử bệnh nghề nghiệp QĐ 1551 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50">
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">Mã bệnh nghề nghiệp (Mã ICD-10)</label>
-                        <input type="text" value={tsbtMaBenhNgheNghiep} onChange={e => setTsbtMaBenhNgheNghiep(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="VD: J60, H83..." />
-                    </div>
+                    <ICD10MultiSelect
+                        label="Mã bệnh nghề nghiệp (Mã ICD-10)"
+                        value={tsbtMaBenhNgheNghiep}
+                        onChange={setTsbtMaBenhNgheNghiep}
+                        disabled={isLocked}
+                        placeholder="Tìm theo mã hoặc tên bệnh (VD: J60, H83...)"
+                    />
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Năm phát hiện bệnh nghề nghiệp</label>
                         <input type="text" value={tsbtNamPhatHienBenhNgheNghiep} onChange={e => setTsbtNamPhatHienBenhNgheNghiep(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="VD: 2023" />
@@ -303,11 +456,15 @@ const HistoryTab: React.FC = () => {
                                 <label className="block text-xs font-bold text-slate-500 mb-1">Biện pháp tránh thai</label>
                                 <select value={bienPhapTranhThai} onChange={e => setBienPhapTranhThai(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
                                     <option value="">-- Chọn --</option>
-                                    <option value="1">Bao cao su</option>
-                                    <option value="2">Thuốc uống tránh thai</option>
-                                    <option value="3">Đặt dụng cụ tử cung</option>
-                                    <option value="4">Triệt sản</option>
-                                    <option value="9">Biện pháp khác</option>
+                                    <option value="0">Không sử dụng</option>
+                                    <option value="1">Vòng tránh thai</option>
+                                    <option value="2">Triệt sản nam</option>
+                                    <option value="3">Triệt sản nữ</option>
+                                    <option value="4">Bao cao su</option>
+                                    <option value="5">Thuốc uống tránh thai</option>
+                                    <option value="6">Thuốc tiêm tránh thai</option>
+                                    <option value="7">Thuốc cấy tránh thai</option>
+                                    <option value="8">Biện pháp khác</option>
                                 </select>
                             </div>
                         )}

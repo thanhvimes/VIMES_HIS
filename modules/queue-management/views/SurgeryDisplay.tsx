@@ -8,6 +8,7 @@ interface Patient {
   name: string;
   birthYear?: string;
   room: string;
+  deptName?: string;
   expectedTime: string;
   time: string;
   status: string;
@@ -202,8 +203,8 @@ const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, setting
     if (s === 'p' || s === 'pre-op' || s === 'chuẩn bị') {
       return {
         text: desc || 'CHUẨN BỊ',
-        bgColor: 'bg-amber-50 border-amber-200 text-amber-700',
-        icon: <AlertCircle className="w-6 h-6 text-amber-500" />
+        bgColor: 'bg-emerald-50 border-emerald-200 text-emerald-700',
+        icon: <AlertCircle className="w-6 h-6 text-emerald-500" />
       };
     }
     if (s === 's' || s === 'surgery' || s === 'đang phẫu thuật') {
@@ -371,9 +372,9 @@ const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, setting
             }} className="text-2xl font-black uppercase tracking-wider mb-6">
               <div>Họ và tên người bệnh</div>
               <div className="text-center">Năm sinh</div>
-              <div className="text-center">Phòng thực hiện</div>
+              <div className="text-center">Khoa thực hiện</div>
               <div className="text-center">Giờ dự kiến</div>
-              <div className="text-center">Giờ vào phòng</div>
+              <div className="text-center">Giờ vào khoa</div>
               <div className="text-center">Trạng thái hiện tại</div>
             </div>
 
@@ -404,7 +405,7 @@ const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, setting
                       className="surgery-row bg-slate-50/50 hover:bg-[#2e408a]/5 hover:border-[#2e408a]/20 hover:translate-x-1"
                     >
                       {/* Name */}
-                      <div className="text-4xl font-extrabold text-slate-800 truncate px-2">
+                      <div className="text-3xl font-extrabold text-slate-800 line-clamp-2 break-words leading-tight px-2 uppercase">
                         {p.name}
                       </div>
 
@@ -415,7 +416,7 @@ const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, setting
 
                       {/* Room */}
                       <div className="text-3xl font-extrabold text-center uppercase tracking-wide" style={{ color: theme.accent }}>
-                        {p.room}
+                        {p.deptName || '----'}
                       </div>
 
                       {/* Expected Time */}

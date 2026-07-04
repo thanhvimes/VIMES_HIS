@@ -33,7 +33,19 @@ export async function loadHealthCheckSettings(): Promise<HealthCheckSettings | n
         if (result.rows.length > 0) {
             const row = result.rows[0];
             const rawPassword = row.vneid_password || '';
-            const decryptedPassword = SecurityUtils.resolveSecret(rawPassword);
+            let decryptedPassword = '';
+            if (rawPassword) {
+                try {
+                    if (SecurityUtils.isEncrypted(rawPassword)) {
+                        decryptedPassword = SecurityUtils.resolveSecret(rawPassword);
+                    } else {
+                        decryptedPassword = SecurityUtils.decrypt(rawPassword);
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Fallback decryption failed, using resolveSecret:', e);
+                    decryptedPassword = SecurityUtils.resolveSecret(rawPassword);
+                }
+            }
 
             globalHealthCheckSettings = {
                 ...row,

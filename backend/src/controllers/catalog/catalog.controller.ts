@@ -157,6 +157,52 @@ class CatalogController {
             return res.status(500).json({ error: 'Không thể lấy danh sách bệnh viện' });
         }
     }
+
+    // Tìm kiếm danh mục ICD-10 từ bảng hms_icd
+    async searchIcd10(req: Request, res: Response) {
+        const q = String(req.query.q || '').trim();
+        try {
+            const columnsRes = await query(`
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'hms_icd'
+            `);
+            
+            const columns = columnsRes.rows.map(r => r.column_name.toLowerCase());
+            if (columns.length === 0) {
+                return res.status(404).json({ error: 'Bảng hms_icd không tồn tại hoặc không có cột nào' });
+            }
+
+            let codeCol = '';
+            if (columns.includes('hi_icd')) codeCol = 'hi_icd';
+            else if (columns.includes('hi_code')) codeCol = 'hi_code';
+            else if (columns.includes('icd_code')) codeCol = 'icd_code';
+            else codeCol = columns.find(c => c.includes('icd') || c.includes('code')) || columns[0];
+
+            let nameCol = '';
+            if (columns.includes('hi_name')) nameCol = 'hi_name';
+            else if (columns.includes('hi_desc')) nameCol = 'hi_desc';
+            else if (columns.includes('hi_vietname')) nameCol = 'hi_vietname';
+            else nameCol = columns.find(c => c.includes('name') || c.includes('desc') || c.includes('viet')) || columns[1];
+
+            if (!codeCol || !nameCol) {
+                return res.status(500).json({ error: 'Không tìm thấy cấu trúc cột thích hợp trong bảng hms_icd' });
+            }
+
+            const sql = `
+                SELECT ${codeCol}::text as code, ${nameCol}::text as name 
+                FROM hms_icd 
+                WHERE ${codeCol} ILIKE $1 OR ${nameCol} ILIKE $1 
+                ORDER BY ${codeCol} 
+                LIMIT 50
+            `;
+            const result = await query(sql, [`%${q}%`]);
+            return res.json(result.rows);
+        } catch (error: any) {
+            console.error('Error searching ICD-10:', error);
+            return res.status(500).json({ error: 'Lỗi tìm kiếm danh mục ICD: ' + error.message });
+        }
+    }
 }
 
 export default new CatalogController();

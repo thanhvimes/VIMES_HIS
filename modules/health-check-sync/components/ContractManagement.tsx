@@ -4,6 +4,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { healthCheckService } from '../../../services/healthCheckService';
 import { catalogService, CatalogItem } from '../../../services/catalogService';
+import { useCatalogs } from '../../../contexts/CatalogContext';
+import Combobox from '../../../components/ui/Combobox';
 import { 
     PlusIcon, 
     SearchIcon, 
@@ -41,13 +43,23 @@ interface Employee {
     id: string;
     code: string;
     name: string;
+    surname?: string;
+    midname?: string;
+    firstname?: string;
     birth_date: string;
     sex: string;
     doc_no: string;
+    cccd?: string;
     phone: string;
     note: string;
     status: string;
     sync_status: string;
+    card_id_date?: string;
+    card_id_place?: string;
+    ethnic?: string | number;
+    prov_id?: string | number;
+    vill_id?: string | number;
+    address?: string;
 }
 
 const getLocalDateString = () => {
@@ -89,6 +101,54 @@ const ContractManagement: React.FC = () => {
         object: '',
         form_type: '2'
     });
+
+    const { provinces, ethnicities, getWards } = useCatalogs();
+    const [editWards, setEditWards] = useState<CatalogItem[]>([]);
+
+    const [isEmployeeEditOpen, setIsEmployeeEditOpen] = useState(false);
+    const [employeeFormMode, setEmployeeFormMode] = useState<'ADD' | 'EDIT'>('EDIT');
+    const [selectedEmployeeForEdit, setSelectedEmployeeForEdit] = useState<Employee | null>(null);
+    const [employeeFormData, setEmployeeFormData] = useState({
+        surname: '',
+        midname: '',
+        firstname: '',
+        birth_date: '',
+        sex: 'M',
+        cccd: '',
+        cardIdDate: '',
+        cardIdPlace: '',
+        phone: '',
+        ethnic: '',
+        provId: '',
+        villId: '',
+        address: '',
+        note: ''
+    });
+
+    const commonColumns = [
+        { key: 'code', label: 'Mã', width: '100px' },
+        { key: 'name', label: 'Tên' }
+    ];
+
+    const parseDobToInputDate = (dobStr: string) => {
+        if (!dobStr) return '';
+        const parts = dobStr.split('/');
+        if (parts.length === 3) {
+            return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+        return dobStr;
+    };
+
+    useEffect(() => {
+        const provIdValue = employeeFormData.provId;
+        if (provIdValue) {
+            getWards(provIdValue).then(data => {
+                setEditWards(data.map((w: any) => ({ id: String(w.id || ''), code: String(w.code || w.id || ''), name: w.name })));
+            }).catch(() => setEditWards([]));
+        } else {
+            setEditWards([]);
+        }
+    }, [employeeFormData.provId, getWards]);
 
     // Service Modal States
     const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
@@ -457,6 +517,152 @@ const ContractManagement: React.FC = () => {
         }
     };
 
+    const handleEditEmployeeClick = (employee: Employee) => {
+        setSelectedEmployeeForEdit(employee);
+        setEmployeeFormMode('EDIT');
+        
+        setEmployeeFormData({
+            surname: employee.surname || '',
+            midname: employee.midname || '',
+            firstname: employee.firstname || '',
+            birth_date: parseDobToInputDate(employee.birth_date),
+            sex: employee.sex === 'F' ? 'F' : 'M',
+            cccd: employee.cccd || '',
+            cardIdDate: employee.card_id_date || '',
+            cardIdPlace: employee.card_id_place || '',
+            phone: employee.phone || '',
+            ethnic: employee.ethnic ? String(employee.ethnic) : '01',
+            provId: employee.prov_id ? String(employee.prov_id) : '',
+            villId: employee.vill_id ? String(employee.vill_id) : '',
+            address: employee.address || '',
+            note: employee.note || ''
+        });
+        setIsEmployeeEditOpen(true);
+    };
+
+    const handleAddNewEmployeeClick = () => {
+        if (!selectedContract) {
+            toast.error("Vui lòng chọn một gói khám!");
+            return;
+        }
+        setEmployeeFormMode('ADD');
+        setSelectedEmployeeForEdit(null);
+        setEmployeeFormData({
+            surname: '',
+            midname: '',
+            firstname: '',
+            birth_date: '',
+            sex: 'M',
+            cccd: '',
+            cardIdDate: '',
+            cardIdPlace: '',
+            phone: '',
+            ethnic: '01',
+            provId: '',
+            villId: '',
+            address: '',
+            note: ''
+        });
+        setIsEmployeeEditOpen(true);
+    };
+
+    const handleEmployeeEditSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (employeeFormMode === 'EDIT' && !selectedEmployeeForEdit) return;
+        if (employeeFormMode === 'ADD' && !selectedContract) return;
+
+        if (!employeeFormData.surname.trim() && !employeeFormData.firstname.trim()) {
+            toast.error("Vui lòng nhập Họ & Tên nhân viên");
+            return;
+        }
+
+        if (employeeFormData.cccd && !/^\d{12}$/.test(employeeFormData.cccd)) {
+            toast.error("CCCD phải có độ dài chính xác 12 chữ số");
+            return;
+        }
+
+        if (!employeeFormData.phone.trim()) {
+            toast.error("Vui lòng nhập số điện thoại");
+            return;
+        }
+        if (employeeFormData.phone && !/^\d{10}$/.test(employeeFormData.phone)) {
+            toast.error("Số điện thoại phải có độ dài chính xác 10 chữ số");
+            return;
+        }
+
+        const payload = {
+            surname: employeeFormData.surname.trim(),
+            midname: employeeFormData.midname.trim(),
+            firstname: employeeFormData.firstname.trim(),
+            dob: employeeFormData.birth_date || null,
+            gender: employeeFormData.sex,
+            cardId: employeeFormData.cccd,
+            cardIdDate: employeeFormData.cardIdDate || null,
+            cardIdPlace: employeeFormData.cardIdPlace || null,
+            phone: employeeFormData.phone,
+            ethnic: employeeFormData.ethnic || null,
+            provId: employeeFormData.provId || null,
+            villId: employeeFormData.villId || null,
+            address: employeeFormData.address,
+            note: employeeFormData.note
+        };
+
+        try {
+            toast.loading(employeeFormMode === 'ADD' ? "Đang thêm nhân viên..." : "Đang cập nhật thông tin...");
+            let res;
+            if (employeeFormMode === 'ADD' && selectedContract) {
+                res = await healthCheckService.createEmployee({
+                    contractId: selectedContract.id,
+                    ...payload
+                });
+            } else if (selectedEmployeeForEdit) {
+                res = await healthCheckService.updateEmployee(parseInt(selectedEmployeeForEdit.id, 10), payload);
+            }
+            
+            toast.dismiss();
+            if (res && res.success) {
+                toast.success(employeeFormMode === 'ADD' ? "Thêm nhân viên thành công!" : "Cập nhật nhân viên thành công!");
+                setIsEmployeeEditOpen(false);
+                if (selectedContract) {
+                    loadEmployees(selectedContract.id);
+                    loadContracts();
+                }
+            } else {
+                toast.error(res?.message || "Thao tác thất bại!");
+            }
+        } catch (err: any) {
+            toast.dismiss();
+            toast.error(err.message || "Lỗi hệ thống");
+        }
+    };
+
+    const handleDeleteEmployeeClick = async (employee: Employee) => {
+        if (employee.doc_no) {
+            toast.warning("Không thể xóa nhân viên đã được tiếp đón khám!");
+            return;
+        }
+        if (!confirm(`Bạn có chắc chắn muốn xóa nhân viên ${employee.name} (${employee.code}) khỏi gói khám này?`)) {
+            return;
+        }
+        try {
+            toast.loading("Đang xóa nhân viên...");
+            const res = await healthCheckService.deleteEmployee(employee.id);
+            toast.dismiss();
+            if (res.success) {
+                toast.success("Xóa nhân viên thành công!");
+                if (selectedContract) {
+                    loadEmployees(selectedContract.id);
+                    loadContracts();
+                }
+            } else {
+                toast.error(res.message || "Xóa nhân viên thất bại!");
+            }
+        } catch (err: any) {
+            toast.dismiss();
+            toast.error(err.message || "Lỗi hệ thống");
+        }
+    };
+
     const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !selectedContract) return;
@@ -507,6 +713,7 @@ const ContractManagement: React.FC = () => {
                     const guardianNameIdx = headers.findIndex(h => h.includes('giam ho') || h.includes('guardian_name'));
                     const guardianCccdIdx = headers.findIndex(h => h.includes('cccd_ngh') || h.includes('guardian_cccd'));
                     const ethnicIdx = headers.findIndex(h => h.includes('dan toc') || h.includes('ethnic'));
+                    const maKhIdx = headers.findIndex(h => h.includes('ma kh') || h.includes('makh') || h.includes('ma_kh'));
 
                     if (nameIdx === -1) {
                         toast.error("Không tìm thấy cột 'Họ và tên' trong file!");
@@ -519,21 +726,12 @@ const ContractManagement: React.FC = () => {
                         if (!row || row.length === 0 || !row[nameIdx]) continue;
 
                         let docNo = docIdx !== -1 ? String(row[docIdx]).trim() : '';
-                        if (docNo && /^\d+$/.test(docNo) && docNo.length < 12) {
-                            docNo = docNo.padStart(12, '0');
-                        }
-
                         let phone = phoneIdx !== -1 ? String(row[phoneIdx]).trim() : '';
-                        if (phone && /^\d{9}$/.test(phone)) {
-                            phone = '0' + phone;
-                        }
-
                         let guardianCccd = guardianCccdIdx !== -1 ? String(row[guardianCccdIdx]).trim() : '';
-                        if (guardianCccd && /^\d+$/.test(guardianCccd) && guardianCccd.length < 12) {
-                            guardianCccd = guardianCccd.padStart(12, '0');
-                        }
+                        let maKh = maKhIdx !== -1 && row[maKhIdx] ? String(row[maKhIdx]).trim() : '';
 
                         parsedEmployees.push({
+                            code: maKh,
                             name: String(row[nameIdx]).trim(),
                             birth_date: dobIdx !== -1 ? String(row[dobIdx]).trim() : '',
                             sex: sexIdx !== -1 ? String(row[sexIdx]).trim() : 'Nam',
@@ -557,6 +755,56 @@ const ContractManagement: React.FC = () => {
 
                     if (parsedEmployees.length === 0) {
                         toast.error("Không parse được nhân viên nào hợp lệ!");
+                        return;
+                    }
+
+                    // Kiểm tra trùng lặp trong file
+                    const dupCodes = new Set<string>();
+                    const dupCccds = new Set<string>();
+                    const dupNames = new Set<string>();
+                    const duplicatesInFile: string[] = [];
+
+                    parsedEmployees.forEach((emp, idx) => {
+                        const rowNum = idx + 2; // Dòng thực tế trong excel (1-indexed + bỏ header)
+
+                        if (emp.code) {
+                            if (dupCodes.has(emp.code)) {
+                                duplicatesInFile.push(`Trùng Mã KH '${emp.code}' ở dòng ${rowNum} (${emp.name})`);
+                            } else {
+                                dupCodes.add(emp.code);
+                            }
+                        }
+
+                        if (emp.doc_no) {
+                            if (dupCccds.has(emp.doc_no)) {
+                                duplicatesInFile.push(`Trùng CCCD '${emp.doc_no}' ở dòng ${rowNum} (${emp.name})`);
+                            } else {
+                                dupCccds.add(emp.doc_no);
+                            }
+                        }
+
+                        const nameKey = `${emp.name.toLowerCase()}_${emp.birth_date}`;
+                        if (dupNames.has(nameKey)) {
+                            duplicatesInFile.push(`Trùng trùng lặp Họ tên & Ngày sinh '${emp.name} - ${emp.birth_date}' ở dòng ${rowNum}`);
+                        } else {
+                            dupNames.add(nameKey);
+                        }
+                    });
+
+                    if (duplicatesInFile.length > 0) {
+                        toast.error(
+                            <div>
+                                <div className="font-bold text-red-650 dark:text-red-400 mb-1.5 text-xs uppercase tracking-wider">Phát hiện trùng lặp dữ liệu trong file Excel:</div>
+                                <ul className="list-disc pl-4 space-y-1 text-[11px] max-h-40 overflow-y-auto">
+                                    {duplicatesInFile.slice(0, 5).map((err, i) => (
+                                        <li key={i}>{err}</li>
+                                    ))}
+                                    {duplicatesInFile.length > 5 && <li>...và {duplicatesInFile.length - 5} dòng trùng lặp khác.</li>}
+                                </ul>
+                                <div className="mt-2 text-[10px] text-slate-500 italic">Vui lòng sửa các dòng trùng trước khi import.</div>
+                            </div>,
+                            { duration: 8000 }
+                        );
                         return;
                     }
 
@@ -765,16 +1013,25 @@ const ContractManagement: React.FC = () => {
                                 </span>
                             )}
                             {selectedContract && selectedContract.status !== 'A' && activeTab === 'employees' && (
-                                <label className="px-3 py-1.5 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition shadow-sm cursor-pointer flex items-center gap-1 active:scale-95">
-                                    <CloudUploadIcon className="w-3.5 h-3.5" />
-                                    Import Excel
-                                    <input
-                                        type="file"
-                                        accept=".xlsx, .xls"
-                                        onChange={handleImportExcel}
-                                        className="hidden"
-                                    />
-                                </label>
+                                <>
+                                    <button
+                                        onClick={handleAddNewEmployeeClick}
+                                        className="px-3 py-1.5 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition shadow-sm flex items-center gap-1 active:scale-95 cursor-pointer"
+                                    >
+                                        <PlusIcon className="w-3.5 h-3.5" />
+                                        Thêm thành viên
+                                    </button>
+                                    <label className="px-3 py-1.5 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition shadow-sm cursor-pointer flex items-center gap-1 active:scale-95">
+                                        <CloudUploadIcon className="w-3.5 h-3.5" />
+                                        Import Excel
+                                        <input
+                                            type="file"
+                                            accept=".xlsx, .xls"
+                                            onChange={handleImportExcel}
+                                            className="hidden"
+                                        />
+                                    </label>
+                                </>
                             )}
                             {selectedContract && selectedContract.status !== 'A' && (
                                 <button
@@ -866,6 +1123,9 @@ const ContractManagement: React.FC = () => {
                                             <th className="p-3 w-32 font-mono">Số hồ sơ</th>
                                             <th className="p-3 w-28 text-center">SĐT</th>
                                             <th className="p-3 w-32 text-center">VNeID Sync</th>
+                                            {selectedContract?.status !== 'A' && (
+                                                <th className="p-3 w-24 text-center">Tác vụ</th>
+                                            )}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
@@ -909,6 +1169,26 @@ const ContractManagement: React.FC = () => {
                                                         </span>
                                                     )}
                                                 </td>
+                                                {selectedContract?.status !== 'A' && (
+                                                    <td className="p-3 text-center">
+                                                        <div className="flex justify-center gap-2">
+                                                            <button
+                                                                onClick={() => handleEditEmployeeClick(e)}
+                                                                className="p-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-lg text-slate-600 dark:text-slate-200 transition cursor-pointer"
+                                                                title="Sửa thông tin nhân viên"
+                                                            >
+                                                                <PencilIcon className="w-3.5 h-3.5" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteEmployeeClick(e)}
+                                                                className="p-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 rounded-lg text-rose-600 transition cursor-pointer"
+                                                                title="Xóa nhân viên"
+                                                            >
+                                                                <TrashIcon className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                )}
                                             </tr>
                                         ))}
                                     </tbody>
@@ -1371,6 +1651,209 @@ const ContractManagement: React.FC = () => {
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+            {/* Edit Employee Modal */}
+            {isEmployeeEditOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-900 rounded-[2rem] max-w-lg w-full shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden transform scale-100 transition-all duration-300 animate-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/60 flex items-center gap-3 bg-slate-50/50 dark:bg-slate-900/50">
+                            <div className="h-10 w-10 rounded-full flex items-center justify-center bg-teal-50 dark:bg-teal-950/30 text-teal-600 dark:text-teal-400">
+                                <UserGroupIcon className="w-5 h-5" />
+                            </div>
+                            <h5 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                                {employeeFormMode === 'ADD' ? 'Thêm mới nhân viên' : 'Sửa thông tin nhân viên'}
+                            </h5>
+                        </div>
+
+                        {/* Form Body */}
+                        <form onSubmit={handleEmployeeEditSubmit}>
+                            <div className="p-6 flex flex-col gap-4 max-h-[70vh] overflow-y-auto custom-scrollbar text-xs">
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Họ (đệm) *</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={employeeFormData.surname}
+                                            onChange={(e) => setEmployeeFormData({ ...employeeFormData, surname: e.target.value.toUpperCase() })}
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                            placeholder="ĐỖ"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Tên đệm</label>
+                                        <input
+                                            type="text"
+                                            value={employeeFormData.midname}
+                                            onChange={(e) => setEmployeeFormData({ ...employeeFormData, midname: e.target.value.toUpperCase() })}
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                            placeholder="GIA"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Tên *</label>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={employeeFormData.firstname}
+                                            onChange={(e) => setEmployeeFormData({ ...employeeFormData, firstname: e.target.value.toUpperCase() })}
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                            placeholder="HUY"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Ngày sinh *</label>
+                                        <input
+                                            type="date"
+                                            required
+                                            value={employeeFormData.birth_date}
+                                            onChange={(e) => setEmployeeFormData({ ...employeeFormData, birth_date: e.target.value })}
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Giới tính *</label>
+                                        <select
+                                            required
+                                            value={employeeFormData.sex}
+                                            onChange={(e) => setEmployeeFormData({ ...employeeFormData, sex: e.target.value })}
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white cursor-pointer"
+                                        >
+                                            <option value="M">Nam</option>
+                                            <option value="F">Nữ</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Số CCCD (12 số)</label>
+                                        <input
+                                            type="text"
+                                            value={employeeFormData.cccd}
+                                            onChange={(e) => setEmployeeFormData({ ...employeeFormData, cccd: e.target.value })}
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                            placeholder="007095001012"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Ngày cấp CCCD</label>
+                                        <input
+                                            type="text"
+                                            placeholder="15/12/2024"
+                                            value={employeeFormData.cardIdDate}
+                                            onChange={(e) => setEmployeeFormData({ ...employeeFormData, cardIdDate: e.target.value })}
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Nơi cấp CCCD</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Cục C06"
+                                            value={employeeFormData.cardIdPlace}
+                                            onChange={(e) => setEmployeeFormData({ ...employeeFormData, cardIdPlace: e.target.value })}
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Số điện thoại liên hệ</label>
+                                        <input
+                                            type="text"
+                                            value={employeeFormData.phone}
+                                            onChange={(e) => setEmployeeFormData({ ...employeeFormData, phone: e.target.value })}
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                            placeholder="0909123456"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-1.5 relative z-30">
+                                        <Combobox<CatalogItem>
+                                            label="Dân tộc"
+                                            value={employeeFormData.ethnic}
+                                            displayValue={item => item?.name || ''}
+                                            onChange={val => setEmployeeFormData(prev => ({ ...prev, ethnic: val }))}
+                                            options={ethnicities}
+                                            columns={commonColumns}
+                                            placeholder="Chọn dân tộc..."
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="flex flex-col gap-1.5 relative z-20">
+                                        <Combobox<CatalogItem>
+                                            label="Tỉnh / Thành phố"
+                                            value={employeeFormData.provId}
+                                            displayValue={item => item?.name || ''}
+                                            onChange={val => setEmployeeFormData(prev => ({ ...prev, provId: val, villId: null }))}
+                                            options={provinces}
+                                            columns={commonColumns}
+                                            placeholder="Chọn tỉnh/thành..."
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-1.5 relative z-10">
+                                        <Combobox<CatalogItem>
+                                            label="Phường / Xã"
+                                            value={employeeFormData.villId}
+                                            displayValue={item => item?.name || ''}
+                                            onChange={val => setEmployeeFormData(prev => ({ ...prev, villId: val }))}
+                                            options={editWards}
+                                            columns={commonColumns}
+                                            placeholder="Chọn phường/xã..."
+                                            disabled={!employeeFormData.provId}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Địa chỉ thường trú</label>
+                                    <input
+                                        type="text"
+                                        value={employeeFormData.address}
+                                        onChange={(e) => setEmployeeFormData({ ...employeeFormData, address: e.target.value })}
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        placeholder="Nhập số nhà, tên đường, thôn/xóm..."
+                                    />
+                                </div>
+
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Ghi chú</label>
+                                    <textarea
+                                        value={employeeFormData.note}
+                                        onChange={(e) => setEmployeeFormData({ ...employeeFormData, note: e.target.value })}
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white h-16 resize-none"
+                                        placeholder="Gói dịch vụ bổ sung, ghi chú sức khỏe..."
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Footer Buttons */}
+                            <div className="px-6 py-4 bg-slate-50/30 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsEmployeeEditOpen(false)}
+                                    className="px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 rounded-xl text-xs font-extrabold uppercase tracking-wider transition cursor-pointer"
+                                >
+                                    Đóng
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-5 py-2.5 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition shadow-md shadow-teal-500/10 cursor-pointer"
+                                >
+                                    Lưu lại
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

@@ -77,7 +77,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
     };
 
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col min-h-[400px]">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col min-h-[400px] max-h-[calc(100vh-260px)]">
             <div className="overflow-auto flex-1 custom-scrollbar">
                 <table className="w-full text-left border-collapse text-sm">
                     <thead className="bg-[#fff1f2] dark:bg-rose-950/20 text-[#9f1239] dark:text-rose-300 font-extrabold text-[11px] uppercase tracking-wider sticky top-0 z-10 border-b border-rose-100 dark:border-rose-950/40">

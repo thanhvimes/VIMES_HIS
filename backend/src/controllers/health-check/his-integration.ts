@@ -17,6 +17,7 @@ class HisIntegrationController {
             const id = String(gid || '').toUpperCase();
             
             // Phân loại động theo tiền tố mã hms_fee_group (hfg_id / group_id)
+            if (id.startsWith('A')) return 'XN';
             if (id.startsWith('B1')) return 'XN';
             if (id.startsWith('B2')) return 'HA';
             if (id.startsWith('B3')) return 'TD';
@@ -76,7 +77,7 @@ class HisIntegrationController {
         };
 
         try {
-            // 1. Truy vấn kết quả xét nghiệm (Nhóm A)
+            // 1. Truy vấn kết quả xét nghiệm (Nhóm A) - Lấy tất cả chỉ định từ HIS, kể cả chưa có kết quả
             const testRes = await query(`
                 SELECT TRIM(f.hfl_feeid) AS service_code, f.hfl_name AS service_name,
                        t.hpcl_result AS value, f.hfl_unit AS unit,
@@ -90,7 +91,7 @@ class HisIntegrationController {
                 JOIN hms_fee_list f ON f.hfl_feeid = t.hpcl_itemid
                 LEFT JOIN hms_fee_group g ON g.hfg_id = f.hfl_groupid
                 LEFT JOIN hms_fee_list p ON p.hfl_feeid = f.hfl_subitem AND UPPER(TRIM(f.hfl_subitem)) <> 'Y'
-                WHERE t.hpcl_docno = $1 AND t.hpcl_result IS NOT NULL AND TRIM(t.hpcl_result) <> ''
+                WHERE t.hpcl_docno = $1
                 ORDER BY f.hfl_groupid, 
                          t.hpcl_orderid, 
                          COALESCE(p.hfl_line, f.hfl_line), 
@@ -113,7 +114,9 @@ class HisIntegrationController {
                 } else if (nameLower.includes('protein niệu') || nameLower.includes('protein nước tiểu') || (nameLower.includes('protein') && nameLower.includes('nước tiểu'))) {
                     protein = val;
                 } else {
-                    otherTests.push(`${row.service_name}: ${val}${row.unit ? ' ' + row.unit.trim() : ''}`);
+                    if (val) {
+                        otherTests.push(`${row.service_name}: ${val}${row.unit ? ' ' + row.unit.trim() : ''}`);
+                    }
                 }
 
                 items.push({
@@ -124,7 +127,7 @@ class HisIntegrationController {
                     value: val,
                     unit: row.unit || '',
                     description: '',
-                    conclusion: 'Bình thường',
+                    conclusion: val ? 'Bình thường' : '',
                     group_id: groupId,
                     group_name: groupName,
                     order_id: row.order_id ? String(row.order_id) : '',
@@ -137,7 +140,7 @@ class HisIntegrationController {
                 });
             }
 
-            // 2. Truy vấn kết quả hình ảnh & thăm dò chức năng (Nhóm B và C)
+            // 2. Truy vấn kết quả hình ảnh & thăm dò chức năng (Nhóm B và C) - Lấy tất cả chỉ định từ HIS
             const pacsRes = await query(`
                 SELECT f.hfl_feeid AS service_code, f.hfl_name AS service_name,
                        r.hpr_desc AS result_desc, f.hfl_unit AS unit,
@@ -145,10 +148,10 @@ class HisIntegrationController {
                        r.hpr_name AS result_name,
                        p.hpcl_orderid AS order_id
                 FROM hms_pacsorderline p
-                JOIN hms_pacs_result r ON r.hpr_orderid = p.hpcl_orderid AND r.hpr_itemid = p.hpcl_itemid
+                LEFT JOIN hms_pacs_result r ON r.hpr_orderid = p.hpcl_orderid AND r.hpr_itemid = p.hpcl_itemid
                 LEFT JOIN hms_fee_list f ON f.hfl_feeid = p.hpcl_itemid
                 LEFT JOIN hms_fee_group g ON g.hfg_id = f.hfl_groupid
-                WHERE p.hpcl_docno = $1 AND r.hpr_desc IS NOT NULL AND TRIM(r.hpr_desc) <> ''
+                WHERE p.hpcl_docno = $1
                 ORDER BY f.hfl_groupid, p.hpcl_orderid, p.hpcl_orderlineid, r.hpr_name DESC
             `, [docNo]);
 
@@ -315,7 +318,7 @@ class HisIntegrationController {
                 const row = hisResult.rows[i];
                 const hisEmpId = String(row.hee_employee_id);
                 const formType = defaultFormType;
-                const docNo = `KSK-${new Date().getFullYear()}-${String(row.hee_docno || row.hee_employee_id).padStart(4, '0')}`;
+                const docNo = String(row.hee_docno || row.hee_employee_id);
 
                 // Tìm hồ sơ hiện tại: ưu tiên theo his_employee_id, fallback theo doc_no
                 const existing = byHisEmpId.get(hisEmpId) || byDocNo.get(docNo);
@@ -350,6 +353,20 @@ class HisIntegrationController {
                 const weight = row.he_weight > 0 ? Number(row.he_weight) : 55 + (i % 20);
                 const bmi = row.he_bmi > 0 ? Number(row.he_bmi) :
                     parseFloat((weight / Math.pow(height / 100, 2)).toFixed(1));
+                const hasConclusion = (row.exam_status === 'T') || (row.he_diagnostic && row.he_diagnostic.trim() !== '');
+                const specialtyMetadata: any = {};
+                if (hasConclusion) {
+                    const docName = row.doctor_name || 'BS. Nguyễn Văn A';
+                    const keys = ['admin', 'history', 'conclusion', 'internal', 'eye', 'ent', 'dental', 'external', 'dermatology', 'gynecology'];
+                    keys.forEach(k => {
+                        specialtyMetadata[k] = {
+                            doctorId: docName,
+                            doctorName: docName,
+                            status: 'ĐÃ_KHÁM',
+                            updatedAt: new Date().toISOString()
+                        };
+                    });
+                }
 
                 const clinicalData: any = {
                     address: row.hee_address || '',
@@ -369,6 +386,7 @@ class HisIntegrationController {
                         pulse: row.he_pulse > 0 ? String(row.he_pulse) : '75',
                     },
                     clinical_exam: {
+                        specialty_metadata: specialtyMetadata,
                         internal: row.he_examine || 'Nội khoa bình thường, tim phổi tốt.',
                         eye: 'Mắt phải 10/10, Mắt trái 10/10.',
                         ent: 'Tai mũi họng bình thường.',
@@ -469,7 +487,6 @@ class HisIntegrationController {
                     clinicalData.extra = { tiem_chung_bcg: 1, tiem_chung_bh_hg_uv: 1, tiem_chung_soi: 1 };
                 }
 
-                const hasConclusion = (row.exam_status === 'T') || (row.he_diagnostic && row.he_diagnostic.trim() !== '');
                 const conclusionData: any = hasConclusion ? {
                     fitness_class: (i % 3 === 0) ? '2' : '1',
                     diagnosis: row.he_diagnostic || 'Đủ sức khỏe học tập và làm việc',
@@ -608,535 +625,188 @@ class HisIntegrationController {
     }
 
     // 9. Lấy dữ liệu bệnh nhân từ HIS để đồng bộ KSK
-    async getHisPatient(req: Request, res: Response) {
+async getHisPatient(req: Request, res: Response) {
         const identifier = String(req.params.identifier || '').trim();
+        const year = new Date().getFullYear();
+        const kskDocNo = identifier.startsWith('KSK-') ? identifier : `KSK-${year}-${identifier}`;
         try {
-            // 1. TRUY VẤN DỮ LIỆU THỰC TẾ TỪ CSDL HIS (hms_patient, hms_doc, hms_exam)
+            // 1. TRUY VẤN DỮ LIỆU TỪ HỆ THỐNG KSK NỘI BỘ (health_check_masters, health_check_details)
             const sql = `
                 SELECT 
-                    p.hp_patientno,
-                    trim(COALESCE(p.hp_surname,'') || ' ' || COALESCE(p.hp_midname,'') || ' ' || p.hp_firstname) as patient_name,
-                    p.hp_patientid,
-                    p.hp_sin,
-                    to_char(p.hp_birthdate, 'YYYY-MM-DD') as dob,
-                    p.hp_sex,
-                    p.hp_dtladdr,
-                    p.hp_ethnic,
-                    p.hp_nationality,
-                    p.hp_provid,
-                    p.hp_villid,
-                    p.hp_occupation,
-                    p.hp_workplace,
-                    d.hd_telephone,
-                    d.hd_cardno,
-                    d.hd_object,
-                    d.hd_docno,
-                    COALESCE(hms_getusername(d.hd_doctor), 'BS. Nguyễn Văn A') as doctor_name,
-                    e.he_height,
-                    e.he_weight,
-                    e.he_bmi,
-                    e.he_pulse,
-                    e.he_bloodpressure,
-                    e.he_bloodpressurex,
-                    e.he_examine,
-                    e.he_diagnostic
-                FROM hms_doc d
-                JOIN hms_patient p ON p.hp_patientno = d.hd_patientno
-                LEFT JOIN hms_exam e ON e.he_docno = d.hd_docno AND e.he_receptno = 1
-                WHERE d.hd_docno::text = $1
+                    m.id,
+                    m.patient_id,
+                    m.patient_name,
+                    m.cccd,
+                    to_char(m.dob, 'YYYY-MM-DD') as dob,
+                    m.gender,
+                    m.doc_no,
+                    m.his_doc_no,
+                    m.form_type,
+                    d.clinical_data,
+                    d.lab_data,
+                    d.conclusion_data
+                FROM health_check_masters m
+                JOIN health_check_details d ON m.id = d.master_id
+                WHERE m.doc_no = $1
+                   OR m.doc_no = $2
+                   OR m.his_doc_no = $1
+                   OR m.cccd = $1
+                   OR m.patient_id = $1
+                   OR (d.clinical_data->>'phone' = $1)
+                ORDER BY m.id DESC
                 LIMIT 1
             `;
-            const result = await query(sql, [identifier]);
+            const result = await query(sql, [identifier, kskDocNo]);
 
             if (result.rows.length > 0) {
                 const row = result.rows[0];
-                const genderVal = (row.hp_sex || '').toLowerCase();
-                const gender = (genderVal === 'm' || genderVal.includes('nam')) ? 'Nam' : 'Nữ';
-                const ethnicStr = row.hp_ethnic ? String(row.hp_ethnic).padStart(2, '0') : '01';
+                const hisDocNoStr = row.his_doc_no || row.patient_id || (row.doc_no ? row.doc_no.split('-').pop() : '');
+                const docNoVal = hisDocNoStr ? parseInt(hisDocNoStr, 10) : 0;
+                console.log('🔍 [getHisPatient] docNoVal:', docNoVal, 'row.his_doc_no:', row.his_doc_no, 'row.patient_id:', row.patient_id);
 
-                const bp = row.he_bloodpressure && row.he_bloodpressurex 
-                    ? `${row.he_bloodpressure}/${row.he_bloodpressurex}` 
-                    : '120/80';
+                try {
+                    const fs = require('fs');
+                    const testCheck = await query(`SELECT hpcl_docno, count(*) FROM hms_testorderline GROUP BY hpcl_docno LIMIT 5`);
+                    const docCheck = await query(`
+                        SELECT hd_docno, hd_patientno, hd_admitdate FROM hms_doc 
+                        WHERE hd_patientno = $1 OR hd_docno = $1
+                    `, [hisDocNoStr]);
+                    
+                    const patientTests = await query(`
+                        SELECT COUNT(*) FROM hms_testorderline WHERE hpcl_docno = $1
+                    `, [docNoVal]);
+                    
+                    const patientPacs = await query(`
+                        SELECT COUNT(*) FROM hms_pacsorderline WHERE hpcl_docno = $1
+                    `, [docNoVal]);
 
-                // Lấy kết quả xét nghiệm & PACS thực tế từ HIS
-                const docNo = row.hd_docno ? Number(row.hd_docno) : null;
-                const labAndPacs = docNo ? await this.fetchStructuredParaclinicalData(docNo) : {
-                    hemoglobin: '',
-                    glycemia: '',
-                    protein: '',
-                    kqXnKhac: '',
-                    paraclinical_items: []
-                };
+                    const constraintCheck = await query(`
+                        SELECT conname, pg_get_constraintdef(oid) as def 
+                        FROM pg_constraint 
+                        WHERE conname = 'hms_examview_he_deptidhe_roomid'
+                    `);
+
+                    const indexCheck = await query(`
+                        SELECT indexname, indexdef 
+                        FROM pg_indexes 
+                        WHERE tablename = 'hms_examview'
+                    `);
+
+                    const procCheck = await query(`
+                        SELECT prosrc FROM pg_proc WHERE proname = 'hms_exm_registration_exam'
+                    `);
+
+                    const triggersCheck = await query(`
+                        SELECT tgname, pg_get_triggerdef(oid) as def 
+                        FROM pg_trigger 
+                        WHERE tgrelid = 'hms_exam'::regclass
+                    `);
+
+                    const examviewProcs = await query(`
+                        SELECT proname, prosrc 
+                        FROM pg_proc 
+                        WHERE prosrc ILIKE '%hms_examview%' AND proname != 'hms_exm_registration_exam'
+                    `);
+
+                    const logMsg = `[${new Date().toISOString()}] identifier: ${identifier}, docNoVal: ${docNoVal}, hisDocNoStr: ${hisDocNoStr}, row.his_doc_no: ${row.his_doc_no}, row.patient_id: ${row.patient_id}\n` +
+                        `  - hms_doc check count: ${docCheck.rows.length}\n` +
+                        `  - hms_doc check rows: ${JSON.stringify(docCheck.rows)}\n` +
+                        `  - hms_testorderline count for docNoVal: ${patientTests.rows[0]?.count}\n` +
+                        `  - hms_pacsorderline count for docNoVal: ${patientPacs.rows[0]?.count}\n` +
+                        `  - Recent test order docnos: ${JSON.stringify(testCheck.rows)}\n` +
+                        `  - Unique constraint check: ${JSON.stringify(constraintCheck.rows)}\n` +
+                        `  - Indexes on hms_examview: ${JSON.stringify(indexCheck.rows)}\n` +
+                        `  - Triggers on hms_exam: ${JSON.stringify(triggersCheck.rows)}\n` +
+                        `  - Procs modifying hms_examview: ${JSON.stringify(examviewProcs.rows)}\n` +
+                        `  - Stored proc source length: ${procCheck.rows[0]?.prosrc?.length || 0}\n` +
+                        `  - Stored proc source: ${procCheck.rows[0]?.prosrc || 'not found'}\n\n`;
+                    fs.appendFileSync('d:/AI/vClinic/backend/sync_debug.log', logMsg);
+                } catch (dbErr: any) {
+                    console.error('🔍 [DEBUG] Error running debug queries:', dbErr);
+                    try {
+                        const fs = require('fs');
+                        fs.appendFileSync('d:/AI/vClinic/backend/sync_debug.log', `Error: ${dbErr.message}\n`);
+                    } catch (e) {}
+                }
+
+                // Lấy chỉ định & kết quả cận lâm sàng mới nhất trực tiếp từ HIS
+                const liveParaclinical = docNoVal ? await this.fetchStructuredParaclinicalData(docNoVal) : null;
+                if (liveParaclinical) {
+                    console.log('🔍 [getHisPatient] liveParaclinical items count:', liveParaclinical.paraclinical_items?.length);
+                }
+                const labData = typeof row.lab_data === 'string' ? JSON.parse(row.lab_data) : { ...row.lab_data };
+
+                if (liveParaclinical) {
+                    if (!labData.blood_test) labData.blood_test = {};
+                    if (!labData.urine_test) labData.urine_test = {};
+
+                    if (liveParaclinical.hemoglobin) labData.blood_test.hemoglobin = liveParaclinical.hemoglobin;
+                    if (liveParaclinical.glycemia) labData.blood_test.glycemia = liveParaclinical.glycemia;
+                    if (liveParaclinical.protein) labData.urine_test.protein = liveParaclinical.protein;
+                    if (liveParaclinical.kqXnKhac) labData.kq_xn_khac = liveParaclinical.kqXnKhac;
+
+                    const existingItems = Array.isArray(labData.paraclinical_items) ? labData.paraclinical_items : [];
+                    const newItems = liveParaclinical.paraclinical_items || [];
+                    const mergedItems: any[] = [];
+
+                    const existingMap = new Map<string, any>();
+                    existingItems.forEach((item: any) => {
+                        const key = `${item.order_id || ''}_${item.service_code || ''}`;
+                        existingMap.set(key, item);
+                    });
+
+                    const processedNewKeys = new Set<string>();
+                    newItems.forEach((newItem: any) => {
+                        const key = `${newItem.order_id || ''}_${newItem.service_code || ''}`;
+                        processedNewKeys.add(key);
+
+                        const existingItem = existingMap.get(key);
+                        if (existingItem) {
+                            const mergedValue = newItem.value ? newItem.value : (existingItem.value || '');
+                            mergedItems.push({
+                                ...existingItem,
+                                ...newItem,
+                                value: mergedValue,
+                                conclusion: newItem.value ? (newItem.conclusion || 'Bình thường') : (existingItem.conclusion || ''),
+                                is_his_value: !!newItem.value
+                            });
+                        } else {
+                            mergedItems.push({
+                                ...newItem,
+                                is_his_value: !!newItem.value
+                            });
+                        }
+                    });
+
+                    existingItems.forEach((item: any) => {
+                        const key = `${item.order_id || ''}_${item.service_code || ''}`;
+                        if (!processedNewKeys.has(key)) {
+                            mergedItems.push({
+                                ...item,
+                                is_his_value: false
+                            });
+                        }
+                    });
+
+                    labData.paraclinical_items = mergedItems;
+                }
 
                 return res.json({
-                    patient_id: String(row.hp_patientno),
-                    doc_no: row.hd_docno ? String(row.hd_docno) : identifier,
+                    id: row.id,
+                    patient_id: row.patient_id,
+                    doc_no: hisDocNoStr,
                     patient_name: String(row.patient_name || '').toUpperCase(),
-                    cccd: String(row.hp_patientid || row.hp_sin || ''),
-                    dob: row.dob || '1995-10-15',
-                    gender: gender,
-                    clinical_data: {
-                        address: row.hp_dtladdr || '',
-                        phone: row.hd_telephone || '',
-                        ethnic: ethnicStr,
-                        blood_group: 'O',
-                        target_group: '14',
-                        funding_source: '9',
-                        quoc_tich: row.hp_nationality ? String(row.hp_nationality).trim() : 'VN',
-                        matinh_cu_tru: row.hp_provid ? String(row.hp_provid).trim() : '',
-                        maxa_cu_tru: row.hp_villid ? String(row.hp_villid).trim() : '',
-                        ma_nghe_nghiep: row.hp_occupation ? String(row.hp_occupation).trim() : '01',
-                        noi_cong_tac_hien_tai: row.hp_workplace ? String(row.hp_workplace).trim() : '',
-                        examination: {
-                            height: row.he_height > 0 ? String(row.he_height) : '170',
-                            weight: row.he_weight > 0 ? String(row.he_weight) : '65',
-                            bmi: row.he_bmi > 0 ? String(row.he_bmi) : '22.5',
-                            blood_pressure: bp,
-                            pulse: row.he_pulse > 0 ? String(row.he_pulse) : '75'
-                        },
-                        clinical_exam: {
-                            internal: row.he_examine || "Hệ tuần hoàn, hô hấp, tiêu hóa hoạt động bình thường, không phát hiện bệnh lý.",
-                            eye: "Mắt phải 10/10, Mắt trái 10/10, không có tật khúc xạ.",
-                            ent: "Tai mũi họng bình thường, thính lực tốt.",
-                            dental: "Răng hàm mặt bình thường, không sâu răng, không lệch khớp cắn.",
-                            external: "Ngoại khoa, da liễu bình thường, không sẹo lồi.",
-                            gynecology: "Không khám (hoặc bình thường)",
-                            nhi_tuan_hoan: "Bình thường",
-                            nhi_ho_hap: "Bình thường",
-                            nhi_tieu_hoa: "Bình thường",
-                            nhi_tiet_nieu: "Bình thường",
-                            nhi_than_kinh: "Bình thường",
-                            nhi_tam_than: "Bình thường",
-                            nhi_khac: "Bình thường"
-                        }
-                    },
-                    lab_data: {
-                        blood_test: { 
-                            hemoglobin: labAndPacs.hemoglobin || "140", 
-                            glycemia: labAndPacs.glycemia || "5.2" 
-                        },
-                        urine_test: { 
-                            protein: labAndPacs.protein || "Âm tính" 
-                        },
-                        kq_xn_khac: labAndPacs.kqXnKhac || "",
-                        paraclinical_items: labAndPacs.paraclinical_items || []
-                    },
-                    conclusion_data: {
-                        fitness_class: "1",
-                        diagnosis: row.he_diagnostic || "Đủ sức khỏe học tập và làm việc",
-                        cac_van_de_luu_y: "Không",
-                        doctor_name: row.doctor_name
-                    }
+                    cccd: row.cccd || '',
+                    dob: row.dob || '',
+                    gender: row.gender || 'Nam',
+                    form_type: row.form_type,
+                    clinical_data: typeof row.clinical_data === 'string' ? JSON.parse(row.clinical_data) : row.clinical_data,
+                    lab_data: labData,
+                    conclusion_data: typeof row.conclusion_data === 'string' ? JSON.parse(row.conclusion_data) : row.conclusion_data
                 });
+            } else {
+                return res.status(404).json({ error: "Không tìm thấy hồ sơ KSK đã tiếp nhận cho bệnh nhân này." });
             }
-
-            // 2. FALLBACK MOCK DATA NẾU KHÔNG TÌM THẤY TRONG DB HIS THỰC TẾ
-            const mockHisPatients = [
-                {
-                    patient_id: "P1001",
-                    patient_name: "NGUYỄN VĂN HÙNG",
-                    cccd: "038090012345",
-                    dob: "1995-10-15",
-                    gender: "Nam",
-                    clinical_data: {
-                        address: "123 Đường Giải Phóng, Quận Hai Bà Trưng, Hà Nội",
-                        phone: "0912345678",
-                        ethnic: "01",
-                        blood_group: "O",
-                        target_group: "14",
-                        funding_source: "9",
-                        quoc_tich: "VN",
-                        matinh_cu_tru: "01",
-                        maxa_cu_tru: "00001",
-                        ma_nghe_nghiep: "01",
-                        noi_cong_tac_hien_tai: "Công ty Cổ phần Vận tải Đường sắt Hà Nội",
-                        ngay_bat_dau_lam_viec_hien_tai: "2020-03-01",
-                        examination: {
-                            height: "172",
-                            weight: "68",
-                            bmi: "23.0",
-                            blood_pressure: "120/80",
-                            pulse: "78"
-                        },
-                        clinical_exam: {
-                            internal: "Hệ tuần hoàn, hô hấp, tiêu hóa hoạt động bình thường, không phát hiện bệnh lý.",
-                            eye: "Mắt phải 10/10, Mắt trái 10/10, không có tật khúc xạ.",
-                            ent: "Tai mũi họng bình thường, thính lực tốt.",
-                            dental: "Răng hàm mặt bình thường, không sâu răng, không lệch khớp cắn.",
-                            external: "Ngoại khoa, da liễu bình thường, không sẹo lồi.",
-                            gynecology: "Không khám (hoặc bình thường)",
-                            nhi_tuan_hoan: "Bình thường",
-                            nhi_ho_hap: "Bình thường",
-                            nhi_tieu_hoa: "Bình thường",
-                            nhi_tiet_nieu: "Bình thường",
-                            nhi_than_kinh: "Bình thường",
-                            nhi_tam_than: "Bình thường",
-                            nhi_khac: "Bình thường"
-                        },
-                        extra: {
-                            nghe_cong_viec_truoc_day: "Công nhân bảo trì đường ray",
-                            thoi_gian_lam_viec_truoc_day_nam: "3",
-                            thoi_gian_lam_viec_truoc_day_thang: "6",
-                            tu_ngay_lam_viec_truoc_day: "2016-08-01",
-                            den_ngay_lam_viec_truoc_day: "2020-02-28"
-                        }
-                    },
-                    lab_data: {
-                        blood_test: { hemoglobin: "142", glycemia: "5.4" },
-                        urine_test: { protein: "Âm tính" },
-                        paraclinical_items: []
-                    },
-                    conclusion_data: {
-                        fitness_class: "1",
-                        diagnosis: "Đủ sức khỏe học tập và làm việc",
-                        cac_van_de_luu_y: "Tránh thức khuya và làm việc quá sức"
-                    }
-                },
-                {
-                    patient_id: "P1002",
-                    patient_name: "TRẦN THỊ LAN",
-                    cccd: "034198006789",
-                    dob: "1988-05-20",
-                    gender: "Nữ",
-                    clinical_data: {
-                        address: "456 Phố Huế, Quận Hai Bà Trưng, Hà Nội",
-                        phone: "0987654321",
-                        ethnic: "01",
-                        blood_group: "A",
-                        target_group: "13",
-                        funding_source: "9",
-                        quoc_tich: "VN",
-                        matinh_cu_tru: "01",
-                        maxa_cu_tru: "00001",
-                        ma_nghe_nghiep: "02",
-                        noi_cong_tac_hien_tai: "Bệnh viện Bạch Mai",
-                        examination: {
-                            height: "158",
-                            weight: "50",
-                            bmi: "20.0",
-                            blood_pressure: "115/75",
-                            pulse: "72"
-                        },
-                        clinical_exam: {
-                            internal: "Nội khoa bình thường, tim phổi tốt.",
-                            eye: "Mắt phải 9/10, Mắt trái 10/10.",
-                            ent: "Tai mũi họng bình thường.",
-                            dental: "Răng hàm mặt bình thường.",
-                            external: "Ngoại khoa bình thường.",
-                            gynecology: "Sản phụ khoa bình thường, không phát hiện viêm nhiễm sinh dục.",
-                            nhi_tuan_hoan: "Bình thường",
-                            nhi_ho_hap: "Bình thường",
-                            nhi_tieu_hoa: "Bình thường",
-                            nhi_tiet_nieu: "Bình thường",
-                            nhi_than_kinh: "Bình thường",
-                            nhi_tam_than: "Bình thường",
-                            nhi_khac: "Bình thường"
-                        }
-                    },
-                    lab_data: {
-                        blood_test: { hemoglobin: "135", glycemia: "5.1" },
-                        urine_test: { protein: "Âm tính" },
-                        paraclinical_items: []
-                    },
-                    conclusion_data: {
-                        fitness_class: "2",
-                        diagnosis: "Đủ sức khỏe làm việc",
-                        cac_van_de_luu_y: "Không"
-                    }
-                },
-                {
-                    patient_id: "P1003",
-                    patient_name: "LÊ HOÀNG NAM",
-                    cccd: "001092004567",
-                    dob: "1992-12-01",
-                    gender: "Nam",
-                    clinical_data: {
-                        address: "789 Đường Láng, Quận Đống Đa, Hà Nội",
-                        phone: "0904123456",
-                        ethnic: "01",
-                        blood_group: "O",
-                        target_group: "14",
-                        funding_source: "9",
-                        quoc_tich: "VN",
-                        matinh_cu_tru: "01",
-                        maxa_cu_tru: "00002",
-                        ma_nghe_nghiep: "03",
-                        noi_cong_tac_hien_tai: "Trường Đại học Bách khoa Hà Nội",
-                        examination: {
-                            height: "175",
-                            weight: "72",
-                            bmi: "23.5",
-                            blood_pressure: "120/80",
-                            pulse: "75"
-                        },
-                        clinical_exam: {
-                            internal: "Nội khoa bình thường, tim phổi đều.",
-                            eye: "Mắt phải 10/10, Mắt trái 10/10.",
-                            ent: "Tai mũi họng bình thường.",
-                            dental: "Răng hàm mặt bình thường.",
-                            external: "Ngoại khoa bình thường.",
-                            gynecology: "Không khám (hoặc bình thường)",
-                            nhi_tuan_hoan: "Bình thường",
-                            nhi_ho_hap: "Bình thường",
-                            nhi_tieu_hoa: "Bình thường",
-                            nhi_tiet_nieu: "Bình thường",
-                            nhi_than_kinh: "Bình thường",
-                            nhi_tam_than: "Bình thường",
-                            nhi_khac: "Bình thường"
-                        },
-                        extra: {
-                            hang_lai_xe: "B2",
-                            tsgd_mac_benh: "0",
-                            tsgd_ma_benh: "",
-                            tsbt_ma_benh: "I10",
-                            tsbt_nam_phat_hien_benh: "2021",
-                            co_dang_dieu_tri_benh: "1",
-                            ma_benh_dang_dieu_tri: "I10",
-                            ten_thuoc: "Amlodipin 5mg",
-                            ts_tai_bien_mach_nao: "0",
-                            ts_tang_huyet_ap: "1",
-                            ts_benh_tim_mach: "0",
-                            ts_su_dung_ruou: "0",
-                            ts_su_dung_ma_tuy: "0"
-                        }
-                    },
-                    lab_data: {
-                        blood_test: { hemoglobin: "145", glycemia: "5.3" },
-                        urine_test: { protein: "Âm tính" }
-                    },
-                    conclusion_data: {
-                        fitness_class: "1",
-                        diagnosis: "Đủ sức khỏe lái xe hạng B2",
-                        cac_van_de_luu_y: "Không"
-                    }
-                },
-                {
-                    patient_id: "P1004",
-                    patient_name: "NGUYỄN GIA BẢO",
-                    cccd: "038095012345",
-                    dob: "2026-05-10",
-                    gender: "Nam",
-                    clinical_data: {
-                        address: "Số 12 ngõ 45 Cát Linh, Đống Đa, Hà Nội",
-                        phone: "0934567890",
-                        ethnic: "01",
-                        blood_group: "O",
-                        target_group: "10",
-                        funding_source: "9",
-                        quoc_tich: "VN",
-                        matinh_cu_tru: "01",
-                        maxa_cu_tru: "00001",
-                        ma_nghe_nghiep: "09",
-                        noi_cong_tac_hien_tai: "",
-                        examination: {
-                            height: "52",
-                            weight: "4.2",
-                            bmi: "15.5",
-                            blood_pressure: "80/50",
-                            pulse: "110"
-                        },
-                        clinical_exam: {
-                            internal: "Nhịp tim đều, phổi thông khí tốt, bụng mềm.",
-                            eye: "Mắt trong, Red reflex (+), không viêm nhiễm.",
-                            ent: "Tai mũi họng bình thường.",
-                            dental: "Chưa mọc răng.",
-                            external: "Ngoại khoa bình thường, khớp háng linh hoạt.",
-                            gynecology: "Không khám",
-                            nhi_tuan_hoan: "Bình thường",
-                            nhi_ho_hap: "Bình thường",
-                            nhi_tieu_hoa: "Bình thường",
-                            nhi_tiet_nieu: "Bình thường",
-                            nhi_than_kinh: "Bình thường",
-                            nhi_tam_than: "Bình thường",
-                            nhi_khac: "Bình thường"
-                        },
-                        extra: {
-                            nguoi_giam_ho: "Nguyễn Văn Hùng",
-                            so_cccd_ngh: "038090012345",
-                            ho_ten_nguoi_di_cung: "Nguyễn Văn Hùng",
-                            so_cccd_nguoi_di_cung: "038090012345",
-                            moi_quan_he_voi_tre: "1",
-                            sinh_non: "0",
-                            tuan_thai_khi_sinh: "39",
-                            can_nang_luc_sinh: "3.2",
-                            vong_ddau: "36",
-                            vong_nguc: "35",
-                            milestone_check: "1",
-                            quay_dau_huong_am_thanh: "1",
-                            nhin_theo_khuon_mat_30cm: "1",
-                            con_thu_may: "1",
-                            tong_so_con: "2",
-                            matinh_cu_tru_ngh_me: "01",
-                            maxa_cu_tru_ngh_me: "00001"
-                        }
-                    },
-                    lab_data: {
-                        blood_test: { hemoglobin: "115", glycemia: "4.8" },
-                        urine_test: { protein: "Âm tính" }
-                    },
-                    conclusion_data: {
-                        fitness_class: "1",
-                        diagnosis: "Trẻ phát triển bình thường theo tuổi",
-                        cac_van_de_luu_y: "Không"
-                    }
-                },
-                {
-                    patient_id: "P1005",
-                    patient_name: "PHẠM MINH KHANG",
-                    cccd: "001095009876",
-                    dob: "2021-04-12",
-                    gender: "Nam",
-                    clinical_data: {
-                        address: "Số 88 đường Láng, Đống Đa, Hà Nội",
-                        phone: "0965432109",
-                        ethnic: "01",
-                        blood_group: "B",
-                        target_group: "10",
-                        funding_source: "9",
-                        quoc_tich: "VN",
-                        matinh_cu_tru: "01",
-                        maxa_cu_tru: "00001",
-                        ma_nghe_nghiep: "09",
-                        noi_cong_tac_hien_tai: "",
-                        examination: {
-                            height: "105",
-                            weight: "17.5",
-                            bmi: "15.9",
-                            blood_pressure: "90/60",
-                            pulse: "92"
-                        },
-                        clinical_exam: {
-                            internal: "Nội khoa bình thường, tim phổi tốt.",
-                            eye: "Mắt 10/10 cả hai bên.",
-                            ent: "Tai mũi họng bình thường.",
-                            dental: "Răng sữa đầy đủ, không sâu răng.",
-                            external: "Ngoại khoa bình thường, tư thế đi đứng thẳng.",
-                            gynecology: "Không khám",
-                            nhi_tuan_hoan: "Bình thường",
-                            nhi_ho_hap: "Bình thường",
-                            nhi_tieu_hoa: "Bình thường",
-                            nhi_tiet_nieu: "Bình thường",
-                            nhi_than_kinh: "Bình thường",
-                            nhi_tam_than: "Bình thường",
-                            nhi_khac: "Bình thường"
-                        },
-                        extra: {
-                            nguoi_giam_ho: "Phạm Văn Minh",
-                            so_cccd_ngh: "001090008888",
-                            ho_ten_nguoi_di_cung: "Phạm Văn Minh",
-                            so_cccd_nguoi_di_cung: "001090008888",
-                            moi_quan_he_voi_tre: "1",
-                            sinh_non: "0",
-                            tuan_thai_khi_sinh: "38",
-                            can_nang_luc_sinh: "3.0",
-                            vong_ddau: "50",
-                            vong_nguc: "54",
-                            milestone_check: "1",
-                            lam_theo_yeu_cau_2_3_buoc: "1",
-                            vin_cau_thang_va_nhay_bat: "1",
-                            lam_3_yeu_cau_khong_lien_quan: "1",
-                            noi_cau_dai_ke_chuyen: "1",
-                            hoi_va_tra_loi_cau_hoi: "1",
-                            dung_1_chan_5_giay_nhay_lo_co: "1",
-                            noi_thong_tin_ca_nhan: "1",
-                            dem_to_hoac_dem_ngon_tay: "1",
-                            con_thu_may: "1",
-                            tong_so_con: "2",
-                            matinh_cu_tru_ngh_me: "01",
-                            maxa_cu_tru_ngh_me: "00001"
-                        }
-                    },
-                    lab_data: {
-                        blood_test: { hemoglobin: "125", glycemia: "5.0" },
-                        urine_test: { protein: "Âm tính" },
-                        paraclinical_items: []
-                    },
-                    conclusion_data: {
-                        fitness_class: "1",
-                        diagnosis: "Trẻ phát triển bình thường theo tuổi",
-                        cac_van_de_luu_y: "Không"
-                    }
-                }
-            ];
-
-            const patient = mockHisPatients.find(p => 
-                p.patient_id.toLowerCase() === identifier.toLowerCase() || 
-                p.cccd === identifier || 
-                p.patient_name.toLowerCase().includes(identifier.toLowerCase())
-            );
-
-            if (!patient) {
-                // Tạo dữ liệu ngẫu nhiên dựa trên identifier để demo chạy mượt
-                const cleanId = identifier.trim();
-                const isNumeric = /^\d+$/.test(cleanId);
-                const name = isNumeric ? `BỆNH NHÂN HIS ${cleanId.slice(-4)}` : cleanId.toUpperCase();
-                const cccdVal = isNumeric && cleanId.length === 12 ? cleanId : `03809000${Math.floor(1000 + Math.random() * 9000)}`;
-
-                const randomPatient = {
-                    patient_id: cleanId.startsWith('P') ? cleanId : `P${Math.floor(1000 + Math.random() * 9000)}`,
-                    patient_name: name,
-                    cccd: cccdVal,
-                    dob: "1994-08-18",
-                    gender: Math.random() > 0.5 ? "Nam" : "Nữ",
-                    clinical_data: {
-                        address: "Địa chỉ lấy từ hệ thống HIS chính của bệnh viện",
-                        phone: "09" + Math.floor(10000000 + Math.random() * 90000000),
-                        ethnic: "01",
-                        blood_group: "B",
-                        target_group: "14",
-                        funding_source: "9",
-                        ma_cskcb: "15124",
-                        quoc_tich: "VN",
-                        matinh_cu_tru: "01",
-                        maxa_cu_tru: "00001",
-                        ma_nghe_nghiep: "01",
-                        noi_cong_tac_hien_tai: "Bệnh viện Đa khoa VIMES",
-                        con_thu_may: "1",
-                        tong_so_con: "2",
-                        matinh_cu_tru_ngh_me: "01",
-                        maxa_cu_tru_ngh_me: "00001",
-                        chuc_danh_tren_tau: "Đại phó",
-                        ten_chu_tau: "Tổng công ty Hàng hải Việt Nam",
-                        dia_chi_chu_tau: "Số 1 Đào Duy Anh, Hà Nội",
-                        khu_vuc_hoat_dong_tau: "1",
-                        examination: {
-                            height: "170",
-                            weight: "65",
-                            bmi: "22.5",
-                            blood_pressure: "120/80",
-                            pulse: "76"
-                        },
-                        clinical_exam: {
-                            internal: "Đã đồng bộ khám nội khoa từ HIS: Bình thường.",
-                            eye: "Mắt phải 10/10, Mắt trái 10/10.",
-                            ent: "Tai mũi họng bình thường.",
-                            dental: "Răng hàm mặt bình thường.",
-                            external: "Ngoại khoa bình thường.",
-                            gynecology: "Không khám (hoặc bình thường)",
-                            nhi_tuan_hoan: "Bình thường",
-                            nhi_ho_hap: "Bình thường",
-                            nhi_tieu_hoa: "Bình thường",
-                            nhi_tiet_nieu: "Bình thường",
-                            nhi_than_kinh: "Bình thường",
-                            nhi_tam_than: "Bình thường",
-                            nhi_khac: "Bình thường"
-                        }
-                    },
-                    lab_data: {
-                        blood_test: { hemoglobin: "140", glycemia: "5.2" },
-                        urine_test: { protein: "Âm tính" },
-                        paraclinical_items: []
-                    },
-                    conclusion_data: {
-                        fitness_class: "1",
-                        diagnosis: "Đủ sức khỏe học tập và làm việc",
-                        cac_van_de_luu_y: "Không"
-                    }
-                };
-                return res.json({ ...randomPatient, doc_no: identifier });
-            }
-
-            return res.json({ ...patient, doc_no: identifier });
         } catch (error: any) {
             console.error('❌ KSK Controller: Lỗi getHisPatient:', error);
             return res.status(500).json({ error: error.message });

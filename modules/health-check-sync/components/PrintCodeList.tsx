@@ -137,12 +137,10 @@ const PrintCodeList: React.FC<PrintCodeListProps> = ({
                                         )}
                                     </td>
                                     <td className="p-4 text-center">
-                                        <div className="inline-flex flex-col items-center gap-1">
-                                            {/* Real Dynamic Code39 Barcode */}
-                                            <div className="bg-white p-2 border border-slate-200 rounded flex flex-col items-center shadow-sm select-none">
-                                                <Code128Barcode value={doc.doc_no} height={26} />
-                                                <span className="text-[8.5px] font-mono font-bold text-slate-600 mt-1">{doc.doc_no}</span>
-                                            </div>
+                                        <div className="inline-flex items-center justify-center">
+                                            <span className="px-3 py-1.5 bg-slate-100 dark:bg-slate-850 text-slate-700 dark:text-slate-200 font-mono font-black text-xs rounded-lg border border-slate-200/60 dark:border-slate-700/60 shadow-sm select-all tracking-wider">
+                                                {doc.doc_no}
+                                            </span>
                                         </div>
                                     </td>
                                     <td className="p-4 text-right">

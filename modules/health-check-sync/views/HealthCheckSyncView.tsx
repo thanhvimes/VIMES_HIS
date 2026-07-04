@@ -33,6 +33,38 @@ import PrintCodeList from '../components/PrintCodeList';
 import SyncDataList from '../components/SyncDataList';
 import ContractManagement from '../components/ContractManagement';
 import PatientReception from '../components/PatientReception';
+import SampleTracking from '../components/SampleTracking';
+
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: any }> {
+    constructor(props: any) {
+        super(props);
+        this.state = { hasError: false, error: null };
+    }
+    static getDerivedStateFromError(error: any) {
+        return { hasError: true, error };
+    }
+    componentDidCatch(error: any, errorInfo: any) {
+        console.error("ErrorBoundary caught an error", error, errorInfo);
+    }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="p-8 bg-rose-50 dark:bg-[#1a0e10] text-rose-800 dark:text-rose-200 border border-rose-200 dark:border-rose-950 rounded-2xl m-6 shadow-lg">
+                    <h3 className="font-extrabold text-base mb-3 flex items-center gap-2">
+                        <span className="text-xl">⚠️</span> Đã xảy ra lỗi kết xuất giao diện (Render Error):
+                    </h3>
+                    <p className="text-xs mb-4 font-semibold text-rose-700 dark:text-rose-350">
+                        Vui lòng chụp lại thông tin chi tiết dưới đây:
+                    </p>
+                    <pre className="text-[10px] font-mono bg-white dark:bg-slate-950 p-4 rounded-xl border border-rose-100 dark:border-rose-950 overflow-auto max-h-96 whitespace-pre-wrap leading-relaxed shadow-inner">
+                        {this.state.error?.message || String(this.state.error)}{"\n\nStack Trace:\n"}{this.state.error?.stack}
+                    </pre>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
 import DynamicForm from '../forms/DynamicForm';
 
 import PrintForm from '../forms/PrintForm';
@@ -69,6 +101,7 @@ const HealthCheckSyncView: React.FC = () => {
 
     // View States
     const [viewMode, setViewMode] = useState<ViewMode>('LIST');
+    const [prevViewMode, setPrevViewMode] = useState<ViewMode>('LIST');
     const [activeDocument, setActiveDocument] = useState<any | null>(null);
     const [createFormType, setCreateFormType] = useState<string>('2'); // Mẫu 2 mặc định
     
@@ -136,7 +169,7 @@ const HealthCheckSyncView: React.FC = () => {
     const loadContracts = async () => {
         setIsContractsLoading(true);
         try {
-            const data = await healthCheckService.getContracts();
+            const data = await healthCheckService.getContracts({ startDate, endDate });
             setContracts(data);
         } catch (error) {
             console.error("Failed to load contracts:", error);
@@ -244,7 +277,7 @@ const HealthCheckSyncView: React.FC = () => {
         setStartDate(todayStr);
         setEndDate(todayStr);
 
-        if (stepParam === 'sync' || stepParam === 'manage') {
+        if (stepParam === 'sync' || stepParam === 'manage' || stepParam === 'print-code') {
             loadContracts();
         }
         
@@ -258,6 +291,12 @@ const HealthCheckSyncView: React.FC = () => {
 
         setSelectedIds(new Set()); // Reset selections
     }, [stepParam]);
+
+    useEffect(() => {
+        if (stepParam === 'sync' || stepParam === 'manage' || stepParam === 'print-code') {
+            loadContracts();
+        }
+    }, [startDate, endDate]);
 
     const loadData = async () => {
         setIsLoading(true);
@@ -752,7 +791,7 @@ const HealthCheckSyncView: React.FC = () => {
     };
 
     if (viewMode === 'PRINT' && activeDocument) {
-        return <PrintForm document={activeDocument} onClose={() => setViewMode('LIST')} />;
+        return <PrintForm document={activeDocument} onClose={() => setViewMode(prevViewMode)} />;
     }
 
     if (viewMode === 'PRINT_BARCODE' && activeBarcodeDocs.length > 0) {
@@ -772,7 +811,32 @@ const HealthCheckSyncView: React.FC = () => {
         return (
             <PrintBarcodeXnForm 
                 payload={xnPrintPayload} 
-                onClose={() => setViewMode('LIST')} 
+                onClose={async () => {
+                    setViewMode('LIST');
+                    const docIds = Array.from(new Set(xnPrintPayload.map(p => String(p.patient.id))));
+                    const samples = xnPrintPayload.flatMap(p => 
+                        p.orders.map((o: any) => {
+                            const docNoStr = o.hisDocNo || p.patient.hisDocNo || p.patient.docNo || '';
+                            const docNoNum = parseInt(docNoStr.replace(/\D/g, ''), 10) || 0;
+                            const orderNum = parseInt(o.orderNo || '', 10) || 0;
+                            return {
+                                userID: o.collectorId || user?.userId || '',
+                                deptID: user?.departmentId || user?.deptId || '101',
+                                documentNo: docNoNum,
+                                orderID: orderNum,
+                                sampleArea: o.sampleAreaCode || '',
+                                gateID: o.sampleGateCode || ''
+                            };
+                        })
+                    );
+
+                    try {
+                        await healthCheckService.markBarcodePrinted(docIds, samples);
+                        loadData();
+                    } catch (err) {
+                        console.error("Lỗi cập nhật trạng thái in barcode:", err);
+                    }
+                }}
                 defaultLabelSize={barcodeLabelSizeXn as any}
                 showHospital={barcodeShowHospital}
                 showDate={barcodeShowDate}
@@ -782,10 +846,10 @@ const HealthCheckSyncView: React.FC = () => {
     }
 
     return (
-        <div className="h-full flex flex-col space-y-4">
+        <div className="h-full flex flex-col">
 
             {viewMode === 'LIST' ? (
-                <>
+                <div className="p-4 sm:p-5 lg:p-6 flex-1 flex flex-col space-y-4 overflow-y-auto min-h-0">
                     {/* Dashboard */}
                     {stepParam === 'dashboard' && (
                         <Dashboard documents={documents} />
@@ -801,9 +865,16 @@ const HealthCheckSyncView: React.FC = () => {
                         <PatientReception />
                     )}
 
+                    {/* Sample Tracking */}
+                    {stepParam === 'sample-tracking' && (
+                        <ErrorBoundary>
+                            <SampleTracking />
+                        </ErrorBoundary>
+                    )}
+
                     {/* Filter toolbar and Table only shown on non-dashboard workflow steps */}
 
-                    {stepParam !== 'dashboard' && stepParam !== 'contracts' && stepParam !== 'reception' && !stepParam.startsWith('settings') && (
+                    {stepParam !== 'dashboard' && stepParam !== 'contracts' && stepParam !== 'reception' && stepParam !== 'sample-tracking' && !stepParam.startsWith('settings') && (
 
                         <>
                             <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
@@ -1011,6 +1082,7 @@ const HealthCheckSyncView: React.FC = () => {
                                     onSelectAll={handleSelectAll}
                                     onPrint={(doc) => {
                                         setActiveDocument(doc);
+                                        setPrevViewMode('LIST');
                                         setViewMode('PRINT');
                                     }}
                                     onPrintBarcode={(docs) => {
@@ -1043,6 +1115,7 @@ const HealthCheckSyncView: React.FC = () => {
                                     onViewXml={(doc) => setActiveXmlDoc(doc)}
                                     onPrint={(doc) => {
                                         setActiveDocument(doc);
+                                        setPrevViewMode('LIST');
                                         setViewMode('PRINT');
                                     }}
                                     onSend={handleSendSingleDocument}
@@ -1091,21 +1164,28 @@ const HealthCheckSyncView: React.FC = () => {
                             )}
                         </div>
                     )}
-                </>
+                </div>
             ) : (
-                <DynamicForm 
-                    formType={viewMode === 'EDIT' ? activeDocument?.form_type : createFormType}
-                    initialData={viewMode === 'EDIT' ? activeDocument : undefined}
-                    onSave={handleSaveDocument}
-                    onCancel={handleCancelForm}
-                    onChangeFormType={(type) => {
-                        if (viewMode === 'EDIT' && activeDocument) {
-                            setActiveDocument(prev => prev ? { ...prev, form_type: type } : null);
-                        } else {
-                            setCreateFormType(type);
-                        }
-                    }}
-                />
+                <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                    <DynamicForm 
+                        formType={viewMode === 'EDIT' ? activeDocument?.form_type : createFormType}
+                        initialData={viewMode === 'EDIT' ? activeDocument : undefined}
+                        onSave={handleSaveDocument}
+                        onCancel={handleCancelForm}
+                        onPreview={(formData) => {
+                            setActiveDocument(formData);
+                            setPrevViewMode(viewMode);
+                            setViewMode('PRINT');
+                        }}
+                        onChangeFormType={(type) => {
+                            if (viewMode === 'EDIT' && activeDocument) {
+                                setActiveDocument(prev => prev ? { ...prev, form_type: type } : null);
+                            } else {
+                                setCreateFormType(type);
+                            }
+                        }}
+                    />
+                </div>
             )}
 
             {/* XML Preview Modal */}
@@ -1129,6 +1209,7 @@ const HealthCheckSyncView: React.FC = () => {
             {isPrintXnModalOpen && (
                 <PrintBarcodeXnModal 
                     patients={documents} 
+                    contracts={contracts}
                     onClose={() => setIsPrintXnModalOpen(false)} 
                     onPrint={(payload) => {
                         setXnPrintPayload(payload);

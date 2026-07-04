@@ -1555,7 +1555,7 @@ export class QmsController {
               o.ho_docno as doc_no,
               trim(p.hp_surname || ' ' || COALESCE(p.hp_midname,'') || ' ' || p.hp_firstname) as patient_name,
               to_char(p.hp_birthdate, 'YYYY') as birth_year,
-              COALESCE(r.hrl_name, 'Phòng mổ ' || COALESCE(ob.hob_roomid, o.ho_roomid, 1)) as room_name,
+              COALESCE(pd.sd_name, o.ho_pdeptid, r.hrl_name, 'Phòng mổ ' || COALESCE(ob.hob_roomid, o.ho_roomid, 1)) as room_name,
               COALESCE(ob.hob_roomid, o.ho_roomid) as room_id,
               to_char(o.ho_startdate, 'HH24:MI') as expected_time,
               to_char(o.ho_performdate, 'HH24:MI') as entrance_time,
@@ -1580,6 +1580,7 @@ export class QmsController {
           LEFT JOIN hms_roomlist r ON  hrl_deptid = o.ho_deptid AND r.hrl_id::text = COALESCE(ob.hob_roomid::text, o.ho_roomid::text)
           LEFT JOIN hms_surgery_table t ON t.hst_idx = ob.hob_operation_table
           LEFT JOIN sys_dept sd ON sd.sd_id = o.ho_deptid
+          LEFT JOIN sys_dept pd ON pd.sd_id = o.ho_pdeptid
           LEFT JOIN sys_dept rd ON rd.sd_id = ob.hob_retdept
           LEFT JOIN sys_sel ss ON ss.ss_id = 'hms_operation_status' AND ss.ss_code = COALESCE(ob.hob_status, o.ho_status, 'P')
           WHERE (DATE(o.ho_startdate) = CURRENT_DATE OR DATE(o.ho_performdate) = CURRENT_DATE OR DATE(ob.hob_date) = CURRENT_DATE)
@@ -1612,7 +1613,7 @@ export class QmsController {
         docNo: row.doc_no,
         name: row.patient_name || 'Không rõ tên',
         birthYear: row.birth_year || '----',
-        room: row.table_name ? `${row.room_name} - ${row.table_name}` : (row.room_name || ('Phòng mổ ' + (row.room_id || 1))),
+        room: row.room_name || ('Phòng mổ ' + (row.room_id || 1)),
         roomId: row.room_id,
         expectedTime: row.expected_time || '--:--',
         time: row.entrance_time || '--:--',

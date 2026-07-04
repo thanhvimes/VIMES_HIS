@@ -4,6 +4,7 @@ import { contractsController } from '../controllers/health-check/contracts.contr
 import { employeesController } from '../controllers/health-check/employees.controller';
 import { servicesController } from '../controllers/health-check/services.controller';
 import { receptionController } from '../controllers/health-check/reception.controller';
+import { sampleTrackingController } from '../controllers/health-check/sample-tracking';
 import authMiddleware from '../middleware/authMiddleware';
 
 const router = express.Router();
@@ -30,6 +31,8 @@ router.put('/contracts/:id/status', contractsController.updateContractStatus.bin
 router.delete('/contracts/:id', contractsController.deleteContract.bind(contractsController));
 router.get('/contracts/:id/employees', employeesController.getContractEmployees.bind(employeesController));
 router.post('/contracts/:id/employees/import', employeesController.importEmployees.bind(employeesController));
+router.delete('/employees/:id', authMiddleware, employeesController.deleteEmployee.bind(employeesController));
+router.post('/employees', authMiddleware, employeesController.createEmployee.bind(employeesController));
 
 // Contract Services & Fee Catalog routes
 router.get('/contracts/:id/services', contractsController.getContractServices.bind(contractsController));
@@ -51,5 +54,13 @@ router.post('/reception/receive', authMiddleware, receptionController.receiveCon
 router.get('/reception/rooms', authMiddleware, receptionController.getReceptionRooms.bind(receptionController));
 router.get('/reception/exam-fees', authMiddleware, receptionController.getExamFees.bind(receptionController));
 router.put('/reception/employee/:id', authMiddleware, receptionController.updateEmployee.bind(receptionController));
+
+// Sample Tracking endpoints
+router.get('/samples/slips', authMiddleware, sampleTrackingController.getSampleSlips.bind(sampleTrackingController));
+router.get('/samples/slips/:slipId/patients', authMiddleware, sampleTrackingController.getSampleSlipPatients.bind(sampleTrackingController));
+router.get('/samples/orders/:orderId/items', authMiddleware, sampleTrackingController.getPatientTestDetails.bind(sampleTrackingController));
+router.get('/samples/cancelled', authMiddleware, sampleTrackingController.getCancelledSamples.bind(sampleTrackingController));
+router.post('/samples/receive', authMiddleware, sampleTrackingController.confirmSampleReceipt.bind(sampleTrackingController));
+router.post('/samples/cancel', authMiddleware, sampleTrackingController.cancelSampleReceipt.bind(sampleTrackingController));
 
 export default router;

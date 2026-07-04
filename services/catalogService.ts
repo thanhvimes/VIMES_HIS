@@ -148,6 +148,16 @@ class CatalogService {
             apiClient.get<CatalogItem[]>('/reception/catalogs/workplaces')
         );
     }
+
+    public async getSysSelItems(id: string): Promise<CatalogItem[]> {
+        return this.getCached(`sys_sel_${id}`, () =>
+            apiClient.get<CatalogItem[]>('/reception/catalogs', { id })
+        );
+    }
+
+    public async searchIcd10(query: string): Promise<CatalogItem[]> {
+        return apiClient.get<CatalogItem[]>(`/catalogs/icd10`, { q: query });
+    }
 }
 
 export const catalogService = new CatalogService();

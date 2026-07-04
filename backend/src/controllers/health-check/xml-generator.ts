@@ -420,25 +420,25 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
     } else if (formType === '2') {
         // Người lớn: Lâm sàng & Phân loại đầy đủ
         clinicalXml = `
-    <NOI_KHOA_TUAN_HOAN>${escapeXml(findValue('internal', src) || 'Bình thường')}</NOI_KHOA_TUAN_HOAN>
+    <NOI_KHOA_TUAN_HOAN>${escapeXml(findValue('kq_tim_mach', src) || 'Bình thường')}</NOI_KHOA_TUAN_HOAN>
     <NOI_KHOA_TUAN_HOAN_PL>${escapeXml(findValue('noi_khoa_tuan_hoan_pl', src) || '1')}</NOI_KHOA_TUAN_HOAN_PL>
-    <NOI_KHOA_HO_HAP>${escapeXml(findValue('internal', src) || 'Bình thường')}</NOI_KHOA_HO_HAP>
+    <NOI_KHOA_HO_HAP>${escapeXml(findValue('kq_ho_hap', src) || 'Bình thường')}</NOI_KHOA_HO_HAP>
     <NOI_KHOA_HO_HAP_PL>${escapeXml(findValue('noi_khoa_ho_hap_pl', src) || '1')}</NOI_KHOA_HO_HAP_PL>
-    <NOI_KHOA_TIEU_HOA>${escapeXml(findValue('internal', src) || 'Bình thường')}</NOI_KHOA_TIEU_HOA>
+    <NOI_KHOA_TIEU_HOA>${escapeXml(findValue('noi_khoa_tieu_hoa', src) || 'Bình thường')}</NOI_KHOA_TIEU_HOA>
     <NOI_KHOA_TIEU_HOA_PL>${escapeXml(findValue('noi_khoa_tieu_hoa_pl', src) || '1')}</NOI_KHOA_TIEU_HOA_PL>
-    <NOI_KHOA_THAN_TIETNIEU>${escapeXml(findValue('internal', src) || 'Bình thường')}</NOI_KHOA_THAN_TIETNIEU>
+    <NOI_KHOA_THAN_TIETNIEU>${escapeXml(findValue('kq_tiet_nieu', src) || findValue('tiet_nieu_sinh_duc', src) || 'Bình thường')}</NOI_KHOA_THAN_TIETNIEU>
     <NOI_KHOA_THAN_TIETNIEU_PL>${escapeXml(findValue('noi_khoa_than_tietnieu_pl', src) || '1')}</NOI_KHOA_THAN_TIETNIEU_PL>
-    <NOI_KHOA_NOI_TIET>${escapeXml(findValue('internal', src) || 'Bình thường')}</NOI_KHOA_NOI_TIET>
+    <NOI_KHOA_NOI_TIET>${escapeXml(findValue('kq_noi_tiet', src) || 'Bình thường')}</NOI_KHOA_NOI_TIET>
     <NOI_KHOA_NOI_TIET_PL>${escapeXml(findValue('noi_khoa_noi_tiet_pl', src) || '1')}</NOI_KHOA_NOI_TIET_PL>
-    <NOI_KHOA_CO_XUONG_KHOP>${escapeXml(findValue('internal', src) || 'Bình thường')}</NOI_KHOA_CO_XUONG_KHOP>
+    <NOI_KHOA_CO_XUONG_KHOP>${escapeXml(findValue('kq_co_xuong_khop', src) || 'Bình thường')}</NOI_KHOA_CO_XUONG_KHOP>
     <NOI_KHOA_CO_XUONG_KHOP_PL>${escapeXml(findValue('noi_khoa_co_xuong_khop_pl', src) || '1')}</NOI_KHOA_CO_XUONG_KHOP_PL>
-    <NOI_KHOA_THAN_KINH>${escapeXml(findValue('internal', src) || 'Bình thường')}</NOI_KHOA_THAN_KINH>
+    <NOI_KHOA_THAN_KINH>${escapeXml(findValue('kq_than_kinh', src) || 'Bình thường')}</NOI_KHOA_THAN_KINH>
     <NOI_KHOA_THAN_KINH_PL>${escapeXml(findValue('noi_khoa_than_kinh_pl', src) || '1')}</NOI_KHOA_THAN_KINH_PL>
-    <NOI_KHOA_TAM_THAN>${escapeXml(findValue('internal', src) || 'Bình thường')}</NOI_KHOA_TAM_THAN>
+    <NOI_KHOA_TAM_THAN>${escapeXml(findValue('kq_tam_than', src) || 'Bình thường')}</NOI_KHOA_TAM_THAN>
     <NOI_KHOA_TAM_THAN_PL>${escapeXml(findValue('noi_khoa_tam_than_pl', src) || '1')}</NOI_KHOA_TAM_THAN_PL>
-    <KET_QUA_KHAM_NGOAI_KHOA>${escapeXml(findValue('external', src) || 'Bình thường')}</KET_QUA_KHAM_NGOAI_KHOA>
+    <KET_QUA_KHAM_NGOAI_KHOA>${escapeXml(findValue('kq_ngoai_khoa', src) || findValue('external', src) || 'Bình thường')}</KET_QUA_KHAM_NGOAI_KHOA>
     <KHAM_NGOAI_KHOA_PL>${escapeXml(findValue('kham_ngoai_khoa_pl', src) || '1')}</KHAM_NGOAI_KHOA_PL>
-    <KET_QUA_KHAM_DA_LIEU>${escapeXml(findValue('external', src) || 'Bình thường')}</KET_QUA_KHAM_DA_LIEU>
+    <KET_QUA_KHAM_DA_LIEU>${escapeXml(findValue('kq_da_lieu', src) || findValue('external', src) || 'Bình thường')}</KET_QUA_KHAM_DA_LIEU>
     <KHAM_DA_LIEU_PL>${escapeXml(findValue('kham_da_lieu_pl', src) || '1')}</KHAM_DA_LIEU_PL>
     <KET_QUA_KHAM_SAN_PHU_KHOA>${escapeXml(findValue('gynecology', src) || 'Không khám (hoặc bình thường)')}</KET_QUA_KHAM_SAN_PHU_KHOA>
     <KHAM_SAN_PHU_KHOA_PL>${escapeXml(findValue('kham_san_phu_khoa_pl', src) || '1')}</KHAM_SAN_PHU_KHOA_PL>
@@ -458,8 +458,25 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
     <HAM_DUOI>${escapeXml(findValue('ham_duoi', src) || 'Bình thường')}</HAM_DUOI>
     <BENH_KHAC_RANG_HAM_MAT>${escapeXml(findValue('dental', src) || 'Bình thường')}</BENH_KHAC_RANG_HAM_MAT>
     <KHAM_RANG_HAM_MAT_PL>${escapeXml(findValue('kham_rang_ham_mat_pl', src) || '1')}</KHAM_RANG_HAM_MAT_PL>`;
+    } else if (formType === '1') {
+        // Mẫu 1: Nhi khoa (6 – dưới 18 tuổi) – dùng thẻ NHI_KHOA_*
+        clinicalXml = `
+    <NHI_KHOA_TUAN_HOAN>${escapeXml(findValue('nhi_tuan_hoan', src) || 'Bình thường')}</NHI_KHOA_TUAN_HOAN>
+    <NHI_KHOA_HO_HAP>${escapeXml(findValue('nhi_ho_hap', src) || 'Bình thường')}</NHI_KHOA_HO_HAP>
+    <NHI_KHOA_TIEU_HOA>${escapeXml(findValue('nhi_tieu_hoa', src) || 'Bình thường')}</NHI_KHOA_TIEU_HOA>
+    <NHI_KHOA_THAN_TIETNIEU>${escapeXml(findValue('nhi_tiet_nieu', src) || 'Bình thường')}</NHI_KHOA_THAN_TIETNIEU>
+    <NHI_KHOA_THAN_KINH>${escapeXml(findValue('nhi_than_kinh', src) || 'Bình thường')}</NHI_KHOA_THAN_KINH>
+    <NHI_KHOA_TAM_THAN>${escapeXml(findValue('nhi_tam_than', src) || 'Bình thường')}</NHI_KHOA_TAM_THAN>
+    <NHI_KHOA_LAM_SANG_KHAC>${escapeXml(findValue('nhi_khac', src) || 'Bình thường')}</NHI_KHOA_LAM_SANG_KHAC>
+    <KHONG_KINH_MAT_PHAI>${escapeXml(findValue('khong_kinh_mat_phai', src) || '10/10')}</KHONG_KINH_MAT_PHAI>
+    <KHONG_KINH_MAT_TRAI>${escapeXml(findValue('khong_kinh_mat_trai', src) || '10/10')}</KHONG_KINH_MAT_TRAI>
+    <CO_KINH_MAT_PHAI>${escapeXml(findValue('co_kinh_mat_phai', src))}</CO_KINH_MAT_PHAI>
+    <CO_KINH_MAT_TRAI>${escapeXml(findValue('co_kinh_mat_trai', src))}</CO_KINH_MAT_TRAI>
+    <BENH_KHAC_MAT>${escapeXml(findValue('eye', src) || 'Bình thường')}</BENH_KHAC_MAT>
+    <BENH_TAI_MUI_HONG>${escapeXml(findValue('ent', src) || 'Bình thường')}</BENH_TAI_MUI_HONG>
+    <BENH_RANG_HAM_MAT>${escapeXml(findValue('dental', src) || 'Bình thường')}</BENH_RANG_HAM_MAT>`;
     } else {
-        // Mẫu 1, Mẫu 3 và các mẫu còn lại
+        // Mẫu 3 và các mẫu còn lại
         clinicalXml = `
     <NOI_KHOA>${escapeXml(findValue('internal', src) || 'Bình thường')}</NOI_KHOA>
     <KHONG_KINH_MAT_PHAI>${escapeXml(findValue('khong_kinh_mat_phai', src) || '10/10')}</KHONG_KINH_MAT_PHAI>

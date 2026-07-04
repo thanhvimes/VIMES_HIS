@@ -71,13 +71,39 @@ const LabTab: React.FC = () => {
         setXnKhac,
         isLocked,
         handleAutofillTab,
+        isSyncingParaclinical,
+        handleSyncParaclinical,
+        hisSyncMessage,
     } = useDynamicFormContext();
 
     return (
         <div className="space-y-6 animate-fadeIn">
-            {/* Action Row: Autofill Tab */}
+            {hisSyncMessage && (
+                <div className={`p-4 rounded-xl text-xs font-bold flex items-center gap-2 animate-fadeIn shadow-sm border ${
+                    hisSyncMessage.type === 'success' 
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-250 dark:bg-emerald-950/20 dark:text-emerald-300 dark:border-emerald-900/30' 
+                        : 'bg-rose-50 text-rose-800 border-rose-250 dark:bg-rose-950/20 dark:text-rose-300 dark:border-rose-900/30'
+                }`}>
+                    <span className="font-extrabold">{hisSyncMessage.type === 'success' ? '✓ Thành công:' : '⚠ Lỗi:'}</span>
+                    <span>{hisSyncMessage.text}</span>
+                </div>
+            )}
+
+            {/* Action Row: Autofill & HIS Sync */}
             {!isLocked && (
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-3">
+                    <button
+                        type="button"
+                        onClick={handleSyncParaclinical}
+                        disabled={isSyncingParaclinical}
+                        className="px-4 py-2 bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/20 dark:hover:bg-teal-950/40 text-[#0f766e] dark:text-emerald-400 border border-teal-200 dark:border-teal-900/30 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:shadow active:scale-95 disabled:opacity-50"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 ${isSyncingParaclinical ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 11-.57-8.38l5.67-5.67"/>
+                        </svg>
+                        {isSyncingParaclinical ? 'Đang đồng bộ...' : 'Đồng bộ kết quả từ HIS'}
+                    </button>
+
                     <button
                         type="button"
                         onClick={() => handleAutofillTab('lab')}
@@ -255,17 +281,34 @@ const LabTab: React.FC = () => {
                                                                     {hasParent && (
                                                                         <span className="text-slate-400 font-mono text-[11px] mr-2 pl-4">↳</span>
                                                                     )}
-                                                                    <input 
-                                                                        type="text" 
-                                                                        value={item.service_name}
-                                                                        onChange={e => {
-                                                                            const updated = [...paraclinicalItems];
-                                                                            updated[item.originalIndex].service_name = e.target.value;
-                                                                            updated[item.originalIndex].index_name = e.target.value;
-                                                                            setParaclinicalItems(updated);
-                                                                        }}
-                                                                        className={`w-full px-2 py-1.5 border border-slate-300 dark:border-slate-650 rounded bg-transparent text-slate-800 dark:text-white font-medium ${hasParent ? 'text-[11px] text-slate-600 dark:text-slate-350' : ''}`}
-                                                                    />
+                                                                    <div className="flex-1 flex flex-col gap-1">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <input 
+                                                                                type="text" 
+                                                                                value={item.service_name}
+                                                                                onChange={e => {
+                                                                                    const updated = [...paraclinicalItems];
+                                                                                    updated[item.originalIndex].service_name = e.target.value;
+                                                                                    updated[item.originalIndex].index_name = e.target.value;
+                                                                                    setParaclinicalItems(updated);
+                                                                                }}
+                                                                                className={`w-full px-2 py-1.5 border border-slate-300 dark:border-slate-650 rounded bg-transparent text-slate-800 dark:text-white font-medium ${hasParent ? 'text-[11px] text-slate-600 dark:text-slate-350' : ''}`}
+                                                                            />
+                                                                            <span className={`inline-block px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wide shrink-0 ${
+                                                                                item.is_his_value 
+                                                                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' 
+                                                                                    : item.order_id 
+                                                                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300' 
+                                                                                    : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                                                                            }`}>
+                                                                                {item.is_his_value 
+                                                                                    ? 'Có KQ HIS' 
+                                                                                    : item.order_id 
+                                                                                    ? 'Chờ KQ' 
+                                                                                    : 'Nhập tay'}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
                                                             </td>
                                                             <td className="py-2 px-1.5">

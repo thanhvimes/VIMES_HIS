@@ -87,7 +87,8 @@ const WorkspaceLayout: React.FC = () => {
     location.pathname.includes('/telemedicine/live') ||
     location.pathname.includes('/reception') ||
     location.pathname.includes('/command-center') ||
-    location.pathname.includes('/queue-management');
+    location.pathname.includes('/queue-management') ||
+    location.pathname.includes('/health-check');
 
   const { pageTitle, moduleNavItems } = useMemo(() => {
     const currentModuleRoot = location.pathname.split('/')[1];

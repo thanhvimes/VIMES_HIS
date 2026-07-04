@@ -51,9 +51,21 @@ const SyncDataList: React.FC<SyncDataListProps> = ({
 
             if (isStartDateValid || isEndDateValid) {
                 if (c.contract_date) {
-                    const parts = c.contract_date.split('/');
-                    if (parts.length === 3) {
-                        const cDateStr = `${parts[2]}-${parts[1]}-${parts[0]}`; // YYYY-MM-DD
+                    let cDateStr = '';
+                    if (c.contract_date.includes('-')) {
+                        cDateStr = c.contract_date.substring(0, 10); // YYYY-MM-DD
+                    } else if (c.contract_date.includes('/')) {
+                        const parts = c.contract_date.split('/');
+                        if (parts.length === 3) {
+                            if (parts[2].length === 4) {
+                                cDateStr = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                            } else if (parts[0].length === 4) {
+                                cDateStr = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                            }
+                        }
+                    }
+
+                    if (cDateStr) {
                         if (isStartDateValid && cDateStr < startDate) return false;
                         if (isEndDateValid && cDateStr > endDate) return false;
                     }
@@ -94,8 +106,8 @@ const SyncDataList: React.FC<SyncDataListProps> = ({
     };
 
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden w-full min-h-[400px] animate-in fade-in duration-200">
-            <div className="overflow-auto custom-scrollbar">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden w-full flex flex-col min-h-[400px] max-h-[calc(100vh-260px)] animate-in fade-in duration-200">
+            <div className="overflow-auto flex-1 custom-scrollbar">
                 <table className="w-full text-left border-collapse text-sm">
                     <thead className="bg-[#fff1f2] dark:bg-rose-950/20 text-[#9f1239] dark:text-rose-300 font-extrabold text-[11px] uppercase tracking-wider sticky top-0 z-10 border-b border-rose-100 dark:border-rose-950/40">
                         <tr>

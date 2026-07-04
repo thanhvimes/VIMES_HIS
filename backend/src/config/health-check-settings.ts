@@ -22,6 +22,7 @@ export interface HealthCheckSettings {
     barcode_zpl_template_xn?: string;
     barcode_zpl_template_ksk?: string;
     barcode_printer_name?: string;
+    use_qz_tray?: boolean;
     created_at?: Date;
     updated_at?: Date;
 }
@@ -36,13 +37,25 @@ let globalHealthCheckSettings: HealthCheckSettings | null = null;
 export async function loadHealthCheckSettings(): Promise<HealthCheckSettings | null> {
     try {
         const result = await query(
-            `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name FROM health_check_settings LIMIT 1`
+            `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, use_qz_tray FROM health_check_settings LIMIT 1`
         );
 
         if (result.rows.length > 0) {
             const row = result.rows[0];
             const rawPassword = row.vneid_password || '';
-            const decryptedPassword = SecurityUtils.resolveSecret(rawPassword);
+            let decryptedPassword = '';
+            if (rawPassword) {
+                try {
+                    if (SecurityUtils.isEncrypted(rawPassword)) {
+                        decryptedPassword = SecurityUtils.resolveSecret(rawPassword);
+                    } else {
+                        decryptedPassword = SecurityUtils.decrypt(rawPassword);
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Fallback decryption failed, using resolveSecret:', e);
+                    decryptedPassword = SecurityUtils.resolveSecret(rawPassword);
+                }
+            }
 
             globalHealthCheckSettings = {
                 ...row,
