@@ -2,6 +2,7 @@
 // File: modules/health-check-sync/components/ContractManagement.tsx
 
 import React, { useState, useEffect, useMemo } from 'react';
+import * as XLSX from 'xlsx';
 import { healthCheckService } from '../../../services/healthCheckService';
 import { catalogService, CatalogItem } from '../../../services/catalogService';
 import { useCatalogs } from '../../../contexts/CatalogContext';
@@ -87,6 +88,31 @@ const ContractManagement: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [startDate, setStartDate] = useState(getLocalDateString());
     const [endDate, setEndDate] = useState(getLocalDateString());
+
+    // Confirmation Dialog State
+    const [confirmDialog, setConfirmDialog] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => {}
+    });
+
+    const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+        setConfirmDialog({
+            isOpen: true,
+            title,
+            message,
+            onConfirm: () => {
+                onConfirm();
+                setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+            }
+        });
+    };
 
     // Modal States
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -226,7 +252,7 @@ const ContractManagement: React.FC = () => {
                     : s
             ));
         } else {
-            setSelectedServices([...selectedServices, { ...service, quantity: 1, gender: 'A' }]);
+            setSelectedServices([...selectedServices, { ...service, quantity: 1, gender: 'A', min_age: undefined, max_age: undefined }]);
         }
     };
 
@@ -243,6 +269,18 @@ const ContractManagement: React.FC = () => {
     const handleUpdateSelectionGender = (itemId: string, gender: string) => {
         setSelectedServices(selectedServices.map(s => 
             s.item_id === itemId ? { ...s, gender } : s
+        ));
+    };
+
+    const handleUpdateSelectionMinAge = (itemId: string, minAge: number | undefined) => {
+        setSelectedServices(selectedServices.map(s => 
+            s.item_id === itemId ? { ...s, min_age: minAge } : s
+        ));
+    };
+
+    const handleUpdateSelectionMaxAge = (itemId: string, maxAge: number | undefined) => {
+        setSelectedServices(selectedServices.map(s => 
+            s.item_id === itemId ? { ...s, max_age: maxAge } : s
         ));
     };
 
@@ -268,21 +306,26 @@ const ContractManagement: React.FC = () => {
 
     const handleDeleteService = async (serviceId: number) => {
         if (!selectedContract) return;
-        if (!confirm("Bạn có chắc chắn muốn xóa dịch vụ này khỏi gói khám?")) return;
-        try {
-            toast.loading("Đang xóa dịch vụ...");
-            const res = await healthCheckService.deleteContractService(selectedContract.id, serviceId);
-            toast.dismiss();
-            if (res.success) {
-                toast.success("Đã xóa dịch vụ thành công!");
-                loadServices(selectedContract.id);
-            } else {
-                toast.error("Xóa dịch vụ thất bại!");
+        showConfirm(
+            "Xác nhận xóa dịch vụ",
+            "Bạn có chắc chắn muốn xóa dịch vụ này khỏi gói khám?",
+            async () => {
+                try {
+                    toast.loading("Đang xóa dịch vụ...");
+                    const res = await healthCheckService.deleteContractService(selectedContract.id, serviceId);
+                    toast.dismiss();
+                    if (res.success) {
+                        toast.success("Đã xóa dịch vụ thành công!");
+                        loadServices(selectedContract.id);
+                    } else {
+                        toast.error("Xóa dịch vụ thất bại!");
+                    }
+                } catch (err: any) {
+                    toast.dismiss();
+                    toast.error(err.message || "Lỗi hệ thống");
+                }
             }
-        } catch (err: any) {
-            toast.dismiss();
-            toast.error(err.message || "Lỗi hệ thống");
-        }
+        );
     };
 
     const formatPrice = (p: number) => new Intl.NumberFormat('vi-VN').format(p);
@@ -480,21 +523,23 @@ const ContractManagement: React.FC = () => {
             return;
         }
 
-        if (!confirm(`Bạn có chắc chắn muốn xóa hợp đồng [${contract.code} - ${contract.name}] không?`)) {
-            return;
-        }
-
-        try {
-            const res = await healthCheckService.deleteContract(contract.id);
-            if (res.success) {
-                toast.success("Xóa hợp đồng thành công!");
-                await loadContracts();
-            } else {
-                toast.error(res.message || "Xóa hợp đồng thất bại!");
+        showConfirm(
+            "Xác nhận xóa hợp đồng",
+            `Bạn có chắc chắn muốn xóa hợp đồng [${contract.code} - ${contract.name}] không?`,
+            async () => {
+                try {
+                    const res = await healthCheckService.deleteContract(contract.id);
+                    if (res.success) {
+                        toast.success("Xóa hợp đồng thành công!");
+                        await loadContracts();
+                    } else {
+                        toast.error(res.message || "Xóa hợp đồng thất bại!");
+                    }
+                } catch (error: any) {
+                    toast.error("Lỗi xóa hợp đồng: " + error.message);
+                }
             }
-        } catch (error: any) {
-            toast.error("Lỗi xóa hợp đồng: " + error.message);
-        }
+        );
     };
 
     const handleToggleContractStatus = async (contract: Contract) => {
@@ -641,202 +686,191 @@ const ContractManagement: React.FC = () => {
             toast.warning("Không thể xóa nhân viên đã được tiếp đón khám!");
             return;
         }
-        if (!confirm(`Bạn có chắc chắn muốn xóa nhân viên ${employee.name} (${employee.code}) khỏi gói khám này?`)) {
-            return;
-        }
-        try {
-            toast.loading("Đang xóa nhân viên...");
-            const res = await healthCheckService.deleteEmployee(employee.id);
-            toast.dismiss();
-            if (res.success) {
-                toast.success("Xóa nhân viên thành công!");
-                if (selectedContract) {
-                    loadEmployees(selectedContract.id);
-                    loadContracts();
+        showConfirm(
+            "Xác nhận xóa nhân viên",
+            `Bạn có chắc chắn muốn xóa nhân viên ${employee.name} (${employee.code}) khỏi gói khám này?`,
+            async () => {
+                try {
+                    toast.loading("Đang xóa nhân viên...");
+                    const res = await healthCheckService.deleteEmployee(employee.id);
+                    toast.dismiss();
+                    if (res.success) {
+                        toast.success("Xóa nhân viên thành công!");
+                        if (selectedContract) {
+                            loadEmployees(selectedContract.id);
+                            loadContracts();
+                        }
+                    } else {
+                        toast.error(res.message || "Xóa nhân viên thất bại!");
+                    }
+                } catch (err: any) {
+                    toast.dismiss();
+                    toast.error(err.message || "Lỗi hệ thống");
                 }
-            } else {
-                toast.error(res.message || "Xóa nhân viên thất bại!");
             }
-        } catch (err: any) {
-            toast.dismiss();
-            toast.error(err.message || "Lỗi hệ thống");
-        }
+        );
     };
 
     const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !selectedContract) return;
 
-        const scriptId = 'sheetjs-cdn';
-        let script = document.getElementById(scriptId) as HTMLScriptElement;
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            try {
+                const dataArray = evt.target?.result;
+                if (!dataArray) return;
+                
+                const wb = XLSX.read(dataArray, { type: 'array' });
+                const wsname = wb.SheetNames[0];
+                const ws = wb.Sheets[wsname];
+                const data = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false }) as any[][];
 
-        const parseFile = () => {
-            const reader = new FileReader();
-            reader.onload = async (evt) => {
-                try {
-                    const bstr = evt.target?.result;
-                    const XLSX = (window as any).XLSX;
-                    const wb = XLSX.read(bstr, { type: 'binary' });
-                    const wsname = wb.SheetNames[0];
-                    const ws = wb.Sheets[wsname];
-                    const data = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false }) as any[][];
-
-                    if (data.length <= 1) {
-                        toast.error("File excel không có dữ liệu!");
-                        return;
-                    }
-
-                     const removeAccents = (str: string) => {
-                        return str.normalize('NFD')
-                                  .replace(/[\u0300-\u036f]/g, '')
-                                  .replace(/đ/g, 'd')
-                                  .replace(/Đ/g, 'd');
-                    };
-                    const headers = data[0].map(h => removeAccents(String(h).trim().toLowerCase()));
-                    const nameIdx = headers.findIndex(h => h.includes('ten') || h.includes('ho') || h.includes('name'));
-                    const dobIdx = headers.findIndex(h => h.includes('sinh') || h.includes('dob') || h.includes('birth'));
-                    const sexIdx = headers.findIndex(h => h.includes('gioi') || h.includes('sex') || h.includes('gender'));
-                    const docIdx = headers.findIndex(h => h.includes('cccd') || h.includes('ho so') || h.includes('doc') || h.includes('card'));
-                    const phoneIdx = headers.findIndex(h => h.includes('thoai') || h.includes('sdt') || h.includes('phone'));
-                    const noteIdx = headers.findIndex(h => h.includes('chu') || h.includes('note'));
-                    
-                    const deptIdx = headers.findIndex(h => h.includes('bo phan') || h.includes('bophan') || h.includes('dept'));
-                    const posIdx = headers.findIndex(h => h.includes('chuc') || h.includes('position'));
-                    const ownerIdx = headers.findIndex(h => h.includes('ban than') || h.includes('banthan') || h.includes('owner'));
-                    const addrIdx = headers.findIndex(h => h.includes('noi o') || h.includes('noi_o') || h.includes('dia chi') || h.includes('address'));
-                    const provIdx = headers.findIndex(h => h.includes('tinh') || h.includes('prov'));
-                    const distIdx = headers.findIndex(h => h.includes('huyen') || h.includes('dist'));
-                    const wardIdx = headers.findIndex(h => h.includes('xa') || h.includes('ward') || h.includes('vill'));
-
-                    const cardDateIdx = headers.findIndex(h => h.includes('ngay cap') || h.includes('ngaycap') || h.includes('cardid_date'));
-                    const cardPlaceIdx = headers.findIndex(h => h.includes('noi cap') || h.includes('noicap') || h.includes('cardid_place'));
-                    const guardianNameIdx = headers.findIndex(h => h.includes('giam ho') || h.includes('guardian_name'));
-                    const guardianCccdIdx = headers.findIndex(h => h.includes('cccd_ngh') || h.includes('guardian_cccd'));
-                    const ethnicIdx = headers.findIndex(h => h.includes('dan toc') || h.includes('ethnic'));
-                    const maKhIdx = headers.findIndex(h => h.includes('ma kh') || h.includes('makh') || h.includes('ma_kh'));
-
-                    if (nameIdx === -1) {
-                        toast.error("Không tìm thấy cột 'Họ và tên' trong file!");
-                        return;
-                    }
-
-                    const parsedEmployees = [];
-                    for (let i = 1; i < data.length; i++) {
-                        const row = data[i];
-                        if (!row || row.length === 0 || !row[nameIdx]) continue;
-
-                        let docNo = docIdx !== -1 ? String(row[docIdx]).trim() : '';
-                        let phone = phoneIdx !== -1 ? String(row[phoneIdx]).trim() : '';
-                        let guardianCccd = guardianCccdIdx !== -1 ? String(row[guardianCccdIdx]).trim() : '';
-                        let maKh = maKhIdx !== -1 && row[maKhIdx] ? String(row[maKhIdx]).trim() : '';
-
-                        parsedEmployees.push({
-                            code: maKh,
-                            name: String(row[nameIdx]).trim(),
-                            birth_date: dobIdx !== -1 ? String(row[dobIdx]).trim() : '',
-                            sex: sexIdx !== -1 ? String(row[sexIdx]).trim() : 'Nam',
-                            doc_no: docNo,
-                            phone: phone,
-                            note: noteIdx !== -1 ? String(row[noteIdx]).trim() : '',
-                            dept: deptIdx !== -1 ? String(row[deptIdx]).trim() : '',
-                            position: posIdx !== -1 ? String(row[posIdx]).trim() : '',
-                            owner: ownerIdx !== -1 ? String(row[ownerIdx]).trim() : '',
-                            detail_address: addrIdx !== -1 ? String(row[addrIdx]).trim() : '',
-                            province_id: provIdx !== -1 ? parseInt(String(row[provIdx]), 10) || null : null,
-                            district_id: distIdx !== -1 ? parseInt(String(row[distIdx]), 10) || null : null,
-                            ward_id: wardIdx !== -1 ? parseInt(String(row[wardIdx]), 10) || null : null,
-                            cardid_date: cardDateIdx !== -1 ? String(row[cardDateIdx]).trim() : '',
-                            cardid_place: cardPlaceIdx !== -1 ? String(row[cardPlaceIdx]).trim() : '',
-                            guardian_name: guardianNameIdx !== -1 ? String(row[guardianNameIdx]).trim() : '',
-                            guardian_cccd: guardianCccd,
-                            ethnic: ethnicIdx !== -1 ? String(row[ethnicIdx]).trim() : ''
-                        });
-                    }
-
-                    if (parsedEmployees.length === 0) {
-                        toast.error("Không parse được nhân viên nào hợp lệ!");
-                        return;
-                    }
-
-                    // Kiểm tra trùng lặp trong file
-                    const dupCodes = new Set<string>();
-                    const dupCccds = new Set<string>();
-                    const dupNames = new Set<string>();
-                    const duplicatesInFile: string[] = [];
-
-                    parsedEmployees.forEach((emp, idx) => {
-                        const rowNum = idx + 2; // Dòng thực tế trong excel (1-indexed + bỏ header)
-
-                        if (emp.code) {
-                            if (dupCodes.has(emp.code)) {
-                                duplicatesInFile.push(`Trùng Mã KH '${emp.code}' ở dòng ${rowNum} (${emp.name})`);
-                            } else {
-                                dupCodes.add(emp.code);
-                            }
-                        }
-
-                        if (emp.doc_no) {
-                            if (dupCccds.has(emp.doc_no)) {
-                                duplicatesInFile.push(`Trùng CCCD '${emp.doc_no}' ở dòng ${rowNum} (${emp.name})`);
-                            } else {
-                                dupCccds.add(emp.doc_no);
-                            }
-                        }
-
-                        const nameKey = `${emp.name.toLowerCase()}_${emp.birth_date}`;
-                        if (dupNames.has(nameKey)) {
-                            duplicatesInFile.push(`Trùng trùng lặp Họ tên & Ngày sinh '${emp.name} - ${emp.birth_date}' ở dòng ${rowNum}`);
-                        } else {
-                            dupNames.add(nameKey);
-                        }
-                    });
-
-                    if (duplicatesInFile.length > 0) {
-                        toast.error(
-                            <div>
-                                <div className="font-bold text-red-650 dark:text-red-400 mb-1.5 text-xs uppercase tracking-wider">Phát hiện trùng lặp dữ liệu trong file Excel:</div>
-                                <ul className="list-disc pl-4 space-y-1 text-[11px] max-h-40 overflow-y-auto">
-                                    {duplicatesInFile.slice(0, 5).map((err, i) => (
-                                        <li key={i}>{err}</li>
-                                    ))}
-                                    {duplicatesInFile.length > 5 && <li>...và {duplicatesInFile.length - 5} dòng trùng lặp khác.</li>}
-                                </ul>
-                                <div className="mt-2 text-[10px] text-slate-500 italic">Vui lòng sửa các dòng trùng trước khi import.</div>
-                            </div>,
-                            { duration: 8000 }
-                        );
-                        return;
-                    }
-
-                    toast.loading("Đang import danh sách nhân viên...");
-                    const res = await healthCheckService.importEmployees(selectedContract.id, parsedEmployees);
-                    toast.dismiss();
-                    
-                    if (res.success) {
-                        toast.success(`Import thành công ${res.count} nhân viên!`);
-                        loadContracts();
-                        loadEmployees(selectedContract.id);
-                    } else {
-                        toast.error("Import thất bại!");
-                    }
-                } catch (err: any) {
-                    toast.dismiss();
-                    toast.error("Lỗi đọc file: " + err.message);
+                if (data.length <= 1) {
+                    toast.error("File excel không có dữ liệu!");
+                    return;
                 }
-            };
-            reader.readAsBinaryString(file);
-            e.target.value = '';
-        };
 
-        if (!script) {
-            script = document.createElement('script');
-            script.id = scriptId;
-            script.src = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';
-            script.onload = parseFile;
-            document.head.appendChild(script);
-        } else {
-            parseFile();
-        }
+                const removeAccents = (str: string) => {
+                    return str.normalize('NFD')
+                              .replace(/[\u0300-\u036f]/g, '')
+                              .replace(/đ/g, 'd')
+                              .replace(/Đ/g, 'd');
+                };
+                const headers = data[0].map(h => removeAccents(String(h).trim().toLowerCase()));
+                const nameIdx = headers.findIndex(h => h.includes('ten') || h.includes('ho') || h.includes('name'));
+                const dobIdx = headers.findIndex(h => h.includes('sinh') || h.includes('dob') || h.includes('birth'));
+                const sexIdx = headers.findIndex(h => h.includes('gioi') || h.includes('sex') || h.includes('gender'));
+                const docIdx = headers.findIndex(h => h.includes('cccd') || h.includes('ho so') || h.includes('doc') || h.includes('card'));
+                const phoneIdx = headers.findIndex(h => h.includes('thoai') || h.includes('sdt') || h.includes('phone'));
+                const noteIdx = headers.findIndex(h => h.includes('chu') || h.includes('note'));
+                
+                const deptIdx = headers.findIndex(h => h.includes('bo phan') || h.includes('bophan') || h.includes('dept'));
+                const posIdx = headers.findIndex(h => h.includes('chuc') || h.includes('position'));
+                const ownerIdx = headers.findIndex(h => h.includes('ban than') || h.includes('banthan') || h.includes('owner'));
+                const addrIdx = headers.findIndex(h => h.includes('noi o') || h.includes('noi_o') || h.includes('dia chi') || h.includes('address'));
+                const provIdx = headers.findIndex(h => h.includes('tinh') || h.includes('prov'));
+                const distIdx = headers.findIndex(h => h.includes('huyen') || h.includes('dist'));
+                const wardIdx = headers.findIndex(h => h.includes('xa') || h.includes('ward') || h.includes('vill'));
+
+                const cardDateIdx = headers.findIndex(h => h.includes('ngay cap') || h.includes('ngaycap') || h.includes('cardid_date'));
+                const cardPlaceIdx = headers.findIndex(h => h.includes('noi cap') || h.includes('noicap') || h.includes('cardid_place'));
+                const guardianNameIdx = headers.findIndex(h => h.includes('giam ho') || h.includes('guardian_name'));
+                const guardianCccdIdx = headers.findIndex(h => h.includes('cccd_ngh') || h.includes('guardian_cccd'));
+                const ethnicIdx = headers.findIndex(h => h.includes('dan toc') || h.includes('ethnic'));
+                const maKhIdx = headers.findIndex(h => h.includes('ma kh') || h.includes('makh') || h.includes('ma_kh'));
+
+                if (nameIdx === -1) {
+                    toast.error("Không tìm thấy cột 'Họ và tên' trong file!");
+                    return;
+                }
+
+                const parsedEmployees = [];
+                for (let i = 1; i < data.length; i++) {
+                    const row = data[i];
+                    if (!row || row.length === 0 || !row[nameIdx]) continue;
+
+                    let docNo = docIdx !== -1 ? String(row[docIdx]).trim() : '';
+                    let phone = phoneIdx !== -1 ? String(row[phoneIdx]).trim() : '';
+                    let guardianCccd = guardianCccdIdx !== -1 ? String(row[guardianCccdIdx]).trim() : '';
+                    let maKh = maKhIdx !== -1 && row[maKhIdx] ? String(row[maKhIdx]).trim() : '';
+
+                    parsedEmployees.push({
+                        code: maKh,
+                        name: String(row[nameIdx]).trim(),
+                        birth_date: dobIdx !== -1 ? String(row[dobIdx]).trim() : '',
+                        sex: sexIdx !== -1 ? String(row[sexIdx]).trim() : 'Nam',
+                        doc_no: docNo,
+                        phone: phone,
+                        note: noteIdx !== -1 ? String(row[noteIdx]).trim() : '',
+                        dept: deptIdx !== -1 ? String(row[deptIdx]).trim() : '',
+                        position: posIdx !== -1 ? String(row[posIdx]).trim() : '',
+                        owner: ownerIdx !== -1 ? String(row[ownerIdx]).trim() : '',
+                        detail_address: addrIdx !== -1 ? String(row[addrIdx]).trim() : '',
+                        province_id: provIdx !== -1 ? parseInt(String(row[provIdx]), 10) || null : null,
+                        district_id: distIdx !== -1 ? parseInt(String(row[distIdx]), 10) || null : null,
+                        ward_id: wardIdx !== -1 ? parseInt(String(row[wardIdx]), 10) || null : null,
+                        cardid_date: cardDateIdx !== -1 ? String(row[cardDateIdx]).trim() : '',
+                        cardid_place: cardPlaceIdx !== -1 ? String(row[cardPlaceIdx]).trim() : '',
+                        guardian_name: guardianNameIdx !== -1 ? String(row[guardianNameIdx]).trim() : '',
+                        guardian_cccd: guardianCccd,
+                        ethnic: ethnicIdx !== -1 ? String(row[ethnicIdx]).trim() : ''
+                    });
+                }
+
+                if (parsedEmployees.length === 0) {
+                    toast.error("Không parse được nhân viên nào hợp lệ!");
+                    return;
+                }
+
+                // Kiểm tra trùng lặp trong file
+                const dupCodes = new Set<string>();
+                const dupCccds = new Set<string>();
+                const dupNames = new Set<string>();
+                const duplicatesInFile: string[] = [];
+
+                parsedEmployees.forEach((emp, idx) => {
+                    const rowNum = idx + 2;
+
+                    if (emp.code) {
+                        if (dupCodes.has(emp.code)) {
+                            duplicatesInFile.push(`Trùng Mã KH '${emp.code}' ở dòng ${rowNum} (${emp.name})`);
+                        } else {
+                            dupCodes.add(emp.code);
+                        }
+                    }
+
+                    if (emp.doc_no) {
+                        if (dupCccds.has(emp.doc_no)) {
+                            duplicatesInFile.push(`Trùng CCCD '${emp.doc_no}' ở dòng ${rowNum} (${emp.name})`);
+                        } else {
+                            dupCccds.add(emp.doc_no);
+                        }
+                    }
+
+                    const nameKey = `${emp.name.toLowerCase()}_${emp.birth_date}`;
+                    if (dupNames.has(nameKey)) {
+                        duplicatesInFile.push(`Trùng trùng lặp Họ tên & Ngày sinh '${emp.name} - ${emp.birth_date}' ở dòng ${rowNum}`);
+                    } else {
+                        dupNames.add(nameKey);
+                    }
+                });
+
+                if (duplicatesInFile.length > 0) {
+                    toast.error(
+                        <div>
+                            <div className="font-bold text-red-650 dark:text-red-400 mb-1.5 text-xs uppercase tracking-wider">Phát hiện trùng lặp dữ liệu trong file Excel:</div>
+                            <ul className="list-disc pl-4 space-y-1 text-[11px] max-h-40 overflow-y-auto">
+                                {duplicatesInFile.slice(0, 5).map((err, i) => (
+                                    <li key={i}>{err}</li>
+                                ))}
+                                {duplicatesInFile.length > 5 && <li>...và {duplicatesInFile.length - 5} dòng trùng lặp khác.</li>}
+                            </ul>
+                            <div className="mt-2 text-[10px] text-slate-500 italic">Vui lòng sửa các dòng trùng trước khi import.</div>
+                        </div>,
+                        { duration: 8000 }
+                    );
+                    return;
+                }
+
+                toast.loading("Đang import danh sách nhân viên...");
+                const res = await healthCheckService.importEmployees(selectedContract.id, parsedEmployees);
+                toast.dismiss();
+                
+                if (res.success) {
+                    toast.success(`Import thành công ${res.count} nhân viên!`);
+                    loadContracts();
+                    loadEmployees(selectedContract.id);
+                } else {
+                    toast.error("Import thất bại!");
+                }
+            } catch (err: any) {
+                toast.dismiss();
+                toast.error("Lỗi đọc file: " + err.message);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+        e.target.value = '';
     };
 
 
@@ -1215,64 +1249,76 @@ const ContractManagement: React.FC = () => {
                         ) : (
                             <div className="p-5 flex flex-col min-h-full">
                                 <div className="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800">
-                                    <table className="w-full text-left border-collapse text-sm">
-                                        <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 font-bold text-[11px] uppercase tracking-wider sticky top-0 z-10">
-                                            <tr>
-                                                <th className="p-3 w-12 text-center">STT</th>
-                                                <th className="p-3">Diễn giải (Tên dịch vụ)</th>
-                                                <th className="p-3 w-24 text-center">Đơn vị</th>
-                                                <th className="p-3 w-24 text-center">Số lượng</th>
-                                                <th className="p-3 w-32 text-right">Đơn giá</th>
-                                                <th className="p-3 w-28 text-center">Đối tượng</th>
-                                                <th className="p-3 w-36 text-right">Thành tiền</th>
-                                                {selectedContract?.status !== 'A' && (
-                                                    <th className="p-3 w-16 text-center">Tác vụ</th>
-                                                )}
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                                            {services.map((s, idx) => (
-                                                <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                                                    <td className="p-3 text-center text-slate-400 font-mono text-xs">{idx + 1}</td>
-                                                    <td className="p-3 font-bold text-slate-800 dark:text-slate-200 text-[13px]">{s.name}</td>
-                                                    <td className="p-3 text-center text-xs font-semibold text-slate-600 dark:text-slate-400">{s.unit || 'Lần'}</td>
-                                                    <td className="p-3 text-center text-xs font-bold text-slate-950 dark:text-white font-mono">{s.quantity}</td>
-                                                    <td className="p-3 text-right font-mono text-xs text-slate-600 dark:text-slate-300">{formatPrice(parseFloat(s.price))} đ</td>
-                                                    <td className="p-3 text-center">
-                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                                            s.gender === 'M' ? 'bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/30' :
-                                                            s.gender === 'F' ? 'bg-pink-50 dark:bg-pink-950/20 text-pink-600 dark:text-pink-400 border border-pink-100 dark:border-pink-900/30' :
-                                                            'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200/50 dark:border-slate-800'
-                                                        }`}>
-                                                            {s.gender === 'M' ? 'Nam' : s.gender === 'F' ? 'Nữ' : 'Nam, Nữ'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="p-3 text-right font-bold text-rose-600 dark:text-rose-400 font-mono text-xs">
-                                                        {formatPrice(parseFloat(s.price) * s.quantity)} đ
-                                                    </td>
+                                        <table className="w-full text-left border-collapse text-sm">
+                                            <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 font-bold text-[11px] uppercase tracking-wider sticky top-0 z-10">
+                                                <tr>
+                                                    <th className="p-3 w-12 text-center">STT</th>
+                                                    <th className="p-3">Diễn giải (Tên dịch vụ)</th>
+                                                    <th className="p-3 w-24 text-center">Đơn vị</th>
+                                                    <th className="p-3 w-24 text-center">Số lượng</th>
+                                                    <th className="p-3 w-32 text-right">Đơn giá</th>
+                                                    <th className="p-3 w-28 text-center">Đối tượng</th>
+                                                    <th className="p-3 w-28 text-center">Độ tuổi</th>
+                                                    <th className="p-3 w-36 text-right">Thành tiền</th>
                                                     {selectedContract?.status !== 'A' && (
-                                                        <td className="p-3 text-center">
-                                                            <button
-                                                                onClick={() => handleDeleteService(s.id)}
-                                                                className="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-600 rounded transition cursor-pointer"
-                                                                title="Xóa dịch vụ"
-                                                            >
-                                                                <TrashIcon className="w-4 h-4" />
-                                                            </button>
-                                                        </td>
+                                                        <th className="p-3 w-16 text-center">Tác vụ</th>
                                                     )}
                                                 </tr>
-                                            ))}
-                                            {/* Total Row */}
-                                            <tr className="bg-slate-50 dark:bg-slate-900/50 font-bold border-t border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200">
-                                                <td colSpan={6} className="p-3 text-right text-xs uppercase tracking-wider font-extrabold">Tổng tiền:</td>
-                                                <td className="p-3 text-right text-sm font-black text-[#9f1239] dark:text-rose-400 font-mono">
-                                                    {formatPrice(services.reduce((sum, s) => sum + (parseFloat(s.price) * s.quantity), 0))} đ
-                                                </td>
-                                                {selectedContract?.status !== 'A' && <td className="p-3"></td>}
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                                                {services.map((s, idx) => (
+                                                    <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                                        <td className="p-3 text-center text-slate-400 font-mono text-xs">{idx + 1}</td>
+                                                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200 text-[13px]">{s.name}</td>
+                                                        <td className="p-3 text-center text-xs font-semibold text-slate-600 dark:text-slate-400">{s.unit || 'Lần'}</td>
+                                                        <td className="p-3 text-center text-xs font-bold text-slate-950 dark:text-white font-mono">{s.quantity}</td>
+                                                        <td className="p-3 text-right font-mono text-xs text-slate-600 dark:text-slate-300">{formatPrice(parseFloat(s.price))} đ</td>
+                                                        <td className="p-3 text-center">
+                                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                                                s.gender === 'M' ? 'bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/30' :
+                                                                s.gender === 'F' ? 'bg-pink-50 dark:bg-pink-950/20 text-pink-600 dark:text-pink-400 border border-pink-100 dark:border-pink-900/30' :
+                                                                'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200/50 dark:border-slate-800'
+                                                            }`}>
+                                                                {s.gender === 'M' ? 'Nam' : s.gender === 'F' ? 'Nữ' : 'Nam, Nữ'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-3 text-center">
+                                                            {s.min_age !== null || s.max_age !== null ? (
+                                                                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                                                    {s.min_age !== null && s.max_age !== null ? `${s.min_age} - ${s.max_age} tuổi` :
+                                                                     s.min_age !== null ? `>= ${s.min_age} tuổi` :
+                                                                     `<= ${s.max_age} tuổi`}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">Mọi lứa tuổi</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-3 text-right font-bold text-rose-600 dark:text-rose-400 font-mono text-xs">
+                                                            {formatPrice(parseFloat(s.price) * s.quantity)} đ
+                                                        </td>
+                                                        {selectedContract?.status !== 'A' && (
+                                                            <td className="p-3 text-center">
+                                                                <button
+                                                                    onClick={() => handleDeleteService(s.id)}
+                                                                    className="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-600 rounded transition cursor-pointer"
+                                                                    title="Xóa dịch vụ"
+                                                                >
+                                                                    <TrashIcon className="w-4 h-4" />
+                                                                </button>
+                                                            </td>
+                                                        )}
+                                                    </tr>
+                                                ))}
+                                                {/* Total Row */}
+                                                <tr className="bg-slate-50 dark:bg-slate-900/50 font-bold border-t border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200">
+                                                    <td colSpan={7} className="p-3 text-right text-xs uppercase tracking-wider font-extrabold">Tổng tiền:</td>
+                                                    <td className="p-3 text-right text-sm font-black text-[#9f1239] dark:text-rose-400 font-mono">
+                                                        {formatPrice(services.reduce((sum, s) => sum + (parseFloat(s.price) * s.quantity), 0))} đ
+                                                    </td>
+                                                    {selectedContract?.status !== 'A' && <td className="p-3"></td>}
+                                                </tr>
+                                            </tbody>
+                                        </table>
                                 </div>
                             </div>
                         )}
@@ -1559,7 +1605,9 @@ const ContractManagement: React.FC = () => {
                                                 <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-slate-500 font-bold">
                                                     <th className="p-2">Tên</th>
                                                     <th className="p-2 w-12 text-center">SL</th>
-                                                    <th className="p-2 w-20 text-center">Giới</th>
+                                                    <th className="p-2 w-16 text-center">Giới</th>
+                                                    <th className="p-2 w-12 text-center">Từ</th>
+                                                    <th className="p-2 w-12 text-center">Đến</th>
                                                     <th className="p-2 w-10 text-center">Xóa</th>
                                                 </tr>
                                             </thead>
@@ -1572,19 +1620,43 @@ const ContractManagement: React.FC = () => {
                                                                 type="number"
                                                                 value={ss.quantity}
                                                                 onChange={(e) => handleUpdateSelectionQuantity(ss.item_id, parseInt(e.target.value, 10))}
-                                                                className="w-10 text-center border border-slate-200 dark:border-slate-700 rounded dark:bg-slate-900 dark:text-white font-mono text-xs p-0.5"
+                                                                className="w-8 text-center border border-slate-200 dark:border-slate-700 rounded dark:bg-slate-900 dark:text-white font-mono text-[10px] p-0.5"
                                                             />
                                                         </td>
                                                         <td className="p-2 text-center">
                                                             <select
                                                                 value={ss.gender}
                                                                 onChange={(e) => handleUpdateSelectionGender(ss.item_id, e.target.value)}
-                                                                className="text-[10px] border border-slate-200 dark:border-slate-700 rounded dark:bg-slate-900 dark:text-white p-0.5"
+                                                                className="text-[10px] border border-slate-200 dark:border-slate-700 rounded dark:bg-slate-900 dark:text-white p-0.5 w-14"
                                                             >
-                                                                <option value="A">Nam, Nữ</option>
+                                                                <option value="A">Cả hai</option>
                                                                 <option value="M">Nam</option>
                                                                 <option value="F">Nữ</option>
                                                             </select>
+                                                        </td>
+                                                        <td className="p-2 text-center">
+                                                            <input
+                                                                type="number"
+                                                                placeholder=">="
+                                                                value={ss.min_age !== undefined && ss.min_age !== null ? ss.min_age : ''}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    handleUpdateSelectionMinAge(ss.item_id, val === '' ? undefined : parseInt(val, 10));
+                                                                }}
+                                                                className="w-10 text-center border border-slate-200 dark:border-slate-700 rounded dark:bg-slate-900 dark:text-white font-mono text-[10px] p-0.5"
+                                                            />
+                                                        </td>
+                                                        <td className="p-2 text-center">
+                                                            <input
+                                                                type="number"
+                                                                placeholder="<="
+                                                                value={ss.max_age !== undefined && ss.max_age !== null ? ss.max_age : ''}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    handleUpdateSelectionMaxAge(ss.item_id, val === '' ? undefined : parseInt(val, 10));
+                                                                }}
+                                                                className="w-10 text-center border border-slate-200 dark:border-slate-700 rounded dark:bg-slate-900 dark:text-white font-mono text-[10px] p-0.5"
+                                                            />
                                                         </td>
                                                         <td className="p-2 text-center">
                                                             <button
@@ -1854,6 +1926,44 @@ const ContractManagement: React.FC = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Custom Confirmation Dialog */}
+            {confirmDialog.isOpen && (
+                <div 
+                    className="fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+                    style={{ zIndex: 100 }}
+                >
+                    <div className="bg-white dark:bg-slate-900 rounded-[2rem] max-w-sm w-full shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden transform scale-100 transition-all duration-300 animate-in zoom-in-95 duration-200">
+                        <div className="p-6 flex flex-col items-center text-center gap-4">
+                            <div className="h-12 w-12 rounded-full flex items-center justify-center bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400">
+                                <AlertCircleIcon className="w-6 h-6" />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                                    {confirmDialog.title}
+                                </h3>
+                                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 leading-relaxed">
+                                    {confirmDialog.message}
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3 w-full mt-2">
+                                <button
+                                    onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                                    className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition cursor-pointer"
+                                >
+                                    Hủy bỏ
+                                </button>
+                                <button
+                                    onClick={confirmDialog.onConfirm}
+                                    className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition shadow-md shadow-rose-600/10 cursor-pointer active:scale-95"
+                                >
+                                    Đồng ý
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

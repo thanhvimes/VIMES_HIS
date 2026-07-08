@@ -1,0 +1,93 @@
+{
+  "thamnth": {
+    "statusCode": 200,
+    "body": [
+      {
+        "id": 23,
+        "name": "Bàn mổ số 1"
+      },
+      {
+        "id": 24,
+        "name": "Bàn mổ số 2"
+      },
+      {
+        "id": 25,
+        "name": "Bàn mổ số 3"
+      }
+    ]
+  },
+  "admin": {
+    "statusCode": 200,
+    "body": [
+      {
+        "id": "1",
+        "name": "Bàn mổ 1"
+      },
+      {
+        "id": "2",
+        "name": "Bàn mổ 2"
+      },
+      {
+        "id": "3",
+        "name": "Bàn mổ 3"
+      },
+      {
+        "id": "4",
+        "name": "Bàn mổ 4"
+      }
+    ]
+  },
+  "pvannghi9a": {
+    "statusCode": 200,
+    "body": [
+      {
+        "id": 34,
+        "name": "Bàn mổ A (K1)"
+      },
+      {
+        "id": 35,
+        "name": "Bàn mổ B (K1)"
+      },
+      {
+        "id": 36,
+        "name": "Bàn mổ C (K1)"
+      },
+      {
+        "id": 37,
+        "name": "Bàn mổ D (K1)"
+      },
+      {
+        "id": 38,
+        "name": "Bàn mổ E (K1)"
+      },
+      {
+        "id": 26,
+        "name": "Bàn mổ số 1"
+      },
+      {
+        "id": 27,
+        "name": "Bàn mổ số 2"
+      },
+      {
+        "id": 28,
+        "name": "Bàn mổ số 3"
+      },
+      {
+        "id": 32,
+        "name": "Bàn mổ số 4"
+      },
+      {
+        "id": 33,
+        "name": "Bàn mổ số 5"
+      },
+      {
+        "id": 30,
+        "name": "Phòng nội soi"
+      },
+      {
+        "id": 29,
+        "name": "Phòng tiểu phẫu"
+      }
+    ]
+  }
+}

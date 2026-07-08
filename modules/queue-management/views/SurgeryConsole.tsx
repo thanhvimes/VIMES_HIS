@@ -82,6 +82,14 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
   const [hisSearchList, setHisSearchList] = useState<any[]>([]);
   const [hisSearching, setHisSearching] = useState(false);
   const [selectedHisPatient, setSelectedHisPatient] = useState<any>(null);
+  const [assignExpectedTime, setAssignExpectedTime] = useState<string>('');
+
+  useEffect(() => {
+    if (selectedHisPatient) {
+      const formatted = selectedHisPatient.expected_time ? selectedHisPatient.expected_time.replace(' ', 'T') : '';
+      setAssignExpectedTime(formatted);
+    }
+  }, [selectedHisPatient]);
 
   // Board assignment parameters for the selected HIS patient
   const [assignRoom, setAssignRoom] = useState<string | number>(1);
@@ -150,7 +158,8 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
           operationTable: assignTable,
           retTime: assignStatus === 'R' ? assignRetTime : 0,
           retDept: assignStatus === 'F' ? assignRetDept : '',
-          consciousTime: assignStatus === 'R' ? assignConsciousTime : ''
+          consciousTime: assignStatus === 'R' ? assignConsciousTime : '',
+          expectedTime: assignExpectedTime
         })
       });
       setSelectedHisPatient(null);
@@ -363,27 +372,31 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
                    <div className="py-20 text-center text-xs font-bold text-slate-400 uppercase tracking-widest italic text-slate-300">Không tìm thấy ca phẫu thuật nào trong HIS</div>
                 ) : (
                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                         <tr className="border-b border-slate-100 text-slate-400 font-black uppercase text-[10px] tracking-wider bg-slate-50/50">
-                            <th className="py-3 px-4">Mã hồ sơ</th>
-                            <th className="py-3 px-4">Họ tên bệnh nhân</th>
-                            <th className="py-3 px-4">Năm sinh</th>
-                            <th className="py-3 px-4">Khoa chỉ định</th>
-                            <th className="py-3 px-4">Phòng mổ HIS</th>
-                            <th className="py-3 px-4">Ngày giờ dự kiến</th>
-                            <th className="py-3 px-4 text-center">Thao tác</th>
-                         </tr>
-                      </thead>
-                      <tbody>
-                         {hisSearchList.map((patient) => (
-                            <tr key={patient.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                               <td className="py-4 px-4 font-mono font-bold text-slate-500">{patient.doc_no}</td>
-                               <td className="py-4 px-4 font-black text-slate-800 uppercase text-xs">{patient.patient_name}</td>
-                               <td className="py-4 px-4 font-bold text-slate-500">{patient.birth_year || '----'}</td>
-                               <td className="py-4 px-4 font-bold text-slate-600 uppercase">{patient.dept_name || '----'}</td>
-                               <td className="py-4 px-4 font-bold text-slate-655">{patient.room_name || 'Phòng mổ'}</td>
-                               <td className="py-4 px-4 font-mono font-bold text-slate-600">{patient.expected_time}</td>
-                               <td className="py-4 px-4 text-center">
+                       <thead className="bg-slate-100 text-slate-700 uppercase text-[10px] tracking-wider sticky top-0 z-10">
+                          <tr className="border-b border-slate-200">
+                             <th className="py-3.5 px-4 font-black">Mã hồ sơ</th>
+                             <th className="py-3.5 px-4 font-black">Họ tên bệnh nhân</th>
+                             <th className="py-3.5 px-4 font-black">Năm sinh</th>
+                             <th className="py-3.5 px-4 font-black">Tên dịch vụ</th>
+                             <th className="py-3.5 px-4 font-black">Ngày chỉ định</th>
+                             <th className="py-3.5 px-4 font-black">Khoa chỉ định</th>
+                             <th className="py-3.5 px-4 font-black">Phòng mổ HIS</th>
+                             <th className="py-3.5 px-4 font-black">Ngày giờ dự kiến</th>
+                             <th className="py-3.5 px-4 font-black text-center">Thao tác</th>
+                          </tr>
+                       </thead>
+                       <tbody>
+                          {hisSearchList.map((patient) => (
+                             <tr key={patient.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                                <td className="py-4 px-4 font-mono font-bold text-slate-500">{patient.doc_no}</td>
+                                <td className="py-4 px-4 font-black text-slate-800 uppercase text-xs">{patient.patient_name}</td>
+                                <td className="py-4 px-4 font-bold text-slate-500">{patient.birth_year || '----'}</td>
+                                <td className="py-4 px-4 font-bold text-slate-600 uppercase max-w-[220px] whitespace-normal break-words">{patient.service_name || '----'}</td>
+                                <td className="py-4 px-4 font-mono font-bold text-slate-500">{patient.order_date || '----'}</td>
+                                <td className="py-4 px-4 font-bold text-slate-600 uppercase max-w-[200px] whitespace-normal break-words">{patient.dept_name || '----'}</td>
+                                <td className="py-4 px-4 font-bold text-slate-655">{patient.room_name || 'Phòng mổ'}</td>
+                                <td className="py-4 px-4 font-mono font-bold text-slate-600">{patient.expected_time}</td>
+                                <td className="py-4 px-4 text-center">
                                   {patient.is_on_board ? (
                                      <div className="flex flex-col items-center gap-1.5">
                                         <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-[10px] font-black uppercase tracking-wider border border-emerald-100/80">
@@ -822,7 +835,7 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
       {selectedHisPatient && (
          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
             <div className="bg-white rounded-[2rem] border border-slate-100 w-full max-w-md shadow-2xl overflow-hidden">
-               <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex items-center justify-between">
+               <div className="px-6 py-4 bg-gradient-to-r from-[#00605D] to-[#0c7672] text-white flex items-center justify-between">
                   <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
                      <Settings size={14} /> Đưa ca mổ vào bảng theo dõi
                   </h3>
@@ -834,20 +847,20 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
                   </button>
                </div>
                
-               <form onSubmit={handleAddFromHis} className="p-6 space-y-4">
-                  <div>
-                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Bệnh nhân</p>
+               <form onSubmit={handleAddFromHis} className="p-6 space-y-5">
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">Bệnh nhân</p>
                      <p className="text-base font-black text-slate-800 uppercase tracking-tight">{selectedHisPatient.patient_name}</p>
-                     <p className="text-[10px] font-mono font-bold text-slate-400">HS: {selectedHisPatient.doc_no} | {selectedHisPatient.dept_name || 'HIS'}</p>
+                     <p className="text-[11px] font-mono font-bold text-slate-500 mt-1">HS: {selectedHisPatient.doc_no} | {selectedHisPatient.dept_name || 'HIS'}</p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                      <div>
-                        <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5">Phòng mổ</label>
+                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Phòng mổ</label>
                         <select 
                            value={assignRoom}
                            onChange={(e) => setAssignRoom(e.target.value)}
-                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:border-blue-500 text-slate-700 cursor-pointer"
+                           className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-extrabold focus:outline-none focus:border-[#00605D] focus:ring-4 focus:ring-[#00605D]/10 text-slate-800 cursor-pointer transition-all"
                         >
                            {surgeryRooms.map((r) => (
                               <option key={r.id} value={r.id}>{r.name}</option>
@@ -855,11 +868,11 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
                         </select>
                      </div>
                      <div>
-                        <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5">Bàn mổ</label>
+                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Bàn mổ</label>
                         <select 
                            value={assignTable}
                            onChange={(e) => setAssignTable(parseInt(e.target.value) || e.target.value)}
-                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:border-blue-500 text-slate-700 cursor-pointer"
+                           className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-extrabold focus:outline-none focus:border-[#00605D] focus:ring-4 focus:ring-[#00605D]/10 text-slate-800 cursor-pointer transition-all"
                         >
                            {surgeryTables.map((t) => (
                               <option key={t.id} value={t.id}>{t.name}</option>
@@ -869,11 +882,21 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
                   </div>
 
                   <div>
-                     <label className="block text-[9px] font-black text-slate-400 uppercase mb-1.5">Trạng thái ban đầu</label>
+                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Ngày giờ thực hiện</label>
+                     <input 
+                        type="datetime-local" 
+                        value={assignExpectedTime}
+                        onChange={(e) => setAssignExpectedTime(e.target.value)}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-extrabold focus:outline-none focus:border-[#00605D] focus:ring-4 focus:ring-[#00605D]/10 text-slate-800 cursor-pointer transition-all"
+                     />
+                  </div>
+
+                  <div>
+                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Trạng thái ban đầu</label>
                      <select 
                         value={assignStatus}
                         onChange={(e) => setAssignStatus(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:border-blue-500 text-slate-700"
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-extrabold focus:outline-none focus:border-[#00605D] focus:ring-4 focus:ring-[#00605D]/10 text-slate-800 cursor-pointer transition-all"
                      >
                         <option value="P">Chuẩn bị (P)</option>
                         <option value="S">Đang mổ (S)</option>
@@ -912,7 +935,7 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
                         <select 
                            value={assignRetDept}
                            onChange={(e) => setAssignRetDept(e.target.value)}
-                           className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:border-blue-500 text-slate-700 uppercase"
+                           className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:border-[#00605D] text-slate-700 uppercase"
                         >
                            {departments.map(dept => (
                               <option key={dept.id} value={dept.id}>{dept.name}</option>

@@ -89,13 +89,12 @@ const BrandTab: React.FC<BrandTabProps> = ({ settings, onUpdate }) => {
                 <Building2 className="text-primary"/> Thông tin chung
             </h5>
             <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-700">Tên Bệnh viện (Tiêu đề)</label>
+                <label className="text-sm font-bold text-gray-700">Tên Bệnh viện (Lấy từ hệ thống)</label>
                 <input 
                     type="text" 
-                    className="w-full p-4 border border-gray-200 rounded-xl focus:border-cyan-500 focus:ring-4 focus:ring-cyan-50 outline-none uppercase font-bold text-lg transition-all"
-                    placeholder="VD: BỆNH VIỆN ĐA KHOA QUỐC TẾ"
+                    className="w-full p-4 border border-gray-200 rounded-xl bg-gray-50 text-gray-400 cursor-not-allowed uppercase font-bold text-lg transition-all"
                     value={settings.hospitalName}
-                    onChange={e => onUpdate({...settings, hospitalName: e.target.value})}
+                    disabled
                 />
             </div>
             <div className="space-y-2">

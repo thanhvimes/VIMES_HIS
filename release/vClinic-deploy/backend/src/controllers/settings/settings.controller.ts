@@ -201,6 +201,41 @@ class SettingsController {
             });
         }
     }
+
+    /**
+     * GET /api/v1/settings/company-info
+     * Returns hospital info directly from SYS_COMPANY table
+     */
+    async getCompanyInfo(req: Request, res: Response) {
+        try {
+            const company = await settingsService.getCompanyInfo();
+            if (!company) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'No company information found in SYS_COMPANY'
+                });
+            }
+            return res.json({
+                success: true,
+                data: {
+                    id: company.sc_id,
+                    hospitalName: company.sc_name || '',
+                    parentOrg: company.sc_pname || '',
+                    address: company.sc_address || '',
+                    phone: company.sc_phone || '',
+                    email: company.sc_email || '',
+                    website: company.sc_website || '',
+                }
+            });
+        } catch (error: any) {
+            console.error('Error fetching company info:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to fetch company info',
+                message: error.message
+            });
+        }
+    }
 }
 
 export default new SettingsController();

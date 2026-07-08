@@ -1,0 +1,272 @@
+[
+  {
+    "sv_moduleid": "MM",
+    "sv_version": "6.0",
+    "sv_name": null,
+    "sv_note": null
+  },
+  {
+    "sv_moduleid": "PR",
+    "sv_version": "6.0",
+    "sv_name": null,
+    "sv_note": null
+  },
+  {
+    "sv_moduleid": "GUI",
+    "sv_version": "1.0",
+    "sv_name": null,
+    "sv_note": null
+  },
+  {
+    "sv_moduleid": "SIP",
+    "sv_version": "6.0",
+    "sv_name": null,
+    "sv_note": null
+  },
+  {
+    "sv_moduleid": "SRM",
+    "sv_version": "6.0",
+    "sv_name": null,
+    "sv_note": null
+  },
+  {
+    "sv_moduleid": "TMR",
+    "sv_version": "6.0",
+    "sv_name": null,
+    "sv_note": null
+  },
+  {
+    "sv_moduleid": "POS",
+    "sv_version": "6.0",
+    "sv_name": null,
+    "sv_note": null
+  },
+  {
+    "sv_moduleid": "ITS",
+    "sv_version": "6.0",
+    "sv_name": null,
+    "sv_note": null
+  },
+  {
+    "sv_moduleid": "RPM",
+    "sv_version": "6.0",
+    "sv_name": null,
+    "sv_note": null
+  },
+  {
+    "sv_moduleid": "IMPL",
+    "sv_version": "6.0",
+    "sv_name": null,
+    "sv_note": null
+  },
+  {
+    "sv_moduleid": "NM",
+    "sv_version": "1.1",
+    "sv_name": null,
+    "sv_note": null
+  },
+  {
+    "sv_moduleid": "ST",
+    "sv_version": "6.1",
+    "sv_name": null,
+    "sv_note": null
+  },
+  {
+    "sv_moduleid": "ISYNC",
+    "sv_version": "6.0",
+    "sv_name": null,
+    "sv_note": null
+  },
+  {
+    "sv_moduleid": "WB",
+    "sv_version": "1.1",
+    "sv_name": null,
+    "sv_note": null
+  },
+  {
+    "sv_moduleid": "IPA",
+    "sv_version": "6.0",
+    "sv_name": null,
+    "sv_note": null
+  },
+  {
+    "sv_moduleid": "IM",
+    "sv_version": "6.0",
+    "sv_name": null,
+    "sv_note": null
+  },
+  {
+    "sv_moduleid": "GL",
+    "sv_version": "6.0",
+    "sv_name": null,
+    "sv_note": null
+  },
+  {
+    "sv_moduleid": "FAM",
+    "sv_version": "6.0",
+    "sv_name": "VIMESAssetMangr",
+    "sv_note": "Quản lý tài sản"
+  },
+  {
+    "sv_moduleid": "PM",
+    "sv_version": "6.1",
+    "sv_name": "VIMESPharmacyMangr",
+    "sv_note": "Quản lý dược"
+  },
+  {
+    "sv_moduleid": "MA",
+    "sv_version": "6.1",
+    "sv_name": "VIMESMaterialMangr",
+    "sv_note": "Quản lý vật tư"
+  },
+  {
+    "sv_moduleid": "RPT",
+    "sv_version": "6.0",
+    "sv_name": null,
+    "sv_note": null
+  },
+  {
+    "sv_moduleid": "EDM",
+    "sv_version": "6.0",
+    "sv_name": null,
+    "sv_note": null
+  },
+  {
+    "sv_moduleid": "LIMS",
+    "sv_version": "6.3",
+    "sv_name": "VIMESLabMangr",
+    "sv_note": "Quản lý xét nghiệm"
+  },
+  {
+    "sv_moduleid": "SYS",
+    "sv_version": "6.0",
+    "sv_name": "VIMESAdministrationMangr",
+    "sv_note": "Thiết lập hệ thống"
+  },
+  {
+    "sv_moduleid": "FM",
+    "sv_version": "6.0.2",
+    "sv_name": "VIMESHospitalFeeMangr",
+    "sv_note": "Quản lý viện phí"
+  },
+  {
+    "sv_moduleid": "BB",
+    "sv_version": "6.0",
+    "sv_name": "VIMESBloodBankMangr",
+    "sv_note": "Quản lý máu"
+  },
+  {
+    "sv_moduleid": "DMM",
+    "sv_version": "6.0",
+    "sv_name": "HMSDailyMeeting",
+    "sv_note": "Quản lý giao ban"
+  },
+  {
+    "sv_moduleid": "HAR",
+    "sv_version": "6.0",
+    "sv_name": "VIMESHARManagr",
+    "sv_note": "Quản lý nhập bệnh án"
+  },
+  {
+    "sv_moduleid": "HRM",
+    "sv_version": "1.0",
+    "sv_name": "VIMESHRMangr",
+    "sv_note": "Quản lý nhân sự"
+  },
+  {
+    "sv_moduleid": "EMR",
+    "sv_version": "6.0",
+    "sv_name": "VIMESEMRMangr",
+    "sv_note": "Quản lý Bệnh án điện tử"
+  },
+  {
+    "sv_moduleid": "ED",
+    "sv_version": "6.0",
+    "sv_name": "VIMESEduMangr",
+    "sv_note": "Quản lý đào tạo + nghiên cứu khoa học"
+  },
+  {
+    "sv_moduleid": "SSR",
+    "sv_version": "",
+    "sv_name": "VIMESSRMangr",
+    "sv_note": "Quản lý nghiên cứu khoa học"
+  },
+  {
+    "sv_moduleid": "MRA",
+    "sv_version": "6.0",
+    "sv_name": "",
+    "sv_note": "Module dành cho lãnh đạo\t"
+  },
+  {
+    "sv_moduleid": "SMM",
+    "sv_version": "6.4",
+    "sv_name": "HMSSurgeryMangr",
+    "sv_note": "Quản lý phòng mổ"
+  },
+  {
+    "sv_moduleid": "PACS",
+    "sv_version": "6.2",
+    "sv_name": "VIMESImagingOrderMangr",
+    "sv_note": "Quản lý chẩn đoán hình ảnh"
+  },
+  {
+    "sv_moduleid": "RP.LIMS",
+    "sv_version": "1.0",
+    "sv_name": "BVNB",
+    "sv_note": "Báo cáo xét nghiệm"
+  },
+  {
+    "sv_moduleid": "RP.BVNB",
+    "sv_version": "2.0",
+    "sv_name": "BVNB",
+    "sv_note": "Báo cáo BVNB"
+  },
+  {
+    "sv_moduleid": "PKBC",
+    "sv_version": "1.5",
+    "sv_name": "BVNB",
+    "sv_note": "Phòng khám báo cáo"
+  },
+  {
+    "sv_moduleid": "VX",
+    "sv_version": "1.5",
+    "sv_name": "BVNB",
+    "sv_note": "Tiêm chủng vắc xin"
+  },
+  {
+    "sv_moduleid": "APP_EMR",
+    "sv_version": "1.0",
+    "sv_name": null,
+    "sv_note": "APP EMR"
+  },
+  {
+    "sv_moduleid": "SM.BVNB",
+    "sv_version": "1.0",
+    "sv_name": "BVNB",
+    "sv_note": "Module lấy mẫu"
+  },
+  {
+    "sv_moduleid": "CM",
+    "sv_version": "7.5",
+    "sv_name": "VIMESClothesManagr",
+    "sv_note": "Quản lý đồ vải"
+  },
+  {
+    "sv_moduleid": "EM",
+    "sv_version": "6.1",
+    "sv_name": "VIMESExaminationMangr",
+    "sv_note": "Quản lý khám bệnh"
+  },
+  {
+    "sv_moduleid": "RM",
+    "sv_version": "6.1",
+    "sv_name": "VIMESReceptionMangr",
+    "sv_note": "Quản lý tiếp đón"
+  },
+  {
+    "sv_moduleid": "TM",
+    "sv_version": "7.3",
+    "sv_name": "VIMESTreatmentMangr",
+    "sv_note": "Quản lý nội trú"
+  }
+]

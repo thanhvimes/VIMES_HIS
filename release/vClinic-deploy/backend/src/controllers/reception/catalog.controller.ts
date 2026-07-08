@@ -250,6 +250,15 @@ class ReceptionCatalogController {
             return res.status(500).json({ error: error.message });
         }
     }
+
+    async getDoctors(req: Request, res: Response) {
+        try {
+            const result = await query(`SELECT su_userid as id, su_name as name FROM sys_user WHERE su_isactive = 'Y' AND su_groupid IN ('D', 'P') ORDER BY su_name`);
+            return res.json(result.rows);
+        } catch (error: any) {
+            return res.status(500).json({ error: error.message });
+        }
+    }
 }
 
 export default new ReceptionCatalogController();

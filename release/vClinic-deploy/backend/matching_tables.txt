@@ -1,0 +1,18 @@
+hesp_servicepackage_id: integer
+hsep_createdby: character varying
+hesp_createddate: timestamp without time zone
+hesp_updatedby: character varying
+hesp_updateddate: timestamp without time zone
+hesp_contract_id: integer
+hesp_itemid: character varying
+hesp_quantity: integer
+hesp_unitprice: numeric
+hesp_gender: character varying
+hesp_isactive: character varying
+hsep_fillter_type: character varying
+hsep_useage: character varying
+hsep_male_age: integer
+hsep_female_age: integer
+hsep_use_dept: character varying
+hsep_dept: character varying
+hesp_type: character varying

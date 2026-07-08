@@ -4,36 +4,26 @@ import { AppSettings, MedicalRecord, ServiceItem, TicketData, Department, Provin
 import { MOCK_RECORDS, SERVICE_CATALOG } from '../constants';
 
 export const getBaseUrl = () => {
-  // 1. Mặc định là Origin hiện tại (Tự động nhận diện IP/Domain của Server)
-  let url = window.location.origin;
-  
-  // 2. Kiểm tra cấu hình trong localStorage
-  const saved = localStorage.getItem('vimesqms_settings');
-  if (saved) {
-    try {
-      const settings = JSON.parse(saved);
-      if (settings.serverUrl && settings.serverUrl.trim() !== '') {
-        let savedUrl = settings.serverUrl.trim();
-        if (!savedUrl.startsWith('http')) {
-            savedUrl = 'http://' + savedUrl;
-        }
-
-        // TỐI ƯU CHO DEPLOY: 
-        // Nếu đang chạy trên Server (không phải localhost) mà cấu hình cũ là localhost 
-        // thì bỏ qua cấu hình cũ để dùng IP Server hiện tại.
-        const isCurrentlyLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const isSavedLocal = savedUrl.includes('localhost') || savedUrl.includes('127.0.0.1');
-        
-        if (isCurrentlyLocal || !isSavedLocal) {
-            url = savedUrl;
-        }
-      }
-    } catch (e) {}
+  // 1. Kiểm tra cấu hình từ Environment variables (Vite)
+  // @ts-ignore
+  const envUrl = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL;
+  if (envUrl && envUrl.trim() !== '') {
+    let url = envUrl.trim();
+    if (url.startsWith('/')) {
+      url = window.location.origin + url;
+    } else if (!url.startsWith('http')) {
+      url = 'http://' + url;
+    }
+    return url.replace(/\/$/, '');
   }
 
-  // 3. Chế độ DEV: Nếu chạy Vite (3000/5173) và chưa có cấu hình, mặc định trỏ về port 3001 (do port 3000 đã bị chiếm bởi VIMESPortal)
+  // 2. Mặc định là Origin hiện tại (Tự động nhận diện IP/Domain của Server)
+  let url = window.location.origin;
+
+  // 3. Chế độ DEV: Nếu chạy Vite (3000/5173) trên localhost, mặc định trỏ về port 3001
+  const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
   const isDevPort = ['3000', '5173'].includes(window.location.port);
-  if (isDevPort && (url === window.location.origin || url.includes('localhost'))) {
+  if (isLocalhost && isDevPort && (url === window.location.origin || url.includes('localhost'))) {
     url = `http://${window.location.hostname}:3001`;
   }
 
@@ -82,6 +72,13 @@ async function fetchWithTimeout(resource: string, options: RequestInit = {}) {
   if (options.body && (!options.headers || !Object.keys(options.headers).some(k => k.toLowerCase() === 'content-type'))) {
     headers['Content-Type'] = 'application/json';
   }
+
+  console.log(`[apiClient] ========== QMS REQUEST DEBUG ==========`);
+  console.log(`[apiClient] Endpoint: ${resource}`);
+  console.log(`[apiClient] Method: ${options.method || 'GET'}`);
+  console.log(`[apiClient] Headers: ${JSON.stringify(headers, null, 2)}`);
+  console.log(`[apiClient] ========================================`);
+  console.log(`[API Request] ${options.method || 'GET'} ${fullUrl}`);
 
   try {
     const response = await fetch(fullUrl, { ...options, headers, signal: controller.signal });

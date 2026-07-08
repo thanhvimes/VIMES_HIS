@@ -176,24 +176,24 @@ const Kiosk: React.FC<KioskProps> = ({ settings, onBack }) => {
             
             <div className="grid grid-cols-3 gap-6 w-full max-w-6xl">
               {[
-                { id: 'RECEPTION', name: 'TIẾP ĐỐN', icon: <UserCheck size={48} />, color: 'bg-purple-600', desc: 'Đón tiếp, đăng ký thông tin ban đầu' },
-                { id: 'REGISTRATION', name: 'ĐĂNG KÝ KHÁM BỆNH', icon: <Stethoscope size={48} />, color: 'bg-blue-600', desc: 'Dành cho bệnh nhân mới hoặc tái khám' },
-                { id: 'EXECUTION', name: 'THỰC HIỆN CHỈ ĐỊNH', icon: <FlaskConical size={48} />, color: 'bg-rose-600', desc: 'Siêu âm, X-Quang, CT, Nội soi...' },
-                { id: 'SAMPLING', name: 'LẤY MẪU XN', icon: <Droplet size={48} />, color: 'bg-emerald-600', desc: 'Lấy mẫu máu, nước tiểu, xét nghiệm...' },
-                { id: 'PAYMENT', name: 'THANH TOÁN VIỆN PHÍ', icon: <Coins size={48} />, color: 'bg-amber-500', desc: 'Thanh toán hóa đơn, tạm ứng' },
-                { id: 'DRUG', name: 'LĨNH THUỐC', icon: <Pill size={48} />, color: 'bg-slate-600', desc: 'Nhà thuốc bệnh viện, cấp thuốc BHYT' }
+                { id: 'RECEPTION', name: 'TIẾP ĐỐN', icon: <UserCheck size={48} />, iconColor: 'text-indigo-600 dark:text-indigo-400', iconBg: 'bg-indigo-50 dark:bg-indigo-950/30', borderHover: 'hover:border-indigo-500/50', desc: 'Đón tiếp, đăng ký thông tin ban đầu' },
+                { id: 'REGISTRATION', name: 'ĐĂNG KÝ KHÁM BỆNH', icon: <Stethoscope size={48} />, iconColor: 'text-blue-600 dark:text-blue-400', iconBg: 'bg-blue-50 dark:bg-blue-950/30', borderHover: 'hover:border-blue-500/50', desc: 'Dành cho bệnh nhân mới hoặc tái khám' },
+                { id: 'EXECUTION', name: 'THỰC HIỆN CHỈ ĐỊNH', icon: <FlaskConical size={48} />, iconColor: 'text-rose-650 dark:text-rose-400', iconBg: 'bg-rose-50 dark:bg-rose-950/30', borderHover: 'hover:border-rose-500/50', desc: 'Siêu âm, X-Quang, CT, Nội soi...' },
+                { id: 'SAMPLING', name: 'LẤY MẪU XN', icon: <Droplet size={48} />, iconColor: 'text-emerald-600 dark:text-emerald-400', iconBg: 'bg-emerald-50 dark:bg-emerald-950/30', borderHover: 'hover:border-emerald-500/50', desc: 'Lấy mẫu máu, nước tiểu, xét nghiệm...' },
+                { id: 'PAYMENT', name: 'THANH TOÁN VIỆN PHÍ', icon: <Coins size={48} />, iconColor: 'text-amber-600 dark:text-amber-400', iconBg: 'bg-amber-50 dark:bg-amber-950/30', borderHover: 'hover:border-amber-500/50', desc: 'Thanh toán hóa đơn, tạm ứng' },
+                { id: 'DRUG', name: 'LĨNH THUỐC', icon: <Pill size={48} />, iconColor: 'text-slate-600 dark:text-slate-400', iconBg: 'bg-slate-50 dark:bg-slate-900/40', borderHover: 'hover:border-slate-500/50', desc: 'Nhà thuốc bệnh viện, cấp thuốc BHYT' }
               ].map((item) => (
                 <button
                   key={item.id}
                   onClick={() => { setTicketType(item.id as TicketType); setStep('PATIENT_IDENTIFY'); }}
-                  className={`${item.color} p-6 rounded-[2.5rem] shadow-xl shadow-slate-200/50 hover:scale-[1.02] active:scale-95 transition-all flex flex-col items-center text-center space-y-4 border-b-[8px] border-black/20 text-white`}
+                  className={`bg-white hover:bg-slate-50/40 border border-slate-200/80 ${item.borderHover} p-8 rounded-[2.5rem] shadow-lg shadow-slate-100/50 hover:scale-[1.02] hover:shadow-xl hover:shadow-slate-200/50 active:scale-95 transition-all flex flex-col items-center text-center space-y-4 border-b-[8px] border-slate-100 text-slate-800`}
                 >
-                  <div className="p-4 bg-white/20 rounded-2xl">
+                  <div className={`p-5 ${item.iconBg} ${item.iconColor} rounded-3xl`}>
                     {item.icon}
                   </div>
                   <div>
-                    <h3 className="text-xl font-black tracking-tight uppercase mb-1">{item.name}</h3>
-                    <p className="text-white/80 font-medium text-xs line-clamp-2">{item.desc}</p>
+                    <h3 className="text-xl font-black tracking-tight uppercase mb-1.5 text-slate-900">{item.name}</h3>
+                    <p className="text-slate-400 font-bold text-xs line-clamp-2">{item.desc}</p>
                   </div>
                 </button>
               ))}

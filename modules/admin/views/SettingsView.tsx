@@ -307,14 +307,13 @@ const SettingsView: React.FC = () => {
                             {/* Left Column: Logo & Basic */}
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Tên Bệnh viện (Hiển thị lớn)</label>
+                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Tên Bệnh viện (Lấy từ hệ thống)</label>
                                     <input
                                         type="text"
                                         name="hospitalName"
                                         value={brandingForm.hospitalName}
-                                        onChange={handleBrandingChange}
-                                        className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 font-bold text-lg"
-                                        placeholder="BỆNH VIỆN..."
+                                        disabled
+                                        className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900 text-slate-400 dark:text-slate-500 font-bold text-lg cursor-not-allowed"
                                     />
                                 </div>
                                 <div>

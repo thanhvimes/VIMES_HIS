@@ -26,6 +26,7 @@ export interface UserInfo {
 }
 
 export interface ModulePermissions {
+    [key: string]: boolean;
     rm: boolean; em: boolean; tm: boolean; us: boolean;
     pa: boolean; es: boolean; hf: boolean; pm: boolean;
     op: boolean; cr: boolean; sys: boolean; lab: boolean;
@@ -37,6 +38,7 @@ export interface ModulePermissions {
     fa: boolean; hr: boolean; ap: boolean; erp_ar: boolean;
     gl: boolean; po: boolean; so: boolean; si: boolean;
     bil: boolean;
+    hcc: boolean; rol: boolean; qms: boolean; ksk: boolean;
 }
 
 export interface LoginResponse {

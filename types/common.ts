@@ -88,4 +88,5 @@ export interface UserSession {
     avatarUrl?: string;
     permissions?: string[]; // Detailed perms from sys_userperm
     moduleId?: string;      // Current module context (e.g., 'RM', 'EM')
+    modules?: Record<string, boolean>; // Map of module permissions
 }

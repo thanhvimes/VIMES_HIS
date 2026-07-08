@@ -1,0 +1,206 @@
+[
+  {
+    "column_name": "hpc_createdby",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_createddate",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "column_name": "hpc_updatedby",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_updateddate",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "column_name": "hpc_orderid",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "hpc_patientno",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "hpc_docno",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "hpc_deptid",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_refidx",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "hpc_roomid",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "hpc_bedid",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "hpc_instid",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "hpc_sid",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "hpc_orderdate",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "column_name": "hpc_doctor",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_pdeptid",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_proomid",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "hpc_practitioner",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_performdate",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "column_name": "hpc_groupid",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_status",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_note",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_emergency",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_priority",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "hpc_payment",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_processed",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_locked",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_invoiceno",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "hpc_class",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_object",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "hpc_inspaid",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_treattime",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "hpc_isreq",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_treatidx",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "hpc_print_count",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "hpc_samplestatus",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_sample",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_inpackage",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_signature",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_assistant",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_icd",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_diagnostic",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_receiveddate",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "column_name": "hpc_receivedby",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_statusmap",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_receptno",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "hpc_signed_labo",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_signed_lab",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_approvalby",
+    "data_type": "character varying"
+  },
+  {
+    "column_name": "hpc_startdate",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "column_name": "hpc_comment",
+    "data_type": "character varying"
+  }
+]

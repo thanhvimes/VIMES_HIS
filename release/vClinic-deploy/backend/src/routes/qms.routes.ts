@@ -1,117 +1,126 @@
 import { Router } from 'express';
-import { QmsController } from '../controllers/qms/qms.controller';
+import { QmsCatalogController } from '../controllers/qms/qms-catalog.controller';
+import { QmsPatientController } from '../controllers/qms/qms-patient.controller';
+import { QmsTicketController } from '../controllers/qms/qms-ticket.controller';
+import { QmsQueueController } from '../controllers/qms/qms-queue.controller';
+import { QmsSurgeryController } from '../controllers/qms/qms-surgery.controller';
+import { QmsPaymentController } from '../controllers/qms/qms-payment.controller';
+import { QmsUtilityController } from '../controllers/qms/qms-utility.controller';
 
 const router = Router();
 
 // Admin
-router.post('/admin/verify-password', QmsController.verifyPassword);
+router.post('/admin/verify-password', QmsUtilityController.verifyPassword);
 
 // Areas & Counters (Zoning)
-router.get('/zoning/areas', QmsController.getZoningAreas);
-router.post('/zoning/areas', QmsController.createZoningArea);
-router.put('/zoning/areas', QmsController.updateZoningArea);
-router.delete('/zoning/areas/:id', QmsController.deleteZoningArea);
+router.get('/zoning/areas', QmsCatalogController.getZoningAreas);
+router.post('/zoning/areas', QmsCatalogController.createZoningArea);
+router.put('/zoning/areas', QmsCatalogController.updateZoningArea);
+router.delete('/zoning/areas/:id', QmsCatalogController.deleteZoningArea);
 
-router.get('/zoning/counters', QmsController.getZoningCounters);
-router.post('/zoning/counters', QmsController.createZoningCounter);
-router.put('/zoning/counters', QmsController.updateZoningCounter);
-router.delete('/zoning/counters/:id', QmsController.deleteZoningCounter);
+router.get('/zoning/counters', QmsCatalogController.getZoningCounters);
+router.post('/zoning/counters', QmsCatalogController.createZoningCounter);
+router.put('/zoning/counters', QmsCatalogController.updateZoningCounter);
+router.delete('/zoning/counters/:id', QmsCatalogController.deleteZoningCounter);
 
-router.get('/zoning/all-counters', QmsController.getAllCounters);
-router.get('/zoning/assignments', QmsController.getKioskAssignments);
-router.post('/zoning/assign-kiosk', QmsController.assignKiosk);
-router.post('/zoning/assign-counter', QmsController.assignCounter);
+router.get('/zoning/all-counters', QmsCatalogController.getAllCounters);
+router.get('/zoning/assignments', QmsCatalogController.getKioskAssignments);
+router.post('/zoning/assign-kiosk', QmsCatalogController.assignKiosk);
+router.post('/zoning/assign-counter', QmsCatalogController.assignCounter);
 
-router.get('/areas', QmsController.getAreas);
-router.get('/public/areas', QmsController.getPublicAreas);
-router.get('/public/areas/:areaCode/rooms', QmsController.getRoomsByArea);
-router.get('/public/counters', QmsController.getPublicCounters);
+router.get('/areas', QmsCatalogController.getAreas);
+router.get('/public/areas', QmsCatalogController.getPublicAreas);
+router.get('/public/areas/:areaCode/rooms', QmsCatalogController.getRoomsByArea);
+router.get('/public/counters', QmsCatalogController.getPublicCounters);
 
 // Departments & Specialties & Rooms
-router.get('/departments', QmsController.getDepartments);
-router.get('/departments/:deptId/rooms', QmsController.getRoomsByDept);
-router.get('/rooms/:areaCode', QmsController.getRoomsByArea);
-router.get('/rooms-by-dept/:deptId', QmsController.getRoomsByDept);
-router.get('/specialties/:deptid', QmsController.getSpecialties);
+router.get('/departments', QmsCatalogController.getDepartments);
+router.get('/departments/:deptId/rooms', QmsCatalogController.getRoomsByDept);
+router.get('/rooms/:areaCode', QmsCatalogController.getRoomsByArea);
+router.get('/rooms-by-dept/:deptId', QmsCatalogController.getRoomsByDept);
+router.get('/specialties/:deptid', QmsCatalogController.getSpecialties);
 
 // HIS Patient Lookup & Orders
-router.get('/his/patient/:identity', QmsController.getPatientFromHIS);
-router.get('/his/pending-orders/:searchId', QmsController.getPendingOrders);
-router.get('/his/orders/:searchId', QmsController.getPendingOrders); // Fallback
-router.get('/his/visits/:searchId', QmsController.getPatientVisits);
-router.get('/patient/:searchId/visits', QmsController.getPatientVisits); // Fallback
+router.get('/his/patient/:identity', QmsPatientController.getPatientFromHIS);
+router.get('/his/pending-orders/:searchId', QmsPatientController.getPendingOrders);
+router.get('/his/orders/:searchId', QmsPatientController.getPendingOrders); // Fallback
+router.get('/his/visits/:searchId', QmsPatientController.getPatientVisits);
+router.get('/patient/:searchId/visits', QmsPatientController.getPatientVisits); // Fallback
 
 // Medical Records
-router.get('/records/:recordId', QmsController.getMedicalRecord);
-router.get('/records/:recordId/vitals', QmsController.getRecordVitals);
-router.get('/records/:recordId/lab-results', QmsController.getRecordLabResults);
-router.get('/records/:recordId/imaging-results', QmsController.getRecordImagingResults);
-router.get('/records/:recordId/prescription', QmsController.getRecordPrescription);
-router.get('/records/:recordId/images', QmsController.getRecordImages);
+router.get('/records/:recordId', QmsPatientController.getMedicalRecord);
+router.get('/records/:recordId/vitals', QmsPatientController.getRecordVitals);
+router.get('/records/:recordId/lab-results', QmsPatientController.getRecordLabResults);
+router.get('/records/:recordId/prescription', QmsPatientController.getRecordPrescription);
 
-router.get('/his/record/:recordId', QmsController.getMedicalRecord); // Fallback
-router.get('/his/record/:recordId/vitals', QmsController.getRecordVitals); // Fallback
-router.get('/his/record/:recordId/lab', QmsController.getRecordLabResults); // Fallback
-router.get('/his/record/:recordId/imaging', QmsController.getRecordImagingResults); // Fallback
-router.get('/his/record/:recordId/prescription', QmsController.getRecordPrescription); // Fallback
-router.get('/his/record/:recordId/images', QmsController.getRecordImages); // Fallback
+router.get('/his/record/:recordId', QmsPatientController.getMedicalRecord); // Fallback
+router.get('/his/record/:recordId/vitals', QmsPatientController.getRecordVitals); // Fallback
+router.get('/his/record/:recordId/lab', QmsPatientController.getRecordLabResults); // Fallback
+router.get('/his/record/:recordId/prescription', QmsPatientController.getRecordPrescription); // Fallback
 
 // Services & Catalog
-router.get('/services', QmsController.getServices);
+router.get('/services', QmsCatalogController.getServices);
 
 // Feedback
-router.post('/feedback', QmsController.submitFeedback);
+router.post('/feedback', QmsTicketController.submitFeedback);
 
 // Ticket Generation (Kiosk)
-router.post('/queue', QmsController.createTicket);
-router.post('/queue/create-ticket', QmsController.createTicket); // Fallback
-router.post('/queue/quick-number', QmsController.quickNumber);
+router.post('/queue', QmsTicketController.createTicket);
+router.post('/queue/create-ticket', QmsTicketController.createTicket); // Fallback
+router.post('/queue/quick-number', QmsTicketController.quickNumber);
 
 // Queue Management (Consoles)
-router.post('/queue/call-next', QmsController.callNext);
-router.post('/queue/complete', QmsController.complete);
-router.post('/queue/call-again', QmsController.callAgain);
-router.post('/queue/call-specific', QmsController.callSpecific);
-router.post('/queue/skip', QmsController.skip);
-router.post('/queue/transfer', QmsController.transfer);
+router.post('/queue/call-next', QmsQueueController.callNext);
+router.post('/queue/complete', QmsQueueController.complete);
+router.post('/queue/call-again', QmsQueueController.callAgain);
+router.post('/queue/call-specific', QmsQueueController.callSpecific);
+router.post('/queue/skip', QmsQueueController.skip);
+router.post('/queue/transfer', QmsQueueController.transfer);
 
-router.get('/queue/waiting-list/:counterId', QmsController.getWaitingList);
-router.get('/queue/waiting-list/area/:areaId', QmsController.getWaitingListByArea);
-router.get('/queue/waiting/:counterId', QmsController.getWaitingList); // Fallback
-router.get('/queue/waiting-by-area/:areaId', QmsController.getWaitingListByArea); // Fallback
+router.get('/queue/waiting-list/:counterId', QmsQueueController.getWaitingList);
+router.get('/queue/waiting-list/area/:areaId', QmsQueueController.getWaitingListByArea);
+router.get('/queue/waiting/:counterId', QmsQueueController.getWaitingList); // Fallback
+router.get('/queue/waiting-by-area/:areaId', QmsQueueController.getWaitingListByArea); // Fallback
+router.get('/queue/patients-by-status/:counterId', QmsQueueController.getPatientsByStatus);
 
-router.get('/queue/stats/:counterId', QmsController.getStats);
-router.get('/queue/history/:counterId', QmsController.getHistory);
+router.get('/queue/stats/:counterId', QmsQueueController.getStats);
+router.get('/queue/history/:counterId', QmsQueueController.getHistory);
 
 // Surgery Monitor
-router.get('/queue/surgery-waiting-list', QmsController.getSurgeryWaitingList);
-router.post('/queue/surgery/status', QmsController.updateSurgeryStatus);
-router.post('/queue/update-surgery-status', QmsController.updateSurgeryStatus); // Fallback
-router.get('/queue/surgery-rooms', QmsController.getSurgeryRooms);
-router.get('/queue/his-surgeries', QmsController.getHisSurgeries);
-router.post('/queue/surgery/add-from-his', QmsController.addSurgeryFromHis);
-router.post('/queue/add-surgery-from-his', QmsController.addSurgeryFromHis); // Fallback
+router.get('/queue/surgery-waiting-list', QmsSurgeryController.getSurgeryWaitingList);
+router.post('/queue/surgery/status', QmsSurgeryController.updateSurgeryStatus);
+router.post('/queue/update-surgery-status', QmsSurgeryController.updateSurgeryStatus); // Fallback
+router.get('/queue/surgery-rooms', QmsSurgeryController.getSurgeryRooms);
+router.get('/queue/surgery-tables', QmsSurgeryController.getSurgeryTables);
+router.get('/queue/his-surgeries', QmsSurgeryController.getHisSurgeries);
+router.post('/queue/surgery/add-from-his', QmsSurgeryController.addSurgeryFromHis);
+router.post('/queue/add-surgery-from-his', QmsSurgeryController.addSurgeryFromHis); // Fallback
 
 // Displays
-router.get('/display/:areaId', QmsController.getDisplay);
-router.get('/central', QmsController.getCentral);
-router.get('/counter/:id', QmsController.getCounterInfo);
+router.get('/queue/display/:areaId', QmsQueueController.getDisplay);
+router.get('/display/:areaId', QmsQueueController.getDisplay); // Fallback
+
+router.get('/queue/central', QmsQueueController.getCentral);
+router.get('/central', QmsQueueController.getCentral); // Fallback
+
+router.get('/queue/counter/:id', QmsQueueController.getCounterInfo);
+router.get('/counter/:id', QmsQueueController.getCounterInfo); // Fallback
 
 // SSE Event Stream
-router.get('/queue/events', QmsController.sseEvents);
+router.get('/queue/events', QmsQueueController.sseEvents);
 
 // Payments & Receipts
-router.get('/patient/:searchId/bills', QmsController.getPatientBills);
-router.get('/payment/:billId/status', QmsController.getPaymentStatus);
-router.post('/payment/generate-qr', QmsController.generatePaymentQR);
-router.post('/payment/:transactionId/complete', QmsController.completePayment);
-router.post('/print-receipt', QmsController.printReceipt);
+router.get('/patient/:searchId/bills', QmsPaymentController.getPatientBills);
+router.get('/payment/:billId/status', QmsPaymentController.getPaymentStatus);
+router.post('/payment/generate-qr', QmsPaymentController.generatePaymentQR);
+router.post('/payment/:transactionId/complete', QmsPaymentController.completePayment);
+router.post('/print-receipt', QmsPaymentController.printReceipt);
 
 // Text-to-speech
-router.get('/tts', QmsController.tts);
+router.get('/tts', QmsUtilityController.tts);
 
 // Admin dashboard detailed stats
-router.get('/public/stats/detailed', QmsController.getDetailedStats);
-router.get('/public/stats/hourly', QmsController.getHourlyStats);
+router.get('/public/stats/detailed', QmsQueueController.getDetailedStats);
+router.get('/public/stats/hourly', QmsQueueController.getHourlyStats);
 
 export default router;

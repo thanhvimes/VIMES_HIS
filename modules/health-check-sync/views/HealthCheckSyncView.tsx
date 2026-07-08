@@ -312,16 +312,30 @@ const HealthCheckSyncView: React.FC = () => {
 
 
 
-    const handleSaveDocument = async (payload: any) => {
+    const handleSaveDocument = async (payload: any, options?: { shouldSign?: boolean; shouldUnlock?: boolean }) => {
         setIsLoading(true);
         try {
+            let docId = activeDocument?.id;
             if (viewMode === 'CREATE') {
-                await healthCheckService.createDocument(payload);
-                toast.success("Tạo hồ sơ KSK thành công!");
+                const res = await healthCheckService.createDocument(payload);
+                docId = res.id;
+                if (!options?.shouldSign) {
+                    toast.success("Tạo hồ sơ KSK thành công!");
+                }
             } else if (viewMode === 'EDIT' && activeDocument) {
                 await healthCheckService.updateDocument(activeDocument.id, payload);
-                toast.success("Cập nhật hồ sơ KSK thành công!");
+                if (!options?.shouldSign && !options?.shouldUnlock) {
+                    toast.success("Cập nhật hồ sơ KSK thành công!");
+                }
             }
+
+            if (options?.shouldSign && docId) {
+                await healthCheckService.signDocuments([docId.toString()], 'HSM');
+                toast.success("Đã khóa & ký số hồ sơ thành công!");
+            } else if (options?.shouldUnlock) {
+                toast.success("Đã mở khóa hồ sơ thành công!");
+            }
+
             await loadData();
             setSearchParams({ step: 'manage' }); // Redirect to manage
         } catch (error: any) {

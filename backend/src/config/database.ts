@@ -56,6 +56,46 @@ pool.on('error', (err: Error) => {
 });
 
 /**
+ * Checks if a DB error is a retryable network/connection error or replication conflict.
+ */
+const isRetryableError = (error: any): boolean => {
+    if (!error) return false;
+    const code = String(error.code || '');
+    const message = String(error.message || '').toLowerCase();
+    
+    const retryableCodes = [
+        '40001', '08000', '08003', '08006', '08001', '08004', '57P01', '57P02', '57P03',
+        'ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND', 'EHOSTUNREACH', 'EPIPE'
+    ];
+
+    if (retryableCodes.includes(code)) return true;
+    if (message.includes('conflict with recovery')) return true;
+    if (message.includes('connection terminated')) return true;
+    if (message.includes('socket hung up')) return true;
+    if (message.includes('timeout')) return true;
+    if (message.includes('read econnreset')) return true;
+
+    return false;
+};
+
+let keepAliveInterval: NodeJS.Timeout | null = null;
+/**
+ * Starts a background keep-alive ping to ensure the DB connection stays active
+ * and logs early if the database goes down.
+ */
+export const startKeepAlivePing = () => {
+    if (keepAliveInterval) clearInterval(keepAliveInterval);
+    console.log('🔄 Starting DB Keep-Alive Ping (every 30s)...');
+    keepAliveInterval = setInterval(async () => {
+        try {
+            await pool.query('SELECT 1 AS ping');
+        } catch (error: any) {
+            console.error('⚠️ DB Keep-Alive Ping Failed. Network might be down:', error.message);
+        }
+    }, 30000);
+};
+
+/**
  * Executes a database query within a context of user and ip (for auditing)
  */
 export const queryWithContext = async (
@@ -63,7 +103,7 @@ export const queryWithContext = async (
     params: any[] | undefined, 
     context: { userId: string | number, ip?: string, module?: string }
 ): Promise<QueryResult> => {
-    const maxRetries = 3;
+    const maxRetries = 5;
     let attempt = 0;
     while (true) {
         const client = await pool.connect();
@@ -87,9 +127,9 @@ export const queryWithContext = async (
             client.release();
 
             attempt++;
-            if (attempt < maxRetries && (error.code === '40001' || String(error.message || '').toLowerCase().includes('conflict with recovery'))) {
-                const retryDelay = 500 * attempt;
-                console.warn(`⚠️ DB queryWithContext conflict with recovery (40001). Retrying in ${retryDelay}ms... (Attempt ${attempt}/${maxRetries})`);
+            if (attempt < maxRetries && isRetryableError(error)) {
+                const retryDelay = Math.min(1000 * Math.pow(2, attempt - 1), 10000); 
+                console.warn(`⚠️ DB queryWithContext Network/Conflict Error (${error.code || error.message}). Retrying in ${retryDelay}ms... (Attempt ${attempt}/${maxRetries})`);
                 await new Promise(resolve => setTimeout(resolve, retryDelay));
                 continue;
             }
@@ -103,7 +143,7 @@ export const queryWithContext = async (
  * Standard query for general use
  */
 export const query = async (text: string, params?: any[]): Promise<QueryResult> => {
-    const maxRetries = 3;
+    const maxRetries = 5;
     let attempt = 0;
     while (true) {
         const start = Date.now();
@@ -116,9 +156,9 @@ export const query = async (text: string, params?: any[]): Promise<QueryResult> 
             return res;
         } catch (error: any) {
             attempt++;
-            if (attempt < maxRetries && (error.code === '40001' || String(error.message || '').toLowerCase().includes('conflict with recovery'))) {
-                const retryDelay = 500 * attempt;
-                console.warn(`⚠️ DB query conflict with recovery (40001). Retrying in ${retryDelay}ms... (Attempt ${attempt}/${maxRetries})`);
+            if (attempt < maxRetries && isRetryableError(error)) {
+                const retryDelay = Math.min(1000 * Math.pow(2, attempt - 1), 10000); 
+                console.warn(`⚠️ DB query Network/Conflict Error (${error.code || error.message}). Retrying in ${retryDelay}ms... (Attempt ${attempt}/${maxRetries})`);
                 await new Promise(resolve => setTimeout(resolve, retryDelay));
                 continue;
             }
@@ -148,7 +188,7 @@ export const hmsQuery = async (req: any, text: string, params?: any[]): Promise<
  * @returns Result of the callback function.
  */
 export const transaction = async <T>(callback: (client: PoolClient) => Promise<T>): Promise<T> => {
-    const maxRetries = 3;
+    const maxRetries = 5;
     let attempt = 0;
     while (true) {
         const client = await pool.connect();
@@ -167,9 +207,9 @@ export const transaction = async <T>(callback: (client: PoolClient) => Promise<T
             client.release();
 
             attempt++;
-            if (attempt < maxRetries && (error.code === '40001' || String(error.message || '').toLowerCase().includes('conflict with recovery'))) {
-                const retryDelay = 500 * attempt;
-                console.warn(`⚠️ DB transaction conflict with recovery (40001). Retrying in ${retryDelay}ms... (Attempt ${attempt}/${maxRetries})`);
+            if (attempt < maxRetries && isRetryableError(error)) {
+                const retryDelay = Math.min(1000 * Math.pow(2, attempt - 1), 10000); 
+                console.warn(`⚠️ DB transaction Network/Conflict Error (${error.code || error.message}). Retrying in ${retryDelay}ms... (Attempt ${attempt}/${maxRetries})`);
                 await new Promise(resolve => setTimeout(resolve, retryDelay));
                 continue;
             }
@@ -183,5 +223,6 @@ export default {
     query,
     queryWithContext,
     hmsQuery,
-    transaction
+    transaction,
+    startKeepAlivePing
 };

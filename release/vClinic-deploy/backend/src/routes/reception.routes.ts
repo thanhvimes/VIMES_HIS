@@ -30,6 +30,7 @@ router.get('/catalogs/nations', catalog.getNations.bind(catalog));
 router.get('/catalogs/relationships', catalog.getRelationships.bind(catalog));
 router.get('/catalogs/workplaces', catalog.getWorkplaces.bind(catalog));
 router.get('/catalogs/receptionists', catalog.getReceptionists.bind(catalog));
+router.get('/catalogs/doctors', catalog.getDoctors.bind(catalog));
 router.get('/catalogs', catalog.getCatalogItems.bind(catalog));
 
 // ── TRA CỨU BỆNH NHÂN ──────────────────────────

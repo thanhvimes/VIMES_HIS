@@ -15,5 +15,6 @@ router.get('/occupations', catalogController.getOccupations.bind(catalogControll
 router.get('/examtypes', catalogController.getExamTypes.bind(catalogController));
 router.get('/objects', catalogController.getObjects.bind(catalogController));
 router.get('/hospitals', catalogController.getHospitals.bind(catalogController));
+router.get('/icd10', catalogController.searchIcd10.bind(catalogController));
 
 export default router;

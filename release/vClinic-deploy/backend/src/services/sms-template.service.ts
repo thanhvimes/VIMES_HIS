@@ -31,7 +31,10 @@ class SMSTemplateService {
      * Get SMS template with fallback logic
      * Priority: specific dept+type > dept only > type only > default
      */
-    async getTemplate(templateType: string, deptCode: string | null = null, patientType: string | null = null): Promise<SMSTemplate | null> {
+    async getTemplate(templateType: string, deptCode: any = null, patientType: any = null): Promise<SMSTemplate | null> {
+        const deptCodeStr = deptCode !== null && deptCode !== undefined ? String(deptCode) : null;
+        const patientTypeStr = patientType !== null && patientType !== undefined ? String(patientType) : null;
+
         const sql = `
             SELECT template_id, template_type, dept_code, patient_type, 
                    template_content, description, is_active
@@ -57,7 +60,7 @@ class SMSTemplateService {
             LIMIT 1
         `;
 
-        const result = await query(sql, [templateType, deptCode, patientType]);
+        const result = await query(sql, [templateType, deptCodeStr, patientTypeStr]);
 
         if (result.rows.length === 0) {
             return null;

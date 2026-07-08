@@ -23,7 +23,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   selectedRooms: [],
   kioskName: 'Hệ thống QMS',
   ipAddress: '127.0.0.1',
-  serverUrl: `http://${window.location.hostname}:3001`,
+  serverUrl: ['localhost', '127.0.0.1'].includes(window.location.hostname) 
+    ? `http://${window.location.hostname}:3001` 
+    : `http://${window.location.hostname}:${window.location.port || '3000'}`,
   enableDepartmentSelection: true,
   enableMultiSpecialtySelection: false,
   enabledModules: {

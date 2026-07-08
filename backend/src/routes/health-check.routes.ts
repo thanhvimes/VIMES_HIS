@@ -1,4 +1,5 @@
 import express from 'express';
+import { query } from '../config/database';
 import healthCheckController from '../controllers/health-check/health-check.controller';
 import { contractsController } from '../controllers/health-check/contracts.controller';
 import { employeesController } from '../controllers/health-check/employees.controller';
@@ -48,6 +49,7 @@ router.get('/settings', contractsController.getSettings.bind(contractsController
 router.put('/settings', contractsController.updateSettings.bind(contractsController));
 router.post('/settings/test-connection', contractsController.testConnection.bind(contractsController));
 
+
 // Reception & CCCD search endpoints
 router.get('/reception/search', authMiddleware, receptionController.searchEmployeeByCard.bind(receptionController));
 router.post('/reception/receive', authMiddleware, receptionController.receiveContractEmployee.bind(receptionController));
@@ -62,5 +64,6 @@ router.get('/samples/orders/:orderId/items', authMiddleware, sampleTrackingContr
 router.get('/samples/cancelled', authMiddleware, sampleTrackingController.getCancelledSamples.bind(sampleTrackingController));
 router.post('/samples/receive', authMiddleware, sampleTrackingController.confirmSampleReceipt.bind(sampleTrackingController));
 router.post('/samples/cancel', authMiddleware, sampleTrackingController.cancelSampleReceipt.bind(sampleTrackingController));
+
 
 export default router;

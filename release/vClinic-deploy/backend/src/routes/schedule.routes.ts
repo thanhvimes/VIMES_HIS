@@ -31,4 +31,7 @@ router.post('/init', authMiddleware, async (req: AuthRequest, res: express.Respo
     }
 });
 
+// POST /api/v1/schedule/clean-virtual-slots
+router.post('/clean-virtual-slots', authMiddleware, scheduleController.cleanVirtualSlots.bind(scheduleController));
+
 export default router;

@@ -492,7 +492,9 @@ export class ContractsController {
                     f.hfl_unit as unit,
                     sp.hesp_quantity as quantity,
                     sp.hesp_unitprice as price,
-                    sp.hesp_gender as gender
+                    sp.hesp_gender as gender,
+                    sp.hesp_minage as min_age,
+                    sp.hesp_maxage as max_age
                 FROM hms_exm_servicepackage sp
                 JOIN hms_fee_list f ON TRIM(f.hfl_feeid) = TRIM(sp.hesp_itemid)
                 WHERE sp.hesp_contract_id = $1 AND sp.hesp_isactive = 'Y'
@@ -525,15 +527,18 @@ export class ContractsController {
                 await query(`
                     INSERT INTO hms_exm_servicepackage (
                         hesp_servicepackage_id, hesp_contract_id, hesp_itemid, 
-                        hesp_quantity, hesp_unitprice, hesp_gender, hesp_isactive, hesp_createddate
-                    ) VALUES ($1, $2, $3, $4, $5, $6, 'Y', NOW())
+                        hesp_quantity, hesp_unitprice, hesp_gender, hesp_isactive, hesp_createddate,
+                        hesp_minage, hesp_maxage
+                    ) VALUES ($1, $2, $3, $4, $5, $6, 'Y', NOW(), $7, $8)
                 `, [
                     currentMaxId,
                     contractId,
                     s.item_id,
                     s.quantity || 1,
                     s.price || 0,
-                    s.gender || 'A'
+                    s.gender || 'A',
+                    s.min_age !== undefined && s.min_age !== null ? s.min_age : null,
+                    s.max_age !== undefined && s.max_age !== null ? s.max_age : null
                 ]);
             }
             return res.json({ success: true });

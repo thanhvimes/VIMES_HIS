@@ -110,7 +110,9 @@ export const query = async (text: string, params?: any[]): Promise<QueryResult> 
         try {
             const res = await pool.query(text, params);
             const duration = Date.now() - start;
-            console.log('Executed query', { text: text.substring(0, 50) + '...', duration, rows: res.rowCount });
+            if (process.env.DEBUG_DB === 'true') {
+                console.log('Executed query', { text: text.substring(0, 50) + '...', duration, rows: res.rowCount });
+            }
             return res;
         } catch (error: any) {
             attempt++;

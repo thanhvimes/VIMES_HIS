@@ -251,12 +251,12 @@ const AdminConfig: React.FC<AdminConfigProps> = ({ settings, onSave, onBack }) =
 
                   <div className="grid grid-cols-2 gap-8">
                      <div className="space-y-3">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tên bệnh viện</label>
+                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tên bệnh viện (Lấy từ hệ thống)</label>
                         <input 
                            type="text" 
                            value={localSettings.hospitalName}
-                           onChange={(e) => setLocalSettings({...localSettings, hospitalName: e.target.value})}
-                           className="w-full h-14 bg-white border border-slate-200 rounded-2xl px-6 font-bold text-slate-700 focus:outline-none focus:border-blue-500 shadow-sm"
+                           disabled
+                           className="w-full h-14 bg-slate-50 border border-slate-200 rounded-2xl px-6 font-bold text-slate-400 cursor-not-allowed shadow-sm"
                         />
                      </div>
                      <div className="space-y-3">

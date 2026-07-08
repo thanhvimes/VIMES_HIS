@@ -14,6 +14,9 @@ router.get('/', settingsController.getAllSettings.bind(settingsController));
 // Get settings by category
 router.get('/category/:category', settingsController.getSettingsByCategory.bind(settingsController));
 
+// Get company info directly from SYS_COMPANY table
+router.get('/company-info', settingsController.getCompanyInfo.bind(settingsController));
+
 // Get single setting by key
 router.get('/:key', settingsController.getSetting.bind(settingsController));
 

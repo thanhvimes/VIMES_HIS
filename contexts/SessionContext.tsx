@@ -63,7 +63,7 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
     // Auto-load user info on mount if token exists
     useEffect(() => {
         const loadUserInfo = async () => {
-            if (authService.isAuthenticated() && !userInfo) {
+            if (authService.isAuthenticated() && (!userInfo || !userInfo.modules)) {
                 try {
                     const info = await authService.getCurrentUser();
                     setUserInfo(info);
@@ -86,7 +86,8 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
                               info.groupId === 'DIR' ? 'director' : 'receptionist',
                         avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(info.name)}&background=0ea5e9&color=fff`,
                         token: authService.getToken() || '',
-                        permissions: info.permissions || []
+                        permissions: info.permissions || [],
+                        modules: info.modules || {}
                     };
                     setUser(legacyUser);
                     localStorage.setItem('currentUser', JSON.stringify(legacyUser));
@@ -129,7 +130,8 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
                           response.user.groupId === 'DIR' ? 'director' : 'receptionist',
                     avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(response.user.name)}&background=0ea5e9&color=fff`,
                     token: response.token,
-                    permissions: response.user.permissions || []
+                    permissions: response.user.permissions || [],
+                    modules: response.user.modules || {}
                 };
 
                 setUser(legacyUser);

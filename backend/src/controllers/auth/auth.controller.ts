@@ -7,6 +7,7 @@ import { sign } from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { AuthRequest } from '../../middleware/authMiddleware';
 
+import fs from 'fs';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
@@ -65,6 +66,7 @@ class AuthController {
                     su_hms_stmodule, su_hms_srmmodule, su_hms_mramodule, su_hms_cmmodule,
                     su_hms_emrmodule, su_hms_hmmodule, su_hms_tramodule, su_hms_inmodule,
                     su_hms_nmmodule, su_hms_tmvmodule, su_hms_dsmmodule, su_hms_itsmodule,
+                    su_hms_hccmodule, su_hms_rolmodule, su_hms_qmsmodule, su_hms_kskmodule,
                     -- ERP Modules
                     su_erp_famodule, su_erp_hrmodule, su_erp_apmodule, su_erp_armodule,
                     su_erp_glmodule, su_erp_pomodule, su_erp_somodule, su_erp_simodule,
@@ -150,7 +152,11 @@ class AuthController {
                 po: user.su_erp_pomodule === '1',
                 so: user.su_erp_somodule === '1',
                 si: user.su_erp_simodule === '1',
-                bil: user.su_erp_bilmodule === '1'
+                bil: user.su_erp_bilmodule === '1',
+                hcc: user.su_hms_hccmodule === '1',
+                rol: user.su_hms_rolmodule === '1',
+                qms: user.su_hms_qmsmodule === '1',
+                ksk: user.su_hms_kskmodule === '1'
             };
 
             const userInfo: UserInfo = {
@@ -230,6 +236,7 @@ class AuthController {
                     su_hms_stmodule, su_hms_srmmodule, su_hms_mramodule, su_hms_cmmodule,
                     su_hms_emrmodule, su_hms_hmmodule, su_hms_tramodule, su_hms_inmodule,
                     su_hms_nmmodule, su_hms_tmvmodule, su_hms_dsmmodule, su_hms_itsmodule,
+                    su_hms_hccmodule, su_hms_rolmodule, su_hms_qmsmodule, su_hms_kskmodule,
                     su_erp_famodule, su_erp_hrmodule, su_erp_apmodule, su_erp_armodule,
                     su_erp_glmodule, su_erp_pomodule, su_erp_somodule, su_erp_simodule,
                     su_erp_bilmodule
@@ -257,13 +264,53 @@ class AuthController {
 
             const xDept = user.su_hms_xdept ? user.su_hms_xdept.split(',').map((d: string) => d.trim()) : [];
 
-            // Same mapping as login...
+            // Map all module permissions correctly (synced with login)
             const modules: ModulePermissions = {
                 rm: user.su_hms_rmmodule === '1',
                 em: user.su_hms_emmodule === '1',
                 tm: user.su_hms_tmmodule === '1',
-                us: user.su_hms_usmodule === '1'
-                // ... (truncated for brevity, would include all 40 modules)
+                us: user.su_hms_usmodule === '1',
+                pa: user.su_hms_pamodule === '1',
+                es: user.su_hms_esmodule === '1',
+                hf: user.su_hms_hfmodule === '1',
+                pm: user.su_hms_pmmodule === '1',
+                op: user.su_hms_opmodule === '1',
+                cr: user.su_hms_crmodule === '1',
+                sys: user.su_hms_sysmodule === '1',
+                lab: user.su_hms_labmodule === '1',
+                mm: user.su_hms_mmmodule === '1',
+                sm: user.su_hms_smmodule === '1',
+                ar: user.su_hms_armodule === '1',
+                ma: user.su_hms_mamodule === '1',
+                bb: user.su_hms_bbmodule === '1',
+                pr: user.su_hms_prmodule === '1',
+                fam: user.su_hms_fammodule === '1',
+                sip: user.su_hms_sipmodule === '1',
+                st: user.su_hms_stmodule === '1',
+                srm: user.su_hms_srmmodule === '1',
+                mra: user.su_hms_mramodule === '1',
+                cm: user.su_hms_cmmodule === '1',
+                emr: user.su_hms_emrmodule === '1',
+                hm: user.su_hms_hmmodule === '1',
+                tra: user.su_hms_tramodule === '1',
+                in: user.su_hms_inmodule === '1',
+                nm: user.su_hms_nmmodule === '1',
+                tmv: user.su_hms_tmvmodule === '1',
+                dsm: user.su_hms_dsmmodule === '1',
+                its: user.su_hms_itsmodule === '1',
+                fa: user.su_erp_famodule === '1',
+                hr: user.su_erp_hrmodule === '1',
+                ap: user.su_erp_apmodule === '1',
+                erp_ar: user.su_erp_armodule === '1',
+                gl: user.su_erp_glmodule === '1',
+                po: user.su_erp_pomodule === '1',
+                so: user.su_erp_somodule === '1',
+                si: user.su_erp_simodule === '1',
+                bil: user.su_erp_bilmodule === '1',
+                hcc: user.su_hms_hccmodule === '1',
+                rol: user.su_hms_rolmodule === '1',
+                qms: user.su_hms_qmsmodule === '1',
+                ksk: user.su_hms_kskmodule === '1'
             };
 
             const userInfo: Partial<UserInfo> = {

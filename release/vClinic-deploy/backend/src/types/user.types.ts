@@ -60,6 +60,10 @@ export interface ModulePermissions {
     tmv: boolean;                // su_hms_tmvmodule - Telemedicine
     dsm: boolean;                // su_hms_dsmmodule - Disease Management
     its: boolean;                // su_hms_itsmodule - IT Support
+    hcc: boolean;                // su_hms_hccmodule - TT Điều hành (HCC)
+    rol: boolean;                // su_hms_rolmodule - Đăng ký Online (ROL)
+    qms: boolean;                // su_hms_qmsmodule - QMS – Gọi số (QMS)
+    ksk: boolean;                // su_hms_kskmodule - Liên thông KSK VNeID (KSK)
 
     // ERP Modules
     fa: boolean;                 // su_erp_famodule - Fixed Assets

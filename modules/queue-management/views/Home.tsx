@@ -323,13 +323,17 @@ const Portal: React.FC<PortalProps> = ({ onNavigate, settings, onLogout }) => {
       {/* Premium Header */}
       <header className="bg-white border-b border-slate-100 px-8 py-4 flex items-center justify-between z-30 shadow-sm">
         <div className="flex items-center gap-4">
-           <div className="h-12 w-12 bg-white border border-slate-100 rounded-xl flex items-center justify-center p-1.5 shadow-sm overflow-hidden">
-              {logoUrl ? (
+            <div className="h-12 w-12 bg-white border border-slate-100 rounded-xl flex items-center justify-center p-1 shadow-sm overflow-hidden">
+              {logoUrl && logoUrl.trim() !== '' && logoUrl !== '/logo.png' ? (
                  <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
               ) : (
-                 <img src="/logo.png" alt="VIMES" className="w-full h-full object-contain" />
+                 <div className="w-full h-full bg-blue-600 rounded-lg flex items-center justify-center text-white p-1.5 shadow-inner">
+                    <svg className="w-full h-full animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                       <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                    </svg>
+                 </div>
               )}
-           </div>
+            </div>
            <div>
               <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">
                  {hospitalName ? hospitalName.split(' ')[0] : 'VIMES'}{' '}

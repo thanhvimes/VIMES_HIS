@@ -58,6 +58,14 @@ class BookingManagementController {
                       AND k.hrk_deptid = $2 
                       AND k.hrk_active = 'Y'
                       AND hse.hse_status = 'O'
+                      AND NOT EXISTS (
+                          SELECT 1 FROM qms_patient q
+                          WHERE q.qms_deptid = hse.hse_deptid
+                            AND q.qms_roomid = hse.hse_roomid
+                            AND q.qms_appointment_date = hse.hse_date
+                            AND q.qms_appointment_time = hse.hse_time
+                            AND q.qms_status IN ('O', 'S')
+                      )
                     ORDER BY current_bookings ASC, k.hrk_id ASC
                 `, [deptId, userDeptId, bookingDate, bookingTime]);
 
@@ -118,7 +126,7 @@ class BookingManagementController {
                     date: formattedDate, time: fullData.qms_appointment_time,
                     bookingId: fullData.qms_idx, receptNo: fullData.qms_receptno,
                     queueNumber: fullData.qms_receptno, specialtyName: fullData.specialtyName || '',
-                    roomName: fullData.roomName || '', deptId: fullData.qms_deptid,
+                    roomName: fullData.roomName || '', deptId: fullData.qms_specialty_code || fullData.qms_deptid,
                     patientType: isInsurance ? 'BH' : 'DV'
                 });
             }
@@ -157,8 +165,8 @@ class BookingManagementController {
                 s.ss_desc as "specialityName", hrl.hrl_roomname as "roomName"
             FROM qms_patient q
             LEFT JOIN sys_dept d ON (d.sd_id = q.qms_deptid)
-            LEFT JOIN hms_roomlist hrl ON (hrl.hrl_deptid = q.qms_deptid AND hrl.hrl_id = q.qms_roomid)
-            LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND k.hrk_deptid = q.qms_deptid AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
+            LEFT JOIN hms_roomlist hrl ON (hrl.hrl_id = q.qms_roomid AND (hrl.hrl_deptid = q.qms_deptid OR hrl.hrl_deptid = 'KB'))
+            LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND (k.hrk_deptid = q.qms_deptid OR k.hrk_deptid = 'KB') AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
             LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code = k.hrk_code::varchar)
             WHERE q.qms_type = 'ONL'
         `;
@@ -193,8 +201,7 @@ class BookingManagementController {
         try {
             const { id } = (req as any).params;
 
-            await query(`UPDATE qms_patient SET qms_status = 'S', qms_updateddate = NOW() WHERE qms_idx = $1`, [id]);
-
+            // 1. Update hms_schedule_exam status to Scheduled ('S') using the current qms_deptid before modifying qms_deptid
             await query(`
                 UPDATE hms_schedule_exam SET hse_status = 'S'
                 WHERE hse_deptid = (SELECT qms_deptid FROM qms_patient WHERE qms_idx = $1)
@@ -203,12 +210,21 @@ class BookingManagementController {
                   AND hse_time = (SELECT qms_appointment_time FROM qms_patient WHERE qms_idx = $1)
             `, [id]);
 
+            // 2. Update qms_patient status to Scheduled ('S'), and update qms_deptid to the staff's working department if authenticated
+            const staffDeptId = (req as any).deptId;
+            if (staffDeptId) {
+                await query(`UPDATE qms_patient SET qms_status = 'S', qms_deptid = $2, qms_updateddate = NOW() WHERE qms_idx = $1`, [id, staffDeptId]);
+            } else {
+                await query(`UPDATE qms_patient SET qms_status = 'S', qms_updateddate = NOW() WHERE qms_idx = $1`, [id]);
+            }
+
+            // 3. Fetch the updated booking details
             const bookingResult = await query(`
                 SELECT q.*, s.ss_desc as "specialtyName", rl.hrl_roomname as "roomName"
                 FROM qms_patient q
-                LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND k.hrk_deptid = q.qms_deptid AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
+                LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND (k.hrk_deptid = q.qms_deptid OR k.hrk_deptid = 'KB') AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
                 LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code = k.hrk_code::varchar)
-                LEFT JOIN hms_roomlist rl ON (rl.hrl_deptid = q.qms_deptid AND rl.hrl_id = q.qms_roomid)
+                LEFT JOIN hms_roomlist rl ON (rl.hrl_id = q.qms_roomid AND (rl.hrl_deptid = q.qms_deptid OR rl.hrl_deptid = 'KB'))
                 WHERE q.qms_idx = $1
             `, [id]);
 
@@ -245,7 +261,7 @@ class BookingManagementController {
                     date: formattedDate, time: bookingData.qms_appointment_time,
                     bookingId: bookingData.qms_idx, receptNo: bookingData.qms_receptno,
                     queueNumber: bookingData.qms_receptno, specialtyName: bookingData.specialtyName || '',
-                    roomName: bookingData.roomName || '', deptId: bookingData.qms_deptid,
+                    roomName: bookingData.roomName || '', deptId: bookingData.qms_specialty_code || bookingData.qms_deptid,
                     patientType: bookingData.qms_is_insurance ? 'BH' : 'DV'
                 });
 
@@ -267,6 +283,26 @@ class BookingManagementController {
             const { id } = (req as any).params;
             const { reason } = (req as any).body;
             await query(`UPDATE qms_patient SET qms_status = 'C', qms_comment = $2, qms_updateddate = NOW() WHERE qms_idx = $1`, [id, reason || 'Từ chối booking']);
+            
+            // Release the slot in hms_schedule_exam if no other active bookings exist for it
+            await query(`
+                UPDATE hms_schedule_exam hse
+                SET hse_status = 'O', hse_updateddate = NOW()
+                WHERE hse_deptid = (SELECT qms_deptid FROM qms_patient WHERE qms_idx = $1)
+                  AND hse_roomid = (SELECT qms_roomid FROM qms_patient WHERE qms_idx = $1)
+                  AND hse_date = (SELECT qms_appointment_date FROM qms_patient WHERE qms_idx = $1)
+                  AND hse_time = (SELECT qms_appointment_time FROM qms_patient WHERE qms_idx = $1)
+                  AND NOT EXISTS (
+                      SELECT 1 FROM qms_patient q
+                      WHERE q.qms_deptid = hse.hse_deptid
+                        AND q.qms_roomid = hse.hse_roomid
+                        AND q.qms_appointment_date = hse.hse_date
+                        AND q.qms_appointment_time = hse.hse_time
+                        AND q.qms_status IN ('O', 'S')
+                        AND q.qms_idx != $1
+                  )
+            `, [id]);
+
             return res.json({ success: true, message: 'Đã từ chối booking' });
         } catch (error) {
             console.error('Error rejecting booking:', error);
@@ -282,10 +318,73 @@ class BookingManagementController {
             const { id } = (req as any).params;
             const { reason } = (req as any).body;
             await query(`UPDATE qms_patient SET qms_status = 'C', qms_comment = $2, qms_updateddate = NOW() WHERE qms_idx = $1`, [id, reason || 'Người dùng hủy']);
+            
+            // Release the slot in hms_schedule_exam if no other active bookings exist for it
+            await query(`
+                UPDATE hms_schedule_exam hse
+                SET hse_status = 'O', hse_updateddate = NOW()
+                WHERE hse_deptid = (SELECT qms_deptid FROM qms_patient WHERE qms_idx = $1)
+                  AND hse_roomid = (SELECT qms_roomid FROM qms_patient WHERE qms_idx = $1)
+                  AND hse_date = (SELECT qms_appointment_date FROM qms_patient WHERE qms_idx = $1)
+                  AND hse_time = (SELECT qms_appointment_time FROM qms_patient WHERE qms_idx = $1)
+                  AND NOT EXISTS (
+                      SELECT 1 FROM qms_patient q
+                      WHERE q.qms_deptid = hse.hse_deptid
+                        AND q.qms_roomid = hse.hse_roomid
+                        AND q.qms_appointment_date = hse.hse_date
+                        AND q.qms_appointment_time = hse.hse_time
+                        AND q.qms_status IN ('O', 'S')
+                        AND q.qms_idx != $1
+                  )
+            `, [id]);
+
             return res.json({ success: true, message: 'Đã hủy lịch hẹn' });
         } catch (error) {
             console.error('Error cancelling booking:', error);
             return res.status(500).json({ error: 'Không thể hủy lịch hẹn' });
+        }
+    }
+
+    /**
+     * Resend booking SMS confirmation/approved
+     */
+    async resendSMS(req: Request, res: Response) {
+        try {
+            const { id } = (req as any).params;
+
+            const bookingResult = await query(`
+                SELECT q.*, s.ss_desc as "specialtyName", rl.hrl_roomname as "roomName"
+                FROM qms_patient q
+                LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND (k.hrk_deptid = q.qms_deptid OR k.hrk_deptid = 'KB') AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
+                LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code = k.hrk_code::varchar)
+                LEFT JOIN hms_roomlist rl ON (rl.hrl_id = q.qms_roomid AND (rl.hrl_deptid = q.qms_deptid OR rl.hrl_deptid = 'KB'))
+                WHERE q.qms_idx = $1
+            `, [id]);
+
+            if (bookingResult.rows.length === 0) {
+                return res.status(404).json({ error: 'Không tìm thấy booking' });
+            }
+
+            const bookingData = bookingResult.rows[0];
+            const d = new Date(bookingData.qms_appointment_date);
+            const formattedDate = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+
+            // Determine if it was approved ('S') or pending ('O')
+            const smsType = bookingData.qms_status === 'S' ? 'booking_approved' : 'booking_confirmation';
+
+            await notificationService.sendSMS(bookingData.qms_contact, smsType, {
+                name: bookingData.qms_patientname, patientName: bookingData.qms_patientname,
+                date: formattedDate, time: bookingData.qms_appointment_time,
+                bookingId: bookingData.qms_idx, receptNo: bookingData.qms_receptno,
+                queueNumber: bookingData.qms_receptno, specialtyName: bookingData.specialtyName || '',
+                roomName: bookingData.roomName || '', deptId: bookingData.qms_specialty_code || bookingData.qms_deptid,
+                patientType: bookingData.qms_is_insurance ? 'BH' : 'DV'
+            });
+
+            return res.json({ success: true, message: 'Đã gửi lại tin nhắn thành công' });
+        } catch (error: any) {
+            console.error('Error resending SMS:', error);
+            return res.status(500).json({ error: 'Không thể gửi lại tin nhắn: ' + error.message });
         }
     }
 
@@ -348,6 +447,178 @@ class BookingManagementController {
         } catch (error) {
             console.error('Error getting statistics:', error);
             return res.status(500).json({ error: 'Không thể lấy thống kê' });
+        }
+    }
+
+    /**
+     * Get ghost bookings - bookings in status 'O' (pending) with past appointment dates
+     * or pending bookings that are blocking slots but have no SMS confirmation
+     */
+    async getGhostBookings(req: Request, res: Response) {
+        try {
+            const { date, deptId, hoursThreshold = 2 } = (req as any).query;
+
+            // A "ghost booking" is defined as:
+            // 1. A booking with status 'O' (pending) whose appointment date is BEFORE today (expired)
+            // 2. OR a booking with status 'O' created more than N hours ago for TODAY, that still hasn't been approved
+            let sql = `
+                SELECT 
+                    q.qms_idx as id,
+                    q.qms_patientname as "patientName",
+                    q.qms_contact as phone,
+                    TO_CHAR(q.qms_birthdate, 'YYYY-MM-DD') as "birthDate",
+                    TO_CHAR(q.qms_appointment_date, 'YYYY-MM-DD') as "bookingDate",
+                    q.qms_appointment_time as "bookingTime",
+                    q.qms_status as status,
+                    q.qms_deptid as "deptId",
+                    q.qms_roomid as "roomId",
+                    d.sd_name as "deptName",
+                    hrl.hrl_roomname as "roomName",
+                    q.qms_createddate as "createdAt",
+                    CASE 
+                        WHEN q.qms_appointment_date < CURRENT_DATE THEN 'EXPIRED'
+                        WHEN q.qms_createddate < NOW() - INTERVAL '${parseInt(String(hoursThreshold)) || 2} hours' THEN 'STALE'
+                        ELSE 'RECENT'
+                    END as "ghostType",
+                    EXTRACT(EPOCH FROM (NOW() - q.qms_createddate))/3600 as "ageHours"
+                FROM qms_patient q
+                LEFT JOIN sys_dept d ON (d.sd_id = q.qms_deptid)
+                LEFT JOIN hms_roomlist hrl ON (hrl.hrl_deptid = q.qms_deptid AND hrl.hrl_id = q.qms_roomid)
+                WHERE q.qms_type = 'ONL'
+                  AND q.qms_status = 'O'
+                  AND (
+                      q.qms_appointment_date < CURRENT_DATE
+                      OR (
+                          q.qms_appointment_date = CURRENT_DATE
+                          AND q.qms_createddate < NOW() - INTERVAL '${parseInt(String(hoursThreshold)) || 2} hours'
+                      )
+                  )
+            `;
+
+            const params: any[] = [];
+            let paramIndex = 1;
+
+            if (date) {
+                sql += ` AND q.qms_appointment_date = $${paramIndex++}`;
+                params.push(date);
+            }
+            if (deptId && deptId !== 'All') {
+                sql += ` AND q.qms_deptid = $${paramIndex++}`;
+                params.push(deptId);
+            }
+
+            sql += ' ORDER BY q.qms_appointment_date ASC, q.qms_appointment_time ASC';
+
+            const result = await query(sql, params);
+
+            // Also count how many slots would be freed
+            const slotCount = result.rows.length;
+
+            return res.json({
+                success: true,
+                count: slotCount,
+                ghosts: result.rows,
+                message: slotCount > 0
+                    ? `Tìm thấy ${slotCount} số ảo cần hủy`
+                    : 'Không có số ảo nào cần xử lý'
+            });
+
+        } catch (error: any) {
+            console.error('Error getting ghost bookings:', error);
+            return res.status(500).json({ error: 'Không thể tìm số ảo: ' + error.message });
+        }
+    }
+
+    /**
+     * Cancel ghost bookings in bulk - releases slots back to available
+     */
+    async cancelGhostBookings(req: Request, res: Response) {
+        try {
+            const { ids, reason, deptId, date, hoursThreshold = 2 } = (req as any).body;
+
+            let targetIds: number[] = [];
+
+            if (ids && Array.isArray(ids) && ids.length > 0) {
+                // Cancel specific IDs
+                targetIds = ids.map(Number).filter(id => !isNaN(id));
+            } else {
+                // Auto-detect and cancel all ghost bookings matching criteria
+                let sql = `
+                    SELECT qms_idx FROM qms_patient
+                    WHERE qms_type = 'ONL'
+                      AND qms_status = 'O'
+                      AND (
+                          qms_appointment_date < CURRENT_DATE
+                          OR (
+                              qms_appointment_date = CURRENT_DATE
+                              AND qms_createddate < NOW() - INTERVAL '${parseInt(String(hoursThreshold)) || 2} hours'
+                          )
+                      )
+                `;
+                const params: any[] = [];
+                let paramIndex = 1;
+                if (date) { sql += ` AND qms_appointment_date = $${paramIndex++}`; params.push(date); }
+                if (deptId && deptId !== 'All') { sql += ` AND qms_deptid = $${paramIndex++}`; params.push(deptId); }
+
+                const autoResult = await query(sql, params);
+                targetIds = autoResult.rows.map((r: any) => r.qms_idx);
+            }
+
+            if (targetIds.length === 0) {
+                return res.json({ success: true, cancelled: 0, message: 'Không có số ảo nào để hủy' });
+            }
+
+            const cancelReason = reason || 'Hủy số ảo tự động - quá hạn';
+            let cancelledCount = 0;
+            let slotsFreed = 0;
+
+            for (const id of targetIds) {
+                try {
+                    // Cancel the booking
+                    await query(`
+                        UPDATE qms_patient 
+                        SET qms_status = 'C', 
+                            qms_comment = $2, 
+                            qms_updateddate = NOW() 
+                        WHERE qms_idx = $1 AND qms_status = 'O'
+                    `, [id, cancelReason]);
+
+                    // Release the slot in hms_schedule_exam if no other active bookings
+                    const slotResult = await query(`
+                        UPDATE hms_schedule_exam hse
+                        SET hse_status = 'O', hse_updateddate = NOW()
+                        WHERE hse_deptid = (SELECT qms_deptid FROM qms_patient WHERE qms_idx = $1)
+                          AND hse_roomid = (SELECT qms_roomid FROM qms_patient WHERE qms_idx = $1)
+                          AND hse_date = (SELECT qms_appointment_date FROM qms_patient WHERE qms_idx = $1)
+                          AND hse_time = (SELECT qms_appointment_time FROM qms_patient WHERE qms_idx = $1)
+                          AND NOT EXISTS (
+                              SELECT 1 FROM qms_patient q
+                              WHERE q.qms_deptid = hse.hse_deptid
+                                AND q.qms_roomid = hse.hse_roomid
+                                AND q.qms_appointment_date = hse.hse_date
+                                AND q.qms_appointment_time = hse.hse_time
+                                AND q.qms_status IN ('O', 'S')
+                                AND q.qms_idx != $1
+                          )
+                    `, [id]);
+
+                    cancelledCount++;
+                    if (slotResult.rowCount && slotResult.rowCount > 0) slotsFreed++;
+                } catch (itemErr) {
+                    console.error(`Error cancelling ghost booking ${id}:`, itemErr);
+                }
+            }
+
+            return res.json({
+                success: true,
+                cancelled: cancelledCount,
+                slotsFreed,
+                message: `Đã hủy ${cancelledCount} số ảo, giải phóng ${slotsFreed} khung giờ`
+            });
+
+        } catch (error: any) {
+            console.error('Error cancelling ghost bookings:', error);
+            return res.status(500).json({ error: 'Không thể hủy số ảo: ' + error.message });
         }
     }
 }

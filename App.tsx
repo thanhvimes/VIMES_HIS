@@ -80,6 +80,37 @@ const WorkspaceLayout: React.FC = () => {
   const [isChatVisible, setIsChatVisible] = useState(false);
   const location = useLocation();
 
+  const currentModuleRoot = location.pathname.split('/')[1];
+  const requiredPermissionKey = useMemo(() => {
+    const modulePermissionKeys: Record<string, string> = {
+      'command-center': 'hcc',
+      'online-booking': 'rol',
+      'queue-management': 'qms',
+      'health-check': 'ksk',
+      'reception': 'rm',
+      'consultation': 'em',
+      'inpatient-treatment': 'tm',
+      'surgery': 'sm',
+      'lab-results': 'lab',
+      'imaging-results': 'us',
+      'pacs-ris': 'us',
+      'pharmacy': 'pm',
+      'medical-supplies': 'ma',
+      'billing': 'fam',
+      'insurance': 'fam',
+      'hr': 'hr',
+      'management-reporting': 'st',
+      'admin': 'sys',
+    };
+    return modulePermissionKeys[currentModuleRoot];
+  }, [currentModuleRoot]);
+
+  if (requiredPermissionKey && user && user.role !== 'admin' && user.userId !== 'admin') {
+    if (!user.modules || user.modules[requiredPermissionKey] !== true) {
+      return <Navigate to="/staff-dashboard" replace />;
+    }
+  }
+
   const isFullWidthPage = location.pathname.includes('/consultation/record') ||
     location.pathname.includes('/inpatient-treatment/record') ||
     location.pathname.includes('/documents') ||

@@ -121,6 +121,11 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
             toast.warning(`Thông tin "Kết luận" chưa được Duyệt. Vui lòng nhấn "Duyệt" trước khi rời khỏi tab!`);
             return;
         }
+
+        if (activeTab === 'lab' && specialtyMetadata.lab?.status === 'ĐANG_KHÁM') {
+            toast.warning(`Thông tin "Cận lâm sàng" chưa được Duyệt. Vui lòng nhấn "Duyệt" trước khi rời khỏi tab!`);
+            return;
+        }
         
         setActiveTab(targetTab);
     };
@@ -332,7 +337,12 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                                     confirmText: "Đồng ý mở khóa",
                                     cancelText: "Hủy bỏ",
                                     severity: "warning",
-                                    onConfirm: () => setIsLocked(false)
+                                    onConfirm: () => {
+                                        setIsLocked(false);
+                                        setTimeout(() => {
+                                            handleSubmit(undefined, { shouldUnlock: true });
+                                        }, 50);
+                                    }
                                 });
                             }}
                             className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
@@ -351,7 +361,12 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                                     confirmText: "Khóa & Ký Số",
                                     cancelText: "Hủy bỏ",
                                     severity: "success",
-                                    onConfirm: () => setIsLocked(true)
+                                    onConfirm: () => {
+                                        setIsLocked(true);
+                                        setTimeout(() => {
+                                            handleSubmit(undefined, { shouldSign: true });
+                                        }, 50);
+                                    }
                                 });
                             }}
                             className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"

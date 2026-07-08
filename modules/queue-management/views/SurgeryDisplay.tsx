@@ -364,7 +364,7 @@ const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, setting
             {/* Table Header */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: '2.8fr 1.2fr 2fr 1.6fr 1.6fr 2.4fr',
+              gridTemplateColumns: '2.8fr 1.2fr 2fr 1.6fr 2.4fr',
               alignItems: 'center',
               padding: '0 24px 16px 24px',
               borderBottom: '2px solid #F1F5F9',
@@ -373,8 +373,7 @@ const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, setting
               <div>Họ và tên người bệnh</div>
               <div className="text-center">Năm sinh</div>
               <div className="text-center">Khoa thực hiện</div>
-              <div className="text-center">Giờ dự kiến</div>
-              <div className="text-center">Giờ vào khoa</div>
+              <div className="text-center">Giờ phẫu thuật</div>
               <div className="text-center">Trạng thái hiện tại</div>
             </div>
 
@@ -393,7 +392,7 @@ const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, setting
                       key={p.id || idx}
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: '2.8fr 1.2fr 2fr 1.6fr 1.6fr 2.4fr',
+                        gridTemplateColumns: '2.8fr 1.2fr 2fr 1.6fr 2.4fr',
                         alignItems: 'center',
                         height: '96px',
                         padding: '0 24px',
@@ -423,12 +422,6 @@ const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, setting
                       <div className="text-3xl font-bold text-amber-600 text-center flex items-center justify-center gap-2">
                         <Clock className="w-7 h-7 text-amber-500" />
                         {p.expectedTime || '--:--'}
-                      </div>
-
-                      {/* Time */}
-                      <div className="text-3xl font-bold text-slate-600 text-center flex items-center justify-center gap-2">
-                        <Clock className="w-7 h-7 text-slate-400" />
-                        {p.time || '--:--'}
                       </div>
 
                       {/* Status */}

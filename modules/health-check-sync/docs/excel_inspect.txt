@@ -1,0 +1,5 @@
+ROW 0: ["MA_KH","HO_TEN","GIOI_TINH","NGAY_SINH","MA_DAN_TOC","SO_CCCD","NGAYCAP_CCCD","NOICAP_CCCD","NGUOI_GIAM_HO","SO_CCCD_NGH","DIA_CHI","MATINH_CU_TRU","MAXA_CU_TRU","DIEN_THOAI","BOPHAN","CHUCVU","GHICHU"]
+ROW 1: ["KH0100001","Nguyễn Văn An","Nam","15/05/2012",1,"03709500012","20/10/2023","Cục C06","Nguyễn Văn Bình",37070004567,"12 Láng Hạ",1,1,912345678,"Học sinh","Lớp 8A","Khám sức khỏe học sinh"]
+ROW 2: ["KH0100002","Phạm Minh Thư","Nữ","22/08/2010",1,"03809600023","15/12/2024","Cục C06","Phạm Văn Minh",38072007890,"45 Nguyễn Trãi",1,3,987654321,"Học sinh","Lớp 10B","Khám sức khỏe học sinh"]
+ROW 3: ["KH0100003","Trần Đức Hùng","Nam","23/01/2019",1,39097000345,"15/12/2024","Cục C06","Trần Quốc Toản",39075001234,"78 Trần Hưng Đạo",1,5,905123456,"Học sinh","Lớp 6C","Khám sức khỏe học sinh"]
+ROW 4: ["KH0100004","Lê Thị Hồng","Nữ","20/10/1998",1,1095000456,"15/12/2024","Cục Cảnh sát","Lê Văn Tám",1070002345,"Phường Kim Liên",1,7,978123456,"Sinh viên","Năm 1","Khám sức khỏe sinh viên"]

@@ -7,7 +7,7 @@ import { healthCheckService } from '../../../services/healthCheckService';
 export const useDynamicFormState = (
     formType: string,
     initialData: any,
-    onSave: (formData: any) => void,
+    onSave: (formData: any, options?: any) => void,
     onPreview?: (formData: any) => void
 ) => {
     const { user } = useSession();
@@ -354,7 +354,7 @@ export const useDynamicFormState = (
     const [labSubTab, setLabSubTab] = useState<'XN' | 'HA' | 'TD'>('XN');
 
     // Workflow optimizations
-    const [isLocked, setIsLocked] = useState(initialData?.status === 'ĐÃ_KẾT_LUẬN' || initialData?.is_locked || false);
+    const [isLocked, setIsLocked] = useState(initialData?.status === 'ĐÃ_KẾT_LUẬN' || initialData?.signature_status === 'Signed' || initialData?.is_locked || false);
     const [specialtyMetadata, setSpecialtyMetadata] = useState<Record<string, { doctorId: string, status: string, updatedAt: string }>>(initialData?.clinical_data?.clinical_exam?.specialty_metadata || initialData?.specialty_metadata || {});
     const specialtyMetadataRef = useRef(specialtyMetadata);
     useEffect(() => {
@@ -839,7 +839,7 @@ export const useDynamicFormState = (
         const savedMetadata = initialData?.clinical_data?.clinical_exam?.specialty_metadata || initialData?.specialty_metadata || {};
         setSpecialtyMetadata(() => {
             const updated = { ...savedMetadata };
-            const keys = ['admin', 'history', 'internal', 'eye', 'ent', 'dental', 'external', 'dermatology', 'gynecology', 'conclusion'];
+            const keys = ['admin', 'history', 'internal', 'eye', 'ent', 'dental', 'external', 'dermatology', 'gynecology', 'lab', 'conclusion'];
             
             keys.forEach(key => {
                 const current = updated[key];
@@ -864,6 +864,9 @@ export const useDynamicFormState = (
                         hasData = !!(initialData.clinical_data?.clinical_exam?.dermatology || initialData.clinical_data?.clinical_exam?.kham_da_lieu_pl);
                     } else if (key === 'gynecology') {
                         hasData = !!(initialData.clinical_data?.clinical_exam?.gynecology || initialData.clinical_data?.clinical_exam?.kham_san_phu_khoa_pl);
+                    } else if (key === 'lab') {
+                        const lab = initialData.lab_data || {};
+                        hasData = !!(lab.blood_test?.hemoglobin || lab.blood_test?.glycemia || lab.urine_test?.protein || lab.kq_xn_ma_tuy || lab.kq_xn_nong_do_con || lab.kq_xn_khac || (lab.paraclinical_items && lab.paraclinical_items.length > 0));
                     } else if (key === 'conclusion') {
                         hasData = !!(initialData.conclusion_data?.fitness_class || initialData.conclusion_data?.diagnosis || initialData.conclusion_data?.ket_luan_loai_suc_khoe);
                     }
@@ -947,7 +950,7 @@ export const useDynamicFormState = (
         setParaclinicalItems(prev => prev.map(item => {
             const code = String(item.service_code || item.index_code || '').trim().toUpperCase();
             if (code === 'HB' || code === 'HEMOGLOBIN') {
-                return { ...item, value: val };
+                return { ...item, value: val, user_edited: true };
             }
             return item;
         }));
@@ -958,7 +961,7 @@ export const useDynamicFormState = (
         setParaclinicalItems(prev => prev.map(item => {
             const code = String(item.service_code || item.index_code || '').trim().toUpperCase();
             if (code === 'GLU' || code === 'GLUCOSE') {
-                return { ...item, value: val };
+                return { ...item, value: val, user_edited: true };
             }
             return item;
         }));
@@ -969,7 +972,7 @@ export const useDynamicFormState = (
         setParaclinicalItems(prev => prev.map(item => {
             const code = String(item.service_code || item.index_code || '').trim().toUpperCase();
             if (code === 'PRO' || code === 'PROTEIN') {
-                return { ...item, value: val };
+                return { ...item, value: val, user_edited: true };
             }
             return item;
         }));
@@ -1011,7 +1014,7 @@ export const useDynamicFormState = (
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = (e?: React.FormEvent) => {
+    const handleSubmit = (e?: React.FormEvent, options?: { shouldSign?: boolean; shouldUnlock?: boolean }) => {
         if (e) e.preventDefault();
         if (!validateForm()) {
             setActiveTab('admin');
@@ -1020,7 +1023,7 @@ export const useDynamicFormState = (
 
         // Tự động tính toán trạng thái (CHUA_KHAM -> DA_KHAM / DA_KET_LUAN) dựa trên dữ liệu nhập thực tế
         const calculatedMetadata = { ...specialtyMetadataRef.current };
-        const keysToProcess = ['admin', 'history', 'internal', 'eye', 'ent', 'dental', 'external', 'dermatology', 'gynecology', 'conclusion'];
+        const keysToProcess = ['admin', 'history', 'internal', 'eye', 'ent', 'dental', 'external', 'dermatology', 'gynecology', 'lab', 'conclusion'];
         
         keysToProcess.forEach(key => {
             if (!calculatedMetadata[key]) {
@@ -1032,8 +1035,8 @@ export const useDynamicFormState = (
                 };
             }
             
-            // Nếu chuyên khoa đã được duyệt (ĐÃ_DUYỆT), giữ nguyên trạng thái không đè bằng ĐÃ_KHÁM
-            if (calculatedMetadata[key].status === 'ĐÃ_DUYỆT') {
+            // Nếu chuyên khoa đã được duyệt (ĐÃ_DUYỆT) hoặc đang khám (ĐANG_KHÁM), giữ nguyên trạng thái không đè
+            if (calculatedMetadata[key].status === 'ĐÃ_DUYỆT' || calculatedMetadata[key].status === 'ĐANG_KHÁM') {
                 return;
             }
             
@@ -1056,6 +1059,8 @@ export const useDynamicFormState = (
                 hasData = !!(dermatologyExam || khamDaLieuPl || kqDaLieu);
             } else if (key === 'gynecology') {
                 hasData = !!(gynExam || khamSanPhuKhoaPl || coKinhNguyetNamBaoNhieuTuoi || tinhChatKinhNguyet || chuKyKinh || luongKinh || dauBungKinh || para || daTungMoSanPhuKhoaChua || dangApDungBpttKhong);
+            } else if (key === 'lab') {
+                hasData = !!(hemoglobin || glycemia || protein || kqXnMaiTuy || kqXnNongDoCon || kqXnKhac || (paraclinicalItems && paraclinicalItems.length > 0));
             } else if (key === 'conclusion') {
                 hasData = !!(fitnessClass || diagnosis || ketLuanLoaiSucKhoe);
             }
@@ -1368,7 +1373,7 @@ export const useDynamicFormState = (
             }
         };
         
-        onSave(fullPayload);
+        onSave(fullPayload, options);
     };
 
     const handlePreview = () => {
