@@ -301,7 +301,14 @@ const HealthCheckSyncView: React.FC = () => {
     const loadData = async () => {
         setIsLoading(true);
         try {
-            const data = await healthCheckService.getDocumentsList();
+            const data = await healthCheckService.getDocumentsList({
+                startDate,
+                endDate,
+                searchTerm,
+                status: sendFilter,
+                signatureStatus: signFilter,
+                formType: formFilter
+            });
             setDocuments(data);
         } catch (error) {
             console.error("Failed to load health check documents", error);
@@ -309,6 +316,13 @@ const HealthCheckSyncView: React.FC = () => {
             setIsLoading(false);
         }
     };
+
+    // Auto-reload data when search terms, dates, or other filters change
+    useEffect(() => {
+        if (stepParam !== 'sync' && !stepParam.startsWith('settings')) {
+            loadData();
+        }
+    }, [startDate, endDate, searchTerm, sendFilter, signFilter, formFilter, stepParam]);
 
 
 

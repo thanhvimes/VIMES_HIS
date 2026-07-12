@@ -7,7 +7,8 @@ class SampleTrackingController {
     async getSampleSlips(req: Request, res: Response) {
         try {
             const { startDate, endDate, deptId } = req.query;
-            const params: any[] = [startDate || '2026-06-02', endDate || '2026-06-02'];
+            const todayStr = new Date().toISOString().split('T')[0];
+            const params: any[] = [startDate || todayStr, endDate || todayStr];
             let deptFilter = '';
 
             if (deptId && deptId !== 'All' && deptId !== '') {
@@ -119,6 +120,7 @@ class SampleTrackingController {
                 return res.status(400).json({ error: 'Thiếu tham số: ids' });
             }
 
+            const currentUser = username || (req as any).user?.username || 'vuthihang';
             // Update lims_order_extra receive status
             await query(`
                 UPDATE lims_order_extra
@@ -126,7 +128,7 @@ class SampleTrackingController {
                     limsoe_receive_date = NOW(),
                     limsoe_receive_by = $1
                 WHERE limsoe_orderid = ANY($2)
-            `, [username || 'vuthihang', ids]);
+            `, [currentUser, ids]);
 
             return res.json({ success: true });
         } catch (error: any) {
@@ -143,6 +145,7 @@ class SampleTrackingController {
                 return res.status(400).json({ error: 'Thiếu tham số: ids' });
             }
 
+            const currentUser = username || (req as any).user?.username || 'dtgiang';
             // Cancel receipt in lims_order_extra
             await query(`
                 UPDATE lims_order_extra
@@ -152,7 +155,7 @@ class SampleTrackingController {
                     limsoe_receive_date = NOW(),
                     limsoe_receive_by = $2
                 WHERE limsoe_orderid = ANY($3)
-            `, [reason || 'Mẫu bị đông / Hủy lấy lại', username || 'dtgiang', ids]);
+            `, [reason || 'Mẫu bị đông / Hủy lấy lại', currentUser, ids]);
 
             return res.json({ success: true });
         } catch (error: any) {

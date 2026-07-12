@@ -9,6 +9,10 @@ import jsPDF from 'jspdf';
 import PdfPreviewModal from '../../../components/ui/PdfPreviewModal';
 import { useSession } from '../../../contexts/SessionContext';
 import { catalogService } from '../../../services/catalogService';
+import { healthCheckService } from '../../../services/healthCheckService';
+import { PrintFormMau1 } from './PrintFormMau1';
+import { PrintFormMau2 } from './PrintFormMau2';
+import { PrintFormMau3 } from './PrintFormMau3';
 
 const COMMON_ICD10 = [
     { code: 'A09', name: 'Tiêu chảy và viêm dạ dày ruột' },
@@ -53,10 +57,12 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
     const [htmlFallback, setHtmlFallback] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [doctors, setDoctors] = useState<any[]>([]);
+    const [settings, setSettings] = useState<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         catalogService.getDoctors().then(setDoctors).catch(() => {});
+        healthCheckService.getSettings().then(setSettings).catch(() => {});
     }, []);
 
     const [icd10Names, setIcd10Names] = useState<Record<string, string>>({});
@@ -393,6 +399,14 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
     };
 
     const getConclusionDoctorName = () => {
+        const conclusionMeta = clinical.specialty_metadata?.conclusion || clinical.specialtyMetadata?.conclusion;
+        if (conclusionMeta?.doctorId) {
+            const found = doctors.find(d => String(d.id || d.hee_employee_id) === String(conclusionMeta.doctorId));
+            if (found) return found.name || found.hee_fullname;
+        }
+        if (conclusionMeta?.doctorName) {
+            return conclusionMeta.doctorName;
+        }
         if (conclusion.doctor_id) {
             const found = doctors.find(d => String(d.id || d.hee_employee_id) === String(conclusion.doctor_id));
             if (found) return found.name || found.hee_fullname;
@@ -612,7 +626,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
         }
     }
 
-    const totalPages = 3 + dynamicPages.length;
+    const totalPages = document.form_type === '1' ? 3 : (3 + dynamicPages.length);
 
     const renderConclusion = () => (
         <>
@@ -671,6 +685,8 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
             </div>
         </>
     );
+
+
 
     return createPortal(
         <>
@@ -952,6 +968,39 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
                     }
                 `}</style>
                 
+                {document.form_type === '1' ? (
+                    <PrintFormMau1
+                        document={document}
+                        hospitalName={hospitalName}
+                        getReportDate={getReportDate}
+                        getConclusionDoctorName={getConclusionDoctorName}
+                        maCskcb={settings?.ma_cskcb || settings?.ma_gtin_cskcb}
+                    />
+                ) : document.form_type === '2' ? (
+                    <PrintFormMau2
+                        document={document}
+                        hospitalName={hospitalName}
+                        getReportDate={getReportDate}
+                        getConclusionDoctorName={getConclusionDoctorName}
+                        doctors={doctors}
+                        icd10Names={icd10Names}
+                        COMMON_ICD10={COMMON_ICD10}
+                        maCskcb={settings?.ma_cskcb || settings?.ma_gtin_cskcb}
+                    />
+                ) : (
+                    <PrintFormMau3
+                        document={document}
+                        hospitalName={hospitalName}
+                        getReportDate={getReportDate}
+                        getConclusionDoctorName={getConclusionDoctorName}
+                        doctors={doctors}
+                        icd10Names={icd10Names}
+                        COMMON_ICD10={COMMON_ICD10}
+                        maCskcb={settings?.ma_cskcb || settings?.ma_gtin_cskcb}
+                    />
+                )}
+                {false && (
+                    <>
                 {/* ==================== PAGE 1 ==================== */}
                 <div className="a4-page">
                     {/* Quốc hiệu tiêu ngữ */}
@@ -1424,6 +1473,20 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
                                     {getDoctor('rang_ham_mat')}
                                 </td>
                             </tr>
+                            {document.form_type !== '1' && (
+                                <tr>
+                                    <td>
+                                        <span className="font-bold">7. Da liễu: </span>
+                                        <span className="text-slate-800">{clinicalExam.dermatology || clinicalExam.kham_da_lieu || ''}</span>
+                                        {clinicalExam.kham_da_lieu_pl && (
+                                            <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.kham_da_lieu_pl)})</span>
+                                        )}
+                                    </td>
+                                    <td className="text-center align-middle font-medium text-slate-700">
+                                        {getDoctor('da_lieu')}
+                                    </td>
+                                </tr>
+                            )}
                                 </>
                             )}
                         </tbody>
@@ -1602,6 +1665,8 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
                         </div>
                     );
                 })}
+                    </>
+                )}
                 </div>
         </>,
         portalContainer

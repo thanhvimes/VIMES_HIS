@@ -27,7 +27,8 @@ const PhysicalExamTab: React.FC = () => {
         nhipTim, setNhipTim,
         vongNgucTrungBinh, setVongNgucTrungBinh,
         isLocked,
-        handleAutofillTab
+        handleAutofillTab,
+        cacVanDeLuuY
     } = useDynamicFormContext();
 
     const getSuggestedPl = () => {
@@ -54,6 +55,29 @@ const PhysicalExamTab: React.FC = () => {
 
     const suggestedPl = getSuggestedPl();
     const showSuggestedPlWarning = suggestedPl !== null && khamTheLucPl && parseInt(khamTheLucPl) < suggestedPl;
+
+    // Check physiological ranges
+    const hasNoNote = !cacVanDeLuuY || !cacVanDeLuuY.trim();
+    const heightVal = parseFloat(height || '');
+    const isHeightAbnormal = !isNaN(heightVal) && (isChild ? (heightVal < 45 || heightVal > 120) : (heightVal < 140 || heightVal > 200));
+
+    const weightVal = parseFloat(weight || '');
+    const isWeightAbnormal = !isNaN(weightVal) && (isChild ? (weightVal < 2 || weightVal > 30) : (weightVal < 35 || weightVal > 130));
+
+    const pulseVal = parseInt(pulse || '');
+    const isPulseAbnormal = !isNaN(pulseVal) && (isChild ? (pulseVal < 70 || pulseVal > 150) : (pulseVal < 60 || pulseVal > 100));
+
+    let isBpAbnormal = false;
+    if (bp) {
+        const bpParts = bp.split('/');
+        if (bpParts.length === 2) {
+            const sys = parseInt(bpParts[0]);
+            const dia = parseInt(bpParts[1]);
+            if (!isNaN(sys) && !isNaN(dia)) {
+                isBpAbnormal = sys < 90 || sys >= 140 || dia < 60 || dia >= 90;
+            }
+        }
+    }
 
     return (
         <SpecialtyCard specialtyKey="physical" title="Khám Thể lực">
@@ -86,20 +110,32 @@ const PhysicalExamTab: React.FC = () => {
             <div className={`grid grid-cols-1 ${formType === '2' ? 'md:grid-cols-6' : 'md:grid-cols-5'} gap-4`}>
                 <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">Chiều cao (cm)</label>
-                    <input type="number" value={height} onChange={e => setHeight(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" />
+                    <input type="number" value={height} onChange={e => setHeight(e.target.value)} className={`w-full p-2.5 border rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white ${isHeightAbnormal && hasNoNote ? 'border-red-500 bg-red-50/50' : 'border-slate-300 dark:border-slate-600'}`} />
+                    {isHeightAbnormal && hasNoNote && (
+                        <p className="text-red-500 text-[10px] font-bold mt-1">⚠️ Cần ghi chú giải trình ở tab Kết Luận</p>
+                    )}
                 </div>
                 <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">Cân nặng (kg)</label>
-                    <input type="number" step="0.1" value={weight} onChange={e => setWeight(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" />
+                    <input type="number" step="0.1" value={weight} onChange={e => setWeight(e.target.value)} className={`w-full p-2.5 border rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white ${isWeightAbnormal && hasNoNote ? 'border-red-500 bg-red-50/50' : 'border-slate-300 dark:border-slate-600'}`} />
+                    {isWeightAbnormal && hasNoNote && (
+                        <p className="text-red-500 text-[10px] font-bold mt-1">⚠️ Cần ghi chú giải trình ở tab Kết Luận</p>
+                    )}
                 </div>
                 <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">Nhịp tim (mạch/phút)</label>
-                    <input type="number" value={pulse} onChange={e => setPulse(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" />
+                    <input type="number" value={pulse} onChange={e => setPulse(e.target.value)} className={`w-full p-2.5 border rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white ${isPulseAbnormal && hasNoNote ? 'border-red-500 bg-red-50/50' : 'border-slate-300 dark:border-slate-600'}`} />
+                    {isPulseAbnormal && hasNoNote && (
+                        <p className="text-red-500 text-[10px] font-bold mt-1">⚠️ Cần ghi chú giải trình ở tab Kết Luận</p>
+                    )}
                 </div>
                 <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">Huyết áp (mmHg)</label>
-                    <input type="text" value={bp} onChange={e => setBp(e.target.value)} className={`w-full p-2.5 border rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white ${errors.bp ? 'border-red-500 bg-red-50/50' : 'border-slate-300 dark:border-slate-600'}`} placeholder="120/80" />
+                    <input type="text" value={bp} onChange={e => setBp(e.target.value)} className={`w-full p-2.5 border rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white ${errors.bp || (isBpAbnormal && hasNoNote) ? 'border-red-500 bg-red-50/50' : 'border-slate-300 dark:border-slate-600'}`} placeholder="120/80" />
                     {errors.bp && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.bp}</p>}
+                    {isBpAbnormal && hasNoNote && !errors.bp && (
+                        <p className="text-red-500 text-[10px] font-bold mt-1">⚠️ Cần ghi chú giải trình ở tab Kết Luận</p>
+                    )}
                 </div>
                 <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">Chỉ số BMI (Tự động)</label>

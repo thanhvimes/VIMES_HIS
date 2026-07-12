@@ -63,14 +63,14 @@ class DocumentsController {
         }
     }
 
-    // Helper to pushback Imaging (HA) and Functional Exploration (TD) results back to HIS PACS tables
-    private async pushbackPacsResults(client: any, hisDocNo: number, paraclinicalItems: any[], clinicalData: any) {
+    // Helper to pushback both test results and PACS (HA/TD) results back to HIS tables safely
+    private async pushbackTestAndPacsResults(client: any, hisDocNo: number, paraclinicalItems: any[], clinicalData: any) {
         if (!Array.isArray(paraclinicalItems) || paraclinicalItems.length === 0) return;
         
         const specialtyMetadata = clinicalData?.clinical_exam?.specialty_metadata || {};
         const labDoctorId = specialtyMetadata.lab?.doctorId || 'admin';
 
-        // 1. Fetch doctor department from sys_user
+        // Fetch doctor department from sys_user
         let deptId = 'CLS';
         if (labDoctorId) {
             try {
@@ -79,15 +79,44 @@ class DocumentsController {
                     deptId = userRes.rows[0].su_deptid;
                 }
             } catch (userErr) {
-                console.warn('[PACS pushback] Failed to fetch su_deptid for:', labDoctorId, userErr);
+                console.warn('[HIS pushback] Failed to fetch su_deptid for:', labDoctorId, userErr);
             }
         }
 
         for (const item of paraclinicalItems) {
             const code = item.service_code;
             const orderId = item.order_id ? parseInt(item.order_id) : null;
+            const val = String(item.value || '').trim();
+            const conclusion = String(item.conclusion || '').trim();
+            const description = String(item.description || '').trim();
 
-            if ((item.type === 'HA' || item.type === 'TD') && orderId && code) {
+            // Safety: Skip if all result fields are empty (do not overwrite HIS with blank values)
+            if (!val && !conclusion && !description) {
+                continue;
+            }
+
+            if (item.type === 'XN' && code) {
+                try {
+                    // Check order line existence and check if status is 'O' or 'S'
+                    const statusCheck = await client.query(`
+                        SELECT 1 FROM hms_testorderline l
+                        JOIN hms_testorder o ON o.hpc_orderid = l.hpcl_orderid
+                        WHERE l.hpcl_docno = $1 AND l.hpcl_itemid = $2
+                          AND o.hpc_status IN ('O', 'S') AND l.hpcl_status IN ('O', 'S')
+                    `, [hisDocNo, code]);
+
+                    if (statusCheck.rows.length > 0) {
+                        // Cập nhật kết quả xét nghiệm về hms_testorderline
+                        await client.query(`
+                            UPDATE hms_testorderline
+                            SET hpcl_result = $1
+                            WHERE hpcl_docno = $2 AND hpcl_itemid = $3
+                        `, [val, hisDocNo, code]);
+                    }
+                } catch (pushErr) {
+                    console.error(`❌ [LIMS pushback] Failed pushing item ${code} for docNo ${hisDocNo}:`, pushErr);
+                }
+            } else if ((item.type === 'HA' || item.type === 'TD') && orderId && code) {
                 try {
                     // Check order line existence and check if status is 'O' or 'S'
                     const statusCheck = await client.query(`
@@ -105,11 +134,12 @@ class DocumentsController {
                         const formLayoutId = feeRes.rows.length > 0 ? (feeRes.rows[0].hfl_index1 || 'StandardPACS') : 'StandardPACS';
 
                         // B. Delete and insert conclusion
+                        const finalConclusion = conclusion || val || '';
                         await client.query(`DELETE FROM hms_pacs_result WHERE hpr_orderid = $1 AND hpr_itemid = $2 AND LOWER(hpr_name) = 'conclusion'`, [orderId, code]);
                         await client.query(`
                             INSERT INTO hms_pacs_result (hpr_docno, hpr_orderid, hpr_itemid, hpr_name, hpr_desc)
                             VALUES ($1, $2, $3, 'conclusion', $4)
-                        `, [hisDocNo, orderId, code, item.conclusion || item.value || '']);
+                        `, [hisDocNo, orderId, code, finalConclusion]);
 
                         // C. Delete and insert remark (description) if present
                         if (item.description !== undefined) {
@@ -117,7 +147,7 @@ class DocumentsController {
                             await client.query(`
                                 INSERT INTO hms_pacs_result (hpr_docno, hpr_orderid, hpr_itemid, hpr_name, hpr_desc)
                                 VALUES ($1, $2, $3, 'remark', $4)
-                            `, [hisDocNo, orderId, code, item.description || '']);
+                            `, [hisDocNo, orderId, code, description]);
                         }
 
                         // D. Update hms_pacsorderline to status 'T'
@@ -248,10 +278,16 @@ class DocumentsController {
 
     // 3. Tạo mới hồ sơ khám sức khỏe (Master-Detail)
     async createDocument(req: Request, res: Response) {
-        const { 
-            patientId, patientName, cccd, dob, gender, docNo, formType,
-            clinicalData, labData, conclusionData 
-        } = req.body;
+        const patientId = req.body.patientId || req.body.patient_id;
+        const patientName = req.body.patientName || req.body.patient_name;
+        const cccd = req.body.cccd;
+        const dob = req.body.dob;
+        const gender = req.body.gender;
+        const docNo = req.body.docNo || req.body.doc_no;
+        const formType = req.body.formType || req.body.form_type;
+        const clinicalData = req.body.clinicalData || req.body.clinical_data;
+        const labData = req.body.labData || req.body.lab_data;
+        const conclusionData = req.body.conclusionData || req.body.conclusion_data;
 
         if (!formType) {
             return res.status(400).json({ error: "Loại mẫu biểu formType là bắt buộc" });
@@ -349,33 +385,9 @@ class DocumentsController {
                     ]);
                 }
 
-                // 2. ĐẨY NGƯỢC DỮ LIỆU VỀ CÁC BẢNG GỐC CỦA HIS (Chỉ khi hpc_status và hpcl_status thuộc nhóm O hoặc S)
+                // 2. ĐẨY NGƯỢC DỮ LIỆU VỀ CÁC BẢNG GỐC CỦA HIS (Chỉ những chỉ số có kết quả và khi hpc_status, hpcl_status thuộc nhóm O hoặc S)
                 if (hisDocNo && labData?.paraclinical_items) {
-                    for (const item of labData.paraclinical_items) {
-                        const code = item.service_code;
-
-                        if (item.type === 'XN') {
-                            // Kiểm tra trạng thái hpc_status và hpcl_status của Xét nghiệm
-                            const statusCheck = await client.query(`
-                                SELECT 1 FROM hms_testorderline l
-                                JOIN hms_testorder o ON o.hpc_orderid = l.hpcl_orderid
-                                WHERE l.hpcl_docno = $1 AND l.hpcl_itemid = $2
-                                  AND o.hpc_status IN ('O', 'S') AND l.hpcl_status IN ('O', 'S')
-                            `, [hisDocNo, code]);
-
-                            if (statusCheck.rows.length > 0) {
-                                // Cập nhật kết quả xét nghiệm về hms_testorderline
-                                await client.query(`
-                                    UPDATE hms_testorderline
-                                    SET hpcl_result = $1
-                                    WHERE hpcl_docno = $2 AND hpcl_itemid = $3
-                                `, [item.value || '', hisDocNo, code]);
-                            }
-                        }
-                    }
-
-                    // Đồng bộ kết quả CĐHA & TDCN về PACS HIS
-                    await this.pushbackPacsResults(client, hisDocNo, labData.paraclinical_items, clinicalData);
+                    await this.pushbackTestAndPacsResults(client, hisDocNo, labData.paraclinical_items, clinicalData);
                 }
 
                 return masterId;
@@ -391,12 +403,24 @@ class DocumentsController {
     // 4. Cập nhật hồ sơ khám sức khỏe
     async updateDocument(req: Request, res: Response) {
         const id = req.params.id as string;
-        const { 
-            patientId, patientName, cccd, dob, gender, docNo, formType,
-            clinicalData, labData, conclusionData 
-        } = req.body;
+        const patientId = req.body.patientId || req.body.patient_id;
+        const patientName = req.body.patientName || req.body.patient_name;
+        const cccd = req.body.cccd;
+        const dob = req.body.dob;
+        const gender = req.body.gender;
+        const docNo = req.body.docNo || req.body.doc_no;
+        const formType = req.body.formType || req.body.form_type;
+        const clinicalData = req.body.clinicalData || req.body.clinical_data;
+        const labData = req.body.labData || req.body.lab_data;
+        const conclusionData = req.body.conclusionData || req.body.conclusion_data;
 
         try {
+            // Check if document has already been successfully synced to VNeID
+            const masterCheck = await query(`SELECT send_status FROM health_check_masters WHERE id = $1`, [parseInt(id, 10)]);
+            if (masterCheck.rows.length > 0 && masterCheck.rows[0].send_status === 'Success') {
+                return res.status(400).json({ error: "Hồ sơ đã gửi liên thông VNeID thành công, không thể chỉnh sửa!" });
+            }
+
             const xmlData = generateXmlPayload(
                 formType, 
                 { patientName, cccd, dob, gender, docNo }, 
@@ -416,13 +440,13 @@ class DocumentsController {
                 const masterSql = `
                     UPDATE health_check_masters 
                     SET patient_id = $1, patient_name = $2, cccd = $3, dob = $4, 
-                        gender = $5, doc_no = $6, xml_data = $7, updated_at = NOW(),
+                        gender = $5, doc_no = $6, form_type = $7, xml_data = $8, updated_at = NOW(),
                         signature_status = 'Unsigned', send_status = 'Unsent'
-                    WHERE id = $8
+                    WHERE id = $9
                 `;
                 await client.query(masterSql, [
                     patientId, patientName, cccd, dob ? new Date(dob) : null, 
-                    gender, docNo, xmlData, parseInt(id)
+                    gender, docNo, formType, xmlData, parseInt(id)
                 ]);
 
                 const detailSql = `
@@ -437,33 +461,9 @@ class DocumentsController {
                     parseInt(id)
                 ]);
 
-                // 2. ĐẨY NGƯỢC DỮ LIỆU VỀ CÁC BẢNG GỐC CỦA HIS (Chỉ khi hpc_status và hpcl_status thuộc nhóm O hoặc S)
+                // 2. ĐẨY NGƯỢC DỮ LIỆU VỀ CÁC BẢNG GỐC CỦA HIS (Chỉ những chỉ số có kết quả và khi hpc_status, hpcl_status thuộc nhóm O hoặc S)
                 if (hisDocNo && labData?.paraclinical_items) {
-                    for (const item of labData.paraclinical_items) {
-                        const code = item.service_code;
-
-                        if (item.type === 'XN') {
-                            // Kiểm tra trạng thái hpc_status và hpcl_status của Xét nghiệm
-                            const statusCheck = await client.query(`
-                                SELECT 1 FROM hms_testorderline l
-                                JOIN hms_testorder o ON o.hpc_orderid = l.hpcl_orderid
-                                WHERE l.hpcl_docno = $1 AND l.hpcl_itemid = $2
-                                  AND o.hpc_status IN ('O', 'S') AND l.hpcl_status IN ('O', 'S')
-                            `, [hisDocNo, code]);
-
-                            if (statusCheck.rows.length > 0) {
-                                // Cập nhật kết quả xét nghiệm về hms_testorderline
-                                await client.query(`
-                                    UPDATE hms_testorderline
-                                    SET hpcl_result = $1
-                                    WHERE hpcl_docno = $2 AND hpcl_itemid = $3
-                                `, [item.value || '', hisDocNo, code]);
-                            }
-                        }
-                    }
-
-                    // Đồng bộ kết quả CĐHA & TDCN về PACS HIS
-                    await this.pushbackPacsResults(client, hisDocNo, labData.paraclinical_items, clinicalData);
+                    await this.pushbackTestAndPacsResults(client, hisDocNo, labData.paraclinical_items, clinicalData);
                 }
             });
 

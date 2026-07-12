@@ -10,6 +10,9 @@ import authMiddleware from '../middleware/authMiddleware';
 
 const router = express.Router();
 
+// Apply authMiddleware globally to all health-check routes
+router.use(authMiddleware);
+
 // CRUD Endpoints (Health Check Documents)
 router.get('/documents', healthCheckController.getDocuments.bind(healthCheckController));
 router.get('/documents/:id', healthCheckController.getDocumentById.bind(healthCheckController));
@@ -32,8 +35,8 @@ router.put('/contracts/:id/status', contractsController.updateContractStatus.bin
 router.delete('/contracts/:id', contractsController.deleteContract.bind(contractsController));
 router.get('/contracts/:id/employees', employeesController.getContractEmployees.bind(employeesController));
 router.post('/contracts/:id/employees/import', employeesController.importEmployees.bind(employeesController));
-router.delete('/employees/:id', authMiddleware, employeesController.deleteEmployee.bind(employeesController));
-router.post('/employees', authMiddleware, employeesController.createEmployee.bind(employeesController));
+router.delete('/employees/:id', employeesController.deleteEmployee.bind(employeesController));
+router.post('/employees', employeesController.createEmployee.bind(employeesController));
 
 // Contract Services & Fee Catalog routes
 router.get('/contracts/:id/services', contractsController.getContractServices.bind(contractsController));
@@ -51,19 +54,19 @@ router.post('/settings/test-connection', contractsController.testConnection.bind
 
 
 // Reception & CCCD search endpoints
-router.get('/reception/search', authMiddleware, receptionController.searchEmployeeByCard.bind(receptionController));
-router.post('/reception/receive', authMiddleware, receptionController.receiveContractEmployee.bind(receptionController));
-router.get('/reception/rooms', authMiddleware, receptionController.getReceptionRooms.bind(receptionController));
-router.get('/reception/exam-fees', authMiddleware, receptionController.getExamFees.bind(receptionController));
-router.put('/reception/employee/:id', authMiddleware, receptionController.updateEmployee.bind(receptionController));
+router.get('/reception/search', receptionController.searchEmployeeByCard.bind(receptionController));
+router.post('/reception/receive', receptionController.receiveContractEmployee.bind(receptionController));
+router.get('/reception/rooms', receptionController.getReceptionRooms.bind(receptionController));
+router.get('/reception/exam-fees', receptionController.getExamFees.bind(receptionController));
+router.put('/reception/employee/:id', receptionController.updateEmployee.bind(receptionController));
 
 // Sample Tracking endpoints
-router.get('/samples/slips', authMiddleware, sampleTrackingController.getSampleSlips.bind(sampleTrackingController));
-router.get('/samples/slips/:slipId/patients', authMiddleware, sampleTrackingController.getSampleSlipPatients.bind(sampleTrackingController));
-router.get('/samples/orders/:orderId/items', authMiddleware, sampleTrackingController.getPatientTestDetails.bind(sampleTrackingController));
-router.get('/samples/cancelled', authMiddleware, sampleTrackingController.getCancelledSamples.bind(sampleTrackingController));
-router.post('/samples/receive', authMiddleware, sampleTrackingController.confirmSampleReceipt.bind(sampleTrackingController));
-router.post('/samples/cancel', authMiddleware, sampleTrackingController.cancelSampleReceipt.bind(sampleTrackingController));
+router.get('/samples/slips', sampleTrackingController.getSampleSlips.bind(sampleTrackingController));
+router.get('/samples/slips/:slipId/patients', sampleTrackingController.getSampleSlipPatients.bind(sampleTrackingController));
+router.get('/samples/orders/:orderId/items', sampleTrackingController.getPatientTestDetails.bind(sampleTrackingController));
+router.get('/samples/cancelled', sampleTrackingController.getCancelledSamples.bind(sampleTrackingController));
+router.post('/samples/receive', sampleTrackingController.confirmSampleReceipt.bind(sampleTrackingController));
+router.post('/samples/cancel', sampleTrackingController.cancelSampleReceipt.bind(sampleTrackingController));
 
 
 export default router;

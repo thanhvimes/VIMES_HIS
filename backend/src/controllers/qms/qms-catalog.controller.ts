@@ -83,9 +83,24 @@ export class QmsCatalogController {
   static async getDepartments(req: Request, res: Response) {
     console.log('[API/Departments] Querying sys_dept...');
     try {
+      const type = req.query.type as string;
+      let queryStr = `SELECT sd_id as id, sd_name as name FROM sys_dept WHERE sd_isactive ='Y'`;
+      const params: any[] = [];
+
+      if (type) {
+        if (type === 'D') {
+          queryStr += ` AND sd_type IN ('DT')`;
+        } else {
+          queryStr += ` AND sd_type = $1`;
+          params.push(type);
+        }
+      }
+
+      queryStr += ` ORDER BY sd_name`;
+
       const data = await safeQuery(
-        `SELECT sd_id as id, sd_name as name FROM sys_dept WHERE sd_isactive ='Y' ORDER BY sd_name`,
-        [],
+        queryStr,
+        params,
         [
           { id: 'PHONG_MO', name: 'Khoa Phẫu thuật - Gây mê hồi sức' },
           { id: 'NOI', name: 'Khoa Nội tổng hợp' },

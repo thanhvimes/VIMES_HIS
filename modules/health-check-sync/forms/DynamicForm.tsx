@@ -8,6 +8,8 @@ import { DynamicFormContext } from './DynamicFormContext';
 import { useDynamicFormState } from '../hooks/useDynamicFormState';
 import AdminTab from './tabs/AdminTab';
 import HistoryTab from './tabs/HistoryTab';
+import ChildDevelopmentTab from './tabs/ChildDevelopmentTab';
+import ChildClinicalExamTab from './tabs/ChildClinicalExamTab';
 import ExamContainer from './tabs/exam/ExamContainer';
 import LabTab from './tabs/LabTab';
 import ConclusionTab from './tabs/ConclusionTab';
@@ -63,8 +65,24 @@ class TabErrorBoundary extends React.Component<any, any> {
     }
 }
 
+import ChildForm from './mau1-child/ChildForm';
+
 const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave, onCancel, onChangeFormType, onPreview }) => {
     const { fontSettings } = useTheme();
+
+    if (formType === '1') {
+        return (
+            <TabErrorBoundary>
+                <ChildForm
+                    initialData={initialData}
+                    onSave={onSave}
+                    onPreview={onPreview}
+                    onClose={onCancel}
+                    onChangeFormType={onChangeFormType}
+                />
+            </TabErrorBoundary>
+        );
+    }
     
     const formState = useDynamicFormState(formType, initialData, onSave, onPreview);
     const {
@@ -145,7 +163,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
         onConfirm: () => {}
     });
 
-    const isChild = parseInt(formType, 10) >= 6 && parseInt(formType, 10) <= 13;
+    const isChild = formType === '1';
 
     return (
         <DynamicFormContext.Provider value={formState}>
@@ -230,31 +248,9 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                                 className="bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm font-bold focus:ring-2 focus:ring-white focus:outline-none cursor-pointer w-full lg:w-[280px] disabled:opacity-55 disabled:cursor-not-allowed"
                                 style={{ colorScheme: 'dark' }}
                             >
-                                <optgroup label="Nhóm Phổ Biến" className="text-slate-800 bg-white">
-                                    <option value="2" className="text-slate-800 bg-white">Mẫu 2: Người lớn (&gt;= 18T)</option>
-                                    <option value="3" className="text-slate-800 bg-white">Mẫu 3: Khám sức khỏe lái xe</option>
-                                </optgroup>
-                                <optgroup label="Nhóm Học Sinh" className="text-slate-800 bg-white">
-                                    <option value="1" className="text-slate-800 bg-white">Mẫu 1: Trẻ em 6T - dưới 18T</option>
-                                    <option value="14" className="text-slate-800 bg-white">Mẫu 14: Học sinh 3M - dưới 6T</option>
-                                    <option value="15" className="text-slate-800 bg-white">Mẫu 15: Học sinh cấp 1</option>
-                                    <option value="16" className="text-slate-800 bg-white">Mẫu 16: Học sinh cấp 2</option>
-                                    <option value="17" className="text-slate-800 bg-white">Mẫu 17: Học sinh cấp 3</option>
-                                </optgroup>
-                                <optgroup label="Nhóm Trẻ Em" className="text-slate-800 bg-white">
-                                    <option value="6" className="text-slate-800 bg-white">Mẫu 6: Trẻ em 0 - dưới 2 tháng</option>
-                                    <option value="7" className="text-slate-800 bg-white">Mẫu 7: Trẻ em 2 - 3 tháng</option>
-                                    <option value="8" className="text-slate-800 bg-white">Mẫu 8: Trẻ em 4 - 6 tháng</option>
-                                    <option value="9" className="text-slate-800 bg-white">Mẫu 9: Trẻ em 7 - 9 tháng</option>
-                                    <option value="10" className="text-slate-800 bg-white">Mẫu 10: Trẻ em 10 - 12 tháng</option>
-                                    <option value="11" className="text-slate-800 bg-white">Mẫu 11: Trẻ em 13 - 18 tháng</option>
-                                    <option value="12" className="text-slate-800 bg-white">Mẫu 12: Trẻ em 19 - 24 tháng</option>
-                                    <option value="13" className="text-slate-800 bg-white">Mẫu 13: Trẻ em 2 - dưới 6 tuổi</option>
-                                </optgroup>
-                                <optgroup label="Đặc Thù Ngành" className="text-slate-800 bg-white">
-                                    <option value="4" className="text-slate-800 bg-white">Mẫu 4: Nhân viên đường sắt</option>
-                                    <option value="5" className="text-slate-800 bg-white">Mẫu 5: Thuyền viên tàu biển</option>
-                                </optgroup>
+                                <option value="1" className="text-slate-800 bg-white">Mẫu 1: Trẻ em dưới 06 tuổi</option>
+                                <option value="2" className="text-slate-800 bg-white">Mẫu 2: Người từ đủ 06 tuổi đến dưới 18 tuổi</option>
+                                <option value="3" className="text-slate-800 bg-white">Mẫu 3: Người từ đủ 18 tuổi trở lên</option>
                             </select>
                         </div>
                     ) : (
@@ -270,7 +266,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
             {/* Navigation Tabs */}
             <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-4 overflow-x-auto whitespace-nowrap scrollbar-none flex-nowrap">
                 <button type="button" onClick={() => handleTabChange('admin')} className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${activeTab === 'admin' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-                    I. Hành chính &amp; Đặc thù
+                    Thông tin hành chính
                 </button>
                 <button 
                     type="button" 
@@ -279,8 +275,18 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                     className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${!patientName ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent' : activeTab === 'history' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                     title={!patientName ? "Vui lòng tìm kiếm/nhập thông tin hành chính bệnh nhân trước" : ""}
                 >
-                    II. Tiền sử &amp; Vaccine
+                    Tiền sử & Khám thể lực
                 </button>
+                {isChild && (
+                    <button 
+                        type="button" 
+                        disabled={!patientName}
+                        onClick={() => handleTabChange('childDev')} 
+                        className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${!patientName ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent' : activeTab === 'childDev' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                    >
+                        Dinh dưỡng &amp; Phát triển
+                    </button>
+                )}
                 <button 
                     type="button" 
                     disabled={!patientName}
@@ -288,7 +294,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                     className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${!patientName ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent' : activeTab === 'exam' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                     title={!patientName ? "Vui lòng tìm kiếm/nhập thông tin hành chính bệnh nhân trước" : ""}
                 >
-                    III. Thể lực &amp; Lâm sàng
+                    Khám lâm sàng
                 </button>
                 <button 
                     type="button" 
@@ -297,7 +303,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                     className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${!patientName ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent' : activeTab === 'lab' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                     title={!patientName ? "Vui lòng tìm kiếm/nhập thông tin hành chính bệnh nhân trước" : ""}
                 >
-                    IV. Cận lâm sàng
+                    Cận lâm sàng
                 </button>
                 <button 
                     type="button" 
@@ -306,7 +312,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                     className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${!patientName ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent' : activeTab === 'conclusion' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                     title={!patientName ? "Vui lòng tìm kiếm/nhập thông tin hành chính bệnh nhân trước" : ""}
                 >
-                    V. Kết luận
+                    Kết luận
                 </button>
             </div>
 
@@ -314,10 +320,15 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
             <div className="px-6 py-5 space-y-6 overflow-y-auto flex-1 min-h-0 custom-scrollbar scroll-smooth">
                 {activeTab === 'admin' && <AdminTab />}
                 {activeTab === 'history' && <HistoryTab />}
+                {activeTab === 'childDev' && isChild && <ChildDevelopmentTab />}
                 {activeTab === 'exam' && (
-                    <TabErrorBoundary>
-                        <ExamContainer />
-                    </TabErrorBoundary>
+                    isChild ? (
+                        <ChildClinicalExamTab />
+                    ) : (
+                        <TabErrorBoundary>
+                            <ExamContainer />
+                        </TabErrorBoundary>
+                    )
                 )}
                 {activeTab === 'lab' && <LabTab />}
                 {activeTab === 'conclusion' && <ConclusionTab />}

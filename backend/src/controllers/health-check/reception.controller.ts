@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { query } from '../../config/database';
 import { generateXmlPayload } from './xml-generator';
+import { hisIntegrationController } from './his-integration';
 
 export class ReceptionController {
     // Lấy danh sách phòng khám/phòng tiếp đón để chọn phòng đo sinh hiệu
@@ -391,11 +392,25 @@ export class ReceptionController {
                     extra: {}
                 };
 
+                // Tự động tải chỉ định cận lâm sàng từ HIS ngay lúc tiếp nhận
+                let liveParaclinical: any = null;
+                try {
+                    liveParaclinical = await hisIntegrationController.fetchStructuredParaclinicalData(newDocNo);
+                    console.log(`🔍 [receiveContractEmployee] Tự động tải cận lâm sàng từ HIS cho docNo ${newDocNo}:`, liveParaclinical?.paraclinical_items?.length, 'items');
+                } catch (fetchErr) {
+                    console.error('⚠️ [receiveContractEmployee] Lỗi tải cận lâm sàng từ HIS:', fetchErr);
+                }
+
                 const labData: any = {
-                    blood_test: { hemoglobin: '', glycemia: '' },
-                    urine_test: { protein: '' },
-                    kq_xn_khac: '',
-                    paraclinical_items: []
+                    blood_test: { 
+                        hemoglobin: liveParaclinical?.hemoglobin || '', 
+                        glycemia: liveParaclinical?.glycemia || '' 
+                    },
+                    urine_test: { 
+                        protein: liveParaclinical?.protein || '' 
+                    },
+                    kq_xn_khac: liveParaclinical?.kqXnKhac || '',
+                    paraclinical_items: liveParaclinical?.paraclinical_items || []
                 };
 
                 const xmlData = generateXmlPayload(

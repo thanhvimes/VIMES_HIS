@@ -9,8 +9,6 @@ export class ContractsController {
     // Lấy cấu hình liên thông VNeID
     async getSettings(req: Request, res: Response) {
         try {
-            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS reception_slip_template text`);
-            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS use_qz_tray boolean DEFAULT false`);
             const result = await query(
                 `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, reception_slip_template, use_qz_tray FROM health_check_settings LIMIT 1`
             );
@@ -148,8 +146,6 @@ export class ContractsController {
         } = req.body;
 
         try {
-            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS reception_slip_template text`);
-            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS use_qz_tray boolean DEFAULT false`);
             const existCheck = await query('SELECT id, vneid_password FROM health_check_settings LIMIT 1');
             
             let finalPassword = '';

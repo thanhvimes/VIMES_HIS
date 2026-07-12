@@ -167,12 +167,12 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
     <MA_NGHE_NGHIEP>${escapeXml(findValue('ma_nghe_nghiep', src) || '01')}</MA_NGHE_NGHIEP>
     <NOI_CONG_TAC_HIEN_TAI>${escapeXml(findValue('noi_cong_tac_hien_tai', src))}</NOI_CONG_TAC_HIEN_TAI>`;
 
-    // Add parent or guardian if student or child
-    if (formType === '1' || parseInt(formType) >= 14) {
+    // Add parent or guardian if student or child (QĐ 2062: Mẫu 2 is student)
+    if (formType === '2') {
         adminXml += `
     <NGUOI_GIAM_HO>${escapeXml(findValue('NGUOI_GIAM_HO', src))}</NGUOI_GIAM_HO>
     <SO_CCCD_NGH>${escapeXml(findValue('SO_CCCD_NGH', src))}</SO_CCCD_NGH>`;
-    } else if (parseInt(formType) >= 6 && parseInt(formType) <= 13) {
+    } else if (formType === '1') {
         adminXml += `
     <HO_TEN_NGUOI_DI_CUNG>${escapeXml(findValue('HO_TEN_NGUOI_DI_CUNG', src))}</HO_TEN_NGUOI_DI_CUNG>
     <SO_CCCD_NGUOI_DI_CUNG>${escapeXml(findValue('SO_CCCD_NGUOI_DI_CUNG', src))}</SO_CCCD_NGUOI_DI_CUNG>
@@ -205,8 +205,8 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
     <KHU_VUC_HOAT_DONG_TAU>${escapeXml(findValue('khu_vuc_hoat_dong_tau', src))}</KHU_VUC_HOAT_DONG_TAU>`;
     }
 
-    // Add work history for Mẫu 2
-    if (formType === '2') {
+    // Add work history for Mẫu 3 (QĐ 2062: Mẫu 3 is adult)
+    if (formType === '3') {
         adminXml += `
     <NGAY_BAT_DAU_LAM_VIEC_HIEN_TAI>${escapeXml(findValue('ngay_bat_dau_lam_viec_hien_tai', src))}</NGAY_BAT_DAU_LAM_VIEC_HIEN_TAI>
     <NGHE_CONG_VIEC_TRUOC_DAY>${escapeXml(findValue('nghe_cong_viec_truoc_day', src))}</NGHE_CONG_VIEC_TRUOC_DAY>
@@ -218,7 +218,7 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
 
     // 2. Tiền sử bệnh
     let historyXml = '';
-    if (formType === '3') {
+    if (formType === 'driver') {
         // Lái xe has comprehensive list of checkboxes
         historyXml = `
     <TSGD_MAC_BENH>${escapeXml(findValue('TSGD_MAC_BENH', src) || '0')}</TSGD_MAC_BENH>
@@ -248,8 +248,8 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
     <TEN_THUOC>${escapeXml(findValue('TEN_THUOC', src) || findValue('ten_thuoc', src))}</TEN_THUOC>
     <TSBT_MA_BENH_NGHE_NGHIEP>${escapeXml(findValue('tsbt_ma_benh_nghe_nghiep', src))}</TSBT_MA_BENH_NGHE_NGHIEP>
     <TSBT_NAM_PHAT_HIEN_BENH_NGHE_NGHIEP>${escapeXml(findValue('tsbt_nam_phat_hien_benh_nghe_nghiep', src))}</TSBT_NAM_PHAT_HIEN_BENH_NGHE_NGHIEP`;
-    } else if (formType === '2') {
-        // Người lớn: Tiền sử gia đình, bản thân, bệnh nghề nghiệp & sản phụ khoa
+    } else if (formType === '3') {
+        // Người lớn (Mẫu 3 QĐ 2062): Tiền sử gia đình, bản thân, bệnh nghề nghiệp & sản phụ khoa
         historyXml = `
     <TSGD_MA_BENH>${escapeXml(findValue('TSGD_MA_BENH', src))}</TSGD_MA_BENH>
     <TSBT_MA_BENH>${escapeXml(findValue('TSBT_MA_BENH', src))}</TSBT_MA_BENH>
@@ -272,8 +272,8 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
     <DANG_AP_DUNG_BPTT_KHONG>${escapeXml(findValue('dang_ap_dung_bptt_khong', src) || '0')}</DANG_AP_DUNG_BPTT_KHONG>
     <BIEN_PHAP_TRANH_THAI>${escapeXml(findValue('bien_phap_tranh_thai', src) || '1')}</BIEN_PHAP_TRANH_THAI`;
         }
-    } else if (formType === '1' || parseInt(formType) >= 6) {
-        // Trẻ em & Học sinh: Vaccine & Tiền sử tiêm chủng
+    } else if (formType === '1' || formType === '2') {
+        // Trẻ em & Học sinh (Mẫu 1 & Mẫu 2 QĐ 2062): Vaccine & Tiền sử tiêm chủng
         historyXml = `
     <TIEM_CHUNG_BCG>${escapeXml(findValue('TIEM_CHUNG_BCG', src) || '99')}</TIEM_CHUNG_BCG>
     <TIEM_CHUNG_BH_HG_UV>${escapeXml(findValue('TIEM_CHUNG_BH_HG_UV', src) || '99')}</TIEM_CHUNG_BH_HG_UV>
@@ -291,7 +291,7 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
     <MACH>${escapeXml(findValue('MACH', src))}</MACH>
     <HUYET_AP>${escapeXml(findValue('HUYET_AP', src))}</HUYET_AP>`;
 
-    if (formType === '2') {
+    if (formType === '3') {
         physicalXml += `
     <KHAM_THE_LUC_PL>${escapeXml(findValue('kham_the_luc_pl', src) || '1')}</KHAM_THE_LUC_PL>`;
     } else if (formType === '5') {
@@ -304,7 +304,7 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
     <HA_TAM_TRUONG>${escapeXml(findValue('HA_TAM_TRUONG', src))}</HA_TAM_TRUONG>
     <NHIP_TIM>${escapeXml(findValue('NHIP_TIM', src))}</NHIP_TIM>
     <VONG_NGUC_TRUNG_BINH>${escapeXml(findValue('VONG_NGUC_TRUNG_BINH', src))}</VONG_NGUC_TRUNG_BINH>`;
-    } else if (parseInt(formType) >= 6 && parseInt(formType) <= 13) {
+    } else if (formType === '1') {
         physicalXml += `
     <VONG_DDAU>${escapeXml(findValue('VONG_DDAU', src))}</VONG_DDAU>
     <VONG_NGUC>${escapeXml(findValue('VONG_NGUC', src))}</VONG_NGUC>
@@ -315,7 +315,7 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
 
     // 4. Khám lâm sàng
     let clinicalXml = '';
-    if (parseInt(formType) >= 6 && parseInt(formType) <= 13) {
+    if (formType === '1') {
         // Nhi khoa
         clinicalXml = `
     <NHI_KHOA_TUAN_HOAN>${escapeXml(findValue('NHI_KHOA_TUAN_HOAN', src) || 'Bình thường')}</NHI_KHOA_TUAN_HOAN>
@@ -353,10 +353,12 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
             { key: 'dem_to_hoac_dem_ngon_tay', forms: ['13'] },
         ];
         
-        milestoneList.filter(item => item.forms.includes(formType)).forEach(item => {
-            const val = findValue(item.key, src) || '1';
-            clinicalXml += `
+        milestoneList.forEach(item => {
+            const val = findValue(item.key, src);
+            if (val) {
+                clinicalXml += `
     <${item.key.toUpperCase()}>${escapeXml(val)}</${item.key.toUpperCase()}>`;
+            }
         });
     } else if (formType === '4') {
         // Mẫu 4: 12 Railway Specialties
@@ -417,8 +419,8 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
     <TAI_TRAI_4000HZ>${escapeXml(findValue('TAI_TRAI_4000HZ', src) || '20')}</TAI_TRAI_4000HZ>
     <TAI_PHAI_6000HZ>${escapeXml(findValue('TAI_PHAI_6000HZ', src) || '20')}</TAI_PHAI_6000HZ>
     <TAI_TRAI_6000HZ>${escapeXml(findValue('TAI_TRAI_6000HZ', src) || '20')}</TAI_TRAI_6000HZ>`;
-    } else if (formType === '2') {
-        // Người lớn: Lâm sàng & Phân loại đầy đủ
+    } else if (formType === '3') {
+        // Người lớn (Mẫu 3 QĐ 2062): Lâm sàng & Phân loại đầy đủ
         clinicalXml = `
     <NOI_KHOA_TUAN_HOAN>${escapeXml(findValue('kq_tim_mach', src) || 'Bình thường')}</NOI_KHOA_TUAN_HOAN>
     <NOI_KHOA_TUAN_HOAN_PL>${escapeXml(findValue('noi_khoa_tuan_hoan_pl', src) || '1')}</NOI_KHOA_TUAN_HOAN_PL>
@@ -458,8 +460,8 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
     <HAM_DUOI>${escapeXml(findValue('ham_duoi', src) || 'Bình thường')}</HAM_DUOI>
     <BENH_KHAC_RANG_HAM_MAT>${escapeXml(findValue('dental', src) || 'Bình thường')}</BENH_KHAC_RANG_HAM_MAT>
     <KHAM_RANG_HAM_MAT_PL>${escapeXml(findValue('kham_rang_ham_mat_pl', src) || '1')}</KHAM_RANG_HAM_MAT_PL>`;
-    } else if (formType === '1') {
-        // Mẫu 1: Nhi khoa (6 – dưới 18 tuổi) – dùng thẻ NHI_KHOA_*
+    } else if (formType === '2') {
+        // Mẫu 2: Nhi khoa Học sinh (6 – dưới 18 tuổi) – dùng thẻ NHI_KHOA_*
         clinicalXml = `
     <NHI_KHOA_TUAN_HOAN>${escapeXml(findValue('nhi_tuan_hoan', src) || 'Bình thường')}</NHI_KHOA_TUAN_HOAN>
     <NHI_KHOA_HO_HAP>${escapeXml(findValue('nhi_ho_hap', src) || 'Bình thường')}</NHI_KHOA_HO_HAP>

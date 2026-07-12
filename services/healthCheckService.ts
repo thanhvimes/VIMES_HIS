@@ -22,13 +22,25 @@ export interface HealthCheckDocument {
 }
 
 export const healthCheckService = {
-    getDocumentsList: async (filters?: { startDate?: string; endDate?: string; barcodePrinted?: string }): Promise<HealthCheckDocument[]> => {
+    getDocumentsList: async (filters?: { 
+        startDate?: string; 
+        endDate?: string; 
+        barcodePrinted?: string;
+        searchTerm?: string;
+        status?: string;
+        signatureStatus?: string;
+        formType?: string;
+    }): Promise<HealthCheckDocument[]> => {
         try {
             const params = new URLSearchParams();
             if (filters) {
                 if (filters.startDate) params.append('startDate', filters.startDate);
                 if (filters.endDate) params.append('endDate', filters.endDate);
                 if (filters.barcodePrinted) params.append('barcodePrinted', filters.barcodePrinted);
+                if (filters.searchTerm) params.append('searchTerm', filters.searchTerm);
+                if (filters.status) params.append('status', filters.status);
+                if (filters.signatureStatus) params.append('signatureStatus', filters.signatureStatus);
+                if (filters.formType) params.append('formType', filters.formType);
             }
             const queryStr = params.toString() ? `?${params.toString()}` : '';
             return await apiClient.get<HealthCheckDocument[]>(`/health-check-sync/documents${queryStr}`);

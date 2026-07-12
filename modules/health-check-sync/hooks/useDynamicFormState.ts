@@ -42,6 +42,7 @@ export const useDynamicFormState = (
     const [maTinhCuTru, setMaTinhCuTru] = useState(initialData?.clinical_data?.matinh_cu_tru || '');
     const [maXaCuTru, setMaXaCuTru] = useState(initialData?.clinical_data?.maxa_cu_tru || '');
     const [lyDoVv, setLyDoVv] = useState(initialData?.clinical_data?.ly_do_vv || 'Khám sức khỏe định kỳ');
+    const [loaiHinhKcb, setLoaiHinhKcb] = useState(initialData?.clinical_data?.loai_hinh_kcb || '01');
     const [ngayVao, setNgayVao] = useState(initialData?.clinical_data?.ngay_vao || new Date().toISOString().split('T')[0]);
 
     // Form-specific extra administrative fields
@@ -86,6 +87,8 @@ export const useDynamicFormState = (
     const [dangApDungBpttKhong, setDangApDungBpttKhong] = useState(initialData?.clinical_data?.extra?.dang_ap_dung_bptt_khong || '');
     const [bienPhapTranhThai, setBienPhapTranhThai] = useState(initialData?.clinical_data?.extra?.bien_phap_tranh_thai || '');
 
+    const [tsTiepXucLao, setTsTiepXucLao] = useState(initialData?.clinical_data?.extra?.ts_tiep_xuc_lao || '0');
+
     // Checkboxes & Tiền sử Lái xe / Bệnh nghề nghiệp bổ sung
     const [ts5Nam, setTs5Nam] = useState(initialData?.clinical_data?.extra?.ts_benh_thuong_5_nam || 0);
     const [tsThanKinh, setTsThanKinh] = useState(initialData?.clinical_data?.extra?.ts_than_kinh_chan_thuong_dau || 0);
@@ -115,11 +118,88 @@ export const useDynamicFormState = (
     const [weight, setWeight] = useState(initialData?.clinical_data?.examination?.weight || '');
     const [pulse, setPulse] = useState(initialData?.clinical_data?.examination?.pulse || '');
     const [bp, setBp] = useState(initialData?.clinical_data?.examination?.blood_pressure || '');
+    const [nhietDo, setNhietDo] = useState(initialData?.clinical_data?.nhiet_do || '');
+    const [nhipTho, setNhipTho] = useState(initialData?.clinical_data?.nhip_tho || '');
+    const [gioKham, setGioKham] = useState(initialData?.clinical_data?.extra?.gio_kham || new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }));
+    const [dgDhstNhietDo, setDgDhstNhietDo] = useState(initialData?.clinical_data?.extra?.dg_dhst_nhiet_do || '1');
+    const [dgDhstMach, setDgDhstMach] = useState(initialData?.clinical_data?.extra?.dg_dhst_mach || '1');
+    const [dgDhstNhipTho, setDgDhstNhipTho] = useState(initialData?.clinical_data?.extra?.dg_dhst_nhip_tho || '1');
     const [vongDau, setVongDau] = useState(initialData?.clinical_data?.extra?.vong_ddau || '');
     const [vongNguc, setVongNguc] = useState(initialData?.clinical_data?.extra?.vong_nguc || '');
     const [sinhNon, setSinhNon] = useState(initialData?.clinical_data?.extra?.sinh_non || '');
     const [tuanThai, setTuanThai] = useState(initialData?.clinical_data?.extra?.tuan_thai_khi_sinh || '');
     const [birthWeight, setBirthWeight] = useState(initialData?.clinical_data?.extra?.can_nang_luc_sinh || '');
+    
+    // Child Nutrition, Development & Immunization
+    const [chieuDaiTuoiSd, setChieuDaiTuoiSd] = useState(initialData?.clinical_data?.extra?.chieu_dai_tuoi_sd || '');
+    const [canNangTuoiSd, setCanNangTuoiSd] = useState(initialData?.clinical_data?.extra?.can_nang_tuoi_sd || '');
+    const [dgVongDau, setDgVongDau] = useState(initialData?.clinical_data?.extra?.dg_vong_dau || '1');
+    const [chuViVongCanhTay, setChuViVongCanhTay] = useState(initialData?.clinical_data?.extra?.chu_vi_vong_canh_tay || '');
+    const [phuDinhDuong, setPhuDinhDuong] = useState(initialData?.clinical_data?.extra?.phu_dinh_duong || '0');
+    const [thieuMau, setThieuMau] = useState(initialData?.clinical_data?.extra?.thieu_mau || '0');
+    const [coiXuong, setCoiXuong] = useState(initialData?.clinical_data?.extra?.coi_xuong || '0');
+    const [suyDinhDuong, setSuyDinhDuong] = useState(initialData?.clinical_data?.extra?.suy_dinh_duong || '0');
+    const [thuaCanBeoPhi, setThuaCanBeoPhi] = useState(initialData?.clinical_data?.extra?.thua_can_beo_phi || '0');
+    
+    const [ptTinhThanBinhThuong, setPtTinhThanBinhThuong] = useState(initialData?.clinical_data?.extra?.pt_tinh_than_binh_thuong || '1');
+    const [ptVanDongBinhThuong, setPtVanDongBinhThuong] = useState(initialData?.clinical_data?.extra?.pt_van_dong_binh_thuong || '1');
+    const [nguyCoTuKy, setNguyCoTuKy] = useState(initialData?.clinical_data?.extra?.nguy_co_tu_ky || '0');
+    
+    const [tiemChungLao, setTiemChungLao] = useState(initialData?.clinical_data?.extra?.tiem_chung_lao || '1');
+    const [tiemChungVgbMui1, setTiemChungVgbMui1] = useState(initialData?.clinical_data?.extra?.tiem_chung_vgb_mui1 || '1');
+    const [tiemChungDayDu, setTiemChungDayDu] = useState(initialData?.clinical_data?.extra?.tiem_chung_day_du || '1');
+
+    // Child clinical exam fields
+    const [lamSangQuanSat, setLamSangQuanSat] = useState(initialData?.clinical_data?.extra?.lam_sang_quan_sat || '');
+    const [mauSacDa, setMauSacDa] = useState(initialData?.clinical_data?.extra?.mau_sac_da || '1');
+    const [longBanTay, setLongBanTay] = useState(initialData?.clinical_data?.extra?.long_ban_tay || '1');
+    const [thop, setThop] = useState(initialData?.clinical_data?.extra?.thop || '1');
+    const [kichThuocDau, setKichThuocDau] = useState(initialData?.clinical_data?.extra?.kich_thuoc_dau || '1');
+    const [vanDongCo, setVanDongCo] = useState(initialData?.clinical_data?.extra?.van_dong_co || '1');
+    const [khoiBatThuongDauCo, setKhoiBatThuongDauCo] = useState(initialData?.clinical_data?.extra?.khoi_bat_thuong_dau_co || '0');
+    const [viTri2Mat, setViTri2Mat] = useState(initialData?.clinical_data?.extra?.vi_tri_2_mat || '1');
+    const [miMatKetMac, setMiMatKetMac] = useState(initialData?.clinical_data?.extra?.mi_mat_ket_mac || '1');
+    const [lacMat, setLacMat] = useState(initialData?.clinical_data?.extra?.lac_mat || '0');
+    const [dongTu, setDongTu] = useState(initialData?.clinical_data?.extra?.dong_tu || '1');
+    const [taiMangNhi, setTaiMangNhi] = useState(initialData?.clinical_data?.extra?.tai_mang_nhi || '1');
+    const [dapUngAmThanh, setDapUngAmThanh] = useState(initialData?.clinical_data?.extra?.dap_ung_am_thanh || '1');
+    const [khoiSungSauTai, setKhoiSungSauTai] = useState(initialData?.clinical_data?.extra?.khoi_sung_sau_tai || '0');
+    const [chayMuNuocTai, setChayMuNuocTai] = useState(initialData?.clinical_data?.extra?.chay_mu_nuoc_tai || '0');
+    const [hinhDangMui, setHinhDangMui] = useState(initialData?.clinical_data?.extra?.hinh_dang_mui || '1');
+    const [chayNuocMui, setChayNuocMui] = useState(initialData?.clinical_data?.extra?.chay_nuoc_mui || '0');
+    const [nghetMui, setNghetMui] = useState(initialData?.clinical_data?.extra?.nghet_mui || '0');
+    const [hong, setHong] = useState(initialData?.clinical_data?.extra?.hong || '1');
+    const [hinhDangMieng, setHinhDangMieng] = useState(initialData?.clinical_data?.extra?.hinh_dang_mieng || '1');
+    const [rangSuaSoSinh, setRangSuaSoSinh] = useState(initialData?.clinical_data?.extra?.rang_sua_so_sinh || '0');
+    const [hinhDangLuoi, setHinhDangLuoi] = useState(initialData?.clinical_data?.extra?.hinh_dang_luoi || '1');
+    const [dinhThangLuoi, setDinhThangLuoi] = useState(initialData?.clinical_data?.extra?.dinh_thang_luoi || '0');
+    const [namMieng, setNamMieng] = useState(initialData?.clinical_data?.extra?.nam_mieng || '0');
+    const [camNhoTutSau, setCamNhoTutSau] = useState(initialData?.clinical_data?.extra?.cam_nho_tut_sau || '0');
+    const [vetSauMangBam, setVetSauMangBam] = useState(initialData?.clinical_data?.extra?.vet_sau_mang_bam || '0');
+    const [nhipThoKhongDeu, setNhipThoKhongDeu] = useState(initialData?.clinical_data?.extra?.nhip_tho_khong_deu || '0');
+    const [thoRutLomLongNguc, setThoRutLomLongNguc] = useState(initialData?.clinical_data?.extra?.tho_rut_lom_long_nguc || '0');
+    const [tiengThoBatThuong, setTiengThoBatThuong] = useState(initialData?.clinical_data?.extra?.tieng_tho_bat_thuong || '0');
+    const [dhSuyHoHap, setDhSuyHoHap] = useState(initialData?.clinical_data?.extra?.dh_suy_ho_hap || '0');
+    const [nghePhoi, setNghePhoi] = useState(initialData?.clinical_data?.extra?.nghe_phoi || '1');
+    const [viTriMomTim, setViTriMomTim] = useState(initialData?.clinical_data?.extra?.vi_tri_mom_tim || '1');
+    const [machNgoaiVi, setMachNgoaiVi] = useState(initialData?.clinical_data?.extra?.mach_ngoai_vi || '1');
+    const [ngheTim, setNgheTim] = useState(initialData?.clinical_data?.extra?.nghe_tim || '1');
+    const [hinhDangBungRon, setHinhDangBungRon] = useState(initialData?.clinical_data?.extra?.hinh_dang_bung_ron || '1');
+    const [ganLachTo, setGanLachTo] = useState(initialData?.clinical_data?.extra?.gan_lach_to || '0');
+    const [khoiBatThuongBung, setKhoiBatThuongBung] = useState(initialData?.clinical_data?.extra?.khoi_bat_thuong_bung || '0');
+    const [loHauMon, setLoHauMon] = useState(initialData?.clinical_data?.extra?.lo_hau_mon || '1');
+    const [cqSinhDucNgoai, setCqSinhDucNgoai] = useState(initialData?.clinical_data?.extra?.cq_sinh_duc_ngoai || '1');
+    const [vanDongKhongDoiXung, setVanDongKhongDoiXung] = useState(initialData?.clinical_data?.extra?.van_dong_khong_doi_xung || '0');
+    const [phanXaBu, setPhanXaBu] = useState(initialData?.clinical_data?.extra?.phan_xa_bu || '1');
+    const [phanXaNam, setPhanXaNam] = useState(initialData?.clinical_data?.extra?.phan_xa_nam || '1');
+    const [phanXaMoro, setphanXaMoro] = useState(initialData?.clinical_data?.extra?.phan_xa_moro || '1');
+    const [truongLucCo, setTruongLucCo] = useState(initialData?.clinical_data?.extra?.truong_luc_co || '1');
+    const [khopHang, setKhopHang] = useState(initialData?.clinical_data?.extra?.khop_hang || '1');
+    const [phanXaCo, setPhanXaCo] = useState(initialData?.clinical_data?.extra?.phan_xa_co || '1');
+    const [kiemTraLungCotSong, setKiemTraLungCotSong] = useState(initialData?.clinical_data?.extra?.kiem_tra_lung_cot_song || '1');
+    const [khamTuChiKhop, setKhamTuChiKhop] = useState(initialData?.clinical_data?.extra?.kham_tu_chi_khop || '1');
+    const [quanSatDangDi, setQuanSatDangDi] = useState(initialData?.clinical_data?.extra?.quan_sat_dang_di || '1');
+    
     const [lucBopTayThuan, setLucBopTayThuan] = useState(initialData?.clinical_data?.extra?.luc_bop_tay_thuan || '');
     const [lucBopTayKhongThuan, setLucBopTayKhongThuan] = useState(initialData?.clinical_data?.extra?.luc_bop_tay_khong_thuan || '');
     const [lucKeoLung, setLucKeoLung] = useState(initialData?.clinical_data?.extra?.luc_keo_lung || '');
@@ -268,6 +348,7 @@ export const useDynamicFormState = (
     const [denNgayLamViecTruocDay, setDenNgayLamViecTruocDay] = useState(initialData?.clinical_data?.extra?.den_ngay_lam_viec_truoc_day || '');
 
     const [milestones, setMilestones] = useState<Record<string, string>>(initialData?.clinical_data?.extra?.milestones || {});
+    const [wardsNghMe, setWardsNghMe] = useState<CatalogItem[]>([]);
 
     // Clinical examinations detail (QĐ 1551 / Mẫu 4/5)
     const [thanKinhTamLy, setThanKinhTamLy] = useState(initialData?.clinical_data?.clinical_exam?.than_kinh_tam_ly || 'Bình thường');
@@ -390,6 +471,7 @@ export const useDynamicFormState = (
                 if (data.clinical_data?.matinh_cu_tru) setMaTinhCuTru(data.clinical_data.matinh_cu_tru);
                 if (data.clinical_data?.maxa_cu_tru) setMaXaCuTru(data.clinical_data.maxa_cu_tru);
                 if (data.clinical_data?.ly_do_vv) setLyDoVv(data.clinical_data.ly_do_vv);
+                if (data.clinical_data?.loai_hinh_kcb) setLoaiHinhKcb(data.clinical_data.loai_hinh_kcb);
                 if (data.clinical_data?.ngay_vao) setNgayVao(new Date(data.clinical_data.ngay_vao).toISOString().split('T')[0]);
                 
                 // Đổ dữ liệu thể lực
@@ -945,6 +1027,16 @@ export const useDynamicFormState = (
         }
     }, [maTinhCuTru, getWards]);
 
+    useEffect(() => {
+        if (maTinhCuTruNghMe) {
+            getWards(maTinhCuTruNghMe).then(data => {
+                setWardsNghMe(data.map((w: any) => ({ id: String(w.id || ''), code: String(w.code || w.id || ''), name: w.name })));
+            }).catch(() => setWardsNghMe([]));
+        } else {
+            setWardsNghMe([]);
+        }
+    }, [maTinhCuTruNghMe, getWards]);
+
     const handleHemoglobinChange = (val: string) => {
         setHemoglobin(val);
         setParaclinicalItems(prev => prev.map(item => {
@@ -1010,14 +1102,56 @@ export const useDynamicFormState = (
         if (bp && !/^\d{2,3}\/\d{2,3}$/.test(bp)) {
             newErrors.bp = 'Huyết áp phải nhập dạng Tâm thu/Tâm trương (VD: 120/80)';
         }
+        
+        const isOverallClassThreeOrBelow = ['3', '4', '5', 'III', 'IV', 'V'].includes(fitnessClass);
+        const hasNotes = !!(cacVanDeLuuY && cacVanDeLuuY.trim());
+        if ((isOverallClassThreeOrBelow || hasNotes) && !diagnosis.trim()) {
+            newErrors.diagnosis = 'Bắt buộc nhập mã bệnh tật/chẩn đoán ICD-10 khi phân loại sức khỏe từ loại III trở xuống hoặc có vấn đề lưu ý';
+        }
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
     const handleSubmit = (e?: React.FormEvent, options?: { shouldSign?: boolean; shouldUnlock?: boolean }) => {
         if (e) e.preventDefault();
-        if (!validateForm()) {
-            setActiveTab('admin');
+        
+        // Perform validation and determine the appropriate tab to highlight
+        const newErrors: Record<string, string> = {};
+        if (!patientName.trim()) newErrors.patientName = 'Họ và tên bắt buộc nhập';
+        if (patientName.trim() && patientName !== patientName.toUpperCase()) {
+            newErrors.patientName = 'Họ và tên phải viết IN HOA có dấu';
+        }
+        if (!noCccd && !cccd.trim()) newErrors.cccd = 'Số CCCD/Định danh bắt buộc nhập';
+        if (cccd.trim() && !/^\d{12}$/.test(cccd)) {
+            newErrors.cccd = 'Định danh/CCCD phải gồm chính xác 12 chữ số';
+        }
+        if (!phone.trim()) {
+            newErrors.phone = 'Số điện thoại bắt buộc nhập';
+        } else if (!/^\d{10}$/.test(phone.trim())) {
+            newErrors.phone = 'Số điện thoại liên hệ phải gồm chính xác 10 chữ số';
+        }
+        if (!dob) newErrors.dob = 'Ngày sinh bắt buộc chọn';
+        if (bp && !/^\d{2,3}\/\d{2,3}$/.test(bp)) {
+            newErrors.bp = 'Huyết áp phải nhập dạng Tâm thu/Tâm trương (VD: 120/80)';
+        }
+        
+        const isOverallClassThreeOrBelow = ['3', '4', '5', 'III', 'IV', 'V'].includes(fitnessClass);
+        const hasNotes = !!(cacVanDeLuuY && cacVanDeLuuY.trim());
+        if ((isOverallClassThreeOrBelow || hasNotes) && !diagnosis.trim()) {
+            newErrors.diagnosis = 'Bắt buộc nhập mã bệnh tật/chẩn đoán ICD-10 khi phân loại sức khỏe từ loại III trở xuống hoặc có vấn đề lưu ý';
+        }
+
+        setErrors(newErrors);
+
+        if (Object.keys(newErrors).length > 0) {
+            if (newErrors.diagnosis) {
+                setActiveTab('conclusion');
+            } else if (newErrors.bp) {
+                setActiveTab('exam');
+            } else {
+                setActiveTab('admin');
+            }
             return;
         }
 
@@ -1101,7 +1235,10 @@ export const useDynamicFormState = (
                 matinh_cu_tru: maTinhCuTru,
                 maxa_cu_tru: maXaCuTru,
                 ly_do_vv: lyDoVv,
+                loai_hinh_kcb: loaiHinhKcb,
                 ngay_vao: ngayVao,
+                nhiet_do: nhietDo,
+                nhip_tho: nhipTho,
                 examination: {
                     height,
                     weight,
@@ -1283,6 +1420,7 @@ export const useDynamicFormState = (
                     ts_benh_cot_song: tsBenhCotSong,
                     tsbt_ma_benh_nghe_nghiep: tsbtMaBenhNgheNghiep,
                     tsbt_nam_phat_hien_benh_nghe_nghiep: tsbtNamPhatHienBenhNgheNghiep,
+                    ts_tiep_xuc_lao: tsTiepXucLao,
                     vong_ddau: vongDau,
                     vong_nguc: vongNguc,
                     sinh_non: sinhNon,
@@ -1313,7 +1451,73 @@ export const useDynamicFormState = (
                     den_ngay_lam_viec_truoc_day: denNgayLamViecTruocDay,
                     milestones: milestones,
                     ten_thuoc: tenThuoc,
-                    luc_keo_than: lucKeoThan
+                    luc_keo_than: lucKeoThan,
+                    dg_dhst_nhiet_do: dgDhstNhietDo,
+                    dg_dhst_mach: dgDhstMach,
+                    dg_dhst_nhip_tho: dgDhstNhipTho,
+                    chieu_dai_tuoi_sd: chieuDaiTuoiSd,
+                    can_nang_tuoi_sd: canNangTuoiSd,
+                    dg_vong_dau: dgVongDau,
+                    chu_vi_vong_canh_tay: chuViVongCanhTay,
+                    phu_dinh_duong: phuDinhDuong,
+                    thieu_mau: thieuMau,
+                    coi_xuong: coiXuong,
+                    suy_dinh_duong: suyDinhDuong,
+                    thua_can_beo_phi: thuaCanBeoPhi,
+                    pt_tinh_than_binh_thuong: ptTinhThanBinhThuong,
+                    pt_van_dong_binh_thuong: ptVanDongBinhThuong,
+                    tiemChungLao: tiemChungLao,
+                    tiemChungVgbMui1: tiemChungVgbMui1,
+                    tiemChungDayDu: tiemChungDayDu,
+                    lam_sang_quan_sat: lamSangQuanSat,
+                    mau_sac_da: mauSacDa,
+                    long_ban_tay: longBanTay,
+                    thop: thop,
+                    kich_thuoc_dau: kichThuocDau,
+                    van_dong_co: vanDongCo,
+                    khoi_bat_thuong_dau_co: khoiBatThuongDauCo,
+                    vi_tri_2_mat: viTri2Mat,
+                    mi_mat_ket_mac: miMatKetMac,
+                    lac_mat: lacMat,
+                    dong_tu: dongTu,
+                    tai_mang_nhi: taiMangNhi,
+                    dap_ung_am_thanh: dapUngAmThanh,
+                    khoi_sung_sau_tai: khoiSungSauTai,
+                    chay_mu_nuoc_tai: chayMuNuocTai,
+                    hinh_dang_mui: hinhDangMui,
+                    chay_nuoc_mui: chayNuocMui,
+                    nghet_mui: nghetMui,
+                    hong: hong,
+                    hinh_dang_mieng: hinhDangMieng,
+                    rang_sua_so_sinh: rangSuaSoSinh,
+                    hinh_dang_luoi: hinhDangLuoi,
+                    dinh_thang_luoi: dinhThangLuoi,
+                    nam_mieng: namMieng,
+                    cam_nho_tut_sau: camNhoTutSau,
+                    vet_sau_mang_bam: vetSauMangBam,
+                    nhip_tho_khong_deu: nhipThoKhongDeu,
+                    tho_rut_lom_long_nguc: thoRutLomLongNguc,
+                    tieng_tho_bat_thuong: tiengThoBatThuong,
+                    dh_suy_ho_hap: dhSuyHoHap,
+                    nghe_phoi: nghePhoi,
+                    vi_tri_mom_tim: viTriMomTim,
+                    mach_ngoai_vi: machNgoaiVi,
+                    nghe_tim: ngheTim,
+                    hinh_dang_bung_ron: hinhDangBungRon,
+                    gan_lach_to: ganLachTo,
+                    khoi_bat_thuong_bung: khoiBatThuongBung,
+                    lo_hau_mon: loHauMon,
+                    cq_sinh_duc_ngoai: cqSinhDucNgoai,
+                    van_dong_khong_doi_xung: vanDongKhongDoiXung,
+                    phan_xa_bu: phanXaBu,
+                    phan_xa_nam: phanXaNam,
+                    phan_xa_moro: phanXaMoro,
+                    truong_luc_co: truongLucCo,
+                    khop_hang: khopHang,
+                    phan_xa_co: phanXaCo,
+                    kiem_tra_lung_cot_song: kiemTraLungCotSong,
+                    kham_tu_chi_khop: khamTuChiKhop,
+                    quan_sat_dang_di: quanSatDangDi
                 }
             },
             labData: {
@@ -1612,7 +1816,74 @@ export const useDynamicFormState = (
                     den_ngay_lam_viec_truoc_day: denNgayLamViecTruocDay,
                     milestones,
                     ten_thuoc: tenThuoc,
-                    luc_keo_than: lucKeoThan
+                    luc_keo_than: lucKeoThan,
+                    dg_dhst_nhiet_do: dgDhstNhietDo,
+                    dg_dhst_mach: dgDhstMach,
+                    dg_dhst_nhip_tho: dgDhstNhipTho,
+                    chieu_dai_tuoi_sd: chieuDaiTuoiSd,
+                    can_nang_tuoi_sd: canNangTuoiSd,
+                    dg_vong_dau: dgVongDau,
+                    chu_vi_vong_canh_tay: chuViVongCanhTay,
+                    phu_dinh_duong: phuDinhDuong,
+                    thieu_mau: thieuMau,
+                    coi_xuong: coiXuong,
+                    suy_dinh_duong: suyDinhDuong,
+                    thua_can_beo_phi: thuaCanBeoPhi,
+                    pt_tinh_than_binh_thuong: ptTinhThanBinhThuong,
+                    pt_van_dong_binh_thuong: ptVanDongBinhThuong,
+                    nguy_co_tu_ky: nguyCoTuKy,
+                    tiemChungLao: tiemChungLao,
+                    tiemChungVgbMui1: tiemChungVgbMui1,
+                    tiemChungDayDu: tiemChungDayDu,
+                    lam_sang_quan_sat: lamSangQuanSat,
+                    mau_sac_da: mauSacDa,
+                    long_ban_tay: longBanTay,
+                    thop: thop,
+                    kich_thuoc_dau: kichThuocDau,
+                    van_dong_co: vanDongCo,
+                    khoi_bat_thuong_dau_co: khoiBatThuongDauCo,
+                    vi_tri_2_mat: viTri2Mat,
+                    mi_mat_ket_mac: miMatKetMac,
+                    lac_mat: lacMat,
+                    dong_tu: dongTu,
+                    tai_mang_nhi: taiMangNhi,
+                    dap_ung_am_thanh: dapUngAmThanh,
+                    khoi_sung_sau_tai: khoiSungSauTai,
+                    chay_mu_nuoc_tai: chayMuNuocTai,
+                    hinh_dang_mui: hinhDangMui,
+                    chay_nuoc_mui: chayNuocMui,
+                    nghet_mui: nghetMui,
+                    hong: hong,
+                    hinh_dang_mieng: hinhDangMieng,
+                    rang_sua_so_sinh: rangSuaSoSinh,
+                    hinh_dang_luoi: hinhDangLuoi,
+                    dinh_thang_luoi: dinhThangLuoi,
+                    nam_mieng: namMieng,
+                    cam_nho_tut_sau: camNhoTutSau,
+                    vet_sau_mang_bam: vetSauMangBam,
+                    nhip_tho_khong_deu: nhipThoKhongDeu,
+                    tho_rut_lom_long_nguc: thoRutLomLongNguc,
+                    tieng_tho_bat_thuong: tiengThoBatThuong,
+                    dh_suy_ho_hap: dhSuyHoHap,
+                    nghe_phoi: nghePhoi,
+                    vi_tri_mom_tim: viTriMomTim,
+                    mach_ngoai_vi: machNgoaiVi,
+                    nghe_tim: ngheTim,
+                    hinh_dang_bung_ron: hinhDangBungRon,
+                    gan_lach_to: ganLachTo,
+                    khoi_bat_thuong_bung: khoiBatThuongBung,
+                    lo_hau_mon: loHauMon,
+                    cq_sinh_duc_ngoai: cqSinhDucNgoai,
+                    van_dong_khong_doi_xung: vanDongKhongDoiXung,
+                    phan_xa_bu: phanXaBu,
+                    phan_xa_nam: phanXaNam,
+                    phan_xa_moro: phanXaMoro,
+                    truong_luc_co: truongLucCo,
+                    khop_hang: khopHang,
+                    phan_xa_co: phanXaCo,
+                    kiem_tra_lung_cot_song: kiemTraLungCotSong,
+                    kham_tu_chi_khop: khamTuChiKhop,
+                    quan_sat_dang_di: quanSatDangDi
                 }
             },
             labData: {
@@ -1669,8 +1940,8 @@ export const useDynamicFormState = (
         }
     };
 
-    const isChild = parseInt(formType, 10) >= 6 && parseInt(formType, 10) <= 13;
-    const isStudent = formType === '1' || (parseInt(formType, 10) >= 14 && parseInt(formType, 10) <= 17);
+    const isChild = formType === '1';
+    const isStudent = formType === '2';
 
     return {
         formType,
@@ -1724,6 +1995,8 @@ export const useDynamicFormState = (
         setMaXaCuTru,
         lyDoVv,
         setLyDoVv,
+        loaiHinhKcb,
+        setLoaiHinhKcb,
         ngayVao,
         setNgayVao,
         maCskcb,
@@ -1752,6 +2025,7 @@ export const useDynamicFormState = (
         nations,
         wards,
         setWards,
+        wardsNghMe,
         workplaces,
         setWorkplaces,
         guardianName,
@@ -1886,6 +2160,8 @@ export const useDynamicFormState = (
         setTsBenhCotSong,
         tsbtMaBenhNgheNghiep,
         setTsbtMaBenhNgheNghiep,
+        tsTiepXucLao,
+        setTsTiepXucLao,
         tsbtNamPhatHienBenhNgheNghiep,
         setTsbtNamPhatHienBenhNgheNghiep,
         height,
@@ -1896,6 +2172,146 @@ export const useDynamicFormState = (
         setPulse,
         bp,
         setBp,
+        nhietDo,
+        setNhietDo,
+        nhipTho,
+        setNhipTho,
+        gioKham,
+        setGioKham,
+        dgDhstNhietDo,
+        setDgDhstNhietDo,
+        dgDhstMach,
+        setDgDhstMach,
+        dgDhstNhipTho,
+        setDgDhstNhipTho,
+        chieuDaiTuoiSd,
+        setChieuDaiTuoiSd,
+        canNangTuoiSd,
+        setCanNangTuoiSd,
+        dgVongDau,
+        setDgVongDau,
+        chuViVongCanhTay,
+        setChuViVongCanhTay,
+        phuDinhDuong,
+        setPhuDinhDuong,
+        thieuMau,
+        setThieuMau,
+        coiXuong,
+        setCoiXuong,
+        suyDinhDuong,
+        setSuyDinhDuong,
+        thuaCanBeoPhi,
+        setThuaCanBeoPhi,
+        ptTinhThanBinhThuong,
+        setPtTinhThanBinhThuong,
+        ptVanDongBinhThuong,
+        setPtVanDongBinhThuong,
+        nguyCoTuKy,
+        setNguyCoTuKy,
+        tiemChungLao,
+        setTiemChungLao,
+        tiemChungVgbMui1,
+        setTiemChungVgbMui1,
+        tiemChungDayDu,
+        setTiemChungDayDu,
+        lamSangQuanSat,
+        setLamSangQuanSat,
+        mauSacDa,
+        setMauSacDa,
+        longBanTay,
+        setLongBanTay,
+        thop,
+        setThop,
+        kichThuocDau,
+        setKichThuocDau,
+        vanDongCo,
+        setVanDongCo,
+        khoiBatThuongDauCo,
+        setKhoiBatThuongDauCo,
+        viTri2Mat,
+        setViTri2Mat,
+        miMatKetMac,
+        setMiMatKetMac,
+        lacMat,
+        setLacMat,
+        dongTu,
+        setDongTu,
+        taiMangNhi,
+        setTaiMangNhi,
+        dapUngAmThanh,
+        setDapUngAmThanh,
+        khoiSungSauTai,
+        setKhoiSungSauTai,
+        chayMuNuocTai,
+        setChayMuNuocTai,
+        hinhDangMui,
+        setHinhDangMui,
+        chayNuocMui,
+        setChayNuocMui,
+        nghetMui,
+        setNghetMui,
+        hong,
+        setHong,
+        hinhDangMieng,
+        setHinhDangMieng,
+        rangSuaSoSinh,
+        setRangSuaSoSinh,
+        hinhDangLuoi,
+        setHinhDangLuoi,
+        dinhThangLuoi,
+        setDinhThangLuoi,
+        namMieng,
+        setNamMieng,
+        camNhoTutSau,
+        setCamNhoTutSau,
+        vetSauMangBam,
+        setVetSauMangBam,
+        nhipThoKhongDeu,
+        setNhipThoKhongDeu,
+        thoRutLomLongNguc,
+        setThoRutLomLongNguc,
+        tiengThoBatThuong,
+        setTiengThoBatThuong,
+        dhSuyHoHap,
+        setDhSuyHoHap,
+        nghePhoi,
+        setNghePhoi,
+        viTriMomTim,
+        setViTriMomTim,
+        machNgoaiVi,
+        setMachNgoaiVi,
+        ngheTim,
+        setNgheTim,
+        hinhDangBungRon,
+        setHinhDangBungRon,
+        ganLachTo,
+        setGanLachTo,
+        khoiBatThuongBung,
+        setKhoiBatThuongBung,
+        loHauMon,
+        setLoHauMon,
+        cqSinhDucNgoai,
+        setCqSinhDucNgoai,
+        vanDongKhongDoiXung,
+        setVanDongKhongDoiXung,
+        phanXaBu,
+        setPhanXaBu,
+        phanXaNam,
+        setPhanXaNam,
+        phanXaMoro,
+        setphanXaMoro,
+        truongLucCo,
+        setTruongLucCo,
+        khopHang,
+        setKhopHang,
+        phanXaCo,
+        setPhanXaCo,
+        kiemTraLungCotSong,
+        setKiemTraLungCotSong,
+        khamTuChiKhop,
+        setKhamTuChiKhop,
+        quanSatDangDi,
+        setQuanSatDangDi,
         vongDau,
         setVongDau,
         vongNguc,

@@ -100,6 +100,34 @@ const HistoryTab: React.FC = () => {
         ghiRoMoSanPhuKhoa,
         setGhiRoMoSanPhuKhoa,
         isLocked,
+        isChild,
+        tsTiepXucLao,
+        setTsTiepXucLao,
+        maGtinCskcb,
+        lyDoVv,
+        setLyDoVv,
+        loaiHinhKcb,
+        setLoaiHinhKcb,
+        ngayVao,
+        nhietDo,
+        setNhietDo,
+        nhipTho,
+        setNhipTho,
+        gioKham,
+        setGioKham,
+        dgDhstNhietDo,
+        setDgDhstNhietDo,
+        dgDhstMach,
+        setDgDhstMach,
+        dgDhstNhipTho,
+        setDgDhstNhipTho,
+        pulse,
+        setPulse,
+        height,
+        setHeight,
+        weight,
+        setWeight,
+        bmi,
         handleAutofillTab,
         specialtyMetadata,
         setSpecialtyMetadata,
@@ -269,7 +297,405 @@ const HistoryTab: React.FC = () => {
             )}
 
             <fieldset disabled={isTabLocked} className="space-y-6">
-            {formType === '3' ? (
+            {(isChild || formType === '2' || formType === '3') ? (
+                <div className="space-y-6">
+                    {/* THÔNG TIN CHUNG VỀ LẦN KHÁM */}
+                    <div className="p-4 bg-slate-50/50 dark:bg-slate-800/20 border border-slate-200 dark:border-slate-700/60 rounded-xl space-y-4 shadow-sm">
+                        <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700/50 pb-2">Thông tin chung về lần khám</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">1. Mã cơ sở khám bệnh, chữa bệnh</label>
+                                <input
+                                    type="text"
+                                    value={maGtinCskcb}
+                                    disabled
+                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-100 dark:bg-slate-700/40 text-slate-800 dark:text-white font-mono font-bold"
+                                    placeholder="Mã cơ sở..."
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">2. Ngày khám sức khỏe</label>
+                                <input
+                                    type="text"
+                                    value={ngayVao ? new Date(ngayVao).toLocaleDateString('vi-VN') : ''}
+                                    disabled
+                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-100 dark:bg-slate-700/40 text-slate-800 dark:text-white font-bold"
+                                    placeholder="Ngày khám..."
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Giờ khám</label>
+                                <input
+                                    type="text"
+                                    value={gioKham}
+                                    onChange={e => setGioKham(e.target.value)}
+                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-mono font-bold"
+                                    placeholder="Giờ khám (VD: 11:16)"
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 dark:border-slate-700/30 pt-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Lý do khám</label>
+                                <select
+                                    value={lyDoVv}
+                                    onChange={e => setLyDoVv(e.target.value)}
+                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
+                                >
+                                    <option value="Khám sức khỏe định kỳ">Khám sức khỏe định kỳ</option>
+                                    <option value="Khám sức khỏe phân loại">Khám sức khỏe phân loại</option>
+                                    <option value="Khám sức khỏe học sinh/sinh viên">Khám sức khỏe học sinh/sinh viên</option>
+                                    <option value="Khám sức khỏe tuyển dụng">Khám sức khỏe tuyển dụng</option>
+                                    <option value="Khám sức khỏe khác">Khám sức khỏe khác</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Loại hình khám bệnh, chữa bệnh</label>
+                                <select
+                                    value={loaiHinhKcb}
+                                    onChange={e => setLoaiHinhKcb(e.target.value)}
+                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
+                                >
+                                    <option value="01">01 - Khám bệnh</option>
+                                    <option value="02">02 - Chữa bệnh</option>
+                                    <option value="03">03 - Khám bệnh, chữa bệnh</option>
+                                    <option value="04">04 - Khám sức khỏe</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ĐÁNH GIÁ DẤU HIỆU SINH TỒN & THỂ LỰC */}
+                    <div className="p-4 bg-slate-50/50 dark:bg-slate-800/20 border border-slate-200 dark:border-slate-700/60 rounded-xl space-y-4 shadow-sm">
+                        <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700/50 pb-2">Đánh giá dấu hiệu sinh tồn &amp; Thể lực</h4>
+                        
+                        {/* Chiều cao, Cân nặng, BMI */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-slate-100 dark:border-slate-700/30 pb-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Chiều cao/Chiều dài (cm)</label>
+                                <input
+                                    type="text"
+                                    value={height}
+                                    onChange={e => setHeight(e.target.value)}
+                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
+                                    placeholder="Nhập chiều dài/chiều cao"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Cân nặng (kg)</label>
+                                <input
+                                    type="text"
+                                    value={weight}
+                                    onChange={e => setWeight(e.target.value)}
+                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
+                                    placeholder="Nhập cân nặng"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Chỉ số BMI</label>
+                                <input
+                                    type="text"
+                                    value={bmi}
+                                    disabled
+                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-100 dark:bg-slate-700/40 text-slate-500 dark:text-slate-300 font-bold"
+                                    placeholder="Tự động tính..."
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            {/* Nhiệt độ */}
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center border-b border-slate-100 dark:border-slate-700/30 pb-3">
+                                <div className="lg:col-span-5">
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">Nhiệt độ (°C)</label>
+                                    <input
+                                        type="text"
+                                        value={nhietDo}
+                                        onChange={e => setNhietDo(e.target.value)}
+                                        className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
+                                        placeholder="Nhập nhiệt độ (°C)"
+                                    />
+                                </div>
+                                <div className="lg:col-span-7 flex flex-col justify-center">
+                                    <label className="block text-xs font-bold text-slate-500 mb-1.5">Đánh giá nhiệt độ</label>
+                                    <div className="flex items-center bg-slate-100 dark:bg-slate-700 p-0.5 rounded-lg w-fit">
+                                        {[
+                                            { label: "Bình thường", value: "1" },
+                                            { label: "Sốt", value: "2" },
+                                            { label: "Hạ thân nhiệt", value: "3" }
+                                        ].map(opt => (
+                                            <button
+                                                key={opt.value}
+                                                type="button"
+                                                disabled={isTabLocked}
+                                                onClick={() => setDgDhstNhietDo(opt.value)}
+                                                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                                                    dgDhstNhietDo === opt.value
+                                                        ? 'bg-[#0f766e] text-white shadow-sm'
+                                                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white disabled:opacity-50'
+                                                }`}
+                                            >
+                                                {opt.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Mạch */}
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center border-b border-slate-100 dark:border-slate-700/30 pb-3">
+                                <div className="lg:col-span-5">
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">Mạch (lần/phút)</label>
+                                    <input
+                                        type="text"
+                                        value={pulse}
+                                        onChange={e => setPulse(e.target.value)}
+                                        className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
+                                        placeholder="Nhập nhịp mạch (lần/phút)"
+                                    />
+                                </div>
+                                <div className="lg:col-span-7 flex flex-col justify-center">
+                                    <label className="block text-xs font-bold text-slate-500 mb-1.5">Đánh giá mạch</label>
+                                    <div className="flex items-center bg-slate-100 dark:bg-slate-700 p-0.5 rounded-lg w-fit">
+                                        {[
+                                            { label: "Bình thường", value: "1" },
+                                            { label: "Nhanh", value: "2" }
+                                        ].map(opt => (
+                                            <button
+                                                key={opt.value}
+                                                type="button"
+                                                disabled={isTabLocked}
+                                                onClick={() => setDgDhstMach(opt.value)}
+                                                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                                                    dgDhstMach === opt.value
+                                                        ? 'bg-[#0f766e] text-white shadow-sm'
+                                                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white disabled:opacity-50'
+                                                }`}
+                                            >
+                                                {opt.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Nhịp thở */}
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+                                <div className="lg:col-span-5">
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">Nhịp thở (lần/phút)</label>
+                                    <input
+                                        type="text"
+                                        value={nhipTho}
+                                        onChange={e => setNhipTho(e.target.value)}
+                                        className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
+                                        placeholder="Nhập nhịp thở (lần/phút)"
+                                    />
+                                </div>
+                                <div className="lg:col-span-7 flex flex-col justify-center">
+                                    <label className="block text-xs font-bold text-slate-500 mb-1.5">Đánh giá nhịp thở</label>
+                                    <div className="flex items-center bg-slate-100 dark:bg-slate-700 p-0.5 rounded-lg w-fit">
+                                        {[
+                                            { label: "Bình thường", value: "1" },
+                                            { label: "Thở nhanh", value: "2" },
+                                            { label: "Thở chậm", value: "3" }
+                                        ].map(opt => (
+                                            <button
+                                                key={opt.value}
+                                                type="button"
+                                                disabled={isTabLocked}
+                                                onClick={() => setDgDhstNhipTho(opt.value)}
+                                                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                                                    dgDhstNhipTho === opt.value
+                                                        ? 'bg-[#0f766e] text-white shadow-sm'
+                                                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white disabled:opacity-50'
+                                                }`}
+                                            >
+                                                {opt.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 18. TIỀN SỬ */}
+                    {isChild && (
+                    <div className="p-4 bg-slate-50/50 dark:bg-slate-800/20 border border-slate-200 dark:border-slate-700/60 rounded-xl space-y-4 shadow-sm">
+                        <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700/50 pb-2">18. Tiền sử</h4>
+                        <div className="space-y-4">
+                            {/* 1. Tiền sử Bản thân */}
+                            <div className="p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 rounded-xl">
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div className="max-w-md">
+                                        <span className="text-xs font-bold text-slate-500 block mb-1">Bản thân (ghi rõ tên bệnh nếu có)</span>
+                                        <div className="flex items-center bg-slate-100 dark:bg-slate-700 p-0.5 rounded-lg w-fit mt-1.5">
+                                            <button
+                                                type="button"
+                                                disabled={isTabLocked}
+                                                onClick={() => setTsbtMaBenh('')}
+                                                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${
+                                                    !tsbtMaBenh
+                                                        ? 'bg-rose-600 text-white shadow-sm'
+                                                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white disabled:opacity-50'
+                                                }`}
+                                            >
+                                                Không
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={isTabLocked}
+                                                onClick={() => { if (!tsbtMaBenh) setTsbtMaBenh('A00.1'); }}
+                                                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${
+                                                    !!tsbtMaBenh
+                                                        ? 'bg-[#0f766e] text-white shadow-sm'
+                                                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white disabled:opacity-50'
+                                                }`}
+                                            >
+                                                Có
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {!!tsbtMaBenh && (
+                                        <div className="flex-1 max-w-xl">
+                                            <ICD10MultiSelect
+                                                label="Chọn mã/tên bệnh bản thân (ICD-10)"
+                                                value={tsbtMaBenh}
+                                                onChange={setTsbtMaBenh}
+                                                disabled={isLocked}
+                                                placeholder="Tìm theo mã hoặc tên bệnh (VD: A00.1, A09...)"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* 2. Tiền sử Gia đình */}
+                            <div className="p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 rounded-xl">
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div className="max-w-md">
+                                        <span className="text-xs font-bold text-slate-500 block mb-1">Gia đình (ghi rõ tên bệnh nếu có)</span>
+                                        <div className="flex items-center bg-slate-100 dark:bg-slate-700 p-0.5 rounded-lg w-fit mt-1.5">
+                                            <button
+                                                type="button"
+                                                disabled={isTabLocked}
+                                                onClick={() => {
+                                                    setTsgdMacBenh('0');
+                                                    setTsgdMaBenh('');
+                                                }}
+                                                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${
+                                                    tsgdMacBenh !== '1'
+                                                        ? 'bg-rose-600 text-white shadow-sm'
+                                                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white disabled:opacity-50'
+                                                }`}
+                                            >
+                                                Không
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={isTabLocked}
+                                                onClick={() => setTsgdMacBenh('1')}
+                                                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${
+                                                    tsgdMacBenh === '1'
+                                                        ? 'bg-[#0f766e] text-white shadow-sm'
+                                                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white disabled:opacity-50'
+                                                }`}
+                                            >
+                                                Có
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {tsgdMacBenh === '1' && (
+                                        <div className="flex-1 max-w-xl">
+                                            <label className="block text-xs font-bold text-slate-500 mb-1">Mã bệnh/Tên bệnh gia đình mắc phải</label>
+                                            <input
+                                                type="text"
+                                                value={tsgdMaBenh}
+                                                onChange={e => setTsgdMaBenh(e.target.value)}
+                                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white"
+                                                placeholder="Nhập mã bệnh hoặc tên bệnh gia đình (VD: A01, Q21...)"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* 3. Tiền sử tiếp xúc người bệnh lao */}
+                            <div className="p-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/50 rounded-xl">
+                                <span className="text-xs font-bold text-slate-500 block mb-1">Tiền sử tiếp xúc với người bệnh lao</span>
+                                <div className="flex items-center bg-slate-100 dark:bg-slate-700 p-0.5 rounded-lg w-fit mt-1.5">
+                                    <button
+                                        type="button"
+                                        disabled={isTabLocked}
+                                        onClick={() => setTsTiepXucLao('0')}
+                                        className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${
+                                            tsTiepXucLao !== '1'
+                                                ? 'bg-rose-600 text-white shadow-sm'
+                                                : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white disabled:opacity-50'
+                                        }`}
+                                    >
+                                        Không
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={isTabLocked}
+                                        onClick={() => setTsTiepXucLao('1')}
+                                        className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${
+                                            tsTiepXucLao === '1'
+                                                ? 'bg-[#0f766e] text-white shadow-sm'
+                                                : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white disabled:opacity-50'
+                                        }`}
+                                    >
+                                        Có
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    )}
+                    
+                    {/* Lịch sử Tiêm chủng / Vaccine (cho Mẫu 2) */}
+                    {formType === '2' && (
+                        <div className="p-4 bg-slate-50/50 dark:bg-slate-800/20 border border-slate-200 dark:border-slate-700/60 rounded-xl space-y-4 shadow-sm">
+                            <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700/50 pb-2">II.1. Lịch sử Tiêm chủng / Vaccine</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {[
+                                    { label: "BCG (Lao)", val: tiemChungBcg, set: setTiemChungBcg },
+                                    { label: "Bạch hầu, ho gà, uốn ván (DPT)", val: tiemChungBhHgUv, set: setTiemChungBhHgUv },
+                                    { label: "Sởi", val: tiemChungSoi, set: setTiemChungSoi },
+                                    { label: "Bại liệt (OPV/IPV)", val: tiemChungBaiLiet, set: setTiemChungBaiLiet },
+                                    { label: "Viêm não Nhật Bản B", val: tiemChungVnnbB, set: setTiemChungVnnbB },
+                                    { label: "Viêm gan B", val: tiemChungVgb, set: setTiemChungVgb },
+                                ].map((v, i) => (
+                                    <div key={i}>
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">{v.label}</label>
+                                        <select value={v.val} onChange={e => v.set(e.target.value)} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                                            <option value="">-- Chọn trạng thái --</option>
+                                            <option value="1">Đã tiêm chủng đầy đủ</option>
+                                            <option value="0">Chưa được tiêm chủng</option>
+                                            <option value="99">Không nhớ rõ / Chưa có thông tin</option>
+                                        </select>
+                                    </div>
+                                ))}
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">Các loại vắc xin khác</label>
+                                    <select value={tiemChungCacLoaiKhac} onChange={e => setTiemChungCacLoaiKhac(e.target.value)} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                                        <option value="">-- Chọn --</option>
+                                        <option value="0">Không tiêm loại khác</option>
+                                        <option value="1">Có tiêm loại khác</option>
+                                    </select>
+                                </div>
+                                {tiemChungCacLoaiKhac === '1' && (
+                                    <div className="md:col-span-2">
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">Tên vắc xin khác đã tiêm</label>
+                                        <input type="text" value={tiemChungVacXinKhac} onChange={e => setTiemChungVacXinKhac(e.target.value)} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="VD: Thủy đậu, Phế cầu, HPV..." />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            ) : formType === 'driver' ? (
                 <div>
                     <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">II.1. Tiền sử sức khỏe lái xe (Đánh giá Có/Không)</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3">
@@ -300,7 +726,7 @@ const HistoryTab: React.FC = () => {
                         ))}
                     </div>
                 </div>
-            ) : formType !== '2' ? (
+            ) : formType !== '3' ? (
                 <div>
                     <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">II.1. Lịch sử Tiêm chủng / Vaccine</h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -338,65 +764,62 @@ const HistoryTab: React.FC = () => {
                         )}
                     </div>
                 </div>
-            ) : null}
+             ) : null}
 
-            <div>
-                <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">II.2. Tiền sử bệnh bản thân &amp; Gia đình</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">Gia đình có tiền sử bệnh bẩm sinh/truyền nhiễm</label>
-                        <select value={tsgdMacBenh} onChange={e => setTsgdMacBenh(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
-                            <option value="">-- Chọn --</option>
-                            <option value="0">Không có</option>
-                            <option value="1">Có mắc bệnh bẩm sinh/mãn tính</option>
-                        </select>
-                    </div>
-                    {tsgdMacBenh === '1' && (
+            {!isChild && (
+                <div>
+                    <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">II.2. Tiền sử bệnh bản thân &amp; Gia đình</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">Mã bệnh cụ thể (Mã ICD-10 của gia đình)</label>
-                            <input type="text" value={tsgdMaBenh} onChange={e => setTsgdMaBenh(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="VD: Q21.0, A15..." />
+                            <label className="block text-xs font-bold text-slate-500 mb-1">Gia đình có tiền sử bệnh bẩm sinh/truyền nhiễm</label>
+                            <select value={tsgdMacBenh} onChange={e => setTsgdMacBenh(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                                <option value="">-- Chọn --</option>
+                                <option value="0">Không có</option>
+                                <option value="1">Có mắc bệnh bẩm sinh/mãn tính</option>
+                            </select>
                         </div>
-                    )}
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <ICD10MultiSelect
-                        label="Mã bệnh bản thân đã/đang điều trị (Mã ICD-10)"
-                        value={tsbtMaBenh}
-                        onChange={setTsbtMaBenh}
-                        disabled={isLocked}
-                        placeholder="Tìm theo mã hoặc tên bệnh (VD: I10, E11...)"
-                    />
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">Năm phát hiện bệnh</label>
-                        <input type="text" value={tsbtNamPhatHienBenh} onChange={e => setTsbtNamPhatHienBenh(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="VD: 2021" />
+                        {tsgdMacBenh === '1' && (
+                            <ICD10MultiSelect
+                                label="Mã bệnh cụ thể (Mã ICD-10 của gia đình)"
+                                value={tsgdMaBenh}
+                                onChange={setTsgdMaBenh}
+                                disabled={isLocked}
+                                placeholder="Tìm theo mã hoặc tên bệnh (VD: Q21.0, A15...)"
+                            />
+                        )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <ICD10MultiSelect
+                            label="Mã bệnh bản thân đã/đang điều trị (Mã ICD-10)"
+                            value={tsbtMaBenh}
+                            onChange={setTsbtMaBenh}
+                            disabled={isLocked}
+                            placeholder="Tìm theo mã hoặc tên bệnh (VD: I10, E11...)"
+                        />
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">Năm phát hiện bệnh</label>
+                            <input type="text" value={tsbtNamPhatHienBenh} onChange={e => setTsbtNamPhatHienBenh(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="VD: 2021" />
+                        </div>
+                    </div>
+                    
+                    {/* Tiền sử bệnh nghề nghiệp QĐ 1551 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50">
+                        <ICD10MultiSelect
+                            label="Mã bệnh nghề nghiệp (Mã ICD-10)"
+                            value={tsbtMaBenhNgheNghiep}
+                            onChange={setTsbtMaBenhNgheNghiep}
+                            disabled={isLocked}
+                            placeholder="Tìm theo mã hoặc tên bệnh (VD: J60, H83...)"
+                        />
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">Năm phát hiện bệnh nghề nghiệp</label>
+                            <input type="text" value={tsbtNamPhatHienBenhNgheNghiep} onChange={e => setTsbtNamPhatHienBenhNgheNghiep(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="VD: 2023" />
+                        </div>
                     </div>
                 </div>
-                
-                {formType === '3' && (
-                    <div className="mt-4">
-                        <label className="block text-xs font-bold text-slate-500 mb-1">Tên thuốc đang dùng điều trị (đối với lái xe)</label>
-                        <input type="text" value={tenThuoc} onChange={e => setTenThuoc(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="Ví dụ: Amlodipin 5mg, Metformin 500mg..." />
-                    </div>
-                )}
-                
-                {/* Tiền sử bệnh nghề nghiệp QĐ 1551 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50">
-                    <ICD10MultiSelect
-                        label="Mã bệnh nghề nghiệp (Mã ICD-10)"
-                        value={tsbtMaBenhNgheNghiep}
-                        onChange={setTsbtMaBenhNgheNghiep}
-                        disabled={isLocked}
-                        placeholder="Tìm theo mã hoặc tên bệnh (VD: J60, H83...)"
-                    />
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">Năm phát hiện bệnh nghề nghiệp</label>
-                        <input type="text" value={tsbtNamPhatHienBenhNgheNghiep} onChange={e => setTsbtNamPhatHienBenhNgheNghiep(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="VD: 2023" />
-                    </div>
-                </div>
-            </div>
+            )}
 
-            {/* Tiền sử Sản phụ khoa (Chỉ hiển thị với Nữ) */}
-            {gender === 'Nữ' && (
+            {!isChild && gender && (gender.toString().toLowerCase().includes('nữ') || gender.toString().toLowerCase().includes('female') || gender === '2') && (
                 <div className="animate-fadeIn p-4 bg-pink-50/30 dark:bg-pink-950/10 border border-pink-100/40 dark:border-pink-900/20 rounded-xl space-y-4">
                     <h4 className="text-sm font-bold text-pink-600 dark:text-pink-400 uppercase tracking-wider border-b border-pink-100/50 dark:border-pink-900/30 pb-2 flex items-center justify-between">
                         <span>II.3. Tiền sử Sản phụ khoa (Đối với nữ)</span>

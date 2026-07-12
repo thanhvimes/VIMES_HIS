@@ -183,7 +183,7 @@ const OperatorConsole: React.FC<OperatorConsoleProps> = ({ settings, counterId, 
 
   // Fetch Departments and Counters
   useEffect(() => {
-    apiFetch('/api/departments').then(data => {
+    apiFetch('/api/departments?type=DT').then(data => {
       if (Array.isArray(data)) setDepartments(data);
     }).catch(e => console.error('Error fetching depts:', e));
     

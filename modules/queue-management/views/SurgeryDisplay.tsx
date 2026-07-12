@@ -93,7 +93,7 @@ const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, setting
 
   const fetchDepartments = async () => {
     try {
-      const d = await apiFetch('/api/departments');
+      const d = await apiFetch('/api/departments?type=D');
       if (Array.isArray(d)) setDepartments(d);
     } catch {}
   };

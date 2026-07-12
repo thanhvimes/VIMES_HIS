@@ -5,7 +5,7 @@ import { generateXmlPayload } from './xml-generator';
 class HisIntegrationController {
     
     // Helper: Lấy dữ liệu cận lâm sàng cấu trúc từ HIS
-    private async fetchStructuredParaclinicalData(docNo: number) {
+    public async fetchStructuredParaclinicalData(docNo: number) {
         const items: any[] = [];
         let hemoglobin = '';
         let glycemia = '';
@@ -682,70 +682,7 @@ async getHisPatient(req: Request, res: Response) {
                 const docNoVal = hisDocNoStr ? parseInt(hisDocNoStr, 10) : 0;
                 console.log('🔍 [getHisPatient] docNoVal:', docNoVal, 'row.his_doc_no:', row.his_doc_no, 'row.patient_id:', row.patient_id);
 
-                try {
-                    const fs = require('fs');
-                    const testCheck = await query(`SELECT hpcl_docno, count(*) FROM hms_testorderline GROUP BY hpcl_docno LIMIT 5`);
-                    const docCheck = await query(`
-                        SELECT hd_docno, hd_patientno, hd_admitdate FROM hms_doc 
-                        WHERE hd_patientno = $1 OR hd_docno = $1
-                    `, [hisDocNoStr]);
-                    
-                    const patientTests = await query(`
-                        SELECT COUNT(*) FROM hms_testorderline WHERE hpcl_docno = $1
-                    `, [docNoVal]);
-                    
-                    const patientPacs = await query(`
-                        SELECT COUNT(*) FROM hms_pacsorderline WHERE hpcl_docno = $1
-                    `, [docNoVal]);
 
-                    const constraintCheck = await query(`
-                        SELECT conname, pg_get_constraintdef(oid) as def 
-                        FROM pg_constraint 
-                        WHERE conname = 'hms_examview_he_deptidhe_roomid'
-                    `);
-
-                    const indexCheck = await query(`
-                        SELECT indexname, indexdef 
-                        FROM pg_indexes 
-                        WHERE tablename = 'hms_examview'
-                    `);
-
-                    const procCheck = await query(`
-                        SELECT prosrc FROM pg_proc WHERE proname = 'hms_exm_registration_exam'
-                    `);
-
-                    const triggersCheck = await query(`
-                        SELECT tgname, pg_get_triggerdef(oid) as def 
-                        FROM pg_trigger 
-                        WHERE tgrelid = 'hms_exam'::regclass
-                    `);
-
-                    const examviewProcs = await query(`
-                        SELECT proname, prosrc 
-                        FROM pg_proc 
-                        WHERE prosrc ILIKE '%hms_examview%' AND proname != 'hms_exm_registration_exam'
-                    `);
-
-                    const logMsg = `[${new Date().toISOString()}] identifier: ${identifier}, docNoVal: ${docNoVal}, hisDocNoStr: ${hisDocNoStr}, row.his_doc_no: ${row.his_doc_no}, row.patient_id: ${row.patient_id}\n` +
-                        `  - hms_doc check count: ${docCheck.rows.length}\n` +
-                        `  - hms_doc check rows: ${JSON.stringify(docCheck.rows)}\n` +
-                        `  - hms_testorderline count for docNoVal: ${patientTests.rows[0]?.count}\n` +
-                        `  - hms_pacsorderline count for docNoVal: ${patientPacs.rows[0]?.count}\n` +
-                        `  - Recent test order docnos: ${JSON.stringify(testCheck.rows)}\n` +
-                        `  - Unique constraint check: ${JSON.stringify(constraintCheck.rows)}\n` +
-                        `  - Indexes on hms_examview: ${JSON.stringify(indexCheck.rows)}\n` +
-                        `  - Triggers on hms_exam: ${JSON.stringify(triggersCheck.rows)}\n` +
-                        `  - Procs modifying hms_examview: ${JSON.stringify(examviewProcs.rows)}\n` +
-                        `  - Stored proc source length: ${procCheck.rows[0]?.prosrc?.length || 0}\n` +
-                        `  - Stored proc source: ${procCheck.rows[0]?.prosrc || 'not found'}\n\n`;
-                    fs.appendFileSync('d:/AI/vClinic/backend/sync_debug.log', logMsg);
-                } catch (dbErr: any) {
-                    console.error('🔍 [DEBUG] Error running debug queries:', dbErr);
-                    try {
-                        const fs = require('fs');
-                        fs.appendFileSync('d:/AI/vClinic/backend/sync_debug.log', `Error: ${dbErr.message}\n`);
-                    } catch (e) {}
-                }
 
                 // Lấy chỉ định & kết quả cận lâm sàng mới nhất trực tiếp từ HIS
                 const liveParaclinical = docNoVal ? await this.fetchStructuredParaclinicalData(docNoVal) : null;
@@ -823,6 +760,18 @@ async getHisPatient(req: Request, res: Response) {
                     });
 
                     labData.paraclinical_items = mergedItems;
+
+                    // Tự động lưu bản cập nhật mới nhất vào database local
+                    try {
+                        await query(`
+                            UPDATE health_check_details 
+                            SET lab_data = $1, updated_at = NOW() 
+                            WHERE master_id = $2
+                        `, [JSON.stringify(labData), row.id]);
+                        console.log(`✅ [getHisPatient] Tự động cập nhật lab_data vào DB cho BN: ${row.patient_name}`);
+                    } catch (dbSaveErr) {
+                        console.error('⚠️ [getHisPatient] Lỗi tự động lưu lab_data:', dbSaveErr);
+                    }
                 }
 
                 return res.json({

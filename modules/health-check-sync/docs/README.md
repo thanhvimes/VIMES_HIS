@@ -99,3 +99,23 @@ Hệ thống giao diện được modulize hóa thành các component độc l�
     *   [modules/health-check-sync/components/DocumentList.tsx](file:///d:/AI/vClinic/modules/health-check-sync/components/DocumentList.tsx)
     *   [modules/health-check-sync/forms/DynamicForm.tsx](file:///d:/AI/vClinic/modules/health-check-sync/forms/DynamicForm.tsx)
     *   [modules/health-check-sync/forms/PrintForm.tsx](file:///d:/AI/vClinic/modules/health-check-sync/forms/PrintForm.tsx)
+
+---
+
+## 5. Tài liệu nâng cấp liên thông theo Quyết định sửa đổi QĐ 1551 (QĐ 2062/QĐ-BYT)
+
+Để phục vụ đội phát triển vClinic HIS nâng cấp hệ thống liên thông đáp ứng Quyết định mới **2062/QĐ-BYT năm 2026**, toàn bộ hồ sơ đặc tả thiết kế kỹ thuật đã được xây dựng hoàn chỉnh:
+
+*   📋 **Checklist triển khai**: [checklist.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/checklist.md)
+*   📈 **Báo cáo tiến độ thực tế**: [implementation-progress.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/implementation-progress.md)
+*   🩺 **Phân tích tác động (Impact)**: [impact-analysis.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/impact-analysis.md)
+*   💾 **Thiết kế Cơ sở dữ liệu (PostgreSQL)**: [database-design.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/database-design.md)
+*   📡 **Đặc tả API & Thuật toán Checksum**: [api-design.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/api-design.md)
+*   🔄 **Sơ đồ quy trình nghiệp vụ (Workflow)**: [workflow.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/workflow.md)
+*   🗺️ **Bảng Mapping trường dữ liệu 3 nhóm tuổi**: [mapping.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/mapping.md)
+*   🧪 **Kế hoạch kiểm thử & Test Cases**: [testing-plan.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/testing-plan.md)
+*   🚀 **Kế hoạch phát hành & Deploy/Rollback**: [release-plan.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/release-plan.md)
+*   📄 **Các báo cáo tổng hợp & đối chiếu lịch sử**:
+    *   [Báo cáo đối chiếu so sánh y khoa](file:///d:/AI/vClinic/modules/health-check-sync/docs/QD1551_DoiChieu_SoSanh.md)
+    *   [Kế hoạch triển khai ban đầu](file:///d:/AI/vClinic/modules/health-check-sync/docs/QD1551_KeHoachTrienKhai.md)
+    *   [Báo cáo tổng kết nâng cấp](file:///d:/AI/vClinic/modules/health-check-sync/docs/QD1551_BaoCaoTongHop.md)

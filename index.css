@@ -240,3 +240,90 @@
 .dark .health-check-form label {
   color: #94A3B8 !important;
 }
+
+/* Đồng nhất chiều cao 38px cho tất cả các controls nhập liệu */
+.health-check-form input[type="text"],
+.health-check-form input[type="number"],
+.health-check-form select,
+.health-check-form .enterprise-input,
+.health-check-form div.relative.group.flex.items-center {
+  height: 38px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Căn chỉnh lại padding ngang đồng đều */
+.health-check-form input[type="text"],
+.health-check-form input[type="number"],
+.health-check-form select,
+.health-check-form .enterprise-input {
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+}
+
+/* Thiết kế Checkbox hiện đại, sang trọng và căn giữa hoàn hảo với nhãn */
+.health-check-form input[type="checkbox"] {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 15px !important;
+  height: 15px !important;
+  border: 1.5px solid #d1d5db !important;
+  border-radius: 4px !important;
+  outline: none !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.15s ease !important;
+  background-color: #ffffff !important;
+  position: relative !important;
+  margin: 0 !important;
+  vertical-align: middle !important;
+}
+
+.health-check-form input[type="checkbox"]:hover {
+  border-color: #0f766e !important;
+}
+
+.health-check-form input[type="checkbox"]:checked {
+  background-color: #0f766e !important;
+  border-color: #0f766e !important;
+}
+
+.health-check-form input[type="checkbox"]:checked::after {
+  content: "" !important;
+  width: 4px !important;
+  height: 8px !important;
+  border: solid white !important;
+  border-width: 0 1.8px 1.8px 0 !important;
+  transform: rotate(45deg) translate(-0.5px, -1px) !important;
+  display: block !important;
+}
+
+/* Đảm bảo nhãn và checkbox căn giữa hoàn hảo */
+.health-check-form label.cursor-pointer,
+.health-check-form .cursor-pointer {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  line-height: 1 !important;
+}
+
+.dark .health-check-form input[type="checkbox"] {
+  background-color: #0f172a !important;
+  border-color: #1e3a5f !important;
+}
+
+.dark .health-check-form input[type="checkbox"]:hover {
+  border-color: #38bdf8 !important;
+}
+
+.dark .health-check-form input[type="checkbox"]:checked {
+  background-color: #38bdf8 !important;
+  border-color: #38bdf8 !important;
+}
+
+.dark .health-check-form input[type="checkbox"]:checked::after {
+  border-color: #0f172a !important;
+}

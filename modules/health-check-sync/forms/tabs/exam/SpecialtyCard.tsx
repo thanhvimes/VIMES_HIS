@@ -1,5 +1,6 @@
-import React from 'react';
-import { useDynamicFormContext } from '../../DynamicFormContext';
+import { useContext } from 'react';
+import { DynamicFormContext } from '../../DynamicFormContext';
+import { ChildFormContext } from '../../mau1-child/ChildFormContext';
 import { useSession } from '../../../../../contexts/SessionContext';
 import Combobox from '../../../../../components/ui/Combobox';
 
@@ -15,7 +16,11 @@ const doctorColumns = [
 ];
 
 const SpecialtyCard: React.FC<SpecialtyCardProps> = ({ specialtyKey, title, children }) => {
-    const { specialtyMetadata, setSpecialtyMetadata, doctors, handleSubmit, isLocked: parentIsLocked } = useDynamicFormContext() || {};
+    const adultContext = useContext(DynamicFormContext);
+    const childContext = useContext(ChildFormContext);
+    const context = adultContext || childContext || {};
+    
+    const { specialtyMetadata, setSpecialtyMetadata, doctors, handleSubmit, isLocked: parentIsLocked } = context;
     const { user } = useSession();
 
     const safeMetadata = specialtyMetadata || {};

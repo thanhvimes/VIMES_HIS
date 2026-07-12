@@ -11,11 +11,12 @@ import { useDynamicFormContext } from '../../DynamicFormContext';
 import { toast } from 'sonner';
 
 const ExamContainer: React.FC = () => {
-    const [activeSubTab, setActiveSubTab] = useState('physical');
     const { formType, specialtyMetadata } = useDynamicFormContext();
+    const showPhysical = formType !== '2' && formType !== '3';
+    const [activeSubTab, setActiveSubTab] = useState(showPhysical ? 'physical' : 'internal');
 
     const tabs = [
-        { id: 'physical', label: 'Thể lực' },
+        ...(showPhysical ? [{ id: 'physical', label: 'Thể lực' }] : []),
         { id: 'internal', label: 'Nội khoa' },
         { id: 'surgery', label: 'Ngoại khoa' },
         { id: 'dermatology', label: 'Da liễu' },
