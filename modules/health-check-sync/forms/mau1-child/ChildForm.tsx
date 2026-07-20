@@ -25,8 +25,8 @@ const ChildForm: React.FC<ChildFormProps> = ({
     onChangeFormType
 }) => {
     // Standard wrapper to match onSave options
-    const handleSaveWrapper = async (payload: any) => {
-        await onSave(payload, { shouldClose: false });
+    const handleSaveWrapper = async (payload: any, options?: any) => {
+        await onSave(payload, { shouldClose: false, ...options });
     };
 
     const state = useChildFormState({

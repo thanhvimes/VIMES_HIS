@@ -43,7 +43,10 @@ export const pool = new Pool({
     port: parseInt(process.env.DB_PORT || '5432', 10),
     max: 5,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
+    connectionTimeoutMillis: 10000, // Tăng lên 10s để cho phép mạng có thời gian phục hồi và kết nối lại
+    keepAlive: true, // Bật TCP Keep-Alive để phát hiện sớm các kết nối bị treo
+    keepAliveInitialDelayMillis: 10000, // Gửi gói tin thăm dò TCP sau 10s idle
+    query_timeout: 15000, // Ép hủy các truy vấn bị kẹt sau 15s để giải phóng pool
 });
 
 // Event Handlers for Connection

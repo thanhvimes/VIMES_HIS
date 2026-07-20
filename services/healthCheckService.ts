@@ -96,6 +96,15 @@ export const healthCheckService = {
         }
     },
 
+    getDocument: async (id: string): Promise<any> => {
+        try {
+            return await apiClient.get<any>(`/health-check-sync/documents/${id}`);
+        } catch (error) {
+            console.error("Error fetching health check document by ID:", error);
+            throw error;
+        }
+    },
+
     createDocument: async (payload: any): Promise<{ success: boolean; id: number }> => {
         try {
             return await apiClient.post<{ success: boolean; id: number }>('/health-check-sync/documents', payload);
@@ -262,6 +271,15 @@ export const healthCheckService = {
             return await apiClient.get<any>('/health-check-sync/settings');
         } catch (error) {
             console.error("Error fetching health check settings:", error);
+            throw error;
+        }
+    },
+
+    getSigningPartners: async (): Promise<{ success: boolean; data: Array<{ sign_partner: string; sign_url: string }> }> => {
+        try {
+            return await apiClient.get<any>('/health-check-sync/settings/partners');
+        } catch (error) {
+            console.error("Error fetching signing partners:", error);
             throw error;
         }
     },

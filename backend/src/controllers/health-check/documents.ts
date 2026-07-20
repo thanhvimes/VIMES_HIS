@@ -527,18 +527,87 @@ class DocumentsController {
                     await query(sql, [intIds]);
                 }
             } else {
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                const sql = `
-                    UPDATE health_check_masters
-                    SET "signature" = $1,
-                        "signature_status" = 'Signed',
-                        "signature_type" = 'HSM',
-                        "updated_at" = NOW()
-                    WHERE id = ANY($2::int[])
-                `;
-                const mockHsmSignature = `MIIJuQYJKoZIhvcNAQcCoIIJqjCCCakCAQExCzAJBgUrDgMCGgUAMAsGCSqGSIb3DQEHAaCCB8QwggfAMIIErKADAgECAgEBMA0GCSqGSIb3DQEBBQUAMIGBMQswCQYDVQQGEwJWTjENMAsGA1UECBEFSGFOb2kxDTALBgNVBAcTBEhhTm9pMRswGQYDVQQKExJCYW4gQ28geWV1IENoaW5oIHBodTEOMAwGA1UECxMFQ0ExMTAwLgYDVQQDEydUdW5nIHRhbSB4YWMgdGh1YyBjaHUga3kgc28gQ2hpbmggcGh1MB4XDTI2MDUzMTEwMDAwMFoXDTM2MDUzMTEwMDAwMFowfDELMAkGA1UEBhMCVk4xDTALBgNVBAgTBEhhTm9pMRswGQYDVQQKExJCYW4gQ28geWV1IENoaW5oIHBodTETMBEGA1UECxMKUGhvbmcgS2hhbTEcMBoGA1UEAxMTVnVDbGluaWMgSGVhbHRoQ2FyZTBcMA0GCSqGSIb3DQEBAQUAA0sAMEgCQQC1qG0uND0...`;
-                const intIds = docIds.map(id => parseInt(id));
-                await query(sql, [mockHsmSignature, intIds]);
+                const { getHealthCheckSettings } = require('../../config/health-check-settings');
+                const { signXmlViaHisHsm } = require('../../services/his-sign.service');
+                const settings = { ...getHealthCheckSettings() };
+                
+                if (!settings) {
+                    throw new Error("Không tìm thấy cấu hình liên thông/ký số HSM.");
+                }
+
+                // Override HSM credentials with user-specific values from sys_user if configured
+                const userRes = await query(
+                    `SELECT su_sign_userid, su_sign_passwd, su_sign_partner FROM sys_user WHERE su_userid = $1`,
+                    [(req as any).userId]
+                );
+
+                if (userRes.rows.length > 0) {
+                    const userRow = userRes.rows[0];
+                    if (userRow.su_sign_userid) {
+                        settings.hsm_username = userRow.su_sign_userid;
+                        console.log(`🔑 [HIS HSM] Sử dụng tài khoản ký HSM cá nhân của user: ${userRow.su_sign_userid}`);
+                    }
+                    if (userRow.su_sign_partner) {
+                        settings.hsm_provider = userRow.su_sign_partner;
+                        settings.hsm_client_id = userRow.su_sign_partner;
+                    }
+                    if (userRow.su_sign_passwd) {
+                        const SecurityUtils = require('../../utils/security').default;
+                        let decryptedHsmPassword = '';
+                        try {
+                            if (SecurityUtils.isEncrypted(userRow.su_sign_passwd)) {
+                                decryptedHsmPassword = SecurityUtils.resolveSecret(userRow.su_sign_passwd);
+                            } else {
+                                decryptedHsmPassword = SecurityUtils.decrypt(userRow.su_sign_passwd);
+                            }
+                        } catch (e: any) {
+                            console.warn('⚠️ Decrypting user HSM password failed, using raw:', e.message);
+                            decryptedHsmPassword = SecurityUtils.resolveSecret(userRow.su_sign_passwd);
+                        }
+                        settings.hsm_password = decryptedHsmPassword;
+                    }
+                }
+
+                console.log(`🔑 [HIS HSM] Bắt đầu ký số HSM cho danh sách hồ sơ: ${docIds.join(', ')}`);
+
+                for (const id of docIds) {
+                    const docDetail = await query(
+                        `SELECT id, doc_no, xml_data, patient_name FROM health_check_masters WHERE id = $1`,
+                        [parseInt(id, 10)]
+                    );
+                    
+                    if (docDetail.rows.length === 0) {
+                        throw new Error(`Không tìm thấy hồ sơ ID ${id}`);
+                    }
+                    
+                    const doc = docDetail.rows[0];
+                    if (!doc.xml_data) {
+                        throw new Error(`Hồ sơ số ${doc.doc_no || id} của bệnh nhân ${doc.patient_name || ''} chưa có dữ liệu XML XML_DATA để ký.`);
+                    }
+
+                    // Perform real HSM signature
+                    const signedXmlBase64 = await signXmlViaHisHsm(doc.xml_data, settings, doc.doc_no || `ksk_${id}`);
+                    
+                    // Wrap signature result in standard JSON format expected by sync worker
+                    const signatureWrapper = JSON.stringify({
+                        signed_file: {
+                            file_name: `${doc.doc_no || 'document'}_signed.xml`,
+                            mime_type: 'application/xml',
+                            data_base64: signedXmlBase64
+                        }
+                    });
+
+                    const sql = `
+                        UPDATE health_check_masters
+                        SET "signature" = $1,
+                            "signature_status" = 'Signed',
+                            "signature_type" = 'HSM',
+                            "updated_at" = NOW()
+                        WHERE id = $2
+                    `;
+                    await query(sql, [signatureWrapper, parseInt(id, 10)]);
+                    console.log(`✅ [HIS HSM] Ký số HSM thành công cho hồ sơ ${doc.doc_no || id}`);
+                }
             }
             return res.json({ success: true, signatureType: type });
         } catch (error: any) {

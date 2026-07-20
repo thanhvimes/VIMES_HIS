@@ -162,7 +162,7 @@ async function testXmlSend() {
     };
 
     // 4. Send document XML to gateway
-    const finalPushUrl = `${originUrl}/api/v1/platform/data-sync/push`;
+    const finalPushUrl = `${originUrl}/api/platform/data-sync/push`;
     console.log(`\n📡 Pushing XML payload to: ${finalPushUrl}`);
     console.log('Sending payload headers...');
     

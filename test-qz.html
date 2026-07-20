@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>QZ Tray Printer Test Tool</title>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- QZ Tray JavaScript Library -->
+  <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.min.js"></script>
+
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --success: #10b981;
+      --error: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 800px;
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(to right, #3b82f6, #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--error);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      margin-bottom: 20px;
+      transition: all 0.3s ease;
+    }
+
+    .status-badge.connected {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    select, textarea, input[type="text"] {
+      width: 100%;
+      background-color: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      color: var(--text-main);
+      font-size: 14px;
+      transition: all 0.2s ease;
+      outline: none;
+    }
+
+    select:focus, textarea:focus, input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+    }
+
+    textarea {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+      resize: vertical;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    button {
+      flex: 1;
+      background-color: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button:hover {
+      background-color: var(--accent-hover);
+    }
+
+    button:disabled {
+      background-color: var(--border);
+      color: var(--text-muted);
+      cursor: not-allowed;
+    }
+
+    button.secondary {
+      background-color: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+    }
+
+    button.secondary:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    .log-panel {
+      margin-top: 25px;
+      background: #090d16;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 15px;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .log-header {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 4px;
+    }
+
+    .log-line {
+      font-family: monospace;
+      font-size: 12px;
+      margin-bottom: 4px;
+      line-height: 1.5;
+    }
+
+    .log-line.info { color: var(--text-muted); }
+    .log-line.success { color: var(--success); }
+    .log-line.error { color: var(--error); }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>🖨️ QZ Tray Test Console</h1>
+    <p class="subtitle">Công cụ hỗ trợ kiểm tra in mã vạch ZPL trực tiếp từ trình duyệt Google Chrome thông qua QZ Tray.</p>
+
+    <div id="statusBadge" class="status-badge">
+      <span class="status-dot">●</span> <span id="statusText">Đang ngắt kết nối</span>
+    </div>
+
+    <!-- Group: Chọn máy in -->
+    <div class="form-group">
+      <label for="printerList">Danh sách máy in từ hệ thống:</label>
+      <select id="printerList" disabled>
+        <option value="">-- Đang quét máy in... --</option>
+      </select>
+    </div>
+
+    <!-- Group: Mã ZPL Test -->
+    <div class="form-group">
+      <label for="zplCode">Mã ZPL (Zebra Programming Language):</label>
+      <textarea id="zplCode" rows="8">^XA
+^CF0,30
+^FO50,50^FDBenh vien VIMES HIS^FS
+^FO50,90^FDBenh nhan: NGUYEN VAN A^FS
+^BY2,2,50
+^FO50,130^BCN,,Y,N
+^FD123456789^FS
+^XZ</textarea>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions">
+      <button id="btnConnect" onclick="connectToQz()">Kết nối QZ Tray</button>
+      <button id="btnPrint" onclick="printTest()" disabled>In Thử Nghiệm ZPL</button>
+    </div>
+
+    <!-- Logs -->
+    <div class="log-panel">
+      <div class="log-header">Log kết nối và lệnh in</div>
+      <div id="logs"></div>
+    </div>
+  </div>
+
+  <script>
+    const logsEl = document.getElementById('logs');
+    const statusBadge = document.getElementById('statusBadge');
+    const statusText = document.getElementById('statusText');
+    const printerList = document.getElementById('printerList');
+    const btnConnect = document.getElementById('btnConnect');
+    const btnPrint = document.getElementById('btnPrint');
+
+    function log(message, type = 'info') {
+      const line = document.createElement('div');
+      line.className = `log-line ${type}`;
+      const time = new Date().toLocaleTimeString();
+      line.innerText = `[${time}] ${message}`;
+      logsEl.appendChild(line);
+      logsEl.scrollTop = logsEl.scrollHeight;
+    }
+
+    // Kết nối đến QZ Tray
+    function connectToQz() {
+      log('Đang thử kết nối tới QZ Tray cục bộ...', 'info');
+      
+      // Nếu đã active thì ngắt trước
+      if (qz.websocket.isActive()) {
+        qz.websocket.disconnect()
+          .then(() => {
+            updateStatus(false);
+            performConnection();
+          });
+      } else {
+        performConnection();
+      }
+    }
+
+    function performConnection() {
+      qz.websocket.connect()
+        .then(() => {
+          log('Kết nối thành công đến QZ Tray!', 'success');
+          updateStatus(true);
+          loadPrinters();
+        })
+        .catch(err => {
+          log('Lỗi kết nối QZ Tray: ' + err.message, 'error');
+          log('Vui lòng đảm bảo ứng dụng QZ Tray đã được mở trên máy tính của bạn.', 'error');
+          updateStatus(false);
+        });
+    }
+
+    function updateStatus(connected) {
+      if (connected) {
+        statusBadge.className = 'status-badge connected';
+        statusText.innerText = 'Đã kết nối QZ Tray';
+        btnConnect.innerText = 'Ngắt kết nối';
+        btnConnect.onclick = disconnectQz;
+        btnPrint.disabled = false;
+        printerList.disabled = false;
+      } else {
+        statusBadge.className = 'status-badge';
+        statusText.innerText = 'Đang ngắt kết nối';
+        btnConnect.innerText = 'Kết nối QZ Tray';
+        btnConnect.onclick = connectToQz;
+        btnPrint.disabled = true;
+        printerList.disabled = true;
+        printerList.innerHTML = '<option value="">-- Đang ngắt kết nối --</option>';
+      }
+    }
+
+    function disconnectQz() {
+      qz.websocket.disconnect()
+        .then(() => {
+          log('Đã ngắt kết nối QZ Tray.', 'info');
+          updateStatus(false);
+        });
+    }
+
+    // Lấy danh sách máy in
+    function loadPrinters() {
+      log('Đang lấy danh sách máy in...', 'info');
+      qz.printers.find()
+        .then(printers => {
+          printerList.innerHTML = '';
+          if (printers.length === 0) {
+            log('Không tìm thấy máy in nào trên hệ thống!', 'error');
+            printerList.innerHTML = '<option value="">-- Không có máy in --</option>';
+            return;
+          }
+          log(`Đã tìm thấy ${printers.length} máy in.`, 'success');
+          printers.forEach(printer => {
+            const opt = document.createElement('option');
+            opt.value = printer;
+            opt.innerText = printer;
+            printerList.appendChild(opt);
+          });
+        })
+        .catch(err => {
+          log('Lỗi khi lấy danh sách máy in: ' + err.message, 'error');
+        });
+    }
+
+    // Thực hiện in
+    function printTest() {
+      const selectedPrinter = printerList.value;
+      if (!selectedPrinter) {
+        log('Vui lòng chọn một máy in trong danh sách!', 'error');
+        return;
+      }
+
+      const zplData = document.getElementById('zplCode').value;
+      log(`Đang chuẩn bị gửi lệnh in ZPL tới máy in: "${selectedPrinter}"...`, 'info');
+
+      // Tạo cấu hình in RAW cho ZPL
+      const config = qz.configs.create(selectedPrinter, {
+        encoding: 'UTF-8',
+        raw: {
+          type: 'raw'
+        }
+      });
+
+      qz.print(config, [zplData])
+        .then(() => {
+          log('Gửi lệnh in thành công! Máy in sẽ bắt đầu hoạt động.', 'success');
+        })
+        .catch(err => {
+          log('Lỗi khi gửi lệnh in ZPL: ' + err.message, 'error');
+        });
+    }
+
+    // Tự động thử kết nối khi tải trang
+    window.onload = function() {
+      setTimeout(connectToQz, 500);
+    };
+  </script>
+</body>
+</html>

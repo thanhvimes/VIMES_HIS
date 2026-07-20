@@ -23,6 +23,9 @@ export interface UserInfo {
     modules: ModulePermissions;
     permissions: string[]; // NEW: Detailed permissions from sys_userperm
     isActive: boolean;
+    signUserid?: string;
+    signPasswd?: string;
+    signPartner?: string;
 }
 
 export interface ModulePermissions {

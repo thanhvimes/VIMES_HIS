@@ -19,6 +19,15 @@ export interface SettingsData {
     barcode_printer_name: string;
     reception_slip_template: string;
     use_qz_tray: boolean;
+    vneid_private_key: string;
+    vneid_public_key: string;
+    signature_type: 'USB' | 'HSM';
+    hsm_url?: string;
+    hsm_provider?: string;
+    hsm_username?: string;
+    hsm_password?: string;
+    hsm_client_id?: string;
+    hsm_client_secret?: string;
 }
 
 export class HealthCheckSettings implements SettingsData {
@@ -39,6 +48,15 @@ export class HealthCheckSettings implements SettingsData {
     barcode_zpl_template_ksk: string = '^XA\n^CF0,26\n^FO30,30^FD{hospital}^FS\n^FO30,70^FD{patient}^FS\n^FO30,105^FD{form_name}^FS\n^FO30,140^FD{info}^FS\n^BY2,2,40\n^FO30,175^BCN,,N,N\n^FD{code}^FS\n^FO30,225^FD{code}^FS\n^XZ';
     barcode_printer_name: string = 'Zebra';
     use_qz_tray: boolean = false;
+    vneid_private_key: string = '';
+    vneid_public_key: string = '';
+    signature_type: 'USB' | 'HSM' = 'HSM';
+    hsm_url?: string = 'http://vimes.xyz:8091';
+    hsm_provider?: string = 'VNPT-CA';
+    hsm_username?: string = '';
+    hsm_password?: string = '';
+    hsm_client_id?: string = '';
+    hsm_client_secret?: string = '';
     reception_slip_template: string = `<div class="header">
     <div class="hospital-name">BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH</div>
     <div class="title">PHIẾU TIẾP ĐÓN</div>
@@ -135,6 +153,15 @@ export class HealthCheckSettings implements SettingsData {
             this.barcode_printer_name = data.barcode_printer_name ?? this.barcode_printer_name;
             this.reception_slip_template = data.reception_slip_template ?? this.reception_slip_template;
             this.use_qz_tray = data.use_qz_tray === true;
+            this.vneid_private_key = data.vneid_private_key ?? this.vneid_private_key;
+            this.vneid_public_key = data.vneid_public_key ?? this.vneid_public_key;
+            this.signature_type = data.signature_type ?? this.signature_type;
+            this.hsm_url = data.hsm_url ?? this.hsm_url;
+            this.hsm_provider = data.hsm_provider ?? this.hsm_provider;
+            this.hsm_username = data.hsm_username ?? this.hsm_username;
+            this.hsm_password = data.hsm_password ?? this.hsm_password;
+            this.hsm_client_id = data.hsm_client_id ?? this.hsm_client_id;
+            this.hsm_client_secret = data.hsm_client_secret ?? this.hsm_client_secret;
         }
     }
 
@@ -198,6 +225,15 @@ export class HealthCheckSettings implements SettingsData {
             barcode_printer_name: this.barcode_printer_name,
             reception_slip_template: this.reception_slip_template,
             use_qz_tray: this.use_qz_tray,
+            vneid_private_key: this.vneid_private_key,
+            vneid_public_key: this.vneid_public_key,
+            signature_type: this.signature_type,
+            hsm_url: this.hsm_url,
+            hsm_provider: this.hsm_provider,
+            hsm_username: this.hsm_username,
+            hsm_password: this.hsm_password,
+            hsm_client_id: this.hsm_client_id,
+            hsm_client_secret: this.hsm_client_secret
         };
     }
 }

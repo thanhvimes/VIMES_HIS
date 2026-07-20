@@ -439,7 +439,7 @@ export const useChildFormState = ({
         };
     };
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (options?: any) => {
         const newErrors: Record<string, string> = {};
         if (!patientName) newErrors.patientName = 'Vui lòng nhập họ và tên trẻ';
         if (!dob) newErrors.dob = 'Vui lòng chọn ngày sinh';
@@ -465,7 +465,7 @@ export const useChildFormState = ({
 
         const payload = buildPayload();
         try {
-            await onSave(payload);
+            await onSave(payload, options);
         } catch (err: any) {
             toast.error(err.message || 'Lỗi khi lưu dữ liệu');
         }
@@ -769,8 +769,6 @@ export const useChildFormState = ({
         confirmConfig,
         setConfirmConfig,
         handleTabChange,
-        buildPayload,
-        doctors,
-        setDoctors
+        buildPayload
     };
 };
