@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from '../../../contexts/SessionContext';
+import { toast } from 'sonner';
 import { useCatalogs } from '../../../contexts/CatalogContext';
 import { catalogService, CatalogItem } from '../../../services/catalogService';
 import { healthCheckService } from '../../../services/healthCheckService';
@@ -915,9 +916,17 @@ export const useDynamicFormState = (
         }).catch(err => console.error("Failed to load settings in DynamicForm:", err));
     }, [initialData]);
 
+    const hasCalculatedRef = useRef<string | null>(null);
+
     // Auto-calculate statuses from initialData on mount if they are not set or 'CHUA_KHAM'
     useEffect(() => {
         if (!initialData) return;
+        
+        // Only run this auto-calculation once per document ID to prevent overwriting user changes on save
+        const docId = initialData.id?.toString() || 'new';
+        if (hasCalculatedRef.current === docId) return;
+        hasCalculatedRef.current = docId;
+
         const savedMetadata = initialData?.clinical_data?.clinical_exam?.specialty_metadata || initialData?.specialty_metadata || {};
         setSpecialtyMetadata(() => {
             const updated = { ...savedMetadata };
@@ -1113,7 +1122,7 @@ export const useDynamicFormState = (
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = (e?: React.FormEvent, options?: { shouldSign?: boolean; shouldUnlock?: boolean }) => {
+    const handleSubmit = (e?: React.FormEvent, options?: { shouldSign?: boolean; shouldUnlock?: boolean; signatureType?: 'USB' | 'HSM' }): boolean => {
         if (e) e.preventDefault();
         
         // Perform validation and determine the appropriate tab to highlight
@@ -1145,6 +1154,8 @@ export const useDynamicFormState = (
         setErrors(newErrors);
 
         if (Object.keys(newErrors).length > 0) {
+            const firstError = Object.values(newErrors)[0];
+            toast.error(`Không thể lưu/ký: ${firstError}`);
             if (newErrors.diagnosis) {
                 setActiveTab('conclusion');
             } else if (newErrors.bp) {
@@ -1152,10 +1163,10 @@ export const useDynamicFormState = (
             } else {
                 setActiveTab('admin');
             }
-            return;
+            return false;
         }
 
-        // Tự động tính toán trạng thái (CHUA_KHAM -> DA_KHAM / DA_KET_LUAN) dựa trên dữ liệu nhập thực tế
+        // Khởi tạo các metadata chưa tồn tại
         const calculatedMetadata = { ...specialtyMetadataRef.current };
         const keysToProcess = ['admin', 'history', 'internal', 'eye', 'ent', 'dental', 'external', 'dermatology', 'gynecology', 'lab', 'conclusion'];
         
@@ -1167,46 +1178,6 @@ export const useDynamicFormState = (
                     status: 'CHUA_KHAM',
                     updatedAt: new Date().toISOString()
                 };
-            }
-            
-            // Nếu chuyên khoa đã được duyệt (ĐÃ_DUYỆT) hoặc đang khám (ĐANG_KHÁM), giữ nguyên trạng thái không đè
-            if (calculatedMetadata[key].status === 'ĐÃ_DUYỆT' || calculatedMetadata[key].status === 'ĐANG_KHÁM') {
-                return;
-            }
-            
-            let hasData = false;
-            if (key === 'admin') {
-                hasData = !!(patientId || patientName || cccd || dob);
-            } else if (key === 'history') {
-                hasData = !!(tsgdMacBenh || tsgdMaBenh || tsbtMaBenh || tsbtNamPhatHienBenh || ts5Nam || tsThanKinh || tsMat || tsTai || tsTimMach || tsPhauThuatTim || tsHuyetAp || tsKhoTho || tsPhoiHen || tsThan || tsTieuDuong || tsTamThan || tsYThuc || tsChongMat || tsTieuHoa || tsGiacNgu || tsTaiBien || tsSuDungRuou || tsSuDungMaTuy || tsBenhCotSong || tsbtMaBenhNgheNghiep || height || weight || bp || pulse || khamTheLucPl);
-            } else if (key === 'internal') {
-                hasData = !!(internalExam || noiKhoaTuanHoanPl || noiKhoaHoHapPl || noiKhoaTieuHoaPl || noiKhoaThanTietnieuPl || noiKhoaNoiTietPl || noiKhoaCoXuongKhopPl || noiKhoaThanKinhPl || noiKhoaTamThanPl || kqTimMach || kqHoHap || kqNoiTiet || kqTietNieu || kqSinhDuc || kqCoXuongKhop || kqNoiTietChuyenHoa || timMach || hoHap || tietNieuSinhDuc || noiKhoaTieuHoa || ganMat || mauCoQuanTaoMau || daToChucDuoiDa || kqCoXuongKhopM5 || thanKinhM5 || noiTietDinhDuongChuyenHoa || roiLoanHanhViTamThan);
-            } else if (key === 'eye') {
-                hasData = !!(eyeExam || khamMatPl || khongKinhMatPhai || khongKinhMatTrai || coKinhMatPhai || coKinhMatTrai || sacGiac || thiTruongNgangHaiMat || thiTruongDungHaiMat || khongKinhHaiMat || coKinhHaiMat || xaKhongKinhMatPhai || xaKhongKinhMatTrai || xaKhongKinhHaiMat || xaCoKinhMatPhai || xaCoKinhMatTrai || xaCoKinhHaiMat || ganKhongKinhMatPhai || ganKhongKinhMatTrai || ganKhongKinhHaiMat || ganCoKinhMatPhai || ganCoKinhMatTrai || ganCoKinhHaiMat || khamMatThiTruongPhai || khamMatThiTruongTrai || khamMatM5 || khamMatThiGiacMau);
-            } else if (key === 'ent') {
-                hasData = !!(entExam || khamTaiMuiHongPl || taiTraiNoiThuong || taiTraiNoiTham || taiPhaiNoiThuong || taiPhaiNoiTham || taiPhai500hz || taiTrai500hz || taiPhai2000hz || taiTrai2000hz || taiPhai3000hz || taiTrai3000hz || taiPhai4000hz || taiTrai4000hz || taiPhai6000hz || taiTrai6000hz || khamTaiMuiHongM5 || kqTaiMuiHong);
-            } else if (key === 'dental') {
-                hasData = !!(dentalExam || khamRangHamMatPl || hamTren || hamDuoi);
-            } else if (key === 'external') {
-                hasData = !!(externalExam || khamNgoaiKhoaPl || kqNgoaiKhoa || maBenhNgoaiKhoa);
-            } else if (key === 'dermatology') {
-                hasData = !!(dermatologyExam || khamDaLieuPl || kqDaLieu);
-            } else if (key === 'gynecology') {
-                hasData = !!(gynExam || khamSanPhuKhoaPl || coKinhNguyetNamBaoNhieuTuoi || tinhChatKinhNguyet || chuKyKinh || luongKinh || dauBungKinh || para || daTungMoSanPhuKhoaChua || dangApDungBpttKhong);
-            } else if (key === 'lab') {
-                hasData = !!(hemoglobin || glycemia || protein || kqXnMaiTuy || kqXnNongDoCon || kqXnKhac || (paraclinicalItems && paraclinicalItems.length > 0));
-            } else if (key === 'conclusion') {
-                hasData = !!(fitnessClass || diagnosis || ketLuanLoaiSucKhoe);
-            }
-
-            if (hasData) {
-                if (key === 'conclusion') {
-                    calculatedMetadata[key].status = 'ĐÃ_KẾT_LUẬN';
-                } else {
-                    calculatedMetadata[key].status = 'ĐÃ_KHÁM';
-                }
-            } else {
-                calculatedMetadata[key].status = 'CHUA_KHAM';
             }
         });
 
@@ -1578,6 +1549,7 @@ export const useDynamicFormState = (
         };
         
         onSave(fullPayload, options);
+        return true;
     };
 
     const handlePreview = () => {

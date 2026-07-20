@@ -25,6 +25,7 @@ import { catalogService, CatalogItem } from '../../../services/catalogService';
 import { FormDateInput } from '../../../components/ui/forms';
 import { formatDate, formatDateTime } from '../../../utils/formatters';
 import * as XLSX from 'xlsx';
+import { signXmlWithLocalEfyPlugin } from '../utils/efySigner';
 
 // Import Modular Components
 import Dashboard from '../components/Dashboard';
@@ -150,6 +151,7 @@ const HealthCheckSyncView: React.FC = () => {
                 setBarcodeShowDate(settings.barcode_show_date !== false);
                 setBarcodeShowSampleType(settings.barcode_show_sample_type !== false);
                 setAllowUnsignedSync(settings.allow_unsigned_sync === true);
+                setSignatureTypeSelect(settings.signature_type || 'HSM');
             }
         } catch (error) {
             console.error("Failed to load settings in HealthCheckSyncView:", error);
@@ -326,7 +328,7 @@ const HealthCheckSyncView: React.FC = () => {
 
 
 
-    const handleSaveDocument = async (payload: any, options?: { shouldSign?: boolean; shouldUnlock?: boolean }) => {
+    const handleSaveDocument = async (payload: any, options?: { shouldSign?: boolean; shouldUnlock?: boolean; signatureType?: 'USB' | 'HSM' }) => {
         setIsLoading(true);
         try {
             let docId = activeDocument?.id;
@@ -343,15 +345,49 @@ const HealthCheckSyncView: React.FC = () => {
                 }
             }
 
+            const targetSigType = options?.signatureType || signatureTypeSelect;
+
             if (options?.shouldSign && docId) {
-                await healthCheckService.signDocuments([docId.toString()], 'HSM');
-                toast.success("Đã khóa & ký số hồ sơ thành công!");
+                if (targetSigType === 'USB') {
+                    const toastId = toast.loading("Đang kết nối USB Token...");
+                    try {
+                        const docDetail = await healthCheckService.getDocument(docId.toString());
+                        if (!docDetail.xml_data) {
+                            throw new Error("Không tìm thấy dữ liệu XML chưa ký.");
+                        }
+                        toast.loading("Đang yêu cầu ký số bằng USB Token. Vui lòng nhập PIN trên thiết bị...", { id: toastId });
+                        const signatureWrapperJson = await signXmlWithLocalEfyPlugin(docDetail.xml_data, docDetail.doc_no || `ksk_${docId}`);
+                        toast.loading("Đang gửi chữ ký số lên hệ thống...", { id: toastId });
+                        await healthCheckService.signDocuments([docId.toString()], 'USB', { [docId]: signatureWrapperJson });
+                        toast.success("Đã khóa & ký số hồ sơ thành công bằng USB Token!", { id: toastId });
+                    } catch (error: any) {
+                        toast.error("Lỗi ký số USB Token: " + error.message, { id: toastId, duration: 6000 });
+                        throw error;
+                    }
+                } else {
+                    await healthCheckService.signDocuments([docId.toString()], 'HSM');
+                    toast.success("Đã khóa & ký số hồ sơ bằng HSM Server thành công!");
+                }
             } else if (options?.shouldUnlock) {
                 toast.success("Đã mở khóa hồ sơ thành công!");
             }
 
             await loadData();
-            setSearchParams({ step: 'manage' }); // Redirect to manage
+
+            if (options?.shouldSign) {
+                setSearchParams({ step: 'manage' }); // Redirect to manage
+                setViewMode('LIST');
+                setActiveDocument(null);
+            } else {
+                // Keep the editing form open and update the local activeDocument so the tabs and states remain intact
+                if (docId) {
+                    const latestDocs = await healthCheckService.getDocumentsList({});
+                    const updatedDoc = latestDocs.find((d: any) => d.id === docId);
+                    if (updatedDoc) {
+                        setActiveDocument(updatedDoc);
+                    }
+                }
+            }
         } catch (error: any) {
             toast.error("Lỗi lưu hồ sơ: " + error.message);
         } finally {
@@ -469,16 +505,35 @@ const HealthCheckSyncView: React.FC = () => {
             if (!confirmSign) return;
             
             setIsSigning(true);
-            const toastId = toast.loading("Đang kết nối USB Token và ký số tài liệu...");
+            const toastId = toast.loading("Đang khởi tạo kết nối USB Token...");
             try {
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                await healthCheckService.signDocuments(idsToSign, 'USB');
+                const signatures: Record<string, string> = {};
+                
+                for (let i = 0; i < idsToSign.length; i++) {
+                    const id = idsToSign[i];
+                    toast.loading(`Đang đọc dữ liệu hồ sơ (${i + 1}/${idsToSign.length})...`, { id: toastId });
+                    
+                    // Fetch document details to get unsigned XML data
+                    const docDetail = await healthCheckService.getDocument(id);
+                    if (!docDetail.xml_data) {
+                        throw new Error(`Hồ sơ số ${docDetail.doc_no || id} chưa có dữ liệu XML XML_DATA để ký.`);
+                    }
+                    
+                    toast.loading(`Đang yêu cầu ký số hồ sơ: ${docDetail.patient_name} (${i + 1}/${idsToSign.length}). Vui lòng nhập PIN trên thiết bị...`, { id: toastId });
+                    
+                    // Trigger USB signing via local EFY-CA eSigner service
+                    const signatureWrapperJson = await signXmlWithLocalEfyPlugin(docDetail.xml_data, docDetail.doc_no || `ksk_${id}`);
+                    signatures[id] = signatureWrapperJson;
+                }
+                
+                toast.loading("Đang gửi chữ ký số lên hệ thống...", { id: toastId });
+                await healthCheckService.signDocuments(idsToSign, 'USB', signatures);
                 await loadData();
-                toast.success("Đã hoàn tất ký số bằng USB Token cá nhân thành công!", { id: toastId });
+                toast.success(`Đã hoàn tất ký số thành công cho ${idsToSign.length} hồ sơ bằng USB Token!`, { id: toastId });
                 setSelectedIds(new Set());
                 setSearchParams({ step: 'pending-send' }); // Redirect to pending send
             } catch (error: any) {
-                toast.error("Lỗi ký số USB Token: " + error.message, { id: toastId });
+                toast.error("Lỗi ký số USB Token: " + error.message, { id: toastId, duration: 6000 });
             } finally {
                 setIsSigning(false);
             }
@@ -1172,7 +1227,7 @@ const HealthCheckSyncView: React.FC = () => {
                                     <SettingsTab 
                                         onSaved={loadSettings} 
                                         defaultTab={stepParam === 'settings-barcode' ? 'BARCODE' : 'VNEID'}
-                                        hideTabs={stepParam === 'settings-vneid'}
+                                        hideTabs={false}
                                     />
                                 </>
                             ) : (

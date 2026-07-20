@@ -6,6 +6,7 @@ import { query } from '../../config/database';
 import { sign } from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { AuthRequest } from '../../middleware/authMiddleware';
+import SecurityUtils from '../../utils/security';
 
 import fs from 'fs';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -35,6 +36,9 @@ export interface UserInfo {
     modules: ModulePermissions;
     permissions: string[]; // NEW: List of permIds from sys_userperm
     isActive: boolean;
+    signUserid?: string;
+    signPasswd?: string;
+    signPartner?: string;
 }
 
 class AuthController {
@@ -70,7 +74,10 @@ class AuthController {
                     -- ERP Modules
                     su_erp_famodule, su_erp_hrmodule, su_erp_apmodule, su_erp_armodule,
                     su_erp_glmodule, su_erp_pomodule, su_erp_somodule, su_erp_simodule,
-                    su_erp_bilmodule
+                    su_erp_bilmodule,
+                    su_sign_userid,
+                    su_sign_passwd,
+                    su_sign_partner
                 FROM sys_user
                 WHERE su_userid = $1
             `, [userId]);
@@ -178,7 +185,10 @@ class AuthController {
                 address: user.su_address,
                 modules: modules,
                 permissions: permissions,
-                isActive: user.su_isactive === 'Y'
+                isActive: user.su_isactive === 'Y',
+                signUserid: user.su_sign_userid,
+                signPasswd: user.su_sign_passwd ? '******' : '',
+                signPartner: user.su_sign_partner
             };
 
             const token = sign(
@@ -239,7 +249,10 @@ class AuthController {
                     su_hms_hccmodule, su_hms_rolmodule, su_hms_qmsmodule, su_hms_kskmodule,
                     su_erp_famodule, su_erp_hrmodule, su_erp_apmodule, su_erp_armodule,
                     su_erp_glmodule, su_erp_pomodule, su_erp_somodule, su_erp_simodule,
-                    su_erp_bilmodule
+                    su_erp_bilmodule,
+                    su_sign_userid,
+                    su_sign_passwd,
+                    su_sign_partner
                 FROM sys_user
                 WHERE su_userid = $1 AND su_isactive = 'Y'
             `, [userId]);
@@ -321,8 +334,19 @@ class AuthController {
                 roomId: user.su_roomid,
                 xDept: xDept,
                 modules: modules,
-                permissions: permissions
-                // ... (would map all remaining fields)
+                permissions: permissions,
+                phone: user.su_tel,
+                certificate: user.su_certificate,
+                position: user.su_position,
+                title: user.su_title,
+                dob: user.su_dob,
+                gender: user.su_gender,
+                identityCard: user.su_identity_card,
+                email: user.su_email,
+                address: user.su_address,
+                signUserid: user.su_sign_userid,
+                signPasswd: user.su_sign_passwd ? '******' : '',
+                signPartner: user.su_sign_partner
             };
 
             return res.json({
@@ -343,7 +367,20 @@ class AuthController {
     async updateProfile(req: AuthRequest, res: Response) {
         try {
             const userId = req.userId;
-            const { name, phone, certificate, position, title, dob, gender, identityCard, email, address } = (req as any).body;
+            const { name, phone, certificate, position, title, dob, gender, identityCard, email, address, signUserid, signPasswd, signPartner } = (req as any).body;
+
+            const existRes = await query(`SELECT su_sign_passwd FROM sys_user WHERE su_userid = $1`, [userId]);
+            let finalSignPasswd = '';
+            if (existRes.rows.length > 0) {
+                const existing = existRes.rows[0];
+                if (signPasswd === '******') {
+                    finalSignPasswd = existing.su_sign_passwd;
+                } else {
+                    finalSignPasswd = signPasswd ? 'enc:' + SecurityUtils.encrypt(signPasswd) : '';
+                }
+            } else {
+                finalSignPasswd = signPasswd && signPasswd !== '******' ? 'enc:' + SecurityUtils.encrypt(signPasswd) : '';
+            }
 
             const result = await query(`
                 UPDATE sys_user 
@@ -357,10 +394,13 @@ class AuthController {
                     su_gender = COALESCE($7, su_gender),
                     su_identity_card = COALESCE($8, su_identity_card),
                     su_email = COALESCE($9, su_email),
-                    su_address = COALESCE($10, su_address)
-                WHERE su_userid = $11
-                RETURNING su_userid, su_name, su_tel, su_certificate
-            `, [name, phone, certificate, position, title, dob, gender, identityCard, email, address, userId]);
+                    su_address = COALESCE($10, su_address),
+                    su_sign_userid = COALESCE($11, su_sign_userid),
+                    su_sign_passwd = COALESCE($12, su_sign_passwd),
+                    su_sign_partner = COALESCE($13, su_sign_partner)
+                WHERE su_userid = $14
+                RETURNING su_userid, su_name, su_tel, su_certificate, su_sign_userid
+            `, [name, phone, certificate, position, title, dob, gender, identityCard, email, address, signUserid, finalSignPasswd, signPartner, userId]);
 
             if (result.rows.length === 0) {
                 return res.status(404).json({

@@ -9,8 +9,18 @@ export class ContractsController {
     // Lấy cấu hình liên thông VNeID
     async getSettings(req: Request, res: Response) {
         try {
+            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS vneid_private_key text`);
+            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS vneid_public_key text`);
+            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS signature_type varchar(20) DEFAULT 'HSM'`);
+            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_url varchar(255) DEFAULT 'http://vimes.xyz:8091'`);
+            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_provider varchar(50) DEFAULT 'VNPT-CA'`);
+            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_username varchar(100)`);
+            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_password text`);
+            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_client_id varchar(100)`);
+            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_client_secret text`);
+
             const result = await query(
-                `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, reception_slip_template, use_qz_tray FROM health_check_settings LIMIT 1`
+                `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, reception_slip_template, use_qz_tray, vneid_private_key, vneid_public_key, signature_type, hsm_url, hsm_provider, hsm_username, hsm_password, hsm_client_id, hsm_client_secret FROM health_check_settings LIMIT 1`
             );
 
             if (result.rows.length === 0) {
@@ -32,6 +42,8 @@ export class ContractsController {
                     barcode_zpl_template_ksk: '^XA\n^CF0,26\n^FO30,30^FD{hospital}^FS\n^FO30,70^FD{patient}^FS\n^FO30,105^FD{form_name}^FS\n^FO30,140^FD{info}^FS\n^BY2,2,40\n^FO30,175^BCN,,N,N\n^FD{code}^FS\n^FO30,225^FD{code}^FS\n^XZ',
                     barcode_printer_name: 'Zebra',
                     use_qz_tray: false,
+                    vneid_private_key: '',
+                    vneid_public_key: '',
                     reception_slip_template: `<div class="header">
     <div class="hospital-name">BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH</div>
     <div class="title">PHIẾU TIẾP ĐÓN</div>
@@ -114,11 +126,42 @@ export class ContractsController {
             if (row.vneid_password) {
                 row.vneid_password = '******';
             }
+            if (row.vneid_private_key) {
+                row.vneid_private_key = '******';
+            }
+            if (row.hsm_password) {
+                row.hsm_password = '******';
+            }
+            if (row.hsm_client_secret) {
+                row.hsm_client_secret = '******';
+            }
 
             return res.json(row);
         } catch (error: any) {
             console.error('❌ KSK Controller: Lỗi getSettings:', error);
             return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // Lấy danh sách nhà cung cấp từ bảng hms_sign_serverconf
+    async getSigningPartners(req: Request, res: Response) {
+        try {
+            const result = await query(
+                `SELECT sign_partner, sign_url FROM hms_sign_serverconf ORDER BY sign_partner`
+            );
+            return res.json({
+                success: true,
+                data: result.rows
+            });
+        } catch (error: any) {
+            console.warn('⚠️ [ContractsController] Table hms_sign_serverconf query failed, using fallback:', error.message);
+            return res.json({
+                success: true,
+                data: [
+                    { sign_partner: 'BCY', sign_url: 'http://vimes.xyz:8091' },
+                    { sign_partner: 'VNPT-CA', sign_url: 'http://vimes.xyz:8091' }
+                ]
+            });
         }
     }
 
@@ -142,19 +185,50 @@ export class ContractsController {
             barcode_zpl_template_ksk,
             barcode_printer_name,
             reception_slip_template,
-            use_qz_tray
+            use_qz_tray,
+            vneid_private_key,
+            vneid_public_key,
+            signature_type,
+            hsm_url,
+            hsm_provider,
+            hsm_username,
+            hsm_password,
+            hsm_client_id,
+            hsm_client_secret
         } = req.body;
 
         try {
-            const existCheck = await query('SELECT id, vneid_password FROM health_check_settings LIMIT 1');
+            const existCheck = await query('SELECT id, vneid_password, vneid_private_key, hsm_password, hsm_client_secret FROM health_check_settings LIMIT 1');
             
             let finalPassword = '';
+            let finalPrivateKey = '';
+            let finalHsmPassword = '';
+            let finalHsmClientSecret = '';
+
             if (existCheck.rows.length > 0) {
                 const existing = existCheck.rows[0];
                 if (vneid_password === '******') {
                     finalPassword = existing.vneid_password;
                 } else {
                     finalPassword = vneid_password ? SecurityUtils.encrypt(vneid_password) : '';
+                }
+
+                if (vneid_private_key === '******') {
+                    finalPrivateKey = existing.vneid_private_key;
+                } else {
+                    finalPrivateKey = vneid_private_key ? SecurityUtils.encrypt(vneid_private_key) : '';
+                }
+
+                if (hsm_password === '******') {
+                    finalHsmPassword = existing.hsm_password;
+                } else {
+                    finalHsmPassword = hsm_password ? SecurityUtils.encrypt(hsm_password) : '';
+                }
+
+                if (hsm_client_secret === '******') {
+                    finalHsmClientSecret = existing.hsm_client_secret;
+                } else {
+                    finalHsmClientSecret = hsm_client_secret ? SecurityUtils.encrypt(hsm_client_secret) : '';
                 }
 
                 const updateSql = `
@@ -177,8 +251,17 @@ export class ContractsController {
                         barcode_printer_name = $16,
                         reception_slip_template = $17,
                         use_qz_tray = $18,
+                        vneid_private_key = $19,
+                        vneid_public_key = $20,
+                        signature_type = $21,
+                        hsm_url = $22,
+                        hsm_provider = $23,
+                        hsm_username = $24,
+                        hsm_password = $25,
+                        hsm_client_id = $26,
+                        hsm_client_secret = $27,
                         updated_at = NOW()
-                    WHERE id = $19
+                    WHERE id = $28
                     RETURNING id
                 `;
                 await query(updateSql, [
@@ -200,16 +283,30 @@ export class ContractsController {
                     barcode_printer_name || 'Zebra',
                     reception_slip_template || '',
                     use_qz_tray === true,
+                    finalPrivateKey,
+                    vneid_public_key || '',
+                    signature_type || 'HSM',
+                    hsm_url || 'http://vimes.xyz:8091',
+                    hsm_provider || 'VNPT-CA',
+                    hsm_username || '',
+                    finalHsmPassword,
+                    hsm_client_id || '',
+                    finalHsmClientSecret,
                     existing.id
                 ]);
             } else {
                 finalPassword = vneid_password ? SecurityUtils.encrypt(vneid_password) : '';
+                finalPrivateKey = vneid_private_key ? SecurityUtils.encrypt(vneid_private_key) : '';
+                finalHsmPassword = hsm_password ? SecurityUtils.encrypt(hsm_password) : '';
+                finalHsmClientSecret = hsm_client_secret ? SecurityUtils.encrypt(hsm_client_secret) : '';
+
                 const insertSql = `
                     INSERT INTO health_check_settings (
                         vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval,
                         barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type,
-                        allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, reception_slip_template, use_qz_tray
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+                        allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, reception_slip_template, use_qz_tray,
+                        vneid_private_key, vneid_public_key, signature_type, hsm_url, hsm_provider, hsm_username, hsm_password, hsm_client_id, hsm_client_secret
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
                     RETURNING id
                 `;
                 await query(insertSql, [
@@ -230,7 +327,16 @@ export class ContractsController {
                     barcode_zpl_template_ksk || '',
                     barcode_printer_name || 'Zebra',
                     reception_slip_template || '',
-                    use_qz_tray === true
+                    use_qz_tray === true,
+                    finalPrivateKey,
+                    vneid_public_key || '',
+                    signature_type || 'HSM',
+                    hsm_url || 'http://vimes.xyz:8091',
+                    hsm_provider || 'VNPT-CA',
+                    hsm_username || '',
+                    finalHsmPassword,
+                    hsm_client_id || '',
+                    finalHsmClientSecret
                 ]);
             }
 
@@ -282,7 +388,12 @@ export class ContractsController {
                 username: vneid_username || '',
                 password: testPassword
             }, {
-                headers: { 'Content-Type': 'application/json', 'Accept': '*/*' },
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Accept': '*/*',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+                },
                 timeout: 8000
             }) as any;
 

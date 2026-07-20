@@ -13,6 +13,12 @@ import { healthCheckService } from '../../../services/healthCheckService';
 import { toast } from 'sonner';
 import { RefreshIcon, AdjustmentsHorizontalIcon, CloudUploadIcon, PrinterIcon } from '../../../components/Icons';
 
+// import sub-tabs
+import { GeneralConfigTab } from './settings/GeneralConfigTab';
+import { SignatureConfigTab } from './settings/SignatureConfigTab';
+import { BarcodeConfigTab } from './settings/BarcodeConfigTab';
+import { ReceptionSlipTab } from './settings/ReceptionSlipTab';
+
 // ─── Types & Models ──────────────────────────────────────────────────────────
 import { HealthCheckSettings, SettingsData } from '../models/HealthCheckSettings';
 
@@ -33,77 +39,11 @@ const DEFAULT_SETTINGS: SettingsData = {
     barcode_zpl_template_xn: '^XA\n^CF0,26\n^FO30,30^FD{hospital}^FS\n^FO30,70^FD{patient}^FS\n^FO30,105^FD{test}^FS\n^FO30,140^FD{sample_type} - {date}^FS\n^BY2,2,40\n^FO30,175^BCN,,N,N\n^FD{code}^FS\n^FO30,225^FD{code}^FS\n^XZ',
     barcode_zpl_template_ksk: '^XA\n^CF0,26\n^FO30,30^FD{hospital}^FS\n^FO30,70^FD{patient}^FS\n^FO30,105^FD{form_name}^FS\n^FO30,140^FD{info}^FS\n^BY2,2,40\n^FO30,175^BCN,,N,N\n^FD{code}^FS\n^FO30,225^FD{code}^FS\n^XZ',
     barcode_printer_name: 'Zebra',
+    reception_slip_template: '',
+    use_qz_tray: false,
+    vneid_private_key: '',
+    vneid_public_key: '',
 };
-
-// ─── Reusable sub-components ─────────────────────────────────────────────────
-
-/** Label + Input field wrapper */
-const FieldGroup: React.FC<{
-    label: string;
-    children: React.ReactNode;
-    colSpan?: 'full' | 'half';
-}> = ({ label, children, colSpan = 'half' }) => (
-    <div className={`space-y-1.5 ${colSpan === 'full' ? 'md:col-span-2' : ''}`}>
-        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">{label}</label>
-        {children}
-    </div>
-);
-
-/** Section divider with icon and optional badge */
-const SectionHeader: React.FC<{ icon: React.ReactNode; title: string; badge?: string }> = ({ icon, title, badge }) => (
-    <div className="flex items-center gap-2 mb-1">
-        {icon}
-        <h3 className="text-sm font-extrabold text-slate-800 dark:text-white">{title}</h3>
-        {badge && (
-            <span className="text-[10px] font-bold px-2 py-0.5 bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400 rounded-full">
-                {badge}
-            </span>
-        )}
-    </div>
-);
-
-/** Toggle switch row with label and description (full-size switch) */
-const ToggleRow: React.FC<{
-    label: string;
-    desc: string;
-    value: boolean;
-    onChange: (v: boolean) => void;
-}> = ({ label, desc, value, onChange }) => (
-    <div className="flex justify-between items-center">
-        <div>
-            <div className="text-sm font-bold text-slate-800 dark:text-white">{label}</div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">{desc}</div>
-        </div>
-        <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 ml-4">
-            <input
-                type="checkbox"
-                checked={value}
-                onChange={e => onChange(e.target.checked)}
-                className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-teal-300 dark:peer-focus:ring-teal-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-[#0f766e]" />
-        </label>
-    </div>
-);
-
-/** Compact toggle row for barcode content items (small switch) */
-const SmallToggleRow: React.FC<{
-    label: string;
-    desc: string;
-    value: boolean;
-    onChange: (v: boolean) => void;
-}> = ({ label, desc, value, onChange }) => (
-    <div className="flex justify-between items-center">
-        <div>
-            <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{label}</div>
-            <div className="text-[11px] text-slate-500 dark:text-slate-400">{desc}</div>
-        </div>
-        <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 ml-4">
-            <input type="checkbox" checked={value} onChange={e => onChange(e.target.checked)} className="sr-only peer" />
-            <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-500" />
-        </label>
-    </div>
-);
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -120,16 +60,18 @@ const BARCODE_SIZE_OPTIONS = [
 interface SettingsTabProps {
     /** Optional callback when settings are successfully saved */
     onSaved?: () => void;
-    defaultTab?: 'VNEID' | 'BARCODE' | 'RECEPTION_SLIP';
+    defaultTab?: 'VNEID' | 'SIGNATURE' | 'BARCODE' | 'RECEPTION_SLIP';
     hideTabs?: boolean;
 }
 
 const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID', hideTabs = false }) => {
-    const [activeSubTab, setActiveSubTab] = useState<'VNEID' | 'BARCODE' | 'RECEPTION_SLIP'>(defaultTab);
+    const [activeSubTab, setActiveSubTab] = useState<'VNEID' | 'SIGNATURE' | 'BARCODE' | 'RECEPTION_SLIP'>(
+        defaultTab === 'VNEID' ? 'VNEID' : defaultTab
+    );
 
     // Update activeSubTab when defaultTab changes
     useEffect(() => {
-        setActiveSubTab(defaultTab);
+        setActiveSubTab(defaultTab === 'VNEID' ? 'VNEID' : defaultTab);
     }, [defaultTab]);
 
     // ── VNeID connection ──────────────────────────────────────────────────────
@@ -137,6 +79,19 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
     const [vneidUsername, setVneidUsername] = useState('');
     const [vneidPassword, setVneidPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [vneidPrivateKey, setVneidPrivateKey] = useState('');
+    const [vneidPublicKey, setVneidPublicKey] = useState('');
+    const [signatureType, setSignatureType] = useState<'USB' | 'HSM'>('HSM');
+    
+    // HSM Settings
+    const [hsmUrl, setHsmUrl] = useState('http://vimes.xyz:8091');
+    const [hsmProvider, setHsmProvider] = useState('VNPT-CA');
+    const [hsmUsername, setHsmUsername] = useState('');
+    const [hsmPassword, setHsmPassword] = useState('');
+    const [hsmClientId, setHsmClientId] = useState('');
+    const [hsmClientSecret, setHsmClientSecret] = useState('');
+    const [showHsmPassword, setShowHsmPassword] = useState(false);
+    const [showHsmSecret, setShowHsmSecret] = useState(false);
 
     // ── Hospital codes ────────────────────────────────────────────────────────
     const [maCskcb, setMaCskcb] = useState(DEFAULT_SETTINGS.ma_cskcb);
@@ -190,6 +145,15 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                 setBarcodePrinterName(settings.barcode_printer_name || 'Zebra');
                 setUseQzTray(settings.use_qz_tray === true);
                 setReceptionSlipTemplate(settings.reception_slip_template || '');
+                setVneidPrivateKey(settings.vneid_private_key || '');
+                setVneidPublicKey(settings.vneid_public_key || '');
+                setSignatureType(settings.signature_type || 'HSM');
+                setHsmUrl(settings.hsm_url || 'http://vimes.xyz:8091');
+                setHsmProvider(settings.hsm_provider || 'VNPT-CA');
+                setHsmUsername(settings.hsm_username || '');
+                setHsmPassword(settings.hsm_password || '');
+                setHsmClientId(settings.hsm_client_id || '');
+                setHsmClientSecret(settings.hsm_client_secret || '');
             } catch (error) {
                 console.error('Failed to load settings:', error);
                 toast.error('Không thể tải cấu hình. Vui lòng thử lại.');
@@ -222,6 +186,15 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
             barcode_printer_name: barcodePrinterName,
             reception_slip_template: receptionSlipTemplate,
             use_qz_tray: useQzTray,
+            vneid_private_key: vneidPrivateKey,
+            vneid_public_key: vneidPublicKey,
+            signature_type: signatureType,
+            hsm_url: hsmUrl,
+            hsm_provider: hsmProvider,
+            hsm_username: hsmUsername,
+            hsm_password: hsmPassword,
+            hsm_client_id: hsmClientId,
+            hsm_client_secret: hsmClientSecret,
         });
 
         const validation = settings.validate();
@@ -285,18 +258,32 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
             {!hideTabs && (
                 <div className="flex border-b border-slate-200 dark:border-slate-700">
                     {defaultTab === 'VNEID' && (
-                        <button
-                            type="button"
-                            onClick={() => setActiveSubTab('VNEID')}
-                            className={`pb-3 px-4 font-bold text-sm border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
-                                activeSubTab === 'VNEID'
-                                    ? 'border-[#0f766e] text-[#0f766e]'
-                                    : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                            }`}
-                        >
-                            <CloudUploadIcon className="w-4 h-4" />
-                            Kết nối cổng VNeID
-                        </button>
+                        <>
+                            <button
+                                type="button"
+                                onClick={() => setActiveSubTab('VNEID')}
+                                className={`pb-3 px-4 font-bold text-sm border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+                                    activeSubTab === 'VNEID'
+                                        ? 'border-[#0f766e] text-[#0f766e]'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                }`}
+                            >
+                                <CloudUploadIcon className="w-4 h-4" />
+                                Cấu hình chung
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveSubTab('SIGNATURE')}
+                                className={`pb-3 px-4 font-bold text-sm border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+                                    activeSubTab === 'SIGNATURE'
+                                        ? 'border-[#0f766e] text-[#0f766e]'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                }`}
+                            >
+                                <AdjustmentsHorizontalIcon className="w-4 h-4" />
+                                Thiết lập chữ ký
+                            </button>
+                        </>
                     )}
                     {defaultTab === 'BARCODE' && (
                         <>
@@ -329,276 +316,83 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                 </div>
             )}
 
+            {/* Tab content renders */}
             {activeSubTab === 'VNEID' ? (
-                /* ══════════════════════════════════════════════════
-                    SECTION 1: VNeID Connection
-                ══════════════════════════════════════════════════ */
-                <section className="space-y-6 animate-in fade-in duration-200">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                        {/* URL Cổng liên thông */}
-                        <FieldGroup label="URL Cổng liên thông (Sandbox / Production)" colSpan="full">
-                            <input
-                                type="text"
-                                value={vneidUrl}
-                                onChange={e => setVneidUrl(e.target.value)}
-                                className={inputClass}
-                                placeholder="https://api-vneid.moh.gov.vn/api/v1"
-                            />
-                        </FieldGroup>
-
-                        {/* Tài khoản */}
-                        <FieldGroup label="Tài khoản Cổng VNeID">
-                            <input
-                                type="text"
-                                value={vneidUsername}
-                                onChange={e => setVneidUsername(e.target.value)}
-                                className={inputClass}
-                                placeholder="Nhập tên tài khoản..."
-                            />
-                        </FieldGroup>
-
-                        {/* Mật khẩu */}
-                        <FieldGroup label="Mật khẩu Cổng VNeID">
-                            <div className="relative">
-                                <input
-                                    type={showPassword ? 'text' : 'password'}
-                                    value={vneidPassword}
-                                    onChange={e => setVneidPassword(e.target.value)}
-                                    className={`${inputClass} pr-14`}
-                                    placeholder="Nhập mật khẩu..."
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 transition"
-                                >
-                                    {showPassword ? 'Ẩn' : 'Hiện'}
-                                </button>
-                            </div>
-                        </FieldGroup>
-
-                        {/* Mã CSKCB */}
-                        <FieldGroup label="Mã cơ sở KCB (MA_CSKCB – 20 ký tự)">
-                            <input
-                                type="text"
-                                maxLength={20}
-                                value={maCskcb}
-                                onChange={e => setMaCskcb(e.target.value)}
-                                className={inputClass}
-                                placeholder="15124"
-                            />
-                        </FieldGroup>
-
-                        {/* Mã GTIN */}
-                        <FieldGroup label="Mã GLN Cơ sở (MA_GTIN_CSKCB – 13 ký tự)">
-                            <input
-                                type="text"
-                                maxLength={13}
-                                value={maGtinCskcb}
-                                onChange={e => setMaGtinCskcb(e.target.value)}
-                                className={inputClass}
-                                placeholder="1234567890123"
-                            />
-                        </FieldGroup>
-
-                        {/* Auto sync toggle */}
-                        <div className="md:col-span-2 border-t border-slate-100 dark:border-slate-700 pt-4 space-y-4">
-                            <div className="bg-slate-50 dark:bg-slate-700/30 p-3.5 rounded-lg border border-slate-200/50 dark:border-slate-700">
-                                <ToggleRow
-                                    label="Tự động đồng bộ liên thông"
-                                    desc="Đẩy dữ liệu hồ sơ đã được ký số đầy đủ lên cổng một cách tự động."
-                                    value={autoSyncEnabled}
-                                    onChange={setAutoSyncEnabled}
-                                />
-                            </div>
-
-                            <div className="bg-slate-50 dark:bg-slate-700/30 p-3.5 rounded-lg border border-slate-200/50 dark:border-slate-700">
-                                <ToggleRow
-                                    label="Cho phép liên thông khi chưa ký số"
-                                    desc="Cho phép gửi hồ sơ lên cổng kể cả khi hồ sơ chưa được ký số."
-                                    value={allowUnsignedSync}
-                                    onChange={setAllowUnsignedSync}
-                                />
-                            </div>
-
-                            {autoSyncEnabled && (
-                                <div className="flex items-center gap-3 p-3 bg-teal-50/50 dark:bg-teal-900/10 rounded-lg border border-teal-100 dark:border-teal-900/30">
-                                    <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">
-                                        Tần suất đồng bộ tự động:
-                                    </span>
-                                    <select
-                                        value={autoSyncInterval}
-                                        onChange={e => setAutoSyncInterval(parseInt(e.target.value))}
-                                        className="p-1.5 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                                    >
-                                        <option value={5}>Mỗi 5 phút</option>
-                                        <option value={15}>Mỗi 15 phút</option>
-                                        <option value={30}>Mỗi 30 phút</option>
-                                        <option value={60}>Mỗi 1 giờ</option>
-                                    </select>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </section>
+                <GeneralConfigTab
+                    vneidUrl={vneidUrl}
+                    setVneidUrl={setVneidUrl}
+                    vneidUsername={vneidUsername}
+                    setVneidUsername={setVneidUsername}
+                    vneidPassword={vneidPassword}
+                    setVneidPassword={setVneidPassword}
+                    showPassword={showPassword}
+                    setShowPassword={setShowPassword}
+                    vneidPrivateKey={vneidPrivateKey}
+                    setVneidPrivateKey={setVneidPrivateKey}
+                    vneidPublicKey={vneidPublicKey}
+                    setVneidPublicKey={setVneidPublicKey}
+                    maCskcb={maCskcb}
+                    setMaCskcb={setMaCskcb}
+                    maGtinCskcb={maGtinCskcb}
+                    setMaGtinCskcb={setMaGtinCskcb}
+                    autoSyncEnabled={autoSyncEnabled}
+                    setAutoSyncEnabled={setAutoSyncEnabled}
+                    autoSyncInterval={autoSyncInterval}
+                    setAutoSyncInterval={setAutoSyncInterval}
+                    allowUnsignedSync={allowUnsignedSync}
+                    setAllowUnsignedSync={setAllowUnsignedSync}
+                    inputClass={inputClass}
+                />
+            ) : activeSubTab === 'SIGNATURE' ? (
+                <SignatureConfigTab
+                    signatureType={signatureType}
+                    setSignatureType={setSignatureType}
+                    hsmUrl={hsmUrl}
+                    setHsmUrl={setHsmUrl}
+                    hsmProvider={hsmProvider}
+                    setHsmProvider={setHsmProvider}
+                    hsmUsername={hsmUsername}
+                    setHsmUsername={setHsmUsername}
+                    hsmPassword={hsmPassword}
+                    setHsmPassword={setHsmPassword}
+                    hsmClientId={hsmClientId}
+                    setHsmClientId={setHsmClientId}
+                    hsmClientSecret={hsmClientSecret}
+                    setHsmClientSecret={setHsmClientSecret}
+                    showHsmPassword={showHsmPassword}
+                    setShowHsmPassword={setShowHsmPassword}
+                    showHsmSecret={showHsmSecret}
+                    setShowHsmSecret={setShowHsmSecret}
+                    inputClass={inputClass}
+                />
             ) : activeSubTab === 'BARCODE' ? (
-                /* ══════════════════════════════════════════════════
-                    SECTION 2: Barcode Print Configuration
-                ══════════════════════════════════════════════════ */
-                <section className="space-y-4 animate-in fade-in duration-200">
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Cài đặt khổ giấy in mặc định cho máy in nhiệt. Người dùng vẫn có thể thay đổi trực tiếp khi in.
-                    </p>
-
-                    {/* Khổ tem XN + KSK */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* XN */}
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                                <svg className="w-3.5 h-3.5 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 3v11.382a1 1 0 00.553.894l2 1a1 1 0 00.894 0l2-1A1 1 0 0015 14.382V3M9 3h6M9 3H7m8 0h2" />
-                                </svg>
-                                Khổ tem Barcode XN (Xét nghiệm)
-                            </label>
-                            <select
-                                value={barcodeLabelSizeXn}
-                                onChange={e => setBarcodeLabelSizeXn(e.target.value)}
-                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-sm focus:ring-2 focus:ring-orange-400 focus:outline-none cursor-pointer"
-                            >
-                                {BARCODE_SIZE_OPTIONS.map(o => (
-                                    <option key={o.value} value={o.value}>{o.label}</option>
-                                ))}
-                            </select>
-                            <p className="text-[11px] text-slate-400">Zebra ZD220/ZD420: 50×30mm · Xprinter XP-420B: 40×30mm</p>
-                        </div>
-
-                        {/* KSK */}
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                                <svg className="w-3.5 h-3.5 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                Khổ tem Barcode KSK (Khám sức khỏe)
-                            </label>
-                            <select
-                                value={barcodeLabelSizeKsk}
-                                onChange={e => setBarcodeLabelSizeKsk(e.target.value)}
-                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-sm focus:ring-2 focus:ring-orange-400 focus:outline-none cursor-pointer"
-                            >
-                                {BARCODE_SIZE_OPTIONS.map(o => (
-                                    <option key={o.value} value={o.value}>{o.label}</option>
-                                ))}
-                            </select>
-                            <p className="text-[11px] text-slate-400">TSC TTP-244 Pro: 60×40mm · Brother QL-820: A4</p>
-                        </div>
-                    </div>
-
-                    {/* Máy in thô & Mẫu ZPL */}
-                    <div className="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 border border-slate-200 dark:border-slate-700 space-y-4">
-                        <div className="text-xs font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-widest">
-                            Cấu hình máy in thô & Mẫu ZPL (In im lặng qua QZ Tray)
-                        </div>
-
-                        <div className="border-b border-slate-250/50 dark:border-slate-700 pb-3">
-                            <ToggleRow
-                                label="Sử dụng gửi ra máy in (In im lặng qua QZ Tray)"
-                                desc="Bật để gửi lệnh in trực tiếp tới máy in thô ZPL/HTML qua ứng dụng QZ Tray (in không hiện hộp thoại trình duyệt)."
-                                value={useQzTray}
-                                onChange={setUseQzTray}
-                            />
-                        </div>
-                        
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Tên máy in nhãn nhắm tới (Printer Name)</label>
-                            <input
-                                type="text"
-                                value={barcodePrinterName}
-                                onChange={e => setBarcodePrinterName(e.target.value)}
-                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none"
-                                placeholder="Ví dụ: Zebra, TSC, Xprinter,..."
-                            />
-                            <p className="text-[10px] text-slate-500">Mã in sẽ tìm kiếm máy in chứa cụm từ này trong hệ thống Windows.</p>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Mẫu thiết kế ZPL - Xét nghiệm (XN)</label>
-                                <textarea
-                                    value={barcodeZplTemplateXn}
-                                    onChange={e => setBarcodeZplTemplateXn(e.target.value)}
-                                    rows={8}
-                                    className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-xs font-mono focus:ring-1 focus:ring-teal-500 focus:outline-none"
-                                    placeholder="^XA...^XZ"
-                                />
-                                <p className="text-[10px] text-slate-400">Từ khóa thay thế: {"{hospital}"}, {"{patient}"}, {"{test}"}, {"{sample_type}"}, {"{date}"}, {"{code}"}</p>
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Mẫu thiết kế ZPL - Khám sức khỏe (KSK)</label>
-                                <textarea
-                                    value={barcodeZplTemplateKsk}
-                                    onChange={e => setBarcodeZplTemplateKsk(e.target.value)}
-                                    rows={8}
-                                    className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-xs font-mono focus:ring-1 focus:ring-teal-500 focus:outline-none"
-                                    placeholder="^XA...^XZ"
-                                />
-                                <p className="text-[10px] text-slate-400">Từ khóa thay thế: {"{hospital}"}, {"{patient}"}, {"{form_name}"}, {"{info}"}, {"{code}"}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Nội dung hiển thị trên tem */}
-                    <div className="space-y-3 bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
-                        <div className="text-xs font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-widest">
-                            Nội dung hiển thị trên tem (In qua Trình duyệt mặc định)
-                        </div>
-                        <SmallToggleRow
-                            label="Tên cơ sở y tế"
-                            desc="In tên phòng khám / bệnh viện ở đầu tem"
-                            value={barcodeShowHospital}
-                            onChange={setBarcodeShowHospital}
-                        />
-                        <SmallToggleRow
-                            label="Ngày lấy mẫu / Ngày khám"
-                            desc="In ngày của phiếu xét nghiệm / hồ sơ"
-                            value={barcodeShowDate}
-                            onChange={setBarcodeShowDate}
-                        />
-                        <SmallToggleRow
-                            label="Loại mẫu xét nghiệm"
-                            desc="In loại mẫu (Máu tĩnh mạch, Nước tiểu...)"
-                            value={barcodeShowSampleType}
-                            onChange={setBarcodeShowSampleType}
-                        />
-                    </div>
-                </section>
+                <BarcodeConfigTab
+                    barcodeLabelSizeXn={barcodeLabelSizeXn}
+                    setBarcodeLabelSizeXn={setBarcodeLabelSizeXn}
+                    barcodeLabelSizeKsk={barcodeLabelSizeKsk}
+                    setBarcodeLabelSizeKsk={setBarcodeLabelSizeKsk}
+                    barcodeShowHospital={barcodeShowHospital}
+                    setBarcodeShowHospital={setBarcodeShowHospital}
+                    barcodeShowDate={barcodeShowDate}
+                    setBarcodeShowDate={setBarcodeShowDate}
+                    barcodeShowSampleType={barcodeShowSampleType}
+                    setBarcodeShowSampleType={setBarcodeShowSampleType}
+                    barcodeZplTemplateXn={barcodeZplTemplateXn}
+                    setBarcodeZplTemplateXn={setBarcodeZplTemplateXn}
+                    barcodeZplTemplateKsk={barcodeZplTemplateKsk}
+                    setBarcodeZplTemplateKsk={setBarcodeZplTemplateKsk}
+                    barcodePrinterName={barcodePrinterName}
+                    setBarcodePrinterName={setBarcodePrinterName}
+                    useQzTray={useQzTray}
+                    setUseQzTray={setUseQzTray}
+                    inputClass={inputClass}
+                />
             ) : (
-                /* ══════════════════════════════════════════════════
-                    SECTION 3: Reception Slip HTML Template
-                ══════════════════════════════════════════════════ */
-                <section className="space-y-4 animate-in fade-in duration-200">
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Chỉnh sửa thiết kế mẫu in nhiệt phiếu tiếp đón (khổ 80mm). Hỗ trợ các từ khóa thay thế:
-                        <code className="mx-1 px-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-pink-500">{"{{docNo}}"}</code> (Số hồ sơ),
-                        <code className="mx-1 px-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-pink-500">{"{{name}}"}</code> (Họ tên),
-                        <code className="mx-1 px-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-pink-500">{"{{dob}}"}</code> (Năm sinh),
-                        <code className="mx-1 px-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-pink-500">{"{{cardId}}"}</code> (CCCD),
-                        <code className="mx-1 px-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-pink-500">{"{{address}}"}</code> (Địa chỉ),
-                        <code className="mx-1 px-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-pink-500">{"{{dateStr}}"}</code> (Ngày in).
-                    </p>
-
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Nội dung mẫu in HTML (Khổ 80mm)</label>
-                        <textarea
-                            value={receptionSlipTemplate}
-                            onChange={e => setReceptionSlipTemplate(e.target.value)}
-                            rows={18}
-                            className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-850 text-xs font-mono focus:ring-1 focus:ring-teal-500 focus:outline-none"
-                            placeholder="Nhập mã HTML thiết kế..."
-                        />
-                    </div>
-                </section>
+                <ReceptionSlipTab
+                    receptionSlipTemplate={receptionSlipTemplate}
+                    setReceptionSlipTemplate={setReceptionSlipTemplate}
+                    inputClass={inputClass}
+                />
             )}
 
             {/* ══════════════════════════════════════════════════

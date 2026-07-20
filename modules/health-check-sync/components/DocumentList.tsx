@@ -95,6 +95,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                             <th className="p-4">Loại biểu mẫu</th>
                             <th className="p-4">Người nhập / Ngày tạo</th>
                             <th className="p-4">Trạng thái khám</th>
+                            <th className="p-4">Ký số</th>
                             <th className="p-4">Trạng thái liên thông</th>
                             <th className="p-4">Chi tiết giao dịch</th>
                             <th className="p-4 text-right w-44">Hành động</th>
@@ -103,7 +104,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                         {documents.length === 0 ? (
                             <tr>
-                                <td colSpan={9} className="p-12 text-center">
+                                <td colSpan={10} className="p-12 text-center">
                                     <div className="flex flex-col items-center justify-center space-y-3 py-6">
                                         <div className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-full text-slate-400">
                                             <RefreshIcon className="w-8 h-8 animate-pulse text-teal-500" />
@@ -175,6 +176,17 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                                 </span>
                                             );
                                         })()}
+                                    </td>
+                                    <td className="p-4">
+                                        {doc.signature_status === 'Signed' ? (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40">
+                                                Đã ký ({doc.signature_type || 'HSM'})
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                                                Chưa ký
+                                            </span>
+                                        )}
                                     </td>
                                     <td className="p-4">
                                         {getStatusBadge(doc.send_status)}

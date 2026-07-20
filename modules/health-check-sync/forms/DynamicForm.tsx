@@ -1,9 +1,10 @@
 // ==================== DYNAMIC FORM GENERATOR ====================
 // File: modules/health-check-sync/forms/DynamicForm.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { toast } from 'sonner';
+import { healthCheckService } from '../../../services/healthCheckService';
 import { DynamicFormContext } from './DynamicFormContext';
 import { useDynamicFormState } from '../hooks/useDynamicFormState';
 import AdminTab from './tabs/AdminTab';
@@ -152,7 +153,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
         isOpen: boolean;
         title: string;
         message: string;
-        onConfirm: () => void;
+        onConfirm: (sigType?: 'USB' | 'HSM') => void;
         confirmText?: string;
         cancelText?: string;
         severity?: 'warning' | 'danger' | 'info' | 'success';
@@ -162,6 +163,16 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
         message: '',
         onConfirm: () => {}
     });
+
+    const [selectedSigType, setSelectedSigType] = useState<'USB' | 'HSM'>('HSM');
+
+    useEffect(() => {
+        healthCheckService.getSettings().then(settings => {
+            if (settings?.signature_type) {
+                setSelectedSigType(settings.signature_type as 'USB' | 'HSM');
+            }
+        }).catch(() => {});
+    }, []);
 
     const isChild = formType === '1';
 
@@ -372,10 +383,12 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                                     confirmText: "Khóa & Ký Số",
                                     cancelText: "Hủy bỏ",
                                     severity: "success",
-                                    onConfirm: () => {
-                                        setIsLocked(true);
+                                    onConfirm: (sigType?: 'USB' | 'HSM') => {
                                         setTimeout(() => {
-                                            handleSubmit(undefined, { shouldSign: true });
+                                            const isValid = handleSubmit(undefined, { shouldSign: true, signatureType: sigType });
+                                            if (isValid) {
+                                                setIsLocked(true);
+                                            }
                                         }, 50);
                                     }
                                 });
@@ -428,6 +441,36 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 leading-relaxed">
                                 {confirmConfig.message}
                             </p>
+                            
+                            {confirmConfig.title === "Khóa & Ký Số" && (
+                                <div className="mt-4 p-3.5 bg-slate-50 dark:bg-slate-700/40 rounded-xl border border-slate-150 dark:border-slate-700/60 space-y-2.5">
+                                    <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Hình thức ký số</label>
+                                    <div className="flex gap-5">
+                                        <label className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
+                                            <input 
+                                                type="radio" 
+                                                name="signature_type_modal" 
+                                                value="USB" 
+                                                checked={selectedSigType === 'USB'} 
+                                                onChange={() => setSelectedSigType('USB')}
+                                                className="text-[#0f766e] focus:ring-[#0f766e]"
+                                            />
+                                            <span>USB Token máy trạm</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
+                                            <input 
+                                                type="radio" 
+                                                name="signature_type_modal" 
+                                                value="HSM" 
+                                                checked={selectedSigType === 'HSM'} 
+                                                onChange={() => setSelectedSigType('HSM')}
+                                                className="text-[#0f766e] focus:ring-[#0f766e]"
+                                            />
+                                            <span>HSM Cloud Server</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                     <div className="mt-6 flex flex-row-reverse gap-3 justify-end sm:justify-start">
@@ -439,7 +482,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                                 'bg-amber-600 hover:bg-amber-500 shadow-amber-500/10'
                             }`}
                             onClick={() => {
-                                confirmConfig.onConfirm();
+                                confirmConfig.onConfirm(selectedSigType);
                                 setConfirmConfig(prev => ({ ...prev, isOpen: false }));
                             }}
                         >

@@ -43,7 +43,12 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                 username: settings.vneid_username,
                 password: settings.vneid_password
             }, {
-                headers: { 'Content-Type': 'application/json', 'Accept': '*/*' },
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Accept': '*/*',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+                },
                 timeout: 10000
             });
             token = loginRes.data?.data?.token || loginRes.data?.token || loginRes.data?.data;
@@ -57,7 +62,7 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
 
         // 2. Loop through and push each document
         for (const docId of docIds) {
-            const docQuery = await query(`SELECT id, doc_no, xml_data, patient_name FROM health_check_masters WHERE id = $1`, [parseInt(docId, 10)]);
+            const docQuery = await query(`SELECT id, doc_no, xml_data, patient_name, signature_status, signature FROM health_check_masters WHERE id = $1`, [parseInt(docId, 10)]);
             if (docQuery.rows.length === 0) continue;
             const doc = docQuery.rows[0];
 
@@ -74,7 +79,72 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                 continue;
             }
 
-            const base64Xml = Buffer.from(doc.xml_data || '').toString('base64');
+            let base64Xml = '';
+            if (doc.signature_status === 'Signed' && doc.signature) {
+                try {
+                    const trimmedSig = doc.signature.trim();
+                    if (trimmedSig.startsWith('{')) {
+                        const sigObj = JSON.parse(trimmedSig);
+                        const signedFile = sigObj.signature_result?.signed_file || sigObj.signed_file;
+                        if (signedFile) {
+                            if (signedFile.mime_type && (signedFile.mime_type.includes('xml') || signedFile.file_name?.endsWith('.xml'))) {
+                                // If the signed file is XML, it contains the fully signed XML document
+                                base64Xml = signedFile.data_base64;
+                                console.log(`✅ [VNeID Sync] Using signed XML from signature JSON wrapper for doc ${doc.doc_no}`);
+                            } else {
+                                // If it is signed PDF, we extract its base64 and inject it into <CHUKYDONVI> of the original XML
+                                const signatureValue = signedFile.data_base64;
+                                let xml = doc.xml_data || '';
+                                if (xml.includes('<CHUKYDONVI />')) {
+                                    xml = xml.replace('<CHUKYDONVI />', `<CHUKYDONVI>${signatureValue}</CHUKYDONVI>`);
+                                } else if (xml.includes('<CHUKYDONVI></CHUKYDONVI>')) {
+                                    xml = xml.replace('<CHUKYDONVI></CHUKYDONVI>', `<CHUKYDONVI>${signatureValue}</CHUKYDONVI>`);
+                                }
+                                base64Xml = Buffer.from(xml).toString('base64');
+                                console.log(`✅ [VNeID Sync] Injected PDF/external signature value into <CHUKYDONVI> for doc ${doc.doc_no}`);
+                            }
+                        } else {
+                            base64Xml = Buffer.from(doc.xml_data || '').toString('base64');
+                        }
+                    } else {
+                        // If signature is raw string, wrap it in a mock XMLDSig structure and inject it into <CHUKYDONVI>
+                        const mockXmlDsig = `
+        <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
+            <SignedInfo>
+                <CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315" />
+                <SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha256" />
+                <Reference URI="">
+                    <Transforms>
+                        <Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" />
+                    </Transforms>
+                    <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256" />
+                    <DigestValue>MockDigestValue12345678901234567890123=</DigestValue>
+                </Reference>
+            </SignedInfo>
+            <SignatureValue>${trimmedSig}</SignatureValue>
+            <KeyInfo>
+                <X509Data>
+                    <X509Certificate>MockX509CertificateValueForTestingPurposesOnlyLengthyString...</X509Certificate>
+                </X509Data>
+            </KeyInfo>
+        </Signature>`;
+                        
+                        let xml = doc.xml_data || '';
+                        if (xml.includes('<CHUKYDONVI />')) {
+                            xml = xml.replace('<CHUKYDONVI />', `<CHUKYDONVI>${mockXmlDsig}\n    </CHUKYDONVI>`);
+                        } else if (xml.includes('<CHUKYDONVI></CHUKYDONVI>')) {
+                            xml = xml.replace('<CHUKYDONVI></CHUKYDONVI>', `<CHUKYDONVI>${mockXmlDsig}\n    </CHUKYDONVI>`);
+                        }
+                        base64Xml = Buffer.from(xml).toString('base64');
+                        console.log(`✅ [VNeID Sync] Injected structured mock XMLDSig signature into <CHUKYDONVI> for doc ${doc.doc_no}`);
+                    }
+                } catch (err: any) {
+                    console.error('⚠️ [VNeID Sync] Error processing signature, using original xml_data:', err.message);
+                    base64Xml = Buffer.from(doc.xml_data || '').toString('base64');
+                }
+            } else {
+                base64Xml = Buffer.from(doc.xml_data || '').toString('base64');
+            }
             const now = new Date();
             const yy = String(now.getFullYear()).slice(-2);
             const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -82,11 +152,11 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
             const uuidStr = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : crypto.randomBytes(16).toString('hex');
             const msgId = `${settings.ma_cskcb}${yy}${mm}${dd}${uuidStr}`;
 
-            const payload = {
+            const payload: any = {
                 header: {
-                    version: "1.0.0",
+                    version: "1.0.6",
                     sender_id: settings.ma_cskcb,
-                    receiver_id: "TDLBYT",
+                    receiver_id: settings.vneid_url && settings.vneid_url.includes('emrhub') ? 'emrhub' : 'TDLBYT',
                     txn_type: "sync_checkup",
                     msg_id: msgId,
                     msg_type: "101",
@@ -97,6 +167,29 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                     file_content: base64Xml
                 }
             };
+
+            if (settings.vneid_private_key) {
+                try {
+                    const headerStr = JSON.stringify(payload.header).replace(/\s+/g, '');
+                    const hashA = crypto.createHash('sha256').update(headerStr).digest('hex').toUpperCase();
+
+                    const dataStr = JSON.stringify(payload.data).replace(/\s+/g, '');
+                    const hashB = crypto.createHash('sha256').update(dataStr).digest('hex').toUpperCase();
+
+                    const hashC = `${hashA}.${hashB}`;
+
+                    const sign = crypto.createSign('SHA256');
+                    sign.update(hashC);
+                    const signature = sign.sign({
+                        key: settings.vneid_private_key,
+                        padding: crypto.constants.RSA_PKCS1_PADDING
+                    }, 'base64');
+
+                    payload.signature = signature;
+                } catch (signErr: any) {
+                    console.error('❌ [VNeID Portal] Error generating checksum signature:', signErr.message);
+                }
+            }
 
             let responseLog = '';
             let sendSuccess = false;

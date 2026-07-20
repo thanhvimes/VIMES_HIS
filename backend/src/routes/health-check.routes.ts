@@ -49,6 +49,7 @@ router.get('/services/search', servicesController.searchAvailableServices.bind(s
 
 // Settings Config Endpoints
 router.get('/settings', contractsController.getSettings.bind(contractsController));
+router.get('/settings/partners', contractsController.getSigningPartners.bind(contractsController));
 router.put('/settings', contractsController.updateSettings.bind(contractsController));
 router.post('/settings/test-connection', contractsController.testConnection.bind(contractsController));
 

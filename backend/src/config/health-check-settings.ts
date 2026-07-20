@@ -23,6 +23,15 @@ export interface HealthCheckSettings {
     barcode_zpl_template_ksk?: string;
     barcode_printer_name?: string;
     use_qz_tray?: boolean;
+    vneid_private_key?: string;
+    vneid_public_key?: string;
+    signature_type?: 'USB' | 'HSM';
+    hsm_url?: string;
+    hsm_provider?: string;
+    hsm_username?: string;
+    hsm_password?: string;
+    hsm_client_id?: string;
+    hsm_client_secret?: string;
     created_at?: Date;
     updated_at?: Date;
 }
@@ -36,8 +45,19 @@ let globalHealthCheckSettings: HealthCheckSettings | null = null;
  */
 export async function loadHealthCheckSettings(): Promise<HealthCheckSettings | null> {
     try {
+        // Ensure columns exist in DB dynamically
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS vneid_private_key text`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS vneid_public_key text`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS signature_type varchar(20) DEFAULT 'HSM'`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_url varchar(255) DEFAULT 'http://vimes.xyz:8091'`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_provider varchar(50) DEFAULT 'VNPT-CA'`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_username varchar(100)`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_password text`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_client_id varchar(100)`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_client_secret text`);
+
         const result = await query(
-            `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, use_qz_tray FROM health_check_settings LIMIT 1`
+            `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, use_qz_tray, vneid_private_key, vneid_public_key, signature_type, hsm_url, hsm_provider, hsm_username, hsm_password, hsm_client_id, hsm_client_secret FROM health_check_settings LIMIT 1`
         );
 
         if (result.rows.length > 0) {
@@ -57,9 +77,55 @@ export async function loadHealthCheckSettings(): Promise<HealthCheckSettings | n
                 }
             }
 
+            const rawPrivateKey = row.vneid_private_key || '';
+            let decryptedPrivateKey = '';
+            if (rawPrivateKey) {
+                try {
+                    if (SecurityUtils.isEncrypted(rawPrivateKey)) {
+                        decryptedPrivateKey = SecurityUtils.resolveSecret(rawPrivateKey);
+                    } else {
+                        decryptedPrivateKey = SecurityUtils.decrypt(rawPrivateKey);
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Private key decryption failed:', e);
+                    decryptedPrivateKey = SecurityUtils.resolveSecret(rawPrivateKey);
+                }
+            }
+
+            const rawHsmPassword = row.hsm_password || '';
+            let decryptedHsmPassword = '';
+            if (rawHsmPassword) {
+                try {
+                    if (SecurityUtils.isEncrypted(rawHsmPassword)) {
+                        decryptedHsmPassword = SecurityUtils.resolveSecret(rawHsmPassword);
+                    } else {
+                        decryptedHsmPassword = SecurityUtils.decrypt(rawHsmPassword);
+                    }
+                } catch (e) {
+                    decryptedHsmPassword = rawHsmPassword;
+                }
+            }
+
+            const rawHsmClientSecret = row.hsm_client_secret || '';
+            let decryptedHsmClientSecret = '';
+            if (rawHsmClientSecret) {
+                try {
+                    if (SecurityUtils.isEncrypted(rawHsmClientSecret)) {
+                        decryptedHsmClientSecret = SecurityUtils.resolveSecret(rawHsmClientSecret);
+                    } else {
+                        decryptedHsmClientSecret = SecurityUtils.decrypt(rawHsmClientSecret);
+                    }
+                } catch (e) {
+                    decryptedHsmClientSecret = rawHsmClientSecret;
+                }
+            }
+
             globalHealthCheckSettings = {
                 ...row,
-                vneid_password: decryptedPassword
+                vneid_password: decryptedPassword,
+                vneid_private_key: decryptedPrivateKey,
+                hsm_password: decryptedHsmPassword,
+                hsm_client_secret: decryptedHsmClientSecret
             };
             console.log(`✅ Health Check Sync Settings loaded into memory (Facility: ${row.ma_cskcb})`);
             return globalHealthCheckSettings;
