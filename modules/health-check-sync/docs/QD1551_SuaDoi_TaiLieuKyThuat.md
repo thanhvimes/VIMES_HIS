@@ -91,31 +91,200 @@ Dưới đây là đặc tả các trường thông tin chính phục vụ việ
 ---
 
 ## 9. Cấu trúc tệp tin liên thông XML (XML Schema)
-Tệp tin XML chi tiết gửi đi phải tuân thủ phân lớp các thẻ con (`FILEHOSO`):
-* `XML1`: Thông tin hành chính.
-* `XML2`: Thông tin chung về lần khám.
-* `XML3`: Đánh giá dấu hiệu sinh tồn.
-* `XML4`: Đánh giá dinh dưỡng.
-* `XML7`: Kết quả khám lâm sàng chuyên khoa.
-* `XML8`: Kết luận và tư vấn.
 
-### Ví dụ XML1 (Thông tin hành chính):
+Mỗi hồ sơ khám sức khỏe được đóng gói trong phong bì `<KHAMSUCKHOE>` gồm nhiều phân hệ XML con:
+
+| Mã File | Tên phân hệ | Bắt buộc |
+|:---:|:---|:---:|
+| `XML1` | Thông tin hành chính | ✅ |
+| `XML2` | Thông tin chung về lần khám | ✅ |
+| `XML3` | Đánh giá dấu hiệu sinh tồn | ✅ |
+| `XML4` | Đánh giá dinh dưỡng | ✅ |
+| `XML5` | Tiền sử bệnh | Tùy trường hợp |
+| `XML6` | Khám lâm sàng nội khoa | Tùy trường hợp |
+| `XML7` | Khám lâm sàng chuyên khoa (Mắt, TMH, RHM...) | Tùy trường hợp |
+| `XML8` | Kết luận và tư vấn | ✅ |
+| `XML9` | Kết quả xét nghiệm máu | Tùy trường hợp |
+| `XML10` | Khám thể lực | Tùy trường hợp |
+| `XML11` | Kết quả cận lâm sàng khác | Tùy trường hợp |
+
+---
+
+### Phong bì ngoài (KHAMSUCKHOE Envelope)
+
 ```xml
+<?xml version="1.0" encoding="utf-8"?>
+<KHAMSUCKHOE xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <THONGTINDONVI>
+        <MACSKCB>89342</MACSKCB>   <!-- Mã 5 số do BYT cấp -->
+    </THONGTINDONVI>
+    <THONGTINHOSO>
+        <NGAYLAP>20260721</NGAYLAP>
+        <SOLUONGHOSO>1</SOLUONGHOSO>
+        <DANHSACHHOSO>
+            <HOSO>
+                <FILEHOSO>
+                    <LOAIHOSO>XML1</LOAIHOSO>
+                    <NOIDUNGFILE>[Base64 của XML1]</NOIDUNGFILE>
+                </FILEHOSO>
+                <FILEHOSO>
+                    <LOAIHOSO>XML2</LOAIHOSO>
+                    <NOIDUNGFILE>[Base64 của XML2]</NOIDUNGFILE>
+                </FILEHOSO>
+                <FILEHOSO>
+                    <LOAIHOSO>XML3</LOAIHOSO>
+                    <NOIDUNGFILE>[Base64 của XML3]</NOIDUNGFILE>
+                </FILEHOSO>
+                <!-- ... tiếp tục XML4, XML8, ... -->
+            </HOSO>
+        </DANHSACHHOSO>
+    </THONGTINHOSO>
+    <CHUKYDONVI />
+</KHAMSUCKHOE>
+```
+
+---
+
+### XML1 - Thông tin hành chính (`THONG_TIN_HANH_CHINH`)
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
 <THONG_TIN_HANH_CHINH>
     <HO_TEN>NGUYỄN VĂN A</HO_TEN>
-    <GIOI_TINH>1</GIOI_TINH>
-    <NGAY_SINH>1990-05-15</NGAY_SINH>
-    <SO_CCCD>038090012345</SO_CCCD>
+    <GIOI_TINH>1</GIOI_TINH>         <!-- 1: Nam, 2: Nữ -->
+    <NGAY_SINH>1990-05-15</NGAY_SINH> <!-- YYYY-MM-DD -->
+    <MA_DAN_TOC>01</MA_DAN_TOC>       <!-- 2 ký tự, padStart -->
+    <SO_CCCD>038090012345</SO_CCCD>   <!-- Đúng 12 số -->
+    <NGAYCAP_CCCD>20150601</NGAYCAP_CCCD>  <!-- YYYYMMDD -->
+    <NOICAP_CCCD>Cục Cảnh sát ĐKQL cư trú và DLQG về dân cư</NOICAP_CCCD>
     <DIA_CHI>Số 12 Đường Trần Hưng Đạo, Quận Hoàn Kiếm, Hà Nội</DIA_CHI>
-    <MATINH_CU_TRU>01</MATINH_CU_TRU>
-    <MAXA_CU_TRU>00001</MAXA_CU_TRU>
+    <MATINH_CU_TRU>01</MATINH_CU_TRU>  <!-- 2-3 ký tự theo danh mục BYT -->
+    <MAXA_CU_TRU>00001</MAXA_CU_TRU>   <!-- 5 ký tự theo danh mục BYT -->
+    <MA_NGHE_NGHIEP>13</MA_NGHE_NGHIEP> <!-- BẮT BUỘC: 2 ký tự danh mục nghề nghiệp -->
     <DIEN_THOAI>0901234567</DIEN_THOAI>
+    <NHOM_MAU>A</NHOM_MAU>
+    <!-- Riêng cho Mẫu 1 & 2 (người dưới 18 tuổi): thêm NGUOI_GIAM_HO, SO_CCCD_NGH -->
 </THONG_TIN_HANH_CHINH>
+```
+
+> [!IMPORTANT]
+> Trường `MA_NGHE_NGHIEP` (2 ký tự) là **BẮT BUỘC** cho người từ đủ 18 tuổi. Dùng mã `99` nếu không xác định được nghề nghiệp.
+
+---
+
+### XML2 - Thông tin chung về lần khám (`THONG_TIN_CHUNG_VE_LAN_KHAM`)
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<THONG_TIN_CHUNG_VE_LAN_KHAM>
+    <MA_LK>202506180001</MA_LK>              <!-- Mã lượt khám duy nhất -->
+    <MA_CSKCB>00001</MA_CSKCB>              <!-- Mã 5 số do BYT cấp (KHÔNG phải GLN 13 số) -->
+    <MA_GTIN_CSKCB>8934286056913</MA_GTIN_CSKCB>  <!-- GLN 13 số toàn cầu -->
+    <DOI_TUONG>13</DOI_TUONG>               <!-- 13: Người lao động, 14: Khác -->
+    <NGUON_CHI_TRA>4</NGUON_CHI_TRA>        <!-- 4: Người sử dụng lao động, 9: Khác -->
+    <MA_LOAI_KCB>Bình thường</MA_LOAI_KCB>  <!-- hoặc mã số theo danh mục -->
+    <NGAY_VAO>18062026</NGAY_VAO>           <!-- YYYYMMDD[HHMI] - Định dạng YYYYMMDDHHMI -->
+    <NGAY_RA>18062026</NGAY_RA>             <!-- BẮT BUỘC: ngày kết thúc đợt khám -->
+</THONG_TIN_CHUNG_VE_LAN_KHAM>
+```
+
+> [!CAUTION]
+> - `MA_CSKCB`: **Phải là mã 5 ký tự** do Bộ Y tế cấp (ví dụ `89342` hoặc `00001`). **Tuyệt đối không** dùng mã GLN 13 số ở đây.
+> - `MA_GTIN_CSKCB`: Đây mới là mã GLN 13 số (ví dụ `8934286056913`).
+> - `NGAY_RA`: Trường bắt buộc, nếu khám và ra trong ngày thì bằng `NGAY_VAO`.
+
+---
+
+### XML3 - Đánh giá dấu hiệu sinh tồn (`DANH_GIA_DAU_HIEU_SINH_TON`)
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<DANH_GIA_DAU_HIEU_SINH_TON>
+    <NHIET_DO>36.8</NHIET_DO>
+    <DGDHST_NHIET_DO>1</DGDHST_NHIET_DO>    <!-- Đánh giá: 1=Bình thường, 2=Bất thường -->
+    <MACH>80</MACH>
+    <DGDHST_MACH>0</DGDHST_MACH>            <!-- Đánh giá: 0=Bình thường -->
+    <NHIP_THO>30</NHIP_THO>
+    <DGDHST_NHIP_THO>30</DGDHST_NHIP_THO>  <!-- Đánh giá nhịp thở -->
+    <HUYET_AP>120/80</HUYET_AP>             <!-- Tâm thu/Tâm trương -->
+</DANH_GIA_DAU_HIEU_SINH_TON>
+```
+
+> [!NOTE]
+> Các thẻ `DGDHST_*` (Đánh giá dấu hiệu sinh tồn) là thẻ **đánh giá phân loại** đi kèm mỗi chỉ số. Đây là điểm khác biệt so với cấu trúc cũ QĐ 1551.
+
+---
+
+### XML4 - Đánh giá dinh dưỡng (`DANH_GIA_DINH_DUONG`)
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<DANH_GIA_DINH_DUONG>
+    <CHIEU_DAI>0</CHIEU_DAI>                   <!-- Chiều dài nằm (trẻ <2 tuổi) -->
+    <CHIEU_DAI_TUOI_SD>1234567890</CHIEU_DAI_TUOI_SD>
+    <CHIEU_CAO>165</CHIEU_CAO>                 <!-- Chiều cao đứng (cm) -->
+    <CHIEU_CAO_TUOI_SD>...</CHIEU_CAO_TUOI_SD>
+    <CAN_NANG>60</CAN_NANG>                    <!-- Cân nặng (kg) -->
+    <CAN_NANG_TUOI_SD>...</CAN_NANG_TUOI_SD>
+    <BMI>22.0</BMI>
+    <BMI_TUOI_SD>...</BMI_TUOI_SD>
+    <VONG_DAU>...</VONG_DAU>                   <!-- Vòng đầu (cm) - cho trẻ nhỏ -->
+    <VONG_DAU_TUOI_SD>...</VONG_DAU_TUOI_SD>
+    <PHAN_LOAI_DD>1</PHAN_LOAI_DD>             <!-- Phân loại dinh dưỡng 1-5 -->
+</DANH_GIA_DINH_DUONG>
+```
+
+---
+
+### XML8 - Kết luận và tư vấn (`KET_LUAN`)
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<KET_LUAN>
+    <PHAN_LOAI_SK>1</PHAN_LOAI_SK>    <!-- 1: Rất khỏe → 5: Rất yếu -->
+    <KET_LUAN_BENH>Đủ sức khỏe làm việc</KET_LUAN_BENH>
+    <CAC_VAN_DE_SUC_KHOE>Không</CAC_VAN_DE_SUC_KHOE>
+</KET_LUAN>
+```
+
+---
+
+### XML10 - Khám thể lực (`KHAM_THE_LUC`)
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<KHAM_THE_LUC>
+    <CHIEU_CAO>165</CHIEU_CAO>
+    <CAN_NANG>60</CAN_NANG>
+    <CHI_SO_BMI>22.0</CHI_SO_BMI>
+    <MACH>80</MACH>
+    <HUYET_AP>120/80</HUYET_AP>
+</KHAM_THE_LUC>
+```
+
+---
+
+### XML11 - Kết quả cận lâm sàng (`KHAM_CAN_LAM_SANG`)
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<KHAM_CAN_LAM_SANG>
+    <CHI_TIET_CLS>
+        <MA_DICH_VU>XN01</MA_DICH_VU>
+        <MA_CHI_SO>GLUCOSE</MA_CHI_SO>
+        <GIA_TRI>5.4</GIA_TRI>
+        <DON_VI_DO>mmol/L</DON_VI_DO>
+        <MO_TA>Đường huyết lúc đói</MO_TA>
+        <KET_LUAN>Bình thường</KET_LUAN>
+    </CHI_TIET_CLS>
+</KHAM_CAN_LAM_SANG>
 ```
 
 ---
 
 ## 10. Quy định về API kết nối
+
 Dữ liệu được đẩy lên cổng y tế thông qua giao thức API RESTful.
 
 * **API Xác thực**:
@@ -131,35 +300,38 @@ Dữ liệu được đẩy lên cổng y tế thông qua giao thức API RESTfu
     ```json
     {
       "header": {
-        "version": "1.0.0",
-        "sender_id": "MÃ_CSKCB_13_SỐ",
-        "receiver_id": "TDLBYT",
+        "version": "1.0.6",
+        "sender_id": "8934286056913",
+        "receiver_id": "emrhub",
         "txn_type": "sync_checkup",
-        "msg_id": "MÃ_GIAO_DỊCH_DUY_NHẤT",
+        "msg_id": "emrhub20260721<uuid>",
         "msg_type": "101",
-        "data_type": "xml/base64",
+        "ref_msg_id": "<ref_id>",
         "send_datetime": 1718812673000
       },
-      "data": {
-        "file_content": "CHUỖI_XML_GỐC_ENCODE_BASE64"
-      },
+      "data": "CHUỖI_XML_ENVELOPE_ENCODE_BASE64",
       "signature": "CHECKSUM_RSA_SHA256_BASE64"
     }
     ```
+
+> [!NOTE]
+> `sender_id` trong `header` dùng **mã GLN 13 số** (`MA_GTIN_CSKCB`), khác với `MA_CSKCB` 5 số trong XML2.
 
 ---
 
 ## 11. Quy trình ký số & Băm dữ liệu (Checksum Signature)
 Để bảo đảm tính toàn vẹn, trước khi truyền tin, client phải tính toán chữ ký checksum:
-1. `A` = `Uppercase(SHA256(header))` (Loại bỏ khoảng trắng, xuống dòng của JSON header trước khi hash).
-2. `B` = `Uppercase(SHA256(data))` (Data là object chứa chuỗi XML Base64).
-3. `C` = `A + "." + B`.
-4. `CHECKSUM SIGNATURE` = `Uppercase(RSASHA256(C, Private_Key_CSKCB))`.
+1. `hashA` = `SHA256(JSON.stringify(header))` (JSON header không có khoảng trắng/xuống dòng).
+2. `hashB` = `SHA256(data)` (data là chuỗi XML Base64 của toàn bộ Envelope).
+3. `message` = `hashA + "." + hashB`.
+4. `SIGNATURE` = `RSA-PKCS1-SHA256_Sign(message, PrivateKey)` → mã hóa Base64.
 
 ---
 
-## 12. Điều kiện từ chối/Lỗi thường gặp
-* **Mã lỗi `PS_DS_CA_SIGNATURE_INVALID`**: Chữ ký số tổ chức của CSKCB trên file XML không hợp lệ hoặc bị sửa đổi sau khi ký.
-* **Mã lỗi `CM_INVALID_REQUEST`**: JSON Payload sai cấu trúc hoặc thiếu các thẻ bắt buộc trong header.
-* **Lỗi định danh định cư**: Mã Tỉnh (`MATINH_CU_TRU`), Mã Xã (`MAXA_CU_TRU`) không khớp với danh mục quy chuẩn của Bộ Xây dựng hoặc không tồn tại.
-* **CCCD không hợp lệ**: CCCD không đúng 12 số hoặc không qua được bước đối chiếu định danh quốc gia.
+## 12. Điều kiện từ chối / Lỗi thường gặp
+* **Mã lỗi `CM_SYSTEM_ERROR`**: Lỗi hệ thống cổng (thường do key/auth sai trước khi vào hàng đợi xử lý).
+* **Mã lỗi `CM_INVALID_REQUEST`**: JSON Payload sai cấu trúc, thiếu thẻ bắt buộc, hoặc dữ liệu trong XML không hợp lệ theo danh mục (mã tỉnh, xã, nghề nghiệp, v.v.).
+* **Mã lỗi `PS_DS_CA_SIGNATURE_INVALID`**: Chữ ký RSA không hợp lệ.
+* **Lỗi định danh cư trú**: `MATINH_CU_TRU`, `MAXA_CU_TRU` không khớp với danh mục chuẩn.
+* **CCCD không hợp lệ**: CCCD không đúng 12 số hoặc không qua đối chiếu định danh quốc gia.
+* **`MA_CSKCB` sai**: Dùng mã 13 số GLN thay vì mã 5 số BYT — Cổng sẽ báo lỗi không tìm thấy cơ sở y tế.

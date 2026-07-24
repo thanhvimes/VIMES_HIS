@@ -35,7 +35,7 @@ export const generateImagingReportPdf = (data: ReportData): string => {
     doc.setFontSize(14);
     doc.setTextColor(0, 100, 200); // Blue
     doc.setFont("helvetica", "bold");
-    doc.text("PHÒNG KHÁM ĐA KHOA CLINICMS", margin, y);
+    doc.text("BỆNH VIỆN ĐA KHOA VIMES HIS", margin, y);
     
     doc.setFontSize(10);
     doc.setTextColor(100);
@@ -43,7 +43,7 @@ export const generateImagingReportPdf = (data: ReportData): string => {
     y += 6;
     doc.text("123 Đường Sức Khỏe, Quận 1, TP. Hồ Chí Minh", margin, y);
     y += 5;
-    doc.text("Hotline: 1900 1234 | Email: contact@clinicms.com", margin, y);
+    doc.text("Hotline: 1900 1234 | Email: contact@vimes.com.vn", margin, y);
     
     y += 10;
     doc.setDrawColor(200);

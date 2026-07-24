@@ -1,7 +1,7 @@
 
 /**
  * VIETNAMESE FORMATTERS UTILITY
- * Thư viện dùng chung cho toàn bộ hệ thống ClinicMS
+ * Thư viện dùng chung cho toàn bộ hệ thống VIMES HIS
  */
 
 // --- 1. DATE & TIME (THỜI GIAN) ---

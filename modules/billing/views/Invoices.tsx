@@ -83,12 +83,12 @@ const generateMedicalInvoicePdf = (invoice: MedicalInvoice) => {
     // Header
     doc.setFontSize(18);
     doc.setTextColor(6, 182, 212); // Cyan-500
-    doc.text("PHÒNG KHÁM ĐA KHOA CLINICMS", 105, 20, { align: "center" });
+    doc.text("BỆNH VIỆN ĐA KHOA VIMES HIS", 105, 20, { align: "center" });
     
     doc.setFontSize(10);
     doc.setTextColor(100);
     doc.text("123 Đường Sức Khỏe, Quận 1, TP. Hồ Chí Minh", 105, 28, { align: "center" });
-    doc.text("Hotline: 1900 1234 | Email: contact@clinicms.com", 105, 34, { align: "center" });
+    doc.text("Hotline: 1900 1234 | Email: contact@vimes.com.vn", 105, 34, { align: "center" });
     
     doc.setDrawColor(200);
     doc.line(15, 40, 195, 40);

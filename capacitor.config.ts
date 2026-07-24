@@ -1,8 +1,8 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-    appId: 'com.vclinic.portal',
-    appName: 'vClinic Portal',
+    appId: 'com.vimes.portal',
+    appName: 'VIMES HIS Portal',
     webDir: 'dist',
     server: {
         androidScheme: 'https'

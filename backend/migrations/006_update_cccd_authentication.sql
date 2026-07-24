@@ -3,7 +3,7 @@
 --   1. Update schema to support CCCD authentication
 --   2. Add validation for 12-digit CCCD only
 --   3. CCCD will be collected during account activation (HIS doesn't have CCCD data)
--- Author: vClinic Development Team
+-- Author: VIMES HIS Development Team
 -- Date: 2026-02-03
 
 -- Step 1: Report current status

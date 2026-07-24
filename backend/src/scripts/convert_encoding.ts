@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 function convertFile() {
-    const filePath = 'd:/AI/vClinic/modules/health-check-sync/components/ContractManagement.tsx';
+    const filePath = 'd:/AI/VIMES_HIS/modules/health-check-sync/components/ContractManagement.tsx';
     if (!fs.existsSync(filePath)) {
         console.error('File not found:', filePath);
         return;

@@ -230,7 +230,7 @@ async function applyPendingMigrations() {
                     vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7)
             `, [
-                'https://api.emrhub.vn/api/v1',
+                'https://api-sandbox.emrhub.vn/api/v1',
                 '8934285008135_api',
                 encryptedPass,
                 '8934285008135',
@@ -239,22 +239,6 @@ async function applyPendingMigrations() {
                 15
             ]);
             console.log('✅ Health check settings initialized with credentials.');
-        } else {
-            await query(`
-                UPDATE health_check_settings
-                SET vneid_url = $1,
-                    vneid_username = $2,
-                    vneid_password = $3,
-                    ma_cskcb = $4,
-                    ma_gtin_cskcb = $5
-            `, [
-                'https://api.emrhub.vn/api/v1',
-                '8934285008135_api',
-                encryptedPass,
-                '8934285008135',
-                '8934285008135'
-            ]);
-            console.log('✅ Health check settings credentials updated.');
         }
 
         console.log('✅ Migrations applied successfully');

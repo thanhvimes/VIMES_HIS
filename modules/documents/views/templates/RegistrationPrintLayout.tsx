@@ -10,7 +10,7 @@ const RegistrationPrintLayout: React.FC<PrintLayoutProps> = ({ patient, exam }) 
   return (
     <div className="p-8 bg-white text-black max-w-4xl mx-auto">
       <div className="text-center mb-8">
-        <h1 className="text-xl font-bold">PHÒNG KHÁM ĐA KHOA CLINICMS</h1>
+        <h1 className="text-xl font-bold">BỆNH VIỆN ĐA KHOA VIMES HIS</h1>
         <p className="text-sm">123 Đường Sức Khỏe, Quận 1, TP. HCM</p>
         <p className="text-sm">ĐT: (028) 1234 5678</p>
         <hr className="my-4 border-gray-400" />

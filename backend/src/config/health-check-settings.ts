@@ -10,6 +10,7 @@ export interface HealthCheckSettings {
     vneid_username: string;
     vneid_password?: string;
     ma_cskcb: string;
+    ma_cskcb_byt?: string;
     ma_gtin_cskcb: string;
     auto_sync_enabled: boolean;
     auto_sync_interval: number;
@@ -25,6 +26,7 @@ export interface HealthCheckSettings {
     use_qz_tray?: boolean;
     vneid_private_key?: string;
     vneid_public_key?: string;
+    vneid_receiver_id?: string;
     signature_type?: 'USB' | 'HSM';
     hsm_url?: string;
     hsm_provider?: string;
@@ -48,16 +50,21 @@ export async function loadHealthCheckSettings(): Promise<HealthCheckSettings | n
         // Ensure columns exist in DB dynamically
         await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS vneid_private_key text`);
         await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS vneid_public_key text`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS vneid_receiver_id varchar(50) DEFAULT 'TTYQG'`);
         await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS signature_type varchar(20) DEFAULT 'HSM'`);
         await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_url varchar(255) DEFAULT 'http://vimes.xyz:8091'`);
         await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_provider varchar(50) DEFAULT 'VNPT-CA'`);
         await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_username varchar(100)`);
         await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_password text`);
         await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_client_id varchar(100)`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_client_secret text`);
+        // Auto-migrate any existing XML records in DB from <TYPE>Child</TYPE> to <TYPE>ChildUnder</TYPE>
+        try {
+            await query(`UPDATE health_check_masters SET xml_data = REPLACE(xml_data, '<TYPE>Child</TYPE>', '<TYPE>ChildUnder</TYPE>') WHERE xml_data LIKE '%<TYPE>Child</TYPE>%'`);
+            await query(`UPDATE health_check_masters SET signature = REPLACE(signature, '<TYPE>Child</TYPE>', '<TYPE>ChildUnder</TYPE>') WHERE signature LIKE '%<TYPE>Child</TYPE>%'`);
+        } catch (migErr) {}
 
         const result = await query(
-            `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, use_qz_tray, vneid_private_key, vneid_public_key, signature_type, hsm_url, hsm_provider, hsm_username, hsm_password, hsm_client_id, hsm_client_secret FROM health_check_settings LIMIT 1`
+            `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_cskcb_byt, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, use_qz_tray, vneid_private_key, vneid_public_key, vneid_receiver_id, signature_type, hsm_url, hsm_provider, hsm_username, hsm_password, hsm_client_id, hsm_client_secret FROM health_check_settings ORDER BY id ASC LIMIT 1`
         );
 
         if (result.rows.length > 0) {
@@ -72,8 +79,7 @@ export async function loadHealthCheckSettings(): Promise<HealthCheckSettings | n
                         decryptedPassword = SecurityUtils.decrypt(rawPassword);
                     }
                 } catch (e) {
-                    console.warn('⚠️ Fallback decryption failed, using resolveSecret:', e);
-                    decryptedPassword = SecurityUtils.resolveSecret(rawPassword);
+                    decryptedPassword = rawPassword;
                 }
             }
 
@@ -87,8 +93,7 @@ export async function loadHealthCheckSettings(): Promise<HealthCheckSettings | n
                         decryptedPrivateKey = SecurityUtils.decrypt(rawPrivateKey);
                     }
                 } catch (e) {
-                    console.warn('⚠️ Private key decryption failed:', e);
-                    decryptedPrivateKey = SecurityUtils.resolveSecret(rawPrivateKey);
+                    decryptedPrivateKey = rawPrivateKey;
                 }
             }
 

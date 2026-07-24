@@ -22,7 +22,9 @@ export interface HealthCheckSettings {
     barcode_zpl_template_xn?: string;
     barcode_zpl_template_ksk?: string;
     barcode_printer_name?: string;
-    use_qz_tray?: boolean;
+    vneid_private_key?: string;
+    vneid_public_key?: string;
+    vneid_receiver_id?: string;
     created_at?: Date;
     updated_at?: Date;
 }
@@ -52,14 +54,28 @@ export async function loadHealthCheckSettings(): Promise<HealthCheckSettings | n
                         decryptedPassword = SecurityUtils.decrypt(rawPassword);
                     }
                 } catch (e) {
-                    console.warn('⚠️ Fallback decryption failed, using resolveSecret:', e);
-                    decryptedPassword = SecurityUtils.resolveSecret(rawPassword);
+                    decryptedPassword = rawPassword;
+                }
+            }
+
+            const rawPrivateKey = row.vneid_private_key || '';
+            let decryptedPrivateKey = '';
+            if (rawPrivateKey) {
+                try {
+                    if (SecurityUtils.isEncrypted(rawPrivateKey)) {
+                        decryptedPrivateKey = SecurityUtils.resolveSecret(rawPrivateKey);
+                    } else {
+                        decryptedPrivateKey = SecurityUtils.decrypt(rawPrivateKey);
+                    }
+                } catch (e) {
+                    decryptedPrivateKey = rawPrivateKey;
                 }
             }
 
             globalHealthCheckSettings = {
                 ...row,
-                vneid_password: decryptedPassword
+                vneid_password: decryptedPassword,
+                vneid_private_key: decryptedPrivateKey
             };
             console.log(`✅ Health Check Sync Settings loaded into memory (Facility: ${row.ma_cskcb})`);
             return globalHealthCheckSettings;

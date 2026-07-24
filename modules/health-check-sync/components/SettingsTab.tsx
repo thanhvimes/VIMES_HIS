@@ -23,11 +23,12 @@ import { ReceptionSlipTab } from './settings/ReceptionSlipTab';
 import { HealthCheckSettings, SettingsData } from '../models/HealthCheckSettings';
 
 const DEFAULT_SETTINGS: SettingsData = {
-    vneid_url: 'https://api-vneid.moh.gov.vn/api/v1',
-    vneid_username: '',
+    vneid_url: 'https://api-sandbox.emrhub.vn/api',
+    vneid_username: '8934285008135_api',
     vneid_password: '',
-    ma_cskcb: '15124',
-    ma_gtin_cskcb: '1234567890123',
+    ma_cskcb: '8934285008135',
+    ma_cskcb_byt: '37101',
+    ma_gtin_cskcb: '8934285008135',
     auto_sync_enabled: false,
     auto_sync_interval: 15,
     allow_unsigned_sync: false,
@@ -43,6 +44,7 @@ const DEFAULT_SETTINGS: SettingsData = {
     use_qz_tray: false,
     vneid_private_key: '',
     vneid_public_key: '',
+    signature_type: 'HSM',
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -95,6 +97,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
 
     // ── Hospital codes ────────────────────────────────────────────────────────
     const [maCskcb, setMaCskcb] = useState(DEFAULT_SETTINGS.ma_cskcb);
+    const [maCskcbByt, setMaCskcbByt] = useState('');
     const [maGtinCskcb, setMaGtinCskcb] = useState(DEFAULT_SETTINGS.ma_gtin_cskcb);
 
     // ── Auto sync ─────────────────────────────────────────────────────────────
@@ -131,6 +134,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                 setVneidUsername(settings.vneid_username);
                 setVneidPassword(settings.vneid_password);
                 setMaCskcb(settings.ma_cskcb);
+                setMaCskcbByt(settings.ma_cskcb_byt || '');
                 setMaGtinCskcb(settings.ma_gtin_cskcb);
                 setAutoSyncEnabled(settings.auto_sync_enabled);
                 setAutoSyncInterval(settings.auto_sync_interval);
@@ -172,6 +176,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
             vneid_username: vneidUsername,
             vneid_password: vneidPassword,
             ma_cskcb: maCskcb,
+            ma_cskcb_byt: maCskcbByt,
             ma_gtin_cskcb: maGtinCskcb,
             auto_sync_enabled: autoSyncEnabled,
             auto_sync_interval: autoSyncInterval,
@@ -226,7 +231,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                 ma_cskcb: maCskcb,
             });
             if (res.success) {
-                toast.success('Kết nối cổng VNeID thành công!');
+                toast.success(res.message || 'Kết nối cổng VNeID thành công!');
             } else {
                 toast.error(res.message || 'Kết nối thất bại!');
             }
@@ -234,6 +239,47 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
             toast.error('Kết nối thất bại: ' + error.message);
         } finally {
             setIsTesting(false);
+        }
+    };
+
+    const handleReloadSettings = async () => {
+        setIsLoading(true);
+        try {
+            const settings = await HealthCheckSettings.loadFromServer();
+            setVneidUrl(settings.vneid_url);
+            setVneidUsername(settings.vneid_username);
+            setVneidPassword(settings.vneid_password);
+            setMaCskcb(settings.ma_cskcb);
+            setMaCskcbByt(settings.ma_cskcb_byt || '');
+            setMaGtinCskcb(settings.ma_gtin_cskcb);
+            setAutoSyncEnabled(settings.auto_sync_enabled);
+            setAutoSyncInterval(settings.auto_sync_interval);
+            setBarcodeLabelSizeXn(settings.barcode_label_size_xn);
+            setBarcodeLabelSizeKsk(settings.barcode_label_size_ksk);
+            setBarcodeShowHospital(settings.barcode_show_hospital);
+            setBarcodeShowDate(settings.barcode_show_date);
+            setBarcodeShowSampleType(settings.barcode_show_sample_type);
+            setAllowUnsignedSync(settings.allow_unsigned_sync);
+            setBarcodeZplTemplateXn(settings.barcode_zpl_template_xn || '');
+            setBarcodeZplTemplateKsk(settings.barcode_zpl_template_ksk || '');
+            setBarcodePrinterName(settings.barcode_printer_name || 'Zebra');
+            setUseQzTray(settings.use_qz_tray === true);
+            setReceptionSlipTemplate(settings.reception_slip_template || '');
+            setVneidPrivateKey(settings.vneid_private_key || '');
+            setVneidPublicKey(settings.vneid_public_key || '');
+            setSignatureType(settings.signature_type || 'HSM');
+            setHsmUrl(settings.hsm_url || 'http://vimes.xyz:8091');
+            setHsmProvider(settings.hsm_provider || 'VNPT-CA');
+            setHsmUsername(settings.hsm_username || '');
+            setHsmPassword(settings.hsm_password || '');
+            setHsmClientId(settings.hsm_client_id || '');
+            setHsmClientSecret(settings.hsm_client_secret || '');
+            toast.success('Đã tải lại cấu hình mới nhất từ cơ sở dữ liệu!');
+        } catch (error) {
+            console.error('Failed to load settings:', error);
+            toast.error('Không thể tải cấu hình từ server backend.');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -333,6 +379,8 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                     setVneidPublicKey={setVneidPublicKey}
                     maCskcb={maCskcb}
                     setMaCskcb={setMaCskcb}
+                    maCskcbByt={maCskcbByt}
+                    setMaCskcbByt={setMaCskcbByt}
                     maGtinCskcb={maGtinCskcb}
                     setMaGtinCskcb={setMaGtinCskcb}
                     autoSyncEnabled={autoSyncEnabled}
@@ -398,25 +446,43 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
             {/* ══════════════════════════════════════════════════
                 ACTION BUTTONS
             ══════════════════════════════════════════════════ */}
-            <div className="flex justify-end gap-2 border-t border-slate-100 dark:border-slate-700 pt-4">
-                {activeSubTab === 'VNEID' && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 dark:border-slate-700 pt-4">
+                <button
+                    type="button"
+                    disabled={isTesting || isSaving || isLoading}
+                    onClick={handleReloadSettings}
+                    className="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg font-semibold text-sm transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                >
+                    <RefreshIcon className="w-4 h-4 text-slate-500" />
+                    Tải lại từ CSDL
+                </button>
+                <div className="flex items-center gap-2">
+                    {activeSubTab === 'VNEID' && (
+                        <button
+                            type="button"
+                            disabled={isTesting || isSaving}
+                            onClick={handleTestConnection}
+                            className="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg font-bold text-sm transition disabled:opacity-50 cursor-pointer"
+                        >
+                            {isTesting ? 'Đang ping...' : 'Kiểm tra kết nối'}
+                        </button>
+                    )}
                     <button
                         type="button"
                         disabled={isTesting || isSaving}
-                        onClick={handleTestConnection}
-                        className="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg font-bold text-sm transition disabled:opacity-50 cursor-pointer"
+                        onClick={handleSave}
+                        className="px-5 py-2 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-lg font-bold text-sm shadow-md transition disabled:opacity-50 active:scale-95 cursor-pointer flex items-center gap-2"
                     >
-                        {isTesting ? 'Đang ping...' : 'Kiểm tra kết nối'}
+                        {isSaving ? (
+                            <>
+                                <RefreshIcon className="w-4 h-4 animate-spin" />
+                                Đang lưu...
+                            </>
+                        ) : (
+                            'Cập nhật & Lưu cấu hình'
+                        )}
                     </button>
-                )}
-                <button
-                    type="button"
-                    disabled={isTesting || isSaving}
-                    onClick={handleSave}
-                    className="px-5 py-2 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-lg font-bold text-sm shadow-md transition disabled:opacity-50 active:scale-95 cursor-pointer"
-                >
-                    {isSaving ? 'Đang lưu...' : 'Lưu cấu hình'}
-                </button>
+                </div>
             </div>
         </div>
     );

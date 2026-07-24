@@ -27,6 +27,7 @@ import {
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useNotification } from '../../../contexts/NotificationContext';
+import { useSession } from '../../../contexts/SessionContext';
 import { bookingService, OnlineBookingRecord, BookingSpeciality } from '../../../services/bookingService';
 import { formatDate } from '../../../utils/formatters';
 import { FormDateInput } from '../../../components/ui/forms';
@@ -36,6 +37,10 @@ import QuickSpecialityBookingModal from '../components/QuickSpecialityBookingMod
 const BookingManagementView: React.FC = () => {
     const { fontSettings } = useTheme();
     const { addNotification } = useNotification();
+    const { user, userInfo } = useSession();
+
+    const userDeptCode = user?.departmentId || userInfo?.deptId || '';
+    const userDeptName = user?.departmentName || '';
 
     // State
     const [bookings, setBookings] = useState<OnlineBookingRecord[]>([]);
@@ -62,21 +67,25 @@ const BookingManagementView: React.FC = () => {
     const loadData = async () => {
         setIsLoading(true);
         try {
+            const effectiveDept = userDeptCode || undefined;
             const [data, specs] = await Promise.all([
-                bookingService.getBookingList({}),
-                bookingService.getSpecialities()
+                bookingService.getBookingList({
+                    deptId: effectiveDept,
+                    status: statusFilter !== 'All' ? statusFilter : undefined,
+                    speciality: specialityFilter !== 'All' ? specialityFilter : undefined,
+                    search: searchTerm || undefined
+                }),
+                bookingService.getSpecialities(effectiveDept)
             ]);
             console.log('📋 Booking list data:', data);
             console.log('📋 Data length:', data.length);
-            console.log('📋 Specialities:', specs);
 
             // Deduplicate specialities by ID
             const uniqueSpecs = Array.from(
                 new Map(specs.map(s => [s.id, s])).values()
             );
-            console.log('📋 Unique specialities:', uniqueSpecs);
 
-            setBookings(data);
+            setBookings(Array.isArray(data) ? data : []);
             setSpecialities(uniqueSpecs);
         } catch (error) {
             console.error('❌ Error loading booking list:', error);
@@ -88,7 +97,7 @@ const BookingManagementView: React.FC = () => {
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [userDeptCode, statusFilter, specialityFilter, dateFilter]);
 
     // Logic xử lý Duyệt & Đẩy HIS
     const handleApprove = async (booking: OnlineBookingRecord) => {
@@ -223,16 +232,34 @@ const BookingManagementView: React.FC = () => {
     };
 
     const filteredBookings = useMemo(() => {
+        const targetDept = (user?.role !== 'admin' && userDeptCode) ? userDeptCode : 'All';
+
         return bookings.filter(b => {
-            const matchesSearch = b.patientName.toLowerCase().includes(searchTerm.toLowerCase()) || b.phone.includes(searchTerm);
+            const searchLower = searchTerm.toLowerCase().trim();
+            const matchesSearch = !searchLower || 
+                b.patientName.toLowerCase().includes(searchLower) || 
+                b.phone.includes(searchLower) ||
+                String(b.id).includes(searchLower) ||
+                (b.docNo && b.docNo.toLowerCase().includes(searchLower));
+
             const matchesStatus = statusFilter === 'All' || b.status === statusFilter;
-            const matchesSpec = specialityFilter === 'All' || (b.specialityName && b.specialityName === specialityFilter);
-            // Handle both ISO date string and date-only format
+
+            const matchesSpec = specialityFilter === 'All' || 
+                (b.specialityName && b.specialityName === specialityFilter) ||
+                (b.specialityCode && b.specialityCode === specialityFilter);
+
             const bookingDateStr = b.bookingDate ? b.bookingDate.split('T')[0] : '';
             const matchesDate = !dateFilter || bookingDateStr === dateFilter;
-            return matchesSearch && matchesStatus && matchesDate && matchesSpec;
+
+            const matchesDept = targetDept === 'All' ||
+                b.deptId === targetDept ||
+                b.specialityCode === targetDept ||
+                (b.deptName && (b.deptName.includes(targetDept) || (userDeptName && b.deptName.includes(userDeptName)))) ||
+                (userInfo?.xDept && Array.isArray(userInfo.xDept) && userInfo.xDept.includes(b.deptId));
+
+            return matchesSearch && matchesStatus && matchesDate && matchesSpec && matchesDept;
         });
-    }, [bookings, searchTerm, statusFilter, dateFilter, specialityFilter]);
+    }, [bookings, searchTerm, statusFilter, dateFilter, specialityFilter, userDeptCode, userDeptName, user?.role, userInfo?.xDept]);
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -262,9 +289,17 @@ const BookingManagementView: React.FC = () => {
                     <div>
                         <h1 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Duyệt đăng ký trực tuyến</h1>
                         <div className="flex items-center gap-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
-                            <span>Tổng cộng: {bookings.length}</span>
+                            <span>Tổng cộng: {filteredBookings.length}</span>
                             <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                            <span className="text-orange-500">Chờ duyệt: {bookings.filter(b => b.status === 'O').length}</span>
+                            <span className="text-orange-500">Chờ duyệt: {filteredBookings.filter(b => b.status === 'O').length}</span>
+                            {userDeptCode && (
+                                <>
+                                    <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                    <span className="px-2 py-0.5 bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-300 rounded-md text-[10px] font-bold border border-teal-200 dark:border-teal-700">
+                                        Khoa: {userDeptCode} {userDeptName ? `- ${userDeptName}` : ''}
+                                    </span>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -320,13 +355,14 @@ const BookingManagementView: React.FC = () => {
                             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             <input
                                 type="text"
-                                placeholder="Họ tên, SĐT..."
+                                placeholder="Họ tên, SĐT, số hồ sơ..."
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                                 className={`w-full pl-9 p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 text-sm focus:ring-2 focus:ring-teal-500 outline-none ${fontSettings.controls}`}
                             />
                         </div>
                     </div>
+
                     <FormDateInput
                         label="Ngày khám"
                         labelClassName="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1"
@@ -341,7 +377,7 @@ const BookingManagementView: React.FC = () => {
                             onChange={e => setSpecialityFilter(e.target.value)}
                             className={`w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-sm font-bold ${fontSettings.controls}`}
                         >
-                            <option value="All">Tất cả khoa</option>
+                            <option value="All">Tất cả chuyên khoa</option>
                             {specialities.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                         </select>
                     </div>

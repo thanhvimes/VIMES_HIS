@@ -18,6 +18,8 @@ interface GeneralConfigTabProps {
     setVneidPublicKey: (v: string) => void;
     maCskcb: string;
     setMaCskcb: (v: string) => void;
+    maCskcbByt: string;
+    setMaCskcbByt: (v: string) => void;
     maGtinCskcb: string;
     setMaGtinCskcb: (v: string) => void;
     autoSyncEnabled: boolean;
@@ -78,6 +80,8 @@ export const GeneralConfigTab: React.FC<GeneralConfigTabProps> = ({
     setVneidPublicKey,
     maCskcb,
     setMaCskcb,
+    maCskcbByt,
+    setMaCskcbByt,
     maGtinCskcb,
     setMaGtinCskcb,
     autoSyncEnabled,
@@ -98,7 +102,7 @@ export const GeneralConfigTab: React.FC<GeneralConfigTabProps> = ({
                         value={vneidUrl}
                         onChange={e => setVneidUrl(e.target.value)}
                         className={inputClass}
-                        placeholder="https://api-vneid.moh.gov.vn/api/v1"
+                        placeholder="https://api-sandbox.emrhub.vn/api"
                     />
                 </FieldGroup>
 
@@ -133,7 +137,7 @@ export const GeneralConfigTab: React.FC<GeneralConfigTabProps> = ({
                     </div>
                 </FieldGroup>
 
-                {/* Mã CSKCB */}
+                {/* Mã CSKCB GLN 13 ký tự */}
                 <FieldGroup label="Mã cơ sở KCB (MA_CSKCB – 20 ký tự)">
                     <input
                         type="text"
@@ -141,7 +145,19 @@ export const GeneralConfigTab: React.FC<GeneralConfigTabProps> = ({
                         value={maCskcb}
                         onChange={e => setMaCskcb(e.target.value)}
                         className={inputClass}
-                        placeholder="15124"
+                        placeholder="8934285008135"
+                    />
+                </FieldGroup>
+
+                {/* Mã CSKCB BYT 5 ký tự */}
+                <FieldGroup label="Mã CSKCB Bộ Y tế (5 ký tự – dùng trong XML liên thông)">
+                    <input
+                        type="text"
+                        maxLength={10}
+                        value={maCskcbByt}
+                        onChange={e => setMaCskcbByt(e.target.value)}
+                        className={inputClass}
+                        placeholder="89342"
                     />
                 </FieldGroup>
 
@@ -153,7 +169,7 @@ export const GeneralConfigTab: React.FC<GeneralConfigTabProps> = ({
                         value={maGtinCskcb}
                         onChange={e => setMaGtinCskcb(e.target.value)}
                         className={inputClass}
-                        placeholder="1234567890123"
+                        placeholder="8934285008135"
                     />
                 </FieldGroup>
 

@@ -71,7 +71,8 @@ const ChildAdminTab: React.FC = () => {
         specialtyMetadata,
         setSpecialtyMetadata,
         doctors,
-        handleSubmit
+        handleSubmit,
+        errors = {}
     } = useChildFormContext();
 
     const { user } = useSession();
@@ -273,7 +274,15 @@ const ChildAdminTab: React.FC = () => {
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">3. Số định danh cá nhân</label>
-                                <input type="text" value={cccd} onChange={e => setCccd(e.target.value)} className="w-full h-[38px] px-3 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="Mã định danh cá nhân của trẻ" />
+                                <input 
+                                    type="text" 
+                                    value={cccd} 
+                                    onChange={e => setCccd(e.target.value.replace(/\D/g, '').slice(0, 12))} 
+                                    maxLength={12}
+                                    className={`w-full h-[38px] px-3 border rounded-lg text-sm bg-slate-50 dark:bg-slate-700 font-mono font-bold ${errors.cccd ? 'border-red-500 bg-red-50 text-red-700 dark:text-red-300' : 'border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white'}`} 
+                                    placeholder="Mã định danh 12 chữ số" 
+                                />
+                                {errors.cccd && <span className="text-red-500 text-[11px] font-semibold mt-1 block">{errors.cccd}</span>}
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">4. Giới tính <span className="text-red-500">*</span></label>
@@ -438,24 +447,28 @@ const ChildAdminTab: React.FC = () => {
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">14. Điện thoại</label>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">14. Điện thoại <span className="text-red-500">*</span></label>
                                 <input
                                     type="text"
                                     value={phone}
-                                    onChange={e => setPhone(e.target.value)}
-                                    className="w-full h-[38px] px-3 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-mono font-bold"
-                                    placeholder="Số điện thoại"
+                                    onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                    maxLength={10}
+                                    className={`w-full h-[38px] px-3 border rounded-lg text-sm bg-slate-50 dark:bg-slate-700 font-mono font-bold ${errors.phone ? 'border-red-500 bg-red-50 text-red-700 dark:text-red-300' : 'border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white'}`}
+                                    placeholder="Số điện thoại (10 chữ số)"
                                 />
+                                {errors.phone && <span className="text-red-500 text-[11px] font-semibold mt-1 block">{errors.phone}</span>}
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">15. Số định danh người giám hộ</label>
                                 <input
                                     type="text"
                                     value={guardianCccd}
-                                    onChange={e => setGuardianCccd(e.target.value)}
-                                    className="w-full h-[38px] px-3 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-mono font-bold"
-                                    placeholder="Số định danh người giám hộ"
+                                    onChange={e => setGuardianCccd(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                                    maxLength={12}
+                                    className={`w-full h-[38px] px-3 border rounded-lg text-sm bg-slate-50 dark:bg-slate-700 font-mono font-bold ${errors.guardianCccd ? 'border-red-500 bg-red-50 text-red-700 dark:text-red-300' : 'border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white'}`}
+                                    placeholder="Số định danh 12 chữ số"
                                 />
+                                {errors.guardianCccd && <span className="text-red-500 text-[11px] font-semibold mt-1 block">{errors.guardianCccd}</span>}
                             </div>
                         </div>
 

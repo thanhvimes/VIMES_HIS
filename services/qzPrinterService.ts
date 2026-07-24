@@ -17,9 +17,9 @@ class QzPrinterService {
             }
             await qz.websocket.connect();
             this.isConnected = true;
-            console.log("🟢 vClinic: Connected to QZ Tray successfully!");
+            console.log("🟢 VIMES HIS: Connected to QZ Tray successfully!");
         } catch (error) {
-            console.error("🔴 vClinic: Failed to connect to QZ Tray client.", error);
+            console.error("🔴 VIMES HIS: Failed to connect to QZ Tray client.", error);
             this.isConnected = false;
             throw new Error("Không thể kết nối đến ứng dụng QZ Tray cục bộ. Vui lòng bật ứng dụng QZ Tray trên máy tính!");
         }
@@ -64,10 +64,10 @@ class QzPrinterService {
 
             // Send raw ZPL data packet
             await qz.print(config, [zplCode]);
-            console.log(`🖨️ vClinic: Successfully printed ZPL to [${printerName}]`);
+            console.log(`🖨️ VIMES HIS: Successfully printed ZPL to [${printerName}]`);
             return true;
         } catch (error: any) {
-            console.error("🔴 vClinic: Printing ZPL error:", error);
+            console.error("🔴 VIMES HIS: Printing ZPL error:", error);
             throw error;
         }
     }
@@ -89,10 +89,10 @@ class QzPrinterService {
                 data: htmlContent
             }];
             await qz.print(config, data);
-            console.log(`🖨️ vClinic: Successfully printed HTML to [${printerName}]`);
+            console.log(`🖨️ VIMES HIS: Successfully printed HTML to [${printerName}]`);
             return true;
         } catch (error: any) {
-            console.error("🔴 vClinic: Printing HTML error:", error);
+            console.error("🔴 VIMES HIS: Printing HTML error:", error);
             throw error;
         }
     }

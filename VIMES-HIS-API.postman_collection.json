@@ -1,8 +1,8 @@
 {
     "info": {
-        "name": "vClinic API",
-        "_postman_id": "vclinic-api-collection",
-        "description": "API Collection for vClinic - Hospital Management System",
+        "name": "VIMES HIS API",
+        "_postman_id": "vimes-his-api-collection",
+        "description": "API Collection for VIMES HIS - Hospital Management System",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "item": [

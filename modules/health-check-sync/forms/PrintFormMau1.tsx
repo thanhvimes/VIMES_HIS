@@ -3,6 +3,7 @@ import React from 'react';
 interface PrintFormMau1Props {
     document: any;
     hospitalName: string;
+    logoUrl?: string;
     getReportDate: () => { day: number; month: number; year: number };
     getConclusionDoctorName: () => string;
     maCskcb?: string;
@@ -11,6 +12,7 @@ interface PrintFormMau1Props {
 export const PrintFormMau1: React.FC<PrintFormMau1Props> = ({
     document,
     hospitalName,
+    logoUrl,
     getReportDate,
     getConclusionDoctorName,
     maCskcb
@@ -70,9 +72,12 @@ export const PrintFormMau1: React.FC<PrintFormMau1Props> = ({
             {/* ==================== CHILD PAGE 1 ==================== */}
             <div className="a4-page">
                 <div className="flex justify-between items-start text-[12.5px] leading-relaxed mb-4">
-                    <div>
-                        <strong className="block uppercase font-bold text-[13px]">{hospitalName || 'BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH'}</strong>
-                        <div>Số: {document.doc_no || '....../GKSK-.........'}</div>
+                    <div className="flex items-center gap-3">
+                        {logoUrl && <img src={logoUrl} alt="Logo" className="h-10 w-auto object-contain shrink-0" />}
+                        <div>
+                            <strong className="block uppercase font-bold text-[13px]">{hospitalName || 'BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH'}</strong>
+                            <div>Số: {document.doc_no || '....../GKSK-.........'}</div>
+                        </div>
                     </div>
                     <div className="text-center">
                         <strong className="block uppercase font-bold text-[13px]">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong>

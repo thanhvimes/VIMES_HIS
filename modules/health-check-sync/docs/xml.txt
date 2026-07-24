@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<KHAMSUCKHOE
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+	<THONGTINDONVI>
+		<MACSKCB>8934285008135</MACSKCB>
+	</THONGTINDONVI>
+	<THONGTINHOSO>
+		<NGAYLAP>20260721</NGAYLAP>
+		<SOLUONGHOSO>1</SOLUONGHOSO>
+		<DANHSACHHOSO>
+			<HOSO>
+				<FILEHOSO>
+					<LOAIHOSO>XML1</LOAIHOSO>
+					<NOIDUNGFILE>
+						<?xml version="1.0" encoding="utf-8"?>
+						<THONG_TIN_HANH_CHINH>
+							<HO_TEN>TRẦN VĂN LỚN</HO_TEN>
+							<GIOI_TINH>1</GIOI_TINH>
+							<NGAY_SINH>2001-07-07</NGAY_SINH>
+							<MA_DAN_TOC>1</MA_DAN_TOC>
+							<SO_CCCD>037080003424</SO_CCCD>
+							<DIA_CHI></DIA_CHI>
+							<MATINH_CU_TRU>237</MATINH_CU_TRU>
+							<MAXA_CU_TRU>23713348</MAXA_CU_TRU>
+							<NGUOI_GIAM_HO></NGUOI_GIAM_HO>
+							<SO_CCCD_NGH></SO_CCCD_NGH>
+						</THONG_TIN_HANH_CHINH>
+					</NOIDUNGFILE>
+				</FILEHOSO>
+				<FILEHOSO>
+					<LOAIHOSO>XML2</LOAIHOSO>
+					<NOIDUNGFILE>
+						<?xml version="1.0" encoding="utf-8"?>
+						<THONG_TIN_CHUNG_VE_LAN_KHAM>
+							<MA_LK>26292429</MA_LK>
+							<MA_CSKCB>8934285008135</MA_CSKCB>
+							<MA_GTIN_CSKCB>8934285008135</MA_GTIN_CSKCB>
+							<DOI_TUONG>14</DOI_TUONG>
+							<NGUON_CHI_TRA>9</NGUON_CHI_TRA>
+							<MA_LOAI_KCB>01</MA_LOAI_KCB>
+							<NGAY_VAO>202607210000</NGAY_VAO>
+						</THONG_TIN_CHUNG_VE_LAN_KHAM>
+					</NOIDUNGFILE>
+				</FILEHOSO>
+				<FILEHOSO>
+					<LOAIHOSO>XML3</LOAIHOSO>
+					<NOIDUNGFILE>
+						<?xml version="1.0" encoding="utf-8"?>
+						<DANH_GIA_DAU_HIEU_SINH_TON>
+							<NHIET_DO>36.5</NHIET_DO>
+							<MACH>80</MACH>
+							<NHIP_THO>20</NHIP_THO>
+							<HUYET_AP>120/80</HUYET_AP>
+						</DANH_GIA_DAU_HIEU_SINH_TON>
+					</NOIDUNGFILE>
+				</FILEHOSO>
+				<FILEHOSO>
+					<LOAIHOSO>XML10</LOAIHOSO>
+					<NOIDUNGFILE>
+						<?xml version="1.0" encoding="utf-8"?>
+						<KHAM_THE_LUC>
+							<CHIEU_CAO>165</CHIEU_CAO>
+							<CAN_NANG>60</CAN_NANG>
+							<CHI_SO_BMI>22.0</CHI_SO_BMI>
+							<KHAM_THE_LUC_PL>1</KHAM_THE_LUC_PL>
+						</KHAM_THE_LUC>
+					</NOIDUNGFILE>
+				</FILEHOSO>
+				<FILEHOSO>
+					<LOAIHOSO>XML11</LOAIHOSO>
+					<NOIDUNGFILE>
+						<?xml version="1.0" encoding="utf-8"?>
+						<KHAM_CAN_LAM_SANG>
+							<CHI_TIET_CLS>
+								<MA_DICH_VU>B1100467</MA_DICH_VU>
+								<MA_CHI_SO>B1100467</MA_CHI_SO>
+								<GIA_TRI></GIA_TRI>
+								<DON_VI_DO>Lần</DON_VI_DO>
+								<MO_TA></MO_TA>
+								<KET_LUAN></KET_LUAN>
+							</CHI_TIET_CLS>
+						</KHAM_CAN_LAM_SANG>
+					</NOIDUNGFILE>
+				</FILEHOSO>
+				<FILEHOSO>
+					<LOAIHOSO>XML12</LOAIHOSO>
+					<NOIDUNGFILE>
+						<?xml version="1.0" encoding="utf-8"?>
+						<KET_LUAN>
+							<PHAN_LOAI_SK>1</PHAN_LOAI_SK>
+							<KET_LUAN_BENH>Bình thường</KET_LUAN_BENH>
+						</KET_LUAN>
+					</NOIDUNGFILE>
+				</FILEHOSO>
+			</HOSO>
+		</DANHSACHHOSO>
+	</THONGTINHOSO>
+	<CHUKYDONVI />
+</KHAMSUCKHOE>

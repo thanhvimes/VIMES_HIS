@@ -13,7 +13,7 @@ try {
 
 const rootDir = path.join(__dirname, '..');
 const releaseDir = path.join(rootDir, 'release');
-const deployDir = path.join(releaseDir, 'vClinic-deploy');
+const deployDir = path.join(releaseDir, 'VIMES-HIS-deploy');
 
 // Helper to copy directory recursively
 function copyDir(src, dest, exclude = []) {
@@ -63,7 +63,7 @@ function createZipArchive(sourceDir, outPath) {
 }
 
 async function startPackaging() {
-    console.log('🚀 Starting vClinic Deployment Packaging...\n');
+    console.log('🚀 Starting VIMES HIS Deployment Packaging...\n');
 
     try {
         // 1. Build Frontend
@@ -99,7 +99,7 @@ async function startPackaging() {
 
         // 6. Create .env.example for backend
         console.log('📝 Step 5/6: Creating configuration files...');
-        const envExample = `# vClinic Backend Configuration
+        const envExample = `# VIMES HIS Backend Configuration
 # Copy this file to .env and update with your actual values
 
 # Server Configuration
@@ -124,14 +124,14 @@ CORS_ORIGIN=*
         fs.writeFileSync(path.join(backendDest, '.env.example'), envExample);
 
         // 7. Create deployment instructions
-        const deployInstructions = `# 🚀 HƯỚNG DẪN TRIỂN KHAI vClinic
+        const deployInstructions = `# 🚀 HƯỚNG DẪN TRIỂN KHAI VIMES HIS
 
 ## 📋 Tổng quan
-Package này chứa toàn bộ hệ thống vClinic đã được build và sẵn sàng deploy lên server.
+Package này chứa toàn bộ hệ thống VIMES HIS đã được build và sẵn sàng deploy lên server.
 
 ### Cấu trúc thư mục:
 \`\`\`
-vClinic-deploy/
+VIMES-HIS-deploy/
 ├── backend/          # Backend API server
 │   ├── src/         # Source code
 │   ├── sql/         # Database scripts
@@ -162,8 +162,8 @@ npm install -g pm2
 
 ### Cách 1: Sử dụng SCP/SFTP
 \`\`\`bash
-# Upload toàn bộ thư mục vClinic-deploy
-scp -r vClinic-deploy/ user@your-server:/path/to/deploy/
+# Upload toàn bộ thư mục VIMES-HIS-deploy
+scp -r VIMES-HIS-deploy/ user@your-server:/path/to/deploy/
 \`\`\`
 
 ### Cách 2: Sử dụng Git
@@ -178,7 +178,7 @@ git pull origin main
 
 ### 3.1. Di chuyển vào thư mục backend
 \`\`\`bash
-cd vClinic-deploy/backend
+cd VIMES-HIS-deploy/backend
 \`\`\`
 
 ### 3.2. Cài đặt dependencies
@@ -214,19 +214,19 @@ psql -U your_db_user -d your_db_name -f sql/booking_online_database.sql
 ### Cách 1: Sử dụng PM2 (Khuyến nghị)
 \`\`\`bash
 # Khởi động với PM2
-pm2 start src/server.js --name vclinic-backend
+pm2 start src/server.js --name vimes-his-backend
 
 # Lưu cấu hình để tự động khởi động khi reboot
 pm2 save
 pm2 startup
 
 # Xem logs
-pm2 logs vclinic-backend
+pm2 logs vimes-his-backend
 
 # Các lệnh quản lý khác
-pm2 restart vclinic-backend
-pm2 stop vclinic-backend
-pm2 delete vclinic-backend
+pm2 restart vimes-his-backend
+pm2 stop vimes-his-backend
+pm2 delete vimes-his-backend
 \`\`\`
 
 ### Cách 2: Chạy trực tiếp (Development)
@@ -244,7 +244,7 @@ npm start
 curl http://localhost:8000/api/health
 
 # Kết quả mong đợi:
-# {"status":"OK","message":"vClinic Backend API","version":"1.0.0"}
+# {"status":"OK","message":"VIMES HIS Backend API","version":"1.0.0"}
 \`\`\`
 
 ### 5.2. Kiểm tra Frontend
@@ -277,20 +277,20 @@ Khi có phiên bản mới:
 
 \`\`\`bash
 # 1. Dừng backend
-pm2 stop vclinic-backend
+pm2 stop vimes-his-backend
 
 # 2. Backup (khuyến nghị)
-cp -r vClinic-deploy vClinic-deploy.backup
+cp -r VIMES-HIS-deploy VIMES-HIS-deploy.backup
 
 # 3. Upload phiên bản mới
 # (giữ nguyên file .env)
 
 # 4. Cài đặt dependencies mới (nếu có)
-cd vClinic-deploy/backend
+cd VIMES-HIS-deploy/backend
 npm install --production
 
 # 5. Khởi động lại
-pm2 restart vclinic-backend
+pm2 restart vimes-his-backend
 \`\`\`
 
 ---
@@ -303,7 +303,7 @@ pm2 restart vclinic-backend
 **Giải pháp:**
 \`\`\`bash
 # Kiểm tra cấu trúc thư mục
-ls -la vClinic-deploy/
+ls -la VIMES-HIS-deploy/
 
 # Đảm bảo có thư mục dist/ cùng cấp với backend/
 # Nếu thiếu, build lại trên local và upload
@@ -336,10 +336,10 @@ lsof -i :8000
 ### Xem logs với PM2:
 \`\`\`bash
 # Xem logs realtime
-pm2 logs vclinic-backend
+pm2 logs vimes-his-backend
 
 # Xem logs cũ
-pm2 logs vclinic-backend --lines 100
+pm2 logs vimes-his-backend --lines 100
 
 # Xóa logs cũ
 pm2 flush
@@ -371,9 +371,9 @@ Nếu gặp vấn đề, kiểm tra:
 
         // 8. Create start script for easy deployment
         const startScript = `#!/bin/bash
-# vClinic Quick Start Script
+# VIMES HIS Quick Start Script
 
-echo "🚀 Starting vClinic Backend..."
+echo "🚀 Starting VIMES HIS Backend..."
 
 cd backend
 
@@ -395,10 +395,10 @@ fi
 # Start with PM2
 if command -v pm2 &> /dev/null; then
     echo "🔄 Starting with PM2..."
-    pm2 start src/server.js --name vclinic-backend
+    pm2 start src/server.js --name vimes-his-backend
     pm2 save
     echo "✅ Backend started with PM2"
-    echo "📊 View logs: pm2 logs vclinic-backend"
+    echo "📊 View logs: pm2 logs vimes-his-backend"
 else
     echo "⚠️  PM2 not found, starting with npm..."
     npm start
@@ -409,9 +409,9 @@ fi
 
         // 9. Create Windows start script
         const startScriptWin = `@echo off
-REM vClinic Quick Start Script for Windows
+REM VIMES HIS Quick Start Script for Windows
 
-echo Starting vClinic Backend...
+echo Starting VIMES HIS Backend...
 
 cd backend
 
@@ -434,10 +434,10 @@ REM Start with PM2
 where pm2 >nul 2>nul
 if %ERRORLEVEL% EQU 0 (
     echo Starting with PM2...
-    pm2 start src/server.js --name vclinic-backend
+    pm2 start src/server.js --name vimes-his-backend
     pm2 save
     echo Backend started with PM2
-    echo View logs: pm2 logs vclinic-backend
+    echo View logs: pm2 logs vimes-his-backend
 ) else (
     echo PM2 not found, starting with npm...
     npm start
@@ -448,7 +448,7 @@ if %ERRORLEVEL% EQU 0 (
         console.log('✅ Start scripts created\n');
 
         // 10. Create README
-        const readme = `# vClinic Deployment Package
+        const readme = `# VIMES HIS Deployment Package
 
 📦 **Version:** ${new Date().toISOString().split('T')[0]}
 
@@ -476,7 +476,7 @@ See [DEPLOY_INSTRUCTIONS.md](./DEPLOY_INSTRUCTIONS.md) for detailed deployment g
 - ✅ Deployment scripts
 
 ---
-Built with ❤️ for vClinic
+Built with ❤️ for VIMES HIS
 `;
         fs.writeFileSync(path.join(deployDir, 'README.md'), readme);
 
@@ -485,7 +485,7 @@ Built with ❤️ for vClinic
         let zipPath = ''; // Declare zipPath here to ensure it's always defined
 
         if (archiver) {
-            zipPath = path.join(releaseDir, `vClinic-deploy-${new Date().toISOString().split('T')[0]}.zip`);
+            zipPath = path.join(releaseDir, `VIMES-HIS-deploy-${new Date().toISOString().split('T')[0]}.zip`);
             try {
                 await createZipArchive(deployDir, zipPath);
                 console.log(`✅ Archive created: ${zipPath}\n`);
@@ -504,7 +504,7 @@ Built with ❤️ for vClinic
         console.log(`📍 Location: ${deployDir}`);
         console.log(`📦 Archive:  ${zipPath}`);
         console.log('\n📋 Next Steps:');
-        console.log('   1. Upload the vClinic-deploy folder to your server');
+        console.log('   1. Upload the VIMES-HIS-deploy folder to your server');
         console.log('   2. Follow instructions in DEPLOY_INSTRUCTIONS.md');
         console.log('   3. Run ./start.sh (Linux/Mac) or start.bat (Windows)');
         console.log('═'.repeat(60));

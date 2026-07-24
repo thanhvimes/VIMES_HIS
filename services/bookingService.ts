@@ -228,6 +228,7 @@ export const bookingService = {
         status?: string;
         speciality?: string;
         search?: string;
+        deptId?: string;
     }): Promise<OnlineBookingRecord[]> => {
         if (USE_MOCK) {
             return [
@@ -253,7 +254,8 @@ export const bookingService = {
             toDate: filters.toDate,
             status: filters.status,
             speciality: filters.speciality,
-            search: filters.search
+            search: filters.search,
+            deptId: filters.deptId
         });
     },
 

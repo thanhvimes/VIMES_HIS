@@ -1,6 +1,6 @@
 -- Migration: Create portal_patient_profiles table
 -- Purpose: Store extended patient profile information linked to portal accounts
--- Author: vClinic Development Team
+-- Author: VIMES HIS Development Team
 -- Date: 2026-02-02
 
 -- Create the portal_patient_profiles table

@@ -17,11 +17,14 @@ import {
 import { useTheme } from '../../../contexts/ThemeContext';
 import { bookingService, OnlineBookingRecord, BookingSpeciality } from '../../../services/bookingService';
 import { formatDate } from '../../../utils/formatters';
+import { useSession } from '../../../contexts/SessionContext';
 import { FormDateInput } from '../../../components/ui/forms';
 import BookingPrintTemplate from '../components/BookingPrintTemplate';
 
 const ReceptionReportView: React.FC = () => {
     const { fontSettings } = useTheme();
+    const { user, userInfo } = useSession();
+    const userDeptCode = user?.departmentId || userInfo?.deptId || '';
 
     // Data states
     const [bookings, setBookings] = useState<OnlineBookingRecord[]>([]);
@@ -31,7 +34,7 @@ const ReceptionReportView: React.FC = () => {
     // Filter states
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
-    const [deptFilter, setDeptFilter] = useState('All');
+    const [deptFilter, setDeptFilter] = useState(userDeptCode || 'All');
     const [monthFilter, setMonthFilter] = useState(new Date().toISOString().slice(0, 7)); // yyyy-mm
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
@@ -61,7 +64,7 @@ const ReceptionReportView: React.FC = () => {
             const [data, depts] = await Promise.all([
                 bookingService.getBookingList({
                     ...params,
-                    speciality: deptFilter // Backend dùng trường này để lọc qms_deptid
+                    deptId: deptFilter !== 'All' ? deptFilter : undefined
                 }),
                 bookingService.getDepartments()
             ]);

@@ -1,0 +1,2283 @@
+[
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\.agents\\AGENTS.md",
+    "matches": [
+      {
+        "lineNum": 4,
+        "content": "- Tất cả các tài liệu kỹ thuật, tài liệu thiết kế, hướng dẫn sử dụng, tài liệu triển khai của từng phân hệ (module) **phải được lưu trữ tại thư mục tài liệu của chính module đó** (ví dụ: `d:/AI/vClinic/modules/<module-name>/docs/` hoặc `d:/AI/vClinic/modules/<module-name>/doc/`)."
+      },
+      {
+        "lineNum": 5,
+        "content": "- Tuyệt đối **không tạo hoặc lưu trữ trực tiếp các tài liệu này ở thư mục gốc** của dự án (`d:/AI/vClinic/`), ngoại trừ các tài liệu chung toàn dự án (như `README.md`, `CONTRIBUTING.md`, v.v.)."
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\.env",
+    "matches": [
+      {
+        "lineNum": 17,
+        "content": "JWT_SECRET=vClinic-super-secret-key-change-in-production-2026-min-32-characters"
+      },
+      {
+        "lineNum": 20,
+        "content": "VIMES_SECURITY_KEY=vClinic-secure-master-key-2026-vimes-jsc-admin"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\.env.example",
+    "matches": [
+      {
+        "lineNum": 16,
+        "content": "JWT_SECRET=vClinic-super-secret-key-change-in-production-2026-min-32-characters"
+      },
+      {
+        "lineNum": 26,
+        "content": "EMAIL_FROM=noreply@vclinic.com"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\check_counters.cjs",
+    "matches": [
+      {
+        "lineNum": 22,
+        "content": "const masterKey = process.env.VIMES_SECURITY_KEY || 'default-secret-vClinic-2026-key-32chars';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\check_examview.cjs",
+    "matches": [
+      {
+        "lineNum": 6,
+        "content": "connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/vclinic'"
+      },
+      {
+        "lineNum": 16,
+        "content": "fs.writeFileSync('d:/AI/vClinic/backend/constraint_info.json', JSON.stringify(res.rows, null, 2));"
+      },
+      {
+        "lineNum": 24,
+        "content": "fs.appendFileSync('d:/AI/vClinic/backend/constraint_info.json', '\\n\\nINDEXES:\\n' + JSON.stringify(indexRes.rows, null, 2));"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\check_ksk_data.cjs",
+    "matches": [
+      {
+        "lineNum": 22,
+        "content": "const masterKey = process.env.VIMES_SECURITY_KEY || 'default-secret-vClinic-2026-key-32chars';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\check_pacs.cjs",
+    "matches": [
+      {
+        "lineNum": 5,
+        "content": "connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/vclinic'"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\migrations\\005_create_portal_patient_profiles.sql",
+    "matches": [
+      {
+        "lineNum": 3,
+        "content": "-- Author: vClinic Development Team"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\migrations\\006_update_cccd_authentication.sql",
+    "matches": [
+      {
+        "lineNum": 6,
+        "content": "-- Author: vClinic Development Team"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\migrations\\016_health_check_settings.sql",
+    "matches": [
+      {
+        "lineNum": 19,
+        "content": "SELECT 'https://api-vneid.moh.gov.vn/api/v1', 'vimes_cskcb', 'vClinic-secure-pass-2026', '15124', '1234567890123', FALSE, 15"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\migrations\\031_add_his_sync_fields_to_health_check_masters.sql",
+    "matches": [
+      {
+        "lineNum": 36,
+        "content": "COMMENT ON COLUMN health_check_masters.sync_mode IS 'HIS = synced from HIS, MANUAL = created manually in vClinic.';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\migrations\\combined_health_check_sync.sql",
+    "matches": [
+      {
+        "lineNum": 142,
+        "content": "'vClinic-secure-pass-2026',"
+      },
+      {
+        "lineNum": 195,
+        "content": "COMMENT ON COLUMN health_check_masters.sync_mode IS 'HIS = synced from HIS, MANUAL = created manually in vClinic.';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\simple-test.js",
+    "matches": [
+      {
+        "lineNum": 3,
+        "content": "console.log('Testing vClinic API...\\n');"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\sql\\hms_insert_exam_online_source_utf8.sql",
+    "matches": [
+      {
+        "lineNum": 7,
+        "content": "≡ƒÜÇ Running SQL from: D:\\AI\\vClinic\\backend\\sql\\get_func_def_3.sql"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\sql\\qms_patient_create_booking_source_utf8.sql",
+    "matches": [
+      {
+        "lineNum": 7,
+        "content": "≡ƒÜÇ Running SQL from: D:\\AI\\vClinic\\backend\\sql\\get_func_def_1.sql"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\sql\\qms_register_ticket_online_source_utf8.sql",
+    "matches": [
+      {
+        "lineNum": 7,
+        "content": "≡ƒÜÇ Running SQL from: D:\\AI\\vClinic\\backend\\sql\\get_func_def_2.sql"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\sql\\queue-schema.sql",
+    "matches": [
+      {
+        "lineNum": 45,
+        "content": "-- 4. Bảng Người dùng QMS (Tách biệt hoặc có thể tích hợp với vClinic Auth sau này)"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\src\\controllers\\queue\\queue.controller.ts",
+    "matches": [
+      {
+        "lineNum": 155,
+        "content": "// In vClinic, socket.io is integrated into the central server."
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\src\\scripts\\convert_encoding.ts",
+    "matches": [
+      {
+        "lineNum": 5,
+        "content": "const filePath = 'd:/AI/vClinic/modules/health-check-sync/components/ContractManagement.tsx';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\src\\scripts\\migrate_insurance_rules.ts",
+    "matches": [
+      {
+        "lineNum": 27,
+        "content": "-- Nếu không phải Bảo hiểm (giả định 1 là BHXH trong hệ thống cũ, 4 trong vClinic mới)"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\src\\utils\\audit.ts",
+    "matches": [
+      {
+        "lineNum": 16,
+        "content": "static async setContext(client: PoolClient, userId: string, ip: string = '127.0.0.1', module: string = 'vClinic') {"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\src\\utils\\security.ts",
+    "matches": [
+      {
+        "lineNum": 31,
+        "content": "* within the vClinic backend ecosystem."
+      },
+      {
+        "lineNum": 39,
+        "content": "const key = process.env.VIMES_SECURITY_KEY || 'default-secret-vClinic-2026-key-32chars';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\backend\\test_icd_schema.cjs",
+    "matches": [
+      {
+        "lineNum": 5,
+        "content": "connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/vclinic'"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\BUILD_ERROR_HELP.md",
+    "matches": [
+      {
+        "lineNum": 47,
+        "content": "Remove-Item d:\\AI\\vClinic\\components\\ui\\EnhancedComponents.tsx"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\capacitor.config.ts",
+    "matches": [
+      {
+        "lineNum": 4,
+        "content": "appId: 'com.vclinic.portal',"
+      },
+      {
+        "lineNum": 5,
+        "content": "appName: 'vClinic Portal',"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\components\\ui\\PdfPreviewModal.tsx",
+    "matches": [
+      {
+        "lineNum": 921,
+        "content": "<span className=\"absolute bottom-1 right-2 text-[8px] font-mono text-slate-400 uppercase select-none\">vclinic digital id</span>"
+      },
+      {
+        "lineNum": 952,
+        "content": "<span className=\"text-xs font-semibold text-teal-400\">vClinic CA Internal Trust Network</span>"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\config\\branding.tsx",
+    "matches": [
+      {
+        "lineNum": 14,
+        "content": "<linearGradient id=\"vClinicLogoGrad\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"100%\">"
+      },
+      {
+        "lineNum": 19,
+        "content": "<linearGradient id=\"vClinicCrossGrad\" x1=\"0%\" y1=\"0%\" x2=\"0%\" y2=\"100%\">"
+      },
+      {
+        "lineNum": 30,
+        "content": "fill=\"url(#vClinicLogoGrad)\""
+      },
+      {
+        "lineNum": 37,
+        "content": "<rect x=\"15\" y=\"21\" width=\"18\" height=\"6\" rx=\"2\" fill=\"url(#vClinicCrossGrad)\" />"
+      },
+      {
+        "lineNum": 38,
+        "content": "<rect x=\"21\" y=\"15\" width=\"6\" height=\"18\" rx=\"2\" fill=\"url(#vClinicCrossGrad)\" />"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\db_check.cjs",
+    "matches": [
+      {
+        "lineNum": 22,
+        "content": "const masterKey = process.env.VIMES_SECURITY_KEY || 'default-secret-vClinic-2026-key-32chars';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\DEBUG_INSTRUCTIONS.md",
+    "matches": [
+      {
+        "lineNum": 16,
+        "content": "cd d:\\AI\\vClinic"
+      },
+      {
+        "lineNum": 22,
+        "content": "### Bước 2: Mở vClinic"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\DEBUG_SIMPLE.md",
+    "matches": [
+      {
+        "lineNum": 9,
+        "content": "### Bước 1: Mở vClinic"
+      },
+      {
+        "lineNum": 17,
+        "content": "1. Mở file: `d:\\AI\\vClinic\\console-debug.js`"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\DEPLOY_CHECKLIST.md",
+    "matches": [
+      {
+        "lineNum": 1,
+        "content": "# ✅ CHECKLIST DEPLOY vClinic"
+      },
+      {
+        "lineNum": 37,
+        "content": "cd d:\\AI\\vClinic"
+      },
+      {
+        "lineNum": 42,
+        "content": "- [ ] Thư mục `release/vClinic-deploy/` đã được tạo"
+      },
+      {
+        "lineNum": 48,
+        "content": "cd release\\vClinic-deploy"
+      },
+      {
+        "lineNum": 72,
+        "content": "- [ ] Kéo thả thư mục `vClinic-deploy` lên server"
+      },
+      {
+        "lineNum": 85,
+        "content": "- [ ] Di chuyển vào thư mục: `cd vClinic-deploy`"
+      },
+      {
+        "lineNum": 138,
+        "content": "cd /path/to/vClinic-deploy"
+      },
+      {
+        "lineNum": 148,
+        "content": "pm2 start src/server.js --name vclinic-backend"
+      },
+      {
+        "lineNum": 169,
+        "content": "pm2 logs vclinic-backend --lines 50"
+      },
+      {
+        "lineNum": 172,
+        "content": "- [ ] Hiển thị \"🚀 vClinic Backend Server\""
+      },
+      {
+        "lineNum": 236,
+        "content": "- PM2 name: `vclinic-backend`"
+      },
+      {
+        "lineNum": 241,
+        "content": "pm2 logs vclinic-backend"
+      },
+      {
+        "lineNum": 244,
+        "content": "pm2 restart vclinic-backend"
+      },
+      {
+        "lineNum": 247,
+        "content": "pm2 stop vclinic-backend"
+      },
+      {
+        "lineNum": 272,
+        "content": "2. Kiểm tra logs: `pm2 logs vclinic-backend`"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\DEPLOY_README.md",
+    "matches": [
+      {
+        "lineNum": 1,
+        "content": "# 📚 TÀI LIỆU DEPLOY vClinic"
+      },
+      {
+        "lineNum": 3,
+        "content": "> **Tổng hợp tài liệu hướng dẫn deploy hệ thống vClinic lên server production**"
+      },
+      {
+        "lineNum": 48,
+        "content": "### 4. 📦 [release/vClinic-deploy/DEPLOY_INSTRUCTIONS.md](./release/vClinic-deploy/DEPLOY_INSTRUCTIONS.md)"
+      },
+      {
+        "lineNum": 95,
+        "content": "│  $ cd d:\\AI\\vClinic                                         │"
+      },
+      {
+        "lineNum": 98,
+        "content": "│  → Tạo thư mục: release/vClinic-deploy/                    │"
+      },
+      {
+        "lineNum": 110,
+        "content": "│  • Kéo thả thư mục vClinic-deploy                          │"
+      },
+      {
+        "lineNum": 113,
+        "content": "│  $ scp -r vClinic-deploy/ user@server:/path/               │"
+      },
+      {
+        "lineNum": 123,
+        "content": "│  $ cd vClinic-deploy/backend                                │"
+      },
+      {
+        "lineNum": 133,
+        "content": "│  $ cd /path/to/vClinic-deploy                               │"
+      },
+      {
+        "lineNum": 139,
+        "content": "│  $ pm2 start src/server.js --name vclinic-backend          │"
+      },
+      {
+        "lineNum": 147,
+        "content": "│  $ pm2 logs vclinic-backend                                 │"
+      },
+      {
+        "lineNum": 163,
+        "content": "cd d:\\AI\\vClinic"
+      },
+      {
+        "lineNum": 169,
+        "content": "cd release\\vClinic-deploy"
+      },
+      {
+        "lineNum": 176,
+        "content": "scp -r release/vClinic-deploy/ user@server-ip:/home/user/"
+      },
+      {
+        "lineNum": 187,
+        "content": "cd vClinic-deploy/backend"
+      },
+      {
+        "lineNum": 200,
+        "content": "cd /path/to/vClinic-deploy"
+      },
+      {
+        "lineNum": 206,
+        "content": "pm2 start src/server.js --name vclinic-backend"
+      },
+      {
+        "lineNum": 217,
+        "content": "pm2 logs vclinic-backend"
+      },
+      {
+        "lineNum": 220,
+        "content": "pm2 restart vclinic-backend"
+      },
+      {
+        "lineNum": 223,
+        "content": "pm2 stop vclinic-backend"
+      },
+      {
+        "lineNum": 236,
+        "content": "ls -la /path/to/vClinic-deploy/"
+      },
+      {
+        "lineNum": 268,
+        "content": "vClinic-deploy/"
+      },
+      {
+        "lineNum": 325,
+        "content": "cp -r vClinic-deploy vClinic-deploy.backup"
+      },
+      {
+        "lineNum": 328,
+        "content": "pm2 stop vclinic-backend"
+      },
+      {
+        "lineNum": 333,
+        "content": "cd vClinic-deploy/backend"
+      },
+      {
+        "lineNum": 337,
+        "content": "pm2 restart vclinic-backend"
+      },
+      {
+        "lineNum": 348,
+        "content": "pm2 logs vclinic-backend --lines 100"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\DEPLOY_STEP_BY_STEP.md",
+    "matches": [
+      {
+        "lineNum": 3,
+        "content": "> **Mục đích:** Hướng dẫn chi tiết từng bước để deploy hệ thống vClinic lên server production"
+      },
+      {
+        "lineNum": 33,
+        "content": "cd d:\\AI\\vClinic"
+      },
+      {
+        "lineNum": 54,
+        "content": "- [ ] **Thư mục deploy trên server:** `/home/user/vClinic` (ví dụ)"
+      },
+      {
+        "lineNum": 95,
+        "content": "cd d:\\AI\\vClinic"
+      },
+      {
+        "lineNum": 98,
+        "content": "cd ~/Projects/vClinic"
+      },
+      {
+        "lineNum": 126,
+        "content": "2. ✅ Tạo thư mục `release/vClinic-deploy/`"
+      },
+      {
+        "lineNum": 134,
+        "content": "🚀 Starting vClinic Deployment Packaging..."
+      },
+      {
+        "lineNum": 157,
+        "content": "📍 Location: d:\\AI\\vClinic\\release\\vClinic-deploy"
+      },
+      {
+        "lineNum": 164,
+        "content": "cd release\\vClinic-deploy"
+      },
+      {
+        "lineNum": 168,
+        "content": "cd release/vClinic-deploy"
+      },
+      {
+        "lineNum": 244,
+        "content": "3. Đặt tên: `vClinic`"
+      },
+      {
+        "lineNum": 247,
+        "content": "#### 3.5. Upload thư mục vClinic-deploy"
+      },
+      {
+        "lineNum": 251,
+        "content": "1. Di chuyển đến: `d:\\AI\\vClinic\\release\\`"
+      },
+      {
+        "lineNum": 252,
+        "content": "2. Tìm thư mục `vClinic-deploy`"
+      },
+      {
+        "lineNum": 253,
+        "content": "3. **Kéo thả** thư mục `vClinic-deploy` sang panel bên phải (Server)"
+      },
+      {
+        "lineNum": 261,
+        "content": "**✅ Kiểm tra:** Trên server phải có thư mục `/home/your-username/vClinic-deploy/`"
+      },
+      {
+        "lineNum": 271,
+        "content": "cd d:\\AI\\vClinic\\release"
+      },
+      {
+        "lineNum": 281,
+        "content": "scp -r vClinic-deploy/ ubuntu@192.168.1.100:/home/ubuntu/"
+      },
+      {
+        "lineNum": 284,
+        "content": "scp -i ~/.ssh/your-key.pem -r vClinic-deploy/ ubuntu@192.168.1.100:/home/ubuntu/"
+      },
+      {
+        "lineNum": 289,
+        "content": "- `vClinic-deploy/`: Thư mục cần upload"
+      },
+      {
+        "lineNum": 298,
+        "content": "vClinic-deploy/backend/package.json    100%  745   12.5KB/s   00:00"
+      },
+      {
+        "lineNum": 299,
+        "content": "vClinic-deploy/backend/src/server.js   100% 2660   44.3KB/s   00:00"
+      },
+      {
+        "lineNum": 301,
+        "content": "vClinic-deploy/dist/index.html         100% 13KB  220.5KB/s   00:00"
+      },
+      {
+        "lineNum": 311,
+        "content": "cd d:\\AI\\vClinic"
+      },
+      {
+        "lineNum": 331,
+        "content": "git clone https://github.com/your-username/vClinic.git"
+      },
+      {
+        "lineNum": 333,
+        "content": "cd vClinic"
+      },
+      {
+        "lineNum": 368,
+        "content": "cd vClinic-deploy"
+      },
+      {
+        "lineNum": 550,
+        "content": "cd /home/ubuntu/vClinic-deploy"
+      },
+      {
+        "lineNum": 561,
+        "content": "🚀 Starting vClinic Backend..."
+      },
+      {
+        "lineNum": 563,
+        "content": "[PM2] Starting /home/ubuntu/vClinic-deploy/backend/src/server.js in fork_mode (1 instance)"
+      },
+      {
+        "lineNum": 566,
+        "content": "📊 View logs: pm2 logs vclinic-backend"
+      },
+      {
+        "lineNum": 575,
+        "content": "cd /home/ubuntu/vClinic-deploy/backend"
+      },
+      {
+        "lineNum": 578,
+        "content": "pm2 start src/server.js --name vclinic-backend"
+      },
+      {
+        "lineNum": 593,
+        "content": "│ 0   │ vclinic-backend  │ fork    │ online  │ 0%       │ 45.2mb │"
+      },
+      {
+        "lineNum": 602,
+        "content": "cd /home/ubuntu/vClinic-deploy/backend"
+      },
+      {
+        "lineNum": 623,
+        "content": "│ 0   │ vclinic-backend  │ fork    │ online  │ 0%       │ 45.2mb │"
+      },
+      {
+        "lineNum": 633,
+        "content": "pm2 logs vclinic-backend"
+      },
+      {
+        "lineNum": 636,
+        "content": "pm2 logs vclinic-backend --lines 50"
+      },
+      {
+        "lineNum": 642,
+        "content": "🚀 vClinic Backend Server"
+      },
+      {
+        "lineNum": 647,
+        "content": "📂 Serving frontend from: /home/ubuntu/vClinic-deploy/dist"
+      },
+      {
+        "lineNum": 661,
+        "content": "{\"status\":\"OK\",\"message\":\"vClinic Backend API\",\"version\":\"1.0.0\"}"
+      },
+      {
+        "lineNum": 700,
+        "content": "- ✅ Giao diện đăng nhập vClinic"
+      },
+      {
+        "lineNum": 721,
+        "content": "cd /home/ubuntu/vClinic-deploy"
+      },
+      {
+        "lineNum": 730,
+        "content": "cd d:\\AI\\vClinic"
+      },
+      {
+        "lineNum": 732,
+        "content": "# Upload lại toàn bộ thư mục vClinic-deploy"
+      },
+      {
+        "lineNum": 754,
+        "content": "cd /home/ubuntu/vClinic-deploy/backend"
+      },
+      {
+        "lineNum": 829,
+        "content": "sudo chown -R $USER:$USER /home/ubuntu/vClinic-deploy"
+      },
+      {
+        "lineNum": 848,
+        "content": "cd /home/ubuntu/vClinic-deploy/backend"
+      },
+      {
+        "lineNum": 855,
+        "content": "pm2 restart vclinic-backend"
+      },
+      {
+        "lineNum": 866,
+        "content": "pm2 logs vclinic-backend"
+      },
+      {
+        "lineNum": 869,
+        "content": "pm2 logs vclinic-backend --lines 100"
+      },
+      {
+        "lineNum": 885,
+        "content": "pm2 show vclinic-backend"
+      },
+      {
+        "lineNum": 892,
+        "content": "pm2 restart vclinic-backend"
+      },
+      {
+        "lineNum": 895,
+        "content": "pm2 stop vclinic-backend"
+      },
+      {
+        "lineNum": 898,
+        "content": "pm2 start vclinic-backend"
+      },
+      {
+        "lineNum": 901,
+        "content": "pm2 delete vclinic-backend"
+      },
+      {
+        "lineNum": 912,
+        "content": "tar -czf vClinic-backup-$(date +%Y%m%d).tar.gz vClinic-deploy/"
+      },
+      {
+        "lineNum": 918,
+        "content": "cp vClinic-deploy/backend/.env vClinic-deploy/backend/.env.backup"
+      },
+      {
+        "lineNum": 942,
+        "content": "cp -r vClinic-deploy vClinic-deploy.backup-$(date +%Y%m%d)"
+      },
+      {
+        "lineNum": 945,
+        "content": "pm2 stop vclinic-backend"
+      },
+      {
+        "lineNum": 950,
+        "content": "cd vClinic-deploy/backend"
+      },
+      {
+        "lineNum": 954,
+        "content": "pm2 restart vclinic-backend"
+      },
+      {
+        "lineNum": 957,
+        "content": "pm2 logs vclinic-backend --lines 50"
+      },
+      {
+        "lineNum": 966,
+        "content": "- [ ] Thư mục `release/vClinic-deploy/` đã được tạo"
+      },
+      {
+        "lineNum": 991,
+        "content": "pm2 logs vclinic-backend --lines 200"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\docs\\PMR_PACS_RIS_Integration_Proposal.md",
+    "matches": [
+      {
+        "lineNum": 1,
+        "content": "# Phương án và Các bước Tích hợp PMR PACS & RIS trên vClinic"
+      },
+      {
+        "lineNum": 3,
+        "content": "Tài liệu này đề xuất phương án kiến trúc, luồng nghiệp vụ và các bước triển khai tích hợp hệ thống **PMR PACS & RIS (Mesoco)** với nền tảng **vClinic (HIS)**."
+      },
+      {
+        "lineNum": 10,
+        "content": "*   **Trải nghiệm người dùng tốt nhất:** Bác sĩ CĐHA có thể mở trình xem ảnh DICOM trực tiếp từ giao diện vClinic mà không cần đăng nhập lại (Single Sign-On - SSO)."
+      },
+      {
+        "lineNum": 11,
+        "content": "*   **Cập nhật hàng đợi thời gian thực:** Đồng bộ trạng thái hàng đợi phòng chụp giữa hệ thống QMS vClinic và PACS Worklist."
+      },
+      {
+        "lineNum": 20,
+        "content": "vClinic HIS và PMR PACS/RIS giao tiếp với nhau thông qua hệ thống API bảo mật sử dụng JWT Token."
+      },
+      {
+        "lineNum": 21,
+        "content": "*   **HIS -> PACS (Đồng bộ chỉ định):** Khi bác sĩ lâm sàng lưu chỉ định CĐHA, vClinic gọi API của PMR PACS để đẩy thông tin bệnh nhân và dịch vụ chỉ định sang."
+      },
+      {
+        "lineNum": 22,
+        "content": "*   **PACS/RIS -> HIS (Đồng bộ kết quả):** Khi bác sĩ CĐHA duyệt kết quả trên RIS, hệ thống RIS của PMR gọi Webhook của vClinic (`POST /api/imaging/results`) để cập nhật kết quả và ảnh đại diện vào cơ sở dữ liệu vClinic."
+      },
+      {
+        "lineNum": 23,
+        "content": "*   **PACS Viewer:** vClinic nhúng trình xem ảnh của PMR PACS qua thẻ `<iframe>` bảo mật hoặc mở tab mới kèm mã xác thực Token định danh phiên làm việc (SSO)."
+      },
+      {
+        "lineNum": 28,
+        "content": "*   **HIS -> PACS (Worklist):** vClinic chạy một dịch vụ DICOM Worklist SCP (hoặc HL7 ORM Listener). Máy chụp (Modality) hoặc PACS sẽ query danh sách chờ chụp qua giao thức DICOM MWL Query."
+      },
+      {
+        "lineNum": 29,
+        "content": "*   **PACS/RIS -> HIS (Kết quả):** PMR RIS gửi thông điệp HL7 ORU (Observation Result) chứa mô tả và kết luận chẩn đoán về vClinic HIS. vClinic phân tích cú pháp HL7 để cập nhật vào EMR."
+      },
+      {
+        "lineNum": 44,
+        "content": "participant HIS as vClinic (HIS)"
+      },
+      {
+        "lineNum": 71,
+        "content": "*   Định nghĩa cấu trúc JWT Token để thực hiện SSO từ vClinic sang PMR PACS Viewer."
+      },
+      {
+        "lineNum": 73,
+        "content": "### Bước 2: Nâng cấp và Phát triển Backend vClinic"
+      },
+      {
+        "lineNum": 74,
+        "content": "*   **API Nhận kết quả:** Hoàn thiện API `/api/imaging/results` trong [qms.controller.ts](file:///d:/AI/vClinic/backend/src/controllers/qms/qms.controller.ts) để tiếp nhận đầy đủ thông tin từ RIS gửi sang:"
+      },
+      {
+        "lineNum": 81,
+        "content": "### Bước 3: Hoàn thiện Giao diện Frontend vClinic (RIS/PACS Module)"
+      },
+      {
+        "lineNum": 82,
+        "content": "*   **PACS Worklist:** Cập nhật màn hình [WorklistView.tsx](file:///d:/AI/vClinic/modules/imaging-results/views/WorklistView.tsx) kết nối trực tiếp với API thật thay vì dữ liệu mock."
+      },
+      {
+        "lineNum": 83,
+        "content": "*   **SSO Link:** Tích hợp nút \"Mở PACS Viewer\" trong [ReadingView.tsx](file:///d:/AI/vClinic/modules/imaging-results/views/ReadingView.tsx) tạo URL có kèm token tự động đăng nhập vào cổng PMR PACS."
+      },
+      {
+        "lineNum": 84,
+        "content": "*   **RIS Report Entry:** Cập nhật giao diện soạn thảo kết quả, tích hợp thư viện mẫu kết quả chuẩn từ [ConfigurationView.tsx](file:///d:/AI/vClinic/modules/imaging-results/views/ConfigurationView.tsx) để bác sĩ CĐHA chọn nhanh."
+      },
+      {
+        "lineNum": 93,
+        "content": "*   Triển khai thực tế tại bệnh viện, giám sát log lỗi đồng bộ qua hệ thống Audit Logs của vClinic."
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\docs\\QMS_Integration_Guide.md",
+    "matches": [
+      {
+        "lineNum": 3,
+        "content": "Tài liệu này cung cấp chi tiết kỹ thuật để tích hợp hệ thống Thông tin Bệnh viện (HIS) với Module Điều phối và Gọi số hàng đợi (QMS) của vClinic. Việc tích hợp giúp bác sĩ có thể thao tác gọi số trực tiếp trên phần mềm HIS, đồng thời đồng bộ trạng thái hiển thị thời gian thực lên các màn hình hiển thị (Display Screen) ngoài phòng khám."
+      },
+      {
+        "lineNum": 14,
+        "content": "participant QMS as Backend QMS (vClinic)"
+      },
+      {
+        "lineNum": 347,
+        "content": "*Lưu ý: Mọi thắc mắc hoặc cần tùy biến thêm cấu trúc dữ liệu trả về, vui lòng liên hệ đội ngũ phát triển vClinic để được cập nhật.*"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\docs\\reception_business_logic.md",
+    "matches": [
+      {
+        "lineNum": 1,
+        "content": "# Tài liệu Nghiệp vụ Module Tiếp đón (Reception) - vClinic"
+      },
+      {
+        "lineNum": 3,
+        "content": "Tài liệu này tổng hợp toàn bộ các quy tắc nghiệp vụ (Business Rules) và luồng xử lý (Workflows) được chuyển đổi từ hệ thống VIMES (C++) sang vClinic (Node.js/PostgreSQL). Đây là cơ sở để xây dựng bộ Unit Test."
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\docs\\SETTINGS_USER_GUIDE.md",
+    "matches": [
+      {
+        "lineNum": 5,
+        "content": "> [SETTINGS_USER_GUIDE.md](file:///d:/AI/vClinic/modules/online-booking/doc/SETTINGS_USER_GUIDE.md)"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\docs\\vClinic_Native_PACS_RIS_Solution.md",
+    "matches": [
+      {
+        "lineNum": 1,
+        "content": "# Giải pháp Hệ thống PACS & RIS Nội bộ (Native) trên vClinic"
+      },
+      {
+        "lineNum": 3,
+        "content": "Tài liệu này trình bày phương án kiến trúc, luồng nghiệp vụ và kế hoạch xây dựng mới giải pháp **PACS (Picture Archiving and Communication System)** và **RIS (Radiology Information System)** tích hợp sẵn trực tiếp bên trong nền tảng **vClinic**, độc lập hoàn toàn với bên thứ ba (Mesoco) dựa trên những phân tích nghiệp vụ thực tế."
+      },
+      {
+        "lineNum": 7,
+        "content": "## 1. Mô hình Kiến trúc PACS/RIS Nội bộ của vClinic"
+      },
+      {
+        "lineNum": 9,
+        "content": "Hệ thống sẽ bao gồm 3 thành phần cốt lõi được xây dựng nguyên bản trong kiến trúc vClinic:"
+      },
+      {
+        "lineNum": 13,
+        "content": "|                              vClinic HIS                              |"
+      },
+      {
+        "lineNum": 19,
+        "content": "|                            vClinic RIS                                |"
+      },
+      {
+        "lineNum": 30,
+        "content": "|    vClinic DICOM Server   |                 |    vClinic DICOM Viewer   |"
+      },
+      {
+        "lineNum": 50,
+        "content": "### B. Trình xem ảnh DICOM Chuyên dụng (vClinic DICOM Viewer)"
+      },
+      {
+        "lineNum": 72,
+        "content": "*   **Gửi yêu cầu hội chẩn:** Phòng khám tuyến dưới/vệ tinh có thể nhấn nút \"Yêu cầu Hội chẩn từ xa\" đối với các ca khó. Hệ thống tự động đính kèm Tóm tắt bệnh án lâm sàng, các xét nghiệm liên quan và hình ảnh DICOM lên đám mây vClinic."
+      },
+      {
+        "lineNum": 86,
+        "content": "*   Xây dựng dịch vụ DICOM Web Server đơn giản trong backend vClinic để tiếp nhận tệp DICOM từ máy chụp đẩy lên qua giao thức C-STORE (hoặc tải trực tiếp qua HTTP API)."
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\FINAL_FIX.md",
+    "matches": [
+      {
+        "lineNum": 30,
+        "content": "cd d:\\AI\\vClinic\\backend"
+      },
+      {
+        "lineNum": 46,
+        "content": "cd d:\\AI\\vClinic\\backend"
+      },
+      {
+        "lineNum": 50,
+        "content": "cd d:\\AI\\vClinic"
+      },
+      {
+        "lineNum": 58,
+        "content": "cd d:\\AI\\vClinic\\backend"
+      },
+      {
+        "lineNum": 64,
+        "content": "🚀 vClinic Backend Server"
+      },
+      {
+        "lineNum": 83,
+        "content": "cd d:\\AI\\vClinic"
+      },
+      {
+        "lineNum": 95,
+        "content": "1. **Đóng TẤT CẢ tabs vClinic**"
+      },
+      {
+        "lineNum": 142,
+        "content": "cd d:\\AI\\vClinic\\backend"
+      },
+      {
+        "lineNum": 151,
+        "content": "cd d:\\AI\\vClinic"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\find_real_patients.cjs",
+    "matches": [
+      {
+        "lineNum": 22,
+        "content": "const masterKey = process.env.VIMES_SECURITY_KEY || 'default-secret-vClinic-2026-key-32chars';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\FORCE_RELOAD.md",
+    "matches": [
+      {
+        "lineNum": 17,
+        "content": "cd d:\\AI\\vClinic"
+      },
+      {
+        "lineNum": 33,
+        "content": "1. **Đóng TẤT CẢ tabs vClinic**"
+      },
+      {
+        "lineNum": 69,
+        "content": "cd d:\\AI\\vClinic"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\Hướng dẫn sử dụng Module Online Booking.md",
+    "matches": [
+      {
+        "lineNum": 1,
+        "content": "# HƯỚNG DẪN SỬ DỤNG MODULE QUẢN LÝ ĐẶT LỊCH TRỰC TUYẾN (vClinic)"
+      },
+      {
+        "lineNum": 5,
+        "content": "> [Hướng dẫn sử dụng Module Online Booking.md](file:///d:/AI/vClinic/modules/online-booking/doc/Hướng%20dẫn%20sử%20dụng%20Module%20Online%20Booking.md)"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\install_agents.sh",
+    "matches": [
+      {
+        "lineNum": 8,
+        "content": "# HỆ THỐNG TỰ ĐỘNG DI TRÚ VIMES (MFC) -> vCLINIC (REACT)"
+      },
+      {
+        "lineNum": 28,
+        "content": "# BÁO CÁO TIẾN ĐỘ DI TRÚ vCLINIC"
+      },
+      {
+        "lineNum": 34,
+        "content": "echo \"✅ Đã thiết lập đội ngũ Agent cho dự án vClinic!\""
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\docs\\api-design.md",
+    "matches": [
+      {
+        "lineNum": 3,
+        "content": "Tài liệu này đặc tả chi tiết giao diện lập trình ứng dụng (API) để kết nối, liên thông dữ liệu khám sức khỏe từ hệ thống vClinic HIS lên Cổng dữ liệu sức khỏe của Bộ Y tế theo quy định tại Quyết định 2062/QĐ-BYT."
+      },
+      {
+        "lineNum": 105,
+        "content": "Nội dung XML gửi đi được mã hóa Base64 lồng trong trường `data.file_content`. Cấu trúc XML chuẩn hóa theo nhóm tuổi được mô tả tại tài liệu [mapping.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/mapping.md)."
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\docs\\database-design.md",
+    "matches": [
+      {
+        "lineNum": 3,
+        "content": "Tài liệu này đặc tả thiết kế cơ sở dữ liệu vật lý PostgreSQL cho module Khám sức khỏe liên thông VNeID phục vụ hệ thống vClinic HIS."
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\docs\\health_check_module_review.md",
+    "matches": [
+      {
+        "lineNum": 1,
+        "content": "# REVIEW TỔNG THỂ MODULE KHÁM SỨC KHỎE VNeID (vClinic)"
+      },
+      {
+        "lineNum": 9,
+        "content": "Quy trình hoạt động của module Khám sức khỏe trên hệ thống vClinic được thiết kế theo luồng khép kín từ lúc đón bệnh nhân cho đến khi liên thông thành công:"
+      },
+      {
+        "lineNum": 77,
+        "content": "*   Hệ thống HIS của vClinic nên tích hợp sâu hơn để tự động đồng bộ chữ ký số của bác sĩ khi họ thực hiện kết luận đợt điều trị/đợt khám sức khỏe trên HIS chính, từ đó giảm số bước click chuột của bác sĩ kết luận tại module Liên thông này."
+      },
+      {
+        "lineNum": 80,
+        "content": "*Báo cáo được thực hiện bởi Antigravity Pair-Programming Assistant — vClinic Project.*"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\docs\\Hướng dẫn sử dụng Module Khám sức khỏe.md",
+    "matches": [
+      {
+        "lineNum": 4,
+        "content": "> Tài liệu này hướng dẫn chi tiết quy trình vận hành và sử dụng Module **Liên thông Khám sức khỏe (health-check-sync)** trên hệ thống vClinic, đáp ứng tiêu chuẩn **Quyết định 1551/QĐ-BYT** của Bộ Y tế để liên thông dữ liệu lên Cổng Sức khỏe điện tử VNeID."
+      },
+      {
+        "lineNum": 156,
+        "content": "**Bộ phận Hỗ trợ Vận hành vClinic**"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\docs\\impact-analysis.md",
+    "matches": [
+      {
+        "lineNum": 1,
+        "content": "# PHÂN TÍCH TÁC ĐỘNG CỦA QUYẾT ĐỊNH SỬA ĐỔI QĐ 1551 (QĐ 2062/QĐ-BYT) ĐỐI VỚI VCLINIC HIS"
+      },
+      {
+        "lineNum": 3,
+        "content": "Tài liệu này phân tích chi tiết tác động của việc nâng cấp liên thông Khám sức khỏe lên cổng VNeID theo Quyết định mới nhất 2062/QĐ-BYT đối với hệ thống phần mềm quản lý phòng khám vClinic."
+      },
+      {
+        "lineNum": 50,
+        "content": "Chi tiết các thay đổi DDL cần thực hiện được mô tả tại tài liệu [database-design.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/database-design.md)."
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\docs\\implementation-progress.md",
+    "matches": [
+      {
+        "lineNum": 20,
+        "content": "| 2026-07-10 | TSK-001 | Thiết lập database schema | Đã hoàn thành cấu trúc bảng, index và script DDL | [database-design.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/database-design.md) | Hoàn thành |"
+      },
+      {
+        "lineNum": 21,
+        "content": "| 2026-07-10 | TSK-002 | Đặc tả mapping trường dữ liệu | Hoàn thành mapping 3 nhóm tuổi | [mapping.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/mapping.md) | Hoàn thành |"
+      },
+      {
+        "lineNum": 22,
+        "content": "| 2026-07-10 | TSK-003 | Thiết kế API & Checksum | Đặc tả API và giải thuật băm kép RSA-SHA256 | [api-design.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/api-design.md) | Hoàn thành |"
+      },
+      {
+        "lineNum": 23,
+        "content": "| 2026-07-10 | TSK-004 | Thiết lập Sơ đồ quy trình | Xây dựng sơ đồ Mermaid tổng thể luồng KSK | [workflow.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/workflow.md) | Hoàn thành |"
+      },
+      {
+        "lineNum": 24,
+        "content": "| 2026-07-10 | TSK-005 | Thiết kế Giao diện lâm sàng | Phân luồng 3 nhóm UI lâm sàng và nút ký chuyên khoa | [checklist.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/checklist.md) | Hoàn thành |"
+      },
+      {
+        "lineNum": 25,
+        "content": "| 2026-07-10 | TSK-006 | Xây dựng Kế hoạch kiểm thử | Thiết lập các kịch bản testcases | [testing-plan.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/testing-plan.md) | Hoàn thành |"
+      },
+      {
+        "lineNum": 26,
+        "content": "| 2026-07-10 | TSK-007 | Xây dựng Kế hoạch phát hành | Lập kế hoạch deploy và rollback | [release-plan.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/release-plan.md) | Hoàn thành |"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\docs\\pacs_sync_design_doc.md",
+    "matches": [
+      {
+        "lineNum": 63,
+        "content": "## 2. Các điểm thiếu hụt (Gaps) trong Backend vClinic hiện tại"
+      },
+      {
+        "lineNum": 108,
+        "content": "- Chạy lệnh kiểm thử lưu trữ hồ sơ KSK chứa chỉ định CĐHA từ vClinic."
+      },
+      {
+        "lineNum": 116,
+        "content": "- Mở hồ sơ bệnh nhân vừa đồng bộ từ vClinic."
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\docs\\paraclinical_workflow_analysis.md",
+    "matches": [
+      {
+        "lineNum": 43,
+        "content": "### 2.2. Trường dữ liệu lưu trong vClinic (`health_check_details`)"
+      },
+      {
+        "lineNum": 77,
+        "content": "- Thêm cột phân loại dịch vụ chuẩn (`vclinic_cls_type` với giá trị `XN`, `HA`, `TD`) trong danh mục dịch vụ của vClinic để đối chiếu chính xác 100%."
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\docs\\QD1551_BaoCaoTongHop.md",
+    "matches": [
+      {
+        "lineNum": 3,
+        "content": "Báo cáo tổng kết toàn diện kế hoạch nâng cấp phần mềm khám sức khỏe vClinic đáp ứng Quyết định số **2062/QĐ-BYT** (Sửa đổi QĐ 1551)."
+      },
+      {
+        "lineNum": 15,
+        "content": "## 2. Danh sách các điểm cần chỉnh sửa trong hệ thống vClinic"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\docs\\QD1551_KeHoachTrienKhai.md",
+    "matches": [
+      {
+        "lineNum": 3,
+        "content": "Tài liệu này vạch ra lộ trình triển khai chi tiết cho đội ngũ phát triển phần mềm vClinic để nâng cấp toàn diện hệ thống đáp ứng Quyết định 2062/QĐ-BYT (Sửa đổi QĐ 1551)."
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\docs\\QD1551_PhanTichTacDong_HIS.md",
+    "matches": [
+      {
+        "lineNum": 3,
+        "content": "Báo cáo phân tích dưới góc nhìn của đội phát triển phần mềm vClinic về những thay đổi cần thực hiện trên toàn hệ thống HIS, EMR, LIS, RIS/PACS để đáp ứng Quyết định sửa đổi **2062/QĐ-BYT**."
+      },
+      {
+        "lineNum": 62,
+        "content": "Để đáp ứng cấu trúc mới, hệ thống vClinic cần thực hiện thay đổi schema database trên PostgreSQL:"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\docs\\README.md",
+    "matches": [
+      {
+        "lineNum": 88,
+        "content": "*   [backend/migrations/014_create_health_check_documents.sql](file:///d:/AI/vClinic/backend/migrations/014_create_health_check_documents.sql)"
+      },
+      {
+        "lineNum": 89,
+        "content": "*   [backend/migrations/015_setup_health_check_sync.sql](file:///d:/AI/vClinic/backend/migrations/015_setup_health_check_sync.sql)"
+      },
+      {
+        "lineNum": 91,
+        "content": "*   [backend/src/controllers/health-check.controller.ts](file:///d:/AI/vClinic/backend/src/controllers/health-check.controller.ts)"
+      },
+      {
+        "lineNum": 92,
+        "content": "*   [backend/src/routes/health-check.routes.ts](file:///d:/AI/vClinic/backend/src/routes/health-check.routes.ts)"
+      },
+      {
+        "lineNum": 93,
+        "content": "*   [backend/src/server.ts](file:///d:/AI/vClinic/backend/src/server.ts)"
+      },
+      {
+        "lineNum": 95,
+        "content": "*   [services/healthCheckService.ts](file:///d:/AI/vClinic/services/healthCheckService.ts)"
+      },
+      {
+        "lineNum": 96,
+        "content": "*   [modules/insurance/index.tsx](file:///d:/AI/vClinic/modules/insurance/index.tsx)"
+      },
+      {
+        "lineNum": 97,
+        "content": "*   [modules/health-check-sync/views/HealthCheckSyncView.tsx](file:///d:/AI/vClinic/modules/health-check-sync/views/HealthCheckSyncView.tsx)"
+      },
+      {
+        "lineNum": 98,
+        "content": "*   [modules/health-check-sync/components/Dashboard.tsx](file:///d:/AI/vClinic/modules/health-check-sync/components/Dashboard.tsx)"
+      },
+      {
+        "lineNum": 99,
+        "content": "*   [modules/health-check-sync/components/DocumentList.tsx](file:///d:/AI/vClinic/modules/health-check-sync/components/DocumentList.tsx)"
+      },
+      {
+        "lineNum": 100,
+        "content": "*   [modules/health-check-sync/forms/DynamicForm.tsx](file:///d:/AI/vClinic/modules/health-check-sync/forms/DynamicForm.tsx)"
+      },
+      {
+        "lineNum": 101,
+        "content": "*   [modules/health-check-sync/forms/PrintForm.tsx](file:///d:/AI/vClinic/modules/health-check-sync/forms/PrintForm.tsx)"
+      },
+      {
+        "lineNum": 107,
+        "content": "Để phục vụ đội phát triển vClinic HIS nâng cấp hệ thống liên thông đáp ứng Quyết định mới **2062/QĐ-BYT năm 2026**, toàn bộ hồ sơ đặc tả thiết kế kỹ thuật đã được xây dựng hoàn chỉnh:"
+      },
+      {
+        "lineNum": 109,
+        "content": "*   📋 **Checklist triển khai**: [checklist.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/checklist.md)"
+      },
+      {
+        "lineNum": 110,
+        "content": "*   📈 **Báo cáo tiến độ thực tế**: [implementation-progress.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/implementation-progress.md)"
+      },
+      {
+        "lineNum": 111,
+        "content": "*   🩺 **Phân tích tác động (Impact)**: [impact-analysis.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/impact-analysis.md)"
+      },
+      {
+        "lineNum": 112,
+        "content": "*   💾 **Thiết kế Cơ sở dữ liệu (PostgreSQL)**: [database-design.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/database-design.md)"
+      },
+      {
+        "lineNum": 113,
+        "content": "*   📡 **Đặc tả API & Thuật toán Checksum**: [api-design.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/api-design.md)"
+      },
+      {
+        "lineNum": 114,
+        "content": "*   🔄 **Sơ đồ quy trình nghiệp vụ (Workflow)**: [workflow.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/workflow.md)"
+      },
+      {
+        "lineNum": 115,
+        "content": "*   🗺️ **Bảng Mapping trường dữ liệu 3 nhóm tuổi**: [mapping.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/mapping.md)"
+      },
+      {
+        "lineNum": 116,
+        "content": "*   🧪 **Kế hoạch kiểm thử & Test Cases**: [testing-plan.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/testing-plan.md)"
+      },
+      {
+        "lineNum": 117,
+        "content": "*   🚀 **Kế hoạch phát hành & Deploy/Rollback**: [release-plan.md](file:///d:/AI/vClinic/modules/health-check-sync/docs/release-plan.md)"
+      },
+      {
+        "lineNum": 119,
+        "content": "*   [Báo cáo đối chiếu so sánh y khoa](file:///d:/AI/vClinic/modules/health-check-sync/docs/QD1551_DoiChieu_SoSanh.md)"
+      },
+      {
+        "lineNum": 120,
+        "content": "*   [Kế hoạch triển khai ban đầu](file:///d:/AI/vClinic/modules/health-check-sync/docs/QD1551_KeHoachTrienKhai.md)"
+      },
+      {
+        "lineNum": 121,
+        "content": "*   [Báo cáo tổng kết nâng cấp](file:///d:/AI/vClinic/modules/health-check-sync/docs/QD1551_BaoCaoTongHop.md)"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\docs\\release-plan.md",
+    "matches": [
+      {
+        "lineNum": 3,
+        "content": "Tài liệu này hướng dẫn chi tiết quy trình triển khai nâng cấp (Deployment) và phương án dự phòng khôi phục (Rollback) cho Module liên thông Khám sức khỏe vClinic đáp ứng Quyết định 2062/QĐ-BYT."
+      },
+      {
+        "lineNum": 12,
+        "content": "pg_dump -U postgres -d vimes_130 -f backup_vclinic_before_qd2062.sql"
+      },
+      {
+        "lineNum": 27,
+        "content": "* Khởi động lại service PM2 hoặc docker container của backend vClinic:"
+      },
+      {
+        "lineNum": 29,
+        "content": "pm2 restart vclinic-backend"
+      },
+      {
+        "lineNum": 43,
+        "content": "pm2 restart vclinic-backend"
+      },
+      {
+        "lineNum": 48,
+        "content": "psql -U postgres -d vimes_130 -f backup_vclinic_before_qd2062.sql"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\docs\\workflow.md",
+    "matches": [
+      {
+        "lineNum": 15,
+        "content": "participant HIS as Hệ thống vClinic HIS"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\forms\\PrintBarcodeForm.tsx",
+    "matches": [
+      {
+        "lineNum": 234,
+        "content": ".replace(/{hospital}/g, hospitalName || 'PHÒNG KHÁM vCLINIC')"
+      },
+      {
+        "lineNum": 284,
+        "content": "const styleId = 'vclinic-barcode-ksk-page-style';"
+      },
+      {
+        "lineNum": 485,
+        "content": "{hospitalName || 'PHÒNG KHÁM vCLINIC'}"
+      },
+      {
+        "lineNum": 523,
+        "content": "{hospitalName || 'PHÒNG KHÁM vCLINIC'}"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\forms\\PrintBarcodeXnForm.tsx",
+    "matches": [
+      {
+        "lineNum": 81,
+        "content": ".replace(/{hospital}/g, hospitalName || 'PHÒNG KHÁM vCLINIC')"
+      },
+      {
+        "lineNum": 132,
+        "content": "const styleId = 'vclinic-barcode-xn-page-style';"
+      },
+      {
+        "lineNum": 318,
+        "content": "{hospitalName || 'PHÒNG KHÁM vCLINIC'}"
+      },
+      {
+        "lineNum": 360,
+        "content": "{hospitalName || 'PHÒNG KHÁM vCLINIC'}"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\forms\\PrintForm.tsx",
+    "matches": [
+      {
+        "lineNum": 676,
+        "content": "By: {hospitalName || 'Phòng khám đa khoa vClinic'}<br/>"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\forms\\PrintFormMau1.tsx",
+    "matches": [
+      {
+        "lineNum": 625,
+        "content": "By: {hospitalName || 'Phòng khám đa khoa vClinic'}<br/>"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\refactor_dynamic_form.js",
+    "matches": [
+      {
+        "lineNum": 3,
+        "content": "const filePath = 'd:/AI/vClinic/modules/health-check-sync/forms/DynamicForm.tsx';"
+      },
+      {
+        "lineNum": 49,
+        "content": "fs.mkdirSync('d:/AI/vClinic/modules/health-check-sync/hooks', { recursive: true });"
+      },
+      {
+        "lineNum": 50,
+        "content": "fs.writeFileSync('d:/AI/vClinic/modules/health-check-sync/hooks/useDynamicFormState.ts', hookFileContent, 'utf-8');"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\refactor_dynamic_form.py",
+    "matches": [
+      {
+        "lineNum": 3,
+        "content": "file_path = 'd:/AI/vClinic/modules/health-check-sync/forms/DynamicForm.tsx'"
+      },
+      {
+        "lineNum": 44,
+        "content": "with open('d:/AI/vClinic/modules/health-check-sync/hooks/useDynamicFormState.ts', 'w', encoding='utf-8') as f:"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\health-check-sync\\views\\HealthCheckSyncView.tsx",
+    "matches": [
+      {
+        "lineNum": 627,
+        "content": "['HỆ THỐNG QUẢN LÝ PHÒNG KHÁM VCLINIC'],"
+      },
+      {
+        "lineNum": 721,
+        "content": "['HỆ THỐNG QUẢN LÝ PHÒNG KHÁM VCLINIC'],"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\imaging-results\\views\\components\\MockDicomViewer.tsx",
+    "matches": [
+      {
+        "lineNum": 400,
+        "content": "<p className=\"font-bold text-slate-200\">vClinic Native PACS</p>"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\imaging-results\\views\\ReadingView.tsx",
+    "matches": [
+      {
+        "lineNum": 57,
+        "content": "const localReqs = localStorage.getItem('vclinic_pacs_requests');"
+      },
+      {
+        "lineNum": 81,
+        "content": "const localCustomTemplates = localStorage.getItem('vclinic_pacs_custom_templates');"
+      },
+      {
+        "lineNum": 130,
+        "content": "const localReqs = localStorage.getItem('vclinic_pacs_requests');"
+      },
+      {
+        "lineNum": 153,
+        "content": "localStorage.setItem('vclinic_pacs_requests', JSON.stringify(updatedReqs));"
+      },
+      {
+        "lineNum": 176,
+        "content": "const localCustomTemplates = localStorage.getItem('vclinic_pacs_custom_templates');"
+      },
+      {
+        "lineNum": 190,
+        "content": "localStorage.setItem('vclinic_pacs_custom_templates', JSON.stringify(updatedTpls));"
+      },
+      {
+        "lineNum": 472,
+        "content": "<div>vClinic Native PACS v1.0.0</div>"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\imaging-results\\views\\WorklistView.tsx",
+    "matches": [
+      {
+        "lineNum": 70,
+        "content": "const saved = localStorage.getItem('vclinic_pacs_worklist_cols');"
+      },
+      {
+        "lineNum": 92,
+        "content": "let localReqs = localStorage.getItem('vclinic_pacs_requests');"
+      },
+      {
+        "lineNum": 121,
+        "content": "localStorage.setItem('vclinic_pacs_requests', JSON.stringify(parsedReqs));"
+      },
+      {
+        "lineNum": 127,
+        "content": "const localFavs = localStorage.getItem('vclinic_pacs_favorites');"
+      },
+      {
+        "lineNum": 183,
+        "content": "localStorage.setItem('vclinic_pacs_worklist_cols', JSON.stringify(updated));"
+      },
+      {
+        "lineNum": 198,
+        "content": "localStorage.setItem('vclinic_pacs_favorites', JSON.stringify(updated));"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\login\\Login.tsx",
+    "matches": [
+      {
+        "lineNum": 172,
+        "content": "{hospitalName || 'PHÒNG KHÁM ĐA KHOA vCLINIC'}"
+      },
+      {
+        "lineNum": 264,
+        "content": "{hospitalName || 'PHÒNG KHÁM vCLINIC'}"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\online-booking\\doc\\Hướng dẫn sử dụng Module Online Booking.md",
+    "matches": [
+      {
+        "lineNum": 1,
+        "content": "# HƯỚNG DẪN SỬ DỤNG MODULE QUẢN LÝ ĐẶT LỊCH TRỰC TUYẾN (vClinic)"
+      },
+      {
+        "lineNum": 93,
+        "content": "**Bộ phận hỗ trợ kỹ thuật vClinic**"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\online-booking\\doc\\Tài liệu Triển khai Module Online Booking.md",
+    "matches": [
+      {
+        "lineNum": 1,
+        "content": "# TÀI LIỆU TRIỂN KHAI MODULE ONLINE BOOKING (vClinic)"
+      },
+      {
+        "lineNum": 198,
+        "content": "4.  Chạy ứng dụng: `npm run start` hoặc dùng PM2: `pm2 start src/server.js --name vclinic-api`"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\pacs-ris\\docs\\pacs_review.md",
+    "matches": [
+      {
+        "lineNum": 48,
+        "content": "## 3. Đối chiếu So sánh giữa PMR PACS và Tích hợp RIS trên vClinic"
+      },
+      {
+        "lineNum": 50,
+        "content": "Dưới đây là bảng so sánh giữa các tính năng của hệ thống **PMR PACS (Mesoco)** và giải pháp tích hợp chúng ta vừa hoàn thiện trong module **imaging-results** của **vClinic**:"
+      },
+      {
+        "lineNum": 52,
+        "content": "| Tiêu chuẩn / Tính năng | PMR PACS (Mesoco) | Giải pháp vClinic (Đã triển khai) | Đánh giá & Định hướng |"
+      },
+      {
+        "lineNum": 55,
+        "content": "| **Nhập kết quả (RIS)** | Phân chia Kỹ thuật, Mô tả, Kết luận. Chọn mẫu cấu trúc. | Hỗ trợ 3 ô nhập độc lập (Kỹ thuật, Mô tả, Kết luận) kết hợp Combobox chọn mẫu kết quả chuẩn theo Modality. | **Tương đương.** Giao diện vClinic đáp ứng đầy đủ trải nghiệm nhập liệu chẩn đoán của bác sĩ. |"
+      },
+      {
+        "lineNum": 58,
+        "content": "| **Xem ảnh DICOM** | PACS Viewer chuyên dụng (Web/Mobile) | Giao diện Viewer nhúng (Mock DICOM Viewer hiển thị ảnh chính của ca chụp) | **Định hướng phát triển:** Trong tương lai, vClinic có thể nhúng thư viện CornerstoneJS hoặc OHIF Viewer để mở tệp DICOM nguyên bản trực tiếp thay vì chỉ hiển thị URL ảnh tĩnh. |"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\pacs-ris\\views\\ConfigurationView.tsx",
+    "matches": [
+      {
+        "lineNum": 5,
+        "content": "const [aeTitle, setAeTitle] = useState('VCLINIC_PACS');"
+      },
+      {
+        "lineNum": 7,
+        "content": "const [storagePath, setStoragePath] = useState('d:/AI/vClinic/backend/storage/dicom');"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\pacs-ris\\views\\ReadingView.tsx",
+    "matches": [
+      {
+        "lineNum": 70,
+        "content": "const localReqs = localStorage.getItem('vclinic_pacs_requests_new');"
+      },
+      {
+        "lineNum": 94,
+        "content": "const localCustomTemplates = localStorage.getItem('vclinic_pacs_custom_templates_new');"
+      },
+      {
+        "lineNum": 129,
+        "content": "const localReqs = localStorage.getItem('vclinic_pacs_requests_new');"
+      },
+      {
+        "lineNum": 151,
+        "content": "localStorage.setItem('vclinic_pacs_requests_new', JSON.stringify(updatedReqs));"
+      },
+      {
+        "lineNum": 182,
+        "content": "const localCustomTemplates = localStorage.getItem('vclinic_pacs_custom_templates_new');"
+      },
+      {
+        "lineNum": 196,
+        "content": "localStorage.setItem('vclinic_pacs_custom_templates_new', JSON.stringify(updated));"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\pacs-ris\\views\\ResultsListView.tsx",
+    "matches": [
+      {
+        "lineNum": 20,
+        "content": "const localReqs = localStorage.getItem('vclinic_pacs_requests_new');"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\pacs-ris\\views\\WorklistView.tsx",
+    "matches": [
+      {
+        "lineNum": 54,
+        "content": "const localReqs = localStorage.getItem('vclinic_pacs_requests_new');"
+      },
+      {
+        "lineNum": 61,
+        "content": "localStorage.setItem('vclinic_pacs_requests_new', JSON.stringify(parsedReqs));"
+      },
+      {
+        "lineNum": 71,
+        "content": "const localFavs = localStorage.getItem('vclinic_pacs_favorites_new');"
+      },
+      {
+        "lineNum": 80,
+        "content": "const localTpls = localStorage.getItem('vclinic_pacs_custom_templates_new');"
+      },
+      {
+        "lineNum": 173,
+        "content": "localStorage.setItem('vclinic_pacs_favorites_new', JSON.stringify(favObjs));"
+      },
+      {
+        "lineNum": 191,
+        "content": "localStorage.setItem('vclinic_pacs_requests_new', JSON.stringify(updated));"
+      },
+      {
+        "lineNum": 222,
+        "content": "localStorage.setItem('vclinic_pacs_requests_new', JSON.stringify(updated));"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\portal\\views\\PortalHomeView.tsx",
+    "matches": [
+      {
+        "lineNum": 293,
+        "content": "type: 'vClinic-Patient'"
+      },
+      {
+        "lineNum": 314,
+        "content": "Sử dụng mã này để check-in nhanh tại quầy tiếp đón<br />hoặc tại các phòng khám của vClinic."
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\queue-management\\views\\Settings.tsx",
+    "matches": [
+      {
+        "lineNum": 415,
+        "content": "if (window.confirm('Bạn có chắc chắn muốn khôi phục về tone màu mặc định gốc của vClinic?')) {"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\modules\\reception\\components\\ExamTicketPrint.tsx",
+    "matches": [
+      {
+        "lineNum": 52,
+        "content": "const saved = localStorage.getItem('vclinic_use_thermal');"
+      },
+      {
+        "lineNum": 132,
+        "content": "localStorage.setItem('vclinic_use_thermal', String(val));"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\pacs_review.md",
+    "matches": [
+      {
+        "lineNum": 5,
+        "content": "> [pacs_review.md](file:///d:/AI/vClinic/modules/pacs-ris/docs/pacs_review.md)"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\PERMISSION_GUIDE.md",
+    "matches": [
+      {
+        "lineNum": 3,
+        "content": "> **Ghi chú:** Tài liệu này hướng dẫn cách quản lý phân quyền truy cập các module trong hệ thống vClinic"
+      },
+      {
+        "lineNum": 55,
+        "content": "code d:\\AI\\vClinic\\modules\\dashboard\\Dashboard.tsx"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\POSTMAN_GUIDE.md",
+    "matches": [
+      {
+        "lineNum": 200,
+        "content": "cd d:\\AI\\vClinic\\backend"
+      },
+      {
+        "lineNum": 208,
+        "content": "Tạo file `vClinic-API.postman_collection.json`:"
+      },
+      {
+        "lineNum": 213,
+        "content": "\"name\": \"vClinic API\","
+      },
+      {
+        "lineNum": 284,
+        "content": "3. Chọn file `vClinic-API.postman_collection.json`"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\QUICK_DEPLOY_GUIDE.md",
+    "matches": [
+      {
+        "lineNum": 1,
+        "content": "# 🚀 Hướng Dẫn Deploy Nhanh vClinic"
+      },
+      {
+        "lineNum": 5,
+        "content": "Chạy lệnh sau trong thư mục `d:\\AI\\vClinic`:"
+      },
+      {
+        "lineNum": 19,
+        "content": "**Kết quả:** Thư mục `release/vClinic-deploy/` chứa toàn bộ package sẵn sàng deploy"
+      },
+      {
+        "lineNum": 27,
+        "content": "2. Upload toàn bộ thư mục `release/vClinic-deploy/` lên server"
+      },
+      {
+        "lineNum": 28,
+        "content": "3. Đặt ở vị trí như `/home/user/vClinic/` hoặc `/var/www/vClinic/`"
+      },
+      {
+        "lineNum": 32,
+        "content": "scp -r release/vClinic-deploy/ user@your-server:/path/to/deploy/"
+      },
+      {
+        "lineNum": 38,
+        "content": "git add release/vClinic-deploy/"
+      },
+      {
+        "lineNum": 57,
+        "content": "cd /path/to/vClinic-deploy"
+      },
+      {
+        "lineNum": 92,
+        "content": "cd /path/to/vClinic-deploy"
+      },
+      {
+        "lineNum": 99,
+        "content": "cd C:\\path\\to\\vClinic-deploy"
+      },
+      {
+        "lineNum": 106,
+        "content": "pm2 start src/server.js --name vclinic-backend"
+      },
+      {
+        "lineNum": 128,
+        "content": "{\"status\":\"OK\",\"message\":\"vClinic Backend API\",\"version\":\"1.0.0\"}"
+      },
+      {
+        "lineNum": 154,
+        "content": "pm2 stop vclinic-backend"
+      },
+      {
+        "lineNum": 157,
+        "content": "cp -r vClinic-deploy vClinic-deploy.backup-$(date +%Y%m%d)"
+      },
+      {
+        "lineNum": 162,
+        "content": "cd vClinic-deploy/backend"
+      },
+      {
+        "lineNum": 166,
+        "content": "pm2 restart vclinic-backend"
+      },
+      {
+        "lineNum": 180,
+        "content": "ls -la vClinic-deploy/"
+      },
+      {
+        "lineNum": 226,
+        "content": "pm2 logs vclinic-backend"
+      },
+      {
+        "lineNum": 227,
+        "content": "pm2 logs vclinic-backend --lines 100"
+      },
+      {
+        "lineNum": 238,
+        "content": "pm2 restart vclinic-backend"
+      },
+      {
+        "lineNum": 243,
+        "content": "pm2 stop vclinic-backend"
+      },
+      {
+        "lineNum": 248,
+        "content": "pm2 delete vclinic-backend"
+      },
+      {
+        "lineNum": 256,
+        "content": "vClinic-deploy/"
+      },
+      {
+        "lineNum": 280,
+        "content": "- [ ] Đã upload toàn bộ thư mục `vClinic-deploy/` lên server"
+      },
+      {
+        "lineNum": 294,
+        "content": "1. Kiểm tra logs: `pm2 logs vclinic-backend`"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\RESTART_GUIDE.md",
+    "matches": [
+      {
+        "lineNum": 54,
+        "content": "cd d:\\AI\\vClinic\\backend"
+      },
+      {
+        "lineNum": 60,
+        "content": "🚀 vClinic Backend Server"
+      },
+      {
+        "lineNum": 76,
+        "content": "cd d:\\AI\\vClinic"
+      },
+      {
+        "lineNum": 104,
+        "content": "cd d:\\AI\\vClinic\\backend"
+      },
+      {
+        "lineNum": 140,
+        "content": "\"message\": \"vClinic Backend API\","
+      },
+      {
+        "lineNum": 164,
+        "content": "🚀 vClinic Backend Server"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\run_migration_016.cjs",
+    "matches": [
+      {
+        "lineNum": 23,
+        "content": "const masterKey = process.env.VIMES_SECURITY_KEY || 'default-secret-vClinic-2026-key-32chars';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\run_migration_017.cjs",
+    "matches": [
+      {
+        "lineNum": 23,
+        "content": "const masterKey = process.env.VIMES_SECURITY_KEY || 'default-secret-vClinic-2026-key-32chars';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\run_migration_026.cjs",
+    "matches": [
+      {
+        "lineNum": 23,
+        "content": "const masterKey = process.env.VIMES_SECURITY_KEY || 'default-secret-vClinic-2026-key-32chars';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\run_migration_027.cjs",
+    "matches": [
+      {
+        "lineNum": 23,
+        "content": "const masterKey = process.env.VIMES_SECURITY_KEY || 'default-secret-vClinic-2026-key-32chars';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\run_migration_028.cjs",
+    "matches": [
+      {
+        "lineNum": 23,
+        "content": "const masterKey = process.env.VIMES_SECURITY_KEY || 'default-secret-vClinic-2026-key-32chars';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\run_migration_029.cjs",
+    "matches": [
+      {
+        "lineNum": 23,
+        "content": "const masterKey = process.env.VIMES_SECURITY_KEY || 'default-secret-vClinic-2026-key-32chars';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\run_migration_030.cjs",
+    "matches": [
+      {
+        "lineNum": 17,
+        "content": "const masterKey = process.env.VIMES_SECURITY_KEY || 'default-secret-vClinic-2026-key-32chars';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\run_migration_033.cjs",
+    "matches": [
+      {
+        "lineNum": 17,
+        "content": "const masterKey = process.env.VIMES_SECURITY_KEY || 'default-secret-vClinic-2026-key-32chars';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\run_migration_034.cjs",
+    "matches": [
+      {
+        "lineNum": 17,
+        "content": "const masterKey = process.env.VIMES_SECURITY_KEY || 'default-secret-vClinic-2026-key-32chars';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\run_migration_035.cjs",
+    "matches": [
+      {
+        "lineNum": 17,
+        "content": "const masterKey = process.env.VIMES_SECURITY_KEY || 'default-secret-vClinic-2026-key-32chars';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\scripts\\deploy-package.cjs",
+    "matches": [
+      {
+        "lineNum": 16,
+        "content": "const deployDir = path.join(releaseDir, 'vClinic-deploy');"
+      },
+      {
+        "lineNum": 66,
+        "content": "console.log('🚀 Starting vClinic Deployment Packaging...\\n');"
+      },
+      {
+        "lineNum": 102,
+        "content": "const envExample = `# vClinic Backend Configuration"
+      },
+      {
+        "lineNum": 127,
+        "content": "const deployInstructions = `# 🚀 HƯỚNG DẪN TRIỂN KHAI vClinic"
+      },
+      {
+        "lineNum": 130,
+        "content": "Package này chứa toàn bộ hệ thống vClinic đã được build và sẵn sàng deploy lên server."
+      },
+      {
+        "lineNum": 134,
+        "content": "vClinic-deploy/"
+      },
+      {
+        "lineNum": 165,
+        "content": "# Upload toàn bộ thư mục vClinic-deploy"
+      },
+      {
+        "lineNum": 166,
+        "content": "scp -r vClinic-deploy/ user@your-server:/path/to/deploy/"
+      },
+      {
+        "lineNum": 181,
+        "content": "cd vClinic-deploy/backend"
+      },
+      {
+        "lineNum": 217,
+        "content": "pm2 start src/server.js --name vclinic-backend"
+      },
+      {
+        "lineNum": 224,
+        "content": "pm2 logs vclinic-backend"
+      },
+      {
+        "lineNum": 227,
+        "content": "pm2 restart vclinic-backend"
+      },
+      {
+        "lineNum": 228,
+        "content": "pm2 stop vclinic-backend"
+      },
+      {
+        "lineNum": 229,
+        "content": "pm2 delete vclinic-backend"
+      },
+      {
+        "lineNum": 247,
+        "content": "# {\"status\":\"OK\",\"message\":\"vClinic Backend API\",\"version\":\"1.0.0\"}"
+      },
+      {
+        "lineNum": 280,
+        "content": "pm2 stop vclinic-backend"
+      },
+      {
+        "lineNum": 283,
+        "content": "cp -r vClinic-deploy vClinic-deploy.backup"
+      },
+      {
+        "lineNum": 289,
+        "content": "cd vClinic-deploy/backend"
+      },
+      {
+        "lineNum": 293,
+        "content": "pm2 restart vclinic-backend"
+      },
+      {
+        "lineNum": 306,
+        "content": "ls -la vClinic-deploy/"
+      },
+      {
+        "lineNum": 339,
+        "content": "pm2 logs vclinic-backend"
+      },
+      {
+        "lineNum": 342,
+        "content": "pm2 logs vclinic-backend --lines 100"
+      },
+      {
+        "lineNum": 374,
+        "content": "# vClinic Quick Start Script"
+      },
+      {
+        "lineNum": 376,
+        "content": "echo \"🚀 Starting vClinic Backend...\""
+      },
+      {
+        "lineNum": 398,
+        "content": "pm2 start src/server.js --name vclinic-backend"
+      },
+      {
+        "lineNum": 401,
+        "content": "echo \"📊 View logs: pm2 logs vclinic-backend\""
+      },
+      {
+        "lineNum": 412,
+        "content": "REM vClinic Quick Start Script for Windows"
+      },
+      {
+        "lineNum": 414,
+        "content": "echo Starting vClinic Backend..."
+      },
+      {
+        "lineNum": 437,
+        "content": "pm2 start src/server.js --name vclinic-backend"
+      },
+      {
+        "lineNum": 440,
+        "content": "echo View logs: pm2 logs vclinic-backend"
+      },
+      {
+        "lineNum": 451,
+        "content": "const readme = `# vClinic Deployment Package"
+      },
+      {
+        "lineNum": 479,
+        "content": "Built with ❤️ for vClinic"
+      },
+      {
+        "lineNum": 488,
+        "content": "zipPath = path.join(releaseDir, `vClinic-deploy-${new Date().toISOString().split('T')[0]}.zip`);"
+      },
+      {
+        "lineNum": 507,
+        "content": "console.log('   1. Upload the vClinic-deploy folder to your server');"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\scripts\\package-deploy.cjs",
+    "matches": [
+      {
+        "lineNum": 39,
+        "content": "console.log('🚀 Starting vClinic Packaging Process...');"
+      },
+      {
+        "lineNum": 64,
+        "content": "# HƯỚNG DẪN TRIỂN KHAI HỆ THỐNG vClinic"
+      },
+      {
+        "lineNum": 66,
+        "content": "Chúc mừng! Bạn đã đóng gói thành công hệ thống vClinic. Dưới đây là hướng dẫn chi tiết để đưa hệ thống lên máy chủ (Server)."
+      },
+      {
+        "lineNum": 91,
+        "content": "pm2 start src/server.js --name vclinic-backend"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\seed_patients.cjs",
+    "matches": [
+      {
+        "lineNum": 1,
+        "content": "const { Client } = require('d:/AI/vClinic/backend/node_modules/pg');"
+      },
+      {
+        "lineNum": 3,
+        "content": "const dotenv = require('d:/AI/vClinic/backend/node_modules/dotenv');"
+      },
+      {
+        "lineNum": 22,
+        "content": "const masterKey = process.env.VIMES_SECURITY_KEY || 'default-secret-vClinic-2026-key-32chars';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\seed_surgery.cjs",
+    "matches": [
+      {
+        "lineNum": 1,
+        "content": "const { Client } = require('d:/AI/vClinic/backend/node_modules/pg');"
+      },
+      {
+        "lineNum": 3,
+        "content": "const dotenv = require('d:/AI/vClinic/backend/node_modules/dotenv');"
+      },
+      {
+        "lineNum": 22,
+        "content": "const masterKey = process.env.VIMES_SECURITY_KEY || 'default-secret-vClinic-2026-key-32chars';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\services\\printerService.ts",
+    "matches": [
+      {
+        "lineNum": 189,
+        "content": "container.innerHTML = `<div id=\"vclinic-print-target\" style=\"background: white; padding: 20px;\">${html}</div>`;"
+      },
+      {
+        "lineNum": 194,
+        "content": "const target = document.getElementById('vclinic-print-target');"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\services\\qzPrinterService.ts",
+    "matches": [
+      {
+        "lineNum": 20,
+        "content": "console.log(\"🟢 vClinic: Connected to QZ Tray successfully!\");"
+      },
+      {
+        "lineNum": 22,
+        "content": "console.error(\"🔴 vClinic: Failed to connect to QZ Tray client.\", error);"
+      },
+      {
+        "lineNum": 67,
+        "content": "console.log(`🖨️ vClinic: Successfully printed ZPL to [${printerName}]`);"
+      },
+      {
+        "lineNum": 70,
+        "content": "console.error(\"🔴 vClinic: Printing ZPL error:\", error);"
+      },
+      {
+        "lineNum": 92,
+        "content": "console.log(`🖨️ vClinic: Successfully printed HTML to [${printerName}]`);"
+      },
+      {
+        "lineNum": 95,
+        "content": "console.error(\"🔴 vClinic: Printing HTML error:\", error);"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\TECHNICAL_DOCS.md",
+    "matches": [
+      {
+        "lineNum": 7,
+        "content": "> 📘 **Hướng dẫn sử dụng dành cho nhân viên vClinic:**"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\TEST_INSTRUCTIONS.md",
+    "matches": [
+      {
+        "lineNum": 7,
+        "content": "1. Mở file: `d:\\AI\\vClinic\\test-auth-simple.html`"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\test_vneid_sync.cjs",
+    "matches": [
+      {
+        "lineNum": 16,
+        "content": "const masterKey = process.env.VIMES_SECURITY_KEY || 'default-secret-vClinic-2026-key-32chars';"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\Tài liệu Triển khai Module Online Booking.md",
+    "matches": [
+      {
+        "lineNum": 1,
+        "content": "# TÀI LIỆU TRIỂN KHAI MODULE ONLINE BOOKING (vClinic)"
+      },
+      {
+        "lineNum": 5,
+        "content": "> [Tài liệu Triển khai Module Online Booking.md](file:///d:/AI/vClinic/modules/online-booking/doc/Tài%20liệu%20Triển%20khai%20Module%20Online%20Booking.md)"
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\vClinic-API.postman_collection.json",
+    "matches": [
+      {
+        "lineNum": 3,
+        "content": "\"name\": \"vClinic API\","
+      },
+      {
+        "lineNum": 4,
+        "content": "\"_postman_id\": \"vclinic-api-collection\","
+      },
+      {
+        "lineNum": 5,
+        "content": "\"description\": \"API Collection for vClinic - Hospital Management System\","
+      }
+    ]
+  },
+  {
+    "filepath": "d:\\AI\\VIMES_HIS\\verify_settings_flow.cjs",
+    "matches": [
+      {
+        "lineNum": 27,
+        "content": "const masterKey = process.env.VIMES_SECURITY_KEY || 'default-secret-vClinic-2026-key-32chars';"
+      },
+      {
+        "lineNum": 175,
+        "content": "vneid_password: 'vClinic-secure-pass-2026',"
+      }
+    ]
+  }
+]

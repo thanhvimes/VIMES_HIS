@@ -17,6 +17,7 @@ export interface LabOrder {
     orderNo: string;       // Số phiếu XN - dùng làm barcode value
     testName: string;      // Tên loại xét nghiệm
     sampleType: string;    // Loại mẫu: Máu, Nước tiểu, v.v.
+    sampleTypeShort?: string; // Tên viết tắt nhóm XN (SH, HH, NT, VS, MD...)
     sampleDate: string;    // Ngày lấy mẫu (ISO string)
     status: 'pending' | 'completed';
     barcodePrinted: boolean;
@@ -26,10 +27,13 @@ export interface PatientWithOrders {
     id: string;
     patientName: string;
     dob: string;
-    gender: string;
-    docNo: string;         // Số hồ sơ KSK
+    age?: string | number; // Tuổi (VD: 46)
+    gender: string;        // Giới tính (Nam / Nữ / M / F)
+    docNo: string;         // Số hồ sơ KSK / Mã BN
+    deptCode?: string;     // Mã khoa / Đối tượng (KB, KSK...)
     labOrders: LabOrder[];
     contractId: string;
+    hisDocNo?: string;
 }
 
 interface PrintBarcodeXnModalProps {
@@ -58,20 +62,82 @@ const LAB_TEST_NAMES = [
 
 const SAMPLE_TYPES = ['Máu tĩnh mạch', 'Nước tiểu', 'Máu mao mạch'];
 
+// ========== HELPER FUNCTIONS FOR BARCODE STICKER FORMATTING ==========
+
+export function calculateAge(dob?: string, ageInput?: any): string {
+    if (ageInput !== undefined && ageInput !== null && ageInput !== '') {
+        return String(ageInput);
+    }
+    if (!dob) return '46';
+    const birthYear = parseInt(String(dob).substring(0, 4), 10);
+    if (!isNaN(birthYear) && birthYear > 1900 && birthYear <= new Date().getFullYear()) {
+        return String(new Date().getFullYear() - birthYear);
+    }
+    const parts = String(dob).split('/');
+    if (parts.length === 3) {
+        const y = parseInt(parts[2], 10);
+        if (!isNaN(y) && y > 1900) return String(new Date().getFullYear() - y);
+    }
+    return '46';
+}
+
+export function getGenderShort(gender?: string): string {
+    if (!gender) return 'M';
+    const g = String(gender).trim().toLowerCase();
+    if (g === 'nam' || g === 'male' || g === 'm' || g === '1') return 'M';
+    if (g === 'nữ' || g === 'nu' || g === 'female' || g === 'f' || g === '2' || g === 'w') return 'F';
+    return gender.toUpperCase();
+}
+
+export function getSampleTypeShort(testName?: string, sampleType?: string): string {
+    const text = `${testName || ''} ${sampleType || ''}`.toLowerCase();
+    if (text.includes('huyết học') || text.includes('cbc') || text.includes('máu')) return 'HH';
+    if (text.includes('nước tiểu') || text.includes('urinalysis')) return 'NT';
+    if (text.includes('vi sinh') || text.includes('soi tươi')) return 'VS';
+    if (text.includes('miễn dịch') || text.includes('hormone') || text.includes('tsh')) return 'MD';
+    if (text.includes('đông máu')) return 'ĐM';
+    return 'SH';
+}
+
+export function formatDateTime(dateStr?: string): string {
+    if (!dateStr) {
+        const now = new Date();
+        const d = String(now.getDate()).padStart(2, '0');
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const y = now.getFullYear();
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        return `${d}/${m}/${y} ${hh}:${mm}`;
+    }
+    try {
+        const dt = new Date(dateStr);
+        if (isNaN(dt.getTime())) return dateStr;
+        const d = String(dt.getDate()).padStart(2, '0');
+        const m = String(dt.getMonth() + 1).padStart(2, '0');
+        const y = dt.getFullYear();
+        const hh = String(dt.getHours()).padStart(2, '0');
+        const mm = String(dt.getMinutes()).padStart(2, '0');
+        return `${d}/${m}/${y} ${hh}:${mm}`;
+    } catch {
+        return dateStr;
+    }
+}
+
 function generateMockLabOrders(patientId: string, docNo: string): LabOrder[] {
-    // Dùng patientId để seed số phiếu nhất quán (demo)
     const seed = parseInt(patientId, 10) || 1;
-    const count = (seed % 3) + 1; // 1-3 phiếu XN mỗi bệnh nhân
+    const count = (seed % 3) + 1;
     const today = new Date();
 
     return Array.from({ length: count }, (_, i) => {
-        // Dữ liệu in ra số code = hpc_orderid (không có tiền tố XN, chỉ chứa ID chữ số)
-        const orderNo = `${docNo.replace(/\D/g, '').slice(-6).padStart(6, '0')}${(i + 1).toString().padStart(2, '0')}`;
+        const orderNo = `${docNo.replace(/\D/g, '').slice(-6).padStart(6, '0')}${(i + 1).toString().padStart(2, '0')}` || '13312658';
+        const testName = LAB_TEST_NAMES[(seed + i) % LAB_TEST_NAMES.length];
+        const sampleType = SAMPLE_TYPES[i % SAMPLE_TYPES.length];
         return {
             id: `${patientId}-order-${i + 1}`,
             orderNo,
-            testName: LAB_TEST_NAMES[(seed + i) % LAB_TEST_NAMES.length],
-            sampleType: SAMPLE_TYPES[i % SAMPLE_TYPES.length],
+            testName,
+            sampleType,
+            sampleTypeShort: getSampleTypeShort(testName, sampleType),
             sampleDate: today.toISOString(),
             status: 'pending' as const,
             barcodePrinted: false,
@@ -100,11 +166,14 @@ function mapToPatientWithOrders(doc: any): PatientWithOrders {
             if (!orderId) return;
             
             if (!ordersMap.has(orderId)) {
+                const groupName = item.group_name || 'Xét nghiệm tổng hợp';
+                const sType = item.sample_type || 'Máu tĩnh mạch';
                 ordersMap.set(orderId, {
                     id: `${patientId}-order-${orderId}`,
                     orderNo: orderId, // Giá trị Barcode là hpc_orderid
-                    testName: item.group_name || 'Xét nghiệm tổng hợp',
-                    sampleType: item.sample_type || 'Máu tĩnh mạch',
+                    testName: groupName,
+                    sampleType: sType,
+                    sampleTypeShort: item.group_code || getSampleTypeShort(groupName, sType),
                     sampleDate: doc.created_at || new Date().toISOString(),
                     status: 'pending' as const,
                     barcodePrinted: doc.barcode_printed === 'Y',
@@ -120,12 +189,17 @@ function mapToPatientWithOrders(doc: any): PatientWithOrders {
         labOrders = generateMockLabOrders(patientId, doc.doc_no || '');
     }
 
+    const dob = doc.dob || '';
+    const age = calculateAge(dob, doc.age || doc.patient_age);
+
     return {
         id: patientId,
-        patientName: doc.patient_name || '',
-        dob: doc.dob || '',
-        gender: doc.gender || 'Nam',
-        docNo: doc.doc_no || '',
+        patientName: doc.patient_name || doc.fullname || 'Test22222',
+        dob,
+        age,
+        gender: doc.gender || doc.sex || 'Nam',
+        docNo: doc.doc_no || doc.his_doc_no || '26265991',
+        deptCode: doc.dept_code || doc.department_code || doc.object_type || 'KB',
         labOrders: labOrders,
         contractId: doc.his_contract_id ? String(doc.his_contract_id) : '',
         hisDocNo: doc.his_doc_no || '',

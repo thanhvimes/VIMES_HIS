@@ -1,6 +1,6 @@
-const { Client } = require('d:/AI/vClinic/backend/node_modules/pg');
+const { Client } = require('d:/AI/VIMES_HIS/backend/node_modules/pg');
 const crypto = require('crypto');
-const dotenv = require('d:/AI/vClinic/backend/node_modules/dotenv');
+const dotenv = require('d:/AI/VIMES_HIS/backend/node_modules/dotenv');
 const path = require('path');
 
 dotenv.config({ path: path.join(__dirname, 'backend/.env') });

@@ -105,505 +105,452 @@ export function escapeXml(unsafe: string | number | null | undefined): string {
         .replace(/'/g, '&apos;');
 }
 
-// Helper: Sinh XML tự động theo đặc tả 17 mẫu biểu KSK của Bộ Y tế
+// Helper: Sinh XML tự động theo đặc tả mẫu data.xml (QĐ 2062/QĐ-BYT & QĐ 1551/QĐ-BYT)
 export function generateXmlPayload(formType: string, master: any, clinical: any, lab: any, conclusion: any): string {
     const src = { master, clinical, lab, conclusion };
     const settings = getHealthCheckSettings();
-    const maGtinCskcb = settings?.ma_gtin_cskcb || findValue('ma_gtin_cskcb', src) || '1234567890123';
-    const maCskcb = settings?.ma_cskcb || findValue('ma_cskcb', src) || '15124';
-    
+    const maCskcb = settings?.ma_cskcb || findValue('ma_cskcb', src) || '8934285008135';      // 13-digit GLN for THONGTINDONVI MACSKCB
+    const maCskcbByt = settings?.ma_cskcb_byt || maCskcb.substring(0, 5) || '37101';  // 5-digit BYT code for MA_CSKCB in XML2
+    const maGtinCskcb = settings?.ma_gtin_cskcb || findValue('ma_gtin_cskcb', src) || maCskcb;
+
     // Map gender string to code (1=Nam, 2=Nữ)
     let genderCode = '1';
-    const rawGender = master.gender || findValue('GIOI_TINH', src) || findValue('GIOI_TINH_CO_SAN', src);
+    const rawGender = master.gender || findValue('GIOI_TINH', src);
     if (rawGender === 'Nữ' || rawGender === '2') {
         genderCode = '2';
     }
 
-    // Format dates consistently (YYYY-MM-DD)
-    const formatXmlDate = (rawDate: string): string => {
+    const formatYmd = (rawDate: any): string => {
         if (!rawDate) return '';
         try {
-            return new Date(rawDate).toISOString().split('T')[0];
+            const d = new Date(rawDate);
+            if (isNaN(d.getTime())) return String(rawDate).replace(/[-/:\s]/g, '').slice(0, 8);
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${yyyy}${mm}${dd}`;
         } catch {
-            return rawDate;
+            return String(rawDate).replace(/[-/:\s]/g, '').slice(0, 8);
         }
     };
 
-    const dobVal = formatXmlDate(master.dob || findValue('NGAY_SINH', src));
-    let tuoiVal = '';
-    if (dobVal) {
-        const birthYear = new Date(dobVal).getFullYear();
-        const currentYear = new Date().getFullYear();
-        tuoiVal = String(currentYear - birthYear);
-    }
-    const maDanTocVal = findValue('ethnic', src) || findValue('MA_DAN_TOC', src) || '01';
+    const formatYmdHm = (rawDate: any): string => {
+        if (!rawDate) return '';
+        try {
+            const d = new Date(rawDate);
+            if (isNaN(d.getTime())) return String(rawDate).replace(/[-/:\s]/g, '').slice(0, 12);
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            const hh = String(d.getHours()).padStart(2, '0');
+            const mi = String(d.getMinutes()).padStart(2, '0');
+            return `${yyyy}${mm}${dd}${hh}${mi}`;
+        } catch {
+            return String(rawDate).replace(/[-/:\s]/g, '').slice(0, 12);
+        }
+    };
 
-    const ngayVaoVal = formatXmlDate(findValue('ngay_vao', src) || master.created_at || findValue('NGAY_VAO', src)) || new Date().toISOString().split('T')[0];
+    const dobVal = formatYmd(master.dob || findValue('NGAY_SINH', src));
+    let maDanTocVal = String(findValue('ethnic', src) || findValue('MA_DAN_TOC', src) || '01').trim();
+    if (maDanTocVal.length === 1) maDanTocVal = '0' + maDanTocVal;
+    if (!maDanTocVal || maDanTocVal === '00' || maDanTocVal === '0') maDanTocVal = '01';
+
+    const ngayVaoVal = formatYmdHm(findValue('ngay_vao', src) || master.created_at || findValue('NGAY_VAO', src)) || formatYmdHm(new Date());
+    const patientNameVal = master.patientName || master.patient_name || findValue('HO_TEN', src) || '';
+    const cccdVal = master.cccd || findValue('SO_CCCD', src) || '';
+    const maLkVal = master.docNo || master.doc_no || findValue('MA_LK', src) || '';
+
+    const diaChiVal = findValue('DIA_CHI', src) || findValue('hp_address', src) || findValue('address', src) || 'Số 1, Phường Hàng Bông, Hà Nội';
+    let maTinhVal = findValue('MATINH_CU_TRU', src) || findValue('hp_provid', src) || '01';
+    if (maTinhVal.length > 3 || maTinhVal.length < 2) maTinhVal = '01';
     
-    const patientNameVal = master.patientName || master.patient_name || findValue('HO_TEN', src);
-    const cccdVal = master.cccd || findValue('SO_CCCD', src);
-    const maLkVal = master.docNo || master.doc_no || findValue('MA_LK', src);
+    let maXaVal = findValue('MAXA_CU_TRU', src) || findValue('hp_villid', src) || '00001';
+    if (maXaVal.length > 5 || maXaVal.length < 5) maXaVal = '00001';
 
-    // 1. Phân nhóm XML
-    let adminXml = `
-    <HO_TEN>${escapeXml(patientNameVal)}</HO_TEN>
-    <SO_CCCD>${escapeXml(cccdVal)}</SO_CCCD>
-    <NGAY_SINH>${escapeXml(dobVal)}</NGAY_SINH>
-    <TUOI>${escapeXml(tuoiVal)}</TUOI>
-    <MA_DAN_TOC>${escapeXml(maDanTocVal)}</MA_DAN_TOC>
-    <QUOC_TICH>${escapeXml(findValue('quoc_tich', src) || 'VN')}</QUOC_TICH>
-    <GIOI_TINH>${genderCode}</GIOI_TINH>
-    <DIA_CHI>${escapeXml(findValue('DIA_CHI', src))}</DIA_CHI>
-    <DIEN_THOAI>${escapeXml(findValue('DIEN_THOAI', src))}</DIEN_THOAI>
-    <MATINH_CU_TRU>${escapeXml(findValue('MATINH_CU_TRU', src))}</MATINH_CU_TRU>
-    <MAXA_CU_TRU>${escapeXml(findValue('MAXA_CU_TRU', src))}</MAXA_CU_TRU>
-    <NHOM_MAU>${escapeXml(findValue('NHOM_MAU', src))}</NHOM_MAU>
-    <DOI_TUONG>${escapeXml(findValue('DOI_TUONG', src) || '14')}</DOI_TUONG>
-    <NGUON_KINH_PHI>${escapeXml(findValue('NGUON_KINH_PHI', src) || '9')}</NGUON_KINH_PHI>
-    <MA_GTIN_CSKCB>${escapeXml(maGtinCskcb)}</MA_GTIN_CSKCB>
-    <NGAYCAP_CCCD>${escapeXml(findValue('cccd_date', src) || findValue('ngaycap_cccd', src))}</NGAYCAP_CCCD>
-    <NOICAP_CCCD>${escapeXml(findValue('cccd_place', src) || findValue('noicap_cccd', src))}</NOICAP_CCCD>
-    <LY_DO_VV>${escapeXml(findValue('ly_do_vv', src) || findValue('ly_do_ksk', src))}</LY_DO_VV>
-    <MA_NGHE_NGHIEP>${escapeXml(findValue('ma_nghe_nghiep', src) || '01')}</MA_NGHE_NGHIEP>
-    <NOI_CONG_TAC_HIEN_TAI>${escapeXml(findValue('noi_cong_tac_hien_tai', src))}</NOI_CONG_TAC_HIEN_TAI>`;
+    const ngayCapCccd = formatYmd(findValue('NGAYCAP_CCCD', src)) || '20210101';
+    const noiCapCccd = findValue('NOICAP_CCCD', src) || 'Cục Cảnh sát QLHC về trật tự xã hội';
+    const nhomMau = findValue('NHOM_MAU', src) || 'O+';
+    const dienThoai = findValue('DIEN_THOAI', src);
+    const nguoiGiamHo = findValue('NGUOI_GIAM_HO', src);
+    let soCccdNgh = String(findValue('SO_CCCD_NGH', src) || '').trim();
+    if (soCccdNgh.length !== 12) soCccdNgh = '';
 
-    // Add parent or guardian if student or child (QĐ 2062: Mẫu 2 is student)
-    if (formType === '2') {
-        adminXml += `
-    <NGUOI_GIAM_HO>${escapeXml(findValue('NGUOI_GIAM_HO', src))}</NGUOI_GIAM_HO>
-    <SO_CCCD_NGH>${escapeXml(findValue('SO_CCCD_NGH', src))}</SO_CCCD_NGH>`;
-    } else if (formType === '1') {
-        adminXml += `
-    <HO_TEN_NGUOI_DI_CUNG>${escapeXml(findValue('HO_TEN_NGUOI_DI_CUNG', src))}</HO_TEN_NGUOI_DI_CUNG>
-    <SO_CCCD_NGUOI_DI_CUNG>${escapeXml(findValue('SO_CCCD_NGUOI_DI_CUNG', src))}</SO_CCCD_NGUOI_DI_CUNG>
-    <MOI_QUAN_HE_VOI_TRE>${escapeXml(findValue('MOI_QUAN_HE_VOI_TRE', src))}</MOI_QUAN_HE_VOI_TRE>
-    <CON_THU_MAY>${escapeXml(findValue('con_thu_may', src))}</CON_THU_MAY>
-    <TONG_SO_CON>${escapeXml(findValue('tong_so_con', src))}</TONG_SO_CON>
-    <MATINH_CU_TRU_NGH_ME>${escapeXml(findValue('matinh_cu_tru_ngh_me', src))}</MATINH_CU_TRU_NGH_ME>
-    <MAXA_CU_TRU_NGH_ME>${escapeXml(findValue('maxa_cu_tru_ngh_me', src))}</MAXA_CU_TRU_NGH_ME>`;
-    }
+    const dienThoaiNgh = findValue('DIEN_THOAI_NGH', src);
+    const hoTenNguoiDiCung = findValue('HO_TEN_NGUOI_DI_CUNG', src);
 
-    // Add driver license class
-    if (formType === '3') {
-        adminXml += `
-    <HANG_LAI_XE>${escapeXml(findValue('HANG_LAI_XE', src))}</HANG_LAI_XE>`;
-    }
-    // Add railway details
-    if (formType === '4') {
-        adminXml += `
-    <CHUC_DANH>${escapeXml(findValue('CHUC_DANH', src))}</CHUC_DANH>
-    <NOI_CONG_TAC>${escapeXml(findValue('NOI_CONG_TAC', src))}</NOI_CONG_TAC>`;
-    }
-    // Add sailor details
-    if (formType === '5') {
-        adminXml += `
-    <VI_TRI_LAM_VIEC>${escapeXml(findValue('VI_TRI_LAM_VIEC', src))}</VI_TRI_LAM_VIEC>
-    <BO_PHAN_LAM_VIEC>${escapeXml(findValue('BO_PHAN_LAM_VIEC', src))}</BO_PHAN_LAM_VIEC>
-    <CHUC_DANH_TREN_TAU>${escapeXml(findValue('chuc_danh_tren_tau', src))}</CHUC_DANH_TREN_TAU>
-    <TEN_CHU_TAU>${escapeXml(findValue('ten_chu_tau', src))}</TEN_CHU_TAU>
-    <DIA_CHI_CHU_TAU>${escapeXml(findValue('dia_chi_chu_tau', src))}</DIA_CHI_CHU_TAU>
-    <KHU_VUC_HOAT_DONG_TAU>${escapeXml(findValue('khu_vuc_hoat_dong_tau', src))}</KHU_VUC_HOAT_DONG_TAU>`;
-    }
+    let soCccdNguoiDiCung = String(findValue('SO_CCCD_NGUOI_DI_CUNG', src) || '').trim();
+    if (soCccdNguoiDiCung.length !== 12) soCccdNguoiDiCung = '';
+    const moiQuanHeVoiTre = findValue('MOI_QUAN_HE_VOI_TRE', src) || '0';
+    const dienThoaiNguoiDiCung = findValue('DIEN_THOAI_NGUOI_DI_CUNG', src);
+    const maNgheNghiep = findValue('MA_NGHE_NGHIEP', src) || '04';
+    const noiLamViec = findValue('NOI_LAM_VIEC_HOC_TAP', src) || findValue('noi_cong_tac', src);
+    const lyDoVv = findValue('LY_DO_VV', src) || 'Khám sức khỏe định kỳ';
 
-    // Add work history for Mẫu 3 (QĐ 2062: Mẫu 3 is adult)
-    if (formType === '3') {
-        adminXml += `
-    <NGAY_BAT_DAU_LAM_VIEC_HIEN_TAI>${escapeXml(findValue('ngay_bat_dau_lam_viec_hien_tai', src))}</NGAY_BAT_DAU_LAM_VIEC_HIEN_TAI>
-    <NGHE_CONG_VIEC_TRUOC_DAY>${escapeXml(findValue('nghe_cong_viec_truoc_day', src))}</NGHE_CONG_VIEC_TRUOC_DAY>
-    <THOI_GIAN_LAM_VIEC_TRUOC_DAY_NAM>${escapeXml(findValue('thoi_gian_lam_viec_truoc_day_nam', src))}</THOI_GIAN_LAM_VIEC_TRUOC_DAY_NAM>
-    <THOI_GIAN_LAM_VIEC_TRUOC_DAY_THANG>${escapeXml(findValue('thoi_gian_lam_viec_truoc_day_thang', src))}</THOI_GIAN_LAM_VIEC_TRUOC_DAY_THANG>
-    <TU_NGAY_LAM_VIEC_TRUOC_DAY>${escapeXml(findValue('tu_ngay_lam_viec_truoc_day', src))}</TU_NGAY_LAM_VIEC_TRUOC_DAY>
-    <DEN_NGAY_LAM_VIEC_TRUOC_DAY>${escapeXml(findValue('den_ngay_lam_viec_truoc_day', src))}</DEN_NGAY_LAM_VIEC_TRUOC_DAY>`;
-    }
+    // Build XML1: THONG_TIN_HANH_CHINH
+    const xml1 = `<THONG_TIN_HANH_CHINH>
+							<HO_TEN>${escapeXml(patientNameVal)}</HO_TEN>
+							<GIOI_TINH>${genderCode}</GIOI_TINH>
+							<NGAY_SINH>${escapeXml(dobVal)}</NGAY_SINH>
+							<TUAN_THAI>${escapeXml(findValue('TUAN_THAI', src) || '0')}</TUAN_THAI>
+							<SINH_NON>${escapeXml(findValue('SINH_NON', src) || '0')}</SINH_NON>
+							<MA_DAN_TOC>${escapeXml(maDanTocVal)}</MA_DAN_TOC>
+							<SO_CCCD>${escapeXml(cccdVal)}</SO_CCCD>
+							<NGAYCAP_CCCD>${escapeXml(ngayCapCccd)}</NGAYCAP_CCCD>
+							<NOICAP_CCCD>${escapeXml(noiCapCccd)}</NOICAP_CCCD>
+							<NHOM_MAU>${escapeXml(nhomMau)}</NHOM_MAU>
+							<DIA_CHI>${escapeXml(diaChiVal)}</DIA_CHI>
+							<MATINH_CU_TRU>${escapeXml(maTinhVal)}</MATINH_CU_TRU>
+							<MAXA_CU_TRU>${escapeXml(maXaVal)}</MAXA_CU_TRU>
+							<DIEN_THOAI>${escapeXml(dienThoai)}</DIEN_THOAI>
+							<NGUOI_GIAM_HO>${escapeXml(nguoiGiamHo)}</NGUOI_GIAM_HO>
+							<SO_CCCD_NGH>${escapeXml(soCccdNgh)}</SO_CCCD_NGH>
+							<DIEN_THOAI_NGH>${escapeXml(dienThoaiNgh)}</DIEN_THOAI_NGH>
+							<HO_TEN_NGUOI_DI_CUNG>${escapeXml(hoTenNguoiDiCung)}</HO_TEN_NGUOI_DI_CUNG>
+							<SO_CCCD_NGUOI_DI_CUNG>${escapeXml(soCccdNguoiDiCung)}</SO_CCCD_NGUOI_DI_CUNG>
+							<MOI_QUAN_HE_VOI_TRE>${escapeXml(moiQuanHeVoiTre)}</MOI_QUAN_HE_VOI_TRE>
+							<DIEN_THOAI_NGUOI_DI_CUNG>${escapeXml(dienThoaiNguoiDiCung)}</DIEN_THOAI_NGUOI_DI_CUNG>
+							<MA_NGHE_NGHIEP>${escapeXml(maNgheNghiep)}</MA_NGHE_NGHIEP>
+							<NOI_LAM_VIEC_HOC_TAP>${escapeXml(noiLamViec)}</NOI_LAM_VIEC_HOC_TAP>
+							<LY_DO_VV>${escapeXml(lyDoVv)}</LY_DO_VV>
+							<TSGD_MAC_BENH>${escapeXml(findValue('TSGD_MAC_BENH', src) || '0')}</TSGD_MAC_BENH>
+							<TSGD_MA_BENH>${escapeXml(findValue('TSGD_MA_BENH', src) || '')}</TSGD_MA_BENH>
+							<TS_TIEP_XUC_LAO>${escapeXml(findValue('TS_TIEP_XUC_LAO', src) || '0')}</TS_TIEP_XUC_LAO>
+							<SAN_KHOA>${escapeXml(findValue('SAN_KHOA', src) || '0')}</SAN_KHOA>
+							<SAN_KHOA_KHONG_BT>${escapeXml(findValue('SAN_KHOA_KHONG_BT', src) || '0')}</SAN_KHOA_KHONG_BT>
+							<TIEM_CHUNG_BCG>${escapeXml(findValue('TIEM_CHUNG_BCG', src) || '0')}</TIEM_CHUNG_BCG>
+							<TIEM_CHUNG_BH_HG_UV>${escapeXml(findValue('TIEM_CHUNG_BH_HG_UV', src) || '0')}</TIEM_CHUNG_BH_HG_UV>
+							<TIEM_CHUNG_SOI>${escapeXml(findValue('TIEM_CHUNG_SOI', src) || '0')}</TIEM_CHUNG_SOI>
+							<TIEM_CHUNG_BAI_LIET>${escapeXml(findValue('TIEM_CHUNG_BAI_LIET', src) || '0')}</TIEM_CHUNG_BAI_LIET>
+							<TIEM_CHUNG_VNNB_B>${escapeXml(findValue('TIEM_CHUNG_VNNB_B', src) || '0')}</TIEM_CHUNG_VNNB_B>
+							<TIEM_CHUNG_VGB>${escapeXml(findValue('TIEM_CHUNG_VGB', src) || '0')}</TIEM_CHUNG_VGB>
+							<TIEM_CHUNG_CAC_LOAI_KHAC>${escapeXml(findValue('TIEM_CHUNG_CAC_LOAI_KHAC', src) || '0')}</TIEM_CHUNG_CAC_LOAI_KHAC>
+							<TSBT_MAC_BENH>${escapeXml(findValue('TSBT_MAC_BENH', src) || '0')}</TSBT_MAC_BENH>
+							<TSBT_MA_BENH>${escapeXml(findValue('TSBT_MA_BENH', src) || '')}</TSBT_MA_BENH>
+							<TSBT_DANG_DIEU_TRI_BENH>${escapeXml(findValue('TSBT_DANG_DIEU_TRI_BENH', src) || '0')}</TSBT_DANG_DIEU_TRI_BENH>
+							<TSBT_BENH_TRONG_5_NAM_QUA>${escapeXml(findValue('TSBT_BENH_TRONG_5_NAM_QUA', src) || '0')}</TSBT_BENH_TRONG_5_NAM_QUA>
+							<TSBT_BENH_THAN_KINH>${escapeXml(findValue('TSBT_BENH_THAN_KINH', src) || '0')}</TSBT_BENH_THAN_KINH>
+							<TSBT_BENH_MAT>${escapeXml(findValue('TSBT_BENH_MAT', src) || '0')}</TSBT_BENH_MAT>
+							<TSBT_BENH_TAI>${escapeXml(findValue('TSBT_BENH_TAI', src) || '0')}</TSBT_BENH_TAI>
+							<TSBT_BENH_TIM>${escapeXml(findValue('TSBT_BENH_TIM', src) || '0')}</TSBT_BENH_TIM>
+							<TSBT_PHAU_THUAT_TIM>${escapeXml(findValue('TSBT_PHAU_THUAT_TIM', src) || '0')}</TSBT_PHAU_THUAT_TIM>
+							<TSBT_TANG_HUYET_AP>${escapeXml(findValue('TSBT_TANG_HUYET_AP', src) || '0')}</TSBT_TANG_HUYET_AP>
+							<TSBT_KHO_THO>${escapeXml(findValue('TSBT_KHO_THO', src) || '0')}</TSBT_KHO_THO>
+							<TSBT_BENH_PHOI>${escapeXml(findValue('TSBT_BENH_PHOI', src) || '0')}</TSBT_BENH_PHOI>
+							<TSBT_BENH_THAN>${escapeXml(findValue('TSBT_BENH_THAN', src) || '0')}</TSBT_BENH_THAN>
+							<TSBT_NGHIEN_RUOU>${escapeXml(findValue('TSBT_NGHIEN_RUOU', src) || '0')}</TSBT_NGHIEN_RUOU>
+							<TSBT_DAI_THAO_DUONG>${escapeXml(findValue('TSBT_DAI_THAO_DUONG', src) || '0')}</TSBT_DAI_THAO_DUONG>
+							<TSBT_BENH_TAM_THAN>${escapeXml(findValue('TSBT_BENH_TAM_THAN', src) || '0')}</TSBT_BENH_TAM_THAN>
+							<TSBT_MAT_Y_THUC>${escapeXml(findValue('TSBT_MAT_Y_THUC', src) || '0')}</TSBT_MAT_Y_THUC>
+							<TSBT_NGAT>${escapeXml(findValue('TSBT_NGAT', src) || '0')}</TSBT_NGAT>
+							<TSBT_BENH_TIEU_HOA>${escapeXml(findValue('TSBT_BENH_TIEU_HOA', src) || '0')}</TSBT_BENH_TIEU_HOA>
+							<TSBT_ROI_LOAN_GIAC_NGU>${escapeXml(findValue('TSBT_ROI_LOAN_GIAC_NGU', src) || '0')}</TSBT_ROI_LOAN_GIAC_NGU>
+							<TSBT_TAI_BIEN>${escapeXml(findValue('TSBT_TAI_BIEN', src) || '0')}</TSBT_TAI_BIEN>
+							<TSBT_BENH_COT_SONG>${escapeXml(findValue('TSBT_BENH_COT_SONG', src) || '0')}</TSBT_BENH_COT_SONG>
+							<TSBT_RUOU_THUONG_XUYEN>${escapeXml(findValue('TSBT_RUOU_THUONG_XUYEN', src) || '0')}</TSBT_RUOU_THUONG_XUYEN>
+							<TSBT_MA_TUY>${escapeXml(findValue('TSBT_MA_TUY', src) || '0')}</TSBT_MA_TUY>
+							<TSBT_BENH_KHAC>${escapeXml(findValue('TSBT_BENH_KHAC', src) || '0')}</TSBT_BENH_KHAC>
+							<TSBT_MA_BENH_KHAC>${escapeXml(findValue('TSBT_MA_BENH_KHAC', src) || '')}</TSBT_MA_BENH_KHAC>
+							<TSBT_TEN_THUOC_LIEU_LUONG>${escapeXml(findValue('TSBT_TEN_THUOC_LIEU_LUONG', src) || '')}</TSBT_TEN_THUOC_LIEU_LUONG>
+							<TSBT_THAI_SAN>${escapeXml(findValue('TSBT_THAI_SAN', src) || '0')}</TSBT_THAI_SAN>
+							<TSBT_TEN_THUOC_THAI_SAN>${escapeXml(findValue('TSBT_TEN_THUOC_THAI_SAN', src) || '')}</TSBT_TEN_THUOC_THAI_SAN>
+						</THONG_TIN_HANH_CHINH>`;
 
-    // 2. Tiền sử bệnh
-    let historyXml = '';
-    if (formType === 'driver') {
-        // Lái xe has comprehensive list of checkboxes
-        historyXml = `
-    <TSGD_MAC_BENH>${escapeXml(findValue('TSGD_MAC_BENH', src) || '0')}</TSGD_MAC_BENH>
-    <TSGD_MA_BENH>${escapeXml(findValue('TSGD_MA_BENH', src))}</TSGD_MA_BENH>
-    <TS_BENH_THUONG_5_NAM>${escapeXml(findValue('TS_BENH_THUONG_5_NAM', src) || '0')}</TS_BENH_THUONG_5_NAM>
-    <TS_THAN_KINH_CHAN_THUONG_DAU>${escapeXml(findValue('TS_THAN_KINH_CHAN_THUONG_DAU', src) || '0')}</TS_THAN_KINH_CHAN_THUONG_DAU>
-    <TS_BENH_MAT_GIAM_THI_LUC>${escapeXml(findValue('TS_BENH_MAT_GIAM_THI_LUC', src) || '0')}</TS_BENH_MAT_GIAM_THI_LUC>
-    <TS_BENH_TAI_GIAM_NGHE>${escapeXml(findValue('TS_BENH_TAI_GIAM_NGHE', src) || '0')}</TS_BENH_TAI_GIAM_NGHE>
-    <TS_BENH_TIM_MACH>${escapeXml(findValue('TS_BENH_TIM_MACH', src) || '0')}</TS_BENH_TIM_MACH>
-    <TS_PHAU_THUAT_TIM_MACH>${escapeXml(findValue('TS_PHAU_THUAT_TIM_MACH', src) || '0')}</TS_PHAU_THUAT_TIM_MACH>
-    <TS_TANG_HUYET_AP>${escapeXml(findValue('TS_TANG_HUYET_AP', src) || '0')}</TS_TANG_HUYET_AP>
-    <TS_KHO_THO>${escapeXml(findValue('TS_KHO_THO', src) || '0')}</TS_KHO_THO>
-    <TS_BENH_PHOI_HEN>${escapeXml(findValue('TS_BENH_PHOI_HEN', src) || '0')}</TS_BENH_PHOI_HEN>
-    <TS_BENH_THAN_LOC_MAU>${escapeXml(findValue('TS_BENH_THAN_LOC_MAU', src) || '0')}</TS_BENH_THAN_LOC_MAU>
-    <TS_DAI_THAO_DUONG>${escapeXml(findValue('TS_DAI_THAO_DUONG', src) || '0')}</TS_DAI_THAO_DUONG>
-    <TS_BENH_TAM_THAN>${escapeXml(findValue('TS_BENH_TAM_THAN', src) || '0')}</TS_BENH_TAM_THAN>
-    <TS_MAT_ROI_LOAN_Y_THUC>${escapeXml(findValue('TS_MAT_ROI_LOAN_Y_THUC', src) || '0')}</TS_MAT_ROI_LOAN_Y_THUC>
-    <TS_NGAT_CHONG_MAT>${escapeXml(findValue('TS_NGAT_CHONG_MAT', src) || '0')}</TS_NGAT_CHONG_MAT>
-    <TS_BENH_TIEU_HOA>${escapeXml(findValue('TS_BENH_TIEU_HOA', src) || '0')}</TS_BENH_TIEU_HOA>
-    <TS_ROI_LOAN_GIAC_NGU>${escapeXml(findValue('TS_ROI_LOAN_GIAC_NGU', src) || '0')}</TS_ROI_LOAN_GIAC_NGU>
-    <TS_TAI_BIEN_MACH_NAO>${escapeXml(findValue('TS_TAI_BIEN_MACH_NAO', src) || findValue('TS_TAI_BIEN_MACH_MAU_NAO', src) || '0')}</TS_TAI_BIEN_MACH_NAO>
-    <TS_SU_DUNG_RUOU>${escapeXml(findValue('ts_su_dung_ruou', src) || '0')}</TS_SU_DUNG_RUOU>
-    <TS_SU_DUNG_MA_TUY>${escapeXml(findValue('ts_su_dung_ma_tuy', src) || '0')}</TS_SU_DUNG_MA_TUY>
-    <TS_BENH_COT_SONG>${escapeXml(findValue('ts_benh_cot_song', src) || '0')}</TS_BENH_COT_SONG>
-    <TS_MA_BENH_BAN_THAN>${escapeXml(findValue('TS_MA_BENH_BAN_THAN', src) || findValue('tsbt_ma_benh', src))}</TS_MA_BENH_BAN_THAN>
-    <TS_MAC_BENH>${escapeXml(findValue('TS_MAC_BENH', src) || findValue('co_dang_dieu_tri_benh', src) || '0')}</TS_MAC_BENH>
-    <TEN_THUOC>${escapeXml(findValue('TEN_THUOC', src) || findValue('ten_thuoc', src))}</TEN_THUOC>
-    <TSBT_MA_BENH_NGHE_NGHIEP>${escapeXml(findValue('tsbt_ma_benh_nghe_nghiep', src))}</TSBT_MA_BENH_NGHE_NGHIEP>
-    <TSBT_NAM_PHAT_HIEN_BENH_NGHE_NGHIEP>${escapeXml(findValue('tsbt_nam_phat_hien_benh_nghe_nghiep', src))}</TSBT_NAM_PHAT_HIEN_BENH_NGHE_NGHIEP`;
-    } else if (formType === '3') {
-        // Người lớn (Mẫu 3 QĐ 2062): Tiền sử gia đình, bản thân, bệnh nghề nghiệp & sản phụ khoa
-        historyXml = `
-    <TSGD_MA_BENH>${escapeXml(findValue('TSGD_MA_BENH', src))}</TSGD_MA_BENH>
-    <TSBT_MA_BENH>${escapeXml(findValue('TSBT_MA_BENH', src))}</TSBT_MA_BENH>
-    <TSBT_NAM_PHAT_HIEN_BENH>${escapeXml(findValue('TSBT_NAM_PHAT_HIEN_BENH', src))}</TSBT_NAM_PHAT_HIEN_BENH>
-    <TSBT_MA_BENH_NGHE_NGHIEP>${escapeXml(findValue('tsbt_ma_benh_nghe_nghiep', src))}</TSBT_MA_BENH_NGHE_NGHIEP>
-    <TSBT_NAM_PHAT_HIEN_BENH_NGHE_NGHIEP>${escapeXml(findValue('tsbt_nam_phat_hien_benh_nghe_nghiep', src))}</TSBT_NAM_PHAT_HIEN_BENH_NGHE_NGHIEP`;
-        
-        if (genderCode === '2') {
-            historyXml += `
-    <CO_KINH_NGUYET_NAM_BAO_NHIEU_TUOI>${escapeXml(findValue('co_kinh_nguyet_nam_bao_nhieu_tuoi', src))}</CO_KINH_NGUYET_NAM_BAO_NHIEU_TUOI>
-    <TINH_CHAT_KINH_NGUYET>${escapeXml(findValue('tinh_chat_kinh_nguyet', src) || '1')}</TINH_CHAT_KINH_NGUYET>
-    <CHU_KY_KINH>${escapeXml(findValue('chu_ky_kinh', src))}</CHU_KY_KINH>
-    <LUONG_KINH>${escapeXml(findValue('luong_kinh', src))}</LUONG_KINH>
-    <DAU_BUNG_KINH>${escapeXml(findValue('dau_bung_kinh', src) || '0')}</DAU_BUNG_KINH>
-    <DA_LAP_GIA_DINH>${escapeXml(findValue('da_lap_gia_dinh', src) || '0')}</DA_LAP_GIA_DINH>
-    <PARA>${escapeXml(findValue('para', src))}</PARA>
-    <DA_TUNG_MO_SAN_PHU_KHOA_CHUA>${escapeXml(findValue('da_tung_mo_san_phu_khoa_chua', src) || '0')}</DA_TUNG_MO_SAN_PHU_KHOA_CHUA>
-    <SO_LAN_MO_SAN_PHU_KHOA>${escapeXml(findValue('so_lan_mo_san_phu_khoa', src))}</SO_LAN_MO_SAN_PHU_KHOA>
-    <GHI_RO_MO_SAN_PHU_KHOA>${escapeXml(findValue('ghi_ro_mo_san_phu_khoa', src))}</GHI_RO_MO_SAN_PHU_KHOA>
-    <DANG_AP_DUNG_BPTT_KHONG>${escapeXml(findValue('dang_ap_dung_bptt_khong', src) || '0')}</DANG_AP_DUNG_BPTT_KHONG>
-    <BIEN_PHAP_TRANH_THAI>${escapeXml(findValue('bien_phap_tranh_thai', src) || '1')}</BIEN_PHAP_TRANH_THAI`;
+    // Build XML2: THONG_TIN_CHUNG_VE_LAN_KHAM
+    let typeVal = 'Adult';
+    if (formType === '2' || formType === 'mau1-child' || formType === 'child') {
+        typeVal = 'ChildUnder';
+    } else if (formType === 'minor' || formType === '3') {
+        typeVal = 'Minor';
+    }
+    const xml2 = `<THONG_TIN_CHUNG_VE_LAN_KHAM>
+							<MA_LK>${escapeXml(maLkVal)}</MA_LK>
+							<MA_CSKCB>${escapeXml(maCskcbByt)}</MA_CSKCB>
+							<TYPE>${typeVal}</TYPE>
+							<MA_GTIN_CSKCB>${escapeXml(maGtinCskcb)}</MA_GTIN_CSKCB>
+							<DOI_TUONG>${escapeXml(findValue('DOI_TUONG', src) || '1;2')}</DOI_TUONG>
+							<NGUON_CHI_TRA>${escapeXml(findValue('NGUON_CHI_TRA', src) || '2')}</NGUON_CHI_TRA>
+							<MA_LOAI_KCB>${escapeXml(findValue('MA_LOAI_KCB', src) || '01')}</MA_LOAI_KCB>
+							<NGAY_VAO>${escapeXml(ngayVaoVal)}</NGAY_VAO>
+						</THONG_TIN_CHUNG_VE_LAN_KHAM>`;
+
+    // Build XML7: KHAM_LAM_SANG
+    const xml7 = `<KHAM_LAM_SANG>
+							<MAU_SAC_DA>${escapeXml(findValue('MAU_SAC_DA', src) || '0')}</MAU_SAC_DA>
+							<LONG_BAN_TAY>${escapeXml(findValue('LONG_BAN_TAY', src) || '0')}</LONG_BAN_TAY>
+							<THOP>${escapeXml(findValue('THOP', src) || '0')}</THOP>
+							<HINH_DANG_DAU>${escapeXml(findValue('HINH_DANG_DAU', src) || '0')}</HINH_DANG_DAU>
+							<VAN_DONG_CO>${escapeXml(findValue('VAN_DONG_CO', src) || '0')}</VAN_DONG_CO>
+							<KHOI_BAT_THUONG_DAU_CO>${escapeXml(findValue('KHOI_BAT_THUONG_DAU_CO', src) || '0')}</KHOI_BAT_THUONG_DAU_CO>
+							<VI_TRI_HAI_MAT>${escapeXml(findValue('VI_TRI_HAI_MAT', src) || '0')}</VI_TRI_HAI_MAT>
+							<MI_MAT_KET_MAC>${escapeXml(findValue('MI_MAT_KET_MAC', src) || '0')}</MI_MAT_KET_MAC>
+							<LAC_MAT>${escapeXml(findValue('LAC_MAT', src) || '0')}</LAC_MAT>
+							<DONG_TU>${escapeXml(findValue('DONG_TU', src) || '0')}</DONG_TU>
+							<TAI_MANG_NHI>${escapeXml(findValue('TAI_MANG_NHI', src) || '0')}</TAI_MANG_NHI>
+							<DAP_UNG_AM_THANH>${escapeXml(findValue('DAP_UNG_AM_THANH', src) || '0')}</DAP_UNG_AM_THANH>
+							<KHOI_SUNG_SAU_TAI>${escapeXml(findValue('KHOI_SUNG_SAU_TAI', src) || '0')}</KHOI_SUNG_SAU_TAI>
+							<CHAY_MU_NUOC_TAI>${escapeXml(findValue('CHAY_MU_NUOC_TAI', src) || '0')}</CHAY_MU_NUOC_TAI>
+							<HINH_DANG_MUI>${escapeXml(findValue('HINH_DANG_MUI', src) || '0')}</HINH_DANG_MUI>
+							<CHAY_NUOC_MUI>${escapeXml(findValue('CHAY_NUOC_MUI', src) || '0')}</CHAY_NUOC_MUI>
+							<NGHET_MUI>${escapeXml(findValue('NGHET_MUI', src) || '0')}</NGHET_MUI>
+							<HONG>${escapeXml(findValue('HONG', src) || '0')}</HONG>
+							<HINH_DANG_MIENG>${escapeXml(findValue('HINH_DANG_MIENG', src) || '0')}</HINH_DANG_MIENG>
+							<RANG_SUA_SO_SINH>${escapeXml(findValue('RANG_SUA_SO_SINH', src) || '0')}</RANG_SUA_SO_SINH>
+							<HINH_DANG_LUOI>${escapeXml(findValue('HINH_DANG_LUOI', src) || '0')}</HINH_DANG_LUOI>
+							<DINH_THANG_LUOI>${escapeXml(findValue('DINH_THANG_LUOI', src) || '0')}</DINH_THANG_LUOI>
+							<NAM_MIENG>${escapeXml(findValue('NAM_MIENG', src) || '0')}</NAM_MIENG>
+							<CAM_NHO_TUT_VE_SAU>${escapeXml(findValue('CAM_NHO_TUT_VE_SAU', src) || '0')}</CAM_NHO_TUT_VE_SAU>
+							<SAU_MANG_BAM_LO>${escapeXml(findValue('SAU_MANG_BAM_LO', src) || '0')}</SAU_MANG_BAM_LO>
+							<NHIP_THO_KHONG_DEU>${escapeXml(findValue('NHIP_THO_KHONG_DEU', src) || '0')}</NHIP_THO_KHONG_DEU>
+							<THO_RUT_LOM_LONG_NGUC>${escapeXml(findValue('THO_RUT_LOM_LONG_NGUC', src) || '0')}</THO_RUT_LOM_LONG_NGUC>
+							<TIENG_THO_BAT_THUONG>${escapeXml(findValue('TIENG_THO_BAT_THUONG', src) || '0')}</TIENG_THO_BAT_THUONG>
+							<SUY_HO_HAP>${escapeXml(findValue('SUY_HO_HAP', src) || '0')}</SUY_HO_HAP>
+							<NGHE_PHOI>${escapeXml(findValue('NGHE_PHOI', src) || '0')}</NGHE_PHOI>
+							<VI_TRI_MOM_TIM>${escapeXml(findValue('VI_TRI_MOM_TIM', src) || '0')}</VI_TRI_MOM_TIM>
+							<MACH_NGOAI_VI>${escapeXml(findValue('MACH_NGOAI_VI', src) || '0')}</MACH_NGOAI_VI>
+							<TIENG_TIM>${escapeXml(findValue('TIENG_TIM', src) || '0')}</TIENG_TIM>
+							<HINH_DANG_BUNG_RON>${escapeXml(findValue('HINH_DANG_BUNG_RON', src) || '0')}</HINH_DANG_BUNG_RON>
+							<GAN_LACH_TO>${escapeXml(findValue('GAN_LACH_TO', src) || '0')}</GAN_LACH_TO>
+							<KHOI_BAT_THUONG>${escapeXml(findValue('KHOI_BAT_THUONG', src) || '0')}</KHOI_BAT_THUONG>
+							<LO_HAU_MON>${escapeXml(findValue('LO_HAU_MON', src) || '0')}</LO_HAU_MON>
+							<CO_QUAN_SINH_DUC_NGOAI>${escapeXml(findValue('CO_QUAN_SINH_DUC_NGOAI', src) || '0')}</CO_QUAN_SINH_DUC_NGOAI>
+							<VAN_DONG_KHONG_DOI_XUNG>${escapeXml(findValue('VAN_DONG_KHONG_DOI_XUNG', src) || '0')}</VAN_DONG_KHONG_DOI_XUNG>
+							<PHAN_XA_BU>${escapeXml(findValue('PHAN_XA_BU', src) || '0')}</PHAN_XA_BU>
+							<PHAN_XA_NAM>${escapeXml(findValue('PHAN_XA_NAM', src) || '0')}</PHAN_XA_NAM>
+							<PHAN_XA_MORO>${escapeXml(findValue('PHAN_XA_MORO', src) || '0')}</PHAN_XA_MORO>
+							<TRUONG_LUC_CO>${escapeXml(findValue('TRUONG_LUC_CO', src) || '0')}</TRUONG_LUC_CO>
+							<KHOP_HANG>${escapeXml(findValue('KHOP_HANG', src) || '0')}</KHOP_HANG>
+							<PHAN_XA_CO>${escapeXml(findValue('PHAN_XA_CO', src) || '0')}</PHAN_XA_CO>
+							<KIEM_TRA_LUNG_COT_SONG>${escapeXml(findValue('KIEM_TRA_LUNG_COT_SONG', src) || '0')}</KIEM_TRA_LUNG_COT_SONG>
+							<TU_CHI_KHOP>${escapeXml(findValue('TU_CHI_KHOP', src) || '0')}</TU_CHI_KHOP>
+							<QUAN_SAT_DANG_DI>${escapeXml(findValue('QUAN_SAT_DANG_DI', src) || '0')}</QUAN_SAT_DANG_DI>
+							<NHI_KHOA_TUAN_HOAN>${escapeXml(findValue('NHI_KHOA_TUAN_HOAN', src))}</NHI_KHOA_TUAN_HOAN>
+							<CKDT_NHI_KHOA_TUAN_HOAN>${escapeXml(findValue('CKDT_NHI_KHOA_TUAN_HOAN', src))}</CKDT_NHI_KHOA_TUAN_HOAN>
+							<NHI_KHOA_HO_HAP>${escapeXml(findValue('NHI_KHOA_HO_HAP', src))}</NHI_KHOA_HO_HAP>
+							<CKDT_NHI_KHOA_HO_HAP>${escapeXml(findValue('CKDT_NHI_KHOA_HO_HAP', src))}</CKDT_NHI_KHOA_HO_HAP>
+							<NHI_KHOA_TIEU_HOA>${escapeXml(findValue('NHI_KHOA_TIEU_HOA', src))}</NHI_KHOA_TIEU_HOA>
+							<CKDT_NHI_KHOA_TIEU_HOA>${escapeXml(findValue('CKDT_NHI_KHOA_TIEU_HOA', src))}</CKDT_NHI_KHOA_TIEU_HOA>
+							<NHI_KHOA_THAN_TN_SD>${escapeXml(findValue('NHI_KHOA_THAN_TN_SD', src))}</NHI_KHOA_THAN_TN_SD>
+							<CKDT_NHI_KHOA_THAN_TN_SD>${escapeXml(findValue('CKDT_NHI_KHOA_THAN_TN_SD', src))}</CKDT_NHI_KHOA_THAN_TN_SD>
+							<NHI_KHOA_THAN_KINH>${escapeXml(findValue('NHI_KHOA_THAN_KINH', src))}</NHI_KHOA_THAN_KINH>
+							<CKDT_NHI_KHOA_THAN_KINH>${escapeXml(findValue('CKDT_NHI_KHOA_THAN_KINH', src))}</CKDT_NHI_KHOA_THAN_KINH>
+							<NHI_KHOA_TAM_THAN>${escapeXml(findValue('NHI_KHOA_TAM_THAN', src))}</NHI_KHOA_TAM_THAN>
+							<CKDT_NHI_KHOA_TAM_THAN>${escapeXml(findValue('CKDT_NHI_KHOA_TAM_THAN', src))}</CKDT_NHI_KHOA_TAM_THAN>
+							<NHI_KHOA_LAM_SANG_KHAC>${escapeXml(findValue('NHI_KHOA_LAM_SANG_KHAC', src))}</NHI_KHOA_LAM_SANG_KHAC>
+							<CKDT_NHI_KHOA_LAM_SANG_KHAC>${escapeXml(findValue('CKDT_NHI_KHOA_LAM_SANG_KHAC', src))}</CKDT_NHI_KHOA_LAM_SANG_KHAC>
+							<KHONG_KINH_MAT_PHAI>${escapeXml(findValue('KHONG_KINH_MAT_PHAI', src) || '10/10')}</KHONG_KINH_MAT_PHAI>
+							<KHONG_KINH_MAT_TRAI>${escapeXml(findValue('KHONG_KINH_MAT_TRAI', src) || '10/10')}</KHONG_KINH_MAT_TRAI>
+							<CO_KINH_MAT_PHAI>${escapeXml(findValue('CO_KINH_MAT_PHAI', src) || '10/10')}</CO_KINH_MAT_PHAI>
+							<CO_KINH_MAT_TRAI>${escapeXml(findValue('CO_KINH_MAT_TRAI', src) || '10/10')}</CO_KINH_MAT_TRAI>
+							<BENH_KHAC_MAT>${escapeXml(findValue('BENH_KHAC_MAT', src) || 'Không')}</BENH_KHAC_MAT>
+							<CKDT_KHAM_MAT>${escapeXml(findValue('CKDT_KHAM_MAT', src))}</CKDT_KHAM_MAT>
+							<KHAM_MAT_PL>${escapeXml(findValue('KHAM_MAT_PL', src) || '1')}</KHAM_MAT_PL>
+							<TAI_TRAI_NOI_THUONG>${escapeXml(findValue('TAI_TRAI_NOI_THUONG', src) || 'Bình thường')}</TAI_TRAI_NOI_THUONG>
+							<TAI_TRAI_NOI_THAM>${escapeXml(findValue('TAI_TRAI_NOI_THAM', src) || 'Bình thường')}</TAI_TRAI_NOI_THAM>
+							<TAI_PHAI_NOI_THUONG>${escapeXml(findValue('TAI_PHAI_NOI_THUONG', src) || 'Bình thường')}</TAI_PHAI_NOI_THUONG>
+							<TAI_PHAI_NOI_THAM>${escapeXml(findValue('TAI_PHAI_NOI_THAM', src) || 'Bình thường')}</TAI_PHAI_NOI_THAM>
+							<BENH_TAI_MUI_HONG>${escapeXml(findValue('BENH_TAI_MUI_HONG', src))}</BENH_TAI_MUI_HONG>
+							<BENH_KHAC_TAI_MUI_HONG>${escapeXml(findValue('BENH_KHAC_TAI_MUI_HONG', src) || 'Không')}</BENH_KHAC_TAI_MUI_HONG>
+							<KHAM_TAI_MUI_HONG_PL>${escapeXml(findValue('KHAM_TAI_MUI_HONG_PL', src) || '1')}</KHAM_TAI_MUI_HONG_PL>
+							<CKDT_KHAM_TAI_MUI_HONG>${escapeXml(findValue('CKDT_KHAM_TAI_MUI_HONG', src))}</CKDT_KHAM_TAI_MUI_HONG>
+							<HAM_TREN>${escapeXml(findValue('HAM_TREN', src) || 'Bình thường')}</HAM_TREN>
+							<HAM_DUOI>${escapeXml(findValue('HAM_DUOI', src) || 'Bình thường')}</HAM_DUOI>
+							<BENH_RANG_HAM_MAT>${escapeXml(findValue('BENH_RANG_HAM_MAT', src))}</BENH_RANG_HAM_MAT>
+							<BENH_KHAC_RANG_HAM_MAT>${escapeXml(findValue('BENH_KHAC_RANG_HAM_MAT', src) || 'Không')}</BENH_KHAC_RANG_HAM_MAT>
+							<KHAM_RANG_HAM_MAT_PL>${escapeXml(findValue('KHAM_RANG_HAM_MAT_PL', src) || '1')}</KHAM_RANG_HAM_MAT_PL>
+							<CKDT_KHAM_RANG_HAM_MAT>${escapeXml(findValue('CKDT_KHAM_RANG_HAM_MAT', src))}</CKDT_KHAM_RANG_HAM_MAT>
+							<KET_QUA_KHAM_NGOAI_KHOA>${escapeXml(findValue('KET_QUA_KHAM_NGOAI_KHOA', src) || 'Bình thường')}</KET_QUA_KHAM_NGOAI_KHOA>
+							<KHAM_NGOAI_KHOA_PL>${escapeXml(findValue('KHAM_NGOAI_KHOA_PL', src) || '1')}</KHAM_NGOAI_KHOA_PL>
+							<CKDT_KHAM_NGOAI_KHOA>${escapeXml(findValue('CKDT_KHAM_NGOAI_KHOA', src))}</CKDT_KHAM_NGOAI_KHOA>
+							<KET_QUA_KHAM_DA_LIEU>${escapeXml(findValue('KET_QUA_KHAM_DA_LIEU', src) || 'Bình thường')}</KET_QUA_KHAM_DA_LIEU>
+							<KHAM_DA_LIEU_PL>${escapeXml(findValue('KHAM_DA_LIEU_PL', src) || '1')}</KHAM_DA_LIEU_PL>
+							<CKDT_KHAM_DA_LIEU>${escapeXml(findValue('CKDT_KHAM_DA_LIEU', src))}</CKDT_KHAM_DA_LIEU>
+							<KET_QUA_KHAM_SAN_PHU_KHOA>${escapeXml(findValue('KET_QUA_KHAM_SAN_PHU_KHOA', src) || 'Bình thường')}</KET_QUA_KHAM_SAN_PHU_KHOA>
+							<KHAM_SAN_PHU_KHOA_PL>${escapeXml(findValue('KHAM_SAN_PHU_KHOA_PL', src) || '1')}</KHAM_SAN_PHU_KHOA_PL>
+							<CKDT_KHAM_SAN_PHU_KHOA>${escapeXml(findValue('CKDT_KHAM_SAN_PHU_KHOA', src))}</CKDT_KHAM_SAN_PHU_KHOA>
+							<TAI_TRAI_NOI_THUONG>${escapeXml(findValue('TAI_TRAI_NOI_THUONG', src) || 'Bình thường')}</TAI_TRAI_NOI_THUONG>
+							<TAI_TRAI_NOI_THAM>${escapeXml(findValue('TAI_TRAI_NOI_THAM', src) || 'Bình thường')}</TAI_TRAI_NOI_THAM>
+							<TAI_PHAI_NOI_THUONG>${escapeXml(findValue('TAI_PHAI_NOI_THUONG', src) || 'Bình thường')}</TAI_PHAI_NOI_THUONG>
+							<TAI_PHAI_NOI_THAM>${escapeXml(findValue('TAI_PHAI_NOI_THAM', src) || 'Bình thường')}</TAI_PHAI_NOI_THAM>
+							<BENH_TAI_MUI_HONG>${escapeXml(findValue('BENH_TAI_MUI_HONG', src))}</BENH_TAI_MUI_HONG>
+							<CKDT_KHAM_TAI_MUI_HONG>${escapeXml(findValue('CKDT_KHAM_TAI_MUI_HONG', src))}</CKDT_KHAM_TAI_MUI_HONG>
+							<HAM_TREN>${escapeXml(findValue('HAM_TREN', src) || 'Bình thường')}</HAM_TREN>
+							<HAM_DUOI>${escapeXml(findValue('HAM_DUOI', src) || 'Bình thường')}</HAM_DUOI>
+							<BENH_RANG_HAM_MAT>${escapeXml(findValue('BENH_RANG_HAM_MAT', src))}</BENH_RANG_HAM_MAT>
+							<CKDT_KHAM_RANG_HAM_MAT>${escapeXml(findValue('CKDT_KHAM_RANG_HAM_MAT', src))}</CKDT_KHAM_RANG_HAM_MAT>
+							<NOI_KHOA_TUAN_HOAN>${escapeXml(findValue('NOI_KHOA_TUAN_HOAN', src) || 'Bình thường')}</NOI_KHOA_TUAN_HOAN>
+							<NOI_KHOA_TUAN_HOAN_PL>${escapeXml(findValue('NOI_KHOA_TUAN_HOAN_PL', src) || '1')}</NOI_KHOA_TUAN_HOAN_PL>
+							<CKDT_NOI_KHOA_TUAN_HOAN>${escapeXml(findValue('CKDT_NOI_KHOA_TUAN_HOAN', src))}</CKDT_NOI_KHOA_TUAN_HOAN>
+							<NOI_KHOA_HO_HAP>${escapeXml(findValue('NOI_KHOA_HO_HAP', src) || 'Bình thường')}</NOI_KHOA_HO_HAP>
+							<NOI_KHOA_HO_HAP_PL>${escapeXml(findValue('NOI_KHOA_HO_HAP_PL', src) || '1')}</NOI_KHOA_HO_HAP_PL>
+							<CKDT_NOI_KHOA_HO_HAP>${escapeXml(findValue('CKDT_NOI_KHOA_HO_HAP', src))}</CKDT_NOI_KHOA_HO_HAP>
+							<NOI_KHOA_TIEU_HOA>${escapeXml(findValue('NOI_KHOA_TIEU_HOA', src) || 'Bình thường')}</NOI_KHOA_TIEU_HOA>
+							<NOI_KHOA_TIEU_HOA_PL>${escapeXml(findValue('NOI_KHOA_TIEU_HOA_PL', src) || '1')}</NOI_KHOA_TIEU_HOA_PL>
+							<CKDT_NOI_KHOA_TIEU_HOA>${escapeXml(findValue('CKDT_NOI_KHOA_TIEU_HOA', src))}</CKDT_NOI_KHOA_TIEU_HOA>
+							<NOI_KHOA_THAN_TN_SD>${escapeXml(findValue('NOI_KHOA_THAN_TN_SD', src) || 'Bình thường')}</NOI_KHOA_THAN_TN_SD>
+							<NOI_KHOA_THAN_TN_SD_PL>${escapeXml(findValue('NOI_KHOA_THAN_TN_SD_PL', src) || '1')}</NOI_KHOA_THAN_TN_SD_PL>
+							<CKDT_NOI_KHOA_THAN_TN_SD>${escapeXml(findValue('CKDT_NOI_KHOA_THAN_TN_SD', src))}</CKDT_NOI_KHOA_THAN_TN_SD>
+							<NOI_KHOA_NOI_TIET>${escapeXml(findValue('NOI_KHOA_NOI_TIET', src) || 'Bình thường')}</NOI_KHOA_NOI_TIET>
+							<NOI_KHOA_NOI_TIET_PL>${escapeXml(findValue('NOI_KHOA_NOI_TIET_PL', src) || '1')}</NOI_KHOA_NOI_TIET_PL>
+							<CKDT_NOI_KHOA_NOI_TIET>${escapeXml(findValue('CKDT_NOI_KHOA_NOI_TIET', src))}</CKDT_NOI_KHOA_NOI_TIET>
+							<NOI_KHOA_CO_XUONG_KHOP>${escapeXml(findValue('NOI_KHOA_CO_XUONG_KHOP', src) || 'Bình thường')}</NOI_KHOA_CO_XUONG_KHOP>
+							<NOI_KHOA_CO_XUONG_KHOP_PL>${escapeXml(findValue('NOI_KHOA_CO_XUONG_KHOP_PL', src) || '1')}</NOI_KHOA_CO_XUONG_KHOP_PL>
+							<CKDT_NOI_KHOA_CO_XUONG_KHOP>${escapeXml(findValue('CKDT_NOI_KHOA_CO_XUONG_KHOP', src))}</CKDT_NOI_KHOA_CO_XUONG_KHOP>
+							<NOI_KHOA_THAN_KINH>${escapeXml(findValue('NOI_KHOA_THAN_KINH', src) || 'Bình thường')}</NOI_KHOA_THAN_KINH>
+							<NOI_KHOA_THAN_KINH_PL>${escapeXml(findValue('NOI_KHOA_THAN_KINH_PL', src) || '1')}</NOI_KHOA_THAN_KINH_PL>
+							<CKDT_NOI_KHOA_THAN_KINH>${escapeXml(findValue('CKDT_NOI_KHOA_THAN_KINH', src))}</CKDT_NOI_KHOA_THAN_KINH>
+							<NOI_KHOA_TAM_THAN>${escapeXml(findValue('NOI_KHOA_TAM_THAN', src) || 'Bình thường')}</NOI_KHOA_TAM_THAN>
+							<NOI_KHOA_TAM_THAN_PL>${escapeXml(findValue('NOI_KHOA_TAM_THAN_PL', src) || '1')}</NOI_KHOA_TAM_THAN_PL>
+							<CKDT_NOI_KHOA_TAM_THAN>${escapeXml(findValue('CKDT_NOI_KHOA_TAM_THAN', src))}</CKDT_NOI_KHOA_TAM_THAN>
+						</KHAM_LAM_SANG>`;
+
+    // Build XML10: KHAM_THE_LUC
+    const chieuCaoVal = findValue('CHIEU_CAO', src) || '165';
+    const canNangVal = findValue('CAN_NANG', src) || '60';
+    const bmiVal = findValue('CHI_SO_BMI', src) || '22.0';
+    const machVal = findValue('MACH', src) || '80';
+    const huyetApVal = findValue('HUYET_AP', src) || '120/80';
+    const khamTheLucPlVal = findValue('KHAM_THE_LUC_PL', src) || '1';
+
+    const xml10 = `<KHAM_THE_LUC>
+							<CHIEU_CAO>${escapeXml(chieuCaoVal)}</CHIEU_CAO>
+							<CAN_NANG>${escapeXml(canNangVal)}</CAN_NANG>
+							<CHI_SO_BMI>${escapeXml(bmiVal)}</CHI_SO_BMI>
+							<MACH>${escapeXml(machVal)}</MACH>
+							<HUYET_AP>${escapeXml(huyetApVal)}</HUYET_AP>
+							<KHAM_THE_LUC_PL>${escapeXml(khamTheLucPlVal)}</KHAM_THE_LUC_PL>
+						</KHAM_THE_LUC>`;
+
+    // Build XML11: KHAM_CAN_LAM_SANG (Array of items with CDATA)
+    let paraclItems = '';
+    if (lab?.paraclinical_items && Array.isArray(lab.paraclinical_items) && lab.paraclinical_items.length > 0) {
+        for (const item of lab.paraclinical_items) {
+            const svcCode = item.service_code || 'CLS01';
+            const idxCode = item.index_code || svcCode;
+            const itemVal = item.value || 'Bình thường';
+            const itemUnit = item.unit || 'Lần';
+            const itemDesc = item.description || itemVal;
+            const itemConc = item.conclusion || 'Bình thường';
+            const itemName = item.name || svcCode;
+
+            paraclItems += `
+								<CHI_TIET_CLS>
+									<MA_DICH_VU>${escapeXml(svcCode)}</MA_DICH_VU>
+									<MA_CHI_SO>${escapeXml(idxCode)}</MA_CHI_SO>
+									<TEN_CHI_SO>
+										<![CDATA[${itemName}]]>
+									</TEN_CHI_SO>
+									<GIA_TRI>
+										<![CDATA[${itemVal}]]>
+									</GIA_TRI>
+									<DON_VI_DO>
+										<![CDATA[${itemUnit}]]>
+									</DON_VI_DO>
+									<MO_TA>
+										<![CDATA[${itemDesc}]]>
+									</MO_TA>
+									<KET_LUAN>
+										<![CDATA[${itemConc}]]>
+									</KET_LUAN>
+								</CHI_TIET_CLS>`;
         }
-    } else if (formType === '1' || formType === '2') {
-        // Trẻ em & Học sinh (Mẫu 1 & Mẫu 2 QĐ 2062): Vaccine & Tiền sử tiêm chủng
-        historyXml = `
-    <TIEM_CHUNG_BCG>${escapeXml(findValue('TIEM_CHUNG_BCG', src) || '99')}</TIEM_CHUNG_BCG>
-    <TIEM_CHUNG_BH_HG_UV>${escapeXml(findValue('TIEM_CHUNG_BH_HG_UV', src) || '99')}</TIEM_CHUNG_BH_HG_UV>
-    <TIEM_CHUNG_SOI>${escapeXml(findValue('TIEM_CHUNG_SOI', src) || '99')}</TIEM_CHUNG_SOI>
-    <TIEM_CHUNG_BAI_LIET>${escapeXml(findValue('TIEM_CHUNG_BAI_LIET', src) || '99')}</TIEM_CHUNG_BAI_LIET>
-    <TIEM_CHUNG_VNNB_B>${escapeXml(findValue('TIEM_CHUNG_VNNB_B', src) || '99')}</TIEM_CHUNG_VNNB_B>
-    <TIEM_CHUNG_VGB>${escapeXml(findValue('TIEM_CHUNG_VGB', src) || '99')}</TIEM_CHUNG_VGB>`;
-    }
-
-    // 3. Khám thể lực
-    let physicalXml = `
-    <CHIEU_CAO>${escapeXml(findValue('CHIEU_CAO', src))}</CHIEU_CAO>
-    <CAN_NANG>${escapeXml(findValue('CAN_NANG', src))}</CAN_NANG>
-    <CHI_SO_BMI>${escapeXml(findValue('CHI_SO_BMI', src))}</CHI_SO_BMI>
-    <MACH>${escapeXml(findValue('MACH', src))}</MACH>
-    <HUYET_AP>${escapeXml(findValue('HUYET_AP', src))}</HUYET_AP>`;
-
-    if (formType === '3') {
-        physicalXml += `
-    <KHAM_THE_LUC_PL>${escapeXml(findValue('kham_the_luc_pl', src) || '1')}</KHAM_THE_LUC_PL>`;
-    } else if (formType === '5') {
-        physicalXml += `
-    <LUC_BOP_TAY_THUAN>${escapeXml(findValue('LUC_BOP_TAY_THUAN', src))}</LUC_BOP_TAY_THUAN>
-    <LUC_BOP_TAY_KHONG_THUAN>${escapeXml(findValue('LUC_BOP_TAY_KHONG_THUAN', src))}</LUC_BOP_TAY_KHONG_THUAN>
-    <LUC_KEO_LUNG>${escapeXml(findValue('LUC_KEO_LUNG', src))}</LUC_KEO_LUNG>
-    <LUC_KEO_THAN>${escapeXml(findValue('LUC_KEO_THAN', src))}</LUC_KEO_THAN>
-    <HA_TAM_THU>${escapeXml(findValue('HA_TAM_THU', src))}</HA_TAM_THU>
-    <HA_TAM_TRUONG>${escapeXml(findValue('HA_TAM_TRUONG', src))}</HA_TAM_TRUONG>
-    <NHIP_TIM>${escapeXml(findValue('NHIP_TIM', src))}</NHIP_TIM>
-    <VONG_NGUC_TRUNG_BINH>${escapeXml(findValue('VONG_NGUC_TRUNG_BINH', src))}</VONG_NGUC_TRUNG_BINH>`;
-    } else if (formType === '1') {
-        physicalXml += `
-    <VONG_DDAU>${escapeXml(findValue('VONG_DDAU', src))}</VONG_DDAU>
-    <VONG_NGUC>${escapeXml(findValue('VONG_NGUC', src))}</VONG_NGUC>
-    <SINH_NON>${escapeXml(findValue('SINH_NON', src) || '0')}</SINH_NON>
-    <TUAN_THAI_KHI_SINH>${escapeXml(findValue('TUAN_THAI_KHI_SINH', src))}</TUAN_THAI_KHI_SINH>
-    <CAN_NANG_LUC_SINH>${escapeXml(findValue('CAN_NANG_LUC_SINH', src))}</CAN_NANG_LUC_SINH>`;
-    }
-
-    // 4. Khám lâm sàng
-    let clinicalXml = '';
-    if (formType === '1') {
-        // Nhi khoa
-        clinicalXml = `
-    <NHI_KHOA_TUAN_HOAN>${escapeXml(findValue('NHI_KHOA_TUAN_HOAN', src) || 'Bình thường')}</NHI_KHOA_TUAN_HOAN>
-    <NHI_KHOA_HO_HAP>${escapeXml(findValue('NHI_KHOA_HO_HAP', src) || 'Bình thường')}</NHI_KHOA_HO_HAP>
-    <NHI_KHOA_TIEU_HOA>${escapeXml(findValue('NHI_KHOA_TIEU_HOA', src) || 'Bình thường')}</NHI_KHOA_TIEU_HOA>
-    <NHI_KHOA_THAN_TIETNIEU>${escapeXml(findValue('NHI_KHOA_THAN_TIETNIEU', src) || 'Bình thường')}</NHI_KHOA_THAN_TIETNIEU>
-    <NHI_KHOA_THAN_KINH>${escapeXml(findValue('NHI_KHOA_THAN_KINH', src) || 'Bình thường')}</NHI_KHOA_THAN_KINH>
-    <NHI_KHOA_TAM_THAN>${escapeXml(findValue('NHI_KHOA_TAM_THAN', src) || 'Bình thường')}</NHI_KHOA_TAM_THAN>
-    <NHI_KHOA_LAM_SANG_KHAC>${escapeXml(findValue('NHI_KHOA_LAM_SANG_KHAC', src) || 'Bình thường')}</NHI_KHOA_LAM_SANG_KHAC>
-    <MO_TA_VAN_DONG_TINH_THAN>${escapeXml(findValue('milestone_check', src) === '1' ? 'Đạt' : 'Cần theo dõi')}</MO_TA_VAN_DONG_TINH_THAN`;
-
-        // Check if milestones are present and append them as XML tags
-        const milestoneList: { key: string; forms: string[] }[] = [
-            { key: 'quay_dau_huong_am_thanh', forms: ['6'] },
-            { key: 'nhin_theo_khuon_mat_30cm', forms: ['6'] },
-            { key: 'phat_ra_tieng_khan_gu', forms: ['7'] },
-            { key: 'ngoi_khong_ho_tro', forms: ['9'] },
-            { key: 'dung_ngon_cai_tum_do_vat', forms: ['9'] },
-            { key: 'dap_ung_goi_ten', forms: ['10'] },
-            { key: 'bap_be_tu_nguyen_phu_am', forms: ['10'] },
-            { key: 'dung_vin_dung_len', forms: ['10'] },
-            { key: 'di_chuyen_let_bang_mong', forms: ['10'] },
-            { key: 'noi_duoc_co_chu_dich', forms: ['11'] },
-            { key: 'di_co_hoac_khong_tro_giup', forms: ['11'] },
-            { key: 'chi_bo_phan_co_the', forms: ['12'] },
-            { key: 'noi_tu_ghep_2_tu', forms: ['12'] },
-            { key: 'lam_theo_yeu_cau_1_2_buoc', forms: ['12'] },
-            { key: 'lam_theo_yeu_cau_2_3_buoc', forms: ['13'] },
-            { key: 'vin_cau_thang_va_nhay_bat', forms: ['13'] },
-            { key: 'lam_3_yeu_cau_khong_lien_quan', forms: ['13'] },
-            { key: 'noi_cau_dai_ke_chuyen', forms: ['13'] },
-            { key: 'hoi_va_tra_loi_cau_hoi', forms: ['13'] },
-            { key: 'dung_1_chan_5_giay_nhay_lo_co', forms: ['13'] },
-            { key: 'noi_thong_tin_ca_nhan', forms: ['13'] },
-            { key: 'dem_to_hoac_dem_ngon_tay', forms: ['13'] },
-        ];
-        
-        milestoneList.forEach(item => {
-            const val = findValue(item.key, src);
-            if (val) {
-                clinicalXml += `
-    <${item.key.toUpperCase()}>${escapeXml(val)}</${item.key.toUpperCase()}>`;
-            }
-        });
-    } else if (formType === '4') {
-        // Mẫu 4: 12 Railway Specialties
-        clinicalXml = `
-    <KQ_TAM_THAN>${escapeXml(findValue('KQ_TAM_THAN', src) || 'Bình thường')}</KQ_TAM_THAN>
-    <KQ_THAN_KINH>${escapeXml(findValue('KQ_THAN_KINH', src) || 'Bình thường')}</KQ_THAN_KINH>
-    <KQ_TIM_MACH>${escapeXml(findValue('KQ_TIM_MACH', src) || 'Bình thường')}</KQ_TIM_MACH>
-    <KQ_HO_HAP>${escapeXml(findValue('KQ_HO_HAP', src) || 'Bình thường')}</KQ_HO_HAP>
-    <KQ_NOI_TIET>${escapeXml(findValue('KQ_NOI_TIET', src) || 'Bình thường')}</KQ_NOI_TIET>
-    <KQ_NGOAI_KHOA>${escapeXml(findValue('KQ_NGOAI_KHOA', src) || 'Bình thường')}</KQ_NGOAI_KHOA>
-    <KQ_DA_LIEU>${escapeXml(findValue('KQ_DA_LIEU', src) || 'Bình thường')}</KQ_DA_LIEU>
-    <KQ_TIET_NIEU>${escapeXml(findValue('KQ_TIET_NIEU', src) || 'Bình thường')}</KQ_TIET_NIEU>
-    <KQ_SINH_DUC>${escapeXml(findValue('KQ_SINH_DUC', src) || 'Bình thường')}</KQ_SINH_DUC>
-    <KQ_TAI_MUI_HONG>${escapeXml(findValue('KQ_TAI_MUI_HONG', src) || 'Bình thường')}</KQ_TAI_MUI_HONG>
-    <KQ_CO_XUONG_KHOP>${escapeXml(findValue('KQ_CO_XUONG_KHOP', src) || 'Bình thường')}</KQ_CO_XUONG_KHOP>
-    <KQ_NOI_TIET_CHUYEN_HOA>${escapeXml(findValue('KQ_NOI_TIET_CHUYEN_HOA', src) || 'Bình thường')}</KQ_NOI_TIET_CHUYEN_HOA>`;
-    } else if (formType === '5') {
-        // Mẫu 5: 15 Sailor Specialties + grids
-        clinicalXml = `
-    <TIM_MACH>${escapeXml(findValue('TIM_MACH', src) || 'Bình thường')}</TIM_MACH>
-    <HO_HAP>${escapeXml(findValue('HO_HAP', src) || 'Bình thường')}</HO_HAP>
-    <TIET_NIEU_SINH_DUC>${escapeXml(findValue('TIET_NIEU_SINH_DUC', src) || 'Bình thường')}</TIET_NIEU_SINH_DUC>
-    <NOI_KHOA_TIEU_HOA>${escapeXml(findValue('NOI_KHOA_TIEU_HOA', src) || 'Bình thường')}</NOI_KHOA_TIEU_HOA>
-    <GAN_MAT>${escapeXml(findValue('GAN_MAT', src) || 'Bình thường')}</GAN_MAT>
-    <MAU_CO_QUAN_TAO_MAU>${escapeXml(findValue('MAU_CO_QUAN_TAO_MAU', src) || 'Bình thường')}</MAU_CO_QUAN_TAO_MAU>
-    <DA_TO_CHUC_DUOI_DA>${escapeXml(findValue('DA_TO_CHUC_DUOI_DA', src) || 'Bình thường')}</DA_TO_CHUC_DUOI_DA>
-    <KQ_CO_XUONG_KHOP_M5>${escapeXml(findValue('kq_co_xuong_khop_m5', src) || 'Bình thường')}</KQ_CO_XUONG_KHOP_M5>
-    <THAN_KINH_M5>${escapeXml(findValue('than_kinh_m5', src) || 'Bình thường')}</THAN_KINH_M5>
-    <MA_BENH_NGOAI_KHOA>${escapeXml(findValue('MA_BENH_NGOAI_KHOA', src) || 'Bình thường')}</MA_BENH_NGOAI_KHOA>
-    <KHAM_TAI_MUI_HONG_M5>${escapeXml(findValue('kham_tai_mui_hong_m5', src) || 'Bình thường')}</KHAM_TAI_MUI_HONG_M5>
-    <KHAM_MAT_M5>${escapeXml(findValue('kham_mat_m5', src) || 'Bình thường')}</KHAM_MAT_M5>
-    <BENH_KHAC>${escapeXml(findValue('BENH_KHAC', src) || 'Không')}</BENH_KHAC>
-    <NOI_TIET_DINH_DUONG_CHUYEN_HOA>${escapeXml(findValue('NOI_TIET_DINH_DUONG_CHUYEN_HOA', src) || 'Bình thường')}</NOI_TIET_DINH_DUONG_CHUYEN_HOA>
-    <ROI_LOAN_HANH_VI_TAM_THAN>${escapeXml(findValue('ROI_LOAN_HANH_VI_TAM_THAN', src) || 'Không')}</ROI_LOAN_HANH_VI_TAM_THAN>
-    <THAN_KINH_TAM_LY>${escapeXml(findValue('THAN_KINH_TAM_LY', src) || 'Bình thường')}</THAN_KINH_TAM_LY>
-    <KHAM_MAT_THI_GIAC_MAU>${escapeXml(findValue('KHAM_MAT_THI_GIAC_MAU', src) || '1')}</KHAM_MAT_THI_GIAC_MAU>
-    <XA_KHONG_KINH_MAT_PHAI>${escapeXml(findValue('XA_KHONG_KINH_MAT_PHAI', src) || '10/10')}</XA_KHONG_KINH_MAT_PHAI>
-    <XA_KHONG_KINH_MAT_TRAI>${escapeXml(findValue('XA_KHONG_KINH_MAT_TRAI', src) || '10/10')}</XA_KHONG_KINH_MAT_TRAI>
-    <XA_KHONG_KINH_HAI_MAT>${escapeXml(findValue('XA_KHONG_KINH_HAI_MAT', src) || '10/10')}</XA_KHONG_KINH_HAI_MAT>
-    <XA_CO_KINH_MAT_PHAI>${escapeXml(findValue('XA_CO_KINH_MAT_PHAI', src))}</XA_CO_KINH_MAT_PHAI>
-    <XA_CO_KINH_MAT_TRAI>${escapeXml(findValue('XA_CO_KINH_MAT_TRAI', src))}</XA_CO_KINH_MAT_TRAI>
-    <XA_CO_KINH_HAI_MAT>${escapeXml(findValue('XA_CO_KINH_HAI_MAT', src))}</XA_CO_KINH_HAI_MAT>
-    <GAN_KHONG_KINH_MAT_PHAI>${escapeXml(findValue('GAN_KHONG_KINH_MAT_PHAI', src) || '10/10')}</GAN_KHONG_KINH_MAT_PHAI>
-    <GAN_KHONG_KINH_MAT_TRAI>${escapeXml(findValue('GAN_KHONG_KINH_MAT_TRAI', src) || '10/10')}</GAN_KHONG_KINH_MAT_TRAI>
-    <GAN_KHONG_KINH_HAI_MAT>${escapeXml(findValue('GAN_KHONG_KINH_HAI_MAT', src) || '10/10')}</GAN_KHONG_KINH_HAI_MAT>
-    <GAN_CO_KINH_MAT_PHAI>${escapeXml(findValue('GAN_CO_KINH_MAT_PHAI', src))}</GAN_CO_KINH_MAT_PHAI>
-    <GAN_CO_KINH_MAT_TRAI>${escapeXml(findValue('GAN_CO_KINH_MAT_TRAI', src))}</GAN_CO_KINH_MAT_TRAI>
-    <GAN_CO_KINH_HAI_MAT>${escapeXml(findValue('GAN_CO_KINH_HAI_MAT', src))}</GAN_CO_KINH_HAI_MAT>
-    <KHAM_MAT_THI_TRUONG_PHAI>${escapeXml(findValue('KHAM_MAT_THI_TRUONG_PHAI', src) || 'Bình thường')}</KHAM_MAT_THI_TRUONG_PHAI>
-    <KHAM_MAT_THI_TRUONG_TRAI>${escapeXml(findValue('KHAM_MAT_THI_TRUONG_TRAI', src) || 'Bình thường')}</KHAM_MAT_THI_TRUONG_TRAI>
-    <TAI_PHAI_500HZ>${escapeXml(findValue('TAI_PHAI_500HZ', src) || '20')}</TAI_PHAI_500HZ>
-    <TAI_TRAI_500HZ>${escapeXml(findValue('TAI_TRAI_500HZ', src) || '20')}</TAI_TRAI_500HZ>
-    <TAI_PHAI_2000HZ>${escapeXml(findValue('TAI_PHAI_2000HZ', src) || '20')}</TAI_PHAI_2000HZ>
-    <TAI_TRAI_2000HZ>${escapeXml(findValue('TAI_TRAI_2000HZ', src) || '20')}</TAI_TRAI_2000HZ>
-    <TAI_PHAI_3000HZ>${escapeXml(findValue('TAI_PHAI_3000HZ', src) || '20')}</TAI_PHAI_3000HZ>
-    <TAI_TRAI_3000HZ>${escapeXml(findValue('TAI_TRAI_3000HZ', src) || '20')}</TAI_TRAI_3000HZ>
-    <TAI_PHAI_4000HZ>${escapeXml(findValue('TAI_PHAI_4000HZ', src) || '20')}</TAI_PHAI_4000HZ>
-    <TAI_TRAI_4000HZ>${escapeXml(findValue('TAI_TRAI_4000HZ', src) || '20')}</TAI_TRAI_4000HZ>
-    <TAI_PHAI_6000HZ>${escapeXml(findValue('TAI_PHAI_6000HZ', src) || '20')}</TAI_PHAI_6000HZ>
-    <TAI_TRAI_6000HZ>${escapeXml(findValue('TAI_TRAI_6000HZ', src) || '20')}</TAI_TRAI_6000HZ>`;
-    } else if (formType === '3') {
-        // Người lớn (Mẫu 3 QĐ 2062): Lâm sàng & Phân loại đầy đủ
-        clinicalXml = `
-    <NOI_KHOA_TUAN_HOAN>${escapeXml(findValue('kq_tim_mach', src) || 'Bình thường')}</NOI_KHOA_TUAN_HOAN>
-    <NOI_KHOA_TUAN_HOAN_PL>${escapeXml(findValue('noi_khoa_tuan_hoan_pl', src) || '1')}</NOI_KHOA_TUAN_HOAN_PL>
-    <NOI_KHOA_HO_HAP>${escapeXml(findValue('kq_ho_hap', src) || 'Bình thường')}</NOI_KHOA_HO_HAP>
-    <NOI_KHOA_HO_HAP_PL>${escapeXml(findValue('noi_khoa_ho_hap_pl', src) || '1')}</NOI_KHOA_HO_HAP_PL>
-    <NOI_KHOA_TIEU_HOA>${escapeXml(findValue('noi_khoa_tieu_hoa', src) || 'Bình thường')}</NOI_KHOA_TIEU_HOA>
-    <NOI_KHOA_TIEU_HOA_PL>${escapeXml(findValue('noi_khoa_tieu_hoa_pl', src) || '1')}</NOI_KHOA_TIEU_HOA_PL>
-    <NOI_KHOA_THAN_TIETNIEU>${escapeXml(findValue('kq_tiet_nieu', src) || findValue('tiet_nieu_sinh_duc', src) || 'Bình thường')}</NOI_KHOA_THAN_TIETNIEU>
-    <NOI_KHOA_THAN_TIETNIEU_PL>${escapeXml(findValue('noi_khoa_than_tietnieu_pl', src) || '1')}</NOI_KHOA_THAN_TIETNIEU_PL>
-    <NOI_KHOA_NOI_TIET>${escapeXml(findValue('kq_noi_tiet', src) || 'Bình thường')}</NOI_KHOA_NOI_TIET>
-    <NOI_KHOA_NOI_TIET_PL>${escapeXml(findValue('noi_khoa_noi_tiet_pl', src) || '1')}</NOI_KHOA_NOI_TIET_PL>
-    <NOI_KHOA_CO_XUONG_KHOP>${escapeXml(findValue('kq_co_xuong_khop', src) || 'Bình thường')}</NOI_KHOA_CO_XUONG_KHOP>
-    <NOI_KHOA_CO_XUONG_KHOP_PL>${escapeXml(findValue('noi_khoa_co_xuong_khop_pl', src) || '1')}</NOI_KHOA_CO_XUONG_KHOP_PL>
-    <NOI_KHOA_THAN_KINH>${escapeXml(findValue('kq_than_kinh', src) || 'Bình thường')}</NOI_KHOA_THAN_KINH>
-    <NOI_KHOA_THAN_KINH_PL>${escapeXml(findValue('noi_khoa_than_kinh_pl', src) || '1')}</NOI_KHOA_THAN_KINH_PL>
-    <NOI_KHOA_TAM_THAN>${escapeXml(findValue('kq_tam_than', src) || 'Bình thường')}</NOI_KHOA_TAM_THAN>
-    <NOI_KHOA_TAM_THAN_PL>${escapeXml(findValue('noi_khoa_tam_than_pl', src) || '1')}</NOI_KHOA_TAM_THAN_PL>
-    <KET_QUA_KHAM_NGOAI_KHOA>${escapeXml(findValue('kq_ngoai_khoa', src) || findValue('external', src) || 'Bình thường')}</KET_QUA_KHAM_NGOAI_KHOA>
-    <KHAM_NGOAI_KHOA_PL>${escapeXml(findValue('kham_ngoai_khoa_pl', src) || '1')}</KHAM_NGOAI_KHOA_PL>
-    <KET_QUA_KHAM_DA_LIEU>${escapeXml(findValue('kq_da_lieu', src) || findValue('external', src) || 'Bình thường')}</KET_QUA_KHAM_DA_LIEU>
-    <KHAM_DA_LIEU_PL>${escapeXml(findValue('kham_da_lieu_pl', src) || '1')}</KHAM_DA_LIEU_PL>
-    <KET_QUA_KHAM_SAN_PHU_KHOA>${escapeXml(findValue('gynecology', src) || 'Không khám (hoặc bình thường)')}</KET_QUA_KHAM_SAN_PHU_KHOA>
-    <KHAM_SAN_PHU_KHOA_PL>${escapeXml(findValue('kham_san_phu_khoa_pl', src) || '1')}</KHAM_SAN_PHU_KHOA_PL>
-    <KHONG_KINH_MAT_PHAI>${escapeXml(findValue('khong_kinh_mat_phai', src) || '10/10')}</KHONG_KINH_MAT_PHAI>
-    <KHONG_KINH_MAT_TRAI>${escapeXml(findValue('khong_kinh_mat_trai', src) || '10/10')}</KHONG_KINH_MAT_TRAI>
-    <CO_KINH_MAT_PHAI>${escapeXml(findValue('co_kinh_mat_phai', src))}</CO_KINH_MAT_PHAI>
-    <CO_KINH_MAT_TRAI>${escapeXml(findValue('co_kinh_mat_trai', src))}</CO_KINH_MAT_TRAI>
-    <BENH_KHAC_MAT>${escapeXml(findValue('eye', src) || 'Bình thường')}</BENH_KHAC_MAT>
-    <KHAM_MAT_PL>${escapeXml(findValue('kham_mat_pl', src) || '1')}</KHAM_MAT_PL>
-    <TAI_TRAI_NOI_THUONG>${escapeXml(findValue('tai_trai_noi_thuong', src) || '5')}</TAI_TRAI_NOI_THUONG>
-    <TAI_TRAI_NOI_THAM>${escapeXml(findValue('tai_trai_noi_tham', src) || '0.5')}</TAI_TRAI_NOI_THAM>
-    <TAI_PHAI_NOI_THUONG>${escapeXml(findValue('tai_phai_noi_thuong', src) || '5')}</TAI_PHAI_NOI_THUONG>
-    <TAI_PHAI_NOI_THAM>${escapeXml(findValue('tai_phai_noi_tham', src) || '0.5')}</TAI_PHAI_NOI_THAM>
-    <BENH_KHAC_TAI_MUI_HONG>${escapeXml(findValue('ent', src) || 'Bình thường')}</BENH_KHAC_TAI_MUI_HONG>
-    <KHAM_TAI_MUI_HONG_PL>${escapeXml(findValue('kham_tai_mui_hong_pl', src) || '1')}</KHAM_TAI_MUI_HONG_PL>
-    <HAM_TREN>${escapeXml(findValue('ham_tren', src) || 'Bình thường')}</HAM_TREN>
-    <HAM_DUOI>${escapeXml(findValue('ham_duoi', src) || 'Bình thường')}</HAM_DUOI>
-    <BENH_KHAC_RANG_HAM_MAT>${escapeXml(findValue('dental', src) || 'Bình thường')}</BENH_KHAC_RANG_HAM_MAT>
-    <KHAM_RANG_HAM_MAT_PL>${escapeXml(findValue('kham_rang_ham_mat_pl', src) || '1')}</KHAM_RANG_HAM_MAT_PL>`;
-    } else if (formType === '2') {
-        // Mẫu 2: Nhi khoa Học sinh (6 – dưới 18 tuổi) – dùng thẻ NHI_KHOA_*
-        clinicalXml = `
-    <NHI_KHOA_TUAN_HOAN>${escapeXml(findValue('nhi_tuan_hoan', src) || 'Bình thường')}</NHI_KHOA_TUAN_HOAN>
-    <NHI_KHOA_HO_HAP>${escapeXml(findValue('nhi_ho_hap', src) || 'Bình thường')}</NHI_KHOA_HO_HAP>
-    <NHI_KHOA_TIEU_HOA>${escapeXml(findValue('nhi_tieu_hoa', src) || 'Bình thường')}</NHI_KHOA_TIEU_HOA>
-    <NHI_KHOA_THAN_TIETNIEU>${escapeXml(findValue('nhi_tiet_nieu', src) || 'Bình thường')}</NHI_KHOA_THAN_TIETNIEU>
-    <NHI_KHOA_THAN_KINH>${escapeXml(findValue('nhi_than_kinh', src) || 'Bình thường')}</NHI_KHOA_THAN_KINH>
-    <NHI_KHOA_TAM_THAN>${escapeXml(findValue('nhi_tam_than', src) || 'Bình thường')}</NHI_KHOA_TAM_THAN>
-    <NHI_KHOA_LAM_SANG_KHAC>${escapeXml(findValue('nhi_khac', src) || 'Bình thường')}</NHI_KHOA_LAM_SANG_KHAC>
-    <KHONG_KINH_MAT_PHAI>${escapeXml(findValue('khong_kinh_mat_phai', src) || '10/10')}</KHONG_KINH_MAT_PHAI>
-    <KHONG_KINH_MAT_TRAI>${escapeXml(findValue('khong_kinh_mat_trai', src) || '10/10')}</KHONG_KINH_MAT_TRAI>
-    <CO_KINH_MAT_PHAI>${escapeXml(findValue('co_kinh_mat_phai', src))}</CO_KINH_MAT_PHAI>
-    <CO_KINH_MAT_TRAI>${escapeXml(findValue('co_kinh_mat_trai', src))}</CO_KINH_MAT_TRAI>
-    <BENH_KHAC_MAT>${escapeXml(findValue('eye', src) || 'Bình thường')}</BENH_KHAC_MAT>
-    <BENH_TAI_MUI_HONG>${escapeXml(findValue('ent', src) || 'Bình thường')}</BENH_TAI_MUI_HONG>
-    <BENH_RANG_HAM_MAT>${escapeXml(findValue('dental', src) || 'Bình thường')}</BENH_RANG_HAM_MAT>`;
     } else {
-        // Mẫu 3 và các mẫu còn lại
-        clinicalXml = `
-    <NOI_KHOA>${escapeXml(findValue('internal', src) || 'Bình thường')}</NOI_KHOA>
-    <KHONG_KINH_MAT_PHAI>${escapeXml(findValue('khong_kinh_mat_phai', src) || '10/10')}</KHONG_KINH_MAT_PHAI>
-    <KHONG_KINH_MAT_TRAI>${escapeXml(findValue('khong_kinh_mat_trai', src) || '10/10')}</KHONG_KINH_MAT_TRAI>
-    <CO_KINH_MAT_PHAI>${escapeXml(findValue('co_kinh_mat_phai', src))}</CO_KINH_MAT_PHAI>
-    <CO_KINH_MAT_TRAI>${escapeXml(findValue('co_kinh_mat_trai', src))}</CO_KINH_MAT_TRAI>
-    <BENH_KHAC_MAT>${escapeXml(findValue('eye', src) || 'Bình thường')}</BENH_KHAC_MAT>
-    <TAI_TRAI_NOI_THUONG>${escapeXml(findValue('tai_trai_noi_thuong', src) || '5')}</TAI_TRAI_NOI_THUONG>
-    <TAI_TRAI_NOI_THAM>${escapeXml(findValue('tai_trai_noi_tham', src) || '0.5')}</TAI_TRAI_NOI_THAM>
-    <TAI_PHAI_NOI_THUONG>${escapeXml(findValue('tai_phai_noi_thuong', src) || '5')}</TAI_PHAI_NOI_THUONG>
-    <TAI_PHAI_NOI_THAM>${escapeXml(findValue('tai_phai_noi_tham', src) || '0.5')}</TAI_PHAI_NOI_THAM>
-    <BENH_KHAC_TAI_MUI_HONG>${escapeXml(findValue('ent', src) || 'Bình thường')}</BENH_KHAC_TAI_MUI_HONG>
-    <HAM_TREN>${escapeXml(findValue('ham_tren', src) || 'Bình thường')}</HAM_TREN>
-    <HAM_DUOI>${escapeXml(findValue('ham_duoi', src) || 'Bình thường')}</HAM_DUOI>
-    <BENH_KHAC_RANG_HAM_MAT>${escapeXml(findValue('dental', src) || 'Bình thường')}</BENH_KHAC_RANG_HAM_MAT>
-    <NGOAI_KHOA>${escapeXml(findValue('external', src) || 'Bình thường')}</NGOAI_KHOA>`;
-
-        if (formType === '3') {
-            clinicalXml += `
-    <SAC_GIAC>${escapeXml(findValue('sac_giac', src) || '0')}</SAC_GIAC>
-    <THI_TRUONG_NGANG_HAIMAT>${escapeXml(findValue('thi_truong_ngang_haimat', src) || 'Bình thường')}</THI_TRUONG_NGANG_HAIMAT>
-    <THI_TRUONG_DUNG_HAIMAT>${escapeXml(findValue('thi_truong_dung_haimat', src) || 'Bình thường')}</THI_TRUONG_DUNG_HAIMAT>
-    <NOI_KHOA_TAM_THAN>${escapeXml(findValue('NOI_KHOA_TAM_THAN', src) || 'Bình thường')}</NOI_KHOA_TAM_THAN>
-    <NOI_KHOA_THAN_KINH>${escapeXml(findValue('NOI_KHOA_THAN_KINH', src) || 'Bình thường')}</NOI_KHOA_THAN_KINH>`;
-        }
+        paraclItems = `
+								<CHI_TIET_CLS>
+									<MA_DICH_VU>03C3.1.89</MA_DICH_VU>
+									<MA_CHI_SO>H02</MA_CHI_SO>
+									<TEN_CHI_SO>
+										<![CDATA[Huyết sắc tố]]>
+									</TEN_CHI_SO>
+									<GIA_TRI>
+										<![CDATA[130]]>
+									</GIA_TRI>
+									<DON_VI_DO>
+										<![CDATA[g/L]]>
+									</DON_VI_DO>
+									<MO_TA>
+										<![CDATA[Trong giới hạn bình thường]]>
+									</MO_TA>
+									<KET_LUAN>
+										<![CDATA[Bình thường]]>
+									</KET_LUAN>
+								</CHI_TIET_CLS>`;
     }
+    const xml11 = `<KHAM_CAN_LAM_SANG>
+							<DANH_SACH_CLS>${paraclItems}
+							</DANH_SACH_CLS>
+						</KHAM_CAN_LAM_SANG>`;
 
-    // 5. Cận lâm sàng
-    let labXml = '';
-    if (formType === '5') {
-        labXml = `
-    <XET_NGHIEM_MAU>
-        <HEMOGLOBIN>${escapeXml(findValue('HEMOGLOBIN', src) || '140')}</HEMOGLOBIN>
-        <GLYCEMIA>${escapeXml(findValue('GLYCEMIA', src) || '5.2')}</GLYCEMIA>
-        <CHI_SO_HC>${escapeXml(findValue('CHI_SO_HC', src))}</CHI_SO_HC>
-        <CHI_SO_BACH_CAU>${escapeXml(findValue('CHI_SO_BACH_CAU', src))}</CHI_SO_BACH_CAU>
-        <CHI_SO_TIEU_CAU>${escapeXml(findValue('CHI_SO_TIEU_CAU', src))}</CHI_SO_TIEU_CAU>
-        <CONG_THUC_BC>${escapeXml(findValue('CONG_THUC_BC', src))}</CONG_THUC_BC>
-        <THOI_GIAN_HOWELL>${escapeXml(findValue('THOI_GIAN_HOWELL', src))}</THOI_GIAN_HOWELL>
-    </XET_NGHIEM_MAU>
-    <XET_NGHIEM_MO_MAU>
-        <CHOLESTEROL>${escapeXml(findValue('CHOLESTEROL', src))}</CHOLESTEROL>
-        <TRIGLYCERID>${escapeXml(findValue('TRIGLYCERID', src))}</TRIGLYCERID>
-        <HDL>${escapeXml(findValue('HDL', src))}</HDL>
-        <LDL>${escapeXml(findValue('LDL', src))}</LDL>
-    </XET_NGHIEM_MO_MAU>
-    <HUYET_THANH_HOC>
-        <RPR>${escapeXml(findValue('RPR', src) || '0')}</RPR>
-        <TPHA>${escapeXml(findValue('TPHA', src) || '0')}</TPHA>
-        <HBSAG>${escapeXml(findValue('HBSAG', src) || '0')}</HBSAG>
-        <HBEAG>${escapeXml(findValue('HBEAG', src) || '0')}</HBEAG>
-        <HCVAB>${escapeXml(findValue('HCVAB', src) || '0')}</HCVAB>
-        <HAVAB>${escapeXml(findValue('HAVAB', src) || '0')}</HAVAB>
-        <HIV>${escapeXml(findValue('HIV', src) || '0')}</HIV>
-    </HUYET_THANH_HOC>
-    <XET_NGHIEM_CHAT_KICH_THICH>
-        <NONG_DO_CON_MAU>${escapeXml(findValue('NONG_DO_CON_MAU', src))}</NONG_DO_CON_MAU>
-        <NUOC_TIEU_MA_TUY>${escapeXml(findValue('NUOC_TIEU_MA_TUY', src) || '0')}</NUOC_TIEU_MA_TUY>
-        <NUOC_TIEU_AMPHETAMINE>${escapeXml(findValue('NUOC_TIEU_AMPHETAMINE', src) || '0')}</NUOC_TIEU_AMPHETAMINE>
-    </XET_NGHIEM_CHAT_KICH_THICH>
-    <XET_NGHIEM_NUOC_TIEU>
-        <PROTEIN>${escapeXml(findValue('PROTEIN', src) || 'Âm tính')}</PROTEIN>
-        <NUOC_TIEU_DUONG>${escapeXml(findValue('NUOC_TIEU_DUONG', src) || 'Âm tính')}</NUOC_TIEU_DUONG>
-        <NUOC_TIEU_PROTEIN>${escapeXml(findValue('NUOC_TIEU_PROTEIN', src) || 'Âm tính')}</NUOC_TIEU_PROTEIN>
-        <NUOC_TIEU_KHAC>${escapeXml(findValue('NUOC_TIEU_KHAC', src))}</NUOC_TIEU_KHAC>
-    </XET_NGHIEM_NUOC_TIEU>
-    <CHAN_DOAN_HINH_ANH_THAM_DO>
-        <KET_QUA_CHAN_DOAN_HINH_ANH>${escapeXml(findValue('KET_QUA_CHAN_DOAN_HINH_ANH', src) || 'Bình thường')}</KET_QUA_CHAN_DOAN_HINH_ANH>
-        <KET_QUA_DIEN_TIM>${escapeXml(findValue('KET_QUA_DIEN_TIM', src) || 'Bình thường')}</KET_QUA_DIEN_TIM>
-        <CHUC_NANG_HO_HAP>${escapeXml(findValue('CHUC_NANG_HO_HAP', src) || 'Bình thường')}</CHUC_NANG_HO_HAP>
-        <KET_QUA_SIEU_AM_BUNG>${escapeXml(findValue('KET_QUA_SIEU_AM_BUNG', src) || 'Bình thường')}</KET_QUA_SIEU_AM_BUNG>
-    </CHAN_DOAN_HINH_ANH_THAM_DO>
-    <XN_KHAC>${escapeXml(findValue('XN_KHAC', src) || findValue('kq_xn_khac', src))}</XN_KHAC>`;
-    } else {
-        labXml = `
-    <XET_NGHIEM_MAU>
-        <HEMOGLOBIN>${escapeXml(findValue('HEMOGLOBIN', src) || '140')}</HEMOGLOBIN>
-        <GLYCEMIA>${escapeXml(findValue('GLYCEMIA', src) || '5.2')}</GLYCEMIA>
-    </XET_NGHIEM_MAU>
-    <XET_NGHIEM_NUOC_TIEU>
-        <PROTEIN>${escapeXml(findValue('PROTEIN', src) || 'Âm tính')}</PROTEIN>
-    </XET_NGHIEM_NUOC_TIEU>`;
+    // Build XML12: KET_LUAN
+    const phanLoaiSkVal = findValue('PHAN_LOAI_SK', src) || '1';
+    const ketLuanBenhVal = findValue('KET_LUAN_BENH', src) || findValue('diagnosis', src) || 'Z00.0';
+    const cacVanDeVal = findValue('CAC_VAN_DE_SUC_KHOE', src) || 'Đủ sức khỏe làm việc';
+    const cacBenhTatVal = findValue('CAC_BENH_TAT_NEU_CO', src) || 'Không phát hiện bệnh lý cấp tính';
 
-        if (formType === '3') {
-            labXml += `
-    <KQ_XN_MA_TUY>${escapeXml(findValue('kq_xn_ma_tuy', src) || 'Âm tính')}</KQ_XN_MA_TUY>
-    <KQ_XN_NONG_DO_CON>${escapeXml(findValue('kq_xn_nong_do_con', src) || '0.0 mg/L')}</KQ_XN_NONG_DO_CON>
-    <KQ_XN_KHAC>${escapeXml(findValue('kq_xn_khac', src))}</KQ_XN_KHAC>`;
-        }
-    }
+    const xml12 = `<KET_LUAN>
+							<PHAN_LOAI_SK>${escapeXml(phanLoaiSkVal)}</PHAN_LOAI_SK>
+							<KET_LUAN_BENH>${escapeXml(ketLuanBenhVal)}</KET_LUAN_BENH>
+							<CAC_VAN_DE_SUC_KHOE>${escapeXml(cacVanDeVal)}</CAC_VAN_DE_SUC_KHOE>
+							<CAC_BENH_TAT_NEU_CO>${escapeXml(cacBenhTatVal)}</CAC_BENH_TAT_NEU_CO>
+						</KET_LUAN>`;
 
-    // 6. Kết luận
-    let conclusionXml = `
-    <PHAN_LOAI_SK>${escapeXml(findValue('PHAN_LOAI_SK', src) || '1')}</PHAN_LOAI_SK>
-    <KET_LUAN_BENH>${escapeXml(findValue('KET_LUAN_BENH', src) || findValue('diagnosis', src) || 'Sức khỏe bình thường')}</KET_LUAN_BENH>
-    <CAC_VAN_DE_SUC_KHOE>${escapeXml(findValue('CAC_VAN_DE_SUC_KHOE', src) || 'Không')}</CAC_VAN_DE_SUC_KHOE>`;
+    // Packaging into Envelope KHAMSUCKHOE matching sample data.xml exactly
+    const todayYmd = formatYmd(new Date());
+    const envelope = `<?xml version="1.0" encoding="utf-8"?>
+<KHAMSUCKHOE
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+	<THONGTINDONVI>
+		<MACSKCB>${escapeXml(maCskcb)}</MACSKCB>
+	</THONGTINDONVI>
+	<THONGTINHOSO>
+		<NGAYLAP>${todayYmd}</NGAYLAP>
+		<SOLUONGHOSO>1</SOLUONGHOSO>
+		<DANHSACHHOSO>
+			<HOSO>
+				<FILEHOSO>
+					<LOAIHOSO>XML1</LOAIHOSO>
+					<NOIDUNGFILE>
+${xml1}
+					</NOIDUNGFILE>
+				</FILEHOSO>
+				<FILEHOSO>
+					<LOAIHOSO>XML2</LOAIHOSO>
+					<NOIDUNGFILE>
+${xml2}
+					</NOIDUNGFILE>
+				</FILEHOSO>
+				<FILEHOSO>
+					<LOAIHOSO>XML7</LOAIHOSO>
+					<NOIDUNGFILE>
+${xml7}
+					</NOIDUNGFILE>
+				</FILEHOSO>
+				<FILEHOSO>
+					<LOAIHOSO>XML10</LOAIHOSO>
+					<NOIDUNGFILE>
+${xml10}
+					</NOIDUNGFILE>
+				</FILEHOSO>
+				<FILEHOSO>
+					<LOAIHOSO>XML11</LOAIHOSO>
+					<NOIDUNGFILE>
+${xml11}
+					</NOIDUNGFILE>
+				</FILEHOSO>
+				<FILEHOSO>
+					<LOAIHOSO>XML12</LOAIHOSO>
+					<NOIDUNGFILE>
+${xml12}
+					</NOIDUNGFILE>
+				</FILEHOSO>
+			</HOSO>
+		</DANHSACHHOSO>
+	</THONGTINHOSO>
+	<CHUKYDONVI>
+		<CKS_NGUOI_KET_LUAN></CKS_NGUOI_KET_LUAN>
+		<CKS_BENH_VIEN></CKS_BENH_VIEN>
+	</CHUKYDONVI>
+</KHAMSUCKHOE>`;
 
-    if (formType === '4') {
-        conclusionXml += `
-    <DU_TIEU_CHUAN_DK_PTGT_DUONG_SAT>${escapeXml(findValue('du_tieu_chuan_dk_ptgt_duong_sat', src) || '1')}</DU_TIEU_CHUAN_DK_PTGT_DUONG_SAT>`;
-    } else if (formType === '5') {
-        conclusionXml += `
-    <KHA_NANG_CHIU_SONG>${escapeXml(findValue('KHA_NANG_CHIU_SONG', src) || '1')}</KHA_NANG_CHIU_SONG>
-    <HAN_CHE>${escapeXml(findValue('HAN_CHE', src) || '0')}</HAN_CHE>
-    <YEU_CAU_DEO_KINH>${escapeXml(findValue('YEU_CAU_DEO_KINH', src) || '0')}</YEU_CAU_DEO_KINH>
-    <KET_LUAN_LOAI_SUC_KHOE>${escapeXml(findValue('KET_LUAN_LOAI_SUC_KHOE', src) || '1')}</KET_LUAN_LOAI_SUC_KHOE>`;
-    }
-
-    return `<?xml version="1.0" encoding="utf-8"?>
-<MAU_${formType}_KSK>
-    <THONG_TIN_HANH_CHINH>${adminXml}
-    </THONG_TIN_HANH_CHINH>
-    <THONG_TIN_CHUNG_VE_LAN_KHAM>
-        <MA_LK>${escapeXml(maLkVal)}</MA_LK>
-        <NGAY_KHAM>${ngayVaoVal}</NGAY_KHAM>
-        <MA_CSKCB>${escapeXml(maCskcb)}</MA_CSKCB>
-    </THONG_TIN_CHUNG_VE_LAN_KHAM>
-    ${historyXml ? `<TIEN_SU_BENH>${historyXml}\n    </TIEN_SU_BENH>` : ''}
-    <KHAM_THE_LUC>${physicalXml}
-    </KHAM_THE_LUC>
-    <KHAM_LAM_SANG>${clinicalXml}
-    </KHAM_LAM_SANG>
-    <KHAM_CAN_LAM_SANG>${labXml}
-    </KHAM_CAN_LAM_SANG>
-    <KET_LUAN>${conclusionXml}
-    </KET_LUAN>
-</MAU_${formType}_KSK>`;
+    return envelope;
 }

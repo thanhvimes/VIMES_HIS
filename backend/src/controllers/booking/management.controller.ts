@@ -144,7 +144,7 @@ class BookingManagementController {
      */
     async getBookingList(req: Request, res: Response) {
         try {
-            const { fromDate, toDate, status, speciality, search } = (req as any).query;
+            const { fromDate, toDate, status, speciality, search, deptId } = (req as any).query;
 
             let sql = `
             SELECT 
@@ -177,9 +177,18 @@ class BookingManagementController {
             if (fromDate) { sql += ` AND qms_appointment_date >= $${paramIndex++}`; params.push(fromDate); }
             if (toDate) { sql += ` AND qms_appointment_date <= $${paramIndex++}`; params.push(toDate); }
             if (status && status !== 'All') { sql += ` AND qms_status = $${paramIndex++}`; params.push(status); }
-            if (speciality && speciality !== 'All') { sql += ` AND qms_deptid = $${paramIndex++}`; params.push(speciality); }
+            if (deptId && deptId !== 'All') {
+                sql += ` AND (q.qms_deptid = $${paramIndex} OR q.qms_specialty_code = $${paramIndex} OR d.sd_id = $${paramIndex})`;
+                params.push(deptId);
+                paramIndex++;
+            }
+            if (speciality && speciality !== 'All') {
+                sql += ` AND (q.qms_specialty_code = $${paramIndex} OR s.ss_desc ILIKE $${paramIndex} OR q.qms_deptid = $${paramIndex})`;
+                params.push(`%${speciality}%`);
+                paramIndex++;
+            }
             if (search) {
-                sql += ` AND(qms_patientname ILIKE $${paramIndex} OR qms_contact LIKE $${paramIndex} OR CAST(qms_idx AS TEXT) LIKE $${paramIndex})`;
+                sql += ` AND (qms_patientname ILIKE $${paramIndex} OR qms_contact LIKE $${paramIndex} OR CAST(qms_idx AS TEXT) LIKE $${paramIndex} OR qms_docno ILIKE $${paramIndex})`;
                 params.push(`%${search}%`);
                 paramIndex++;
             }

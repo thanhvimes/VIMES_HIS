@@ -1108,6 +1108,12 @@ export const useDynamicFormState = (
             newErrors.phone = 'Số điện thoại liên hệ phải gồm chính xác 10 chữ số';
         }
         if (!dob) newErrors.dob = 'Ngày sinh bắt buộc chọn';
+        if (guardianCccd && guardianCccd.trim() && !/^\d{12}$/.test(guardianCccd.trim())) {
+            newErrors.guardianCccd = 'Số CCCD người giám hộ phải gồm chính xác 12 chữ số';
+        }
+        if (escortCccd && escortCccd.trim() && !/^\d{12}$/.test(escortCccd.trim())) {
+            newErrors.escortCccd = 'Số CCCD người đi cùng phải gồm chính xác 12 chữ số';
+        }
         if (bp && !/^\d{2,3}\/\d{2,3}$/.test(bp)) {
             newErrors.bp = 'Huyết áp phải nhập dạng Tâm thu/Tâm trương (VD: 120/80)';
         }
@@ -1141,6 +1147,12 @@ export const useDynamicFormState = (
             newErrors.phone = 'Số điện thoại liên hệ phải gồm chính xác 10 chữ số';
         }
         if (!dob) newErrors.dob = 'Ngày sinh bắt buộc chọn';
+        if (guardianCccd && guardianCccd.trim() && !/^\d{12}$/.test(guardianCccd.trim())) {
+            newErrors.guardianCccd = 'Số CCCD người giám hộ phải gồm chính xác 12 chữ số';
+        }
+        if (escortCccd && escortCccd.trim() && !/^\d{12}$/.test(escortCccd.trim())) {
+            newErrors.escortCccd = 'Số CCCD người đi cùng phải gồm chính xác 12 chữ số';
+        }
         if (bp && !/^\d{2,3}\/\d{2,3}$/.test(bp)) {
             newErrors.bp = 'Huyết áp phải nhập dạng Tâm thu/Tâm trương (VD: 120/80)';
         }

@@ -44,7 +44,7 @@ import Component from './Component.tsx'
 Nếu lỗi liên quan đến `EnhancedComponents.tsx`, có thể xóa file này vì chưa được sử dụng:
 
 ```powershell
-Remove-Item d:\AI\vClinic\components\ui\EnhancedComponents.tsx
+Remove-Item d:\AI\VIMES_HIS\components\ui\EnhancedComponents.tsx
 ```
 
 Sau đó build lại:

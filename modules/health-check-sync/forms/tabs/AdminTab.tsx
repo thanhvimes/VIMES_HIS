@@ -409,7 +409,15 @@ const AdminTab: React.FC = () => {
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">3. Số định danh cá nhân</label>
-                                <input type="text" value={cccd} onChange={e => setCccd(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="Mã định danh cá nhân của trẻ" />
+                                <input 
+                                    type="text" 
+                                    value={cccd} 
+                                    onChange={e => setCccd(e.target.value.replace(/\D/g, '').slice(0, 12))} 
+                                    maxLength={12}
+                                    className={`w-full p-2.5 border rounded-lg text-sm bg-slate-50 dark:bg-slate-700 font-mono font-bold ${errors.cccd ? 'border-red-500 bg-red-50 text-red-700 dark:text-red-300' : 'border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white'}`} 
+                                    placeholder="Mã định danh cá nhân 12 chữ số" 
+                                />
+                                {errors.cccd && <span className="text-red-500 text-[11px] font-semibold mt-1 block">{errors.cccd}</span>}
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">4. Giới tính <span className="text-red-500">*</span></label>
@@ -571,24 +579,28 @@ const AdminTab: React.FC = () => {
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">14. Điện thoại</label>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">14. Điện thoại <span className="text-red-500">*</span></label>
                                 <input
                                     type="text"
                                     value={phone}
-                                    onChange={e => setPhone(e.target.value)}
-                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-mono font-bold"
-                                    placeholder="Số điện thoại"
+                                    onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                    maxLength={10}
+                                    className={`w-full p-2.5 border rounded-lg text-sm bg-slate-50 dark:bg-slate-700 font-mono font-bold ${errors.phone ? 'border-red-500 bg-red-50 text-red-700 dark:text-red-300' : 'border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white'}`}
+                                    placeholder="Số điện thoại (10 chữ số)"
                                 />
+                                {errors.phone && <span className="text-red-500 text-[11px] font-semibold mt-1 block">{errors.phone}</span>}
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">15. Số định danh người giám hộ</label>
                                 <input
                                     type="text"
                                     value={guardianCccd}
-                                    onChange={e => setGuardianCccd(e.target.value)}
-                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-mono font-bold"
-                                    placeholder="Số định danh người giám hộ"
+                                    onChange={e => setGuardianCccd(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                                    maxLength={12}
+                                    className={`w-full p-2.5 border rounded-lg text-sm bg-slate-50 dark:bg-slate-700 font-mono font-bold ${errors.guardianCccd ? 'border-red-500 bg-red-50 text-red-700 dark:text-red-300' : 'border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white'}`}
+                                    placeholder="Số định danh 12 chữ số"
                                 />
+                                {errors.guardianCccd && <span className="text-red-500 text-[11px] font-semibold mt-1 block">{errors.guardianCccd}</span>}
                             </div>
                         </div>
                     </div>
@@ -627,21 +639,38 @@ const AdminTab: React.FC = () => {
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">4. Số điện thoại</label>
-                                <input type="text" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="Số điện thoại" />
+                                <label className="block text-xs font-bold text-slate-500 mb-1">4. Số điện thoại <span className="text-red-500">*</span></label>
+                                <input 
+                                    type="text" 
+                                    value={phone} 
+                                    onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))} 
+                                    maxLength={10}
+                                    className={`w-full p-2.5 border rounded-lg text-sm bg-slate-50 dark:bg-slate-700 font-mono font-bold ${errors.phone ? 'border-red-500 bg-red-50 text-red-700 dark:text-red-300' : 'border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white'}`} 
+                                    placeholder="Số điện thoại (10 chữ số)" 
+                                />
+                                {errors.phone && <span className="text-red-500 text-[11px] font-semibold mt-1 block">{errors.phone}</span>}
                             </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
                             <div>
                                 <div className="flex justify-between items-center mb-1">
-                                    <label className="block text-xs font-bold text-slate-500">5. Số CCCD/Hộ chiếu</label>
+                                    <label className="block text-xs font-bold text-slate-500">5. Số CCCD/Hộ chiếu <span className="text-red-500">*</span></label>
                                     <label className="flex items-center gap-1 text-[11px] text-slate-500 cursor-pointer">
                                         <input type="checkbox" checked={noCccd} onChange={e => setNoCccd(e.target.checked)} className="rounded text-teal-600 w-3.5 h-3.5" />
                                         Chưa có CCCD
                                     </label>
                                 </div>
-                                <input type="text" value={cccd} onChange={e => setCccd(e.target.value)} disabled={noCccd} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white disabled:opacity-50 font-mono font-bold" placeholder="Số CCCD" />
+                                <input 
+                                    type="text" 
+                                    value={cccd} 
+                                    onChange={e => setCccd(e.target.value.replace(/\D/g, '').slice(0, 12))} 
+                                    disabled={noCccd} 
+                                    maxLength={12}
+                                    className={`w-full p-2.5 border rounded-lg text-sm bg-slate-50 dark:bg-slate-700 disabled:opacity-50 font-mono font-bold ${errors.cccd ? 'border-red-500 bg-red-50 text-red-700 dark:text-red-300' : 'border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white'}`} 
+                                    placeholder="Số CCCD (12 chữ số)" 
+                                />
+                                {errors.cccd && <span className="text-red-500 text-[11px] font-semibold mt-1 block">{errors.cccd}</span>}
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">Ngày cấp CCCD</label>

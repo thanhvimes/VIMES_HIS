@@ -19,7 +19,7 @@ const ExaminationPrintLayout: React.FC<ExaminationPrintLayoutProps> = ({ data })
       <div className="flex justify-between items-start border-b-2 border-black pb-4 mb-6">
         <div className="text-center">
             <h3 className="font-bold uppercase text-sm">Sở Y Tế TP.HCM</h3>
-            <h2 className="font-bold uppercase text-lg">Phòng Khám Đa Khoa ClinicMS</h2>
+            <h2 className="font-bold uppercase text-lg">Bệnh viện Đa khoa VIMES HIS</h2>
             <p className="text-xs">123 Đường Sức Khỏe, Q.1, TP.HCM</p>
         </div>
         <div className="text-center">

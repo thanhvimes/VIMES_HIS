@@ -1,6 +1,6 @@
 # CHIẾN LƯỢC PHÁT TRIỂN HỆ THỐNG QUẢN LÝ PHÒNG KHÁM (TỐC ĐỘ CAO)
 
-Tài liệu này tóm tắt chiến lược "Du kích" để hoàn thiện hệ thống ClinicMS một cách nhanh nhất với nguồn lực hạn chế.
+Tài liệu này tóm tắt chiến lược "Du kích" để hoàn thiện hệ thống VIMES HIS một cách nhanh nhất với nguồn lực hạn chế.
 
 ## 1. Tư duy cốt lõi: "MVP - Less is More"
 Đừng cố gắng hoàn thiện tất cả các module cùng lúc. Một hệ thống **chạy được luồng chính** (Tiếp nhận -> Khám -> Thu tiền) có giá trị hơn gấp 100 lần một hệ thống có 50 tính năng dở dang.

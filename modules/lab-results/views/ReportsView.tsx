@@ -38,7 +38,7 @@ const ReportsView: React.FC = () => {
         <div className="bg-white text-black p-8 shadow-lg max-w-3xl mx-auto font-serif text-sm">
             <div className="flex justify-between border-b-2 border-black pb-4 mb-4">
                 <div>
-                    <h3 className="font-bold uppercase">Bệnh viện Đa khoa ClinicMS</h3>
+                    <h3 className="font-bold uppercase">Bệnh viện Đa khoa VIMES HIS</h3>
                     <p>Khoa Xét nghiệm</p>
                 </div>
                 <div className="text-right">

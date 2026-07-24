@@ -28,7 +28,7 @@ const KEY_LENGTH = 32;
 
 /**
  * Utility class for handling security operations such as encryption and decryption
- * within the vClinic backend ecosystem.
+ * within the VIMES HIS backend ecosystem.
  */
 class SecurityUtils {
     /**

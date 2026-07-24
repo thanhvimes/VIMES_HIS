@@ -152,7 +152,7 @@ export class QueueController {
     try {
         const { id } = req.params;
         const { patientId, voiceConfig } = req.body;
-        // In vClinic, socket.io is integrated into the central server.
+        // In VIMES HIS, socket.io is integrated into the central server.
         // For now we just return success.
         res.json({ success: true });
     } catch (err: any) { res.status(500).json({error: err.message}); }

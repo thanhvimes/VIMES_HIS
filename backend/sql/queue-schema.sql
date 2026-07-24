@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS qms_patients (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 4. Bảng Người dùng QMS (Tách biệt hoặc có thể tích hợp với vClinic Auth sau này)
+-- 4. Bảng Người dùng QMS (Tách biệt hoặc có thể tích hợp với VIMES HIS Auth sau này)
 CREATE TABLE IF NOT EXISTS qms_users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,

@@ -24,7 +24,7 @@ BEGIN
     SELECT hd_object INTO v_object 
     FROM hms_doc WHERE hd_docno = p_docno;
 
-    -- Nếu không phải Bảo hiểm (giả định 1 là BHXH trong hệ thống cũ, 4 trong vClinic mới)
+    -- Nếu không phải Bảo hiểm (giả định 1 là BHXH trong hệ thống cũ, 4 trong VIMES HIS mới)
     -- Chúng ta check cả 1 và 4 cho chắc chắn tùy theo database hiện tại
     IF v_object NOT IN (1, 4) THEN
         RETURN jsonb_build_object('success', true, 'message', 'Đơn vị không yêu cầu kiểm tra BHYT');

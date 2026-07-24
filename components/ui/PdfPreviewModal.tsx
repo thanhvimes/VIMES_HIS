@@ -918,7 +918,7 @@ const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
                       backgroundImage: 'radial-gradient(circle, #000 1px, transparent 1px)'
                     }} />
                     <img src={viewingSignature.dataUrl} alt="Chữ ký" className="h-16 w-full object-contain relative z-10 filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.15)]" />
-                    <span className="absolute bottom-1 right-2 text-[8px] font-mono text-slate-400 uppercase select-none">vclinic digital id</span>
+                    <span className="absolute bottom-1 right-2 text-[8px] font-mono text-slate-400 uppercase select-none">vimes digital id</span>
                   </div>
                 </div>
 
@@ -949,7 +949,7 @@ const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
                   {/* Row 3: CA provider */}
                   <div className="px-4 py-2.5 flex flex-col gap-0.5">
                     <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">Tổ chức chứng thực</span>
-                    <span className="text-xs font-semibold text-teal-400">vClinic CA Internal Trust Network</span>
+                    <span className="text-xs font-semibold text-teal-400">VIMES CA Internal Trust Network</span>
                   </div>
 
                   {/* Row 4: Hash */}

@@ -9,6 +9,70 @@ import crypto from 'crypto';
 
 let syncIntervalKey: NodeJS.Timeout | null = null;
 
+function sanitizeXmlContent(rawXml: string, maCskcbGln?: string, maCskcbByt?: string): string {
+    if (!rawXml) return '';
+    let xml = rawXml;
+    const glnCode = maCskcbGln || '8934285008135';
+    const bytCode = maCskcbByt || '37101';
+
+    // Ensure MACSKCB in envelope THONGTINDONVI has 13-digit GLN code matching sample data.xml
+    if (glnCode) {
+        xml = xml.replace(/<THONGTINDONVI>[\s\S]*?<MACSKCB>.*?<\/MACSKCB>[\s\S]*?<\/THONGTINDONVI>/gi, `<THONGTINDONVI>\n\t\t<MACSKCB>${glnCode}</MACSKCB>\n\t</THONGTINDONVI>`);
+    }
+
+    // Automatically decode Base64 if needed, sanitize, and keep unencoded plain XML inside <NOIDUNGFILE> matching sample data.xml
+    xml = xml.replace(/<NOIDUNGFILE>([\s\S]*?)<\/NOIDUNGFILE>/gi, (match, inner) => {
+        let trimmed = inner.trim();
+        let decoded = trimmed;
+
+        // Check if it is Base64 encoded
+        if (!trimmed.startsWith('<') && !trimmed.startsWith('<?xml') && trimmed.length > 0) {
+            try {
+                const buf = Buffer.from(trimmed, 'base64');
+                const str = buf.toString('utf8');
+                if (str.includes('<') || str.includes('<?xml')) {
+                    decoded = str;
+                }
+            } catch (e) {
+                // Not Base64
+            }
+        }
+
+        // Strip inner <?xml version...?> declaration if present
+        decoded = decoded.replace(/<\?xml[\s\S]*?\?>/gi, '').trim();
+
+        // Fix MA_CSKCB inside XML2 to 5-digit BYT code if present
+        decoded = decoded.replace(/<MA_CSKCB>.*?<\/MA_CSKCB>/g, `<MA_CSKCB>${bytCode}</MA_CSKCB>`);
+
+        // Fix MA_NGHE_NGHIEP to 2 digits (e.g. '1' -> '01', '4' -> '04')
+        decoded = decoded.replace(/<MA_NGHE_NGHIEP>(\d)<\/MA_NGHE_NGHIEP>/g, '<MA_NGHE_NGHIEP>0$1</MA_NGHE_NGHIEP>');
+
+        // Fix MATINH_CU_TRU to 2 digits (e.g. '237' -> '37')
+        decoded = decoded.replace(/<MATINH_CU_TRU>(\d{3,})<\/MATINH_CU_TRU>/g, (m, val) => `<MATINH_CU_TRU>${val.slice(-2)}</MATINH_CU_TRU>`);
+
+        // Fix TYPE based on NGAY_SINH if present in rawXml
+        const dobMatch = rawXml.match(/<NGAY_SINH>(\d{4})(\d{2})(\d{2})<\/NGAY_SINH>/);
+        if (dobMatch) {
+            const birthYear = parseInt(dobMatch[1], 10);
+            const currentYear = new Date().getFullYear();
+            const age = currentYear - birthYear;
+            if (age >= 18) {
+                decoded = decoded.replace(/<TYPE>.*?<\/TYPE>/g, '<TYPE>Adult</TYPE>');
+            } else if (age < 6) {
+                decoded = decoded.replace(/<TYPE>.*?<\/TYPE>/g, '<TYPE>ChildUnder</TYPE>');
+            } else {
+                decoded = decoded.replace(/<TYPE>.*?<\/TYPE>/g, '<TYPE>Minor</TYPE>');
+            }
+        }
+
+        // Keep self-closing tags untouched as in original sample XML
+
+        return `<NOIDUNGFILE>\n\t\t\t\t\t\t${decoded.trim()}\n\t\t\t\t\t</NOIDUNGFILE>`;
+    });
+
+    return xml;
+}
+
 /**
  * Synchronizes documents to the VNeID gateway portal.
  * Logs API request and response data to database.
@@ -16,6 +80,7 @@ let syncIntervalKey: NodeJS.Timeout | null = null;
 export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> {
     const failedIds: string[] = [];
     try {
+        await loadHealthCheckSettings();
         const settings = getHealthCheckSettings();
         if (!settings) {
             console.error('❌ [VNeID Portal] Settings not loaded.');
@@ -28,22 +93,32 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
             ma_cskcb: settings.ma_cskcb
         });
 
-        const originUrl = settings.vneid_url.includes('/api/v1') 
-            ? settings.vneid_url.split('/api/v1')[0] 
-            : settings.vneid_url;
+        let baseUrl = (settings.vneid_url || 'https://api-sandbox.emrhub.vn/api').trim().replace(/\/+$/, '');
+        if (baseUrl.endsWith('/v1')) {
+            baseUrl = baseUrl.slice(0, -3);
+        }
+        if (!baseUrl.endsWith('/api')) {
+            baseUrl = `${baseUrl}/api`;
+        }
 
-        console.log('🔍 [VNeID Sync DEBUG] Parsed originUrl:', originUrl);
-        console.log('📡 [VNeID Sync DEBUG] Sending Auth POST request to:', `${originUrl}/api/auth/login`);
+        console.log('🔍 [VNeID Sync DEBUG] Normalized Base URL:', baseUrl);
+        const loginUrl = `${baseUrl}/auth/login`;
+        console.log('📡 [VNeID Sync DEBUG] Sending Auth POST request to:', loginUrl);
 
         // 1. Authenticate / Login to get token
         let token = '';
         let loginResponseLog = '';
         try {
-            const loginRes: any = await axios.post(`${originUrl}/api/auth/login`, {
+            const loginRes: any = await axios.post(loginUrl, {
                 username: settings.vneid_username,
                 password: settings.vneid_password
             }, {
-                headers: { 'Content-Type': 'application/json', 'Accept': '*/*' },
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Accept': '*/*',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+                },
                 timeout: 10000
             });
             token = loginRes.data?.data?.token || loginRes.data?.token || loginRes.data?.data;
@@ -57,7 +132,7 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
 
         // 2. Loop through and push each document
         for (const docId of docIds) {
-            const docQuery = await query(`SELECT id, doc_no, xml_data, patient_name FROM health_check_masters WHERE id = $1`, [parseInt(docId, 10)]);
+            const docQuery = await query(`SELECT id, doc_no, xml_data, patient_name, signature_status, signature FROM health_check_masters WHERE id = $1`, [parseInt(docId, 10)]);
             if (docQuery.rows.length === 0) continue;
             const doc = docQuery.rows[0];
 
@@ -74,29 +149,94 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                 continue;
             }
 
-            const base64Xml = Buffer.from(doc.xml_data || '').toString('base64');
-            const now = new Date();
-            const yy = String(now.getFullYear()).slice(-2);
-            const mm = String(now.getMonth() + 1).padStart(2, '0');
-            const dd = String(now.getDate()).padStart(2, '0');
-            const uuidStr = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : crypto.randomBytes(16).toString('hex');
-            const msgId = `${settings.ma_cskcb}${yy}${mm}${dd}${uuidStr}`;
+            const glnCode = (settings.ma_cskcb && settings.ma_cskcb.length >= 13)
+                ? settings.ma_cskcb
+                : (settings.ma_gtin_cskcb && settings.ma_gtin_cskcb.length >= 13 && settings.ma_gtin_cskcb !== '1234567890123' ? settings.ma_gtin_cskcb : '8934285008135');
+            const bytCode = (settings as any).ma_cskcb_byt || (settings.ma_cskcb && settings.ma_cskcb.length === 5 ? settings.ma_cskcb : '37101');
 
-            const payload = {
+            let base64Xml = '';
+            let rawXmlToProcess = sanitizeXmlContent(doc.xml_data || '', glnCode, bytCode);
+
+            let outerSignatureVal = doc.signature_data || '';
+            if (doc.signature_status === 'Signed' && doc.signature) {
+                try {
+                    const trimmedSig = doc.signature.trim();
+                    if (!trimmedSig.startsWith('<') && !trimmedSig.startsWith('{')) {
+                        outerSignatureVal = trimmedSig;
+                    }
+                    if (trimmedSig.startsWith('{')) {
+                        const sigObj = JSON.parse(trimmedSig);
+                        const signedFile = sigObj.signature_result?.signed_file || sigObj.signed_file;
+                        if (signedFile && signedFile.data_base64) {
+                            outerSignatureVal = signedFile.data_base64;
+                            if (signedFile.mime_type && (signedFile.mime_type.includes('xml') || signedFile.file_name?.endsWith('.xml'))) {
+                                let xmlText = Buffer.from(signedFile.data_base64, 'base64').toString('utf8');
+                                xmlText = sanitizeXmlContent(xmlText, glnCode, bytCode);
+                                base64Xml = Buffer.from(xmlText, 'utf8').toString('base64');
+                                console.log(`✅ [VNeID Sync] Using sanitized signed XML from signature wrapper for doc ${doc.doc_no}`);
+                            } else {
+                                const signatureValue = signedFile.data_base64;
+                                let xml = rawXmlToProcess;
+                                if (xml.includes('<CKS_BENH_VIEN></CKS_BENH_VIEN>')) {
+                                    xml = xml.replace('<CKS_BENH_VIEN></CKS_BENH_VIEN>', `<CKS_BENH_VIEN>${signatureValue}</CKS_BENH_VIEN>`);
+                                }
+                                base64Xml = Buffer.from(xml, 'utf8').toString('base64');
+                                console.log(`✅ [VNeID Sync] Injected signature value into <CKS_BENH_VIEN> for doc ${doc.doc_no}`);
+                            }
+                        } else {
+                            base64Xml = Buffer.from(rawXmlToProcess, 'utf8').toString('base64');
+                        }
+                    } else if (trimmedSig.startsWith('<')) {
+                        let xmlText = sanitizeXmlContent(trimmedSig, glnCode, bytCode);
+                        base64Xml = Buffer.from(xmlText, 'utf8').toString('base64');
+                    } else {
+                        let xml = rawXmlToProcess;
+                        if (xml.includes('<CKS_BENH_VIEN></CKS_BENH_VIEN>')) {
+                            xml = xml.replace('<CKS_BENH_VIEN></CKS_BENH_VIEN>', `<CKS_BENH_VIEN>${trimmedSig}</CKS_BENH_VIEN>`);
+                        }
+                        base64Xml = Buffer.from(xml, 'utf8').toString('base64');
+                    }
+                } catch (err: any) {
+                    console.error('⚠️ [VNeID Sync] Error processing signature, using clean xml_data:', err.message);
+                    base64Xml = Buffer.from(rawXmlToProcess, 'utf8').toString('base64');
+                }
+            } else {
+                base64Xml = Buffer.from(rawXmlToProcess, 'utf8').toString('base64');
+            }
+
+            const now = new Date();
+            let yy = String(now.getFullYear()).slice(-2);
+            let mm = String(now.getMonth() + 1).padStart(2, '0');
+            let dd = String(now.getDate()).padStart(2, '0');
+
+            const ngayLapMatch = rawXmlToProcess.match(/<NGAYLAP>(\d{4})(\d{2})(\d{2})<\/NGAYLAP>/);
+            if (ngayLapMatch) {
+                yy = ngayLapMatch[1].slice(-2);
+                mm = ngayLapMatch[2];
+                dd = ngayLapMatch[3];
+            }
+
+            const uuidStr = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : crypto.randomBytes(16).toString('hex');
+            const msgId = `${glnCode}${yy}${mm}${dd}${uuidStr}`;
+
+            const receiverId = (settings.vneid_receiver_id && settings.vneid_receiver_id.trim() && settings.vneid_receiver_id !== 'emrhub') ? settings.vneid_receiver_id : 'TTYQG';
+
+            const payload: any = {
                 header: {
-                    version: "1.0.0",
-                    sender_id: settings.ma_cskcb,
-                    receiver_id: "TDLBYT",
+                    version: "1.0.6",
+                    sender_id: glnCode,
+                    receiver_id: receiverId,
                     txn_type: "sync_checkup",
                     msg_id: msgId,
                     msg_type: "101",
                     data_type: "xml/base64",
                     send_datetime: Date.now()
                 },
-                data: {
-                    file_content: base64Xml
-                }
+                data: base64Xml,
+                signature: outerSignatureVal || ""
             };
+
+            console.log('🔍 [VNeID Sync DEBUG] Final Header Payload:', JSON.stringify(payload.header));
 
             let responseLog = '';
             let sendSuccess = false;
@@ -105,13 +245,14 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
 
             try {
                 console.log(`📡 [VNeID Portal] Pushing document ${doc.doc_no} (BN: ${doc.patient_name})`);
-                const finalPushUrl = `${originUrl}/api/v1/platform/data-sync/push`;
+                const finalPushUrl = `${baseUrl}/platform/data-sync/push`;
                 console.log(`📡 [VNeID Sync DEBUG] Sending XML POST request to:`, finalPushUrl);
-                console.log(`🔍 [VNeID Sync DEBUG] Request headers:`, {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token ? token.substring(0, 15) + '...' : 'none'}`,
-                    'service-type': '100'
-                });
+                console.log(`🔍 [VNeID Sync DEBUG] Full Request Payload Header:`, JSON.stringify(payload.header, null, 2));
+                try {
+                    const decodedXml = Buffer.from(base64Xml, 'base64').toString('utf8');
+                    console.log(`🔍 [VNeID Sync DEBUG] Decoded XML Length: ${decodedXml.length}`);
+                    console.log(`🔍 [VNeID Sync DEBUG] Decoded XML First 1000 Chars:\n${decodedXml.substring(0, 1000)}`);
+                } catch (e) {}
 
                 const pushRes: any = await axios.post(finalPushUrl, payload, {
                     headers: {
@@ -119,7 +260,7 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                         'Authorization': `Bearer ${token}`,
                         'service-type': '100'
                     },
-                    timeout: 15000
+                    timeout: 30000
                 });
 
                 responseLog = JSON.stringify(pushRes.data);
@@ -134,11 +275,23 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                 }
             } catch (err: any) {
                 sendSuccess = false;
-                const errMsg = err.response?.data ? JSON.stringify(err.response.data) : err.message;
-                errorMsg = `Lỗi kết nối cổng: ${err.response?.status || 500} - ${errMsg}`;
-                responseLog = `Error: ${errorMsg}`;
-                console.log(`❌ [VNeID Sync DEBUG] Full push error object:`, err.response?.status, JSON.stringify(err.response?.data || {}));
-                console.error(`❌ [VNeID Portal] Push error for doc ${doc.doc_no}:`, errMsg);
+                const resData = err.response?.data;
+                const headerObj = resData?.header || resData;
+                const resCode = headerObj?.res_code || '';
+                const resMsg = headerObj?.res_msg || (typeof resData === 'string' ? resData : err.message);
+
+                let friendlyMsg = resMsg;
+                if (resCode === 'PS_CCCD_DUPLICATE_IN_6_MONTHS') {
+                    friendlyMsg = 'Bệnh nhân đã khám sức khỏe trong vòng 6 tháng qua (Cổng từ chối nhận hồ sơ lặp lại)';
+                } else if (resCode === 'PS_SIGNATURE_INVALID') {
+                    friendlyMsg = 'Chữ ký số không hợp lệ hoặc không đúng định dạng';
+                } else if (resCode === 'CM_INVALID_REQUEST') {
+                    friendlyMsg = 'Cấu trúc dữ liệu hoặc thông số không hợp lệ';
+                }
+
+                errorMsg = resCode ? `[${resCode}] ${friendlyMsg}` : `Lỗi kết nối cổng: ${err.response?.status || 500} - ${friendlyMsg}`;
+                responseLog = JSON.stringify(resData || { error: err.message });
+                console.log(`❌ [VNeID Sync DEBUG] Gateway returned error code: ${resCode}, message: ${resMsg}`);
             }
 
             if (sendSuccess) {

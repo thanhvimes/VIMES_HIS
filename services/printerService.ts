@@ -186,12 +186,12 @@ export const printerService = {
         container.style.position = 'absolute';
         container.style.left = '-9999px';
         container.style.width = config.width === '80mm' ? '576px' : '384px';
-        container.innerHTML = `<div id="vclinic-print-target" style="background: white; padding: 20px;">${html}</div>`;
+        container.innerHTML = `<div id="vimes-print-target" style="background: white; padding: 20px;">${html}</div>`;
         document.body.appendChild(container);
 
         try {
             await document.fonts.ready;
-            const target = document.getElementById('vclinic-print-target');
+            const target = document.getElementById('vimes-print-target');
             if (!target) throw new Error("Render target not found");
 
             const canvas = await html2canvas(target, { backgroundColor: '#ffffff', scale: 1 });

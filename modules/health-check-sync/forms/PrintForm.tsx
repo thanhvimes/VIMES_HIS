@@ -48,7 +48,7 @@ interface PrintFormProps {
 }
 
 const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => {
-    const { hospitalName, parentOrg, fetchBrandingSettings, brandingLoaded } = useSystemStore();
+    const { hospitalName, parentOrg, fetchBrandingSettings, brandingLoaded, logoUrl } = useSystemStore();
     const { user } = useSession();
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(true);
@@ -94,7 +94,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
         codesToFetch.forEach(async (code) => {
             try {
                 const results = await catalogService.searchIcd10(code);
-                const match = results.find(r => r.code.toUpperCase() === code.toUpperCase());
+                const match = results.find(r => String(r.code ?? '').toUpperCase() === code.toUpperCase());
                 if (match) {
                     setIcd10Names(prev => ({
                         ...prev,
@@ -203,10 +203,27 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
             
             // Define the rendering logic wrapped in a promise
             const renderingPromise = (async () => {
-                const pages = containerRef.current!.querySelectorAll('.a4-page');
-                console.log("Found pages:", pages.length);
-                if (pages.length === 0) {
-                    throw new Error("No A4 pages found for PDF generation");
+                // Poll for .a4-page elements to ensure DOM is fully mounted
+                let pages = containerRef.current?.querySelectorAll('.a4-page');
+                let retries = 0;
+                while ((!pages || pages.length === 0) && retries < 15) {
+                    await new Promise(res => setTimeout(res, 100));
+                    pages = containerRef.current?.querySelectorAll('.a4-page');
+                    retries++;
+                }
+
+                console.log("Found pages:", pages ? pages.length : 0);
+                if (!pages || pages.length === 0) {
+                    throw new Error("Không tìm thấy trang A4 để tạo file PDF");
+                }
+
+                // Ensure all images inside containerRef are loaded
+                if (containerRef.current) {
+                    const imgs = Array.from(containerRef.current.querySelectorAll('img')) as HTMLImageElement[];
+                    await Promise.all(imgs.map((img: HTMLImageElement) => {
+                        if (img.complete) return Promise.resolve();
+                        return new Promise(res => { img.onload = res; img.onerror = res; });
+                    }));
                 }
 
                 const pdf = new jsPDF('p', 'mm', 'a4');
@@ -214,7 +231,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
 
                 for (let i = 0; i < total; i++) {
                     if (!activeRef.current) return null;
-                    setProgress(Math.round((i / total) * 100));
+                    setProgress(Math.round(((i + 1) / total) * 100));
                     
                     const page = pages[i];
                     console.log(`Rendering page ${i + 1}/${total}...`);
@@ -972,6 +989,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
                     <PrintFormMau1
                         document={document}
                         hospitalName={hospitalName}
+                        logoUrl={logoUrl}
                         getReportDate={getReportDate}
                         getConclusionDoctorName={getConclusionDoctorName}
                         maCskcb={settings?.ma_cskcb || settings?.ma_gtin_cskcb}
@@ -980,6 +998,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
                     <PrintFormMau2
                         document={document}
                         hospitalName={hospitalName}
+                        logoUrl={logoUrl}
                         getReportDate={getReportDate}
                         getConclusionDoctorName={getConclusionDoctorName}
                         doctors={doctors}
@@ -991,6 +1010,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
                     <PrintFormMau3
                         document={document}
                         hospitalName={hospitalName}
+                        logoUrl={logoUrl}
                         getReportDate={getReportDate}
                         getConclusionDoctorName={getConclusionDoctorName}
                         doctors={doctors}

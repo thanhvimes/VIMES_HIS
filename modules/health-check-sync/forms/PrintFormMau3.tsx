@@ -1,8 +1,10 @@
 import React from 'react';
+import { VIMES_LOGO_BASE64 } from '../../../config/vimesLogoBase64';
 
 interface PrintFormMau3Props {
     document: any;
     hospitalName: string;
+    logoUrl?: string;
     getReportDate: () => { day: number; month: number; year: number };
     getConclusionDoctorName: () => string;
     doctors: any[];
@@ -11,7 +13,7 @@ interface PrintFormMau3Props {
 }
 
 const STATIC_LABELS = {
-    hospitalTitle: "BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH",
+    hospitalTitle: "VIMES HIS",
     nationalTitle: "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM",
     nationalSubtitle: "Độc lập - Tự do - Hạnh phúc",
     formTitle: "MẪU KHÁM SỨC KHỎE ĐỊNH KỲ",
@@ -130,6 +132,7 @@ const STATIC_LABELS = {
 export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
     document,
     hospitalName,
+    logoUrl,
     getReportDate,
     getConclusionDoctorName,
     doctors,
@@ -376,11 +379,14 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
             <div className="a4-page flex flex-col justify-between">
                 <div>
                     <div className="flex justify-between items-start">
-                        <div className="text-center w-[45%]">
-                            <strong className="text-[12px] uppercase block">{L.hospitalTitle}</strong>
-                            <span className="text-[11px] block mt-1">Số: ....../GKSK-.........</span>
+                        <div className="flex items-center gap-3 w-[50%]">
+                            {logoUrl && <img src={logoUrl} alt="Logo" className="h-10 w-auto object-contain shrink-0" />}
+                            <div>
+                                <strong className="text-[12px] uppercase block">{hospitalName || 'BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH'}</strong>
+                                <span className="text-[11px] block mt-0.5">Số: ....../GKSK-.........</span>
+                            </div>
                         </div>
-                        <div className="text-center w-[50%]">
+                        <div className="text-center w-[48%]">
                             <strong className="text-[12px] uppercase block">{L.nationalTitle}</strong>
                             <strong className="text-[11px] block mt-0.5">{L.nationalSubtitle}</strong>
                             <div className="border-t border-black w-24 mx-auto mt-1"></div>

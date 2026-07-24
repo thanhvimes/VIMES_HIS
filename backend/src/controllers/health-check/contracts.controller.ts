@@ -19,17 +19,20 @@ export class ContractsController {
             await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_client_id varchar(100)`);
             await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_client_secret text`);
 
+            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS ma_cskcb_byt varchar(20)`);
+
             const result = await query(
-                `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, reception_slip_template, use_qz_tray, vneid_private_key, vneid_public_key, signature_type, hsm_url, hsm_provider, hsm_username, hsm_password, hsm_client_id, hsm_client_secret FROM health_check_settings LIMIT 1`
+                `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_cskcb_byt, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, reception_slip_template, use_qz_tray, vneid_private_key, vneid_public_key, signature_type, hsm_url, hsm_provider, hsm_username, hsm_password, hsm_client_id, hsm_client_secret FROM health_check_settings ORDER BY id ASC LIMIT 1`
             );
 
             if (result.rows.length === 0) {
                 return res.json({
-                    vneid_url: 'https://api.emrhub.vn/api/v1',
-                    vneid_username: '',
+                    vneid_url: 'https://api-sandbox.emrhub.vn/api',
+                    vneid_username: '8934285008135_api',
                     vneid_password: '',
-                    ma_cskcb: '15124',
-                    ma_gtin_cskcb: '1234567890123',
+                    ma_cskcb: '8934285008135',
+                    ma_cskcb_byt: '37101',
+                    ma_gtin_cskcb: '8934285008135',
                     auto_sync_enabled: false,
                     auto_sync_interval: 15,
                     barcode_label_size_xn: '50x30',
@@ -127,7 +130,13 @@ export class ContractsController {
                 row.vneid_password = '******';
             }
             if (row.vneid_private_key) {
-                row.vneid_private_key = '******';
+                try {
+                    row.vneid_private_key = SecurityUtils.isEncrypted(row.vneid_private_key)
+                        ? SecurityUtils.resolveSecret(row.vneid_private_key)
+                        : SecurityUtils.decrypt(row.vneid_private_key);
+                } catch (e) {
+                    row.vneid_private_key = row.vneid_private_key;
+                }
             }
             if (row.hsm_password) {
                 row.hsm_password = '******';
@@ -172,6 +181,7 @@ export class ContractsController {
             vneid_username,
             vneid_password,
             ma_cskcb,
+            ma_cskcb_byt,
             ma_gtin_cskcb,
             auto_sync_enabled,
             auto_sync_interval,
@@ -198,7 +208,7 @@ export class ContractsController {
         } = req.body;
 
         try {
-            const existCheck = await query('SELECT id, vneid_password, vneid_private_key, hsm_password, hsm_client_secret FROM health_check_settings LIMIT 1');
+            const existCheck = await query('SELECT id, vneid_password, vneid_private_key, hsm_password, hsm_client_secret FROM health_check_settings ORDER BY id ASC LIMIT 1');
             
             let finalPassword = '';
             let finalPrivateKey = '';
@@ -215,8 +225,12 @@ export class ContractsController {
 
                 if (vneid_private_key === '******') {
                     finalPrivateKey = existing.vneid_private_key;
+                } else if (vneid_private_key) {
+                    finalPrivateKey = SecurityUtils.isEncrypted(vneid_private_key)
+                        ? vneid_private_key
+                        : 'enc:' + SecurityUtils.encrypt(vneid_private_key);
                 } else {
-                    finalPrivateKey = vneid_private_key ? SecurityUtils.encrypt(vneid_private_key) : '';
+                    finalPrivateKey = '';
                 }
 
                 if (hsm_password === '******') {
@@ -237,39 +251,41 @@ export class ContractsController {
                         vneid_username = $2,
                         vneid_password = $3,
                         ma_cskcb = $4,
-                        ma_gtin_cskcb = $5,
-                        auto_sync_enabled = $6,
-                        auto_sync_interval = $7,
-                        barcode_label_size_xn = $8,
-                        barcode_label_size_ksk = $9,
-                        barcode_show_hospital = $10,
-                        barcode_show_date = $11,
-                        barcode_show_sample_type = $12,
-                        allow_unsigned_sync = $13,
-                        barcode_zpl_template_xn = $14,
-                        barcode_zpl_template_ksk = $15,
-                        barcode_printer_name = $16,
-                        reception_slip_template = $17,
-                        use_qz_tray = $18,
-                        vneid_private_key = $19,
-                        vneid_public_key = $20,
-                        signature_type = $21,
-                        hsm_url = $22,
-                        hsm_provider = $23,
-                        hsm_username = $24,
-                        hsm_password = $25,
-                        hsm_client_id = $26,
-                        hsm_client_secret = $27,
+                        ma_cskcb_byt = $5,
+                        ma_gtin_cskcb = $6,
+                        auto_sync_enabled = $7,
+                        auto_sync_interval = $8,
+                        barcode_label_size_xn = $9,
+                        barcode_label_size_ksk = $10,
+                        barcode_show_hospital = $11,
+                        barcode_show_date = $12,
+                        barcode_show_sample_type = $13,
+                        allow_unsigned_sync = $14,
+                        barcode_zpl_template_xn = $15,
+                        barcode_zpl_template_ksk = $16,
+                        barcode_printer_name = $17,
+                        reception_slip_template = $18,
+                        use_qz_tray = $19,
+                        vneid_private_key = $20,
+                        vneid_public_key = $21,
+                        signature_type = $22,
+                        hsm_url = $23,
+                        hsm_provider = $24,
+                        hsm_username = $25,
+                        hsm_password = $26,
+                        hsm_client_id = $27,
+                        hsm_client_secret = $28,
                         updated_at = NOW()
-                    WHERE id = $28
+                    WHERE id = $29
                     RETURNING id
                 `;
                 await query(updateSql, [
-                    vneid_url || 'https://api.emrhub.vn/api/v1',
+                    vneid_url ? vneid_url.trim() : 'https://api-sandbox.emrhub.vn/api',
                     vneid_username || '',
                     finalPassword,
-                    ma_cskcb || '15124',
-                    ma_gtin_cskcb || '1234567890123',
+                    ma_cskcb || '',
+                    ma_cskcb_byt || process.env.COMPANY_ID || '',
+                    ma_gtin_cskcb || '',
                     auto_sync_enabled === true,
                     parseInt(auto_sync_interval || '15', 10),
                     barcode_label_size_xn || '50x30',
@@ -302,19 +318,20 @@ export class ContractsController {
 
                 const insertSql = `
                     INSERT INTO health_check_settings (
-                        vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval,
+                        vneid_url, vneid_username, vneid_password, ma_cskcb, ma_cskcb_byt, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval,
                         barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type,
                         allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, reception_slip_template, use_qz_tray,
                         vneid_private_key, vneid_public_key, signature_type, hsm_url, hsm_provider, hsm_username, hsm_password, hsm_client_id, hsm_client_secret
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
                     RETURNING id
                 `;
                 await query(insertSql, [
-                    vneid_url || 'https://api.emrhub.vn/api/v1',
+                    vneid_url ? vneid_url.trim() : 'https://api-sandbox.emrhub.vn/api',
                     vneid_username || '',
                     finalPassword,
-                    ma_cskcb || '15124',
-                    ma_gtin_cskcb || '1234567890123',
+                    ma_cskcb || '',
+                    ma_cskcb_byt || process.env.COMPANY_ID || '',
+                    ma_gtin_cskcb || '',
                     auto_sync_enabled === true,
                     parseInt(auto_sync_interval || '15', 10),
                     barcode_label_size_xn || '50x30',
@@ -359,9 +376,10 @@ export class ContractsController {
                 return res.status(400).json({ success: false, message: 'Thiếu địa chỉ cổng URL' });
             }
 
-            const originUrl = vneid_url.includes('/api/v1') 
-                ? vneid_url.split('/api/v1')[0] 
-                : vneid_url;
+            let baseUrl = vneid_url.trim().replace(/\/+$/, '');
+            if (baseUrl.endsWith('/v1')) baseUrl = baseUrl.slice(0, -3);
+            if (baseUrl.endsWith('/api')) baseUrl = baseUrl.slice(0, -4);
+            const loginUrl = `${baseUrl}/api/auth/login`;
 
             let testPassword = vneid_password || '';
             if (testPassword === '******') {
@@ -382,9 +400,9 @@ export class ContractsController {
                 }
             }
 
-            console.log(`📡 [VNeID Portal] Testing connection to login at: ${originUrl}/api/auth/login`);
+            console.log(`📡 [VNeID Portal] Testing connection to login at: ${loginUrl}`);
 
-            const loginRes = await axios.post(`${originUrl}/api/auth/login`, {
+            const loginRes = await axios.post(loginUrl, {
                 username: vneid_username || '',
                 password: testPassword
             }, {
@@ -399,9 +417,11 @@ export class ContractsController {
 
             const token = loginRes.data?.data?.token || loginRes.data?.token || loginRes.data?.data;
             if (token) {
+                const tokenStr = typeof token === 'string' ? token : JSON.stringify(token);
+                const shortToken = tokenStr.length > 25 ? `${tokenStr.substring(0, 15)}...${tokenStr.substring(tokenStr.length - 10)}` : tokenStr;
                 return res.json({ 
                     success: true, 
-                    message: `Kết nối thành công tới cổng ${vneid_url}. Cổng hoạt động bình thường, tài khoản hợp lệ.`
+                    message: `🎉 Kết nối thành công! Đã đăng nhập và lấy Bearer Token xác thực Cổng VNeID thành công (Token: ${shortToken}, Độ dài: ${tokenStr.length} ký tự).`
                 });
             } else {
                 return res.json({ 

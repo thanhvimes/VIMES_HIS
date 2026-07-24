@@ -21,6 +21,17 @@ export interface HealthCheckDocument {
     createdAt: string;
 }
 
+export interface SeedFromHisResponse {
+    success: boolean;
+    count: number;
+    message: string;
+    inserted?: number;
+    updated?: number;
+    partial_update?: number;
+    skipped_signed?: number;
+    skipped_sent?: number;
+}
+
 export const healthCheckService = {
     getDocumentsList: async (filters?: { 
         startDate?: string; 
@@ -87,9 +98,11 @@ export const healthCheckService = {
         }
     },
 
-    seedFromHis: async (filters?: { startDate?: string; endDate?: string; workplaceId?: string }): Promise<{ success: boolean; count: number; message: string }> => {
+
+
+    seedFromHis: async (filters?: { startDate?: string; endDate?: string; workplaceId?: string }): Promise<SeedFromHisResponse> => {
         try {
-            return await apiClient.post<{ success: boolean; count: number; message: string }>('/health-check-sync/documents/seed-from-his', filters || {});
+            return await apiClient.post<SeedFromHisResponse>('/health-check-sync/documents/seed-from-his', filters || {});
         } catch (error) {
             console.error("Error seeding documents from HIS:", error);
             throw error;

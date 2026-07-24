@@ -100,7 +100,7 @@ const LabScheduleView: React.FC = () => {
         if (window.confirm(`Gửi SMS nhắc lịch hẹn cho ${apt.patientName} đến số ${apt.phone}?`)) {
             // Simulate API call
             setTimeout(() => {
-                alert(`Đã gửi SMS thành công đến ${apt.phone}.\nNội dung: "Nhac lich: Ban co lich lay mau XN tai ClinicMS luc ${apt.time} ngay ${new Date(apt.date).toLocaleDateString('vi-VN')}. Vui long den dung gio."`);
+                alert(`Đã gửi SMS thành công đến ${apt.phone}.\nNội dung: "Nhac lich: Ban co lich lay mau XN tai VIMES HIS luc ${apt.time} ngay ${new Date(apt.date).toLocaleDateString('vi-VN')}. Vui long den dung gio."`);
             }, 500);
         }
     };

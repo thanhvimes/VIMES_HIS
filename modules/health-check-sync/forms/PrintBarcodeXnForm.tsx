@@ -7,7 +7,7 @@ import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useSystemStore } from '../../../stores/useSystemStore';
 import { Code128Barcode } from './PrintBarcodeForm';
-import { PatientWithOrders, LabOrder } from '../components/PrintBarcodeXnModal';
+import { PatientWithOrders, LabOrder, calculateAge, getGenderShort, getSampleTypeShort, formatDateTime } from '../components/PrintBarcodeXnModal';
 import { HealthCheckSettings } from '../models/HealthCheckSettings';
 import { qzPrinterService } from '../../../services/qzPrinterService';
 import { toast } from 'sonner';
@@ -76,13 +76,18 @@ const PrintBarcodeXnForm: React.FC<PrintBarcodeXnFormProps> = ({
             }
 
             for (const item of allLabels) {
-                // Replace ZPL template place holders with real values
+                // Replace ZPL template placeholders with real values
                 let zpl = template
                     .replace(/{hospital}/g, hospitalName || 'PHÒNG KHÁM vCLINIC')
                     .replace(/{patient}/g, item.patient.patientName)
+                    .replace(/{age}/g, String(item.patient.age || calculateAge(item.patient.dob) || ''))
+                    .replace(/{doc_no}/g, item.patient.docNo)
+                    .replace(/{gender}/g, getGenderShort(item.patient.gender))
+                    .replace(/{dept}/g, item.patient.deptCode || 'KB')
                     .replace(/{test}/g, item.order.testName)
                     .replace(/{sample_type}/g, item.order.sampleType)
-                    .replace(/{date}/g, new Date(item.order.sampleDate).toLocaleDateString('vi-VN'))
+                    .replace(/{sample_type_short}/g, item.order.sampleTypeShort || getSampleTypeShort(item.order.testName, item.order.sampleType))
+                    .replace(/{date}/g, formatDateTime(item.order.sampleDate))
                     .replace(/{code}/g, item.order.orderNo);
 
                 await qzPrinterService.printZPL(printerName, zpl);
@@ -311,79 +316,136 @@ const PrintBarcodeXnForm: React.FC<PrintBarcodeXnFormProps> = ({
                     /* A4 Grid Layout */
                     <div className="xn-label-preview xn-label-a4-grid">
                         <div className="xn-a4-grid-layout">
-                            {allLabels.map(({ patient, order }, idx) => (
-                                <div key={`${order.id}-${idx}`} className="xn-a4-decal-item text-black">
-                                    {showHospital && (
-                                        <div style={{ fontSize: '7px', fontWeight: 900, textTransform: 'uppercase', borderBottom: '0.5px solid #cbd5e1', paddingBottom: '0.5mm', letterSpacing: '0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                            {hospitalName || 'PHÒNG KHÁM vCLINIC'}
+                            {allLabels.map(({ patient, order }, idx) => {
+                                const ageVal = patient.age || calculateAge(patient.dob);
+                                const genderShort = getGenderShort(patient.gender);
+                                const deptCode = patient.deptCode || 'KB';
+                                const sampleTypeShort = order.sampleTypeShort || getSampleTypeShort(order.testName, order.sampleType);
+                                const dateTimeStr = formatDateTime(order.sampleDate);
+
+                                return (
+                                    <div key={`${order.id}-${idx}`} className="xn-a4-decal-item text-black" style={{ padding: '1.5mm 2mm', display: 'flex', flexDirection: 'column', justify: 'space-between', fontFamily: '"Arial", "Helvetica Neue", sans-serif' }}>
+                                        {/* Row 1: Patient Name & Age */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', lineHeight: 1.1 }}>
+                                            <span style={{ fontSize: '11px', fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '75%' }}>
+                                                {patient.patientName || 'Test22222'}
+                                            </span>
+                                            <span style={{ fontSize: '12px', fontWeight: 900, flexShrink: 0 }}>
+                                                {ageVal}
+                                            </span>
                                         </div>
-                                    )}
-                                    <div style={{ textAlign: 'center', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <Code128Barcode value={order.orderNo} height={18} />
-                                    </div>
-                                    <div style={{ lineHeight: 1.1 }}>
-                                        <div style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                            {patient.patientName}
+
+                                        {/* Row 2: Doc No, Gender, Dept */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '9.5px', fontWeight: 800, marginTop: '0.3mm', lineHeight: 1.1 }}>
+                                            <span style={{ fontFamily: 'monospace, Arial, sans-serif' }}>
+                                                {patient.docNo || '26265991'}
+                                            </span>
+                                            <span style={{ fontWeight: 900 }}>{genderShort}</span>
+                                            <span style={{ fontWeight: 900 }}>{deptCode}</span>
                                         </div>
-                                        <div style={{ fontSize: '7px', fontWeight: 700, display: 'flex', justifyContent: 'space-between', overflow: 'hidden', marginTop: '0.3mm' }}>
-                                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: '1mm', color: '#1e293b' }}>{order.testName}</span>
-                                            <span style={{ fontFamily: 'monospace', fontSize: '6.5px', flexShrink: 0, color: '#64748b' }}>{order.orderNo}</span>
+
+                                        {/* Row 3: Barcode SVG */}
+                                        <div style={{ textAlign: 'center', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0.3mm 0' }}>
+                                            <Code128Barcode value={order.orderNo || '13312658'} height={18} />
                                         </div>
-                                        {(showSampleType || showDate) && (
-                                            <div style={{ fontSize: '6.5px', fontWeight: 800, color: '#c2410c', borderTop: '0.5px solid #e2e8f0', paddingTop: '0.3mm', display: 'flex', justifyContent: 'space-between', marginTop: '0.3mm' }}>
-                                                {showSampleType && <span>{order.sampleType}</span>}
-                                                {showDate && <span>{new Date(order.sampleDate).toLocaleDateString('vi-VN')}</span>}
+
+                                        {/* Row 4: Barcode Value (centered) & Test Short Code (right bold) */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', lineHeight: 1, marginTop: '-0.3mm' }}>
+                                            <div style={{ width: '20px' }} />
+                                            <div style={{ fontSize: '9px', fontWeight: 800, fontFamily: 'monospace, Arial, sans-serif', letterSpacing: '0.03em', textAlign: 'center' }}>
+                                                {order.orderNo || '13312658'}
                                             </div>
-                                        )}
+                                            <div style={{ fontSize: '14px', fontWeight: 900, textAlign: 'right', minWidth: '20px', lineHeight: 0.9 }}>
+                                                {sampleTypeShort}
+                                            </div>
+                                        </div>
+
+                                        {/* Row 5: Date & Time */}
+                                        <div style={{ fontSize: '7.5px', fontWeight: 700, fontFamily: 'monospace, Arial, sans-serif', marginTop: '0.2mm', lineHeight: 1 }}>
+                                            {dateTimeStr}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
                 ) : (
-                    /* Thermal Label Layout */
+                    /* Thermal Label Layout (50x30 / 40x30 / 60x40) */
                     <div className="flex flex-col items-center">
-                        {allLabels.map(({ patient, order }, idx) => (
-                            <div
-                                key={`${order.id}-${idx}`}
-                                className={`xn-label-preview xn-label-${labelSize} flex flex-col justify-between`}
-                                style={{
-                                    width: `${cfg.w}mm`,
-                                    height: `${cfg.h}mm`,
-                                    boxSizing: 'border-box',
-                                    padding: labelSize === '60x40' ? '2mm' : '1.5mm',
-                                }}
-                            >
-                                {/* Hospital name */}
-                                {showHospital && (
-                                    <div style={{ fontSize: '8px', fontWeight: 900, textTransform: 'uppercase', borderBottom: '0.5px solid black', paddingBottom: '0.5mm', textAlign: 'center', letterSpacing: '0.03em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                        {hospitalName || 'PHÒNG KHÁM vCLINIC'}
-                                    </div>
-                                )}
+                        {allLabels.map(({ patient, order }, idx) => {
+                            const ageVal = patient.age || calculateAge(patient.dob);
+                            const genderShort = getGenderShort(patient.gender);
+                            const deptCode = patient.deptCode || 'KB';
+                            const sampleTypeShort = order.sampleTypeShort || getSampleTypeShort(order.testName, order.sampleType);
+                            const dateTimeStr = formatDateTime(order.sampleDate);
 
-                                {/* Barcode */}
-                                <div style={{ textAlign: 'center', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0.5mm 0' }}>
-                                    <Code128Barcode value={order.orderNo} height={cfg.barcodeH} />
-                                </div>
+                            return (
+                                <div
+                                    key={`${order.id}-${idx}`}
+                                    className={`xn-label-preview xn-label-${labelSize}`}
+                                    style={{
+                                        width: `${cfg.w}mm`,
+                                        height: `${cfg.h}mm`,
+                                        boxSizing: 'border-box',
+                                        padding: labelSize === '60x40' ? '2.5mm' : '1.5mm 2.5mm 1mm 2.5mm',
+                                        backgroundColor: '#ffffff',
+                                        color: '#000000',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        justifyContent: 'space-between',
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                        fontFamily: '"Arial", "Helvetica Neue", sans-serif',
+                                    }}
+                                >
+                                    {/* Row 1: Patient Name (Left) & Age (Right) */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', width: '100%', lineHeight: 1.1 }}>
+                                        <span style={{ fontSize: labelSize === '60x40' ? '16px' : '13.5px', fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '78%', color: '#000000' }}>
+                                            {patient.patientName || 'Test22222'}
+                                        </span>
+                                        <span style={{ fontSize: labelSize === '60x40' ? '16px' : '14px', fontWeight: 900, flexShrink: 0, color: '#000000' }}>
+                                            {ageVal}
+                                        </span>
+                                    </div>
 
-                                {/* Info */}
-                                <div style={{ lineHeight: 1.1, display: 'flex', flexDirection: 'column', gap: '0.3mm' }}>
-                                    <div style={{ fontSize: labelSize === '60x40' ? '10px' : '9px', fontWeight: 900, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                        {patient.patientName}
+                                    {/* Row 2: Doc No (Left), Gender (Center), Dept/Object (Right) */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', fontSize: labelSize === '60x40' ? '13px' : '11.5px', fontWeight: 800, marginTop: '0.3mm', lineHeight: 1.1, color: '#000000' }}>
+                                        <span style={{ fontFamily: 'monospace, Arial, sans-serif', letterSpacing: '0.02em' }}>
+                                            {patient.docNo || '26265991'}
+                                        </span>
+                                        <span style={{ fontWeight: 900 }}>
+                                            {genderShort}
+                                        </span>
+                                        <span style={{ fontWeight: 900 }}>
+                                            {deptCode}
+                                        </span>
                                     </div>
-                                    <div style={{ fontSize: labelSize === '60x40' ? '8px' : '7.5px', fontWeight: 700, display: 'flex', justifyContent: 'space-between', overflow: 'hidden' }}>
-                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: '1mm', color: '#1e293b' }}>{order.testName}</span>
-                                        <span style={{ fontFamily: 'monospace', fontSize: '7px', flexShrink: 0, color: '#64748b' }}>{order.orderNo}</span>
+
+                                    {/* Row 3: Barcode SVG (Center) */}
+                                    <div style={{ textAlign: 'center', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0.5mm 0 0 0', width: '100%' }}>
+                                        <Code128Barcode value={order.orderNo || '13312658'} height={cfg.barcodeH} />
                                     </div>
-                                    {(showSampleType || showDate) && (
-                                        <div style={{ fontSize: '7.5px', fontWeight: 800, color: '#c2410c', borderTop: '0.5px solid #e2e8f0', paddingTop: '0.3mm', display: 'flex', justifyContent: 'space-between' }}>
-                                            {showSampleType && <span>{order.sampleType}</span>}
-                                            {showDate && <span>{new Date(order.sampleDate).toLocaleDateString('vi-VN')}</span>}
+
+                                    {/* Row 4: Barcode Value (Centered) & Test Short Code (Right Bold Large) */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%', marginTop: '-0.5mm', lineHeight: 1 }}>
+                                        <div style={{ width: '25px' }} />
+
+                                        <div style={{ fontSize: labelSize === '60x40' ? '13px' : '11px', fontWeight: 800, fontFamily: 'monospace, Arial, sans-serif', letterSpacing: '0.04em', textAlign: 'center', color: '#000000' }}>
+                                            {order.orderNo || '13312658'}
                                         </div>
-                                    )}
+
+                                        <div style={{ fontSize: labelSize === '60x40' ? '20px' : '17px', fontWeight: 900, textAlign: 'right', minWidth: '25px', color: '#000000', lineHeight: 0.9 }}>
+                                            {sampleTypeShort}
+                                        </div>
+                                    </div>
+
+                                    {/* Row 5: Date & Time (Bottom Left) */}
+                                    <div style={{ fontSize: labelSize === '60x40' ? '10px' : '8.5px', fontWeight: 700, fontFamily: 'monospace, Arial, sans-serif', marginTop: '0.3mm', lineHeight: 1, color: '#000000' }}>
+                                        {dateTimeStr}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>

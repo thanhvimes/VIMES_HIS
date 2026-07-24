@@ -36,17 +36,31 @@ import ContractManagement from '../components/ContractManagement';
 import PatientReception from '../components/PatientReception';
 import SampleTracking from '../components/SampleTracking';
 
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: any }> {
-    constructor(props: any) {
+interface ErrorBoundaryProps {
+    children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+    hasError: boolean;
+    error: any;
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+    props: ErrorBoundaryProps;
+    state: ErrorBoundaryState = { hasError: false, error: null };
+
+    constructor(props: ErrorBoundaryProps) {
         super(props);
-        this.state = { hasError: false, error: null };
     }
-    static getDerivedStateFromError(error: any) {
+
+    static getDerivedStateFromError(error: any): ErrorBoundaryState {
         return { hasError: true, error };
     }
+
     componentDidCatch(error: any, errorInfo: any) {
         console.error("ErrorBoundary caught an error", error, errorInfo);
     }
+
     render() {
         if (this.state.hasError) {
             return (
@@ -896,7 +910,7 @@ const HealthCheckSyncView: React.FC = () => {
                 payload={xnPrintPayload} 
                 onClose={async () => {
                     setViewMode('LIST');
-                    const docIds = Array.from(new Set(xnPrintPayload.map(p => String(p.patient.id))));
+                    const docIds = Array.from(new Set<string>(xnPrintPayload.map(p => String(p.patient.id))));
                     const samples = xnPrintPayload.flatMap(p => 
                         p.orders.map((o: any) => {
                             const docNoStr = o.hisDocNo || p.patient.hisDocNo || p.patient.docNo || '';

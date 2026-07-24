@@ -1,6 +1,6 @@
 # 📘 HƯỚNG DẪN DEPLOY CHI TIẾT - TỪNG BƯỚC
 
-> **Mục đích:** Hướng dẫn chi tiết từng bước để deploy hệ thống vClinic lên server production
+> **Mục đích:** Hướng dẫn chi tiết từng bước để deploy hệ thống VIMES HIS lên server production
 
 ---
 
@@ -30,7 +30,7 @@ node --version
 npm --version
 
 # Di chuyển vào thư mục project
-cd d:\AI\vClinic
+cd d:\AI\VIMES HIS
 
 # Kiểm tra Git status (đảm bảo code đã commit)
 git status
@@ -51,7 +51,7 @@ Bạn cần có sẵn các thông tin sau:
 - [ ] **IP/Domain của server:** `___________________`
 - [ ] **SSH Username:** `___________________`
 - [ ] **SSH Password/Key:** `___________________`
-- [ ] **Thư mục deploy trên server:** `/home/user/vClinic` (ví dụ)
+- [ ] **Thư mục deploy trên server:** `/home/user/VIMES HIS` (ví dụ)
 - [ ] **Database Host:** `___________________`
 - [ ] **Database Name:** `___________________`
 - [ ] **Database User:** `___________________`
@@ -92,10 +92,10 @@ Bạn cần có sẵn các thông tin sau:
 
 ```powershell
 # Windows
-cd d:\AI\vClinic
+cd d:\AI\VIMES HIS
 
 # Mac/Linux (ví dụ)
-cd ~/Projects/vClinic
+cd ~/Projects/VIMES HIS
 ```
 
 **Kiểm tra bạn đang ở đúng thư mục:**
@@ -123,7 +123,7 @@ npm run deploy
 
 **Quá trình này sẽ:**
 1. ✅ Build frontend (tạo thư mục `dist/`)
-2. ✅ Tạo thư mục `release/vClinic-deploy/`
+2. ✅ Tạo thư mục `release/VIMES-HIS-deploy/`
 3. ✅ Copy backend vào package
 4. ✅ Copy frontend đã build vào package
 5. ✅ Tạo file cấu hình mẫu
@@ -131,7 +131,7 @@ npm run deploy
 
 **Output mong đợi:**
 ```
-🚀 Starting vClinic Deployment Packaging...
+🚀 Starting VIMES HIS Deployment Packaging...
 
 📦 Step 1/6: Building Frontend...
 ✅ Frontend build completed
@@ -154,18 +154,18 @@ npm run deploy
 ═══════════════════════════════════════════════════════════
 ✅ DEPLOYMENT PACKAGE CREATED SUCCESSFULLY!
 ═══════════════════════════════════════════════════════════
-📍 Location: d:\AI\vClinic\release\vClinic-deploy
+📍 Location: d:\AI\VIMES HIS\release\VIMES-HIS-deploy
 ```
 
 ### 2.4. Kiểm tra package đã tạo
 
 ```powershell
 # Windows
-cd release\vClinic-deploy
+cd release\VIMES-HIS-deploy
 dir
 
 # Mac/Linux
-cd release/vClinic-deploy
+cd release/VIMES-HIS-deploy
 ls -la
 ```
 
@@ -241,16 +241,16 @@ index.html       # File HTML chính
    - Hoặc `/var/www/` (nếu dùng web server)
 
 2. Click chuột phải → **"New"** → **"Directory"**
-3. Đặt tên: `vClinic`
+3. Đặt tên: `VIMES HIS`
 4. Click **"OK"**
 
-#### 3.5. Upload thư mục vClinic-deploy
+#### 3.5. Upload thư mục VIMES-HIS-deploy
 
 **Trên panel bên trái (Local):**
 
-1. Di chuyển đến: `d:\AI\vClinic\release\`
-2. Tìm thư mục `vClinic-deploy`
-3. **Kéo thả** thư mục `vClinic-deploy` sang panel bên phải (Server)
+1. Di chuyển đến: `d:\AI\VIMES HIS\release\`
+2. Tìm thư mục `VIMES-HIS-deploy`
+3. **Kéo thả** thư mục `VIMES-HIS-deploy` sang panel bên phải (Server)
    - Hoặc: Click chuột phải → **"Upload"**
 
 **Quá trình upload:**
@@ -258,7 +258,7 @@ index.html       # File HTML chính
 - Thời gian tùy thuộc vào tốc độ mạng (thường 2-5 phút)
 - Đợi đến khi hiển thị "Upload completed"
 
-**✅ Kiểm tra:** Trên server phải có thư mục `/home/your-username/vClinic-deploy/`
+**✅ Kiểm tra:** Trên server phải có thư mục `/home/your-username/VIMES-HIS-deploy/`
 
 ---
 
@@ -268,7 +268,7 @@ index.html       # File HTML chính
 
 ```powershell
 # Di chuyển vào thư mục release
-cd d:\AI\vClinic\release
+cd d:\AI\VIMES HIS\release
 ```
 
 #### 3.2. Upload bằng lệnh SCP
@@ -278,15 +278,15 @@ cd d:\AI\vClinic\release
 # scp -r <thư-mục-local> <user>@<server-ip>:<đường-dẫn-server>
 
 # Ví dụ:
-scp -r vClinic-deploy/ ubuntu@192.168.1.100:/home/ubuntu/
+scp -r VIMES-HIS-deploy/ ubuntu@192.168.1.100:/home/ubuntu/
 
 # Hoặc nếu dùng SSH key:
-scp -i ~/.ssh/your-key.pem -r vClinic-deploy/ ubuntu@192.168.1.100:/home/ubuntu/
+scp -i ~/.ssh/your-key.pem -r VIMES-HIS-deploy/ ubuntu@192.168.1.100:/home/ubuntu/
 ```
 
 **Giải thích:**
 - `-r`: Upload đệ quy (cả thư mục con)
-- `vClinic-deploy/`: Thư mục cần upload
+- `VIMES-HIS-deploy/`: Thư mục cần upload
 - `ubuntu`: Username SSH
 - `192.168.1.100`: IP server
 - `/home/ubuntu/`: Đường dẫn đích trên server
@@ -295,10 +295,10 @@ scp -i ~/.ssh/your-key.pem -r vClinic-deploy/ ubuntu@192.168.1.100:/home/ubuntu/
 
 **Output mong đợi:**
 ```
-vClinic-deploy/backend/package.json    100%  745   12.5KB/s   00:00
-vClinic-deploy/backend/src/server.js   100% 2660   44.3KB/s   00:00
+VIMES-HIS-deploy/backend/package.json    100%  745   12.5KB/s   00:00
+VIMES-HIS-deploy/backend/src/server.js   100% 2660   44.3KB/s   00:00
 ...
-vClinic-deploy/dist/index.html         100% 13KB  220.5KB/s   00:00
+VIMES-HIS-deploy/dist/index.html         100% 13KB  220.5KB/s   00:00
 ```
 
 ---
@@ -308,7 +308,7 @@ vClinic-deploy/dist/index.html         100% 13KB  220.5KB/s   00:00
 #### 3.1. Commit code trên local
 
 ```bash
-cd d:\AI\vClinic
+cd d:\AI\VIMES HIS
 
 # Add tất cả files
 git add .
@@ -328,9 +328,9 @@ ssh ubuntu@192.168.1.100
 
 # Clone hoặc pull
 cd /home/ubuntu
-git clone https://github.com/your-username/vClinic.git
+git clone https://github.com/your-username/VIMES HIS.git
 # Hoặc nếu đã có:
-cd vClinic
+cd VIMES HIS
 git pull origin main
 
 # Build trên server
@@ -365,7 +365,7 @@ ubuntu@server:~$
 ### 4.2. Di chuyển vào thư mục deploy
 
 ```bash
-cd vClinic-deploy
+cd VIMES-HIS-deploy
 
 # Kiểm tra cấu trúc
 ls -la
@@ -547,7 +547,7 @@ INSERT 0 10
 
 ```bash
 # Di chuyển về thư mục gốc
-cd /home/ubuntu/vClinic-deploy
+cd /home/ubuntu/VIMES-HIS-deploy
 
 # Cấp quyền thực thi cho script
 chmod +x start.sh
@@ -558,12 +558,12 @@ chmod +x start.sh
 
 **Output mong đợi:**
 ```
-🚀 Starting vClinic Backend...
+🚀 Starting VIMES HIS Backend...
 🔄 Starting with PM2...
-[PM2] Starting /home/ubuntu/vClinic-deploy/backend/src/server.js in fork_mode (1 instance)
+[PM2] Starting /home/ubuntu/VIMES-HIS-deploy/backend/src/server.js in fork_mode (1 instance)
 [PM2] Done.
 ✅ Backend started with PM2
-📊 View logs: pm2 logs vclinic-backend
+📊 View logs: pm2 logs vimes-his-backend
 ```
 
 ---
@@ -572,10 +572,10 @@ chmod +x start.sh
 
 ```bash
 # Di chuyển vào thư mục backend
-cd /home/ubuntu/vClinic-deploy/backend
+cd /home/ubuntu/VIMES-HIS-deploy/backend
 
 # Khởi động với PM2
-pm2 start src/server.js --name vclinic-backend
+pm2 start src/server.js --name vimes-his-backend
 
 # Lưu cấu hình PM2
 pm2 save
@@ -590,7 +590,7 @@ pm2 startup
 ┌─────┬──────────────────┬─────────┬─────────┬──────────┬────────┐
 │ id  │ name             │ mode    │ status  │ cpu      │ memory │
 ├─────┼──────────────────┼─────────┼─────────┼──────────┼────────┤
-│ 0   │ vclinic-backend  │ fork    │ online  │ 0%       │ 45.2mb │
+│ 0   │ vimes-his-backend  │ fork    │ online  │ 0%       │ 45.2mb │
 └─────┴──────────────────┴─────────┴─────────┴──────────┴────────┘
 ```
 
@@ -599,7 +599,7 @@ pm2 startup
 ### CÁCH 3: Chạy trực tiếp (Development/Testing)
 
 ```bash
-cd /home/ubuntu/vClinic-deploy/backend
+cd /home/ubuntu/VIMES-HIS-deploy/backend
 npm start
 ```
 
@@ -620,7 +620,7 @@ pm2 status
 ┌─────┬──────────────────┬─────────┬─────────┬──────────┬────────┐
 │ id  │ name             │ mode    │ status  │ cpu      │ memory │
 ├─────┼──────────────────┼─────────┼─────────┼──────────┼────────┤
-│ 0   │ vclinic-backend  │ fork    │ online  │ 0%       │ 45.2mb │
+│ 0   │ vimes-his-backend  │ fork    │ online  │ 0%       │ 45.2mb │
 └─────┴──────────────────┴─────────┴─────────┴──────────┴────────┘
 ```
 
@@ -630,21 +630,21 @@ pm2 status
 
 ```bash
 # Xem logs realtime
-pm2 logs vclinic-backend
+pm2 logs vimes-his-backend
 
 # Hoặc xem 50 dòng cuối
-pm2 logs vclinic-backend --lines 50
+pm2 logs vimes-his-backend --lines 50
 ```
 
 **Output mong đợi:**
 ```
 ==================================================
-🚀 vClinic Backend Server
+🚀 VIMES HIS Backend Server
 📡 Running on port 8000
 🌐 http://localhost:8000
 📊 Database: vimes_db
 ==================================================
-📂 Serving frontend from: /home/ubuntu/vClinic-deploy/dist
+📂 Serving frontend from: /home/ubuntu/VIMES-HIS-deploy/dist
 ```
 
 **Nhấn `Ctrl + C` để thoát logs**
@@ -658,7 +658,7 @@ curl http://localhost:8000/api/health
 
 **Kết quả mong đợi:**
 ```json
-{"status":"OK","message":"vClinic Backend API","version":"1.0.0"}
+{"status":"OK","message":"VIMES HIS Backend API","version":"1.0.0"}
 ```
 
 ### 6.4. Kiểm tra frontend
@@ -697,7 +697,7 @@ http://192.168.1.100:8000
 ```
 
 **Bạn phải thấy:**
-- ✅ Giao diện đăng nhập vClinic
+- ✅ Giao diện đăng nhập VIMES HIS
 - ✅ Không có lỗi trong Console (F12)
 - ✅ API calls thành công
 
@@ -718,7 +718,7 @@ http://192.168.1.100:8000
 
 ```bash
 # Kiểm tra cấu trúc thư mục
-cd /home/ubuntu/vClinic-deploy
+cd /home/ubuntu/VIMES-HIS-deploy
 ls -la
 
 # Phải có thư mục dist/ cùng cấp với backend/
@@ -727,9 +727,9 @@ ls -la
 
 **Trên máy local:**
 ```powershell
-cd d:\AI\vClinic
+cd d:\AI\VIMES HIS
 npm run deploy
-# Upload lại toàn bộ thư mục vClinic-deploy
+# Upload lại toàn bộ thư mục VIMES-HIS-deploy
 ```
 
 ---
@@ -751,7 +751,7 @@ sudo systemctl status postgresql
 sudo systemctl start postgresql
 
 # 2. Kiểm tra thông tin kết nối
-cd /home/ubuntu/vClinic-deploy/backend
+cd /home/ubuntu/VIMES-HIS-deploy/backend
 cat .env
 
 # 3. Test kết nối database
@@ -826,7 +826,7 @@ Error: EACCES: permission denied
 
 ```bash
 # Cấp quyền cho thư mục
-sudo chown -R $USER:$USER /home/ubuntu/vClinic-deploy
+sudo chown -R $USER:$USER /home/ubuntu/VIMES-HIS-deploy
 
 # Cấp quyền thực thi cho scripts
 chmod +x start.sh
@@ -845,14 +845,14 @@ Error: Cannot find module 'express'
 **Giải pháp:**
 
 ```bash
-cd /home/ubuntu/vClinic-deploy/backend
+cd /home/ubuntu/VIMES-HIS-deploy/backend
 
 # Xóa và cài lại
 rm -rf node_modules package-lock.json
 npm install --production
 
 # Restart
-pm2 restart vclinic-backend
+pm2 restart vimes-his-backend
 ```
 
 ---
@@ -863,10 +863,10 @@ pm2 restart vclinic-backend
 
 ```bash
 # Logs realtime
-pm2 logs vclinic-backend
+pm2 logs vimes-his-backend
 
 # Logs với số dòng cụ thể
-pm2 logs vclinic-backend --lines 100
+pm2 logs vimes-his-backend --lines 100
 
 # Xóa logs cũ
 pm2 flush
@@ -882,23 +882,23 @@ pm2 monit
 pm2 status
 
 # Xem thông tin chi tiết
-pm2 show vclinic-backend
+pm2 show vimes-his-backend
 ```
 
 ### Quản lý ứng dụng
 
 ```bash
 # Restart
-pm2 restart vclinic-backend
+pm2 restart vimes-his-backend
 
 # Stop
-pm2 stop vclinic-backend
+pm2 stop vimes-his-backend
 
 # Start lại
-pm2 start vclinic-backend
+pm2 start vimes-his-backend
 
 # Delete (xóa khỏi PM2)
-pm2 delete vclinic-backend
+pm2 delete vimes-his-backend
 
 # Restart tất cả
 pm2 restart all
@@ -909,13 +909,13 @@ pm2 restart all
 ```bash
 # Backup toàn bộ thư mục
 cd /home/ubuntu
-tar -czf vClinic-backup-$(date +%Y%m%d).tar.gz vClinic-deploy/
+tar -czf VIMES HIS-backup-$(date +%Y%m%d).tar.gz VIMES-HIS-deploy/
 
 # Backup database
 pg_dump -U vimes_user vimes_db > vimes_db_backup_$(date +%Y%m%d).sql
 
 # Backup file .env
-cp vClinic-deploy/backend/.env vClinic-deploy/backend/.env.backup
+cp VIMES-HIS-deploy/backend/.env VIMES-HIS-deploy/backend/.env.backup
 ```
 
 ---
@@ -939,22 +939,22 @@ npm run deploy
 ```bash
 # 1. Backup phiên bản cũ
 cd /home/ubuntu
-cp -r vClinic-deploy vClinic-deploy.backup-$(date +%Y%m%d)
+cp -r VIMES-HIS-deploy VIMES-HIS-deploy.backup-$(date +%Y%m%d)
 
 # 2. Stop ứng dụng
-pm2 stop vclinic-backend
+pm2 stop vimes-his-backend
 
 # 3. Upload phiên bản mới (KHÔNG đè file .env)
 
 # 4. Cài đặt dependencies mới
-cd vClinic-deploy/backend
+cd VIMES-HIS-deploy/backend
 npm install --production
 
 # 5. Restart
-pm2 restart vclinic-backend
+pm2 restart vimes-his-backend
 
 # 6. Kiểm tra logs
-pm2 logs vclinic-backend --lines 50
+pm2 logs vimes-his-backend --lines 50
 ```
 
 ---
@@ -963,7 +963,7 @@ pm2 logs vclinic-backend --lines 50
 
 ### Trên máy local:
 - [ ] Đã chạy `npm run deploy` thành công
-- [ ] Thư mục `release/vClinic-deploy/` đã được tạo
+- [ ] Thư mục `release/VIMES-HIS-deploy/` đã được tạo
 - [ ] Có thư mục `dist/` với `index.html` và `assets/`
 - [ ] Đã upload toàn bộ lên server
 
@@ -988,7 +988,7 @@ pm2 logs vclinic-backend --lines 50
 
 1. Xem logs chi tiết:
    ```bash
-   pm2 logs vclinic-backend --lines 200
+   pm2 logs vimes-his-backend --lines 200
    ```
 
 2. Kiểm tra file .env:

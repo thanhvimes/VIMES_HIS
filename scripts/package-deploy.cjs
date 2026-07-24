@@ -36,7 +36,7 @@ function removeDir(dir) {
 }
 
 async function startPackaging() {
-    console.log('🚀 Starting vClinic Packaging Process...');
+    console.log('🚀 Starting VIMES HIS Packaging Process...');
 
     try {
         // 1. Build Frontend
@@ -61,9 +61,9 @@ async function startPackaging() {
 
         // 5. Add Deployment instructions
         const instructions = `
-# HƯỚNG DẪN TRIỂN KHAI HỆ THỐNG vClinic
+# HƯỚNG DẪN TRIỂN KHAI HỆ THỐNG VIMES HIS
 
-Chúc mừng! Bạn đã đóng gói thành công hệ thống vClinic. Dưới đây là hướng dẫn chi tiết để đưa hệ thống lên máy chủ (Server).
+Chúc mừng! Bạn đã đóng gói thành công hệ thống VIMES HIS. Dưới đây là hướng dẫn chi tiết để đưa hệ thống lên máy chủ (Server).
 
 ## 1. Triển khai Giao diện (Frontend)
 - **Thư mục:** \`release/frontend\`
@@ -88,7 +88,7 @@ Chúc mừng! Bạn đã đóng gói thành công hệ thống vClinic. Dưới 
        - Cập nhật các thông số kết nối Database, Port, và mã bảo mật.
     4. Chạy hệ thống bằng **PM2** (để tự động khởi động lại và duy trì ứng dụng):
        \`\`\`bash
-       pm2 start src/server.js --name vclinic-backend
+       pm2 start src/server.js --name vimes-his-backend
        pm2 save
        \`\`\`
 

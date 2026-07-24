@@ -1,4 +1,4 @@
-# ✅ CHECKLIST DEPLOY vClinic
+# ✅ CHECKLIST DEPLOY VIMES HIS
 
 > **In file này ra và đánh dấu từng bước khi hoàn thành**
 
@@ -34,18 +34,18 @@
 
 ### Chạy lệnh đóng gói
 ```powershell
-cd d:\AI\vClinic
+cd d:\AI\VIMES HIS
 npm run deploy
 ```
 
 - [ ] Lệnh chạy thành công (không có lỗi)
-- [ ] Thư mục `release/vClinic-deploy/` đã được tạo
+- [ ] Thư mục `release/VIMES-HIS-deploy/` đã được tạo
 - [ ] Thư mục `dist/` có file `index.html`
 - [ ] Thư mục `backend/` đã được copy
 
 ### Kiểm tra package
 ```powershell
-cd release\vClinic-deploy
+cd release\VIMES-HIS-deploy
 dir
 ```
 
@@ -69,7 +69,7 @@ Phải có:
 
 ### Upload files
 - [ ] Tạo thư mục trên server (nếu chưa có)
-- [ ] Kéo thả thư mục `vClinic-deploy` lên server
+- [ ] Kéo thả thư mục `VIMES-HIS-deploy` lên server
 - [ ] Đợi upload hoàn tất (100%)
 - [ ] Kiểm tra files đã upload đầy đủ
 
@@ -82,7 +82,7 @@ Phải có:
 ssh username@server-ip
 ```
 - [ ] SSH thành công
-- [ ] Di chuyển vào thư mục: `cd vClinic-deploy`
+- [ ] Di chuyển vào thư mục: `cd VIMES-HIS-deploy`
 
 ### Cài đặt Node.js (nếu chưa có)
 ```bash
@@ -135,7 +135,7 @@ sudo systemctl status postgresql
 
 ### Khởi động với script tự động
 ```bash
-cd /path/to/vClinic-deploy
+cd /path/to/VIMES-HIS-deploy
 chmod +x start.sh
 ./start.sh
 ```
@@ -145,7 +145,7 @@ chmod +x start.sh
 ### Hoặc khởi động thủ công
 ```bash
 cd backend
-pm2 start src/server.js --name vclinic-backend
+pm2 start src/server.js --name vimes-his-backend
 pm2 save
 pm2 startup
 ```
@@ -166,10 +166,10 @@ pm2 status
 
 ### Xem logs
 ```bash
-pm2 logs vclinic-backend --lines 50
+pm2 logs vimes-his-backend --lines 50
 ```
 - [ ] Không có lỗi trong logs
-- [ ] Hiển thị "🚀 vClinic Backend Server"
+- [ ] Hiển thị "🚀 VIMES HIS Backend Server"
 - [ ] Hiển thị "📂 Serving frontend from: .../dist"
 
 ### Test API
@@ -233,18 +233,18 @@ http://server-ip:8000
 
 **Ứng dụng:**
 - URL: `http://_______________________:8000`
-- PM2 name: `vclinic-backend`
+- PM2 name: `vimes-his-backend`
 
 **Lệnh thường dùng:**
 ```bash
 # Xem logs
-pm2 logs vclinic-backend
+pm2 logs vimes-his-backend
 
 # Restart
-pm2 restart vclinic-backend
+pm2 restart vimes-his-backend
 
 # Stop
-pm2 stop vclinic-backend
+pm2 stop vimes-his-backend
 
 # Status
 pm2 status
@@ -269,7 +269,7 @@ _____________________________________________________________
 
 Nếu gặp vấn đề:
 1. Xem file `DEPLOY_STEP_BY_STEP.md` để biết chi tiết
-2. Kiểm tra logs: `pm2 logs vclinic-backend`
+2. Kiểm tra logs: `pm2 logs vimes-his-backend`
 3. Kiểm tra file `.env`
 4. Liên hệ team support
 

@@ -3,7 +3,7 @@ require('dotenv').config({ path: './.env' });
 const fs = require('fs');
 
 const client = new Client({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/vclinic'
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/vimes_his'
 });
 
 async function main() {
@@ -13,7 +13,7 @@ async function main() {
     FROM pg_constraint 
     WHERE conname = 'hms_examview_he_deptidhe_roomid'
   `);
-  fs.writeFileSync('d:/AI/vClinic/backend/constraint_info.json', JSON.stringify(res.rows, null, 2));
+  fs.writeFileSync('d:/AI/VIMES_HIS/backend/constraint_info.json', JSON.stringify(res.rows, null, 2));
 
   // Also query hms_examview columns and indexes
   const indexRes = await client.query(`
@@ -21,7 +21,7 @@ async function main() {
     FROM pg_indexes 
     WHERE tablename = 'hms_examview'
   `);
-  fs.appendFileSync('d:/AI/vClinic/backend/constraint_info.json', '\n\nINDEXES:\n' + JSON.stringify(indexRes.rows, null, 2));
+  fs.appendFileSync('d:/AI/VIMES_HIS/backend/constraint_info.json', '\n\nINDEXES:\n' + JSON.stringify(indexRes.rows, null, 2));
 
   await client.end();
 }

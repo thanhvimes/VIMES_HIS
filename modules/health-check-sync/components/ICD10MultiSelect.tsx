@@ -88,7 +88,7 @@ export const ICD10MultiSelect: React.FC<ICD10MultiSelectProps> = ({
             missingCodes.forEach(async (code) => {
                 try {
                     const results = await catalogService.searchIcd10(code);
-                    const match = results.find(r => r.code.toUpperCase() === code.toUpperCase());
+                    const match = results.find(r => String(r.code ?? '').toUpperCase() === code.toUpperCase());
                     if (match) {
                         setSelectedItemsCache(prev => ({
                             ...prev,

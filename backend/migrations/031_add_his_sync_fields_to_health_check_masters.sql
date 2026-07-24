@@ -33,7 +33,7 @@ ALTER TABLE hms_exm_contract
 COMMENT ON COLUMN health_check_masters.his_employee_id IS 'Maps to hee_employee_id in hms_exm_employee (HIS). Used as UPSERT key for re-sync.';
 COMMENT ON COLUMN health_check_masters.his_contract_id IS 'Maps to hec_contract_id in hms_exm_contract (HIS). Groups records by health check contract.';
 COMMENT ON COLUMN health_check_masters.his_doc_no IS 'Maps to hee_docno / hd_docno in HIS (treating doc number). Used for HIS transactions.';
-COMMENT ON COLUMN health_check_masters.sync_mode IS 'HIS = synced from HIS, MANUAL = created manually in vClinic.';
+COMMENT ON COLUMN health_check_masters.sync_mode IS 'HIS = synced from HIS, MANUAL = created manually in VIMES HIS.';
 COMMENT ON COLUMN hms_exm_contract.hec_synced_count IS 'Number of employee records successfully synced in the last sync operation.';
 
 

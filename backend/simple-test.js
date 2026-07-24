@@ -1,6 +1,6 @@
 const http = require('http');
 
-console.log('Testing vClinic API...\n');
+console.log('Testing VIMES HIS API...\n');
 
 // Step 1: Login
 const loginData = JSON.stringify({

@@ -4,7 +4,7 @@
 
 ### Bước 1: Mở file test
 
-1. Mở file: `d:\AI\vClinic\test-auth-simple.html`
+1. Mở file: `d:\AI\VIMES_HIS\test-auth-simple.html`
 2. Click đúp vào file → Sẽ mở trong trình duyệt
 
 ### Bước 2: Click nút test
