@@ -387,7 +387,7 @@ const PrintBarcodeXnForm: React.FC<PrintBarcodeXnFormProps> = ({
                                         width: `${cfg.w}mm`,
                                         height: `${cfg.h}mm`,
                                         boxSizing: 'border-box',
-                                        padding: labelSize === '60x40' ? '2.5mm' : '1.5mm 2.5mm 1mm 2.5mm',
+                                        padding: labelSize === '60x40' ? '2.5mm 3mm 2mm 3mm' : labelSize === '40x30' ? '1.2mm 1.5mm 0.8mm 1.5mm' : '1.2mm 2.2mm 0.8mm 2.2mm',
                                         backgroundColor: '#ffffff',
                                         color: '#000000',
                                         display: 'flex',
@@ -396,21 +396,22 @@ const PrintBarcodeXnForm: React.FC<PrintBarcodeXnFormProps> = ({
                                         position: 'relative',
                                         overflow: 'hidden',
                                         fontFamily: '"Arial", "Helvetica Neue", sans-serif',
+                                        lineHeight: 1,
                                     }}
                                 >
                                     {/* Row 1: Patient Name (Left) & Age (Right) */}
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', width: '100%', lineHeight: 1.1 }}>
-                                        <span style={{ fontSize: labelSize === '60x40' ? '16px' : '13.5px', fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '78%', color: '#000000' }}>
+                                        <span style={{ fontSize: labelSize === '60x40' ? '17px' : labelSize === '40x30' ? '12px' : '14px', fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '78%', color: '#000000', letterSpacing: '-0.01em' }}>
                                             {patient.patientName || 'Test22222'}
                                         </span>
-                                        <span style={{ fontSize: labelSize === '60x40' ? '16px' : '14px', fontWeight: 900, flexShrink: 0, color: '#000000' }}>
+                                        <span style={{ fontSize: labelSize === '60x40' ? '17px' : labelSize === '40x30' ? '13px' : '15px', fontWeight: 900, flexShrink: 0, color: '#000000' }}>
                                             {ageVal}
                                         </span>
                                     </div>
 
-                                    {/* Row 2: Doc No (Left), Gender (Center), Dept/Object (Right) */}
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', fontSize: labelSize === '60x40' ? '13px' : '11.5px', fontWeight: 800, marginTop: '0.3mm', lineHeight: 1.1, color: '#000000' }}>
-                                        <span style={{ fontFamily: 'monospace, Arial, sans-serif', letterSpacing: '0.02em' }}>
+                                    {/* Row 2: Doc No / PID (Left), Gender (Center), Dept/Object (Right) */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', fontSize: labelSize === '60x40' ? '13.5px' : labelSize === '40x30' ? '10px' : '11.5px', fontWeight: 800, marginTop: '0.2mm', lineHeight: 1.1, color: '#000000' }}>
+                                        <span style={{ fontFamily: 'monospace, Arial, sans-serif', letterSpacing: '0.03em' }}>
                                             {patient.docNo || '26265991'}
                                         </span>
                                         <span style={{ fontWeight: 900 }}>
@@ -421,26 +422,26 @@ const PrintBarcodeXnForm: React.FC<PrintBarcodeXnFormProps> = ({
                                         </span>
                                     </div>
 
-                                    {/* Row 3: Barcode SVG (Center) */}
-                                    <div style={{ textAlign: 'center', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0.5mm 0 0 0', width: '100%' }}>
-                                        <Code128Barcode value={order.orderNo || '13312658'} height={cfg.barcodeH} />
+                                    {/* Row 3: Barcode SVG (Center) with high-contrast sharp bars */}
+                                    <div style={{ textAlign: 'center', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0.4mm 0 0 0', width: '100%' }}>
+                                        <Code128Barcode value={order.orderNo || '13312658'} height={labelSize === '60x40' ? 32 : labelSize === '40x30' ? 18 : 22} />
                                     </div>
 
-                                    {/* Row 4: Barcode Value (Centered) & Test Short Code (Right Bold Large) */}
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%', marginTop: '-0.5mm', lineHeight: 1 }}>
-                                        <div style={{ width: '25px' }} />
+                                    {/* Row 4: Barcode Value / SID (Centered under Barcode) & Test Short Code (Right Extra Large Bold) */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%', marginTop: '-0.3mm', lineHeight: 1 }}>
+                                        <div style={{ width: '30px' }} />
 
-                                        <div style={{ fontSize: labelSize === '60x40' ? '13px' : '11px', fontWeight: 800, fontFamily: 'monospace, Arial, sans-serif', letterSpacing: '0.04em', textAlign: 'center', color: '#000000' }}>
+                                        <div style={{ fontSize: labelSize === '60x40' ? '13.5px' : labelSize === '40x30' ? '10px' : '11.5px', fontWeight: 900, fontFamily: 'monospace, Arial, sans-serif', letterSpacing: '0.05em', textAlign: 'center', color: '#000000' }}>
                                             {order.orderNo || '13312658'}
                                         </div>
 
-                                        <div style={{ fontSize: labelSize === '60x40' ? '20px' : '17px', fontWeight: 900, textAlign: 'right', minWidth: '25px', color: '#000000', lineHeight: 0.9 }}>
+                                        <div style={{ fontSize: labelSize === '60x40' ? '22px' : labelSize === '40x30' ? '15px' : '18px', fontWeight: 900, textAlign: 'right', minWidth: '30px', color: '#000000', lineHeight: 0.85 }}>
                                             {sampleTypeShort}
                                         </div>
                                     </div>
 
-                                    {/* Row 5: Date & Time (Bottom Left) */}
-                                    <div style={{ fontSize: labelSize === '60x40' ? '10px' : '8.5px', fontWeight: 700, fontFamily: 'monospace, Arial, sans-serif', marginTop: '0.3mm', lineHeight: 1, color: '#000000' }}>
+                                    {/* Row 5: Sampling Date & Time (Bottom Left) */}
+                                    <div style={{ fontSize: labelSize === '60x40' ? '10px' : labelSize === '40x30' ? '8px' : '9px', fontWeight: 700, fontFamily: 'monospace, Arial, sans-serif', marginTop: '0.2mm', lineHeight: 1, color: '#000000' }}>
                                         {dateTimeStr}
                                     </div>
                                 </div>

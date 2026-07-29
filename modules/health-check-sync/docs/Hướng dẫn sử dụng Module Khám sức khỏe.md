@@ -1,157 +1,157 @@
-# HƯỚNG DẪN SỬ DỤNG MODULE LIÊN THÔNG KHÁM SỨC KHỎE (VNeID)
+# HƯỚNG DẪN SỬ DỤNG MODULE LIÊN THÔNG KHÁM SỨC KHỎE (VNeID) & QUẢN LÝ MẪU XÉT NGHIỆM
 
-> **Phiên bản tài liệu:** 2.0 — Cập nhật ngày 30/06/2026  
-> Tài liệu này hướng dẫn chi tiết quy trình vận hành và sử dụng Module **Liên thông Khám sức khỏe (health-check-sync)** trên hệ thống vClinic, đáp ứng tiêu chuẩn **Quyết định 1551/QĐ-BYT** của Bộ Y tế để liên thông dữ liệu lên Cổng Sức khỏe điện tử VNeID.
+> **Phiên bản tài liệu:** 3.0 — Cập nhật đầy đủ kèm Hình ảnh Hướng dẫn  
+> **Áp dụng cho:** Phân hệ **Liên thông Khám sức khỏe VNeID (Quyết định 1551/QĐ-BYT)** và **Quản lý Giao nhận Mẫu Xét nghiệm (LIMS Sample Tracking)**.
 
 ---
 
-## 1. Tổng quan quy trình nghiệp vụ (Workflow)
+## 1. Tổng quan quy trình nghiệp vụ (Workflow Diagram)
 
 ```mermaid
 graph TD
-    A["Bước 1: Đồng bộ hồ sơ từ HIS"] --> B["Bước 2: Tìm kiếm & Mở hồ sơ bệnh nhân"]
-    B --> C["Bước 3: Hoàn thiện thông tin lâm sàng (Tab I–V)"]
-    C --> D["Bước 4: Đồng bộ kết quả CLS từ HIS (chủ động)"]
-    D --> E["Bước 5: Khóa & Ký số hồ sơ"]
-    E --> F["Bước 6: Đồng bộ lên cổng VNeID"]
+    A["1. Đồng bộ dữ liệu tiếp nhận từ HIS"] --> B["2. Tìm kiếm & Khởi tạo hồ sơ"]
+    B --> C["3. Nhập liệu khám lâm sàng (Tab I–V)"]
+    C --> D["4. Đồng bộ chủ động kết quả CLS từ HIS"]
+    D --> E["5. Khóa & Ký số hồ sơ (USB / HSM)"]
+    E --> F["6. Gửi Cổng Liên thông VNeID (QĐ 1551)"]
+    
+    subgraph "Luồng Quản lý Mẫu Xét nghiệm (LIMS)"
+        G["In tem Barcode XN (50x30mm)"] --> H["Quét Barcode / Nhận mẫu (F4)"]
+        H --> I["Phân chia khay / Chuyển máy XN"]
+        H --> J["Từ chối mẫu lỗi (F8)"]
+    end
 ```
-
-> **Lưu ý quan trọng về luồng Cận lâm sàng (CLS):**  
-> Sau khi bệnh nhân được chỉ định xét nghiệm/chụp chiếu tại buổi khám, kết quả sẽ được cập nhật vào HIS sau khi máy phân tích xong. Vì vậy, việc lấy kết quả CLS là **chủ động** — bác sĩ nhấn nút **Đồng bộ kết quả từ HIS** tại bất kỳ thời điểm nào cần cập nhật.
 
 ---
 
 ## 2. Hướng dẫn chi tiết từng bước vận hành
 
-### 2.1. Bước 1: Đồng bộ hồ sơ từ HIS (Tiếp nhận)
+### 2.1. Bước 1: Đồng bộ hồ sơ tiếp nhận từ HIS
 
-Hệ thống hỗ trợ lấy dữ liệu tự động từ phần mềm Quản lý Bệnh viện (HIS) để giảm thiểu nhập liệu thủ công.
-
-1. Truy cập menu **Khám sức khỏe VNeID** → Chọn tab **Đồng bộ dữ liệu**.
+1. Truy cập menu **Khám sức khỏe VNeID** → chọn tab **Đồng bộ dữ liệu**.
 2. Thiết lập bộ lọc:
    - **Từ ngày — Đến ngày:** Chọn khoảng thời gian bệnh nhân đến khám.
-   - **Đoàn khám/Công ty:** Chọn theo gói khám sức khỏe cơ quan/doanh nghiệp (nếu khám theo đoàn).
-3. Nhấn **Quét dữ liệu HIS** — Hệ thống hiển thị danh sách hồ sơ đủ điều kiện.
-4. Chọn các bệnh nhân cần xử lý → Nhấn **Khởi tạo hồ sơ VNeID**. Hệ thống tự động ánh xạ thông tin hành chính và tạo hồ sơ nháp tương ứng với 1 trong 17 mẫu biểu.
+   - **Đoàn khám / Công ty:** Chọn gói khám sức khỏe doanh nghiệp (nếu có).
+3. Nhấn **Quét dữ liệu HIS** — Hệ thống truy vấn danh sách bệnh nhân từ tiếp nhận HIS.
+4. Tích chọn các hồ sơ cần xử lý → Nhấn **Khởi tạo hồ sơ VNeID**. Hệ thống tự động điền thông tin hành chính và tạo hồ sơ nháp tương ứng với 1 trong 3 mẫu biểu chuẩn.
+
+![Giao diện Đồng bộ dữ liệu tiếp nhận từ HIS](./images/step1_his_sync.png)
 
 ---
 
 ### 2.2. Bước 2: Tìm kiếm và mở hồ sơ bệnh nhân
 
-Từ tab **Hồ sơ sức khỏe**, người dùng tìm kiếm bệnh nhân để bắt đầu quy trình nhập liệu.
+- **Tìm kiếm nội bộ:** Nhập **Số CCCD**, **Mã hồ sơ (MHS)**, hoặc **Số điện thoại** tại tab *Hồ sơ sức khỏe*.
+- **Tìm kiếm trực tiếp từ HIS:**
+  1. Nhập thông tin tìm kiếm tại **Tab I. Hành chính & Đặc thù**.
+  2. Nhấn **Tìm từ HIS** — Hệ thống tự động nạp thông tin bệnh nhân.
 
-#### Tìm kiếm từ danh sách hồ sơ (Nội bộ)
-- Ô tìm kiếm chấp nhận: **Số CCCD**, **Mã hồ sơ (MHS)**, **Số điện thoại**.
-- Dữ liệu tra cứu từ bảng hồ sơ nội bộ `health_check_masters`.
-
-#### Tìm kiếm từ HIS (Tra cứu trực tiếp)
-1. Nhập thông tin vào ô **Tìm kiếm HIS** trên **Tab I. Hành chính & Đặc thù**.
-2. Nhấn **Tìm từ HIS** — Hệ thống tra cứu bệnh nhân từ dữ liệu tiếp nhận HIS và tự động điền thông tin hành chính.
-
-> ⚠️ **Yêu cầu bắt buộc:** Khi chưa có thông tin bệnh nhân, các tab chuyên khoa **(II–V)** và nút **Lưu hồ sơ** / **Khóa & Ký Số** sẽ bị **vô hiệu hóa** để tránh tạo hồ sơ trắng không hợp lệ.
+> ⚠️ **Lưu ý:** Khi chưa chọn bệnh nhân hợp lệ, các tab chuyên khoa **(II–V)** và nút **Lưu / Ký số** sẽ bị vô hiệu hóa để bảo vệ tính toàn vẹn dữ liệu.
 
 ---
 
-### 2.3. Bước 3: Hoàn thiện thông tin lâm sàng — Form nhập liệu động
+### 2.3. Bước 3: Hoàn thiện thông tin khám lâm sàng (3 Mẫu biểu chuẩn)
 
-Với 17 mẫu biểu khám sức khỏe, hệ thống tự động hiển thị biểu mẫu tương thích:
+Hệ thống tự động nạp form tương thích với loại khám sức khỏe được chọn:
+- **Mẫu 1:** Trẻ em (6T - dưới 18T)
+- **Mẫu 2:** Người lớn (>= 18T)
+- **Mẫu 3:** Khám sức khỏe Lái xe
 
-| Tab | Nội dung | Ghi chú |
+| Tab | Nội dung nghiệp vụ | Tính năng hỗ trợ |
 |---|---|---|
-| **I. Hành chính & Đặc thù** | Thông tin cơ bản BN, chọn mẫu biểu | Điền sẵn từ HIS |
-| **II. Tiền sử & Vaccine** | Tiền sử bản thân/gia đình, lịch tiêm chủng | Hỗ trợ tìm kiếm mã ICD-10 |
-| **III. Thể lực & Lâm sàng** | Chiều cao, cân nặng, BMI, HA, khám chuyên khoa | BMI tự tính |
-| **IV. Cận lâm sàng** | Xét nghiệm, CĐHA, thăm dò chức năng | **Đồng bộ từ HIS** (xem Bước 4) |
-| **V. Kết luận** | Kết luận loại sức khỏe, mã ICD-10 chính | Chọn mã bệnh hợp lệ |
+| **I. Hành chính & Đặc thù** | Thông tin cá nhân, chọn biểu mẫu | Điền tự động từ HIS |
+| **II. Tiền sử & Tiêm chủng** | Tiền sử gia đình, bản thân, vaccine | Gợi ý mã ICD-10 |
+| **III. Thể lực & Lâm sàng** | Chiều cao, cân nặng, HA, chuyên khoa | **BMI tự động tính** |
+| **IV. Cận lâm sàng** | Xét nghiệm, CĐHA, TDCN | **Đồng bộ tự động từ HIS** |
+| **V. Kết luận** | Kết luận phân loại SK, mã ICD-10 chính | Tìm kiếm mã bệnh hợp lệ |
 
-**Tính năng hỗ trợ nhập liệu:**
-- **Điền nhanh mặc định:** Nút *Điền nhanh kết quả mặc định* — Tự động điền giá trị bình thường chuẩn, tăng tốc nhập liệu.
-- **Mã ICD-10:** Tìm kiếm theo từ khóa hoặc mã. Hỗ trợ chọn **nhiều mã bệnh**. Dữ liệu từ bảng `hms_icd`.
-- **BMI:** Tự động tính khi đủ chiều cao và cân nặng.
+* **Điền nhanh mặc định:** Nhấn nút *Điền nhanh kết quả mặc định* để điền tự động các chỉ số bình thường chuẩn, giúp tăng tốc khám đoàn.
+
+![Giao diện Form nhập liệu Khám lâm sàng và tính BMI](./images/step3_clinical_form.png)
 
 ---
 
 ### 2.4. Bước 4: Đồng bộ kết quả Cận lâm sàng từ HIS ⚡
 
-Đây là tính năng **chủ động**, bác sĩ nhấn bất kỳ lúc nào sau khi có kết quả xét nghiệm/chụp chiếu từ HIS.
-
-#### Cách thực hiện:
-1. Tại **Tab IV. Cận lâm sàng**, nhấn nút **🔄 Đồng bộ kết quả từ HIS** (góc trên bên phải).
-2. Hệ thống truy vấn trực tiếp từ HIS theo mã hồ sơ (`his_doc_no`) và tải về:
-   - **Tất cả dịch vụ đã chỉ định** — kể cả **chưa có kết quả** (chờ máy xét nghiệm).
-   - **Kết quả xét nghiệm** nếu máy phân tích đã trả về.
-   - **Kết quả CĐHA và TĐCN** nếu bác sĩ đã nhập mô tả.
-3. Dịch vụ tự động phân loại vào đúng tab con:
+1. Tại **Tab IV. Cận lâm sàng**, nhấn nút **🔄 Đồng bộ kết quả từ HIS**.
+2. Hệ thống tải trực tiếp các dịch vụ chỉ định và kết quả xét nghiệm/CĐHA/TDCN từ HIS theo `his_doc_no`.
+3. Dịch vụ tự động phân loại đúng tab con:
    - **Xét nghiệm (XN)** — Mã nhóm `A...` hoặc `B1...`
-   - **Chẩn đoán hình ảnh (HA)** — Mã nhóm `B2...` hoặc tên chứa *siêu âm, X-quang, MRI...*
-   - **Thăm dò chức năng (TD)** — Mã nhóm `B3...` hoặc tên chứa *điện tim, thính lực, thị lực...*
-4. Thông báo kết quả hiển thị **trực tiếp trong Tab** (xanh lá = thành công, đỏ = lỗi).
-
-> 💡 **Thực hiện nhiều lần an toàn:** Nhấn đồng bộ lại bất kỳ lúc nào. Dữ liệu đã nhập ở các tab khác (hành chính, lâm sàng, kết luận) **không bị ảnh hưởng**.
+   - **Chẩn đoán hình ảnh (HA)** — Siêu âm, X-quang, MRI...
+   - **Thăm dò chức năng (TD)** — Điện tâm đồ, thính lực, thị lực...
+4. Bác sĩ có thể bấm đồng bộ nhiều lần mà không làm mất dữ liệu đã nhập ở các tab khác.
 
 ---
 
-### 2.5. Bước 5: Khóa & Ký số hồ sơ
+### 2.5. Bước 5: Khóa & Ký số hồ sơ (Chữ ký điện tử)
 
-**Ký số từng hồ sơ:**
-1. Nhấn nút **Khóa & Ký Số** ở chân trang form nhập liệu.
-2. Xác nhận trong hộp thoại → Hồ sơ chuyển sang trạng thái **Đã khóa** — không thể chỉnh sửa.
-3. Để mở lại: Nhấn **Mở khóa hồ sơ** (chỉ dành cho quản lý có thẩm quyền).
+#### Ký từng hồ sơ:
+1. Nhấn nút **Khóa & Ký Số** tại chân trang form nhập liệu.
+2. Xác nhận hộp thoại → Hồ sơ chuyển sang trạng thái **Đã khóa** (chống sửa đổi).
 
-**Ký số hàng loạt:**
-1. Trên danh sách hồ sơ, tích chọn các hồ sơ **Chưa ký**.
-2. Chọn phương thức: **USB Token** hoặc **Cloud HSM** (khuyên dùng).
-3. Nhấn **Ký số hàng loạt** → Nhập mã PIN → Hoàn thành.
+#### Ký số hàng loạt:
+1. Tại danh sách hồ sơ, tích chọn các hồ sơ có trạng thái **Chưa ký**.
+2. Chọn phương thức: **USB Token** hoặc **Cloud HSM**.
+3. Nhấn **Ký số hàng loạt** → Nhập PIN → Hoàn tất.
 
-> ⚠️ **Sau khi mở khóa và chỉnh sửa:** Hồ sơ reset về **Chưa ký** — bắt buộc ký lại trước khi gửi VNeID.
+![Cửa sổ Xóa & Ký số Chữ ký điện tử Cloud HSM và USB Token](./images/step5_digital_sign.png)
 
 ---
 
-### 2.6. Bước 6: Đồng bộ lên cổng VNeID
+### 2.6. Bước 6: Liên thông dữ liệu Cổng VNeID (QĐ 1551/QĐ-BYT)
 
-Gửi hồ sơ đã khóa/ký số lên cổng giám định VNeID của Bộ Y tế.
-
-1. Chọn hồ sơ có trạng thái **Đã ký** và đồng bộ **Chưa gửi** hoặc **Gửi lỗi**.
-2. Nhấn **Đồng bộ cổng VNeID** (biểu tượng máy bay giấy).
-3. Hệ thống đóng gói XML chuẩn, gọi API cổng liên thông:
+1. Tích chọn hồ sơ **Đã ký** có trạng thái đồng bộ *Chưa gửi* hoặc *Gửi lỗi*.
+2. Nhấn **Đồng bộ Cổng VNeID**.
+3. Hệ thống đóng gói dữ liệu chuẩn XML, gửi trực tiếp tới API liên thông của Bộ Y tế:
    - ✅ **Thành công:** Trạng thái chuyển sang *Thành công* kèm mã giao dịch `Transaction ID`.
-   - ❌ **Lỗi:** Trạng thái chuyển sang *Lỗi*. Bấm vào dòng lỗi để xem chi tiết → Sửa hồ sơ → Đồng bộ lại.
+   - ❌ **Thất bại:** Trạng thái chuyển sang *Lỗi*. Nhấn vào dòng thông báo để xem nguyên nhân chi tiết.
 
 ---
 
-### 2.7. In ấn hồ sơ và Barcode định danh
+### 2.7. Quản lý Giao nhận Mẫu Xét nghiệm (LIMS Sample Tracking)
 
-**In hồ sơ khám bệnh:**
-- Tại danh sách, nhấn biểu tượng **In hồ sơ** (máy in).
-- Bản in chuẩn A4. Nếu đã ký số, tự động chèn **Mộc ký số điện tử** lên bản in.
+Phân hệ dành riêng cho phòng Lab để kiểm soát luồng giao nhận ống mẫu xét nghiệm từ các khoa phòng:
 
-**In Barcode xét nghiệm / Khám:**
-- Chọn bệnh nhân → Nhấn **In Barcode**.
-- Hỗ trợ Barcode KSK hoặc Barcode XN kích thước `50×30` dán lên ống nghiệm.
-- Cấu hình tên bệnh viện, ngày khám, loại mẫu tại **Cấu hình Barcode** (menu Cài đặt).
+#### Các phím tắt thao tác nhanh (Hotkeys):
+* **`F2`**: Mở hộp thoại Nhận mẫu theo Khay/Batch (`BatchReceivingModal`).
+* **`F4`** hoặc **`Ctrl + Enter`**: Xác nhận nhận mẫu bệnh nhân đang chọn.
+* **`F5`**: Tải lại danh sách phiếu giao nhận mẫu.
+* **`F8`** hoặc **`Alt + R`**: Mở hộp thoại từ chối mẫu hỏng/hủy mẫu.
+* **`Shift + ?`**: Hiển thị bảng hướng dẫn phím tắt.
+* **`Esc`**: Đóng cửa sổ modal hoặc quay lại danh sách.
 
 ---
 
-## 3. Bảng tra cứu nhanh — Các trạng thái hồ sơ
+### 2.8. In tem Barcode định danh mẫu xét nghiệm (50×30 mm)
 
-| Trạng thái | Ý nghĩa | Hành động tiếp theo |
+1. Chọn bệnh nhân / phiếu xét nghiệm → Nhấn **In Barcode**.
+2. Hệ thống render tem theo đúng quy chuẩn máy in nhiệt (Zebra, Xprinter, Godex) và máy phân tích xét nghiệm tự động:
+
+![Mẫu tem Barcode nhiệt 50x30mm dán ống mẫu xét nghiệm](./images/step7_barcode_label.png)
+
+---
+
+## 3. Bảng tra cứu trạng thái hồ sơ
+
+| Trạng thái | Ý nghĩa hệ thống | Hành động xử lý |
 |---|---|---|
-| **Nháp** | Mới tạo, chưa hoàn thiện | Nhập liệu, đồng bộ CLS |
-| **Hoàn thiện** | Đã nhập đủ thông tin | Khóa & Ký số |
-| **Đã khóa / Đã ký** | Đã Khóa & Ký số | Gửi VNeID |
-| **Thành công** | Gửi VNeID thành công | Lưu trữ |
-| **Gửi lỗi** | Gửi VNeID thất bại | Xem lỗi → Sửa → Gửi lại |
+| **Nháp** | Hồ sơ mới khởi tạo, chưa đủ dữ liệu | Tiếp tục nhập liệu / Đồng bộ CLS |
+| **Hoàn thiện** | Đã điền đủ các thông tin khám | Tiến hành Khóa & Ký số |
+| **Đã khóa / Đã ký** | Hồ sơ đã ký số pháp lý | Gửi liên thông Cổng VNeID |
+| **Thành công** | Đã gửi và Cổng BYT chấp nhận | Hoàn tất lưu trữ |
+| **Gửi lỗi** | Cổng BYT từ chối (lỗi CCCD, mã ICD...) | Mở khóa → Sửa dữ liệu → Ký lại → Gửi lại |
 
 ---
 
-## 4. Các lưu ý quan trọng khi vận hành
+## 4. Xử lý sự cố thường gặp (Troubleshooting)
 
-- **Định dạng CCCD:** Phải đúng **12 chữ số** hợp lệ của bệnh nhân hoặc người giám hộ.
-- **Mã ICD-10:** Tiền sử và kết luận bệnh bắt buộc chọn mã hợp lệ từ danh mục `hms_icd`.
-- **Chỉnh sửa sau khi khóa:** Bất kỳ thao tác chỉnh sửa nào sau khi ký số sẽ mất hiệu lực chữ ký. Hệ thống tự động reset về **Chưa ký** — bắt buộc ký lại.
-- **Đồng bộ CLS nhiều lần:** An toàn — không ghi đè dữ liệu lâm sàng đã nhập thủ công.
-- **Bảo mật dữ liệu:** Toàn bộ API yêu cầu xác thực JWT. Dữ liệu bệnh nhân chỉ truy cập được khi đăng nhập hợp lệ.
+1. **Lỗi không ký số được qua USB Token:**
+   - Kiểm tra USB Token đã cắm vào máy tính và phần mềm ký số (SignServer/Plugin) đang chạy.
+2. **Không đồng bộ được kết quả Cận lâm sàng từ HIS:**
+   - Kiểm tra mã `his_doc_no` của bệnh nhân có chính xác với dữ liệu tiếp nhận trên HIS hay chưa.
+3. **Cổng VNeID báo lỗi mã ICD-10 không hợp lệ:**
+   - Vào Tab V (Kết luận), chọn lại mã bệnh chính xác từ danh mục gợi ý `hms_icd`.
 
 ---
-**Bộ phận Hỗ trợ Vận hành vClinic**  
-*Tài liệu được cập nhật theo phiên bản phần mềm.*
+**Bộ phận Hỗ trợ Vận hành vClinic & HIS**  
+*Tài liệu được cập nhật tự động kèm bộ ảnh hướng dẫn quy trình.*

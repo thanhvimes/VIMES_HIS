@@ -860,21 +860,7 @@ const HealthCheckSyncView: React.FC = () => {
         const names: Record<string, string> = {
             '1': 'Mẫu 1: Trẻ em 6T - dưới 18T',
             '2': 'Mẫu 2: Người lớn >= 18T',
-            '3': 'Mẫu 3: Khám sức khỏe lái xe',
-            '4': 'Mẫu 4: Nhân viên đường sắt',
-            '5': 'Mẫu 5: Thuyền viên tàu biển',
-            '6': 'Mẫu 6: Trẻ em 0 - dưới 2 tháng',
-            '7': 'Mẫu 7: Trẻ em 2 - 3 tháng',
-            '8': 'Mẫu 8: Trẻ em 4 - 6 tháng',
-            '9': 'Mẫu 9: Trẻ em 7 - 9 tháng',
-            '10': 'Mẫu 10: Trẻ em 10 - 12 tháng',
-            '11': 'Mẫu 11: Trẻ em 13 - 18 tháng',
-            '12': 'Mẫu 12: Trẻ em 19 - 24 tháng',
-            '13': 'Mẫu 13: Trẻ em 2 - dưới 6 tuổi',
-            '14': 'Mẫu 14: Học sinh 3M - dưới 6T',
-            '15': 'Mẫu 15: Học sinh cấp 1',
-            '16': 'Mẫu 16: Học sinh cấp 2',
-            '17': 'Mẫu 17: Học sinh cấp 3'
+            '3': 'Mẫu 3: Khám sức khỏe Lái xe',
         };
         return names[type] || `Mẫu biểu ${type}`;
     };

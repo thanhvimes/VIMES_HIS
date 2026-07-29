@@ -31,6 +31,16 @@ BEGIN
         SELECT hp_patientno INTO v_patient_id FROM hms_patient WHERE hp_sin = p_identity_number LIMIT 1;
     END IF;
 
+    -- Tìm qua SDT và Tên nếu không có CCCD
+    IF v_patient_id IS NULL OR v_patient_id = 0 THEN
+        IF p_phone IS NOT NULL AND p_phone <> '' THEN
+            SELECT hp_patientno INTO v_patient_id FROM hms_patient 
+            WHERE hp_tel = p_phone 
+              AND lower(trim(hp_surname) || ' ' || trim(hp_midname) || ' ' || trim(hp_firstname)) = lower(trim(p_patient_name))
+            LIMIT 1;
+        END IF;
+    END IF;
+
 	--v_objectid := hms_insert_card(v_patientno, 'BHYT', input_bhyt, '01001', '20240101', '20241231');
     -- 2. NẾU LÀ BỆNH NHÂN MỚI -> TẠO BỆNH NHÂN
     IF v_patient_id IS NULL OR v_patient_id = 0 THEN
@@ -40,7 +50,7 @@ BEGIN
         v_patient_id := hms_insert_patient(v_surname, v_midname, v_firstname, p_dob, v_gender, p_province_code, p_province_code, p_ward_code, p_address, p_identity_number, p_identitydate, '', '', '');
 	ELSE
 		 -- 3. XỬ LÝ HỒ SƠ KHÁM TRONG NGÀY (HMS_DOC)
-    	SELECT he_docno INTO v_doc_no FROM hms_exam WHERE he_patientno = v_patient_id AND DATE(he_examdate) = CURRENT_DATE LIMIT 1;
+    	SELECT he_docno INTO v_doc_no FROM hms_exam WHERE he_patientno = v_patient_id AND DATE(he_examdate) = DATE(v_examdate) LIMIT 1;
     END IF;
 
     IF v_doc_no IS NULL OR v_doc_no = 0 THEN

@@ -162,12 +162,16 @@ class BookingManagementController {
                 q.qms_is_priority as "isPriority", q.qms_address as address,
                 q.qms_prov_id as "provinceId", q.qms_vill_id as "wardId",
                 q.qms_occupation as occupation, q.qms_email as email,
-                s.ss_desc as "specialityName", hrl.hrl_roomname as "roomName"
+                COALESCE(s.ss_desc, s_kb.ss_desc) as "specialityName",
+                COALESCE(hrl.hrl_roomname, hrl_kb.hrl_roomname) as "roomName"
             FROM qms_patient q
             LEFT JOIN sys_dept d ON (d.sd_id = q.qms_deptid)
-            LEFT JOIN hms_roomlist hrl ON (hrl.hrl_id = q.qms_roomid AND (hrl.hrl_deptid = q.qms_deptid OR hrl.hrl_deptid = 'KB'))
-            LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND (k.hrk_deptid = q.qms_deptid OR k.hrk_deptid = 'KB') AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
+            LEFT JOIN hms_roomlist hrl ON (hrl.hrl_id = q.qms_roomid AND hrl.hrl_deptid = q.qms_deptid)
+            LEFT JOIN hms_roomlist hrl_kb ON (hrl_kb.hrl_id = q.qms_roomid AND hrl_kb.hrl_deptid = 'KB')
+            LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND k.hrk_deptid = q.qms_deptid AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
+            LEFT JOIN hms_roomlist_kios k_kb ON (k_kb.hrk_id = q.qms_roomid AND k_kb.hrk_deptid = 'KB' AND k_kb.hrk_code::varchar = q.qms_specialty_code::varchar)
             LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code = k.hrk_code::varchar)
+            LEFT JOIN sys_sel s_kb ON (s_kb.ss_id = 'hms_room_kios' AND s_kb.ss_code = k_kb.hrk_code::varchar)
             WHERE q.qms_type = 'ONL'
         `;
 
@@ -183,8 +187,8 @@ class BookingManagementController {
                 paramIndex++;
             }
             if (speciality && speciality !== 'All') {
-                sql += ` AND (q.qms_specialty_code = $${paramIndex} OR s.ss_desc ILIKE $${paramIndex} OR q.qms_deptid = $${paramIndex})`;
-                params.push(`%${speciality}%`);
+                sql += ` AND (q.qms_specialty_code = $${paramIndex} OR s.ss_desc ILIKE '%' || $${paramIndex} || '%' OR q.qms_deptid = $${paramIndex})`;
+                params.push(speciality);
                 paramIndex++;
             }
             if (search) {
@@ -194,6 +198,7 @@ class BookingManagementController {
             }
 
             sql += ' ORDER BY qms_appointment_date ASC, qms_appointment_time ASC';
+
             const result = await query(sql, params);
             return res.json(result.rows);
 

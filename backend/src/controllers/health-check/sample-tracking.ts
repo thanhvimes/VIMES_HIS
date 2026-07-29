@@ -6,30 +6,40 @@ class SampleTrackingController {
     // 1. GET /api/v1/health-check-sync/samples/slips
     async getSampleSlips(req: Request, res: Response) {
         try {
-            const { startDate, endDate, deptId } = req.query;
+            const { startDate, endDate, deptId, status, search } = req.query;
             const todayStr = new Date().toISOString().split('T')[0];
             const params: any[] = [startDate || todayStr, endDate || todayStr];
-            let deptFilter = '';
+            let extraFilters = '';
 
             if (deptId && deptId !== 'All' && deptId !== '') {
                 params.push(deptId);
-                deptFilter = ` AND htb_deptid = $3 `;
+                extraFilters += ` AND htb_deptid = $${params.length} `;
+            }
+
+            if (status && status !== '') {
+                params.push(status);
+                extraFilters += ` AND htb_status = $${params.length} `;
+            }
+
+            if (search && String(search).trim() !== '') {
+                params.push(`%${String(search).trim()}%`);
+                extraFilters += ` AND (htb_batch_id::text LIKE $${params.length} OR EXISTS (SELECT 1 FROM lims_order_extra WHERE limsoe_batch_id = htb_batch_id AND (limsoe_barcode LIKE $${params.length} OR limsoe_docno::text LIKE $${params.length}))) `;
             }
 
             const sql = `
                 SELECT 
                     htb_batch_id AS id,
                     htb_deptid AS department,
-                    htb_createddate AS "createdAt",
+                    TO_CHAR(htb_createddate, 'DD/MM/YYYY HH24:MI:SS') AS "createdAt",
                     htb_createdby AS "createdBy",
                     htb_status AS status,
                     htb_tuberculosis AS kth,
-                    htb_accepteddate AS "acceptedDate",
+                    TO_CHAR(htb_accepteddate, 'DD/MM/YYYY HH24:MI:SS') AS "acceptedDate",
                     htb_acceptedby AS "acceptedBy"
                 FROM hms_testorder_batch
                 WHERE 1=1
                   AND DATE(htb_createddate) BETWEEN DATE($1) AND DATE($2)
-                  ${deptFilter}
+                  ${extraFilters}
                 ORDER BY htb_batch_id DESC
             `;
 

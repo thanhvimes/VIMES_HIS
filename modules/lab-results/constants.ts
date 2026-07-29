@@ -25,3 +25,25 @@ export const LAB_RESULTS_NAV_ITEMS: NavItemType[] = [
     { name: 'Báo cáo khoa XN', path: '/lab-results/reports', icon: React.createElement(ChartBarIcon, { className: "w-5 h-5" }), section: 'THỐNG KÊ', iconName: 'ChartBarIcon' },
     { name: 'Danh mục & Cấu hình', path: '/lab-results/dictionary', icon: React.createElement(CogIcon, { className: "w-5 h-5" }), section: 'THIẾT LẬP', iconName: 'CogIcon' },
 ];
+
+// LIS Specific Theme Colors (Inspired by LabCollector: Orange/Blue)
+export const LAB_COLORS = {
+    primary: '#f97316', // Tailwind orange-500
+    primaryHover: '#ea580c', // Tailwind orange-600
+    primaryLight: '#ffedd5', // Tailwind orange-100
+    secondary: '#0284c7', // Tailwind sky-600
+    secondaryLight: '#e0f2fe', // Tailwind sky-100
+    
+    // Status Colors
+    pending: '#94a3b8', // slate-400
+    processing: '#3b82f6', // blue-500
+    review: '#eab308', // yellow-500
+    completed: '#22c55e', // green-500
+    
+    // Flag Colors
+    flagHigh: '#f97316', // orange-500
+    flagLow: '#3b82f6', // blue-500
+    flagCritical: '#ef4444', // red-500
+    flagCriticalBg: '#fef2f2', // red-50
+    flagDelta: '#eab308', // yellow-500
+};

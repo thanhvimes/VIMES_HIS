@@ -134,6 +134,7 @@ export const Code128Barcode: React.FC<{ value: string; height?: number }> = ({ v
             height={height} 
             viewBox={`0 0 ${currentX} ${height}`}
             className="mx-auto"
+            shapeRendering="crispEdges"
         >
             {bars}
         </svg>

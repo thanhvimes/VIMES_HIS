@@ -379,12 +379,14 @@ export const healthCheckService = {
         }
     },
 
-    getSampleSlips: async (filters: { startDate?: string; endDate?: string; deptId?: string }): Promise<any[]> => {
+    getSampleSlips: async (filters: { startDate?: string; endDate?: string; deptId?: string; status?: string; search?: string }): Promise<any[]> => {
         try {
             const params = new URLSearchParams();
             if (filters.startDate) params.append('startDate', filters.startDate);
             if (filters.endDate) params.append('endDate', filters.endDate);
             if (filters.deptId) params.append('deptId', filters.deptId);
+            if (filters.status) params.append('status', filters.status);
+            if (filters.search) params.append('search', filters.search);
             const queryStr = params.toString() ? `?${params.toString()}` : '';
             return await apiClient.get<any[]>(`/health-check-sync/samples/slips${queryStr}`);
         } catch (error) {

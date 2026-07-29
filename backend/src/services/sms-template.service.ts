@@ -184,9 +184,9 @@ class SMSTemplateService {
         `;
 
         const result = await query(sql, [
-            template_content,
-            description,
-            is_active,
+            template_content !== undefined ? template_content : null,
+            description !== undefined ? description : null,
+            is_active !== undefined ? is_active : null,
             updatedBy || 'system',
             templateId
         ]);

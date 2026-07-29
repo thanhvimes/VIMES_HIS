@@ -4,6 +4,7 @@ import { SearchIcon, RefreshIcon } from '../../../../../components/Icons';
 import Combobox from '../../../../../components/ui/Combobox';
 import { FormDateInput } from '../../../../../components/ui/forms';
 import { CatalogItem } from '../../../../../services/catalogService';
+import { TARGET_GROUPS } from '../../../constants';
 
 import { useSession } from '../../../../../contexts/SessionContext';
 
@@ -340,11 +341,15 @@ const ChildAdminTab: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">8. Đối tượng</label>
-                                <select value={targetGroup} onChange={e => setTargetGroup(e.target.value)} className="w-full h-[38px] px-3 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
-                                    <option value="">Chọn</option>
-                                    <option value="10">Trẻ em trong cơ sở giáo dục mầm non</option>
-                                    <option value="14">Các đối tượng khác</option>
-                                </select>
+                                <Combobox
+                                    label=""
+                                    value={TARGET_GROUPS.find(tg => tg.id === targetGroup || tg.code === targetGroup)?.label || targetGroup}
+                                    displayValue={item => item?.label || `${item?.id} - ${item?.name}`}
+                                    onChange={val => setTargetGroup(val)}
+                                    options={TARGET_GROUPS}
+                                    placeholder="Tìm kiếm đối tượng..."
+                                    className="h-[38px] w-full"
+                                />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">9. Nguồn chi trả</label>

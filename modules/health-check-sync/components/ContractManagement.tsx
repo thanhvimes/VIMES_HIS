@@ -1441,33 +1441,11 @@ const ContractManagement: React.FC = () => {
                                         required
                                         value={formData.form_type}
                                         onChange={(e) => setFormData({ ...formData, form_type: e.target.value })}
-                                        className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#0f766e] focus:outline-none font-bold text-sm w-full"
+                                        className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#0f766e] focus:outline-none font-bold text-sm w-full cursor-pointer"
                                     >
-                                        <optgroup label="Nhóm Phổ Biến">
-                                            <option value="2">{"Mẫu 2: Người lớn (>= 18T)"}</option>
-                                            <option value="3">Mẫu 3: Khám sức khỏe lái xe</option>
-                                        </optgroup>
-                                        <optgroup label="Nhóm Học Sinh">
-                                            <option value="1">Mẫu 1: Trẻ em 6T - dưới 18T</option>
-                                            <option value="14">Mẫu 14: Học sinh 3M - dưới 6T</option>
-                                            <option value="15">Mẫu 15: Học sinh cấp 1</option>
-                                            <option value="16">Mẫu 16: Học sinh cấp 2</option>
-                                            <option value="17">Mẫu 17: Học sinh cấp 3</option>
-                                        </optgroup>
-                                        <optgroup label="Nhóm Trẻ Em">
-                                            <option value="6">Mẫu 6: Trẻ em 0 - dưới 2 tháng</option>
-                                            <option value="7">Mẫu 7: Trẻ em 2 - 3 tháng</option>
-                                            <option value="8">Mẫu 8: Trẻ em 4 - 6 tháng</option>
-                                            <option value="9">Mẫu 9: Trẻ em 7 - 9 tháng</option>
-                                            <option value="10">Mẫu 10: Trẻ em 10 - 12 tháng</option>
-                                            <option value="11">Mẫu 11: Trẻ em 13 - 18 tháng</option>
-                                            <option value="12">Mẫu 12: Trẻ em 19 - 24 tháng</option>
-                                            <option value="13">Mẫu 13: Trẻ em 2 - dưới 6 tuổi</option>
-                                        </optgroup>
-                                        <optgroup label="Đặc Thù Ngành">
-                                            <option value="4">Mẫu 4: Nhân viên đường sắt</option>
-                                            <option value="5">Mẫu 5: Thuyền viên tàu biển</option>
-                                        </optgroup>
+                                        <option value="1">Mẫu 1: Trẻ em 6T - dưới 18T</option>
+                                        <option value="2">{"Mẫu 2: Người lớn (>= 18T)"}</option>
+                                        <option value="3">Mẫu 3: Khám sức khỏe Lái xe</option>
                                     </select>
                                 </div>
                             </div>

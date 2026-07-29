@@ -28,7 +28,7 @@ import {
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useSession } from '../../../contexts/SessionContext';
-import { bookingService, OnlineBookingRecord, BookingSpeciality } from '../../../services/bookingService';
+import { bookingService, OnlineBookingRecord, BookingSpeciality, LocationItem } from '../../../services/bookingService';
 import { formatDate } from '../../../utils/formatters';
 import { FormDateInput } from '../../../components/ui/forms';
 import BookingPrintTemplate from '../components/BookingPrintTemplate';
@@ -52,9 +52,11 @@ const BookingManagementView: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
     const [specialityFilter, setSpecialityFilter] = useState('All');
+    const [deptFilter, setDeptFilter] = useState('All');
     const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
     const [printBooking, setPrintBooking] = useState<OnlineBookingRecord | null>(null);
     const [quickBookingTarget, setQuickBookingTarget] = useState<OnlineBookingRecord | null>(null);
+    const [departments, setDepartments] = useState<LocationItem[]>([]);
 
     // Ghost Booking State
     const [showGhostModal, setShowGhostModal] = useState(false);
@@ -67,13 +69,17 @@ const BookingManagementView: React.FC = () => {
     const loadData = async () => {
         setIsLoading(true);
         try {
-            const effectiveDept = userDeptCode || undefined;
+            const isAdmin = user?.role === 'admin' || user?.userId === 'admin' || user?.groupId === 'D' || user?.groupId === 'A';
+            const baseDept = isAdmin ? undefined : (userDeptCode || undefined);
+            const effectiveDept = deptFilter !== 'All' ? deptFilter : baseDept;
             const [data, specs] = await Promise.all([
                 bookingService.getBookingList({
                     deptId: effectiveDept,
                     status: statusFilter !== 'All' ? statusFilter : undefined,
                     speciality: specialityFilter !== 'All' ? specialityFilter : undefined,
-                    search: searchTerm || undefined
+                    search: searchTerm || undefined,
+                    fromDate: dateFilter || undefined,
+                    toDate: dateFilter || undefined
                 }),
                 bookingService.getSpecialities(effectiveDept)
             ]);
@@ -96,8 +102,12 @@ const BookingManagementView: React.FC = () => {
     };
 
     useEffect(() => {
+        bookingService.getDepartments().then(setDepartments).catch(console.error);
+    }, []);
+
+    useEffect(() => {
         loadData();
-    }, [userDeptCode, statusFilter, specialityFilter, dateFilter]);
+    }, [userDeptCode, statusFilter, specialityFilter, dateFilter, deptFilter]);
 
     // Logic xử lý Duyệt & Đẩy HIS
     const handleApprove = async (booking: OnlineBookingRecord) => {
@@ -232,15 +242,18 @@ const BookingManagementView: React.FC = () => {
     };
 
     const filteredBookings = useMemo(() => {
-        const targetDept = (user?.role !== 'admin' && userDeptCode) ? userDeptCode : 'All';
+        const isAdmin = user?.role === 'admin' || user?.userId === 'admin' || user?.groupId === 'D' || user?.groupId === 'A';
+        const baseTargetDept = (!isAdmin && userDeptCode) ? userDeptCode : 'All';
+        const targetDept = deptFilter !== 'All' ? deptFilter : baseTargetDept;
 
         return bookings.filter(b => {
             const searchLower = searchTerm.toLowerCase().trim();
             const matchesSearch = !searchLower || 
-                b.patientName.toLowerCase().includes(searchLower) || 
-                b.phone.includes(searchLower) ||
-                String(b.id).includes(searchLower) ||
-                (b.docNo && b.docNo.toLowerCase().includes(searchLower));
+                (b.patientName && b.patientName.toLowerCase().includes(searchLower)) || 
+                (b.phone && String(b.phone).includes(searchLower)) ||
+                (b.id != null && String(b.id).includes(searchLower)) ||
+                (b.docNo && String(b.docNo).toLowerCase().includes(searchLower)) ||
+                (b.idCard && String(b.idCard).toLowerCase().includes(searchLower));
 
             const matchesStatus = statusFilter === 'All' || b.status === statusFilter;
 
@@ -253,13 +266,11 @@ const BookingManagementView: React.FC = () => {
 
             const matchesDept = targetDept === 'All' ||
                 b.deptId === targetDept ||
-                b.specialityCode === targetDept ||
-                (b.deptName && (b.deptName.includes(targetDept) || (userDeptName && b.deptName.includes(userDeptName)))) ||
-                (userInfo?.xDept && Array.isArray(userInfo.xDept) && userInfo.xDept.includes(b.deptId));
+                b.specialityCode === targetDept;
 
             return matchesSearch && matchesStatus && matchesDate && matchesSpec && matchesDept;
         });
-    }, [bookings, searchTerm, statusFilter, dateFilter, specialityFilter, userDeptCode, userDeptName, user?.role, userInfo?.xDept]);
+    }, [bookings, searchTerm, statusFilter, dateFilter, specialityFilter, userDeptCode, userDeptName, user?.role, userInfo?.xDept, deptFilter]);
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -348,7 +359,7 @@ const BookingManagementView: React.FC = () => {
 
             {/* Toolbar Filter */}
             <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col lg:flex-row gap-3 items-end">
-                <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-5 gap-3">
                     <div className="md:col-span-2">
                         <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Tìm bệnh nhân</label>
                         <div className="relative">
@@ -371,6 +382,17 @@ const BookingManagementView: React.FC = () => {
                         className={`w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-sm font-bold ${fontSettings.controls}`}
                     />
                     <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Khoa</label>
+                        <select
+                            value={deptFilter}
+                            onChange={e => setDeptFilter(e.target.value)}
+                            className={`w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-sm font-bold ${fontSettings.controls}`}
+                        >
+                            <option value="All">Tất cả khoa</option>
+                            {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                        </select>
+                    </div>
+                    <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Chuyên khoa</label>
                         <select
                             value={specialityFilter}
@@ -378,7 +400,7 @@ const BookingManagementView: React.FC = () => {
                             className={`w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-sm font-bold ${fontSettings.controls}`}
                         >
                             <option value="All">Tất cả chuyên khoa</option>
-                            {specialities.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                            {specialities.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
                     </div>
                 </div>
@@ -420,7 +442,7 @@ const BookingManagementView: React.FC = () => {
                                 <tr><td colSpan={9} className="p-20 text-center text-slate-400 italic font-bold">Không tìm thấy bản ghi nào.</td></tr>
                             ) : (
                                 filteredBookings.map((b, idx) => (
-                                    <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors group">
+                                    <tr key={`${b.id}-${idx}`} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors group">
                                         <td className="p-4 text-center text-slate-400 font-mono text-xs">{idx + 1}</td>
                                         <td className="p-4">
                                             <div className="font-bold text-slate-800 dark:text-white">

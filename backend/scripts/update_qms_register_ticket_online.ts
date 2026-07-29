@@ -1,3 +1,7 @@
+import { query } from '../src/config/database';
+
+async function updateProcedure() {
+  const sql = `
 CREATE OR REPLACE FUNCTION public.qms_register_ticket_online(p_number_idx integer, p_kiosk_id character varying, p_kiosk_type character varying, p_patient_name character varying, p_identity_number character varying, p_phone character varying, p_dob date, p_address text, p_department_id character varying, p_is_priority boolean, p_insurance_card character varying, p_province_code character varying, p_ward_code character varying, p_roomid integer, p_receptno integer, p_gender character varying, p_identitydate date, p_examdate character varying, p_specialty_code character varying)
  RETURNS TABLE(ticket_id integer, ticket_number character varying, roomname character varying, patient_name character varying, doc_no character varying, patient_id character varying, created_at timestamp without time zone)
  LANGUAGE plpgsql
@@ -41,7 +45,6 @@ BEGIN
         END IF;
     END IF;
 
-	--v_objectid := hms_insert_card(v_patientno, 'BHYT', input_bhyt, '01001', '20240101', '20241231');
     -- 2. NẾU LÀ BỆNH NHÂN MỚI -> TẠO BỆNH NHÂN
     IF v_patient_id IS NULL OR v_patient_id = 0 THEN
         -- Tách tên
@@ -78,9 +81,22 @@ BEGIN
     -- 5. TẠO PHIẾU HÀNG ĐỢI (QMS_PATIENTS)
     UPDATE qms_patient SET qms_patientno = v_patient_id, qms_docno = v_doc_no WHERE qms_idx = p_number_idx; 
     
-
     -- 6. TRẢ VỀ KẾT QUẢ
     RETURN QUERY
     SELECT v_roomid, v_exam_id::VARCHAR, v_roomname, p_patient_name, v_doc_no::VARCHAR, v_patient_id::VARCHAR, v_created_at;
 END;
 $function$;
+  `;
+
+  try {
+    console.log("Updating qms_register_ticket_online procedure...");
+    await query(sql);
+    console.log("Success!");
+    process.exit(0);
+  } catch (e: any) {
+    console.error("Error updating procedure:", e.message);
+    process.exit(1);
+  }
+}
+
+updateProcedure();
