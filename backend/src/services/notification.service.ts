@@ -88,15 +88,47 @@ class NotificationService {
             console.warn(`[NotificationService] No template found for ${type}, using hardcoded fallback.`, error.message);
         }
 
-        if (provider === 'mock') {
-            return this._sendMockSMS(phone, type, data, templateContent);
-        }
+        let result: any;
+        try {
+            if (provider === 'mock') {
+                result = await this._sendMockSMS(phone, type, data, templateContent);
+            } else if (provider === 'caresoft') {
+                result = await this._sendCaresoftSMS(phone, type, data, templateContent);
+            } else {
+                throw new Error(`Unknown SMS provider: ${provider}`);
+            }
 
-        if (provider === 'caresoft') {
-            return this._sendCaresoftSMS(phone, type, data, templateContent);
-        }
+            // Ghi log SMS thành công
+            await smsTemplateService.createSMSLog({
+                bookingId: data.bookingId ? Number(data.bookingId) : null,
+                patientName: data.patientName || data.name || null,
+                phone,
+                deptCode: data.deptId || null,
+                patientType: data.patientType || null,
+                smsType: this._mapType(type),
+                messageContent: result.message || templateContent || '',
+                provider,
+                providerMessageId: result.messageId || null,
+                status: 'SUCCESS'
+            });
 
-        throw new Error(`Unknown SMS provider: ${provider}`);
+            return result;
+        } catch (error: any) {
+            // Ghi log SMS thất bại
+            await smsTemplateService.createSMSLog({
+                bookingId: data.bookingId ? Number(data.bookingId) : null,
+                patientName: data.patientName || data.name || null,
+                phone,
+                deptCode: data.deptId || null,
+                patientType: data.patientType || null,
+                smsType: this._mapType(type),
+                messageContent: templateContent || `SMS error: ${error.message}`,
+                provider,
+                status: 'FAILED',
+                errorMessage: error.message
+            });
+            throw error;
+        }
     }
 
     /**
@@ -198,16 +230,17 @@ class NotificationService {
         const url = process.env.SMS_CARESOFT_URL || 'https://api.caresoft.vn/benhvienk/api/v1/sms';
         const token = process.env.SMS_CARESOFT_TOKEN || 'hl70lbLhwLJqsAk';
         const serviceId = process.env.SMS_CARESOFT_SERVICE_ID || '214';
+        const brand = process.env.SMS_BRAND_NAME || 'VIMES';
 
         const fallbacks: Record<string, string> = {
-            booking_confirmation: `[BENH VIEN K] Xin chao ${data.patientName || data.name}. Lich kham cua ban: ${data.date} luc ${data.time}. STT: ${data.queueNumber || data.receptNo}. Vui long den dung gio.`,
-            booking_approved: `[BENH VIEN K] Chuc mung ${data.patientName || data.name}! Lich kham vao ${data.date} luc ${data.time} da duoc duyet. STT: ${data.queueNumber || data.receptNo}.`,
-            booking_cancellation: `[BENH VIEN K] Lich kham cua ban ngay ${data.date} luc ${data.time} da bi huy. Ly do: ${data.reason || 'Khong ro'}`,
-            booking_reminder: `[BENH VIEN K] Nhac nho: Ban co lich kham vao ${data.date} luc ${data.time}. STT: ${data.queueNumber || data.receptNo}. Vui long den dung gio.`,
-            booking_reschedule: `[BENH VIEN K] Lich kham cua ban da duoc doi sang ${data.newDate} luc ${data.newTime}.`
+            booking_confirmation: `[${brand}] Xin chao ${data.patientName || data.name}. Lich kham cua ban: ${data.date} luc ${data.time}. STT: ${data.queueNumber || data.receptNo}. Vui long den dung gio.`,
+            booking_approved: `[${brand}] Chuc mung ${data.patientName || data.name}! Lich kham vao ${data.date} luc ${data.time} da duoc duyet. STT: ${data.queueNumber || data.receptNo}.`,
+            booking_cancellation: `[${brand}] Lich kham cua ban ngay ${data.date} luc ${data.time} da bi huy. Ly do: ${data.reason || 'Khong ro'}`,
+            booking_reminder: `[${brand}] Nhac nho: Ban co lich kham vao ${data.date} luc ${data.time}. STT: ${data.queueNumber || data.receptNo}. Vui long den dung gio.`,
+            booking_reschedule: `[${brand}] Lich kham cua ban da duoc doi sang ${data.newDate} luc ${data.newTime}.`
         };
 
-        const content = dynamicContent || fallbacks[type] || `[BENH VIEN K] Thong bao tu Benh vien K`;
+        const content = dynamicContent || fallbacks[type] || `[${brand}] Thong bao tu benh vien`;
 
         const payload = {
             sms: {
@@ -264,7 +297,11 @@ class NotificationService {
             '{specialty}': data.specialtyName || data.specialty || '',
             '{roomName}': data.roomName || '',
             '{queueNumber}': data.queueNumber || data.receptNo || '',
-            '{hotline}': process.env.SMS_HOTLINE || '190088664'
+            '{hospitalName}': process.env.HOSPITAL_NAME || 'Bệnh viện VIMES',
+            '{hotline}': process.env.SMS_HOTLINE || '1900886684',
+            '{reason}': data.reason || 'Bệnh nhân yêu cầu',
+            '{newDate}': data.newDate || '',
+            '{newTime}': data.newTime || ''
         };
 
         for (const [placeholder, value] of Object.entries(placeholders)) {

@@ -9,7 +9,7 @@ class CatalogController {
     async getProvinces(req: Request, res: Response) {
         try {
             const result = await query(
-                `SELECT sp_id::text as id, sp_name as name FROM sys_prov WHERE sp_active = 'Y' ORDER BY sp_name`
+                `SELECT sp_id::text as id, sp_name as name FROM sys_prov WHERE COALESCE(sp_isactive, sp_active) = 'Y' ORDER BY sp_name`
             );
             return res.json(result.rows);
         } catch (error) {
@@ -18,7 +18,22 @@ class CatalogController {
         }
     }
 
-    // Lấy danh sách phường/xã theo tỉnh
+    // Lấy danh sách quận/huyện theo tỉnh
+    async getDistricts(req: Request, res: Response) {
+        try {
+            const { provinceId } = (req as any).params;
+            const result = await query(
+                `SELECT sd_id::text as id, sd_name as name FROM sys_dist WHERE COALESCE(sd_active, 'Y') = 'Y' AND sd_provid = $1 ORDER BY sd_name`,
+                [provinceId]
+            );
+            return res.json(result.rows);
+        } catch (error: any) {
+            console.error('Error getting districts:', error);
+            return res.status(500).json({ error: 'Không thể lấy danh sách quận/huyện: ' + error.message });
+        }
+    }
+
+    // Lấy danh sách phường/xã theo tỉnh hoặc huyện
     async getWards(req: Request, res: Response) {
         try {
             let provinceId: string | number = (req as any).params.provinceId as string;
@@ -33,7 +48,7 @@ class CatalogController {
             }
 
             const result = await query(
-                "SELECT sv_id::text as id, sv_name as name FROM sys_vill WHERE sv_active = 'Y' AND sv_provid = $1 ORDER BY sv_name",
+                "SELECT sv_id::text as id, sv_name as name FROM sys_vill WHERE COALESCE(sv_isactive, 'Y') = 'Y' AND (sv_provid = $1 OR sv_distid = $1) ORDER BY sv_name",
                 [provinceId]
             );
             return res.json(result.rows);

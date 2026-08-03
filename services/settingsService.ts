@@ -24,6 +24,7 @@ export interface CompanyInfo {
     phone: string;
     email: string;
     website: string;
+    logoUrl?: string;
 }
 
 export const settingsService = {
@@ -49,6 +50,14 @@ export const settingsService = {
     async getCompanyInfo(): Promise<CompanyInfo> {
         const data = await apiClient.get<{ success: boolean; data: CompanyInfo }>('/settings/company-info');
         return data.data;
+    },
+
+    /**
+     * Update hospital logo in SYS_COMPANY table
+     */
+    async updateCompanyLogo(logoUrl: string): Promise<boolean> {
+        const data = await apiClient.put<{ success: boolean }>('/settings/company-info/logo', { logoUrl });
+        return data.success;
     },
 
     /**

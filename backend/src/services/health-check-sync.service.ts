@@ -359,11 +359,13 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
             if (settings.vneid_private_key) {
                 try {
                     const parsedKey = parsePrivateKey(settings.vneid_private_key);
-                    const headerStr = JSON.stringify(payload.header).replace(/\s+/g, '');
-                    const hashA = crypto.createHash('sha256').update(headerStr).digest('hex').toUpperCase();
+                    
+                    // JSON.stringify naturally has no extra spacing.
+                    const headerStr = JSON.stringify(payload.header);
+                    const hashA = crypto.createHash('sha256').update(headerStr).digest('hex').toLowerCase();
 
-                    const dataStr = typeof payload.data === 'string' ? payload.data : JSON.stringify(payload.data).replace(/\s+/g, '');
-                    const hashB = crypto.createHash('sha256').update(dataStr).digest('hex').toUpperCase();
+                    const dataStr = typeof payload.data === 'string' ? payload.data : JSON.stringify(payload.data);
+                    const hashB = crypto.createHash('sha256').update(dataStr).digest('hex').toLowerCase();
 
                     const hashC = `${hashA}.${hashB}`;
 

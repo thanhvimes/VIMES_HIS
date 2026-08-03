@@ -225,6 +225,7 @@ class SettingsController {
                     phone: company.sc_phone || '',
                     email: company.sc_email || '',
                     website: company.sc_website || '',
+                    logoUrl: company.sc_logo || '',
                 }
             });
         } catch (error: any) {
@@ -232,6 +233,36 @@ class SettingsController {
             return res.status(500).json({
                 success: false,
                 error: 'Failed to fetch company info',
+                message: error.message
+            });
+        }
+    }
+
+    /**
+     * PUT /api/v1/settings/company-info/logo
+     * Updates hospital logo in SYS_COMPANY table
+     */
+    async updateCompanyLogo(req: Request, res: Response) {
+        try {
+            const { logoUrl } = req.body;
+            if (logoUrl === undefined) {
+                return res.status(400).json({ success: false, error: 'logoUrl is required' });
+            }
+
+            const success = await settingsService.updateCompanyLogo(logoUrl);
+            if (!success) {
+                return res.status(500).json({ success: false, error: 'Failed to update logo' });
+            }
+
+            return res.json({
+                success: true,
+                message: 'Company logo updated successfully'
+            });
+        } catch (error: any) {
+            console.error('Error updating company logo:', error);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to update company logo',
                 message: error.message
             });
         }

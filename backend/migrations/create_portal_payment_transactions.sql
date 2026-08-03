@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS portal_payment_transactions (
     transaction_id SERIAL PRIMARY KEY,
     bill_id VARCHAR(50) NOT NULL,              -- QR Key from hospital system
     docno VARCHAR(50),                         -- Original invoice number
-    account_id INTEGER,                        -- Reference to portal_accounts
+    account_id UUID,                           -- Reference to portal_accounts
     patient_no VARCHAR(20),                    -- Patient number
     patient_name VARCHAR(200),                 -- Patient name
     amount NUMERIC(15, 2) NOT NULL,            -- Payment amount

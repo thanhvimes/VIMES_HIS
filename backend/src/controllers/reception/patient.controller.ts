@@ -447,12 +447,10 @@ class ReceptionPatientController {
                 let receptNo = old.he_receptno;
                 if (data.regRoom && Number(data.regRoom) !== Number(old.he_roomid)) {
                     const recRes = await query(
-                        `SELECT COALESCE(MAX(he_receptno), 0) + 1 as new_no 
-                         FROM hms_exam 
-                         WHERE he_roomid = $1 AND DATE(he_examdate) = CURRENT_DATE`,
-                        [data.regRoom]
+                        `SELECT hms_get_next_receptno($1, $2, CURRENT_DATE) as new_no`,
+                        [data.regDepartment || old.he_deptid, data.regRoom]
                     );
-                    receptNo = recRes.rows[0].new_no;
+                    receptNo = recRes.rows[0]?.new_no || 1;
                 }
 
                 // 4. OBJECT & RATES

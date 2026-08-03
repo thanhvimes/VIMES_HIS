@@ -28,39 +28,130 @@ export interface TemplateFilters {
 
 class SMSTemplateService {
     /**
-     * Get SMS template with fallback logic
-     * Priority: specific dept+type > dept only > type only > default
+     * Get SMS template with 4-level fallback logic based on dept_code (qms_deptid) and patient_type
+     * Priority:
+     * 1. Specific dept_code + Specific patient_type (BH/DV)
+     * 2. Specific dept_code + ALL patient_types (NULL / ALL)
+     * 3. Global dept_code (NULL / ALL) + Specific patient_type (BH/DV)
+     * 4. Global dept_code (NULL / ALL) + ALL patient_types (NULL / ALL)
      */
     async getTemplate(templateType: string, deptCode: any = null, patientType: any = null): Promise<SMSTemplate | null> {
-        const deptCodeStr = deptCode !== null && deptCode !== undefined ? String(deptCode) : null;
-        const patientTypeStr = patientType !== null && patientType !== undefined ? String(patientType) : null;
+        const deptCodeStr = deptCode !== null && deptCode !== undefined && String(deptCode).trim() !== '' && String(deptCode) !== 'ALL'
+            ? String(deptCode).trim()
+            : null;
 
-        const sql = `
-            SELECT template_id, template_type, dept_code, patient_type, 
-                   template_content, description, is_active
-            FROM hms_booking_sms_templates
-            WHERE template_type = $1
-              AND is_active = TRUE
-              AND (
-                  (dept_code = $2 AND patient_type = $3)
-                  OR
-                  (dept_code = $2 AND patient_type IS NULL)
-                  OR
-                  (dept_code IS NULL AND patient_type = $3)
-                  OR
-                  (dept_code IS NULL AND patient_type IS NULL)
-              )
-            ORDER BY 
-                CASE 
-                    WHEN dept_code = $2 AND patient_type = $3 THEN 1
-                    WHEN dept_code = $2 AND patient_type IS NULL THEN 2
-                    WHEN dept_code IS NULL AND patient_type = $3 THEN 3
-                    WHEN dept_code IS NULL AND patient_type IS NULL THEN 4
-                END
-            LIMIT 1
-        `;
+        // Build patientTypes array for matching.
+        // If patientType is empty/null → treat as global (match ALL or NULL patient_type in DB)
+        let patientTypes: string[] = [];
+        const hasPatientType = patientType !== null && patientType !== undefined &&
+            String(patientType).trim() !== '' && String(patientType).trim().toUpperCase() !== 'ALL';
 
-        const result = await query(sql, [templateType, deptCodeStr, patientTypeStr]);
+        if (hasPatientType) {
+            const pt = String(patientType).trim().toUpperCase();
+            if (pt === 'BH' || pt === 'I' || pt === 'BHYT') {
+                patientTypes = ['BH', 'I', 'BHYT'];
+            } else if (pt === 'DV' || pt === 'S') {
+                patientTypes = ['DV', 'S'];
+            } else {
+                patientTypes = [pt];
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // CRITICAL FIX: In PostgreSQL, "column = NULL" is ALWAYS FALSE.
+        // We must use "IS NULL" when deptCodeStr is null.
+        // Therefore we build the query dynamically based on whether we
+        // have a real dept code or not.
+        // ---------------------------------------------------------------
+
+        let sql: string;
+        let params: any[];
+
+        if (deptCodeStr !== null && hasPatientType) {
+            // Both dept and patient type are known → full 4-level priority
+            sql = `
+                SELECT template_id, template_type, dept_code, patient_type,
+                       template_content, description, is_active
+                FROM hms_booking_sms_templates
+                WHERE template_type = $1
+                  AND is_active = TRUE
+                  AND (
+                      (dept_code = $2 AND patient_type = ANY($3::text[]))
+                      OR (dept_code = $2 AND (patient_type IS NULL OR patient_type = '' OR patient_type = 'ALL'))
+                      OR ((dept_code IS NULL OR dept_code = '' OR dept_code = 'ALL') AND patient_type = ANY($3::text[]))
+                      OR ((dept_code IS NULL OR dept_code = '' OR dept_code = 'ALL') AND (patient_type IS NULL OR patient_type = '' OR patient_type = 'ALL'))
+                  )
+                ORDER BY
+                    CASE
+                        WHEN dept_code = $2 AND patient_type = ANY($3::text[]) THEN 1
+                        WHEN dept_code = $2 AND (patient_type IS NULL OR patient_type = '' OR patient_type = 'ALL') THEN 2
+                        WHEN (dept_code IS NULL OR dept_code = '' OR dept_code = 'ALL') AND patient_type = ANY($3::text[]) THEN 3
+                        WHEN (dept_code IS NULL OR dept_code = '' OR dept_code = 'ALL') AND (patient_type IS NULL OR patient_type = '' OR patient_type = 'ALL') THEN 4
+                        ELSE 5
+                    END
+                LIMIT 1
+            `;
+            params = [templateType, deptCodeStr, patientTypes];
+
+        } else if (deptCodeStr !== null && !hasPatientType) {
+            // dept known, patientType not specified → match dept-specific or global fallback
+            sql = `
+                SELECT template_id, template_type, dept_code, patient_type,
+                       template_content, description, is_active
+                FROM hms_booking_sms_templates
+                WHERE template_type = $1
+                  AND is_active = TRUE
+                  AND (
+                      (dept_code = $2 AND (patient_type IS NULL OR patient_type = '' OR patient_type = 'ALL'))
+                      OR ((dept_code IS NULL OR dept_code = '' OR dept_code = 'ALL') AND (patient_type IS NULL OR patient_type = '' OR patient_type = 'ALL'))
+                  )
+                ORDER BY
+                    CASE
+                        WHEN dept_code = $2 THEN 1
+                        ELSE 2
+                    END
+                LIMIT 1
+            `;
+            params = [templateType, deptCodeStr];
+
+        } else if (deptCodeStr === null && hasPatientType) {
+            // dept unknown, patientType known → match patientType-specific global or full global
+            sql = `
+                SELECT template_id, template_type, dept_code, patient_type,
+                       template_content, description, is_active
+                FROM hms_booking_sms_templates
+                WHERE template_type = $1
+                  AND is_active = TRUE
+                  AND (dept_code IS NULL OR dept_code = '' OR dept_code = 'ALL')
+                  AND (
+                      (patient_type = ANY($2::text[]))
+                      OR (patient_type IS NULL OR patient_type = '' OR patient_type = 'ALL')
+                  )
+                ORDER BY
+                    CASE
+                        WHEN patient_type = ANY($2::text[]) THEN 1
+                        ELSE 2
+                    END
+                LIMIT 1
+            `;
+            params = [templateType, patientTypes];
+
+        } else {
+            // Neither dept nor patientType → pure global fallback
+            sql = `
+                SELECT template_id, template_type, dept_code, patient_type,
+                       template_content, description, is_active
+                FROM hms_booking_sms_templates
+                WHERE template_type = $1
+                  AND is_active = TRUE
+                  AND (dept_code IS NULL OR dept_code = '' OR dept_code = 'ALL')
+                  AND (patient_type IS NULL OR patient_type = '' OR patient_type = 'ALL')
+                LIMIT 1
+            `;
+            params = [templateType];
+        }
+
+        const result = await query(sql, params);
 
         if (result.rows.length === 0) {
             return null;
@@ -151,6 +242,13 @@ class SMSTemplateService {
             INSERT INTO hms_booking_sms_templates 
             (template_type, dept_code, patient_type, template_content, description, created_by, is_active)
             VALUES ($1, $2, $3, $4, $5, $6, TRUE)
+            ON CONFLICT (template_type, COALESCE(dept_code, ''), COALESCE(patient_type, ''))
+            DO UPDATE SET
+                template_content = EXCLUDED.template_content,
+                description = COALESCE(EXCLUDED.description, hms_booking_sms_templates.description),
+                is_active = TRUE,
+                updated_at = CURRENT_TIMESTAMP,
+                updated_by = EXCLUDED.created_by
             RETURNING *
         `;
 
@@ -222,6 +320,65 @@ class SMSTemplateService {
             { code: 'DV', name: 'Dịch vụ' },
             { code: 'BH', name: 'Bảo hiểm' }
         ];
+    }
+
+    /**
+     * Create a log entry for a sent SMS
+     */
+    async createSMSLog(logData: {
+        bookingId?: number | null;
+        patientName?: string | null;
+        phone: string;
+        deptCode?: string | null;
+        patientType?: string | null;
+        smsType: string;
+        messageContent: string;
+        provider?: string;
+        providerMessageId?: string | null;
+        status?: 'SUCCESS' | 'FAILED' | 'PENDING';
+        errorMessage?: string | null;
+    }): Promise<any> {
+        try {
+            const sql = `
+                INSERT INTO hms_booking_sms_logs
+                (booking_id, patient_name, phone, dept_code, patient_type, sms_type, message_content, provider, provider_message_id, status, error_message, sent_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+                RETURNING *
+            `;
+            const result = await query(sql, [
+                logData.bookingId || null,
+                logData.patientName || null,
+                logData.phone,
+                logData.deptCode || null,
+                logData.patientType || null,
+                logData.smsType,
+                logData.messageContent,
+                logData.provider || 'mock',
+                logData.providerMessageId || null,
+                logData.status || 'PENDING',
+                logData.errorMessage || null
+            ]);
+            return result.rows[0];
+        } catch (error: any) {
+            console.error('❌ Error creating SMS log:', error.message);
+            return null;
+        }
+    }
+
+    /**
+     * Get SMS log history for a specific booking
+     */
+    async getSMSLogsByBooking(bookingId: number): Promise<any[]> {
+        const sql = `
+            SELECT log_id, booking_id, patient_name, phone, dept_code, patient_type,
+                   sms_type, message_content, provider, provider_message_id, status,
+                   error_message, sent_at
+            FROM hms_booking_sms_logs
+            WHERE booking_id = $1
+            ORDER BY sent_at DESC
+        `;
+        const result = await query(sql, [bookingId]);
+        return result.rows;
     }
 }
 

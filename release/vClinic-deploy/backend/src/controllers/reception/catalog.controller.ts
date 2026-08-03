@@ -4,7 +4,20 @@ import { query } from '../../config/database';
 class ReceptionCatalogController {
     async getProvinces(req: Request, res: Response) {
         try {
-            const result = await query(`SELECT sp_id::text as id, sp_id::text as code, sp_name as name FROM sys_prov ORDER BY sp_name`);
+            const result = await query(`SELECT sp_id::text as id, sp_id::text as code, sp_name as name FROM sys_prov WHERE sp_isactive = 'Y' ORDER BY sp_name`);
+            return res.json(result.rows);
+        } catch (error: any) {
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    async getDistricts(req: Request, res: Response) {
+        try {
+            const { provinceId } = (req as any).params;
+            const result = await query(
+                `SELECT sd_id::text as id, sd_id::text as code, sd_name as name FROM sys_dist WHERE sd_active = 'Y' AND sd_provid::text = $1 ORDER BY sd_name`,
+                [provinceId]
+            );
             return res.json(result.rows);
         } catch (error: any) {
             return res.status(500).json({ error: error.message });
@@ -13,11 +26,21 @@ class ReceptionCatalogController {
 
     async getWards(req: Request, res: Response) {
         try {
-            const { provinceId } = (req as any).params;
-            const result = await query(
-                `SELECT sv_id::text as id, sv_id::text as code, sv_name as name FROM sys_vill WHERE sv_provid::text = $1 ORDER BY sv_name`,
-                [provinceId]
-            );
+            const provinceId = (req as any).params.provinceId || (req as any).query.provinceId;
+            const districtId = (req as any).query.districtId;
+            let sql = `SELECT sv_id::text as id, sv_id::text as code, sv_name as name FROM sys_vill WHERE sv_isactive = 'Y'`;
+            const params: any[] = [];
+            
+            if (districtId) {
+                sql += ` AND sv_distid::text = $1`;
+                params.push(districtId);
+            } else if (provinceId) {
+                sql += ` AND (sv_provid::text = $1 OR sv_distid::text = $1)`;
+                params.push(provinceId);
+            }
+            
+            sql += ` ORDER BY sv_name`;
+            const result = await query(sql, params);
             return res.json(result.rows);
         } catch (error: any) {
             return res.status(500).json({ error: error.message });

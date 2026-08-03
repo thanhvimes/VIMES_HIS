@@ -1,0 +1,23 @@
+-- Migration 038: Ensure all health_check_settings columns exist
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS ma_cskcb_byt VARCHAR(20);
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_client_secret TEXT;
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS vneid_private_key TEXT;
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS vneid_public_key TEXT;
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS vneid_receiver_id VARCHAR(50) DEFAULT 'TTYQG';
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS signature_type VARCHAR(20) DEFAULT 'HSM';
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_url VARCHAR(255) DEFAULT 'http://vimes.xyz:8091';
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_provider VARCHAR(50) DEFAULT 'VNPT-CA';
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_username VARCHAR(100);
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_password TEXT;
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_client_id VARCHAR(100);
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS reception_slip_template TEXT;
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS use_qz_tray BOOLEAN DEFAULT FALSE;
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_label_size_xn VARCHAR(50);
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_label_size_ksk VARCHAR(50);
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_show_hospital BOOLEAN DEFAULT TRUE;
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_show_date BOOLEAN DEFAULT TRUE;
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_show_sample_type BOOLEAN DEFAULT TRUE;
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS allow_unsigned_sync BOOLEAN DEFAULT FALSE;
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_zpl_template_xn TEXT;
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_zpl_template_ksk TEXT;
+ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_printer_name VARCHAR(255);

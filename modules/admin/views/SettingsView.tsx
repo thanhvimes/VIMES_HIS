@@ -4,13 +4,14 @@ import { useTheme, FontSettings } from '../../../contexts/ThemeContext';
 import { useSession } from '../../../contexts/SessionContext';
 import { useSystemStore, NavItemDTO } from '../../../stores/useSystemStore';
 import { adminService } from '../../../services/adminService';
+import { settingsService } from '../../../services/settingsService';
 import {
     CogIcon, HospitalIcon, GlobeIcon, CheckCircleIcon, ArrowUpTrayIcon,
     ListBulletIcon, PencilIcon, TrashIcon, PlusIcon, EyeIcon, BanIcon,
     ChevronUpIcon, ChevronDownIcon, SearchIcon, XIcon
 } from '../../../components/Icons';
 import { OrganizationInfo } from '../../../types/common';
-import { ICON_MAP } from '../../../components/icon-map'; // UPDATED IMPORT
+import { ICON_MAP } from '../../../components/icon-map';
 
 const fontOptions = [
     { label: 'Nhỏ (Compact)', value: 'text-xs' },
@@ -42,8 +43,10 @@ const SettingsView: React.FC = () => {
     // Using Zustand Store
     const { menuConfig, updateMenuConfig, resetMenuConfig } = useSystemStore();
 
-    const [activeTab, setActiveTab] = useState<'display' | 'hospital' | 'menu'>('display');
+    const [activeTab, setActiveTab] = useState<'hospital' | 'menu'>('hospital');
     const [hospitalForm, setHospitalForm] = useState<OrganizationInfo>(orgInfo);
+    const [isLoadingCompany, setIsLoadingCompany] = useState(false);
+    const [saveSuccess, setSaveSuccess] = useState(false);
     
     // Using System Store for dynamic branding
     const { hospitalName, systemName, logoUrl, updateBrandingSettings } = useSystemStore();
@@ -52,7 +55,38 @@ const SettingsView: React.FC = () => {
         systemName: systemName,
         logoUrl: logoUrl
     });
-    
+
+    // Load company info from sys_company on mount
+    useEffect(() => {
+        const loadCompanyInfo = async () => {
+            setIsLoadingCompany(true);
+            try {
+                const company = await settingsService.getCompanyInfo();
+                if (company) {
+                    setHospitalForm(prev => ({
+                        ...prev,
+                        hospitalName: company.hospitalName || prev.hospitalName,
+                        governingUnitName: company.parentOrg || prev.governingUnitName,
+                        address: company.address || prev.address,
+                        hotline: company.phone || prev.hotline,
+                        email: company.email || prev.email,
+                        website: company.website || prev.website,
+                    }));
+                    setBrandingForm(prev => ({
+                        ...prev,
+                        hospitalName: company.hospitalName || prev.hospitalName,
+                        logoUrl: company.logoUrl || prev.logoUrl,
+                    }));
+                }
+            } catch (e) {
+                // Fallback to store values
+            } finally {
+                setIsLoadingCompany(false);
+            }
+        };
+        loadCompanyInfo();
+    }, []);
+
     const [isSaving, setIsSaving] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -77,12 +111,7 @@ const SettingsView: React.FC = () => {
     const [editingItem, setEditingItem] = useState<NavItemDTO | null>(null);
     const [newItem, setNewItem] = useState<Partial<NavItemDTO>>({ name: '', path: '', iconName: 'Squares2X2Icon', isVisible: true });
 
-    // Update form if global orgInfo changes
-    useEffect(() => {
-        setHospitalForm(orgInfo);
-    }, [orgInfo]);
 
-    // Update menu items when module selection changes or config updates
     useEffect(() => {
         if (menuConfig[selectedModule]) {
             setCurrentMenuItems(menuConfig[selectedModule]);
@@ -120,19 +149,20 @@ const SettingsView: React.FC = () => {
         e.preventDefault();
         setIsSaving(true);
         try {
-            // Update other org info if needed
-            await adminService.updateOrganizationInfo(hospitalForm);
-            
-            // Update Branding Settings (SystemStore)
+            // Update Branding Settings (SystemStore) - system name
             await updateBrandingSettings([
-                { key: 'general_hospital_name', value: brandingForm.hospitalName },
-                { key: 'general_system_name', value: brandingForm.systemName },
-                { key: 'general_logo_url', value: brandingForm.logoUrl }
+                { key: 'general_system_name', value: brandingForm.systemName }
             ]);
             
-            alert("Cập nhật thông tin bệnh viện thành công!");
+            // Update logo in sys_company if it's base64
+            if (brandingForm.logoUrl && brandingForm.logoUrl.startsWith('data:image')) {
+                await settingsService.updateCompanyLogo(brandingForm.logoUrl);
+            }
+            
+            setSaveSuccess(true);
+            setTimeout(() => setSaveSuccess(false), 3000);
         } catch (error) {
-            alert("Lỗi khi lưu thông tin.");
+            alert('Lỗi khi lưu thông tin.');
         } finally {
             setIsSaving(false);
         }
@@ -209,12 +239,6 @@ const SettingsView: React.FC = () => {
             {/* Tabs */}
             <div className="flex gap-4 border-b border-slate-200 dark:border-slate-700 mb-4 shrink-0">
                 <button
-                    onClick={() => setActiveTab('display')}
-                    className={`pb-2 px-4 text-sm font-bold transition-colors border-b-2 ${activeTab === 'display' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                >
-                    Giao diện & Hiển thị
-                </button>
-                <button
                     onClick={() => setActiveTab('hospital')}
                     className={`pb-2 px-4 text-sm font-bold transition-colors border-b-2 ${activeTab === 'hospital' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
@@ -228,196 +252,158 @@ const SettingsView: React.FC = () => {
                 </button>
             </div>
 
-            {/* TAB: DISPLAY SETTINGS */}
-            {activeTab === 'display' && (
-                <div className="grid grid-cols-1 gap-8 overflow-y-auto">
-                    {/* Worklists Setting */}
-                    <div className="bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
-                        <div className="flex justify-between items-start mb-4">
-                            <div>
-                                <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200">Danh sách công việc (Orders/Worklists)</h3>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">Áp dụng cho: Danh sách chờ khám, DS Xét nghiệm, DS Thuốc...</p>
-                            </div>
-                            <div className="w-64">
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Chọn kích thước</label>
-                                <select
-                                    value={fontSettings.listPrimary}
-                                    onChange={(e) => handleFontChange('listPrimary', e.target.value)}
-                                    className="w-full p-2 border rounded-md bg-white dark:bg-slate-700 dark:border-slate-600"
-                                >
-                                    {fontOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                                </select>
-                            </div>
-                        </div>
-                        <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
-                            <p className="text-xs text-slate-400 uppercase font-bold mb-2">Xem trước</p>
-                            <div className={`flex justify-between p-3 bg-white dark:bg-slate-800 rounded shadow-sm ${fontSettings.listPrimary}`}>
-                                <span className="font-bold text-blue-600">Nguyễn Văn A</span>
-                                <span>08:30 - Khám tổng quát</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Controls Setting */}
-                    <div className="bg-surface dark:bg-dark-surface p-6 rounded-xl shadow-lg border border-slate-200/50 dark:border-slate-700">
-                        <div className="flex justify-between items-start mb-4">
-                            <div>
-                                <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200">Nhập liệu (Controls)</h3>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">Áp dụng cho: Ô nhập liệu, Nút bấm...</p>
-                            </div>
-                            <div className="w-64">
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Chọn kích thước</label>
-                                <select
-                                    value={fontSettings.controls}
-                                    onChange={(e) => handleFontChange('controls', e.target.value)}
-                                    className="w-full p-2 border rounded-md bg-white dark:bg-slate-700 dark:border-slate-600"
-                                >
-                                    {fontOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                                </select>
-                            </div>
-                        </div>
-                        <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
-                            <div className="flex items-end gap-2">
-                                <div className="flex-1">
-                                    <label className={`block font-bold text-slate-700 dark:text-slate-300 mb-1 ${fontSettings.controls}`}>Họ tên</label>
-                                    <input type="text" value="Nguyễn Văn A" readOnly className={`w-full p-2 border rounded-lg ${fontSettings.controls}`} />
-                                </div>
-                                <button className={`px-4 py-2 bg-blue-600 text-white rounded-lg font-bold ${fontSettings.controls}`}>Lưu</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* TAB: HOSPITAL INFO */}
             {activeTab === 'hospital' && (
-                <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 animate-fade-in overflow-y-auto">
-                    <div className="flex items-start gap-4 mb-6 border-b border-slate-100 dark:border-slate-700 pb-4">
-                        <div className="p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-lg">
-                            <HospitalIcon className="w-8 h-8" />
+                <div className="flex-1 overflow-y-auto space-y-5 pb-4">
+                    {/* Header Card */}
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-5 flex items-center gap-4 shadow-lg">
+                        <div className="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center overflow-hidden border-2 border-white/30 shrink-0">
+                            {brandingForm.logoUrl ? (
+                                <img src={brandingForm.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                            ) : (
+                                <HospitalIcon className="w-8 h-8 text-white" />
+                            )}
                         </div>
-                        <div>
-                            <h3 className="text-lg font-bold text-slate-800 dark:text-white">Thông tin Đơn vị</h3>
-                            <p className="text-sm text-slate-500">Thông tin này sẽ hiển thị trên Header và các báo cáo/phiếu in.</p>
+                        <div className="min-w-0">
+                            <p className="text-blue-200 text-xs font-semibold uppercase tracking-wider">{hospitalForm.governingUnitName || 'Đơn vị chủ quản'}</p>
+                            <h2 className="text-white font-extrabold text-xl leading-tight truncate">{brandingForm.hospitalName || 'Tên Bệnh viện'}</h2>
+                            <p className="text-blue-200 text-sm">{brandingForm.systemName}</p>
                         </div>
+                        {isLoadingCompany && (
+                            <div className="ml-auto">
+                                <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                            </div>
+                        )}
                     </div>
 
-                    <form onSubmit={handleSaveHospital} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Left Column: Logo & Basic */}
-                            <div className="space-y-4">
+                    <form onSubmit={handleSaveHospital} className="space-y-5">
+                        {/* Section 1: Thông tin định danh (read-only from sys_company) */}
+                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                            <div className="px-5 py-3 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+                                <div className="w-1.5 h-4 bg-blue-500 rounded-full" />
+                                <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">Thông tin Định danh</h4>
+                                <span className="ml-auto text-xs text-slate-400 italic">Đọc từ bảng SYS_COMPANY · Không thể chỉnh sửa tại đây</span>
+                            </div>
+                            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Tên Bệnh viện (Lấy từ hệ thống)</label>
-                                    <input
-                                        type="text"
-                                        name="hospitalName"
-                                        value={brandingForm.hospitalName}
-                                        disabled
-                                        className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900 text-slate-400 dark:text-slate-500 font-bold text-lg cursor-not-allowed"
-                                    />
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">Tên Bệnh viện (sc_name)</label>
+                                    <div className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold text-base">
+                                        {brandingForm.hospitalName || <span className="text-slate-400 italic font-normal">Chưa cấu hình</span>}
+                                    </div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Tiêu đề Hệ thống (Subtitle)</label>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">Đơn vị chủ quản (sc_pname)</label>
+                                    <div className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-medium">
+                                        {hospitalForm.governingUnitName || <span className="text-slate-400 italic font-normal">Chưa cấu hình</span>}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">Địa chỉ (sc_address)</label>
+                                    <div className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300">
+                                        {hospitalForm.address || <span className="text-slate-400 italic">Chưa cấu hình</span>}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">Hotline (sc_phone)</label>
+                                    <div className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300 font-mono">
+                                        {hospitalForm.hotline || <span className="text-slate-400 italic font-sans">Chưa cấu hình</span>}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">Email (sc_email)</label>
+                                    <div className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300">
+                                        {hospitalForm.email || <span className="text-slate-400 italic">Chưa cấu hình</span>}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">Website (sc_website)</label>
+                                    <div className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300">
+                                        {hospitalForm.website ? (
+                                            <a href={hospitalForm.website} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">{hospitalForm.website}</a>
+                                        ) : <span className="text-slate-400 italic">Chưa cấu hình</span>}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Section 2: Cấu hình Hiển thị (editable) */}
+                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                            <div className="px-5 py-3 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+                                <div className="w-1.5 h-4 bg-indigo-500 rounded-full" />
+                                <h4 className="font-bold text-slate-700 dark:text-slate-200 text-sm">Cấu hình Hiển thị</h4>
+                                <span className="ml-auto text-xs text-blue-600 font-semibold">✎ Có thể chỉnh sửa</span>
+                            </div>
+                            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div className="md:col-span-2">
+                                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Tiêu đề Hệ thống (Subtitle)</label>
                                     <input
                                         type="text"
                                         name="systemName"
                                         value={brandingForm.systemName}
                                         onChange={handleBrandingChange}
-                                        className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 font-medium text-md text-blue-600"
+                                        className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-semibold text-blue-600 dark:text-blue-400 transition text-sm"
                                         placeholder="HỆ THỐNG QUẢN LÝ TỔNG THỂ BỆNH VIỆN"
                                     />
+                                    <p className="text-xs text-slate-400 mt-1">Hiển thị bên dưới tên bệnh viện trên Header và trang đăng nhập.</p>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Đơn vị chủ quản (Sở/Bộ)</label>
-                                    <input
-                                        type="text"
-                                        name="governingUnitCode"
-                                        value={hospitalForm.governingUnitCode}
-                                        onChange={handleHospitalChange}
-                                        className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500"
-                                        placeholder="SỞ Y TẾ..."
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Mã KCB (Hospital Code)</label>
-                                    <input
-                                        type="text"
-                                        name="hospitalCode"
-                                        value={hospitalForm.hospitalCode}
-                                        onChange={handleHospitalChange}
-                                        className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 font-mono"
-                                    />
-                                </div>
-                            </div>
 
-                            {/* Right Column: Contact & Logo URL */}
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Đường dẫn Logo (URL)</label>
-                                    <div className="flex gap-2 items-start">
+                                {/* Logo Upload */}
+                                <div className="md:col-span-2">
+                                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Logo Bệnh viện</label>
+                                    <div className="flex gap-4 items-center">
+                                        <div className="w-24 h-24 bg-slate-100 dark:bg-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl flex items-center justify-center overflow-hidden shrink-0">
+                                            {brandingForm.logoUrl ? (
+                                                <img src={brandingForm.logoUrl} alt="Logo Preview" className="w-full h-full object-contain p-1" />
+                                            ) : (
+                                                <div className="text-center">
+                                                    <GlobeIcon className="w-8 h-8 text-slate-300 mx-auto" />
+                                                    <p className="text-slate-400 text-xs mt-1">Chưa có Logo</p>
+                                                </div>
+                                            )}
+                                        </div>
                                         <div className="flex-1">
-                                            <input
-                                                type="text"
-                                                name="logoUrl"
-                                                value={brandingForm.logoUrl}
-                                                onChange={handleBrandingChange}
-                                                className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 text-sm mb-2"
-                                                placeholder="https://... hoặc tải ảnh lên"
-                                            />
                                             <input
                                                 type="file"
                                                 ref={fileInputRef}
                                                 className="hidden"
-                                                accept="image/*"
+                                                accept="image/png,image/jpg,image/jpeg,image/svg+xml,image/webp"
                                                 onChange={handleLogoUpload}
                                             />
                                             <button
                                                 type="button"
                                                 onClick={() => fileInputRef.current?.click()}
-                                                className="text-xs flex items-center gap-1 text-blue-600 hover:underline font-semibold"
+                                                className="flex items-center gap-2 px-5 py-3 border-2 border-blue-400 dark:border-blue-600 rounded-lg text-blue-600 dark:text-blue-400 font-bold text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
                                             >
-                                                <ArrowUpTrayIcon className="w-3 h-3" /> Tải ảnh lên từ máy
+                                                <ArrowUpTrayIcon className="w-4 h-4" /> Chọn ảnh Logo (PNG / JPG / SVG)
                                             </button>
-                                        </div>
-                                        <div className="w-16 h-16 bg-white border rounded-lg flex items-center justify-center shrink-0 p-1 overflow-hidden shadow-sm">
-                                            {brandingForm.logoUrl ? (
-                                                <img src={brandingForm.logoUrl} alt="Logo Preview" className="w-full h-full object-contain" />
-                                            ) : (
-                                                <GlobeIcon className="w-8 h-8 text-slate-300" />
+                                            <p className="text-xs text-slate-400 mt-2">Ảnh sẽ được lưu dạng Base64 trực tiếp vào bảng <code className="bg-slate-100 dark:bg-slate-700 px-1 rounded">sys_company</code>. Đề nghị dùng ảnh nền trắng/trong suốt, dung lượng &lt; 500KB.</p>
+                                            {brandingForm.logoUrl && brandingForm.logoUrl.startsWith('data:image') && (
+                                                <p className="text-xs text-emerald-600 font-semibold mt-1">✓ Ảnh mới đã sẵn sàng – Nhấn "Lưu thay đổi" để áp dụng</p>
                                             )}
                                         </div>
                                     </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Địa chỉ</label>
-                                    <input
-                                        type="text"
-                                        name="address"
-                                        value={hospitalForm.address}
-                                        onChange={handleHospitalChange}
-                                        className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Hotline</label>
-                                    <input
-                                        type="text"
-                                        name="hotline"
-                                        value={hospitalForm.hotline}
-                                        onChange={handleHospitalChange}
-                                        className="w-full p-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500"
-                                    />
-                                </div>
                             </div>
                         </div>
 
-                        <div className="pt-6 border-t border-slate-100 dark:border-slate-700 flex justify-end">
+                        {/* Save button */}
+                        <div className="flex items-center justify-end gap-4">
+                            {saveSuccess && (
+                                <div className="flex items-center gap-2 text-emerald-600 font-semibold text-sm animate-fade-in">
+                                    <CheckCircleIcon className="w-5 h-5" /> Lưu thành công!
+                                </div>
+                            )}
                             <button
                                 type="submit"
                                 disabled={isSaving}
-                                className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg flex items-center gap-2 transition-transform active:scale-95 disabled:opacity-70"
+                                className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
-                                {isSaving ? 'Đang lưu...' : <><CheckCircleIcon className="w-5 h-5" /> Lưu Thay Đổi</>}
+                                {isSaving ? (
+                                    <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Đang lưu...</>
+                                ) : (
+                                    <><CheckCircleIcon className="w-5 h-5" /> Lưu thay đổi</>
+                                )}
                             </button>
                         </div>
                     </form>

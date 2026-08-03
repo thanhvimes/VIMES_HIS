@@ -17,6 +17,9 @@ router.get('/category/:category', settingsController.getSettingsByCategory.bind(
 // Get company info directly from SYS_COMPANY table
 router.get('/company-info', settingsController.getCompanyInfo.bind(settingsController));
 
+// Update company logo in SYS_COMPANY table
+router.put('/company-info/logo', settingsController.updateCompanyLogo.bind(settingsController));
+
 // Get single setting by key
 router.get('/:key', settingsController.getSetting.bind(settingsController));
 

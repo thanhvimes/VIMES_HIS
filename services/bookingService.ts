@@ -349,5 +349,12 @@ export const bookingService = {
             slotsFreed: number;
             message: string;
         }>('/booking/cancel-ghost-bookings', params);
+    },
+
+    /**
+     * Lấy lịch sử SMS đã gửi của 1 lượt đăng ký
+     */
+    getSMSHistory: async (id: number): Promise<{ success: boolean; data: any[] }> => {
+        return apiClient.get<{ success: boolean; data: any[] }>(`/booking/${id}/sms-history`);
     }
 };

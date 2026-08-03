@@ -62,7 +62,7 @@ const BookingDashboardView: React.FC = () => {
     }) || [];
 
     // Calculate portal traffic percentage
-    const portalSource = statistics?.sources.find(s => s.name === 'Portal');
+    const portalSource = statistics?.sources.find(s => s.name === 'Web Portal' || s.name === 'Portal');
     const totalSources = statistics?.sources.reduce((sum, s) => sum + s.value, 0) || 1;
     const portalPercentage = portalSource ? Math.round((portalSource.value / totalSources) * 100) : 0;
 

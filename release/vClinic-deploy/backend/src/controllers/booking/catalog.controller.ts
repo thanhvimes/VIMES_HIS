@@ -10,7 +10,7 @@ class BookingCatalogController {
     async getProvinces(req: Request, res: Response) {
         try {
             const result = await query(
-                `SELECT sp_id as id, sp_name as name FROM sys_prov WHERE sp_isactive = 'Y' ORDER BY sp_name`
+                `SELECT sp_id as id, sp_name as name FROM sys_prov WHERE COALESCE(sp_isactive, sp_active) = 'Y' ORDER BY sp_name`
             );
             return res.json(result.rows);
         } catch (error) {
@@ -19,12 +19,27 @@ class BookingCatalogController {
         }
     }
 
+    // Lấy danh sách quận/huyện theo tỉnh
+    async getDistricts(req: Request, res: Response) {
+        try {
+            const { provinceId } = (req as any).params;
+            const result = await query(
+                `SELECT sd_id as id, sd_name as name FROM sys_dist WHERE COALESCE(sd_active, 'Y') = 'Y' AND sd_provid = $1 ORDER BY sd_name`,
+                [provinceId]
+            );
+            return res.json(result.rows);
+        } catch (error) {
+            console.error('Error getting districts:', error);
+            return res.status(500).json({ error: 'Không thể lấy danh sách quận/huyện' });
+        }
+    }
+
     // Lấy danh sách phường/xã theo tỉnh
     async getWards(req: Request, res: Response) {
         try {
             const { provinceId } = (req as any).params;
             const result = await query(
-                "SELECT sv_id as id, sv_name as name FROM sys_vill WHERE sv_isactive = 'Y' AND sv_provid = $1 ORDER BY sv_name",
+                "SELECT sv_id as id, sv_name as name FROM sys_vill WHERE COALESCE(sv_isactive, 'Y') = 'Y' AND (sv_provid = $1 OR sv_distid = $1) ORDER BY sv_name",
                 [provinceId]
             );
             return res.json(result.rows);

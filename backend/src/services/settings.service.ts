@@ -77,7 +77,7 @@ class SettingsService {
             const facilityId = process.env.FACILITY_ID || process.env.BRANCH_ID || process.env.COMPANY_ID;
             if (facilityId) {
                 const res = await query(
-                    'SELECT sc_id, sc_name, sc_phone, sc_email, sc_address, sc_website, sc_pname FROM sys_company WHERE sc_id = $1',
+                    'SELECT sc_id, sc_name, sc_phone, sc_email, sc_address, sc_website, sc_pname, sc_logo FROM sys_company WHERE sc_id = $1',
                     [facilityId]
                 );
                 if (res.rows.length > 0) return res.rows[0];
@@ -91,7 +91,7 @@ class SettingsService {
             const firstRowRes = await query('SELECT * FROM sys_company LIMIT 1');
             if (firstRowRes.rows.length > 0 && 'sc_reporthost' in firstRowRes.rows[0]) {
                 const resMatch = await query(`
-                    SELECT sc_id, sc_name, sc_phone, sc_email, sc_address, sc_website, sc_pname 
+                    SELECT sc_id, sc_name, sc_phone, sc_email, sc_address, sc_website, sc_pname, sc_logo 
                     FROM sys_company 
                     WHERE sc_reporthost = (SELECT reporthost FROM hms_config LIMIT 1)
                 `);
@@ -104,13 +104,28 @@ class SettingsService {
 
         // 3. Final fallback: return first row of sys_company
         try {
-            const resFallback = await query('SELECT sc_id, sc_name, sc_phone, sc_email, sc_address, sc_website, sc_pname FROM sys_company LIMIT 1');
+            const resFallback = await query('SELECT sc_id, sc_name, sc_phone, sc_email, sc_address, sc_website, sc_pname, sc_logo FROM sys_company LIMIT 1');
             if (resFallback.rows.length > 0) return resFallback.rows[0];
         } catch (e) {
             console.error('Final fallback query sys_company failed:', e);
         }
 
         return null;
+    }
+
+    /**
+     * Update company logo in sys_company table
+     */
+    async updateCompanyLogo(logoBase64: string): Promise<boolean> {
+        const company = await this.getCompanyInfo();
+        if (company && company.sc_id) {
+            await query('UPDATE sys_company SET sc_logo = $1 WHERE sc_id = $2', [logoBase64, company.sc_id]);
+            return true;
+        } else {
+            // Fallback if no specific ID, just update the first row
+            await query('UPDATE sys_company SET sc_logo = $1 WHERE sc_id = (SELECT sc_id FROM sys_company LIMIT 1)', [logoBase64]);
+            return true;
+        }
     }
 
     /**
@@ -284,13 +299,13 @@ class SettingsService {
 
         const sql = `
             UPDATE hms_booking_settings
-            SET setting_value = $1, updated_by = $2, updated_at = CURRENT_TIMESTAMP
-            WHERE setting_key = $3
+            SET setting_value = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE setting_key = $2
             RETURNING *
         `;
 
         const stringValue = this.stringifyValue(value);
-        const result = await query(sql, [stringValue, safeUpdatedBy, key]);
+        const result = await query(sql, [stringValue, key]);
 
         if (result.rows.length === 0) {
             throw new Error(`Setting not found: ${key}`);

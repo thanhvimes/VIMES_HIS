@@ -152,7 +152,7 @@ export class QmsCatalogController {
   // 11. GET PROVINCES
   static async getProvinces(req: Request, res: Response) {
     try {
-      const data = await safeQuery("SELECT sp_id as code, sp_name as name FROM sys_prov WHERE sp_active = 'Y'", [], [
+      const data = await safeQuery("SELECT sp_id as code, sp_name as name FROM sys_prov WHERE COALESCE(sp_isactive, sp_active) = 'Y' ORDER BY sp_name", [], [
         { code: '01', name: 'TP. Hà Nội' },
         { code: '79', name: 'TP. Hồ Chí Minh' }
       ]);
@@ -166,7 +166,7 @@ export class QmsCatalogController {
   static async getWards(req: Request, res: Response) {
     const { code } = req.params;
     try {
-      const data = await safeQuery("SELECT sv_id as code, sv_name as name FROM sys_vill WHERE sv_active = 'Y' AND sv_provid = $1 ORDER BY name", [code], [
+      const data = await safeQuery("SELECT sv_id as code, sv_name as name FROM sys_vill WHERE COALESCE(sv_isactive, 'Y') = 'Y' AND (sv_provid = $1 OR sv_distid = $1) ORDER BY sv_name", [code], [
         { code: '001', name: 'Phường Bến Nghé' }
       ]);
       res.json(data);

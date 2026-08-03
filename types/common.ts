@@ -74,6 +74,8 @@ export interface OrganizationInfo {
     governingUnitName: string;
     address: string;
     hotline: string;
+    email?: string;
+    website?: string;
     logoUrl?: string;
 }
 

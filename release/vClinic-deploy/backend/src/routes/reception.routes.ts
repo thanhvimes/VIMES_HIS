@@ -18,6 +18,7 @@ router.get('/statistics', dashboardController.getStatistics.bind(dashboardContro
 
 // ── CATALOGS (Danh mục) ─────────────────────────
 router.get('/catalogs/provinces', catalog.getProvinces.bind(catalog));
+router.get('/catalogs/districts/:provinceId', catalog.getDistricts.bind(catalog));
 router.get('/catalogs/wards/:provinceId', catalog.getWards.bind(catalog));
 router.get('/catalogs/departments', catalog.getDepartments.bind(catalog));
 router.get('/catalogs/rooms', catalog.getRooms.bind(catalog));

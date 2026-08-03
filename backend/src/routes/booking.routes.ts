@@ -25,6 +25,7 @@ router.post('/:id/approve', authMiddleware, management.approveBooking.bind(manag
 router.post('/:id/reject', authMiddleware, management.rejectBooking.bind(management));
 router.post('/:id/cancel', authMiddleware, management.cancelBooking.bind(management));
 router.post('/:id/resend-sms', authMiddleware, management.resendSMS.bind(management));
+router.get('/:id/sms-history', authMiddleware, management.getSMSHistory.bind(management));
 
 // ── STATISTICS ───────────────────────────────────
 router.get('/statistics', authMiddleware, management.getStatistics.bind(management));

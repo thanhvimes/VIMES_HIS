@@ -182,28 +182,36 @@ export const useSystemStore = create<SystemState>()(
             },
             fetchBrandingSettings: async () => {
                 try {
-                    // Primary: get info directly from SYS_COMPANY table
-                    const company = await settingsService.getCompanyInfo();
                     const updates: Partial<SystemState> = { brandingLoaded: true };
-                    if (company.hospitalName) updates.hospitalName = company.hospitalName;
-                    if (company.parentOrg) updates.parentOrg = company.parentOrg;
-                    set(updates);
-                } catch (companyErr) {
-                    console.warn('SYS_COMPANY fetch failed, falling back to settings API:', companyErr);
-                    // Fallback: get from hms_booking_settings (which also queries SYS_COMPANY on backend)
+                    
+                    // Always try to fetch general settings for other keys
                     try {
                         const settings = await settingsService.getSettingsByCategory('general');
-                        const updates: Partial<SystemState> = { brandingLoaded: true };
                         settings.forEach(s => {
-                            if (s.key === 'general_hospital_name') updates.hospitalName = s.value;
-                            if (s.key === 'general_parent_org') updates.parentOrg = s.value;
-                            if (s.key === 'general_system_name') updates.systemName = s.value;
-                            if (s.key === 'general_logo_url') updates.logoUrl = s.value;
+                            if (s.key === 'general_hospital_name' && s.value) updates.hospitalName = s.value;
+                            if (s.key === 'general_parent_org' && s.value) updates.parentOrg = s.value;
+                            if (s.key === 'general_system_name' && s.value) updates.systemName = s.value;
                         });
-                        set(updates);
                     } catch (e) {
-                        console.error('Failed to fetch branding settings:', e);
+                        console.warn('Failed to fetch general settings API:', e);
                     }
+
+                    // Also try to get core details from SYS_COMPANY table directly to ensure they are available
+                    try {
+                        const company = await settingsService.getCompanyInfo();
+                        // Only overwrite if it wasn't already set from settings, or prefer company info?
+                        // Usually company info is the source of truth for hospital name
+                        if (company?.hospitalName) updates.hospitalName = company.hospitalName;
+                        if (company?.parentOrg) updates.parentOrg = company.parentOrg;
+                        // Logo is now stored in SYS_COMPANY
+                        if (company?.logoUrl) updates.logoUrl = company.logoUrl;
+                    } catch (e) {
+                        console.warn('SYS_COMPANY fetch failed:', e);
+                    }
+
+                    set(updates);
+                } catch (err) {
+                    console.error('Fatal error in fetchBrandingSettings:', err);
                 }
             },
             updateBrandingSettings: async (updates) => {

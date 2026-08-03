@@ -19,12 +19,27 @@ class BookingCatalogController {
         }
     }
 
+    // Lấy danh sách quận/huyện theo tỉnh
+    async getDistricts(req: Request, res: Response) {
+        try {
+            const { provinceId } = (req as any).params;
+            const result = await query(
+                `SELECT sd_id as id, sd_name as name FROM sys_dist WHERE sd_active = 'Y' AND sd_provid = $1 ORDER BY sd_name`,
+                [provinceId]
+            );
+            return res.json(result.rows);
+        } catch (error) {
+            console.error('Error getting districts:', error);
+            return res.status(500).json({ error: 'Không thể lấy danh sách quận/huyện' });
+        }
+    }
+
     // Lấy danh sách phường/xã theo tỉnh
     async getWards(req: Request, res: Response) {
         try {
             const { provinceId } = (req as any).params;
             const result = await query(
-                "SELECT sv_id as id, sv_name as name FROM sys_vill WHERE sv_isactive = 'Y' AND sv_provid = $1 ORDER BY sv_name",
+                "SELECT sv_id as id, sv_name as name FROM sys_vill WHERE sv_isactive = 'Y' AND (sv_provid = $1 OR sv_distid = $1) ORDER BY sv_name",
                 [provinceId]
             );
             return res.json(result.rows);
@@ -53,9 +68,30 @@ class BookingCatalogController {
         }
     }
 
+    private async ensureKiosTable() {
+        try {
+            await query(`
+                CREATE TABLE IF NOT EXISTS hms_roomlist_kios (
+                    hrk_idx SERIAL PRIMARY KEY,
+                    hrk_deptid VARCHAR(50) NOT NULL,
+                    hrk_id INTEGER NOT NULL,
+                    hrk_code INTEGER NOT NULL,
+                    hrk_active VARCHAR(1) DEFAULT 'Y',
+                    hrk_createdby VARCHAR(50) DEFAULT 'system',
+                    hrk_createddate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    hrk_updatedby VARCHAR(50) DEFAULT 'system',
+                    hrk_updateddate TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            `);
+        } catch (e) {
+            // ignore if exists
+        }
+    }
+
     // Lấy danh sách LOẠI KHÁM CHUYÊN KHOA
     async getSpecialities(req: AuthRequest, res: Response) {
         try {
+            await this.ensureKiosTable();
             const userDeptId = ((req as any).query.deptId as string) || (req as any).user?.deptId;
 
             let sql = `
@@ -88,6 +124,7 @@ class BookingCatalogController {
     // Lấy danh sách phòng theo LOẠI KHÁM CHUYÊN KHOA
     async getRoomsBySpeciality(req: AuthRequest, res: Response) {
         try {
+            await this.ensureKiosTable();
             const { specialityCode } = (req as any).params;
             const userDeptId = ((req as any).query.deptId as string) || (req as any).user?.deptId;
 

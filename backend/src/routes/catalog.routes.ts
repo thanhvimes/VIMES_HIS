@@ -7,6 +7,7 @@ import catalogController from '../controllers/catalog/catalog.controller';
 const router = express.Router();
 
 router.get('/provinces', catalogController.getProvinces.bind(catalogController));
+router.get('/districts/:provinceId', catalogController.getDistricts.bind(catalogController));
 router.get('/wards/:provinceId', catalogController.getWards.bind(catalogController));
 router.get('/departments', catalogController.getDepartments.bind(catalogController));
 router.get('/rooms', catalogController.getRooms.bind(catalogController));

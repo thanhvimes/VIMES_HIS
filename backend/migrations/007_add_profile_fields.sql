@@ -12,4 +12,4 @@ ALTER TABLE sys_user ADD COLUMN IF NOT EXISTS su_hms_tmvmodule VARCHAR(1);
 ALTER TABLE sys_user ADD COLUMN IF NOT EXISTS su_hms_dsmmodule VARCHAR(1);
 ALTER TABLE sys_user ADD COLUMN IF NOT EXISTS su_hms_itsmodule VARCHAR(1);
 
-ALTER TABLE IF EXISTS hms_exm_contract ADD COLUMN hec_status character varying(1);
+ALTER TABLE IF EXISTS hms_exm_contract ADD COLUMN IF NOT EXISTS hec_status character varying(1);

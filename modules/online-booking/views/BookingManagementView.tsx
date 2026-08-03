@@ -28,6 +28,7 @@ import {
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useNotification } from '../../../contexts/NotificationContext';
 import { useSession } from '../../../contexts/SessionContext';
+import SMSHistoryModal from '../components/SMSHistoryModal';
 import { bookingService, OnlineBookingRecord, BookingSpeciality, LocationItem } from '../../../services/bookingService';
 import { formatDate } from '../../../utils/formatters';
 import { FormDateInput } from '../../../components/ui/forms';
@@ -56,6 +57,7 @@ const BookingManagementView: React.FC = () => {
     const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
     const [printBooking, setPrintBooking] = useState<OnlineBookingRecord | null>(null);
     const [quickBookingTarget, setQuickBookingTarget] = useState<OnlineBookingRecord | null>(null);
+    const [selectedSmsHistoryBooking, setSelectedSmsHistoryBooking] = useState<OnlineBookingRecord | null>(null);
     const [departments, setDepartments] = useState<LocationItem[]>([]);
 
     // Ghost Booking State
@@ -489,9 +491,13 @@ const BookingManagementView: React.FC = () => {
                                             </span>
                                         </td>
                                         <td className="p-4 text-center">
-                                            <div className="flex justify-center">
+                                            <button
+                                                onClick={() => setSelectedSmsHistoryBooking(b)}
+                                                className="flex justify-center mx-auto hover:opacity-80 transition cursor-pointer"
+                                                title="Click để xem nhật ký SMS"
+                                            >
                                                 {getSmsBadge(b.smsStatus || 'Pending')}
-                                            </div>
+                                            </button>
                                         </td>
                                         <td className="p-4 text-center">
                                             {getStatusBadge(b.status)}
@@ -526,6 +532,13 @@ const BookingManagementView: React.FC = () => {
                                                         <PaperAirplaneIcon className="w-4 h-4 -rotate-45" />
                                                     </button>
                                                 )}
+                                                <button
+                                                    onClick={() => setSelectedSmsHistoryBooking(b)}
+                                                    className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition"
+                                                    title="Xem lịch sử tin nhắn SMS"
+                                                >
+                                                    <EyeIcon className="w-4 h-4" />
+                                                </button>
                                                 <button
                                                     onClick={() => setQuickBookingTarget(b)}
                                                     className="p-2 bg-teal-50 text-teal-600 rounded-lg hover:bg-teal-100 transition"
@@ -748,6 +761,14 @@ const BookingManagementView: React.FC = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* SMS History Modal */}
+            {selectedSmsHistoryBooking && (
+                <SMSHistoryModal
+                    booking={selectedSmsHistoryBooking}
+                    onClose={() => setSelectedSmsHistoryBooking(null)}
+                />
             )}
         </div>
     );

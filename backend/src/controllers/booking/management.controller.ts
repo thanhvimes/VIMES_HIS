@@ -4,10 +4,12 @@
 import { Request, Response } from 'express';
 import { query } from '../../config/database';
 import notificationService from '../../services/notification.service';
+import smsTemplateService from '../../services/sms-template.service';
 import { AuthRequest } from '../../middleware/authMiddleware';
 
 export interface BookingStats {
     total: number;
+    pending: number;
     approved: number;
     rejected: number;
     arrived: number;
@@ -80,14 +82,14 @@ class BookingManagementController {
             // Normalize gender to 'M' or 'F' before stored procedure call (fallback to 'F')
             const dbGender = (gender && (gender.toLowerCase() === 'm' || gender.toLowerCase().includes('nam'))) ? 'M' : 'F';
 
-            // Call stored procedure qms_patient_create_booking
+            // Call stored procedure qms_patient_create_booking with explicit parameter type casts
             const result = await query(`
                 SELECT qms_patient_create_booking(
-                    $1, $2, $3, $4, $5, 
-                    $6, $7, $8, $9, $10,
-                    $11, $12, $13, $14, $15,
-                    $16, $17, $18, $19, $20,
-                    $21, $22, $23
+                    $1::text, $2::text, $3::date, $4::text, $5::text, 
+                    $6::integer, $7::integer, $8::integer, $9::text, $10::text,
+                    $11::text, $12::integer, $13::date, $14::text, $15::text,
+                    $16::integer, $17::text, $18::text, $19::text, $20::date,
+                    $21::boolean, $22::boolean, $23::text
                 ) as booking_id;
             `, [
                 idCard, name, birthDate, dbGender, ethnic || '1',
@@ -126,8 +128,8 @@ class BookingManagementController {
                     date: formattedDate, time: fullData.qms_appointment_time,
                     bookingId: fullData.qms_idx, receptNo: fullData.qms_receptno,
                     queueNumber: fullData.qms_receptno, specialtyName: fullData.specialtyName || '',
-                    roomName: fullData.roomName || '', deptId: fullData.qms_specialty_code || fullData.qms_deptid,
-                    patientType: isInsurance ? 'BH' : 'DV'
+                    roomName: fullData.roomName || '', deptId: fullData.qms_deptid,
+                    patientType: fullData.qms_is_insurance ? 'BH' : 'DV'
                 });
             }
 
@@ -275,7 +277,7 @@ class BookingManagementController {
                     date: formattedDate, time: bookingData.qms_appointment_time,
                     bookingId: bookingData.qms_idx, receptNo: bookingData.qms_receptno,
                     queueNumber: bookingData.qms_receptno, specialtyName: bookingData.specialtyName || '',
-                    roomName: bookingData.roomName || '', deptId: bookingData.qms_specialty_code || bookingData.qms_deptid,
+                    roomName: bookingData.roomName || '', deptId: bookingData.qms_deptid,
                     patientType: bookingData.qms_is_insurance ? 'BH' : 'DV'
                 });
 
@@ -317,6 +319,36 @@ class BookingManagementController {
                   )
             `, [id]);
 
+            // Query booking details to send cancellation SMS
+            const bookingDetails = await query(`
+                SELECT q.*, s.ss_desc as "specialtyName", rl.hrl_roomname as "roomName"
+                FROM qms_patient q
+                LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND (k.hrk_deptid = q.qms_deptid OR k.hrk_deptid = 'KB') AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
+                LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code = k.hrk_code::varchar)
+                LEFT JOIN hms_roomlist rl ON (rl.hrl_id = q.qms_roomid AND (rl.hrl_deptid = q.qms_deptid OR rl.hrl_deptid = 'KB'))
+                WHERE q.qms_idx = $1
+            `, [id]);
+
+            if (bookingDetails.rows.length > 0) {
+                const bookingData = bookingDetails.rows[0];
+                const d = new Date(bookingData.qms_appointment_date);
+                const formattedDate = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+
+                try {
+                    await notificationService.sendSMS(bookingData.qms_contact, 'booking_cancellation', {
+                        name: bookingData.qms_patientname, patientName: bookingData.qms_patientname,
+                        date: formattedDate, time: bookingData.qms_appointment_time,
+                        bookingId: bookingData.qms_idx, receptNo: bookingData.qms_receptno,
+                        queueNumber: bookingData.qms_receptno, specialtyName: bookingData.specialtyName || '',
+                        roomName: bookingData.roomName || '', deptId: bookingData.qms_deptid,
+                        patientType: bookingData.qms_is_insurance ? 'BH' : 'DV',
+                        reason: reason || 'Bệnh viện từ chối lịch hẹn'
+                    });
+                } catch (smsErr: any) {
+                    console.warn('⚠️ Warning: Failed to send rejection SMS:', smsErr.message);
+                }
+            }
+
             return res.json({ success: true, message: 'Đã từ chối booking' });
         } catch (error) {
             console.error('Error rejecting booking:', error);
@@ -331,6 +363,15 @@ class BookingManagementController {
         try {
             const { id } = (req as any).params;
             const { reason } = (req as any).body;
+
+            // Query booking data BEFORE updating so we still have it for SMS
+            const bookingDetails = await query(`
+                SELECT q.*, rl.hrl_roomname as "roomName"
+                FROM qms_patient q
+                LEFT JOIN hms_roomlist rl ON (rl.hrl_id = q.qms_roomid AND rl.hrl_deptid = q.qms_deptid)
+                WHERE q.qms_idx = $1
+            `, [id]);
+
             await query(`UPDATE qms_patient SET qms_status = 'C', qms_comment = $2, qms_updateddate = NOW() WHERE qms_idx = $1`, [id, reason || 'Người dùng hủy']);
             
             // Release the slot in hms_schedule_exam if no other active bookings exist for it
@@ -351,6 +392,26 @@ class BookingManagementController {
                         AND q.qms_idx != $1
                   )
             `, [id]);
+
+            // Send cancellation SMS
+            if (bookingDetails.rows.length > 0) {
+                const bookingData = bookingDetails.rows[0];
+                const d = new Date(bookingData.qms_appointment_date);
+                const formattedDate = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                try {
+                    await notificationService.sendSMS(bookingData.qms_contact, 'booking_cancellation', {
+                        name: bookingData.qms_patientname, patientName: bookingData.qms_patientname,
+                        date: formattedDate, time: bookingData.qms_appointment_time,
+                        bookingId: bookingData.qms_idx, receptNo: bookingData.qms_receptno,
+                        queueNumber: bookingData.qms_receptno, roomName: bookingData.roomName || '',
+                        deptId: bookingData.qms_deptid,
+                        patientType: bookingData.qms_is_insurance ? 'BH' : 'DV',
+                        reason: reason || 'Người dùng yêu cầu hủy'
+                    });
+                } catch (smsErr: any) {
+                    console.warn('⚠️ Warning: Failed to send cancellation SMS:', smsErr.message);
+                }
+            }
 
             return res.json({ success: true, message: 'Đã hủy lịch hẹn' });
         } catch (error) {
@@ -391,7 +452,7 @@ class BookingManagementController {
                 date: formattedDate, time: bookingData.qms_appointment_time,
                 bookingId: bookingData.qms_idx, receptNo: bookingData.qms_receptno,
                 queueNumber: bookingData.qms_receptno, specialtyName: bookingData.specialtyName || '',
-                roomName: bookingData.roomName || '', deptId: bookingData.qms_specialty_code || bookingData.qms_deptid,
+                roomName: bookingData.roomName || '', deptId: bookingData.qms_deptid,
                 patientType: bookingData.qms_is_insurance ? 'BH' : 'DV'
             });
 
@@ -399,6 +460,20 @@ class BookingManagementController {
         } catch (error: any) {
             console.error('Error resending SMS:', error);
             return res.status(500).json({ error: 'Không thể gửi lại tin nhắn: ' + error.message });
+        }
+    }
+
+    /**
+     * Get SMS history for a specific booking
+     */
+    async getSMSHistory(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const logs = await smsTemplateService.getSMSLogsByBooking(Number(id));
+            return res.json({ success: true, data: logs });
+        } catch (error: any) {
+            console.error('Error fetching SMS history:', error);
+            return res.status(500).json({ error: 'Không thể lấy lịch sử SMS: ' + error.message });
         }
     }
 
@@ -414,6 +489,7 @@ class BookingManagementController {
             const kpis = await query(`
                 SELECT 
                     COUNT(*) as total,
+                    COUNT(*) FILTER (WHERE qms_status = 'O') as pending,
                     COUNT(*) FILTER (WHERE qms_status = 'S') as approved,
                     COUNT(*) FILTER (WHERE qms_status = 'C') as rejected,
                     COUNT(*) FILTER (WHERE qms_chkindte IS NOT NULL) as arrived
@@ -424,6 +500,7 @@ class BookingManagementController {
             const rawKpi = kpis.rows[0];
             const kpiData: BookingStats = {
                 total: parseInt(String(rawKpi?.total || 0)),
+                pending: parseInt(String(rawKpi?.pending || 0)),
                 approved: parseInt(String(rawKpi?.approved || 0)),
                 rejected: parseInt(String(rawKpi?.rejected || 0)),
                 arrived: parseInt(String(rawKpi?.arrived || 0)),

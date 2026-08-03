@@ -57,6 +57,19 @@ export async function loadHealthCheckSettings(): Promise<HealthCheckSettings | n
         await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_username varchar(100)`);
         await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_password text`);
         await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_client_id varchar(100)`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_client_secret text`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS ma_cskcb_byt varchar(20)`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS reception_slip_template text`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS use_qz_tray boolean DEFAULT false`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_label_size_xn varchar(50)`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_label_size_ksk varchar(50)`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_show_hospital boolean DEFAULT true`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_show_date boolean DEFAULT true`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_show_sample_type boolean DEFAULT true`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS allow_unsigned_sync boolean DEFAULT false`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_zpl_template_xn text`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_zpl_template_ksk text`);
+        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_printer_name varchar(255)`);
         // Auto-migrate any existing XML records in DB from <TYPE>Child</TYPE> to <TYPE>ChildUnder</TYPE>
         try {
             await query(`UPDATE health_check_masters SET xml_data = REPLACE(xml_data, '<TYPE>Child</TYPE>', '<TYPE>ChildUnder</TYPE>') WHERE xml_data LIKE '%<TYPE>Child</TYPE>%'`);
