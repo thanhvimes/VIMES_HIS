@@ -16,6 +16,8 @@ export interface DynamicFormContextType {
     setIsFetchingHis: React.Dispatch<React.SetStateAction<boolean>>;
     hisSyncMessage: { type: 'success' | 'error', text: string } | null;
     setHisSyncMessage: React.Dispatch<React.SetStateAction<{ type: 'success' | 'error', text: string } | null>>;
+    hisSource: 'HEALTH_CHECK_MASTER' | 'HIS_DIRECT' | null;
+    setHisSource: React.Dispatch<React.SetStateAction<'HEALTH_CHECK_MASTER' | 'HIS_DIRECT' | null>>;
     handleFetchHisData: () => Promise<void>;
 
     // State for Specialty Exam tabs

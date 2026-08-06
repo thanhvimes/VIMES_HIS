@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
+import { requireEnv } from '../config/env';
 
 // Load .env robustly from multiple fallback locations
 const envPath = fs.existsSync(path.join(__dirname, '../../.env'))
@@ -36,11 +37,7 @@ class SecurityUtils {
      * @returns The master key for generating cryptographic keys.
      */
     static getMasterKey(): string {
-        const key = process.env.VIMES_SECURITY_KEY || 'default-secret-vClinic-2026-key-32chars';
-        if (!process.env.VIMES_SECURITY_KEY && process.env.NODE_ENV === 'production') {
-            console.error('❌ CRITICAL: VIMES_SECURITY_KEY is not set in production!');
-        }
-        return key;
+        return requireEnv('VIMES_SECURITY_KEY');
     }
 
     /**

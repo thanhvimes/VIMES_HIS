@@ -5,6 +5,7 @@ import { Request, Response } from 'express';
 import { query } from '../../config/database';
 import { sign } from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
+import { env, requireEnv } from '../../config/env';
 
 export interface PortalProfile {
     id: string;
@@ -164,9 +165,9 @@ class PortalAuthController {
             }
 
             const token = sign(
-                { userId: account.id, phone: normalizedPhone, role: 'PORTAL_USER' },
-                process.env.JWT_SECRET || 'vimes_portal_secret_key',
-                { expiresIn: '24h' as any }
+                { userId: account.id, phone: normalizedPhone, role: 'PORTAL_USER', tokenType: 'portal' },
+                requireEnv('JWT_SECRET'),
+                { expiresIn: env.jwtExpiresIn as any }
             );
 
             return res.json({

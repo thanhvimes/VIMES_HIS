@@ -10,6 +10,7 @@ interface PrintFormMau3Props {
     doctors: any[];
     icd10Names: Record<string, string>;
     COMMON_ICD10: { code: string; name: string }[];
+    doctorSignatures?: Record<string, string>;
 }
 
 const STATIC_LABELS = {
@@ -137,7 +138,8 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
     getConclusionDoctorName,
     doctors,
     icd10Names,
-    COMMON_ICD10
+    COMMON_ICD10,
+    doctorSignatures
 }) => {
     const normalizeObject = (obj: any): any => {
         if (!obj) return obj;
@@ -257,7 +259,8 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
         const metaKey = metadataMap[specialty];
         const docMeta = clinical.specialty_metadata?.[metaKey] || clinicalExam.specialty_metadata?.[metaKey];
         if (docMeta?.doctorId) {
-            const found = doctors.find(d => String(d.id || d.hee_employee_id) === String(docMeta.doctorId));
+            const found = doctors.find(d => [d.id, d.hee_employee_id, d.code, d.username]
+                .some(value => String(value || '').trim().toUpperCase() === String(docMeta.doctorId).trim().toUpperCase()));
             if (found) return found.name || found.hee_fullname;
         }
 
@@ -265,6 +268,101 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
             return clinicalExam.specialty_metadata[metaKey].doctorName;
         }
         return '';
+    };
+
+    const normalizeSignatureKey = (value: any) => String(value || '')
+        .trim()
+        .toUpperCase()
+        .replace(/^HMS_/, '')
+        .replace(/\.JPE?G\.?$/, '');
+
+    const findDoctorByIdentifier = (identifier: any) => {
+        const wanted = normalizeSignatureKey(identifier);
+        if (!wanted) return undefined;
+        return doctors.find(d => [d.id, d.hee_employee_id, d.code, d.username]
+            .some(value => normalizeSignatureKey(value) === wanted));
+    };
+
+    const resolveDoctorSignature = (...candidates: any[]) => {
+        if (!doctorSignatures) return null;
+        const normalizedSignatures = new Map(
+            Object.entries(doctorSignatures).map(([key, value]) => [normalizeSignatureKey(key), value])
+        );
+        for (const candidate of candidates) {
+            const normalized = normalizeSignatureKey(candidate);
+            if (normalized && normalizedSignatures.has(normalized)) {
+                return normalizedSignatures.get(normalized) || null;
+            }
+        }
+        return null;
+    };
+
+    const renderDoctorCell = (specialty: string) => {
+        const docName = getDoctor(specialty);
+        if (!docName) return null;
+
+        const metadataMap: Record<string, string> = {
+            tuan_hoan: 'internal',
+            ho_hap: 'internal',
+            tieu_hoa: 'internal',
+            than_tiet_nieu: 'internal',
+            than_kinh: 'internal',
+            tam_than: 'internal',
+            co_xuong_khop: 'internal',
+            noi_tiet: 'internal',
+            ngoai_khoa: 'surgery',
+            san_phu_khoa: 'gynecological',
+            mat: 'eye',
+            tai_mui_hong: 'ent',
+            rang_ham_mat: 'dental',
+            da_lieu: 'dermatology',
+            lab: 'lab',
+            imaging: 'imaging'
+        };
+        
+        const metaKey = metadataMap[specialty];
+        const docMeta = clinical.specialty_metadata?.[metaKey] || clinicalExam.specialty_metadata?.[metaKey];
+
+        const doctorByMetadata = findDoctorByIdentifier(docMeta?.doctorCode)
+            || findDoctorByIdentifier(docMeta?.doctorUsername)
+            || findDoctorByIdentifier(docMeta?.doctorId);
+        const doctorByName = doctors.find(d => (d.name || d.hee_fullname) === docName);
+        const matchedDoctor = doctorByMetadata || doctorByName;
+        let docCode = (docMeta?.doctorCode || docMeta?.doctorUsername || matchedDoctor?.code
+            || matchedDoctor?.username || matchedDoctor?.hee_employee_id || docMeta?.doctorId || '').toString().trim().toUpperCase();
+
+        if (!docCode) {
+            const conclusion = document.conclusion_data || document.conclusionData || {};
+            docCode = (conclusion.doctor_code || conclusion.doctor_username || conclusion.conclusion_doctor || conclusion.doctor || '').toString().trim().toUpperCase();
+        }
+
+        const sigImg = resolveDoctorSignature(
+            docCode,
+            docMeta?.doctorCode,
+            docMeta?.doctorUsername,
+            docMeta?.doctorId,
+            matchedDoctor?.code,
+            matchedDoctor?.username,
+            matchedDoctor?.id,
+            matchedDoctor?.hee_employee_id,
+            matchedDoctor?.name,
+            matchedDoctor?.hee_fullname,
+            docName
+        );
+        const displayName = docName.startsWith('BS.') ? docName : `BS. ${docName}`;
+
+        return (
+            <div className="flex items-center justify-center gap-2 py-1 min-h-[44px]">
+                {sigImg && (
+                    <img 
+                        src={sigImg} 
+                        alt="Chữ ký" 
+                        className="h-10 max-w-[100px] object-contain shrink-0" 
+                    />
+                )}
+                <span className="font-bold text-[12px] text-slate-800 leading-tight">{displayName}</span>
+            </div>
+        );
     };
 
     const getPl = (specialty: string) => {
@@ -478,7 +576,7 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
 
                         <div className="mt-2 text-[13px]">
                             <span className="font-bold">{L.lblTienSuBanThan}</span>
-                            <table className="a4-table w-full mt-1.5">
+                            <table className="a4-table w-full mt-1.5" data-mau3-history-part="1">
                                 <thead>
                                     <tr className="font-bold text-center bg-gray-50">
                                         <th className="w-[5%]">{L.colTT}</th>
@@ -557,13 +655,13 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                         </div>
                     </div>
                 </div>
-                <div className="text-right text-[11px] text-gray-500 font-sans">Trang 1/4</div>
+                <div className="text-right text-[11px] text-gray-500 font-sans" data-mau3-page-number>Trang 1/3</div>
             </div>
 
             {/* ==================== PAGE 2 ==================== */}
             <div className="a4-page flex flex-col justify-between">
                 <div>
-                    <table className="a4-table w-full">
+                    <table className="a4-table w-full" data-mau3-history-part="2">
                         <thead>
                             <tr className="font-bold text-center bg-gray-50">
                                 <th className="w-[5%]">{L.colTT}</th>
@@ -703,56 +801,56 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                                         <span className="font-bold">{L.lblTuanHoan}</span> <span className="text-slate-800">{clinicalExam.tuan_hoan || clinicalExam.internal || 'Bình thường'}</span>
                                         {renderPl('tuan_hoan')}
                                     </td>
-                                    <td className="text-center font-bold text-slate-700">{getDoctor('tuan_hoan')}</td>
+                                    <td className="text-center font-bold text-slate-700">{renderDoctorCell('tuan_hoan')}</td>
                                 </tr>
                                 <tr>
                                     <td>
                                         <span className="font-bold">{L.lblHoHap}</span> <span className="text-slate-800">{clinicalExam.ho_hap || clinicalExam.internal || 'Bình thường, tốt'}</span>
                                         {renderPl('ho_hap')}
                                     </td>
-                                    <td className="text-center font-bold text-slate-700">{getDoctor('ho_hap')}</td>
+                                    <td className="text-center font-bold text-slate-700">{renderDoctorCell('ho_hap')}</td>
                                 </tr>
                                 <tr>
                                     <td>
                                         <span className="font-bold">{L.lblTieuHoa}</span> <span className="text-slate-800">{clinicalExam.tieu_hoa || clinicalExam.internal || 'Bình thường'}</span>
                                         {renderPl('tieu_hoa')}
                                     </td>
-                                    <td className="text-center font-bold text-slate-700">{getDoctor('tieu_hoa')}</td>
+                                    <td className="text-center font-bold text-slate-700">{renderDoctorCell('tieu_hoa')}</td>
                                 </tr>
                                 <tr>
                                     <td>
                                         <span className="font-bold">{L.lblThanTietNieu}</span> <span className="text-slate-800">{clinicalExam.than_tiet_nieu || clinicalExam.internal || 'Bình thường'}</span>
                                         {renderPl('than_tiet_nieu')}
                                     </td>
-                                    <td className="text-center font-bold text-slate-700">{getDoctor('than_tiet_nieu')}</td>
+                                    <td className="text-center font-bold text-slate-700">{renderDoctorCell('than_tiet_nieu')}</td>
                                 </tr>
                                 <tr>
                                     <td>
                                         <span className="font-bold">{L.lblNoiTiet}</span> <span className="text-slate-800">{clinicalExam.noi_tiet || clinicalExam.internal || 'Bình thường'}</span>
                                         {renderPl('noi_tiet')}
                                     </td>
-                                    <td className="text-center font-bold text-slate-700">{getDoctor('noi_tiet')}</td>
+                                    <td className="text-center font-bold text-slate-700">{renderDoctorCell('noi_tiet')}</td>
                                 </tr>
                                 <tr>
                                     <td>
                                         <span className="font-bold">{L.lblCoXuongKhop}</span> <span className="text-slate-800">{clinicalExam.co_xuong_khop || clinicalExam.internal || 'Bình thường'}</span>
                                         {renderPl('co_xuong_khop')}
                                     </td>
-                                    <td className="text-center font-bold text-slate-700">{getDoctor('co_xuong_khop')}</td>
+                                    <td className="text-center font-bold text-slate-700">{renderDoctorCell('co_xuong_khop')}</td>
                                 </tr>
                                 <tr>
                                     <td>
                                         <span className="font-bold">{L.lblThanKinh}</span> <span className="text-slate-800">{clinicalExam.than_kinh || clinicalExam.internal || 'Bình thường'}</span>
                                         {renderPl('than_kinh')}
                                     </td>
-                                    <td className="text-center font-bold text-slate-700">{getDoctor('than_kinh')}</td>
+                                    <td className="text-center font-bold text-slate-700">{renderDoctorCell('than_kinh')}</td>
                                 </tr>
                                 <tr>
                                     <td>
                                         <span className="font-bold">{L.lblTamThan}</span> <span className="text-slate-800">{clinicalExam.tam_than || clinicalExam.internal || 'Bình thường'}</span>
                                         {renderPl('tam_than')}
                                     </td>
-                                    <td className="text-center font-bold text-slate-700">{getDoctor('tam_than')}</td>
+                                    <td className="text-center font-bold text-slate-700">{renderDoctorCell('tam_than')}</td>
                                 </tr>
                                 <tr className="font-bold">
                                     <td colSpan={2} className="bg-gray-100/50">{L.lblNgoaiKhoa}</td>
@@ -762,18 +860,18 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                                         <span className="text-slate-800">{clinicalExam.surgery || clinicalExam.ngoai_khoa || clinicalExam.external || 'Bình thường'}</span>
                                         {renderPl('ngoai_khoa')}
                                     </td>
-                                    <td className="text-center font-bold text-slate-700">{getDoctor('ngoai_khoa')}</td>
+                                    <td className="text-center font-bold text-slate-700">{renderDoctorCell('ngoai_khoa')}</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
-                <div className="text-right text-[11px] text-gray-500 font-sans">Trang 2/4</div>
+                <div className="text-right text-[11px] text-gray-500 font-sans" data-mau3-page-number>Trang 2/3</div>
             </div>
 
             {/* ==================== PAGE 3 ==================== */}
-            <div className="a4-page flex flex-col justify-between">
-                <div>
+            <div className="a4-page flex flex-col justify-between" data-mau3-page="3">
+                <div data-mau3-page-three-main>
                     <table className="a4-table w-full">
                         <thead>
                             <tr className="font-bold bg-gray-50 text-center">
@@ -787,7 +885,7 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                                     <span className="font-bold">{L.lblDaLieu}</span> <span className="text-slate-800">{clinicalExam.dermatology || clinicalExam.kham_da_lieu || clinicalExam.kq_da_lieu || 'Bình thường'}</span>
                                     {renderPl('da_lieu')}
                                 </td>
-                                <td className="text-center font-bold text-slate-700">{getDoctor('da_lieu')}</td>
+                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('da_lieu')}</td>
                             </tr>
                             {isNu && (
                                 <tr>
@@ -795,7 +893,7 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                                         <span className="font-bold">{L.lblSanPhuKhoa}</span> <span className="text-slate-800">{clinicalExam.gynecological || clinicalExam.phu_khoa || clinicalExam.gynecology || 'Bình thường'}</span>
                                         {renderPl('san_phu_khoa')}
                                     </td>
-                                    <td className="text-center font-bold text-slate-700">{getDoctor('san_phu_khoa')}</td>
+                                    <td className="text-center font-bold text-slate-700">{renderDoctorCell('san_phu_khoa')}</td>
                                 </tr>
                             )}
                             <tr>
@@ -814,7 +912,7 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                                     </div>
                                     {renderPl('mat')}
                                 </td>
-                                <td className="text-center font-bold text-slate-700">{getDoctor('mat')}</td>
+                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('mat')}</td>
                             </tr>
                             <tr>
                                 <td>
@@ -829,7 +927,7 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                                     </div>
                                     {renderPl('tai_mui_hong')}
                                 </td>
-                                <td className="text-center font-bold text-slate-700">{getDoctor('tai_mui_hong')}</td>
+                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('tai_mui_hong')}</td>
                             </tr>
                             <tr>
                                 <td>
@@ -840,7 +938,7 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                                     </div>
                                     {renderPl('rang_ham_mat')}
                                 </td>
-                                <td className="text-center font-bold text-slate-700">{getDoctor('rang_ham_mat')}</td>
+                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('rang_ham_mat')}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -869,7 +967,7 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                                             <div>{L.lblAlat} <span className="font-semibold">{alatVal}</span></div>
                                         </div>
                                     </td>
-                                    <td className="text-center font-bold text-slate-700">{getDoctor('lab') || getDoctor('internal')}</td>
+                                    <td className="text-center font-bold text-slate-700">{renderDoctorCell('lab') || renderDoctorCell('tuan_hoan')}</td>
                                 </tr>
                                 <tr>
                                     <td>
@@ -878,7 +976,7 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                                             {L.lblXnNuocTieuMay} <span className="font-semibold">{urineTest}</span>
                                         </div>
                                     </td>
-                                    <td className="text-center font-bold text-slate-700">{getDoctor('lab') || getDoctor('internal')}</td>
+                                    <td className="text-center font-bold text-slate-700">{renderDoctorCell('lab') || renderDoctorCell('tuan_hoan')}</td>
                                 </tr>
                                 <tr>
                                     <td>
@@ -887,7 +985,7 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                                             {L.lblXqResult} <span className="font-semibold">{xqResult}</span>
                                         </div>
                                     </td>
-                                    <td className="text-center font-bold text-slate-700">{getDoctor('imaging')}</td>
+                                    <td className="text-center font-bold text-slate-700">{renderDoctorCell('imaging') || renderDoctorCell('tuan_hoan')}</td>
                                 </tr>
                                 <tr>
                                     <td>
@@ -914,12 +1012,12 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                         </table>
                     </div>
                 </div>
-                <div className="text-right text-[11px] text-gray-500 font-sans">Trang 3/4</div>
+                <div className="text-right text-[11px] text-gray-500 font-sans" data-mau3-page-number>Trang 3/3</div>
             </div>
 
             {/* ==================== PAGE 4 ==================== */}
-            <div className="a4-page flex flex-col justify-between">
-                <div>
+            <div className="a4-page flex flex-col justify-between" data-mau3-page="4">
+                <div data-mau3-conclusion-content>
                     <h2 className="font-bold text-[14px] uppercase tracking-wide border-b border-black pb-0.5 mb-3">{L.titleKetLuan}</h2>
                     
                     <div className="text-[13.5px] space-y-3 leading-relaxed mt-2">
@@ -945,20 +1043,46 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                             <strong className="block font-bold uppercase tracking-wider mb-2">{L.lblNguoiKetLuan}</strong>
                             <span className="italic text-[11px] block mb-4">{L.lblKyGhiRoDongDau}</span>
                             
-                            {docNormalized.signature_status === 'Signed' ? (
-                                <div className="my-2 p-2 border border-green-600 rounded bg-green-50/50 text-[11px] font-bold text-green-700 leading-tight text-left w-full shadow-sm max-w-[240px] font-sans">
-                                    <div className="flex items-center gap-1 mb-1 text-green-800">
-                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                        </svg>
-                                        <span>SIGNED DIGITALLY</span>
-                                    </div>
-                                    By: {hospitalNameNormalized || 'Bệnh viện đa khoa tỉnh Ninh Bình'}<br/>
-                                    Time: {docNormalized.updated_at ? new Date(docNormalized.updated_at).toLocaleString('vi-VN') : '2026-06-03'}
-                                </div>
-                            ) : (
-                                <div className="h-16"></div>
-                            )}
+                            {(() => {
+                                const docCode = (conclusion.doctor_code || conclusion.doctor_username || conclusion.conclusion_doctor || conclusion.doctor || '').toString().trim().toUpperCase();
+                                const conclusionDoctor = findDoctorByIdentifier(docCode)
+                                    || doctors.find(d => (d.name || d.hee_fullname) === getConclusionDoctorName());
+                                const sigImg = resolveDoctorSignature(
+                                    docCode,
+                                    conclusion.doctor_code,
+                                    conclusion.doctor_username,
+                                    conclusion.conclusion_doctor,
+                                    conclusion.doctor,
+                                    conclusionDoctor?.code,
+                                    conclusionDoctor?.username,
+                                    conclusionDoctor?.id,
+                                    conclusionDoctor?.hee_employee_id,
+                                    conclusionDoctor?.name,
+                                    conclusionDoctor?.hee_fullname,
+                                    getConclusionDoctorName()
+                                );
+
+                                if (docNormalized.signature_status === 'Signed' && !sigImg) {
+                                    return (
+                                        <div className="my-2 p-2 border border-green-600 rounded bg-green-50/50 text-[11px] font-bold text-green-700 leading-tight text-left w-full shadow-sm max-w-[240px] font-sans">
+                                            <div className="flex items-center gap-1 mb-1 text-green-800">
+                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                                </svg>
+                                                <span>SIGNED DIGITALLY</span>
+                                            </div>
+                                            By: {hospitalNameNormalized || 'Bệnh viện đa khoa tỉnh Ninh Bình'}<br/>
+                                            Time: {docNormalized.updated_at ? new Date(docNormalized.updated_at).toLocaleString('vi-VN') : '2026-06-03'}
+                                        </div>
+                                    );
+                                }
+
+                                if (sigImg) {
+                                    return <img src={sigImg} alt="Chữ ký bác sĩ" className="h-16 max-w-[180px] object-contain my-1" />;
+                                }
+
+                                return <div className="h-16"></div>;
+                            })()}
                             
                             <span className="font-bold text-[14px] mt-2 block">{getConclusionDoctorName()}</span>
                         </div>

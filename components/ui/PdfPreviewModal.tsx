@@ -97,6 +97,7 @@ const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
   // Refs
   const viewerContainerRef = useRef<HTMLDivElement>(null);
   const pageWrapperRef = useRef<HTMLDivElement>(null);
+  const initialFitDone = useRef(false);
   const [pageDimensions, setPageDimensions] = useState<{ width: number; height: number } | null>(null);
 
   // Smooth Scroll Navigation
@@ -205,6 +206,7 @@ const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
       setIsPlacingSignature(false);
       setScale(1.0);
       setIsPanMode(false);
+      initialFitDone.current = false;
       // Auto-close sidebar and trigger fit on small screens when modal first opens
       if (window.innerWidth < 768) {
         setIsSidebarOpen(false);
@@ -215,6 +217,15 @@ const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
       setIsShowing(false);
     }
   }, [isOpen, pdfUrl]);
+
+  // Stable memoized docFile reference to prevent react-pdf from re-loading PDF on every render
+  const docFile = useMemo(() => {
+    if (!pdfUrl) return null;
+    if (typeof pdfUrl === 'string' && pdfUrl.startsWith('blob:')) {
+      return { url: pdfUrl, withCredentials: false };
+    }
+    return pdfUrl;
+  }, [pdfUrl]);
 
   // Extract signatures from PDF annotations
   const extractSignatures = async (pdfClickHandler: any) => {
@@ -289,26 +300,27 @@ const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
   }, []);
 
   const onPageLoadSuccess = useCallback((page: { width: number; height: number, originalWidth?: number, originalHeight?: number }) => {
-    const originalWidth = page.originalWidth || (page.width / scale);
-    const originalHeight = page.originalHeight || (page.height / scale);
-    setPageDimensions({ width: originalWidth, height: originalHeight });
+    const origW = page.originalWidth || page.width;
+    const origH = page.originalHeight || page.height;
+    setPageDimensions({ width: origW, height: origH });
 
-    if (pageNumber === 1 && viewerContainerRef.current) {
+    if (!initialFitDone.current && viewerContainerRef.current) {
+      initialFitDone.current = true;
       const isSmall = window.innerWidth < 768;
       const containerWidth = viewerContainerRef.current.clientWidth - 48;
       const containerHeight = viewerContainerRef.current.clientHeight - 48;
 
       if (isSmall) {
         // On small screens: always Page Fit so content fills exactly
-        const scaleX = containerWidth / originalWidth;
-        const scaleY = containerHeight / originalHeight;
+        const scaleX = containerWidth / origW;
+        const scaleY = containerHeight / origH;
         setScale(parseFloat(Math.min(scaleX, scaleY).toFixed(2)));
-      } else if (scale === 1.0 && originalWidth > containerWidth) {
+      } else if (origW > containerWidth) {
         // On desktop: fit width if wider than container
-        setScale(parseFloat((containerWidth / originalWidth).toFixed(2)));
+        setScale(parseFloat((containerWidth / origW).toFixed(2)));
       }
     }
-  }, [scale, pageNumber]);
+  }, []);
 
   // --- ACTIONS ---
   const handleClose = useCallback(() => {
@@ -755,7 +767,7 @@ const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
                   </div>
                 ) : (
                   <Document
-                    file={pdfUrl}
+                    file={docFile}
                     loading={null}
                     onLoadSuccess={onDocumentLoadSuccess}
                     onLoadError={(e) => { setError(e.message); setIsLoading(false); }}

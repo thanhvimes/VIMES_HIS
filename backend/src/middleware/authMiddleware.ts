@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+import { requireEnv } from '../config/env';
 
 /**
  * Interface to extend Express Request with user data from JWT
@@ -13,6 +12,7 @@ export type AuthRequest = Request<any, any, any, any> & {
     groupId?: string | number;
     deptId?: string;
     permissions?: string[];
+    tokenType?: 'staff' | 'portal';
 };
 
 interface JwtPayload {
@@ -20,6 +20,7 @@ interface JwtPayload {
     groupId: string | number;
     deptId?: string;
     permissions?: string[];
+    tokenType?: 'staff' | 'portal';
     iat?: number;
     exp?: number;
 }
@@ -28,9 +29,6 @@ const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => 
     try {
         const r = req as any;
         const authHeader = r.headers?.authorization || (typeof r.get === 'function' ? r.get('authorization') : r.header?.('authorization'));
-
-        console.log('[authMiddleware] ========== START ==========');
-        console.log('[authMiddleware] Authorization header:', authHeader ? authHeader.substring(0, 50) + '...' : 'MISSING');
 
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             console.log('[authMiddleware] ❌ No Bearer token found');
@@ -41,21 +39,16 @@ const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => 
         }
 
         const token = authHeader.substring(7); // Remove "Bearer "
-        console.log('[authMiddleware] Token extracted:', token.substring(0, 30) + '...');
 
         // Verify token with typed payload
-        const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
-        console.log('[authMiddleware] ✅ Token verified successfully');
-        console.log('[authMiddleware] Decoded payload:', decoded);
+        const decoded = jwt.verify(token, requireEnv('JWT_SECRET')) as JwtPayload;
 
         // Map Decoded payload to Request object
         req.userId = decoded.userId;
         req.groupId = decoded.groupId;
         req.deptId = decoded.deptId;
         req.permissions = decoded.permissions || [];
-
-        console.log('[authMiddleware] ✅ Set req.deptId =', req.deptId);
-        console.log('[authMiddleware] ========== END ==========');
+        req.tokenType = decoded.tokenType;
 
         next();
     } catch (error: any) {

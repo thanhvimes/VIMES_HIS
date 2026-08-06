@@ -261,8 +261,8 @@ const ChildForm: React.FC<ChildFormProps> = ({
                                         title: "Mở khóa hồ sơ",
                                         message: "Bạn có chắc chắn muốn mở khóa hồ sơ khám sức khỏe trẻ em này?",
                                         onConfirm: () => {
-                                            setIsLocked(false);
                                             setConfirmConfig(null);
+                                            handleSubmit({ shouldUnlock: true });
                                         }
                                     });
                                 }}
@@ -280,11 +280,8 @@ const ChildForm: React.FC<ChildFormProps> = ({
                                         title: "Khóa & Ký Số",
                                         message: "Bạn có chắc chắn muốn Khóa & Ký số hồ sơ trẻ em này? Sau khi khóa sẽ không thể chỉnh sửa dữ liệu.",
                                         onConfirm: () => {
-                                            setIsLocked(true);
                                             setConfirmConfig(null);
-                                            setTimeout(() => {
-                                                handleSubmit();
-                                            }, 50);
+                                            handleSubmit({ shouldSign: true });
                                         }
                                     });
                                 }}

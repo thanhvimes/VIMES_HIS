@@ -775,6 +775,7 @@ async getHisPatient(req: Request, res: Response) {
                 }
 
                 return res.json({
+                    source: 'HEALTH_CHECK_MASTER',
                     id: row.id,
                     patient_id: row.patient_id,
                     doc_no: hisDocNoStr,
@@ -788,7 +789,149 @@ async getHisPatient(req: Request, res: Response) {
                     conclusion_data: typeof row.conclusion_data === 'string' ? JSON.parse(row.conclusion_data) : row.conclusion_data
                 });
             } else {
-                return res.status(404).json({ error: "Không tìm thấy hồ sơ KSK đã tiếp nhận cho bệnh nhân này." });
+                // 2. DỰ PHÒNG FALLBACK (HIS DIRECT): Tra cứu đợt khám trực tiếp từ HIS (hms_doc JOIN hms_patient)
+                console.log(`ℹ️ [getHisPatient] Không tìm thấy trong health_check_masters. Đang tra cứu dự phòng từ HIS (hms_doc & hms_patient)...`);
+                
+                let hisResult: any = { rows: [] };
+                const cleanId = identifier.trim();
+                const isAllDigits = /^\d+$/.test(cleanId);
+
+                // 1. Trường hợp 1: Nhập Mã hồ sơ HIS (hms_doc.hd_docno) -> Tra cứu chính xác theo Primary Key hd_docno (<1ms)
+                if (isAllDigits) {
+                    const numId = parseInt(cleanId, 10);
+                    hisResult = await query(`
+                        SELECT 
+                            d.hd_docno as his_doc_no,
+                            p.hp_patientno as patient_id,
+                            TRIM(COALESCE(p.hp_surname, '') || ' ' || COALESCE(p.hp_midname, '') || ' ' || COALESCE(p.hp_firstname, '')) as patient_name,
+                            p.hp_sin as cccd,
+                            to_char(p.hp_birthdate, 'YYYY-MM-DD') as dob,
+                            CASE 
+                                WHEN LOWER(p.hp_sex) = 'm' OR LOWER(p.hp_sex) = 'nam' THEN 'Nam'
+                                WHEN LOWER(p.hp_sex) = 'f' OR LOWER(p.hp_sex) = 'nữ' THEN 'Nữ'
+                                ELSE 'Khác'
+                            END as gender,
+                            COALESCE(d.hd_telephone, '') as phone,
+                            '' as address,
+                            p.hp_ethnic as ethnic,
+                            to_char(d.hd_admitdate, 'YYYY-MM-DD') as ngay_vao,
+                            c.hc_cardno as insurance_card
+                        FROM hms_doc d
+                        JOIN hms_patient p ON d.hd_patientno = p.hp_patientno
+                        LEFT JOIN hms_card c ON (c.hc_patientno = p.hp_patientno AND c.hc_idx = d.hd_cardidx)
+                        WHERE d.hd_docno = $1
+                        ORDER BY d.hd_docno DESC
+                        LIMIT 1
+                    `, [numId]);
+                }
+
+                // 2. Trường hợp 2: Nhập Thẻ CCCD (Chuỗi 9-12 chữ số) -> Tra cứu theo Index hp_sin (<1ms)
+                if (hisResult.rows.length === 0 && isAllDigits && cleanId.length >= 9) {
+                    hisResult = await query(`
+                        SELECT 
+                            d.hd_docno as his_doc_no,
+                            p.hp_patientno as patient_id,
+                            TRIM(COALESCE(p.hp_surname, '') || ' ' || COALESCE(p.hp_midname, '') || ' ' || COALESCE(p.hp_firstname, '')) as patient_name,
+                            p.hp_sin as cccd,
+                            to_char(p.hp_birthdate, 'YYYY-MM-DD') as dob,
+                            CASE 
+                                WHEN LOWER(p.hp_sex) = 'm' OR LOWER(p.hp_sex) = 'nam' THEN 'Nam'
+                                WHEN LOWER(p.hp_sex) = 'f' OR LOWER(p.hp_sex) = 'nữ' THEN 'Nữ'
+                                ELSE 'Khác'
+                            END as gender,
+                            COALESCE(d.hd_telephone, '') as phone,
+                            '' as address,
+                            p.hp_ethnic as ethnic,
+                            to_char(d.hd_admitdate, 'YYYY-MM-DD') as ngay_vao,
+                            c.hc_cardno as insurance_card
+                        FROM hms_patient p
+                        JOIN hms_doc d ON d.hd_patientno = p.hp_patientno
+                        LEFT JOIN hms_card c ON (c.hc_patientno = p.hp_patientno AND c.hc_idx = d.hd_cardidx)
+                        WHERE p.hp_sin = $1
+                        ORDER BY d.hd_docno DESC
+                        LIMIT 1
+                    `, [cleanId]);
+                }
+
+                // 3. Trường hợp 3: Tra cứu theo SĐT (chỉ thực hiện nếu chuỗi bắt đầu bằng 0 hoặc 84 và có độ dài phù hợp)
+                if (hisResult.rows.length === 0 && (cleanId.startsWith('0') || cleanId.startsWith('84') || cleanId.startsWith('+84'))) {
+                    hisResult = await query(`
+                        SELECT 
+                            d.hd_docno as his_doc_no,
+                            p.hp_patientno as patient_id,
+                            TRIM(COALESCE(p.hp_surname, '') || ' ' || COALESCE(p.hp_midname, '') || ' ' || COALESCE(p.hp_firstname, '')) as patient_name,
+                            p.hp_sin as cccd,
+                            to_char(p.hp_birthdate, 'YYYY-MM-DD') as dob,
+                            CASE 
+                                WHEN LOWER(p.hp_sex) = 'm' OR LOWER(p.hp_sex) = 'nam' THEN 'Nam'
+                                WHEN LOWER(p.hp_sex) = 'f' OR LOWER(p.hp_sex) = 'nữ' THEN 'Nữ'
+                                ELSE 'Khác'
+                            END as gender,
+                            COALESCE(d.hd_telephone, '') as phone,
+                            '' as address,
+                            p.hp_ethnic as ethnic,
+                            to_char(d.hd_admitdate, 'YYYY-MM-DD') as ngay_vao,
+                            c.hc_cardno as insurance_card
+                        FROM hms_doc d
+                        JOIN hms_patient p ON d.hd_patientno = p.hp_patientno
+                        LEFT JOIN hms_card c ON (c.hc_patientno = p.hp_patientno AND c.hc_idx = d.hd_cardidx)
+                        WHERE d.hd_telephone = $1
+                        ORDER BY d.hd_docno DESC
+                        LIMIT 1
+                    `, [cleanId]);
+                }
+
+                if (hisResult.rows.length > 0) {
+                    const hisRow = hisResult.rows[0];
+                    const docNoVal = hisRow.his_doc_no ? parseInt(hisRow.his_doc_no, 10) : 0;
+                    console.log(`✅ [getHisPatient] Tìm thấy đợt khám trực tiếp từ HIS cho BN: ${hisRow.patient_name} (Mã HS: ${hisRow.his_doc_no})`);
+
+                    // Lấy kết quả CLS mới nhất từ HIS cho đợt khám này
+                    const liveParaclinical = docNoVal ? await this.fetchStructuredParaclinicalData(docNoVal) : null;
+                    const labData: any = {
+                        blood_test: {},
+                        urine_test: {},
+                        paraclinical_items: []
+                    };
+
+                    if (liveParaclinical) {
+                        if (liveParaclinical.hemoglobin) labData.blood_test.hemoglobin = liveParaclinical.hemoglobin;
+                        if (liveParaclinical.glycemia) labData.blood_test.glycemia = liveParaclinical.glycemia;
+                        if (liveParaclinical.protein) labData.urine_test.protein = liveParaclinical.protein;
+                        if (liveParaclinical.kqXnKhac) labData.kq_xn_khac = liveParaclinical.kqXnKhac;
+                        if (Array.isArray(liveParaclinical.paraclinical_items)) {
+                            labData.paraclinical_items = liveParaclinical.paraclinical_items.map((item: any) => ({
+                                ...item,
+                                is_his_value: !!item.value,
+                                user_edited: false
+                            }));
+                        }
+                    }
+
+                    return res.json({
+                        source: 'HIS_DIRECT',
+                        id: null,
+                        patient_id: hisRow.patient_id,
+                        doc_no: String(hisRow.his_doc_no),
+                        his_doc_no: String(hisRow.his_doc_no),
+                        patient_name: String(hisRow.patient_name || '').toUpperCase(),
+                        cccd: hisRow.cccd || '',
+                        dob: hisRow.dob || '',
+                        gender: hisRow.gender || 'Nam',
+                        form_type: 'MAU_2',
+                        clinical_data: {
+                            phone: hisRow.phone || '',
+                            address: hisRow.address || '',
+                            ethnic: hisRow.ethnic || 'Kinh',
+                            ngay_vao: hisRow.ngay_vao || '',
+                            insurance_card: hisRow.insurance_card || ''
+                        },
+                        lab_data: labData,
+                        conclusion_data: {}
+                    });
+                }
+
+                return res.status(404).json({ error: `Không tìm thấy hồ sơ bệnh nhân trên cả hệ thống KSK và HIS với từ khóa: "${identifier}"` });
             }
         } catch (error: any) {
             console.error('❌ KSK Controller: Lỗi getHisPatient:', error);

@@ -346,6 +346,16 @@ const HealthCheckSyncView: React.FC = () => {
         setIsLoading(true);
         try {
             let docId = activeDocument?.id;
+            if (options?.shouldUnlock) {
+                if (!docId) throw new Error('Không tìm thấy hồ sơ cần mở khóa.');
+                await healthCheckService.unlockDocument(docId.toString());
+                const unlockedDoc = await healthCheckService.getDocument(docId.toString());
+                setActiveDocument(unlockedDoc);
+                await loadData();
+                toast.success('Đã hủy chữ ký số và mở khóa hồ sơ thành công!');
+                return;
+            }
+
             if (viewMode === 'CREATE') {
                 const res = await healthCheckService.createDocument(payload);
                 docId = res.id;
@@ -1250,7 +1260,8 @@ const HealthCheckSyncView: React.FC = () => {
                 </div>
             ) : (
                 <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                    <DynamicForm 
+                    <DynamicForm
+                        key={`${activeDocument?.id || 'new'}-${activeDocument?.signature_status || 'Unsigned'}`}
                         formType={viewMode === 'EDIT' ? activeDocument?.form_type : createFormType}
                         initialData={viewMode === 'EDIT' ? activeDocument : undefined}
                         onSave={handleSaveDocument}

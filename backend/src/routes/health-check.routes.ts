@@ -23,9 +23,12 @@ router.delete('/documents/:id', healthCheckController.deleteDocument.bind(health
 // Batch Operations
 router.post('/documents/send', healthCheckController.sendDocuments.bind(healthCheckController));
 router.post('/documents/sign', healthCheckController.signDocuments.bind(healthCheckController));
+router.post('/documents/:id/unlock', healthCheckController.unlockDocument.bind(healthCheckController));
 router.post('/documents/seed-from-his', healthCheckController.seedFromHis.bind(healthCheckController));
 router.post('/documents/mark-printed', healthCheckController.markBarcodePrinted.bind(healthCheckController));
 router.get('/his-patient/:identifier', healthCheckController.getHisPatient.bind(healthCheckController));
+router.get('/signatures', healthCheckController.getDoctorSignatures.bind(healthCheckController));
+router.post('/signatures', healthCheckController.getDoctorSignatures.bind(healthCheckController));
 
 // Contracts Endpoint
 router.get('/contracts', contractsController.getContracts.bind(contractsController));

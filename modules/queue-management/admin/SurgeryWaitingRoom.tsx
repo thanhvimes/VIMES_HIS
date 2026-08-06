@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Clock, ChevronLeft, RefreshCw, Activity, CheckCircle2, AlertCircle, Play, Maximize2, Minimize2, Settings, Stethoscope } from 'lucide-react';
 import { apiFetch, getBaseUrl } from '../services/apiService';
 import { AppSettings } from '../types';
+import { useSystemStore } from '../../../stores/useSystemStore';
 
 interface Patient {
   id: string;
@@ -21,6 +22,7 @@ interface SurgeryWaitingRoomProps {
 }
 
 const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, settings }) => {
+  const systemHospitalName = useSystemStore(state => state.hospitalName);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [patients, setPatients] = useState<Patient[]>([]);
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
@@ -273,7 +275,7 @@ const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, setting
           </div>
           <div>
             <h1 className="text-3xl font-black uppercase tracking-wider text-white">
-              {settings.hospitalName || 'BỆNH VIỆN ĐA KHOA VIMES'}
+              {systemHospitalName || settings.hospitalName || 'BỆNH VIỆN ĐA KHOA TỈNH'}
             </h1>
             <p className="text-lg text-slate-300 mt-0.5 font-bold tracking-wide flex items-center gap-2">
               <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
@@ -397,7 +399,7 @@ const SurgeryWaitingRoom: React.FC<SurgeryWaitingRoomProps> = ({ onBack, setting
                       </div>
 
                       {/* Room */}
-                      <div className="text-3xl font-extrabold text-[#2e408a] text-center uppercase tracking-wide">
+                      <div className="text-xl lg:text-2xl font-extrabold text-center uppercase tracking-tight line-clamp-2 leading-tight px-2 flex items-center justify-center h-full overflow-hidden text-[#2e408a]">
                         {p.deptName || '----'}
                       </div>
 

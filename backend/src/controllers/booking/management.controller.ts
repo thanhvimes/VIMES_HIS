@@ -39,6 +39,9 @@ class BookingManagementController {
             // Auto-assign room if not provided (Load balancing)
             let assignedRoomId = roomId;
             if (!assignedRoomId) {
+                const targetSpecCode = specialityCode || deptId;
+                const targetDeptId = (deptId && isNaN(Number(deptId))) ? deptId : 'KB';
+
                 const roomsWithSlotResult = await query(`
                     SELECT 
                         k.hrk_id,
@@ -51,13 +54,13 @@ class BookingManagementController {
                         ) as current_bookings
                     FROM hms_roomlist_kios k
                     JOIN hms_schedule_exam hse ON (
-                        hse.hse_deptid = k.hrk_deptid AND 
+                        (hse.hse_deptid = k.hrk_deptid OR hse.hse_deptid = 'KB') AND 
                         hse.hse_roomid = k.hrk_id AND 
                         hse.hse_date = $3 AND 
                         hse.hse_time = $4
                     )
-                    WHERE k.hrk_code = $1 
-                      AND k.hrk_deptid = $2 
+                    WHERE k.hrk_code::varchar = $1::varchar
+                      AND (k.hrk_deptid = $2 OR k.hrk_deptid = 'KB')
                       AND k.hrk_active = 'Y'
                       AND hse.hse_status = 'O'
                       AND NOT EXISTS (
@@ -69,14 +72,26 @@ class BookingManagementController {
                             AND q.qms_status IN ('O', 'S')
                       )
                     ORDER BY current_bookings ASC, k.hrk_id ASC
-                `, [deptId, userDeptId, bookingDate, bookingTime]);
+                `, [targetSpecCode, targetDeptId, bookingDate, bookingTime]);
 
                 if (roomsWithSlotResult.rows.length === 0) {
-                    return res.status(400).json({
-                        error: `Không tìm thấy phòng khám nào có khung giờ ${bookingTime} vào ngày ${bookingDate}.`
-                    });
+                    // Fallback to query any kiosk room for targetSpecCode
+                    const fallbackRoomResult = await query(`
+                        SELECT hrk_id FROM hms_roomlist_kios 
+                        WHERE hrk_code::varchar = $1::varchar AND hrk_active = 'Y' 
+                        LIMIT 1
+                    `, [targetSpecCode]);
+
+                    if (fallbackRoomResult.rows.length > 0) {
+                        assignedRoomId = fallbackRoomResult.rows[0].hrk_id;
+                    } else {
+                        return res.status(400).json({
+                            error: `Không tìm thấy phòng khám nào cho chuyên khoa này vào khung giờ ${bookingTime} ngày ${bookingDate}.`
+                        });
+                    }
+                } else {
+                    assignedRoomId = roomsWithSlotResult.rows[0].hrk_id;
                 }
-                assignedRoomId = roomsWithSlotResult.rows[0].hrk_id;
             }
 
             // Normalize gender to 'M' or 'F' before stored procedure call (fallback to 'F')
@@ -110,11 +125,11 @@ class BookingManagementController {
 
             // Send Confirmation SMS
             const bookingDetails = await query(`
-                SELECT q.*, s.ss_desc as "specialtyName", rl.hrl_roomname as "roomName"
+                SELECT q.*, s.ss_desc as "specialtyName", COALESCE(rl.hrl_name, rl.hrl_roomname) as "roomName"
                 FROM qms_patient q
-                LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND k.hrk_deptid = q.qms_deptid AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
-                LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code = k.hrk_code::varchar)
-                LEFT JOIN hms_roomlist rl ON (rl.hrl_deptid = q.qms_deptid AND rl.hrl_id = q.qms_roomid)
+                LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND (k.hrk_deptid = q.qms_deptid OR k.hrk_deptid = 'KB') AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
+                LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code::varchar = COALESCE(k.hrk_code::varchar, q.qms_specialty_code::varchar))
+                LEFT JOIN hms_roomlist rl ON (rl.hrl_id = q.qms_roomid AND (rl.hrl_deptid = q.qms_deptid OR rl.hrl_deptid = 'KB'))
                 WHERE q.qms_idx = $1
             `, [bookingId]);
 
@@ -236,10 +251,10 @@ class BookingManagementController {
 
             // 3. Fetch the updated booking details
             const bookingResult = await query(`
-                SELECT q.*, s.ss_desc as "specialtyName", rl.hrl_roomname as "roomName"
+                SELECT q.*, s.ss_desc as "specialtyName", COALESCE(rl.hrl_name, rl.hrl_roomname) as "roomName"
                 FROM qms_patient q
                 LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND (k.hrk_deptid = q.qms_deptid OR k.hrk_deptid = 'KB') AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
-                LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code = k.hrk_code::varchar)
+                LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code::varchar = COALESCE(k.hrk_code::varchar, q.qms_specialty_code::varchar))
                 LEFT JOIN hms_roomlist rl ON (rl.hrl_id = q.qms_roomid AND (rl.hrl_deptid = q.qms_deptid OR rl.hrl_deptid = 'KB'))
                 WHERE q.qms_idx = $1
             `, [id]);
@@ -428,10 +443,10 @@ class BookingManagementController {
             const { id } = (req as any).params;
 
             const bookingResult = await query(`
-                SELECT q.*, s.ss_desc as "specialtyName", rl.hrl_roomname as "roomName"
+                SELECT q.*, s.ss_desc as "specialtyName", COALESCE(rl.hrl_name, rl.hrl_roomname) as "roomName"
                 FROM qms_patient q
                 LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND (k.hrk_deptid = q.qms_deptid OR k.hrk_deptid = 'KB') AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
-                LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code = k.hrk_code::varchar)
+                LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code::varchar = COALESCE(k.hrk_code::varchar, q.qms_specialty_code::varchar))
                 LEFT JOIN hms_roomlist rl ON (rl.hrl_id = q.qms_roomid AND (rl.hrl_deptid = q.qms_deptid OR rl.hrl_deptid = 'KB'))
                 WHERE q.qms_idx = $1
             `, [id]);
@@ -469,7 +484,72 @@ class BookingManagementController {
     async getSMSHistory(req: Request, res: Response) {
         try {
             const { id } = req.params;
-            const logs = await smsTemplateService.getSMSLogsByBooking(Number(id));
+            const bookingIdNum = Number(id);
+            let logs = await smsTemplateService.getSMSLogsByBooking(bookingIdNum);
+
+            if (!logs || logs.length === 0) {
+                // Fetch booking details from qms_patient with verified column names
+                const bookingRes = await query(`
+                    SELECT q.*, s.ss_desc as "specialtyName", rl.hrl_roomname as "roomName"
+                    FROM qms_patient q
+                    LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND (k.hrk_deptid = q.qms_deptid OR k.hrk_deptid = 'KB') AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
+                    LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code = k.hrk_code::varchar)
+                    LEFT JOIN hms_roomlist rl ON (rl.hrl_id = q.qms_roomid AND (rl.hrl_deptid = q.qms_deptid OR rl.hrl_deptid = 'KB'))
+                    WHERE q.qms_idx = $1 OR q.qms_docno = $1
+                    ORDER BY q.qms_idx DESC
+                    LIMIT 1
+                `, [bookingIdNum]);
+
+                if (bookingRes.rows.length > 0) {
+                    const b = bookingRes.rows[0];
+                    const d = b.qms_appointment_date ? new Date(b.qms_appointment_date) : null;
+                    const dateStr = d ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}` : '';
+                    const timeStr = b.qms_appointment_time || '';
+                    const roomInfo = b.roomName ? ` (${b.roomName})` : '';
+                    const specInfo = b.specialtyName ? ` CK: ${b.specialtyName}` : '';
+                    const brand = process.env.SMS_BRAND_NAME || 'VIMES';
+                    const patientType = b.qms_is_insurance ? 'BH' : 'DV';
+
+                    let previewContent = `[${brand}] Chuc mung ${b.qms_patientname}! Lich kham vao ${dateStr} luc ${timeStr}${specInfo}${roomInfo} da duoc duyet. STT: ${b.qms_receptno || 'Dự kiến'}.`;
+
+                    try {
+                        const template = await smsTemplateService.getTemplate('approved', b.qms_deptid, patientType);
+                        if (template && template.template_content) {
+                            previewContent = notificationService.formatMessage(template.template_content, {
+                                patientName: b.qms_patientname,
+                                bookingDate: dateStr,
+                                date: dateStr,
+                                bookingTime: timeStr,
+                                time: timeStr,
+                                queueNumber: b.qms_receptno || '',
+                                receptNo: b.qms_receptno || '',
+                                deptId: b.qms_deptid,
+                                roomName: b.roomName,
+                                specialtyName: b.specialtyName
+                            });
+                        }
+                    } catch (tplErr) {
+                        // Fallback
+                    }
+
+                    logs = [{
+                        log_id: 0,
+                        booking_id: bookingIdNum,
+                        patient_name: b.qms_patientname,
+                        phone: b.qms_contact,
+                        dept_code: b.qms_deptid,
+                        patient_type: patientType,
+                        sms_type: 'approved',
+                        message_content: previewContent,
+                        provider: 'SYSTEM_PREVIEW',
+                        provider_message_id: null,
+                        status: 'PREVIEW' as any,
+                        error_message: null,
+                        sent_at: new Date().toISOString()
+                    }];
+                }
+            }
+
             return res.json({ success: true, data: logs });
         } catch (error: any) {
             console.error('Error fetching SMS history:', error);

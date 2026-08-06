@@ -123,7 +123,21 @@ CORS_ORIGIN=*
 `;
         fs.writeFileSync(path.join(backendDest, '.env.example'), envExample);
 
-        // 7. Create deployment instructions
+        // 7. Create root package.json in deployment folder for copy & run convenience
+        const rootPkg = {
+            name: 'vimes-his-deploy',
+            version: '1.0.0',
+            private: true,
+            description: 'VIMES HIS Production Deployment Package',
+            scripts: {
+                "setup": "cd backend && npm install",
+                "dev": "cd backend && npm run dev",
+                "start": "cd backend && npm start"
+            }
+        };
+        fs.writeFileSync(path.join(deployDir, 'package.json'), JSON.stringify(rootPkg, null, 2));
+
+        // 8. Create deployment instructions
         const deployInstructions = `# 🚀 HƯỚNG DẪN TRIỂN KHAI VIMES HIS
 
 ## 📋 Tổng quan
@@ -132,327 +146,161 @@ Package này chứa toàn bộ hệ thống VIMES HIS đã được build và s�
 ### Cấu trúc thư mục:
 \`\`\`
 VIMES-HIS-deploy/
-├── backend/          # Backend API server
-│   ├── src/         # Source code
-│   ├── sql/         # Database scripts
+├── package.json      # File điều khiển lệnh npm run dev / npm start
+├── start.bat         # Script khởi chạy Windows
+├── start.sh          # Script khởi chạy Linux/Mac
+├── README.md         # Hướng dẫn nhanh
+├── DEPLOY_INSTRUCTIONS.md # Hướng dẫn chi tiết này
+├── backend/          # Backend API server (Node.js/Express + TypeScript)
+│   ├── src/          # Source code backend
+│   ├── migrations/   # Script nâng cấp CSDL tự động
 │   ├── package.json
-│   └── .env.example # Cấu hình mẫu
-└── dist/            # Frontend đã build (static files)
+│   └── .env.example  # Cấu hình mẫu môi trường
+└── dist/             # Frontend đã build tĩnh (React/Vite)
     ├── index.html
     └── assets/
 \`\`\`
 
 ---
 
-## 🔧 BƯỚC 1: Chuẩn bị Server
+## ⚡ HƯỚNG DẪN TRIỂN KHAI NHANH (QUICK START)
 
-### Yêu cầu hệ thống:
-- ✅ Node.js >= 18.x
-- ✅ PostgreSQL >= 13.x
-- ✅ PM2 (khuyến nghị cho production)
+### 1. Upload lên máy chủ
+Copy toàn bộ thư mục \`VIMES-HIS-deploy\` (hoặc file zip giải nén) lên máy chủ của bạn.
 
-### Cài đặt PM2 (nếu chưa có):
+### 2. Cấu hình môi trường (.env)
+Vào thư mục \`backend/\`:
+- Copy file \`.env.example\` thành \`.env\`
+- Cập nhật các thông số CSDL (\`DB_HOST\`, \`DB_NAME\`, \`DB_USER\`, \`DB_PASSWORD\`) và chìa khóa bảo mật (\`JWT_SECRET\`, \`VIMES_SECURITY_KEY\`).
+
+### 3. Chạy hệ thống
+Tại thư mục gốc \`VIMES-HIS-deploy\`, thực hiện một trong các cách sau:
+
+#### Cách 1: Sử dụng Lệnh NPM (Đơn giản nhất)
 \`\`\`bash
-npm install -g pm2
+npm run dev    # Chạy chế độ Development / Live Log
+# hoặc
+npm start      # Chạy chế độ Production
 \`\`\`
+
+#### Cách 2: Sử dụng Script Khởi chạy Tự động
+- **Windows:** Mở Command Prompt hoặc double click \`start.bat\`
+- **Linux / macOS:** 
+  \`\`\`bash
+  chmod +x start.sh
+  ./start.sh
+  \`\`\`
 
 ---
 
-## 📤 BƯỚC 2: Upload lên Server
-
-### Cách 1: Sử dụng SCP/SFTP
-\`\`\`bash
-# Upload toàn bộ thư mục VIMES-HIS-deploy
-scp -r VIMES-HIS-deploy/ user@your-server:/path/to/deploy/
-\`\`\`
-
-### Cách 2: Sử dụng Git
-\`\`\`bash
-# Nếu bạn đã commit vào Git
-git pull origin main
-\`\`\`
+## 🌐 KIỂM TRA HỆ THỐNG
+- **Giao diện Frontend:** \`http://<IP_MÁY_CHỦ>:8000\` (hoặc PORT bạn đã cấu hình trong .env)
+- **API Backend Healthcheck:** \`http://<IP_MÁY_CHỦ>:8000/api/health\`
 
 ---
 
-## ⚙️ BƯỚC 3: Cấu hình Backend
-
-### 3.1. Di chuyển vào thư mục backend
-\`\`\`bash
-cd VIMES-HIS-deploy/backend
-\`\`\`
-
-### 3.2. Cài đặt dependencies
-\`\`\`bash
-npm install --production
-\`\`\`
-
-### 3.3. Cấu hình môi trường
-\`\`\`bash
-# Copy file .env.example thành .env
-cp .env.example .env
-
-# Chỉnh sửa file .env với thông tin thực tế
-nano .env  # hoặc vi .env
-\`\`\`
-
-**Lưu ý quan trọng:**
-- Cập nhật thông tin database (đã mã hóa nếu dùng encryption)
-- Đặt \`VIMES_SECURITY_KEY\` (32 ký tự)
-- Đặt \`JWT_SECRET\` mạnh
-- Kiểm tra \`PORT\` (mặc định 8000)
-
-### 3.4. Cấu hình Database
-\`\`\`bash
-# Chạy các script SQL trong thư mục sql/
-psql -U your_db_user -d your_db_name -f sql/booking_online_database.sql
-\`\`\`
-
----
-
-## 🚀 BƯỚC 4: Khởi động Backend
-
-### Cách 1: Sử dụng PM2 (Khuyến nghị)
-\`\`\`bash
-# Khởi động với PM2
-pm2 start src/server.js --name vimes-his-backend
-
-# Lưu cấu hình để tự động khởi động khi reboot
-pm2 save
-pm2 startup
-
-# Xem logs
-pm2 logs vimes-his-backend
-
-# Các lệnh quản lý khác
-pm2 restart vimes-his-backend
-pm2 stop vimes-his-backend
-pm2 delete vimes-his-backend
-\`\`\`
-
-### Cách 2: Chạy trực tiếp (Development)
-\`\`\`bash
-npm start
-\`\`\`
-
----
-
-## 🌐 BƯỚC 5: Kiểm tra Deployment
-
-### 5.1. Kiểm tra Backend
-\`\`\`bash
-# Test API health endpoint
-curl http://localhost:8000/api/health
-
-# Kết quả mong đợi:
-# {"status":"OK","message":"VIMES HIS Backend API","version":"1.0.0"}
-\`\`\`
-
-### 5.2. Kiểm tra Frontend
-Mở trình duyệt và truy cập:
-\`\`\`
-http://your-server-ip:8000
-\`\`\`
-
-**Lưu ý:** Backend sẽ tự động serve frontend từ thư mục \`dist/\`
-
----
-
-## 🔒 BƯỚC 6: Cấu hình Firewall (Tùy chọn)
-
-### Mở port cho backend:
-\`\`\`bash
-# Ubuntu/Debian
-sudo ufw allow 8000/tcp
-
-# CentOS/RHEL
-sudo firewall-cmd --permanent --add-port=8000/tcp
-sudo firewall-cmd --reload
-\`\`\`
-
----
-
-## 🔄 CẬP NHẬT HỆ THỐNG
-
-Khi có phiên bản mới:
-
-\`\`\`bash
-# 1. Dừng backend
-pm2 stop vimes-his-backend
-
-# 2. Backup (khuyến nghị)
-cp -r VIMES-HIS-deploy VIMES-HIS-deploy.backup
-
-# 3. Upload phiên bản mới
-# (giữ nguyên file .env)
-
-# 4. Cài đặt dependencies mới (nếu có)
-cd VIMES-HIS-deploy/backend
-npm install --production
-
-# 5. Khởi động lại
-pm2 restart vimes-his-backend
-\`\`\`
-
----
-
-## 🐛 XỬ LÝ SỰ CỐ
-
-### Lỗi: "Frontend not built"
-**Nguyên nhân:** Thư mục \`dist/\` không tồn tại hoặc không đúng vị trí
-
-**Giải pháp:**
-\`\`\`bash
-# Kiểm tra cấu trúc thư mục
-ls -la VIMES-HIS-deploy/
-
-# Đảm bảo có thư mục dist/ cùng cấp với backend/
-# Nếu thiếu, build lại trên local và upload
-\`\`\`
-
-### Lỗi: Database connection failed
-**Giải pháp:**
-\`\`\`bash
-# 1. Kiểm tra PostgreSQL đang chạy
-sudo systemctl status postgresql
-
-# 2. Kiểm tra thông tin kết nối trong .env
-# 3. Test kết nối database
-psql -U your_db_user -d your_db_name -h localhost
-\`\`\`
-
-### Lỗi: Port already in use
-**Giải pháp:**
-\`\`\`bash
-# Tìm process đang dùng port 8000
-lsof -i :8000
-
-# Hoặc thay đổi PORT trong file .env
-\`\`\`
-
----
-
-## 📊 GIÁM SÁT HỆ THỐNG
-
-### Xem logs với PM2:
-\`\`\`bash
-# Xem logs realtime
-pm2 logs vimes-his-backend
-
-# Xem logs cũ
-pm2 logs vimes-his-backend --lines 100
-
-# Xóa logs cũ
-pm2 flush
-\`\`\`
-
-### Giám sát tài nguyên:
-\`\`\`bash
-pm2 monit
-\`\`\`
-
----
-
-## 📞 HỖ TRỢ
-
-Nếu gặp vấn đề, kiểm tra:
-1. ✅ Logs của PM2: \`pm2 logs\`
-2. ✅ File .env đã cấu hình đúng
-3. ✅ Database đã import đầy đủ
-4. ✅ Firewall đã mở port
-5. ✅ Node.js version >= 18.x
-
----
-
-**Chúc bạn deploy thành công! 🎉**
+## 🔄 CẬP NHẬT & BẢO TRÌ
+Khi có bản cập nhật mới:
+1. Ghi đè các file mới trong gói lên server (giữ lại file \`backend/.env\`).
+2. Chạy lại \`npm run dev\` hoặc \`start.bat\` / \`./start.sh\`.
 `;
 
         fs.writeFileSync(path.join(deployDir, 'DEPLOY_INSTRUCTIONS.md'), deployInstructions);
         console.log('✅ Configuration files created\n');
 
-        // 8. Create start script for easy deployment
+        // 9. Create start script for easy deployment (Linux/Mac)
         const startScript = `#!/bin/bash
-# VIMES HIS Quick Start Script
+# VIMES HIS Quick Start Script for Linux/macOS
 
-echo "🚀 Starting VIMES HIS Backend..."
+echo "🚀 Starting VIMES HIS System..."
 
-cd backend
+cd "$(dirname "$0")"
 
-# Check if .env exists
-if [ ! -f .env ]; then
-    echo "❌ Error: .env file not found!"
-    echo "📝 Please copy .env.example to .env and configure it first:"
-    echo "   cp .env.example .env"
-    echo "   nano .env"
-    exit 1
+# Check if backend/.env exists
+if [ ! -f backend/.env ]; then
+    if [ -f backend/.env.example ]; then
+        echo "📝 Initializing backend/.env from .env.example..."
+        cp backend/.env.example backend/.env
+        echo "⚠️ Please edit backend/.env to configure database and security keys!"
+    else
+        echo "❌ Error: backend/.env file not found!"
+        exit 1
+    fi
 fi
 
 # Install dependencies if needed
-if [ ! -d "node_modules" ]; then
-    echo "📦 Installing dependencies..."
-    npm install --production
+if [ ! -d "backend/node_modules" ]; then
+    echo "📦 Installing backend dependencies..."
+    cd backend && npm install && cd ..
 fi
 
-# Start with PM2
+# Start with PM2 if available, otherwise npm start
 if command -v pm2 &> /dev/null; then
     echo "🔄 Starting with PM2..."
-    pm2 start src/server.js --name vimes-his-backend
-    pm2 save
+    cd backend && pm2 start npm --name "vimes-his" -- start && pm2 save && cd ..
     echo "✅ Backend started with PM2"
-    echo "📊 View logs: pm2 logs vimes-his-backend"
+    echo "📊 View logs: pm2 logs vimes-his"
 else
-    echo "⚠️  PM2 not found, starting with npm..."
-    npm start
+    echo "⚡ Starting backend with npm..."
+    cd backend && npm start
 fi
 `;
         fs.writeFileSync(path.join(deployDir, 'start.sh'), startScript);
         fs.chmodSync(path.join(deployDir, 'start.sh'), '755');
 
-        // 9. Create Windows start script
+        // 10. Create Windows start script
         const startScriptWin = `@echo off
 REM VIMES HIS Quick Start Script for Windows
 
-echo Starting VIMES HIS Backend...
+echo 🚀 Starting VIMES HIS System...
 
-cd backend
+cd /d "%~dp0"
 
-REM Check if .env exists
-if not exist .env (
-    echo Error: .env file not found!
-    echo Please copy .env.example to .env and configure it first:
-    echo    copy .env.example .env
-    echo    notepad .env
-    exit /b 1
+REM Check if backend\\.env exists
+if not exist "backend\\.env" (
+    if exist "backend\\.env.example" (
+        echo 📝 Initializing backend\\.env from .env.example...
+        copy "backend\\.env.example" "backend\\.env"
+        echo ⚠️ Please edit backend\\.env to configure database and security keys!
+    ) else (
+        echo ❌ Error: backend\\.env file not found!
+        pause
+        exit /b 1
+    )
 )
 
 REM Install dependencies if needed
-if not exist node_modules (
-    echo Installing dependencies...
-    npm install --production
+if not exist "backend\\node_modules" (
+    echo 📦 Installing backend dependencies...
+    cd backend
+    call npm install
+    cd ..
 )
 
-REM Start with PM2
+REM Start with PM2 if available, otherwise npm start
 where pm2 >nul 2>nul
 if %ERRORLEVEL% EQU 0 (
-    echo Starting with PM2...
-    pm2 start src/server.js --name vimes-his-backend
-    pm2 save
-    echo Backend started with PM2
-    echo View logs: pm2 logs vimes-his-backend
+    echo 🔄 Starting with PM2...
+    cd backend
+    call pm2 start npm --name "vimes-his" -- start
+    call pm2 save
+    cd ..
+    echo ✅ Backend started with PM2
+    echo 📊 View logs: pm2 logs vimes-his
 ) else (
-    echo PM2 not found, starting with npm...
-    npm start
+    echo ⚡ Starting backend with npm...
+    cd backend
+    call npm start
 )
 `;
         fs.writeFileSync(path.join(deployDir, 'start.bat'), startScriptWin);
 
         console.log('✅ Start scripts created\n');
 
-        // 10. Create README
-        const readme = `# VIMES HIS Deployment Package
+        // 11. Create README
+        const readme = `# 🚀 VIMES HIS - HƯỚNG DẪN TRIỂN KHAI NHANH
 
 📦 **Version:** ${new Date().toISOString().split('T')[0]}
-
-## Quick Start
 
 ### Linux/Mac:
 \`\`\`bash

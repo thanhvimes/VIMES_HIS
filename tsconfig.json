@@ -37,5 +37,7 @@
     "old_RegistrationView.tsx",
     "release_v1",
     "archive"
+    ,"scratch"
+    ,"**/docs/**"
   ]
 }

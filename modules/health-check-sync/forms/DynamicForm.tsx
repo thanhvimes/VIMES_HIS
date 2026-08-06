@@ -360,10 +360,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                                     cancelText: "Hủy bỏ",
                                     severity: "warning",
                                     onConfirm: () => {
-                                        setIsLocked(false);
-                                        setTimeout(() => {
-                                            handleSubmit(undefined, { shouldUnlock: true });
-                                        }, 50);
+                                        handleSubmit(undefined, { shouldUnlock: true });
                                     }
                                 });
                             }}
@@ -385,10 +382,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                                     severity: "success",
                                     onConfirm: (sigType?: 'USB' | 'HSM') => {
                                         setTimeout(() => {
-                                            const isValid = handleSubmit(undefined, { shouldSign: true, signatureType: sigType });
-                                            if (isValid) {
-                                                setIsLocked(true);
-                                            }
+                                            handleSubmit(undefined, { shouldSign: true, signatureType: sigType });
                                         }, 50);
                                     }
                                 });

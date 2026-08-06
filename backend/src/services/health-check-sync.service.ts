@@ -10,13 +10,24 @@ import crypto from 'crypto';
 let syncIntervalKey: NodeJS.Timeout | null = null;
 
 function parsePrivateKey(rawKey: string): crypto.KeyObject | string {
-    const trimmed = rawKey.trim();
-    if (trimmed.includes('-----BEGIN')) {
+    let trimmed = rawKey.trim();
+    
+    // Fix mislabeled header if user saved private key with PUBLIC KEY header
+    if (trimmed.includes('-----BEGIN PUBLIC KEY-----') && trimmed.length > 800) {
+        trimmed = trimmed.replace('-----BEGIN PUBLIC KEY-----', '-----BEGIN PRIVATE KEY-----')
+                         .replace('-----END PUBLIC KEY-----', '-----END PRIVATE KEY-----');
+    }
+    
+    if (trimmed.includes('-----BEGIN PRIVATE KEY-----') || trimmed.includes('-----BEGIN RSA PRIVATE KEY-----')) {
         return trimmed;
     }
-    if (/^[0-9a-fA-F]+$/.test(trimmed)) {
+
+    // If missing PEM header but has Base64 content
+    const cleanBase64 = trimmed.replace(/-----BEGIN.*?-----/g, '').replace(/-----END.*?-----/g, '').replace(/\s+/g, '');
+    
+    if (/^[0-9a-fA-F]+$/.test(cleanBase64)) {
         try {
-            const derBuf = Buffer.from(trimmed, 'hex');
+            const derBuf = Buffer.from(cleanBase64, 'hex');
             try {
                 return crypto.createPrivateKey({ key: derBuf, format: 'der', type: 'pkcs8' });
             } catch {
@@ -24,14 +35,21 @@ function parsePrivateKey(rawKey: string): crypto.KeyObject | string {
             }
         } catch (e) {}
     }
+
+    // Try wrapping raw base64 into standard PEM format
+    const pemWrapped = `-----BEGIN PRIVATE KEY-----\n${cleanBase64.match(/.{1,64}/g)?.join('\n') || cleanBase64}\n-----END PRIVATE KEY-----`;
     try {
-        const derBuf = Buffer.from(trimmed, 'base64');
+        return crypto.createPrivateKey(pemWrapped);
+    } catch {
         try {
-            return crypto.createPrivateKey({ key: derBuf, format: 'der', type: 'pkcs8' });
-        } catch {
-            return crypto.createPrivateKey({ key: derBuf, format: 'der', type: 'pkcs1' });
-        }
-    } catch (e) {}
+            const derBuf = Buffer.from(cleanBase64, 'base64');
+            try {
+                return crypto.createPrivateKey({ key: derBuf, format: 'der', type: 'pkcs8' });
+            } catch {
+                return crypto.createPrivateKey({ key: derBuf, format: 'der', type: 'pkcs1' });
+            }
+        } catch (e) {}
+    }
 
     return trimmed;
 }
@@ -296,10 +314,10 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                         if (signedFile && signedFile.data_base64) {
                             outerSignatureVal = signedFile.data_base64;
                             if (signedFile.mime_type && (signedFile.mime_type.includes('xml') || signedFile.file_name?.endsWith('.xml'))) {
-                                let xmlText = Buffer.from(signedFile.data_base64, 'base64').toString('utf8');
-                                xmlText = sanitizeXmlContent(xmlText, glnCode, bytCode);
-                                base64Xml = Buffer.from(xmlText, 'utf8').toString('base64');
-                                console.log(`✅ [VNeID Sync] Using sanitized signed XML from signature wrapper for doc ${doc.doc_no}`);
+                                // A signed XML document is immutable. Decoding, sanitizing or
+                                // re-encoding its contents after HSM/USB signing invalidates XMLDSig.
+                                base64Xml = signedFile.data_base64.replace(/\s+/g, '');
+                                console.log(`✅ [VNeID Sync] Using original signed XML bytes for doc ${doc.doc_no}`);
                             } else {
                                 const signatureValue = signedFile.data_base64;
                                 let xml = rawXmlToProcess;
@@ -313,8 +331,7 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                             base64Xml = Buffer.from(rawXmlToProcess, 'utf8').toString('base64');
                         }
                     } else if (trimmedSig.startsWith('<')) {
-                        let xmlText = sanitizeXmlContent(trimmedSig, glnCode, bytCode);
-                        base64Xml = Buffer.from(xmlText, 'utf8').toString('base64');
+                        base64Xml = Buffer.from(trimmedSig, 'utf8').toString('base64');
                     } else {
                         let xml = rawXmlToProcess;
                         if (xml.includes('<CKS_BENH_VIEN></CKS_BENH_VIEN>')) {
@@ -360,12 +377,11 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                 try {
                     const parsedKey = parsePrivateKey(settings.vneid_private_key);
                     
-                    // JSON.stringify naturally has no extra spacing.
-                    const headerStr = JSON.stringify(payload.header);
-                    const hashA = crypto.createHash('sha256').update(headerStr).digest('hex').toLowerCase();
+                    const headerStr = JSON.stringify(payload.header).replace(/\s+/g, '');
+                    const hashA = crypto.createHash('sha256').update(headerStr).digest('hex').toUpperCase();
 
-                    const dataStr = typeof payload.data === 'string' ? payload.data : JSON.stringify(payload.data);
-                    const hashB = crypto.createHash('sha256').update(dataStr).digest('hex').toLowerCase();
+                    const dataStr = typeof payload.data === 'string' ? payload.data : JSON.stringify(payload.data).replace(/\s+/g, '');
+                    const hashB = crypto.createHash('sha256').update(dataStr).digest('hex').toUpperCase();
 
                     const hashC = `${hashA}.${hashB}`;
 

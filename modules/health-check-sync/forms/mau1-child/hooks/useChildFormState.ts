@@ -5,13 +5,15 @@ import { catalogService, CatalogItem } from '../../../../../services/catalogServ
 import { healthCheckService } from '../../../../../services/healthCheckService';
 import { toast } from 'sonner';
 
+const DEFAULT_CHILD_CARE_NOTE = 'Theo dõi và hướng dẫn chăm sóc trẻ định kỳ theo độ tuổi.';
+
 export const useChildFormState = ({
     initialData,
     onSave,
     onPreview
 }: {
     initialData?: any;
-    onSave: (formData: any) => void;
+    onSave: (formData: any, options?: any) => void | Promise<void>;
     onPreview?: (formData: any) => void;
 }) => {
     const { user } = useSession();
@@ -207,10 +209,15 @@ export const useChildFormState = ({
     const [otherLabTestEnabled, setOtherLabTestEnabled] = useState(!!initialData?.clinical_data?.lab?.other_result);
     const [otherLabResult, setOtherLabResult] = useState(initialData?.clinical_data?.lab?.other_result || '');
 
-    // 6. Conclusion
-    const [fitnessClass, setFitnessClass] = useState(initialData?.clinical_data?.conclusion?.fitness_class || '1');
-    const [diagnosis, setDiagnosis] = useState(initialData?.clinical_data?.conclusion?.diagnosis || '');
-    const [cacVanDeLuuY, setCacVanDeLuuY] = useState(initialData?.clinical_data?.conclusion?.cac_van_de_luu_y || 'Theo dõi và hướng dẫn chăm sóc trẻ định kỳ theo độ tuổi.');
+    // 6. Conclusion. Khi đổi từ Mẫu 2/3 sang Mẫu 1, dữ liệu kết luận cũ
+    // nằm ở conclusion_data thay vì clinical_data.conclusion.
+    const initialConclusion = initialData?.clinical_data?.conclusion
+        || initialData?.conclusion_data
+        || initialData?.conclusionData
+        || {};
+    const [fitnessClass, setFitnessClass] = useState(initialConclusion.fitness_class || '1');
+    const [diagnosis, setDiagnosis] = useState(initialConclusion.diagnosis || '');
+    const [cacVanDeLuuY, setCacVanDeLuuY] = useState(initialConclusion.cac_van_de_luu_y || DEFAULT_CHILD_CARE_NOTE);
 
     // Auto-calculated BMI
     const [bmi, setBmi] = useState('16.0');
@@ -225,7 +232,7 @@ export const useChildFormState = ({
     }, [height, weight]);
 
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const [isLocked, setIsLocked] = useState(initialData?.is_locked || false);
+    const [isLocked, setIsLocked] = useState(initialData?.signature_status === 'Signed' || initialData?.is_locked || false);
     const [confirmConfig, setConfirmConfig] = useState<{ isOpen: boolean, title: string, message: string, onConfirm: () => void } | null>(null);
 
     useEffect(() => {
@@ -274,7 +281,7 @@ export const useChildFormState = ({
         setIsFetchingHis(true);
         setHisSyncMessage(null);
         try {
-            const data = await healthCheckService.fetchHisData(hisSearchQuery);
+            const data = await healthCheckService.getHisPatient(hisSearchQuery);
             if (data) {
                 if (data.patientName) setPatientName(data.patientName);
                 if (data.cccd) setCccd(data.cccd);
@@ -446,8 +453,10 @@ export const useChildFormState = ({
         if (!gender) newErrors.gender = 'Vui lòng chọn giới tính';
 
         const isOverallClassThreeOrBelow = ['3', '4', '5', 'III', 'IV', 'V'].includes(fitnessClass);
-        const hasNotes = !!(cacVanDeLuuY && cacVanDeLuuY.trim());
-        if ((isOverallClassThreeOrBelow || hasNotes) && !diagnosis.trim()) {
+        const normalizedNotes = (cacVanDeLuuY || '').trim().toLocaleLowerCase('vi-VN');
+        const hasSpecificHealthNotes = !!normalizedNotes
+            && normalizedNotes !== DEFAULT_CHILD_CARE_NOTE.toLocaleLowerCase('vi-VN');
+        if ((isOverallClassThreeOrBelow || hasSpecificHealthNotes) && !diagnosis.trim()) {
             newErrors.diagnosis = 'Bắt buộc nhập mã bệnh tật/chẩn đoán ICD-10 khi phân loại sức khỏe từ loại III trở xuống hoặc có vấn đề lưu ý';
         }
 
@@ -468,6 +477,7 @@ export const useChildFormState = ({
             await onSave(payload, options);
         } catch (err: any) {
             toast.error(err.message || 'Lỗi khi lưu dữ liệu');
+            throw err;
         }
     };
 

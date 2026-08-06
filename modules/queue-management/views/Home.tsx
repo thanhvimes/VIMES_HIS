@@ -321,9 +321,9 @@ const Portal: React.FC<PortalProps> = ({ onNavigate, settings, onLogout }) => {
       )}
 
       {/* Premium Header */}
-      <header className="bg-white border-b border-slate-100 px-8 py-4 flex items-center justify-between z-30 shadow-sm">
-        <div className="flex items-center gap-4">
-            <div className="h-12 w-12 bg-white border border-slate-100 rounded-xl flex items-center justify-center p-1 shadow-sm overflow-hidden">
+      <header className="bg-white border-b border-slate-100 px-6 lg:px-8 py-3 flex items-center justify-between z-30 shadow-sm gap-4">
+        <div className="flex items-center gap-4 shrink-0">
+            <div className="h-12 w-12 bg-white border border-slate-100 rounded-xl flex items-center justify-center p-1 shadow-sm overflow-hidden shrink-0">
               {logoUrl && logoUrl.trim() !== '' && logoUrl !== '/logo.png' ? (
                  <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
               ) : (
@@ -334,30 +334,29 @@ const Portal: React.FC<PortalProps> = ({ onNavigate, settings, onLogout }) => {
                  </div>
               )}
             </div>
-           <div>
-              <h1 className="text-xl font-black text-slate-900 uppercase tracking-tight">
-                 {hospitalName ? hospitalName.split(' ')[0] : 'VIMES'}{' '}
-                 <span className="text-blue-600">COMMAND CENTER</span>
+           <div className="shrink-0">
+              <h1 className="text-xl font-black text-blue-600 uppercase tracking-tight whitespace-nowrap">
+                 {hospitalName || 'BỆNH VIỆN ĐA KHOA TỈNH'}
               </h1>
               <div className="flex items-center gap-2">
                  <span className="h-2 w-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                 <p className="text-slate-400 font-bold text-[9px] uppercase tracking-widest">Hệ thống QMS Toàn viện đang trực tuyến</p>
+                 <p className="text-slate-400 font-bold text-[9px] uppercase tracking-widest whitespace-nowrap">Hệ thống QMS Toàn viện đang trực tuyến</p>
               </div>
            </div>
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4 lg:gap-6 shrink-0">
            {/* SERVICE TYPE SELECTOR */}
-           <div className="flex items-center gap-3 bg-blue-50/50 p-1 rounded-2xl border border-blue-100 shadow-inner group">
-              <div className="h-9 w-9 bg-white rounded-xl flex items-center justify-center text-blue-600 shadow-sm group-hover:scale-105 transition-transform">
+           <div className="flex items-center gap-3 bg-blue-50/50 p-1 rounded-2xl border border-blue-100 shadow-inner group shrink-0">
+              <div className="h-9 w-9 bg-white rounded-xl flex items-center justify-center text-blue-600 shadow-sm group-hover:scale-105 transition-transform shrink-0">
                 <Briefcase size={18} />
               </div>
-              <div className="relative pr-4">
+              <div className="relative pr-4 min-w-[140px] max-w-[180px]">
                 <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest ml-1">Loại nghiệp vụ</p>
                 <select 
                     value={selectedService}
                     onChange={(e) => handleSelectService(e.target.value as KioskType)}
-                    className="bg-transparent px-1 py-0.5 text-xs font-black text-slate-700 appearance-none focus:outline-none cursor-pointer uppercase tracking-wider min-w-[160px]"
+                    className="bg-transparent px-1 py-0.5 text-xs font-black text-slate-700 appearance-none focus:outline-none cursor-pointer uppercase tracking-wider w-full truncate"
                 >
                     <option value="RECEPTION">Tiếp nhận</option>
                     <option value="REGISTRATION">Đăng ký khám bệnh</option>
@@ -372,12 +371,12 @@ const Portal: React.FC<PortalProps> = ({ onNavigate, settings, onLogout }) => {
            </div>
 
            {/* DEPT & AREA QUICK SELECT */}
-           <div className="hidden lg:flex items-center gap-4 bg-slate-50 p-1.5 rounded-2xl border border-slate-100 shadow-inner">
-              <div className="relative">
+           <div className="hidden lg:flex items-center gap-3 bg-slate-50 p-1.5 rounded-2xl border border-slate-100 shadow-inner shrink-0">
+              <div className="relative min-w-[130px] max-w-[180px] xl:max-w-[220px]">
                 <select 
                     value={selectedDept}
                     onChange={(e) => handleSelectDept(e.target.value)}
-                    className="bg-transparent pl-4 pr-8 py-2 text-[11px] font-black text-slate-600 appearance-none focus:outline-none cursor-pointer uppercase tracking-wider"
+                    className="bg-transparent pl-3 pr-7 py-2 text-[11px] font-black text-slate-600 appearance-none focus:outline-none cursor-pointer uppercase tracking-wider w-full truncate"
                 >
                     <option value="">Tất cả Khoa</option>
                     {departments.map(dept => (
@@ -386,13 +385,13 @@ const Portal: React.FC<PortalProps> = ({ onNavigate, settings, onLogout }) => {
                 </select>
                 <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               </div>
-              <div className="h-4 w-[1px] bg-slate-200"></div>
+              <div className="h-4 w-[1px] bg-slate-200 shrink-0"></div>
               {(selectedService === 'EXECUTION' || selectedService === 'REGISTRATION') ? (
-                <div className="relative min-w-[180px]">
+                <div className="relative min-w-[130px] max-w-[180px] xl:max-w-[220px]">
                   <select 
                       value={selectedRoom?.id || ''}
                       onChange={(e) => handleSelectRoom(e.target.value)}
-                      className="bg-transparent pl-4 pr-8 py-2 text-[11px] font-black text-blue-600 appearance-none focus:outline-none cursor-pointer uppercase tracking-wider font-extrabold"
+                      className="bg-transparent pl-3 pr-7 py-2 text-[11px] font-black text-blue-600 appearance-none focus:outline-none cursor-pointer uppercase tracking-wider font-extrabold w-full truncate"
                   >
                       <option value="" disabled>Chọn Phòng khám</option>
                       {rooms.map((room) => (
@@ -404,11 +403,11 @@ const Portal: React.FC<PortalProps> = ({ onNavigate, settings, onLogout }) => {
                   <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none" />
                 </div>
               ) : (
-                <div className="relative min-w-[180px]">
+                <div className="relative min-w-[130px] max-w-[180px] xl:max-w-[220px]">
                   <select 
                       value={selectedArea?.area_id || selectedArea?.id || ''}
                       onChange={(e) => handleSelectArea(e.target.value)}
-                      className="bg-transparent pl-4 pr-8 py-2 text-[11px] font-black text-slate-600 appearance-none focus:outline-none cursor-pointer uppercase tracking-wider"
+                      className="bg-transparent pl-3 pr-7 py-2 text-[11px] font-black text-slate-600 appearance-none focus:outline-none cursor-pointer uppercase tracking-wider w-full truncate"
                   >
                       <option value="" disabled>Chọn Khu vực</option>
                       {filteredAreas.map((area) => (

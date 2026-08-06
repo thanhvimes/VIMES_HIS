@@ -11,6 +11,7 @@ interface PrintFormMau2Props {
     icd10Names: Record<string, string>;
     COMMON_ICD10: { code: string; name: string }[];
     maCskcb?: string;
+    doctorSignatures?: Record<string, string>;
 }
 
 const STATIC_LABELS = {
@@ -148,7 +149,8 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
     doctors,
     icd10Names,
     COMMON_ICD10,
-    maCskcb
+    maCskcb,
+    doctorSignatures
 }) => {
     const normalizeObject = (obj: any): any => {
         if (!obj) return obj;
@@ -254,13 +256,19 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
             lam_sang_khac: 'internal',
             mat: 'eye',
             tai_mui_hong: 'ent',
-            rang_ham_mat: 'dental'
+            rang_ham_mat: 'dental',
+            ngoai_khoa: 'surgery',
+            da_lieu: 'dermatology',
+            san_phu_khoa: 'obgyn',
+            noi_tiet: 'internal',
+            co_xuong_khop: 'internal'
         };
         
         const metaKey = metadataMap[specialty];
         const docMeta = clinical.specialty_metadata?.[metaKey] || clinicalExam.specialty_metadata?.[metaKey];
         if (docMeta?.doctorId) {
-            const found = doctors.find(d => String(d.id || d.hee_employee_id) === String(docMeta.doctorId));
+            const found = doctors.find(d => [d.id, d.hee_employee_id, d.code, d.username]
+                .some(value => String(value || '').trim().toUpperCase() === String(docMeta.doctorId).trim().toUpperCase()));
             if (found) return found.name || found.hee_fullname;
         }
 
@@ -268,6 +276,102 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
             return clinicalExam.specialty_metadata[metaKey].doctorName;
         }
         return '';
+    };
+
+    const normalizeSignatureKey = (value: any) => String(value || '')
+        .trim()
+        .toUpperCase()
+        .replace(/^HMS_/, '')
+        .replace(/\.JPE?G\.?$/, '');
+
+    const findDoctorByIdentifier = (identifier: any) => {
+        const wanted = normalizeSignatureKey(identifier);
+        if (!wanted) return undefined;
+        return doctors.find(d => [d.id, d.hee_employee_id, d.code, d.username]
+            .some(value => normalizeSignatureKey(value) === wanted));
+    };
+
+    const resolveDoctorSignature = (...candidates: any[]) => {
+        if (!doctorSignatures) return null;
+        const normalizedSignatures = new Map(
+            Object.entries(doctorSignatures).map(([key, value]) => [normalizeSignatureKey(key), value])
+        );
+        for (const candidate of candidates) {
+            const normalized = normalizeSignatureKey(candidate);
+            if (normalized && normalizedSignatures.has(normalized)) {
+                return normalizedSignatures.get(normalized) || null;
+            }
+        }
+        return null;
+    };
+
+    const renderDoctorCell = (specialty: string) => {
+        const docName = getDoctor(specialty);
+        if (!docName) return null;
+
+        const metadataMap: Record<string, string> = {
+            tuan_hoan: 'internal',
+            ho_hap: 'internal',
+            tieu_hoa: 'internal',
+            than_tiet_nieu: 'internal',
+            than_kinh: 'internal',
+            tam_than: 'internal',
+            lam_sang_khac: 'internal',
+            mat: 'eye',
+            tai_mui_hong: 'ent',
+            rang_ham_mat: 'dental',
+            ngoai_khoa: 'surgery',
+            da_lieu: 'dermatology',
+            san_phu_khoa: 'obgyn',
+            noi_tiet: 'internal',
+            co_xuong_khop: 'internal',
+            lab: 'lab',
+            imaging: 'imaging'
+        };
+        
+        const metaKey = metadataMap[specialty];
+        const docMeta = clinical.specialty_metadata?.[metaKey] || clinicalExam.specialty_metadata?.[metaKey];
+
+        const doctorByMetadata = findDoctorByIdentifier(docMeta?.doctorCode)
+            || findDoctorByIdentifier(docMeta?.doctorUsername)
+            || findDoctorByIdentifier(docMeta?.doctorId);
+        const doctorByName = doctors.find(d => (d.name || d.hee_fullname) === docName);
+        const matchedDoctor = doctorByMetadata || doctorByName;
+        let docCode = (docMeta?.doctorCode || docMeta?.doctorUsername || matchedDoctor?.code
+            || matchedDoctor?.username || matchedDoctor?.hee_employee_id || docMeta?.doctorId || '').toString().trim().toUpperCase();
+
+        if (!docCode) {
+            const conclusion = document.conclusion_data || document.conclusionData || {};
+            docCode = (conclusion.doctor_code || conclusion.doctor_username || conclusion.conclusion_doctor || conclusion.doctor || '').toString().trim().toUpperCase();
+        }
+
+        const sigImg = resolveDoctorSignature(
+            docCode,
+            docMeta?.doctorCode,
+            docMeta?.doctorUsername,
+            docMeta?.doctorId,
+            matchedDoctor?.code,
+            matchedDoctor?.username,
+            matchedDoctor?.id,
+            matchedDoctor?.hee_employee_id,
+            matchedDoctor?.name,
+            matchedDoctor?.hee_fullname,
+            docName
+        );
+        const displayName = docName.startsWith('BS.') ? docName : `BS. ${docName}`;
+
+        return (
+            <div className="flex items-center justify-center gap-2 py-1 min-h-[44px]">
+                {sigImg && (
+                    <img 
+                        src={sigImg} 
+                        alt="Chữ ký" 
+                        className="h-10 max-w-[100px] object-contain shrink-0" 
+                    />
+                )}
+                <span className="font-bold text-[12px] text-slate-800 leading-tight">{displayName}</span>
+            </div>
+        );
     };
 
     const getPl = (specialty: string) => {
@@ -322,6 +426,11 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
 
     const dobDetails = getBirthDateDetails(docNormalized.dob);
     const reportDate = getReportDate();
+    const formatDateSafe = (value: any, fallback = '.../.../....') => {
+        if (!value) return fallback;
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? fallback : date.toLocaleDateString('vi-VN');
+    };
 
     // Checkboxes for obstetrics
     const sanKhoaNormal = extra.san_khoa === '1' || extra.san_khoa === 1;
@@ -376,11 +485,55 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                     display: inline-block;
                     min-width: 100px;
                 }
+                /*
+                 * Page 3 used to keep the clinical table at its intrinsic height.
+                 * Because the A4 wrapper is a justify-between column, that left a
+                 * very large empty band above the footer.  Give the table the
+                 * remaining printable height so its rows are distributed evenly.
+                 */
+                .mau2-clinical-table {
+                    height: 245mm;
+                    table-layout: fixed;
+                }
+                .mau2-clinical-table tbody tr:not(.font-bold) td {
+                    vertical-align: middle;
+                }
+                /* Use the printable A4 height instead of leaving all spare space
+                   as one large blank band at the bottom of pages 1 and 2. */
+                .mau2-page-one > .mau2-page-main,
+                .mau2-page-two > .mau2-page-main {
+                    height: 262mm;
+                    min-height: 0;
+                }
+                .mau2-page-one > .mau2-page-main {
+                    display: flex;
+                    flex-direction: column;
+                }
+                .mau2-page-one-history {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    padding-bottom: 2mm;
+                }
+                .mau2-page-one-history > .mau2-history-content {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-evenly;
+                }
+                .mau2-page-two > .mau2-page-main {
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-between;
+                }
+                .mau2-page-two > .mau2-page-main > .mau2-page-two-block {
+                    margin-top: 0 !important;
+                }
             `}</style>
 
             {/* ==================== PAGE 1 ==================== */}
-            <div className="a4-page flex flex-col justify-between">
-                <div>
+            <div className="a4-page mau2-page-one flex flex-col justify-between">
+                <div className="mau2-page-main">
                     <div className="flex justify-between items-start">
                         <div className="flex items-center gap-3 w-[50%]">
                             {logoUrl && <img src={logoUrl} alt="Logo" className="h-10 w-auto object-contain shrink-0" />}
@@ -438,7 +591,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                             <span className="font-bold">{L.lblCccd}</span> <span>{docNormalized.cccd || '................................'}</span>
                         </div>
                         <div>
-                            <span className="font-bold">{L.lblCapNgay}</span> <span>{cccdDate ? new Date(cccdDate).toLocaleDateString('vi-VN') : '.../.../....'}</span> <span className="ml-4 font-bold">{L.lblNoiCap}</span> <span>{cccdPlace || '................................'}</span>
+                            <span className="font-bold">{L.lblCapNgay}</span> <span>{formatDateSafe(cccdDate)}</span> <span className="ml-4 font-bold">{L.lblNoiCap}</span> <span>{cccdPlace || '................................'}</span>
                         </div>
                         <div>
                             <span className="font-bold">{L.lblLoaiHinhKcb}</span> <span>{clinical.exam_type || '...'}</span>
@@ -460,10 +613,45 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                         </div>
                         <div className="grid grid-cols-2 gap-4 pt-1">
                             <div><span className="font-bold">{L.lblMaCskcb}</span> <span className="font-semibold">{maCskcb || docNormalized.ma_cskcb || '8934285008135'}</span></div>
-                            <div><span className="font-bold">{L.lblNgayKham}</span> <span>{docNormalized.ngay_vao ? new Date(docNormalized.ngay_vao).toLocaleDateString('vi-VN') : '11/07/2026'}</span> <span className="font-bold ml-2">{L.lblGioKham}</span> <span>...</span></div>
+                            <div><span className="font-bold">{L.lblNgayKham}</span> <span>{formatDateSafe(docNormalized.ngay_vao, '11/07/2026')}</span> <span className="font-bold ml-2">{L.lblGioKham}</span> <span>...</span></div>
                         </div>
                         <div>
                             <span className="font-bold">{L.lblLyDo}:</span> <span className="font-semibold">{clinical.ly_do_vv || 'Khám sức khỏe định kỳ'}</span>
+                        </div>
+                    </div>
+
+                    {/* Continue into the unused lower half of page 1. */}
+                    <div className="mau2-page-one-history mt-5 border-t border-black pt-2">
+                        <h2 className="font-bold text-[14px] uppercase tracking-wide border-b border-black pb-0.5 mb-2">{L.titleTienSu}</h2>
+                        <div className="mau2-history-content text-[12.5px] space-y-2 leading-snug">
+                            <div>
+                                <span className="font-bold">{L.lblTiemSuGiaDinh}</span>
+                                <div className="pl-4 mt-0.5">
+                                    {L.tsgdDetail}
+                                    <div className="flex gap-8 mt-1">
+                                        <span>{extra.tsgd_mac_benh !== '1' ? '☑' : '☐'} a) {L.lblKhong}</span>
+                                        <span>{extra.tsgd_mac_benh === '1' ? '☑' : '☐'} b) {L.lblCo}; {L.lblTsgdGhiRo} <strong>{extra.tsgd_ma_benh || '...'}</strong></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <span className="font-bold">{L.lblTsBanThan}</span>
+                                <div className="pl-4 mt-1">
+                                    <span className="font-bold">{L.lblSanKhoa}</span>
+                                    <div className="flex gap-8 mt-0.5">
+                                        <span>{sanKhoaNormal ? '☑' : '☐'} {L.lblBinhThuong}</span>
+                                        <span>{sanKhoaAbnormal ? '☑' : '☐'} {L.lblKhongBinhThuong}</span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 mt-1 pl-4 text-[12px] text-gray-700">
+                                        <span>{sk1 ? '☑' : '☐'} {L.lblThieuThang}</span>
+                                        <span>{sk2 ? '☑' : '☐'} {L.lblThuaCan}</span>
+                                        <span>{sk3 ? '☑' : '☐'} {L.lblCanThiep}</span>
+                                        <span>{sk4 ? '☑' : '☐'} {L.lblNgat}</span>
+                                        <span className="col-span-2">{sk5 ? '☑' : '☐'} {L.lblMeBenh}</span>
+                                    </div>
+                                    <div className="pl-4 mt-0.5 text-[12px]">{L.lblSanKhoaGhiRo} <strong>{extra.ma_benh_san_khoa_khong_bt || '...'}</strong></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -471,12 +659,12 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
             </div>
 
             {/* ==================== PAGE 2 ==================== */}
-            <div className="a4-page flex flex-col justify-between">
-                <div>
-                    <h2 className="font-bold text-[14px] uppercase tracking-wide border-b border-black pb-0.5 mb-2">{L.titleTienSu}</h2>
+            <div className="a4-page mau2-page-two flex flex-col justify-between">
+                <div className="mau2-page-main">
+                    <h2 className="font-bold text-[14px] uppercase tracking-wide border-b border-black pb-0.5 mb-2">{L.titleTienSu} (tiếp theo)</h2>
                     
                     <div className="text-[13px] space-y-3">
-                        <div>
+                        <div className="hidden">
                             <span className="font-bold">{L.lblTiemSuGiaDinh}</span>
                             <div className="pl-4 leading-normal mt-0.5">
                                 {L.tsgdDetail}
@@ -488,9 +676,9 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                         </div>
 
                         <div>
-                            <span className="font-bold">{L.lblTsBanThan}</span>
+                            <span className="font-bold hidden">{L.lblTsBanThan}</span>
                             <div className="pl-4 mt-1 space-y-2">
-                                <div>
+                                <div className="hidden">
                                     <span className="font-bold">{L.lblSanKhoa}</span>
                                     <div className="flex gap-8 mt-0.5">
                                         <span className="flex items-center gap-1">{sanKhoaNormal ? '☑' : '☐'} {L.lblBinhThuong}</span>
@@ -592,11 +780,11 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                         </div>
                     </div>
 
-                    <div className="text-[13px] mt-4 italic pl-4">
+                    <div className="mau2-page-two-block text-[13px] mt-4 italic pl-4">
                         {L.lblCamDoan}
                     </div>
 
-                    <div className="flex justify-end mt-4 px-6 text-[13px]">
+                    <div className="mau2-page-two-block flex justify-end mt-4 px-6 text-[13px]">
                         <div className="text-center w-72">
                             <span className="italic block mb-0.5">Ngày {getReportDate().day} tháng {getReportDate().month} năm {getReportDate().year}</span>
                             <strong className="block font-bold uppercase">{L.lblNguoiDeNghi}</strong>
@@ -607,7 +795,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                         </div>
                     </div>
 
-                    <div className="mt-4 border-t border-black pt-2">
+                    <div className="mau2-page-two-block mt-4 border-t border-black pt-2">
                         <h2 className="font-bold text-[14px] uppercase tracking-wide mb-2">{L.titleTheLuc}</h2>
                         <div className="grid grid-cols-2 gap-y-1.5 gap-x-4 text-[13.5px]">
                             <div>
@@ -642,7 +830,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
             <div className="a4-page flex flex-col justify-between">
                 <div>
                     <h2 className="font-bold text-[14px] uppercase tracking-wide border-b border-black pb-0.5 mb-2">{L.titleLamSang}</h2>
-                    <table className="a4-table w-full">
+                    <table className="a4-table mau2-clinical-table w-full">
                         <thead>
                             <tr className="font-bold bg-gray-50 text-center">
                                 <th className="w-[70%]">{L.colNoidungKham}</th>
@@ -658,49 +846,49 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                                     <span className="font-bold">{L.lblTuanHoan}</span> <span className="text-slate-800">{clinicalExam.nhi_tuan_hoan || clinicalExam.tuan_hoan || clinicalExam.internal || 'Bình thường'}</span>
                                     {renderPl('tuan_hoan')}
                                 </td>
-                                <td className="text-center font-bold text-slate-700">{getDoctor('tuan_hoan')}</td>
+                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('tuan_hoan')}</td>
                             </tr>
                             <tr>
                                 <td>
                                     <span className="font-bold">{L.lblHoHap}</span> <span className="text-slate-800">{clinicalExam.nhi_ho_hap || clinicalExam.ho_hap || clinicalExam.internal || 'Bình thường'}</span>
                                     {renderPl('ho_hap')}
                                 </td>
-                                <td className="text-center font-bold text-slate-700">{getDoctor('ho_hap')}</td>
+                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('ho_hap')}</td>
                             </tr>
                             <tr>
                                 <td>
                                     <span className="font-bold">{L.lblTieuHoa}</span> <span className="text-slate-800">{clinicalExam.nhi_tieu_hoa || clinicalExam.tieu_hoa || clinicalExam.internal || 'Bình thường'}</span>
                                     {renderPl('tieu_hoa')}
                                 </td>
-                                <td className="text-center font-bold text-slate-700">{getDoctor('tieu_hoa')}</td>
+                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('tieu_hoa')}</td>
                             </tr>
                             <tr>
                                 <td>
                                     <span className="font-bold">{L.lblThanTietNieu}</span> <span className="text-slate-800">{clinicalExam.nhi_tiet_nieu || clinicalExam.nhi_sinh_duc || clinicalExam.than_tiet_nieu || clinicalExam.internal || 'Bình thường'}</span>
                                     {renderPl('than_tiet_nieu')}
                                 </td>
-                                <td className="text-center font-bold text-slate-700">{getDoctor('than_tiet_nieu')}</td>
+                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('than_tiet_nieu')}</td>
                             </tr>
                             <tr>
                                 <td>
                                     <span className="font-bold">{L.lblThanKinh}</span> <span className="text-slate-800">{clinicalExam.nhi_than_kinh || clinicalExam.than_kinh || clinicalExam.internal || 'Bình thường'}</span>
                                     {renderPl('than_kinh')}
                                 </td>
-                                <td className="text-center font-bold text-slate-700">{getDoctor('than_kinh')}</td>
+                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('than_kinh')}</td>
                             </tr>
                             <tr>
                                 <td>
                                     <span className="font-bold">{L.lblTamThan}</span> <span className="text-slate-800">{clinicalExam.nhi_tam_than || clinicalExam.tam_than || clinicalExam.internal || 'Bình thường'}</span>
                                     {renderPl('tam_than')}
                                 </td>
-                                <td className="text-center font-bold text-slate-700">{getDoctor('tam_than')}</td>
+                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('tam_than')}</td>
                             </tr>
                             <tr>
                                 <td>
                                     <span className="font-bold">{L.lblLamSangKhac}</span> <span className="text-slate-800">{clinicalExam.nhi_khac || 'Bình thường'}</span>
                                     {renderPl('lam_sang_khac')}
                                 </td>
-                                <td className="text-center font-bold text-slate-700">{getDoctor('lam_sang_khac')}</td>
+                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('lam_sang_khac')}</td>
                             </tr>
                             <tr className="font-bold">
                                 <td colSpan={2} className="bg-gray-100/50">{L.lblMat}</td>
@@ -720,7 +908,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                                     </div>
                                     {renderPl('mat')}
                                 </td>
-                                <td className="text-center font-bold text-slate-700">{getDoctor('mat')}</td>
+                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('mat')}</td>
                             </tr>
                             <tr className="font-bold">
                                 <td colSpan={2} className="bg-gray-100/50">{L.lblTaiMuiHong}</td>
@@ -737,7 +925,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                                     </div>
                                     {renderPl('tai_mui_hong')}
                                 </td>
-                                <td className="text-center font-bold text-slate-700">{getDoctor('tai_mui_hong')}</td>
+                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('tai_mui_hong')}</td>
                             </tr>
                             <tr className="font-bold">
                                 <td colSpan={2} className="bg-gray-100/50">{L.lblRangHamMat}</td>
@@ -750,7 +938,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                                     </div>
                                     {renderPl('rang_ham_mat')}
                                 </td>
-                                <td className="text-center font-bold text-slate-700">{getDoctor('rang_ham_mat')}</td>
+                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('rang_ham_mat')}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -782,7 +970,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                                         <div>{L.lblAlat} <span className="font-semibold">{alatVal} U/L</span></div>
                                     </div>
                                 </td>
-                                <td className="text-center font-bold text-slate-700">{getDoctor('lab') || getDoctor('tuan_hoan')}</td>
+                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('lab') || renderDoctorCell('tuan_hoan')}</td>
                             </tr>
                             <tr>
                                 <td>
@@ -791,7 +979,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                                         {L.lblTongPhanTichNuocTieu} <span className="font-semibold">{urineTest}</span>
                                     </div>
                                 </td>
-                                <td className="text-center font-bold text-slate-700">{getDoctor('lab') || getDoctor('tuan_hoan')}</td>
+                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('lab') || renderDoctorCell('tuan_hoan')}</td>
                             </tr>
                             <tr>
                                 <td>
@@ -800,7 +988,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                                         {L.lblXqNguc} <span className="font-semibold">{xqResult}</span>
                                     </div>
                                 </td>
-                                <td className="text-center font-bold text-slate-700">{getDoctor('imaging') || getDoctor('tuan_hoan')}</td>
+                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('imaging') || renderDoctorCell('tuan_hoan')}</td>
                             </tr>
                             <tr>
                                 <td>
@@ -849,20 +1037,46 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                             <strong className="block font-bold uppercase tracking-wider mb-2">{L.lblNguoiKetLuan}</strong>
                             <span className="italic text-[11px] block mb-4">{L.lblKyGhiRoDongDau}</span>
                             
-                            {docNormalized.signature_status === 'Signed' ? (
-                                <div className="my-2 p-2 border border-green-600 rounded bg-green-50/50 text-[11px] font-bold text-green-700 leading-tight text-left w-full shadow-sm max-w-[240px] font-sans">
-                                    <div className="flex items-center gap-1 mb-1 text-green-800">
-                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                        </svg>
-                                        <span>SIGNED DIGITALLY</span>
-                                    </div>
-                                    By: {hospitalNameNormalized || 'Bệnh viện đa khoa tỉnh Ninh Bình'}<br/>
-                                    Time: {docNormalized.updated_at ? new Date(docNormalized.updated_at).toLocaleString('vi-VN') : '2026-06-03'}
-                                </div>
-                            ) : (
-                                <div className="h-16"></div>
-                            )}
+                            {(() => {
+                                const docCode = (conclusion.doctor_code || conclusion.doctor_username || conclusion.conclusion_doctor || conclusion.doctor || '').toString().trim().toUpperCase();
+                                const conclusionDoctor = findDoctorByIdentifier(docCode)
+                                    || doctors.find(d => (d.name || d.hee_fullname) === getConclusionDoctorName());
+                                const sigImg = resolveDoctorSignature(
+                                    docCode,
+                                    conclusion.doctor_code,
+                                    conclusion.doctor_username,
+                                    conclusion.conclusion_doctor,
+                                    conclusion.doctor,
+                                    conclusionDoctor?.code,
+                                    conclusionDoctor?.username,
+                                    conclusionDoctor?.id,
+                                    conclusionDoctor?.hee_employee_id,
+                                    conclusionDoctor?.name,
+                                    conclusionDoctor?.hee_fullname,
+                                    getConclusionDoctorName()
+                                );
+
+                                if (docNormalized.signature_status === 'Signed' && !sigImg) {
+                                    return (
+                                        <div className="my-2 p-2 border border-green-600 rounded bg-green-50/50 text-[11px] font-bold text-green-700 leading-tight text-left w-full shadow-sm max-w-[240px] font-sans">
+                                            <div className="flex items-center gap-1 mb-1 text-green-800">
+                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                                </svg>
+                                                <span>SIGNED DIGITALLY</span>
+                                            </div>
+                                            By: {hospitalNameNormalized || 'Bệnh viện đa khoa tỉnh Ninh Bình'}<br/>
+                                            Time: {docNormalized.updated_at ? new Date(docNormalized.updated_at).toLocaleString('vi-VN') : '2026-06-03'}
+                                        </div>
+                                    );
+                                }
+
+                                if (sigImg) {
+                                    return <img src={sigImg} alt="Chữ ký bác sĩ" className="h-16 max-w-[180px] object-contain my-1" />;
+                                }
+
+                                return <div className="h-16"></div>;
+                            })()}
                             
                             <span className="font-bold text-[14px] mt-2 block">{getConclusionDoctorName()}</span>
                         </div>

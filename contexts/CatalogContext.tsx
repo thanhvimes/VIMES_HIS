@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { catalogService, CatalogItem } from '../services/catalogService';
+import { useSession } from './SessionContext';
 
 interface CatalogContextType {
     provinces: CatalogItem[];
@@ -24,6 +25,7 @@ interface CatalogContextType {
 const CatalogContext = createContext<CatalogContextType | undefined>(undefined);
 
 export const CatalogProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const { isAuthenticated } = useSession();
     const [provinces, setProvinces] = useState<CatalogItem[]>([]);
     const [departments, setDepartments] = useState<CatalogItem[]>([]);
     const [ethnicities, setEthnicities] = useState<CatalogItem[]>([]);
@@ -34,7 +36,7 @@ export const CatalogProvider: React.FC<{ children: ReactNode }> = ({ children })
     const [relationships, setRelationships] = useState<CatalogItem[]>([]);
     const [roomsAll, setRoomsAll] = useState<CatalogItem[]>([]);
     
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
 
     const loadAllCatalogs = useCallback(async () => {
         setIsLoading(true);
@@ -74,8 +76,22 @@ export const CatalogProvider: React.FC<{ children: ReactNode }> = ({ children })
     }, []);
 
     useEffect(() => {
-        loadAllCatalogs();
-    }, [loadAllCatalogs]);
+        if (isAuthenticated) {
+            loadAllCatalogs();
+        } else {
+            catalogService.clearCache();
+            setProvinces([]);
+            setDepartments([]);
+            setEthnicities([]);
+            setOccupations([]);
+            setObjects([]);
+            setExamTypes([]);
+            setNations([]);
+            setRelationships([]);
+            setRoomsAll([]);
+            setIsLoading(false);
+        }
+    }, [isAuthenticated, loadAllCatalogs]);
 
     const getRoomsByDept = useCallback((deptId?: string | number) => {
         if (!deptId) return roomsAll;

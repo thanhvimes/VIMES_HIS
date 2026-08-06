@@ -33,6 +33,10 @@ class HealthCheckController {
         return documentsController.signDocuments(req, res);
     }
 
+    async unlockDocument(req: Request, res: Response) {
+        return documentsController.unlockDocument(req, res);
+    }
+
     // 7. Đồng bộ cổng y tế
     async sendDocuments(req: Request, res: Response) {
         return documentsController.sendDocuments(req, res);
@@ -51,6 +55,25 @@ class HealthCheckController {
     // Đánh dấu đã in barcode
     async markBarcodePrinted(req: Request, res: Response) {
         return documentsController.markBarcodePrinted(req, res);
+    }
+
+    // Lấy hình ảnh chữ ký hàng loạt cho các bác sĩ phụ trách khám chuyên khoa
+    async getDoctorSignatures(req: Request, res: Response) {
+        try {
+            const signatureService = require('../../services/signature.service').default;
+            const codesParam = (req.query.codes as string) || (req.body?.codes as string[]);
+            let codes: string[] = [];
+            if (Array.isArray(codesParam)) {
+                codes = codesParam;
+            } else if (typeof codesParam === 'string') {
+                codes = codesParam.split(',').map(c => c.trim()).filter(Boolean);
+            }
+            const signatures = await signatureService.getMultipleDoctorSignatures(codes);
+            return res.json({ success: true, data: signatures });
+        } catch (error: any) {
+            console.error('Error fetching doctor signatures:', error);
+            return res.status(500).json({ success: false, message: error.message });
+        }
     }
 
 }

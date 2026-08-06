@@ -20,11 +20,11 @@ export const getBaseUrl = () => {
   // 2. Mặc định là Origin hiện tại (Tự động nhận diện IP/Domain của Server)
   let url = window.location.origin;
 
-  // 3. Chế độ DEV: Nếu chạy Vite (3000/5173) trên localhost, mặc định trỏ về port 3001
+  // 3. Chế độ DEV: Nếu chạy Vite (3000/5173) trên localhost, mặc định trỏ về port 3002
   const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
   const isDevPort = ['3000', '5173'].includes(window.location.port);
   if (isLocalhost && isDevPort && (url === window.location.origin || url.includes('localhost'))) {
-    url = `http://${window.location.hostname}:3001`;
+    url = `http://${window.location.hostname}:3002`;
   }
 
   return url.replace(/\/$/, '');

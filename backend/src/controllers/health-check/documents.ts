@@ -312,12 +312,17 @@ class DocumentsController {
             const result = await transaction(async (client) => {
                 // Check if doc_no already exists in health_check_masters
                 const existingRes = await client.query(
-                    'SELECT id FROM health_check_masters WHERE doc_no = $1',
+                    'SELECT id, signature_status, send_status FROM health_check_masters WHERE doc_no = $1',
                     [docNo]
                 );
 
                 let masterId;
                 if (existingRes.rows.length > 0) {
+                    if (existingRes.rows[0].signature_status === 'Signed' || existingRes.rows[0].send_status === 'Success') {
+                        const err: any = new Error('Hồ sơ đã ký số hoặc đã gửi cổng, không thể ghi đè bằng thao tác tạo mới.');
+                        err.statusCode = 423;
+                        throw err;
+                    }
                     masterId = existingRes.rows[0].id;
                     
                     // UPDATE existing master
@@ -325,7 +330,8 @@ class DocumentsController {
                         UPDATE health_check_masters 
                         SET patient_id = $1, patient_name = $2, cccd = $3, dob = $4, 
                             gender = $5, xml_data = $6, updated_at = NOW(),
-                            signature_status = 'Unsigned', send_status = 'Unsent'
+                            signature = NULL, signature_status = 'Unsigned', send_status = 'Unsent',
+                            sent_at = NULL, transaction_id = NULL, error_message = NULL, response_log = NULL
                         WHERE id = $7
                     `;
                     await client.query(masterSql, [
@@ -416,9 +422,13 @@ class DocumentsController {
 
         try {
             // Check if document has already been successfully synced to VNeID
-            const masterCheck = await query(`SELECT send_status FROM health_check_masters WHERE id = $1`, [parseInt(id, 10)]);
+            const masterCheck = await query(`SELECT send_status, signature_status FROM health_check_masters WHERE id = $1`, [parseInt(id, 10)]);
             if (masterCheck.rows.length > 0 && masterCheck.rows[0].send_status === 'Success') {
                 return res.status(400).json({ error: "Hồ sơ đã gửi liên thông VNeID thành công, không thể chỉnh sửa!" });
+            }
+
+            if (masterCheck.rows.length > 0 && masterCheck.rows[0].signature_status === 'Signed') {
+                return res.status(423).json({ error: 'Hồ sơ đã ký số. Phải hủy ký số trước khi chỉnh sửa.' });
             }
 
             const xmlData = generateXmlPayload(
@@ -441,7 +451,8 @@ class DocumentsController {
                     UPDATE health_check_masters 
                     SET patient_id = $1, patient_name = $2, cccd = $3, dob = $4, 
                         gender = $5, doc_no = $6, form_type = $7, xml_data = $8, updated_at = NOW(),
-                        signature_status = 'Unsigned', send_status = 'Unsent'
+                        signature = NULL, signature_status = 'Unsigned', send_status = 'Unsent',
+                        sent_at = NULL, transaction_id = NULL, error_message = NULL, response_log = NULL
                     WHERE id = $9
                 `;
                 await client.query(masterSql, [
@@ -478,6 +489,10 @@ class DocumentsController {
     async deleteDocument(req: Request, res: Response) {
         const id = req.params.id as string;
         try {
+            const state = await query(`SELECT signature_status, send_status FROM health_check_masters WHERE id = $1`, [parseInt(id)]);
+            if (state.rows[0]?.signature_status === 'Signed' || state.rows[0]?.send_status === 'Success') {
+                return res.status(423).json({ error: 'Không thể xóa hồ sơ đã ký số hoặc đã gửi cổng.' });
+            }
             const sql = `DELETE FROM health_check_masters WHERE id = $1`;
             await query(sql, [parseInt(id)]);
             return res.json({ success: true });
@@ -498,7 +513,17 @@ class DocumentsController {
         const type = signatureType === 'HSM' ? 'HSM' : 'USB';
 
         try {
+            const intIds = docIds.map((id: any) => parseInt(id, 10));
+            if (intIds.some((id: number) => !Number.isInteger(id))) return res.status(400).json({ error: 'Danh sách ID hồ sơ không hợp lệ.' });
+            const states = await query(`SELECT id, signature_status, send_status FROM health_check_masters WHERE id = ANY($1::int[])`, [intIds]);
+            if (states.rows.length !== intIds.length) return res.status(404).json({ error: 'Có hồ sơ không tồn tại.' });
+            if (states.rows.some((row: any) => row.send_status === 'Success')) return res.status(409).json({ error: 'Không thể ký lại hồ sơ đã gửi cổng thành công.' });
+            if (states.rows.some((row: any) => row.signature_status === 'Signed')) return res.status(409).json({ error: 'Hồ sơ đã ký số. Hãy hủy ký trước khi ký lại.' });
+
             if (type === 'USB') {
+                if (!signatures || typeof signatures !== 'object' || intIds.some((id: number) => !signatures[String(id)])) {
+                    return res.status(400).json({ error: 'Thiếu dữ liệu XML đã ký cho một hoặc nhiều hồ sơ.' });
+                }
                 if (signatures && typeof signatures === 'object') {
                     for (const id of docIds) {
                         const signatureValue = signatures[id];
@@ -515,16 +540,7 @@ class DocumentsController {
                         }
                     }
                 } else {
-                    const sql = `
-                        UPDATE health_check_masters
-                        SET "signature" = 'MIAGCSqGSIb3DQEHAqCAMIACAQExCzAJBgUrDgMCGgUAMGcGA...',
-                            "signature_status" = 'Signed',
-                            "signature_type" = 'USB',
-                            "updated_at" = NOW()
-                        WHERE id = ANY($1::int[])
-                    `;
-                    const intIds = docIds.map(id => parseInt(id));
-                    await query(sql, [intIds]);
+                    return res.status(400).json({ error: 'Thiếu dữ liệu XML đã ký từ USB Token.' });
                 }
             } else {
                 const { getHealthCheckSettings } = require('../../config/health-check-settings');
@@ -617,6 +633,53 @@ class DocumentsController {
     }
 
     // 7. Đồng bộ cổng y tế
+    async unlockDocument(req: Request, res: Response) {
+        const id = parseInt(req.params.id as string, 10);
+        if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID hồ sơ không hợp lệ.' });
+
+        try {
+            await transaction(async (client) => {
+                const state = await client.query(
+                    `SELECT m.*, d.clinical_data, d.lab_data, d.conclusion_data
+                     FROM health_check_masters m
+                     LEFT JOIN health_check_details d ON d.master_id = m.id
+                     WHERE m.id = $1
+                     FOR UPDATE OF m`,
+                    [id]
+                );
+                if (state.rows.length === 0) {
+                    const err: any = new Error('Không tìm thấy hồ sơ.');
+                    err.statusCode = 404;
+                    throw err;
+                }
+                const doc = state.rows[0];
+                if (doc.send_status === 'Success') {
+                    const err: any = new Error('Hồ sơ đã gửi cổng thành công, không được phép hủy ký.');
+                    err.statusCode = 409;
+                    throw err;
+                }
+
+                const unsignedXml = generateXmlPayload(
+                    doc.form_type,
+                    { patientId: doc.patient_id, patientName: doc.patient_name, cccd: doc.cccd, dob: doc.dob, gender: doc.gender, docNo: doc.doc_no },
+                    doc.clinical_data || {}, doc.lab_data || {}, doc.conclusion_data || {}
+                );
+                await client.query(
+                    `UPDATE health_check_masters
+                     SET xml_data = $1, signature = NULL, signature_status = 'Unsigned',
+                         send_status = 'Unsent', sent_at = NULL,
+                         transaction_id = NULL, error_message = NULL, response_log = NULL,
+                         updated_at = NOW()
+                     WHERE id = $2`,
+                    [unsignedXml, id]
+                );
+            });
+            return res.json({ success: true, message: 'Đã hủy chữ ký số và mở khóa hồ sơ.' });
+        } catch (error: any) {
+            return res.status(error.statusCode || 500).json({ error: error.message });
+        }
+    }
+
     async sendDocuments(req: Request, res: Response) {
         const { docIds } = req.body;
 

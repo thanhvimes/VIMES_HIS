@@ -71,11 +71,6 @@ class ApiClient {
     const token = this.getAuthToken();
 
     // 🔍 DEBUG LOGGING
-    console.log('[apiClient] ========== REQUEST DEBUG ==========');
-    console.log('[apiClient] Endpoint:', endpoint);
-    console.log('[apiClient] Method:', options.method || 'GET');
-    console.log('[apiClient] localStorage.currentUser exists:', !!localStorage.getItem('currentUser'));
-    console.log('[apiClient] Token extracted:', token ? token.substring(0, 50) + '...' : 'NULL');
 
     const defaultHeaders: HeadersInit = {
       ...(responseType === 'json' ? {
@@ -86,8 +81,6 @@ class ApiClient {
       ...headers,
     };
 
-    console.log('[apiClient] Headers:', JSON.stringify(defaultHeaders, null, 2));
-    console.log('[apiClient] ========================================');
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
@@ -197,6 +190,14 @@ class ApiClient {
         ...headers,
         'Content-Type': undefined as any
       }
+    });
+  }
+
+  public putBinary<T>(endpoint: string, body: Blob, contentType: string): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      body,
+      headers: { 'Content-Type': contentType, 'Accept': 'application/json' }
     });
   }
 }

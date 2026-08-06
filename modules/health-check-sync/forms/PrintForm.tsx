@@ -59,11 +59,81 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
     const [doctors, setDoctors] = useState<any[]>([]);
     const [settings, setSettings] = useState<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const [doctorSignatures, setDoctorSignatures] = useState<Record<string, string>>({});
+    const [referenceDataReady, setReferenceDataReady] = useState(false);
+    const [signaturesReady, setSignaturesReady] = useState(false);
 
     useEffect(() => {
-        catalogService.getDoctors().then(setDoctors).catch(() => {});
-        healthCheckService.getSettings().then(setSettings).catch(() => {});
+        let cancelled = false;
+        Promise.allSettled([
+            catalogService.getDoctors(),
+            healthCheckService.getSettings()
+        ]).then(([doctorsResult, settingsResult]) => {
+            if (cancelled) return;
+            setDoctors(doctorsResult.status === 'fulfilled' ? doctorsResult.value : []);
+            setSettings(settingsResult.status === 'fulfilled' ? settingsResult.value : null);
+            setReferenceDataReady(true);
+        });
+        return () => { cancelled = true; };
     }, []);
+
+    useEffect(() => {
+        if (!propDoc || !referenceDataReady) return;
+        let cancelled = false;
+        setSignaturesReady(false);
+        const clinicalDataObj = propDoc.clinical_data || propDoc.clinicalData || {};
+        const clinicalExamObj = clinicalDataObj.clinical_exam || clinicalDataObj.clinicalExam || {};
+        const conclusionObj = propDoc.conclusion_data || propDoc.conclusionData || {};
+        const doctorCodes = new Set<string>();
+
+        const addCode = (code: any) => {
+            if (code !== null && code !== undefined && String(code).trim()) {
+                doctorCodes.add(String(code).trim().toUpperCase());
+            }
+        };
+
+        addCode(conclusionObj.doctor_code);
+        addCode(conclusionObj.doctor_username);
+        addCode(conclusionObj.conclusion_doctor);
+        addCode(conclusionObj.doctor);
+
+        [clinicalDataObj.specialty_metadata, clinicalExamObj.specialty_metadata]
+            .filter(Boolean)
+            .forEach((metadata: any) => {
+                Object.values(metadata).forEach((meta: any) => {
+                    addCode(meta?.doctorId);
+                    addCode(meta?.doctorCode);
+                    addCode(meta?.doctorUsername);
+                });
+            });
+
+        Array.from(doctorCodes).forEach(rawCode => {
+            const doctor = doctors.find((d: any) =>
+                [d.id, d.hee_employee_id, d.code, d.username]
+                    .some(value => String(value || '').trim().toUpperCase() === rawCode)
+            );
+            if (doctor) {
+                addCode(doctor.code);
+                addCode(doctor.username);
+                addCode(doctor.id);
+                addCode(doctor.hee_employee_id);
+                addCode(doctor.name || doctor.hee_fullname);
+            }
+        });
+
+        if (doctorCodes.size === 0) {
+            setDoctorSignatures({});
+            setSignaturesReady(true);
+            return () => { cancelled = true; };
+        }
+
+        healthCheckService.getDoctorSignatures(Array.from(doctorCodes))
+            .then(data => { if (!cancelled) setDoctorSignatures(data); })
+            .catch(err => console.error("Lỗi lấy chữ ký bác sĩ trong PrintForm:", err))
+            .finally(() => { if (!cancelled) setSignaturesReady(true); });
+
+        return () => { cancelled = true; };
+    }, [propDoc, doctors, referenceDataReady]);
 
     const [icd10Names, setIcd10Names] = useState<Record<string, string>>({});
 
@@ -136,23 +206,35 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
     }, [brandingLoaded, fetchBrandingSettings]);
 
     const activeRef = useRef(true);
+    const pdfGenerationStarted = useRef(false);
 
     useEffect(() => {
+        if (!referenceDataReady || !signaturesReady || pdfGenerationStarted.current) return;
+        pdfGenerationStarted.current = true;
         activeRef.current = true;
         const timer = setTimeout(() => {
             if (activeRef.current) {
                 generatePdf();
             }
-        }, 600);
+        }, 250);
 
         return () => {
             activeRef.current = false;
             clearTimeout(timer);
+        };
+    }, [referenceDataReady, signaturesReady]);
+
+    useEffect(() => {
+        return () => {
             if (pdfUrl) {
-                URL.revokeObjectURL(pdfUrl);
+                try {
+                    URL.revokeObjectURL(pdfUrl);
+                } catch (e) {
+                    // Ignore revocation error on unmount
+                }
             }
         };
-    }, []);
+    }, [pdfUrl]);
 
     const generatePdf = async () => {
         if (!containerRef.current) {
@@ -203,6 +285,28 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
             
             // Define the rendering logic wrapped in a promise
             const renderingPromise = (async () => {
+                // Mẫu 3 từng bị chia cứng thành 4 trang dù trang 1 và 3 còn
+                // rất nhiều chỗ trống. Ghép các khối liên tục trước khi chụp PDF.
+                if (document.form_type === '3' && containerRef.current) {
+                    const historyPart1 = containerRef.current.querySelector<HTMLTableElement>('[data-mau3-history-part="1"]');
+                    const historyPart2 = containerRef.current.querySelector<HTMLTableElement>('[data-mau3-history-part="2"]');
+                    const firstBody = historyPart1?.querySelector('tbody');
+                    const secondBody = historyPart2?.querySelector('tbody');
+                    if (firstBody && secondBody) {
+                        Array.from(secondBody.children).forEach(row => firstBody.appendChild(row));
+                        historyPart2?.remove();
+                    }
+
+                    const pageThreeMain = containerRef.current.querySelector<HTMLElement>('[data-mau3-page-three-main]');
+                    const conclusionContent = containerRef.current.querySelector<HTMLElement>('[data-mau3-conclusion-content]');
+                    const pageFour = containerRef.current.querySelector<HTMLElement>('[data-mau3-page="4"]');
+                    if (pageThreeMain && conclusionContent && pageFour) {
+                        conclusionContent.classList.add('mt-5', 'border-t', 'border-black', 'pt-3');
+                        pageThreeMain.appendChild(conclusionContent);
+                        pageFour.remove();
+                    }
+                }
+
                 // Poll for .a4-page elements to ensure DOM is fully mounted
                 let pages = containerRef.current?.querySelectorAll('.a4-page');
                 let retries = 0;
@@ -221,8 +325,17 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
                 if (containerRef.current) {
                     const imgs = Array.from(containerRef.current.querySelectorAll('img')) as HTMLImageElement[];
                     await Promise.all(imgs.map((img: HTMLImageElement) => {
-                        if (img.complete) return Promise.resolve();
-                        return new Promise(res => { img.onload = res; img.onerror = res; });
+                        const waitForLoad = img.complete
+                            ? Promise.resolve()
+                            : new Promise<void>(res => {
+                                img.addEventListener('load', () => res(), { once: true });
+                                img.addEventListener('error', () => res(), { once: true });
+                            });
+                        return waitForLoad.then(async () => {
+                            if (typeof img.decode === 'function' && img.naturalWidth > 0) {
+                                await img.decode().catch(() => undefined);
+                            }
+                        });
                     }));
                 }
 
@@ -993,6 +1106,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
                         getReportDate={getReportDate}
                         getConclusionDoctorName={getConclusionDoctorName}
                         maCskcb={settings?.ma_cskcb || settings?.ma_gtin_cskcb}
+                        doctorSignatures={doctorSignatures}
                     />
                 ) : document.form_type === '2' ? (
                     <PrintFormMau2
@@ -1005,6 +1119,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
                         icd10Names={icd10Names}
                         COMMON_ICD10={COMMON_ICD10}
                         maCskcb={settings?.ma_cskcb || settings?.ma_gtin_cskcb}
+                        doctorSignatures={doctorSignatures}
                     />
                 ) : (
                     <PrintFormMau3
@@ -1017,6 +1132,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
                         icd10Names={icd10Names}
                         COMMON_ICD10={COMMON_ICD10}
                         maCskcb={settings?.ma_cskcb || settings?.ma_gtin_cskcb}
+                        doctorSignatures={doctorSignatures}
                     />
                 )}
                 {false && (

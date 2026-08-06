@@ -16,6 +16,7 @@ const AdminTab: React.FC = () => {
         setHisSearchQuery,
         isFetchingHis,
         hisSyncMessage,
+        hisSource,
         handleFetchHisData,
         patientId,
         setPatientId,
@@ -206,12 +207,30 @@ const AdminTab: React.FC = () => {
     ];
 
     const renderBadge = () => {
-        switch (adminMetadata.status) {
-            case 'ĐANG_KHÁM': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Đang khám</span>;
-            case 'ĐÃ_KHÁM': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Đã khám</span>;
-            case 'ĐÃ_DUYỆT': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-teal-100 text-teal-800">Đã duyệt</span>;
-            default: return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Chưa khám</span>;
-        }
+        return (
+            <div className="flex items-center gap-2">
+                {hisSource === 'HEALTH_CHECK_MASTER' && (
+                    <span className="px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 rounded-full flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Hồ sơ KSK VNeID đã lưu
+                    </span>
+                )}
+                {hisSource === 'HIS_DIRECT' && (
+                    <span className="px-2.5 py-1 text-xs font-bold text-sky-700 bg-sky-100 border border-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800 rounded-full flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse"></span>
+                        Đợt khám trực tiếp từ HIS
+                    </span>
+                )}
+                {(() => {
+                    switch (adminMetadata.status) {
+                        case 'ĐANG_KHÁM': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Đang khám</span>;
+                        case 'ĐÃ_KHÁM': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Đã khám</span>;
+                        case 'ĐÃ_DUYỆT': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-teal-100 text-teal-800">Đã duyệt</span>;
+                        default: return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Chưa khám</span>;
+                    }
+                })()}
+            </div>
+        );
     };
 
     const getDriverWarnings = () => {

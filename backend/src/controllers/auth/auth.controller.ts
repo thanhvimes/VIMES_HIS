@@ -5,12 +5,12 @@ import { Request, Response } from 'express';
 import { query } from '../../config/database';
 import { sign } from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import { AuthRequest } from '../../middleware/authMiddleware';
 import SecurityUtils from '../../utils/security';
+import { env, requireEnv } from '../../config/env';
 
 import fs from 'fs';
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
 export interface ModulePermissions {
     [key: string]: boolean;
@@ -196,10 +196,11 @@ class AuthController {
                     userId: userInfo.userId,
                     groupId: userInfo.groupId,
                     deptId: userInfo.deptId,
-                    permissions: permissions
+                    permissions: permissions,
+                    tokenType: 'staff'
                 },
-                JWT_SECRET,
-                { expiresIn: JWT_EXPIRES_IN as any }
+                requireEnv('JWT_SECRET'),
+                { expiresIn: env.jwtExpiresIn as any }
             );
 
             return res.json({
@@ -218,13 +219,27 @@ class AuthController {
         }
     }
 
-    // Verify password
-    async verifyPassword(inputPassword: string, storedPassword: string): Promise<boolean> {
+    // Verify password (supports bcrypt, plain text fallback, and MD5 fallback)
+    async verifyPassword(inputPassword: string, storedPassword?: string): Promise<boolean> {
+        if (!storedPassword) return false;
+
+        // 1. Check bcrypt hash
         if (storedPassword.startsWith('$2b$') || storedPassword.startsWith('$2a$')) {
             return await bcrypt.compare(inputPassword, storedPassword);
-        } else {
-            return inputPassword === storedPassword;
         }
+
+        // 2. Plain text comparison (for legacy or seeded accounts)
+        if (storedPassword === inputPassword) {
+            return true;
+        }
+
+        // 3. MD5 comparison (legacy HIS databases)
+        const md5Input = crypto.createHash('md5').update(inputPassword).digest('hex');
+        if (storedPassword.toLowerCase() === md5Input.toLowerCase()) {
+            return true;
+        }
+
+        return false;
     }
 
     // Lấy thông tin user hiện tại

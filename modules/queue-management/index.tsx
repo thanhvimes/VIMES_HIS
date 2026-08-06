@@ -8,6 +8,7 @@ import CounterDisplay from './views/DisplayScreen';
 import AdminConfig from './views/Settings';
 import SurgeryWaitingRoom from './views/SurgeryDisplay';
 import { AppSettings, ViewState } from './types';
+import { useSystemStore } from '../../stores/useSystemStore';
 
 const DEFAULT_SETTINGS: AppSettings = {
   hospitalName: 'BỆNH VIỆN ĐA KHOA VIMES',
@@ -24,8 +25,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   kioskName: 'Hệ thống QMS',
   ipAddress: '127.0.0.1',
   serverUrl: ['localhost', '127.0.0.1'].includes(window.location.hostname) 
-    ? `http://${window.location.hostname}:3001` 
-    : `http://${window.location.hostname}:${window.location.port || '3000'}`,
+    ? `http://${window.location.hostname}:3002` 
+    : `http://${window.location.hostname}:${window.location.port || '3002'}`,
   enableDepartmentSelection: true,
   enableMultiSpecialtySelection: false,
   enabledModules: {
@@ -54,13 +55,19 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 const QueueManagementModule: React.FC = () => {
   const navigate = useNavigate();
+  const systemHospitalName = useSystemStore(state => state.hospitalName);
+  const fetchBrandingSettings = useSystemStore(state => state.fetchBrandingSettings);
+
+  useEffect(() => {
+    fetchBrandingSettings();
+  }, [fetchBrandingSettings]);
   const [settings, setSettings] = useState<AppSettings>(() => {
     try {
       const saved = localStorage.getItem('vimesqms_settings');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.serverUrl && (parsed.serverUrl.includes('localhost:3000') || parsed.serverUrl.includes('127.0.0.1:3000'))) {
-          parsed.serverUrl = parsed.serverUrl.replace(':3000', ':3001');
+        if (parsed.serverUrl && (parsed.serverUrl.includes(':3000') || parsed.serverUrl.includes(':3001'))) {
+          parsed.serverUrl = parsed.serverUrl.replace(':3000', ':3002').replace(':3001', ':3002');
           localStorage.setItem('vimesqms_settings', JSON.stringify(parsed));
         }
         return { ...DEFAULT_SETTINGS, ...parsed };
@@ -86,6 +93,12 @@ const QueueManagementModule: React.FC = () => {
     window.addEventListener('settingsUpdated', handleUpdate);
     return () => window.removeEventListener('settingsUpdated', handleUpdate);
   }, []);
+
+  useEffect(() => {
+    if (systemHospitalName) {
+      setSettings(prev => ({ ...prev, hospitalName: systemHospitalName }));
+    }
+  }, [systemHospitalName]);
 
   const handleSaveSettings = async (newSettings: AppSettings) => {
     setSettings(newSettings);

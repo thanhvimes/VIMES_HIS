@@ -50,7 +50,10 @@ export const pool = new Pool({
 });
 
 // Event Handlers for Connection
-pool.on('connect', () => {
+pool.on('connect', (client: PoolClient) => {
+    client.query('SET search_path TO public, oracle').catch((err: any) => {
+        console.error('⚠️ Failed to set search_path to public:', err.message);
+    });
     console.log('✅ TS Database: Connected successfully');
 });
 

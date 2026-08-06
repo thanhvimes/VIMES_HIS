@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "package": "node scripts/package-deploy.cjs",
+    "typecheck": "tsc --noEmit",
+    "security:check": "node scripts/security-check.cjs",
+    "bundle:check": "node scripts/check-bundle-budget.cjs",
+    "package": "node scripts/deploy-package.cjs",
     "deploy": "node scripts/deploy-package.cjs",
     "preview": "vite preview"
   },

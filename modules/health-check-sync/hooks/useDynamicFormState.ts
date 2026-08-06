@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from '../../../contexts/SessionContext';
 import { toast } from 'sonner';
 import { useCatalogs } from '../../../contexts/CatalogContext';
@@ -443,6 +443,7 @@ export const useDynamicFormState = (
         specialtyMetadataRef.current = specialtyMetadata;
     }, [specialtyMetadata]);
     const [doctors, setDoctors] = useState<CatalogItem[]>([]);
+    const [hisSource, setHisSource] = useState<'HEALTH_CHECK_MASTER' | 'HIS_DIRECT' | null>(initialData?.id ? 'HEALTH_CHECK_MASTER' : null);
 
     const handleFetchHisData = async () => {
         if (!hisSearchQuery.trim()) {
@@ -454,6 +455,9 @@ export const useDynamicFormState = (
         try {
             const data = await healthCheckService.getHisPatient(hisSearchQuery.trim());
             if (data) {
+                if (data.source) {
+                    setHisSource(data.source);
+                }
                 // Đổ dữ liệu hành chính
                 if (data.patient_id) setPatientId(data.patient_id);
                 if (data.patient_name) setPatientName(data.patient_name.toUpperCase());
@@ -650,10 +654,17 @@ export const useDynamicFormState = (
                 if (data.conclusion_data?.theo_doi_tai) setTheoDoiTai(data.conclusion_data.theo_doi_tai);
                 if (data.conclusion_data?.chuyen_tuyen) setChuyenTuyen(data.conclusion_data.chuyen_tuyen);
 
-                setHisSyncMessage({ 
-                    type: 'success', 
-                    text: `Tìm thấy dữ liệu hồ sơ của BN: ${data.patient_name}! Vui lòng rà soát lại và bổ sung các trường đặc thù của Mẫu ${formType}.` 
-                });
+                if (data.source === 'HIS_DIRECT') {
+                    setHisSyncMessage({ 
+                        type: 'success', 
+                        text: `🔵 Nạp đợt khám trực tiếp từ HIS cho BN: ${data.patient_name} (Mã lượt khám: ${data.doc_no})! Vui lòng rà soát và bổ sung các trường thuộc Mẫu ${formType}.` 
+                    });
+                } else {
+                    setHisSyncMessage({ 
+                        type: 'success', 
+                        text: `🟢 Tải thành công hồ sơ KSK VNeID đã lưu của BN: ${data.patient_name}!` 
+                    });
+                }
             } else {
                 setHisSyncMessage({ type: 'error', text: 'Không tìm thấy hồ sơ KSK đã tiếp nhận cho bệnh nhân này.' });
             }
@@ -1940,6 +1951,8 @@ export const useDynamicFormState = (
         setIsFetchingHis,
         hisSyncMessage,
         setHisSyncMessage,
+        hisSource,
+        setHisSource,
         handleFetchHisData,
         patientId,
         setPatientId,

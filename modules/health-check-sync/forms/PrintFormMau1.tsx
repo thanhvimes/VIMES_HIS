@@ -7,6 +7,7 @@ interface PrintFormMau1Props {
     getReportDate: () => { day: number; month: number; year: number };
     getConclusionDoctorName: () => string;
     maCskcb?: string;
+    doctorSignatures?: Record<string, string>;
 }
 
 export const PrintFormMau1: React.FC<PrintFormMau1Props> = ({
@@ -15,11 +16,39 @@ export const PrintFormMau1: React.FC<PrintFormMau1Props> = ({
     logoUrl,
     getReportDate,
     getConclusionDoctorName,
-    maCskcb
+    maCskcb,
+    doctorSignatures
 }) => {
     const clinical = document.clinical_data || document.clinicalData || {};
     const extra = clinical.extra || {};
     const conclusion = document.conclusion_data || document.conclusionData || {};
+
+    const normalizeSignatureKey = (value: any) => String(value || '')
+        .trim()
+        .toUpperCase()
+        .replace(/^HMS_/, '')
+        .replace(/\.JPE?G\.?$/, '');
+
+    const resolveConclusionSignature = () => {
+        if (!doctorSignatures) return null;
+        const normalizedSignatures = new Map(
+            Object.entries(doctorSignatures).map(([key, value]) => [normalizeSignatureKey(key), value])
+        );
+        const candidates = [
+            conclusion.doctor_code,
+            conclusion.doctor_username,
+            conclusion.conclusion_doctor,
+            conclusion.doctor,
+            getConclusionDoctorName()
+        ];
+        for (const candidate of candidates) {
+            const normalized = normalizeSignatureKey(candidate);
+            if (normalized && normalizedSignatures.has(normalized)) {
+                return normalizedSignatures.get(normalized) || null;
+            }
+        }
+        return null;
+    };
 
     const renderCheckbox = (checked: boolean, label: string) => (
         <span className="inline-flex items-center gap-1 mr-4">
@@ -70,8 +99,8 @@ export const PrintFormMau1: React.FC<PrintFormMau1Props> = ({
     return (
         <>
             {/* ==================== CHILD PAGE 1 ==================== */}
-            <div className="a4-page">
-                <div className="flex justify-between items-start text-[12.5px] leading-relaxed mb-4">
+            <div className="a4-page overflow-hidden">
+                <div className="flex justify-between items-start text-[12.5px] leading-relaxed mb-2">
                     <div className="flex items-center gap-3">
                         {logoUrl && <img src={logoUrl} alt="Logo" className="h-10 w-auto object-contain shrink-0" />}
                         <div>
@@ -86,16 +115,16 @@ export const PrintFormMau1: React.FC<PrintFormMau1Props> = ({
                     </div>
                 </div>
 
-                <div className="text-center my-5">
+                <div className="text-center my-2">
                     <h1 className="text-[16px] font-bold uppercase leading-tight tracking-wide">
                         MẪU GIẤY KHÁM SỨC KHỎE VÀ KHÁM SỨC KHOẺ ĐỊNH KỲ DÙNG<br />
                         CHO TRẺ EM DƯỚI 06 TUỔI
                     </h1>
                 </div>
 
-                <h2 className="font-bold text-[13.5px] uppercase border-b border-black pb-0.5 mt-5 mb-2 tracking-wide text-center">THÔNG TIN HÀNH CHÍNH</h2>
+                <h2 className="font-bold text-[13.5px] uppercase border-b border-black pb-0.5 mt-2 mb-1 tracking-wide text-center">THÔNG TIN HÀNH CHÍNH</h2>
                 
-                <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 text-[13px] leading-relaxed">
+                <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[13px] leading-snug">
                     <div>1. Họ và tên (In hoa): <strong className="uppercase font-bold text-[13.5px]">{document.patient_name}</strong></div>
                     <div>2. Mã định danh (CCCD): <strong>{document.cccd || '................................'}</strong></div>
 
@@ -146,7 +175,7 @@ export const PrintFormMau1: React.FC<PrintFormMau1Props> = ({
                         <div>Lý do khám: <strong>{clinical.ly_do_vv || '...'}</strong></div>
                     </div>
 
-                    <div className="col-span-2 space-y-1.5 mt-1 border-t border-dashed border-slate-300 pt-2">
+                    <div className="col-span-2 space-y-1 mt-0.5 border-t border-dashed border-slate-300 pt-1">
                         <div className="font-bold">18. Tiền sử:</div>
                         <div className="pl-4 flex items-center">
                             <span className="w-24 font-medium">- Bản thân:</span>
@@ -168,8 +197,8 @@ export const PrintFormMau1: React.FC<PrintFormMau1Props> = ({
                     </div>
                 </div>
 
-                <h2 className="font-bold text-[13.5px] uppercase border-b border-black pb-0.5 mt-5 mb-2 tracking-wide">ĐÁNH GIÁ DẤU HIỆU SINH TỒN</h2>
-                <div className="text-[13px] space-y-2.5 leading-relaxed pl-2">
+                <h2 className="font-bold text-[13.5px] uppercase border-b border-black pb-0.5 mt-3 mb-1 tracking-wide">ĐÁNH GIÁ DẤU HIỆU SINH TỒN</h2>
+                <div className="text-[13px] space-y-1.5 leading-snug pl-2">
                     <div className="flex items-center">
                         <span className="w-56 font-medium">Nhiệt độ: <strong>{clinical.nhiet_do || '...'}</strong> độ C</span>
                         {renderCheckbox(isNhietDoNormal, 'Bình thường')}
@@ -189,8 +218,8 @@ export const PrintFormMau1: React.FC<PrintFormMau1Props> = ({
                     </div>
                 </div>
 
-                <h2 className="font-bold text-[13.5px] uppercase border-b border-black pb-0.5 mt-5 mb-2 tracking-wide">ĐÁNH GIÁ DINH DƯỠNG</h2>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 text-[13px] leading-relaxed pl-2">
+                <h2 className="font-bold text-[13.5px] uppercase border-b border-black pb-0.5 mt-3 mb-1 tracking-wide">ĐÁNH GIÁ DINH DƯỠNG</h2>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[13px] leading-snug pl-2">
                     <div>Chiều dài (cm): <strong>{clinical.examination?.height || '...'}</strong></div>
                     <div>Chiều dài/Tuổi: <strong>{extra.chieu_dai_tuoi_sd || '...'}</strong> SD</div>
 
@@ -215,8 +244,8 @@ export const PrintFormMau1: React.FC<PrintFormMau1Props> = ({
                     </div>
                 </div>
 
-                <h2 className="font-bold text-[13.5px] uppercase border-b border-black pb-0.5 mt-5 mb-2 tracking-wide">ĐÁNH GIÁ PHÁT TRIỂN TINH THẦN - VẬN ĐỘNG</h2>
-                <table className="a4-table w-full text-[12.5px] text-center mb-4">
+                <h2 className="font-bold text-[13.5px] uppercase border-b border-black pb-0.5 mt-3 mb-1 tracking-wide">ĐÁNH GIÁ PHÁT TRIỂN TINH THẦN - VẬN ĐỘNG</h2>
+                <table className="a4-table w-full text-[12.5px] text-center mb-0">
                     <thead>
                         <tr className="bg-slate-50 font-bold">
                             <th className="w-[70%] text-left">Hành vi và năng lực trẻ theo độ tuổi</th>
@@ -243,7 +272,7 @@ export const PrintFormMau1: React.FC<PrintFormMau1Props> = ({
                     </tbody>
                 </table>
 
-                <div className="absolute bottom-4 right-8 text-[11px] text-slate-500 font-sans">1/3</div>
+                <div className="absolute bottom-8 right-8 text-[11px] text-slate-500 font-sans">1/3</div>
             </div>
 
             {/* ==================== CHILD PAGE 2 ==================== */}
@@ -619,20 +648,32 @@ export const PrintFormMau1: React.FC<PrintFormMau1Props> = ({
                         <strong className="block font-bold uppercase text-[12.5px] tracking-wider mb-1">NGƯỜI KẾT LUẬN</strong>
                         <span className="italic text-[10.5px] text-slate-500 font-normal mb-5">(Ký, ghi rõ họ tên và đóng dấu)</span>
 
-                        {document.signature_status === 'Signed' ? (
-                            <div className="my-2 p-2 border border-green-600 rounded bg-green-50/50 text-[10px] font-bold text-green-700 leading-tight text-left w-full shadow-sm max-w-[220px] font-sans">
-                                <div className="flex items-center gap-1 mb-1 text-green-800">
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                    </svg>
-                                    <span>SIGNED DIGITALLY</span>
-                                </div>
-                                By: {hospitalName || 'Phòng khám đa khoa vClinic'}<br/>
-                                Time: {document.updated_at ? new Date(document.updated_at).toLocaleString('vi-VN') : '2026-06-03'}
-                            </div>
-                        ) : (
-                            <div className="h-14"></div>
-                        )}
+                        {(() => {
+                            const sigImg = resolveConclusionSignature();
+
+                            // Prefer the doctor's visible signature image in the printed form.
+                            // The digital-signature badge is only a fallback when no image exists.
+                            if (document.signature_status === 'Signed' && !sigImg) {
+                                return (
+                                    <div className="my-2 p-2 border border-green-600 rounded bg-green-50/50 text-[10px] font-bold text-green-700 leading-tight text-left w-full shadow-sm max-w-[220px] font-sans">
+                                        <div className="flex items-center gap-1 mb-1 text-green-800">
+                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                            </svg>
+                                            <span>SIGNED DIGITALLY</span>
+                                        </div>
+                                        By: {hospitalName || 'Phòng khám đa khoa vClinic'}<br/>
+                                        Time: {document.updated_at ? new Date(document.updated_at).toLocaleString('vi-VN') : '2026-06-03'}
+                                    </div>
+                                );
+                            }
+
+                            if (sigImg) {
+                                return <img src={sigImg} alt="Chữ ký bác sĩ" className="h-16 max-w-[180px] object-contain my-1" />;
+                            }
+
+                            return <div className="h-14"></div>;
+                        })()}
                         
                         <span className="font-bold text-[13.5px] mt-1.5 text-slate-900 block">{getConclusionDoctorName()}</span>
                     </div>

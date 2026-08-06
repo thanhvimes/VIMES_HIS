@@ -57,8 +57,8 @@ export class QmsSurgeryController {
           LEFT JOIN hms_doc d ON d.hd_docno = o.ho_docno
           LEFT JOIN hms_patient p ON p.hp_patientno = COALESCE(o.ho_patientno, d.hd_patientno)
           INNER JOIN hms_operation_board ob ON ob.hob_docno = o.ho_docno 
-              AND (ob.hob_ho_idx = o.ho_idx OR (ob.hob_ho_idx IS NULL AND DATE(ob.hob_date) = CURRENT_DATE))
-              AND DATE(ob.hob_date) = CURRENT_DATE
+              AND (ob.hob_ho_idx = o.ho_idx OR ob.hob_ho_idx IS NULL)
+              AND (ob.hob_date >= CURRENT_DATE - INTERVAL '1 day' OR DATE(ob.hob_date) = CURRENT_DATE)
           LEFT JOIN hms_roomlist r ON r.hrl_deptid = o.ho_deptid 
               AND r.hrl_id::text = COALESCE(NULLIF(ob.hob_roomid::text, ''), NULLIF(o.ho_roomid::text, ''), '0')
               AND COALESCE(NULLIF(ob.hob_roomid::text, ''), NULLIF(o.ho_roomid::text, ''), '') NOT IN ('', '0')
@@ -67,14 +67,15 @@ export class QmsSurgeryController {
           LEFT JOIN sys_dept pd ON pd.sd_id = o.ho_pdeptid
           LEFT JOIN sys_dept rd ON rd.sd_id = ob.hob_retdept
           LEFT JOIN sys_sel ss ON ss.ss_id = 'hms_operation_status' AND ss.ss_code = COALESCE(ob.hob_status, o.ho_status, 'P')
-          WHERE (DATE(o.ho_startdate) = CURRENT_DATE OR DATE(o.ho_performdate) = CURRENT_DATE OR DATE(ob.hob_date) = CURRENT_DATE)
+          WHERE o.ho_startdate IS NOT NULL 
+            AND o.ho_startdate >= (NOW() - INTERVAL '8 hours')
       `;
       const params: any[] = [];
       if (deptId && String(deptId).trim() !== '') {
         sql += ` AND (o.ho_deptid = $1 OR ob.hob_deptid = $1)`;
         params.push(deptId);
       }
-      sql += ` ORDER BY o.ho_startdate ASC NULLS LAST, o.ho_idx ASC`;
+      sql += ` ORDER BY o.ho_startdate DESC`;
 
       const result = await pool.query(sql, params);
       const seen = new Map();
@@ -167,7 +168,18 @@ export class QmsSurgeryController {
       const dateStr = now.toISOString().replace('T', ' ').substring(0, 19);
 
       const boardRes = await pool.query(`
-          SELECT hms_operation_board_create($1, $2, $3, $4, $5, $6, $7, $8, $9) as result
+          SELECT hms_operation_board_create(
+            $1::integer, 
+            $2::text, 
+            $3::text, 
+            $4::integer, 
+            $5::integer, 
+            $6::text, 
+            $7::integer, 
+            $8::text, 
+            $9::text,
+            $10::integer
+          ) as result
       `, [
         op.ho_docno,
         dateStr,
@@ -177,7 +189,8 @@ export class QmsSurgeryController {
         statusCode,
         retTime || 0,
         retDept || '',
-        consciousTime || dateStr
+        consciousTime || dateStr,
+        hoIdx
       ]);
 
       const funcResult = boardRes.rows[0]?.result;
@@ -226,7 +239,7 @@ export class QmsSurgeryController {
               to_char(p.hp_birthdate, 'YYYY') as birth_year,
               COALESCE(r.hrl_name, 'Phòng mổ ' || COALESCE(ob.hob_roomid, o.ho_roomid, 1)) as room_name,
               COALESCE(ob.hob_roomid, o.ho_roomid) as room_id,
-              to_char(o.ho_startdate, 'YYYY-MM-DD HH24:MI') as expected_time,
+              to_char(COALESCE(o.ho_startdate, o.ho_performdate, o.ho_orderdate), 'YYYY-MM-DD HH24:MI') as expected_time,
               to_char(o.ho_orderdate, 'YYYY-MM-DD HH24:MI') as order_date,
               fl.hfl_name as service_name,
               o.ho_deptid as dept_id,
@@ -240,21 +253,21 @@ export class QmsSurgeryController {
           LEFT JOIN hms_fee_list fl ON fl.hfl_feeid = o.ho_itemid
           LEFT JOIN hms_operation_board ob ON ob.hob_docno = o.ho_docno 
               AND (ob.hob_ho_idx = o.ho_idx OR ob.hob_ho_idx IS NULL)
-              AND DATE(ob.hob_date) = CURRENT_DATE
+              AND (DATE(ob.hob_date) = CURRENT_DATE OR (ob.hob_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = CURRENT_DATE)
           LEFT JOIN hms_roomlist r ON r.hrl_deptid = o.ho_deptid 
           AND r.hrl_id::text = o.ho_roomid::text          
-          WHERE substr(fl.hfl_opt_group,1,2) = 'B4'
+          WHERE (substr(fl.hfl_opt_group,1,2) = 'B4' OR substr(fl.hfl_groupid,1,2) = 'B4')
       `;
       const params: any[] = [];
       let paramIndex = 1;
 
       if (fromDate) {
-        sql += ` AND o.ho_startdate >= $${paramIndex}::timestamp`;
+        sql += ` AND COALESCE(o.ho_startdate, o.ho_performdate, o.ho_orderdate) >= $${paramIndex}::timestamp`;
         params.push(`${fromDate} 00:00:00`);
         paramIndex++;
       }
       if (toDate) {
-        sql += ` AND o.ho_startdate <= $${paramIndex}::timestamp`;
+        sql += ` AND COALESCE(o.ho_startdate, o.ho_performdate, o.ho_orderdate) <= $${paramIndex}::timestamp`;
         params.push(`${toDate} 23:59:59`);
         paramIndex++;
       }
@@ -278,9 +291,7 @@ export class QmsSurgeryController {
         sql += ` AND ob.hob_operation_board_id IS NULL`;
       }
 
-      sql += ` ORDER BY o.ho_startdate DESC LIMIT 50`;
-      console.log('params', params);
-      console.log('sql', sql);
+      sql += ` ORDER BY COALESCE(o.ho_startdate, o.ho_performdate, o.ho_orderdate) DESC NULLS LAST LIMIT 50`;
       const result = await pool.query(sql, params);
       const seen = new Map();
       for (const row of result.rows) {

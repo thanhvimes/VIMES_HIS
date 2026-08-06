@@ -82,7 +82,7 @@ class NotificationService {
             );
 
             if (template && template.template_content) {
-                templateContent = this._formatMessage(template.template_content, data);
+                templateContent = this.formatMessage(template.template_content, data);
             }
         } catch (error: any) {
             console.warn(`[NotificationService] No template found for ${type}, using hardcoded fallback.`, error.message);
@@ -173,11 +173,14 @@ class NotificationService {
     // ==================== MOCK IMPLEMENTATIONS ====================
 
     private _sendMockSMS(phone: string, type: NotificationType, data: NotificationData, dynamicContent: string | null = null) {
+        const roomInfo = data.roomName ? ` (${data.roomName})` : '';
+        const specInfo = (data.specialtyName || data.specialty) ? ` CK: ${data.specialtyName || data.specialty}` : '';
+
         const fallbacks: Record<string, string> = {
-            booking_confirmation: `[${process.env.SMS_BRAND_NAME || 'VIMES'}] Xin chao ${data.patientName || data.name}. Lich kham cua ban: ${data.date} luc ${data.time}. STT: ${data.queueNumber || data.receptNo}. Vui long den dung gio.`,
-            booking_approved: `[${process.env.SMS_BRAND_NAME || 'VIMES'}] Chuc mung ${data.patientName || data.name}! Lich kham vao ${data.date} luc ${data.time} da duoc duyet. STT: ${data.queueNumber || data.receptNo}.`,
+            booking_confirmation: `[${process.env.SMS_BRAND_NAME || 'VIMES'}] Xin chao ${data.patientName || data.name}. Lich kham cua ban: ${data.date} luc ${data.time}${specInfo}${roomInfo}. STT: ${data.queueNumber || data.receptNo}. Vui long den dung gio.`,
+            booking_approved: `[${process.env.SMS_BRAND_NAME || 'VIMES'}] Chuc mung ${data.patientName || data.name}! Lich kham vao ${data.date} luc ${data.time}${specInfo}${roomInfo} da duoc duyet. STT: ${data.queueNumber || data.receptNo}.`,
             booking_cancellation: `[${process.env.SMS_BRAND_NAME || 'VIMES'}] Lich kham cua ban ngay ${data.date} luc ${data.time} da bi huy. Ly do: ${data.reason || 'Khong ro'}`,
-            booking_reminder: `[${process.env.SMS_BRAND_NAME || 'VIMES'}] Nhac nho: Ban co lich kham vao ${data.date} luc ${data.time}. STT: ${data.queueNumber || data.receptNo}. Vui long den dung gio.`,
+            booking_reminder: `[${process.env.SMS_BRAND_NAME || 'VIMES'}] Nhac nho: Ban co lich kham vao ${data.date} luc ${data.time}${specInfo}${roomInfo}. STT: ${data.queueNumber || data.receptNo}. Vui long den dung gio.`,
             booking_reschedule: `[${process.env.SMS_BRAND_NAME || 'VIMES'}] Lich kham cua ban da duoc doi sang ${data.newDate} luc ${data.newTime}.`
         };
 
@@ -232,11 +235,14 @@ class NotificationService {
         const serviceId = process.env.SMS_CARESOFT_SERVICE_ID || '214';
         const brand = process.env.SMS_BRAND_NAME || 'VIMES';
 
+        const roomInfo = data.roomName ? ` (${data.roomName})` : '';
+        const specInfo = (data.specialtyName || data.specialty) ? ` CK: ${data.specialtyName || data.specialty}` : '';
+
         const fallbacks: Record<string, string> = {
-            booking_confirmation: `[${brand}] Xin chao ${data.patientName || data.name}. Lich kham cua ban: ${data.date} luc ${data.time}. STT: ${data.queueNumber || data.receptNo}. Vui long den dung gio.`,
-            booking_approved: `[${brand}] Chuc mung ${data.patientName || data.name}! Lich kham vao ${data.date} luc ${data.time} da duoc duyet. STT: ${data.queueNumber || data.receptNo}.`,
+            booking_confirmation: `[${brand}] Xin chao ${data.patientName || data.name}. Lich kham cua ban: ${data.date} luc ${data.time}${specInfo}${roomInfo}. STT: ${data.queueNumber || data.receptNo}. Vui long den dung gio.`,
+            booking_approved: `[${brand}] Chuc mung ${data.patientName || data.name}! Lich kham vao ${data.date} luc ${data.time}${specInfo}${roomInfo} da duoc duyet. STT: ${data.queueNumber || data.receptNo}.`,
             booking_cancellation: `[${brand}] Lich kham cua ban ngay ${data.date} luc ${data.time} da bi huy. Ly do: ${data.reason || 'Khong ro'}`,
-            booking_reminder: `[${brand}] Nhac nho: Ban co lich kham vao ${data.date} luc ${data.time}. STT: ${data.queueNumber || data.receptNo}. Vui long den dung gio.`,
+            booking_reminder: `[${brand}] Nhac nho: Ban co lich kham vao ${data.date} luc ${data.time}${specInfo}${roomInfo}. STT: ${data.queueNumber || data.receptNo}. Vui long den dung gio.`,
             booking_reschedule: `[${brand}] Lich kham cua ban da duoc doi sang ${data.newDate} luc ${data.newTime}.`
         };
 
@@ -286,17 +292,30 @@ class NotificationService {
         return map[type] || 'confirmation';
     }
 
-    private _formatMessage(template: string, data: NotificationData): string {
+    formatMessage(template: string, data: NotificationData): string {
         if (!template) return '';
         let message = template;
+        const patientNameVal = data.patientName || data.name || 'Ong/Ba';
+        const dateVal = data.date || data.bookingDate || '';
+        const timeVal = data.time || data.bookingTime || '';
+        const specVal = data.specialtyName || data.specialty || '';
+        const roomVal = data.roomName || '';
+        const queueVal = data.queueNumber || data.receptNo || '';
+        const bookingIdVal = String(data.bookingId || '');
+
         const placeholders: Record<string, string> = {
-            '{patientName}': data.patientName || data.name || 'Ong/Ba',
-            '{bookingId}': String(data.bookingId || ''),
-            '{date}': data.date || data.bookingDate || '',
-            '{time}': data.time || data.bookingTime || '',
-            '{specialty}': data.specialtyName || data.specialty || '',
-            '{roomName}': data.roomName || '',
-            '{queueNumber}': data.queueNumber || data.receptNo || '',
+            '{patientName}': patientNameVal,
+            '{name}': patientNameVal,
+            '{bookingId}': bookingIdVal,
+            '{date}': dateVal,
+            '{bookingDate}': dateVal,
+            '{time}': timeVal,
+            '{bookingTime}': timeVal,
+            '{specialty}': specVal,
+            '{specialtyName}': specVal,
+            '{roomName}': roomVal,
+            '{queueNumber}': queueVal,
+            '{receptNo}': queueVal,
             '{hospitalName}': process.env.HOSPITAL_NAME || 'Bệnh viện VIMES',
             '{hotline}': process.env.SMS_HOTLINE || '1900886684',
             '{reason}': data.reason || 'Bệnh nhân yêu cầu',

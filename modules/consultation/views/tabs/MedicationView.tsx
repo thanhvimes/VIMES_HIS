@@ -287,7 +287,7 @@ const MedicationView: React.FC = () => {
                             placeholder="Nhập tên thuốc hoặc hoạt chất..."
                             value={searchQuery}
                             onChange={(val, item) => item && addDrugToPrescription(item)}
-                            onInputChange={handleSearchDrugs}
+                            onSearch={handleSearchDrugs}
                             options={drugOptions}
                             columns={drugColumns}
                             isLoading={isLoadingDrugs}

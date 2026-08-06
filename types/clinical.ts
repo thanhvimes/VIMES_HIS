@@ -155,6 +155,7 @@ export interface PrescriptionItem {
     noon: string;
     afternoon: string;
     night: string;
+    days: number;
     usageNote: string;
     totalPrice: number;
 }

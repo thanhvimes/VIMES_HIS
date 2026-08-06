@@ -3,13 +3,16 @@ import axios from 'axios';
 import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs';
+import { requireEnv } from '../../config/env';
 
 export class QmsUtilityController {
   // 1. ADMIN SECURITY
   static verifyPassword(req: Request, res: Response) {
     const { password } = req.body;
-    const envPassword = process.env.ADMIN_PASSWORD || 'vimes@2026';
-    if (password === envPassword || password === 'vimes@2026') {
+    const envPassword = requireEnv('ADMIN_PASSWORD');
+    const supplied = Buffer.from(String(password || ''));
+    const expected = Buffer.from(envPassword);
+    if (supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected)) {
       res.json({ success: true });
     } else {
       res.status(401).json({ success: false, message: 'Mật khẩu quản trị không đúng' });

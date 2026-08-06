@@ -47,6 +47,7 @@ class MigrationService {
     public async runMigrations(): Promise<void> {
         try {
             console.log('🔄 Đang kiểm tra Database Migrations...');
+            await query('SET search_path TO public, oracle');
             await this.ensureMigrationTable();
 
             const migrationsDir = this.getMigrationsDir();

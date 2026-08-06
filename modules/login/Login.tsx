@@ -81,22 +81,37 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         }
         .shimmer-btn:hover { background-size: 300% auto; }
         .input-field {
-            width: 100%;
-            padding: 13px 16px;
-            background: #f8fafc;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 12px;
-            font-size: 14px;
-            font-weight: 500;
-            color: #0f172a;
-            outline: none;
-            transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+            width: 100% !important;
+            height: 48px !important;
+            padding: 12px 16px !important;
+            background-color: #f1f5f9 !important;
+            border: 1.5px solid #cbd5e1 !important;
+            border-radius: 12px !important;
+            font-size: 14px !important;
+            font-weight: 500 !important;
+            color: #0f172a !important;
+            outline: none !important;
+            box-shadow: none !important;
+            box-sizing: border-box !important;
+            transition: all 0.2s ease-in-out !important;
+            appearance: none !important;
+            -webkit-appearance: none !important;
         }
-        .input-field::placeholder { color: #94a3b8; font-weight: 400; }
-        .input-field:focus {
-            border-color: #2A9D8F;
-            background: #fff;
-            box-shadow: 0 0 0 3px rgba(42,157,143,0.15);
+        .input-field::placeholder { color: #94a3b8 !important; font-weight: 400 !important; }
+        .input-field:focus, .input-field:focus-visible {
+            border-color: #2A9D8F !important;
+            background-color: #ffffff !important;
+            box-shadow: 0 0 0 4px rgba(42,157,143,0.18) !important;
+            outline: none !important;
+        }
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus, 
+        input:-webkit-autofill:active {
+            -webkit-box-shadow: 0 0 0 30px #eef2f6 inset !important;
+            -webkit-text-fill-color: #0f172a !important;
+            border-color: #2A9D8F !important;
+            border-radius: 12px !important;
         }
     `;
 
@@ -317,7 +332,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                                 type="text" required value={email}
                                 onChange={e => setEmail(e.target.value)}
                                 placeholder="Nhập tên đăng nhập"
-                                className="input-field"
+                                className="input-field w-full h-12 px-4 py-3 bg-slate-100 focus:bg-white border border-slate-300 focus:border-[#2A9D8F] rounded-xl text-slate-800 text-sm font-medium outline-none transition-all"
+                                style={{ borderRadius: 12, backgroundColor: '#f1f5f9', border: '1.5px solid #cbd5e1', outline: 'none' }}
                                 autoFocus
                                 autoComplete="username"
                             />
@@ -334,7 +350,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                                     type={showPassword ? 'text' : 'password'} required
                                     value={password} onChange={e => setPassword(e.target.value)}
                                     placeholder="Nhập mật khẩu"
-                                    className="input-field"
+                                    className="input-field w-full h-12 px-4 py-3 bg-slate-100 focus:bg-white border border-slate-300 focus:border-[#2A9D8F] rounded-xl text-slate-800 text-sm font-medium outline-none transition-all"
+                                    style={{ borderRadius: 12, backgroundColor: '#f1f5f9', border: '1.5px solid #cbd5e1', outline: 'none' }}
                                     autoComplete="current-password"
                                 />
                                 <button type="button" onClick={() => setShowPassword(v => !v)}
@@ -372,8 +389,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                         {/* Submit */}
                         <div className={`${mounted ? 'anim-fade-up delay-400' : 'opacity-0'}`}>
                             <button type="submit" disabled={isLoading}
-                                className="shimmer-btn w-full py-3.5 text-white rounded-xl text-[14.5px] font-black flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] disabled:opacity-60"
-                                style={{ letterSpacing: '0.02em', boxShadow: '0 8px 28px -6px rgba(42,157,143,0.5)' }}>
+                                className="w-full py-3.5 text-white rounded-xl text-[14.5px] font-black flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] disabled:opacity-60 cursor-pointer hover:brightness-110"
+                                style={{
+                                    background: 'linear-gradient(135deg, #006D77 0%, #2A9D8F 50%, #006D77 100%)',
+                                    color: '#ffffff',
+                                    letterSpacing: '0.02em',
+                                    boxShadow: '0 8px 25px -6px rgba(42,157,143,0.5)'
+                                }}>
                                 {isLoading ? (
                                     <>
                                         <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -384,8 +406,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                                     </>
                                 ) : (
                                     <>
-                                        <span>Đăng nhập ngay</span>
-                                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                        <span className="text-white font-black">Đăng nhập ngay</span>
+                                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                                             <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
                                         </svg>
                                     </>

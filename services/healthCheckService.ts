@@ -98,6 +98,11 @@ export const healthCheckService = {
         }
     },
 
+    unlockDocument: async (id: string): Promise<boolean> => {
+        await apiClient.post(`/health-check-sync/documents/${id}/unlock`, {});
+        return true;
+    },
+
 
 
     seedFromHis: async (filters?: { startDate?: string; endDate?: string; workplaceId?: string }): Promise<SeedFromHisResponse> => {
@@ -437,6 +442,17 @@ export const healthCheckService = {
         } catch (error) {
             console.error("Error cancelling sample receipt:", error);
             throw error;
+        }
+    },
+
+    getDoctorSignatures: async (codes: string[]): Promise<Record<string, string>> => {
+        try {
+            if (!codes || codes.length === 0) return {};
+            const res = await apiClient.post<{ success: boolean; data: Record<string, string> }>('/health-check-sync/signatures', { codes });
+            return res.data || {};
+        } catch (error) {
+            console.error("Error fetching doctor signatures:", error);
+            return {};
         }
     }
 };

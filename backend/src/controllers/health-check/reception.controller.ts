@@ -421,11 +421,14 @@ export class ReceptionController {
 
                 // Kiểm tra xem đã có hồ sơ nào liên kết với nhân viên/số bệnh án này chưa
                 const checkMaster = await query(`
-                    SELECT id FROM health_check_masters 
+                    SELECT id, signature_status, send_status FROM health_check_masters 
                     WHERE his_employee_id = $1::varchar OR his_doc_no = $2::varchar OR doc_no = $3::varchar
                 `, [String(employeeId), String(newDocNo), docNo]);
 
                 if (checkMaster.rows.length > 0) {
+                    if (checkMaster.rows[0].signature_status === 'Signed' || checkMaster.rows[0].send_status === 'Success') {
+                        return res.status(423).json({ error: 'Hồ sơ đã ký số hoặc đã gửi cổng; tiếp nhận không được phép ghi đè dữ liệu.' });
+                    }
                     const masterId = checkMaster.rows[0].id;
                     await query(`
                         UPDATE health_check_masters SET

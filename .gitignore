@@ -36,3 +36,13 @@ backend/debug_*.ts
 # Archive directories
 archive/
 backend/archive/
+
+# Generated releases, diagnostics, uploads and local scratch files
+release/
+scratch/
+backend/scratch/
+backend/uploads/
+android/**/public_old_*/
+android/capacitor-cordova-android-plugins_old_*/
+*.dump
+*_debug.json

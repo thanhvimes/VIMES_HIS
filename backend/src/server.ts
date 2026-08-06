@@ -1,11 +1,29 @@
 // ==================== MAIN SERVER ====================
 // File: backend/src/server.ts
 
+// Polyfill Web Streams API for Node.js < 18 compatibility (@google/genai, fetch, etc.)
+if (typeof (globalThis as any).ReadableStream === 'undefined') {
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const streamWeb = require('node:stream/web');
+        if (streamWeb) {
+            if (streamWeb.ReadableStream) (globalThis as any).ReadableStream = streamWeb.ReadableStream;
+            if (streamWeb.WritableStream) (globalThis as any).WritableStream = streamWeb.WritableStream;
+            if (streamWeb.TransformStream) (globalThis as any).TransformStream = streamWeb.TransformStream;
+        }
+    } catch {
+        // Fallback gracefully if node:stream/web module is missing
+    }
+}
+
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
+import { env, validateEnvironment } from './config/env';
+import { apiRateLimit, defaultApiAuthentication, securityHeaders } from './middleware/securityMiddleware';
+import templateStudioRoutes from './routes/template-studio.routes';
 
 // ==================== GLOBAL ERROR HANDLERS ====================
 process.on('uncaughtException', (error) => {
@@ -23,19 +41,48 @@ dotenv.config();
 
 const app = express();
 app.set('trust proxy', true); // Trust first proxy for IP tracking
-const PORT = process.env.PORT || 3000;
+const PORT = env.port;
+
+export function isAllowedCorsOrigin(origin?: string): boolean {
+    if (!origin) return true;
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    if (env.corsOrigins.includes('*') || env.corsOrigins.includes(normalizedOrigin)) return true;
+    try {
+        const url = new URL(normalizedOrigin);
+        if (['http:', 'https:'].includes(url.protocol)) {
+            const host = url.hostname;
+            if (['localhost', '127.0.0.1', '::1'].includes(host)) return true;
+            if (/^(10|172\.(1[6-9]|2[0-9]|3[0-1])|192\.168)\./.test(host)) return true;
+        }
+    } catch {
+        return false;
+    }
+    return false;
+}
 
 // Middleware
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.disable('x-powered-by');
+app.use(securityHeaders);
+app.use(cors({
+    origin(origin, callback) {
+        if (isAllowedCorsOrigin(origin)) return callback(null, true);
+        const error: any = new Error(`Origin is not allowed by CORS: ${origin}`);
+        error.status = 403;
+        error.code = 'CORS_ORIGIN_DENIED';
+        callback(error);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
+}));
+app.use(express.json({ limit: env.bodyLimit }));
+app.use(express.urlencoded({ extended: true, limit: env.bodyLimit }));
 
 // Serve uploaded files (e.g. PACS files)
 const uploadsPath = path.resolve(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadsPath)) {
     fs.mkdirSync(uploadsPath, { recursive: true });
 }
-app.use('/uploads', express.static(uploadsPath));
+app.use('/uploads', defaultApiAuthentication, express.static(uploadsPath, { dotfiles: 'deny', index: false }));
 
 
 // Logging middleware
@@ -91,6 +138,8 @@ import auditRoutes from './routes/audit.routes';
 import queueRoutes from './routes/queue.routes';
 import qmsRoutes from './routes/qms.routes';
 import pacsRoutes from './routes/pacs.routes';
+import aiRoutes from './routes/ai.routes';
+import documentRoutes from './routes/document.routes';
 
 
 // API Health check
@@ -102,13 +151,10 @@ app.get('/api/health', (req: Request, res: Response) => {
     });
 });
 
-app.post('/api/debug-log', (req: Request, res: Response) => {
-    const { message } = req.body;
-    console.log(`[FRONTEND DEBUG] ${new Date().toISOString()} - ${message}`);
-    res.json({ success: true });
-});
-
 // Register API routes
+
+app.use('/api', apiRateLimit);
+app.use('/api', defaultApiAuthentication);
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/booking', bookingRoutes);
@@ -127,9 +173,16 @@ app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1', queueRoutes);
 app.use('/api', qmsRoutes);
 app.use('/api', pacsRoutes);
+app.use('/api/v1/ai', aiRoutes);
+app.use('/api/v1/documents', documentRoutes);
+app.use('/api/v1/template-studio', templateStudioRoutes);
 
 // Error handling middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    if (err.code === 'CORS_ORIGIN_DENIED') {
+        console.warn(`[CORS] Rejected origin ${req.get('origin') || 'unknown'}`);
+        return res.status(403).json({ error: 'CORS origin denied' });
+    }
     console.error('❌ Server Error:', err);
     res.status(err.status || 500).json({
         error: 'Internal server error',
@@ -167,54 +220,32 @@ async function applyPendingMigrations() {
     try {
         const { query } = await import('./config/database');
         
-        // Run SQL migrations via the new Migration Runner
-        await migrationService.runMigrations();
-
-        // Specific Node.js data seeding logic (cannot be done via SQL easily due to bcrypt encryption)
-        const SecurityUtils = (await import('./utils/security')).default;
-        const encryptedPass = SecurityUtils.encrypt('Abc@1234');
-        const checkSettings = await query(`SELECT id FROM health_check_settings LIMIT 1`);
-        if (checkSettings.rows.length === 0) {
-            await query(`
-                INSERT INTO health_check_settings (
-                    vneid_url, vneid_username, vneid_password, ma_cskcb, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-            `, [
-                'https://api-sandbox.emrhub.vn/api',
-                '8934285008135_api',
-                encryptedPass,
-                '8934285008135',
-                '8934285008135',
-                true,
-                15
-            ]);
-            console.log('✅ Health check settings initialized with credentials.');
+        // Only auto-run migrations if AUTO_RUN_MIGRATIONS=true in .env
+        if (process.env.AUTO_RUN_MIGRATIONS === 'true') {
+            console.log('🔄 AUTO_RUN_MIGRATIONS=true: Checking for pending database migrations...');
+            await migrationService.runMigrations();
+            console.log('✅ Migrations applied successfully');
+        } else {
+            console.log('ℹ️ Auto DB migrations on startup is DISABLED (Set AUTO_RUN_MIGRATIONS=true in .env to enable or run "npm run migrate").');
         }
-
-        console.log('✅ Migrations applied successfully');
-        console.log('📊 Server started successfully');
 
         // Verify health_check_service_mappings table
         try {
             const checkRes = await query(`SELECT COUNT(*) FROM health_check_service_mappings`);
             console.log(`📊 health_check_service_mappings table has ${checkRes.rows[0].count} rows.`);
-            const verifyFilePath = require('path').join(__dirname, '../db_check_result.txt');
-            const fs = require('fs');
-            if (fs.existsSync(verifyFilePath)) {
-                fs.unlinkSync(verifyFilePath);
-            }
         } catch (diagErr: any) {
-            console.error('⚠️ Failed to query health_check_service_mappings:', diagErr.message);
+            // Table may not exist yet if migrations have not been executed
         }
 
     } catch (e: any) {
-        console.error('⚠️  Migration runner error:', e);
-        throw e;
+        console.error('⚠️ Migration runner encountered an error:', e.message);
+        // Do not crash production server on non-fatal migration check errors
     }
 }
 
 // Start server
 async function startServer() {
+    validateEnvironment();
     console.log('='.repeat(50));
     console.log(`🚀 Starting VIMES Backend initialization...`);
     console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
@@ -237,6 +268,10 @@ async function startServer() {
     });
 }
 
-startServer();
+if (require.main === module) {
+    startServer().catch(error => {
+        console.error('Server failed to start:', error instanceof Error ? error.message : error);
+        process.exit(1);
+    });
+}
 export default app;
-

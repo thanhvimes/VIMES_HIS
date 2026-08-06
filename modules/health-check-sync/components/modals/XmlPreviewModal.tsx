@@ -29,7 +29,7 @@ const XmlPreviewModal: React.FC<XmlPreviewModalProps> = ({ activeXmlDoc, onClose
                 <div className="p-4 flex-1 overflow-auto bg-slate-950 text-slate-200 font-mono text-xs border border-slate-800 flex flex-col">
                     <div className="text-teal-400 font-bold mb-2">// RAW XML BODY //</div>
                     <pre className="whitespace-pre-wrap flex-1">{activeXmlDoc.xml_data}</pre>
-                    {activeXmlDoc.signature && (
+                    {activeXmlDoc.signature_status === 'Signed' && activeXmlDoc.signature && (
                         <div className="mt-4 pt-4 border-t border-slate-800">
                             <div className="text-green-400 font-bold mb-1">// DIGITAL SIGNATURE VALUE ({activeXmlDoc.signature_type}) //</div>
                             <div className="text-slate-500 break-all">{activeXmlDoc.signature}</div>

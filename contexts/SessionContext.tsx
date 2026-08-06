@@ -45,7 +45,14 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
     const [user, setUser] = useState<UserSession | null>(() => {
         try {
             const savedUser = localStorage.getItem('currentUser');
-            return savedUser ? JSON.parse(savedUser) : null;
+            if (!savedUser) return null;
+            const parsed = JSON.parse(savedUser);
+            if (!parsed?.token) {
+                localStorage.removeItem('currentUser');
+                localStorage.removeItem('isAuthenticated');
+                return null;
+            }
+            return parsed;
         } catch {
             return null;
         }
@@ -205,7 +212,7 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
             setOrgInfo,
             user,
             userInfo, // NEW: Expose full user info
-            isAuthenticated: !!user,
+            isAuthenticated: !!user && authService.isAuthenticated(),
             login,
             logout,
             updateDepartment,

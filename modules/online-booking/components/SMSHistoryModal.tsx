@@ -14,7 +14,7 @@ interface SMSLogItem {
     message_content: string;
     provider: string;
     provider_message_id: string | null;
-    status: 'SUCCESS' | 'FAILED' | 'PENDING';
+    status: 'SUCCESS' | 'FAILED' | 'PENDING' | 'PREVIEW';
     error_message: string | null;
     sent_at: string;
 }
@@ -173,7 +173,11 @@ const SMSHistoryModal: React.FC<Props> = ({ booking, onClose }) => {
                                         </div>
                                         <div className="flex items-center gap-3 text-xs">
                                             <span className="text-slate-400">{formatDate(log.sent_at)}</span>
-                                            {log.status === 'SUCCESS' ? (
+                                            {log.status === 'PREVIEW' ? (
+                                                <span className="inline-flex items-center gap-1 text-amber-700 font-bold bg-amber-50 px-2.5 py-0.5 rounded border border-amber-300 shadow-sm animate-pulse">
+                                                    👁️ Xem trước (Chưa duyệt)
+                                                </span>
+                                            ) : log.status === 'SUCCESS' ? (
                                                 <span className="inline-flex items-center gap-1 text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded border border-green-200">
                                                     <CheckCircleIcon className="w-3.5 h-3.5" /> Thành công
                                                 </span>
@@ -185,8 +189,20 @@ const SMSHistoryModal: React.FC<Props> = ({ booking, onClose }) => {
                                         </div>
                                     </div>
 
+                                    {/* PREVIEW Banner */}
+                                    {log.status === 'PREVIEW' && (
+                                        <div className="p-2.5 bg-amber-50 border-l-4 border-amber-500 rounded-r-lg text-xs text-amber-800 flex items-center gap-2">
+                                            <span className="font-bold">ℹ️ Thông báo:</span>
+                                            <span>Lượt khám này chưa duyệt. Đây là <strong>nội dung tin nhắn SMS dự kiến</strong> sẽ tự động gửi cho bệnh nhân sau khi bấm <strong>Duyệt</strong>.</span>
+                                        </div>
+                                    )}
+
                                     {/* Message Content */}
-                                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm text-slate-800 font-mono whitespace-pre-wrap leading-relaxed select-all">
+                                    <div className={`p-3 text-sm rounded-lg font-mono whitespace-pre-wrap leading-relaxed select-all border ${
+                                        log.status === 'PREVIEW' 
+                                            ? 'bg-amber-50/40 border-amber-200 text-slate-900 ring-1 ring-amber-400/30 shadow-inner' 
+                                            : 'bg-slate-50 border-slate-200 text-slate-800'
+                                    }`}>
                                         {log.message_content}
                                     </div>
 

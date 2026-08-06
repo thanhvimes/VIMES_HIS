@@ -5,9 +5,16 @@
   "main": "src/server.ts",
   "scripts": {
     "start": "ts-node src/server.ts",
-    "dev": "nodemon"
+    "dev": "nodemon",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test -r ts-node/register test/**/*.test.ts",
+    "benchmark:documents": "node scripts/benchmark-document-engine.cjs",
+    "smoke:carbone": "node scripts/smoke-carbone-live.cjs",
+    "migrate": "ts-node src/scripts/run-migrations.ts",
+    "seed:template-studio": "ts-node scripts/seed-template-studio.ts"
   },
   "dependencies": {
+    "@google/genai": "^1.52.0",
     "axios": "^1.6.2",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
