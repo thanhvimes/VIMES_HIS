@@ -110,6 +110,8 @@ export interface DynamicFormContextType {
     setEscortRelation: React.Dispatch<React.SetStateAction<string>>;
     licenseClass: string;
     setLicenseClass: React.Dispatch<React.SetStateAction<string>>;
+    driverExamPurpose: string;
+    setDriverExamPurpose: React.Dispatch<React.SetStateAction<string>>;
     chucDanh: string;
     setChucDanh: React.Dispatch<React.SetStateAction<string>>;
     noiCongTac: string;
@@ -238,6 +240,8 @@ export interface DynamicFormContextType {
     setTsSuDungMaTuy: React.Dispatch<React.SetStateAction<number>>;
     tsBenhCotSong: number;
     setTsBenhCotSong: React.Dispatch<React.SetStateAction<number>>;
+    tsMacBenh: number;
+    setTsMacBenh: React.Dispatch<React.SetStateAction<number>>;
     tsbtMaBenhNgheNghiep: string;
     setTsbtMaBenhNgheNghiep: React.Dispatch<React.SetStateAction<string>>;
     tsbtNamPhatHienBenhNgheNghiep: string;

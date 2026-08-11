@@ -1,5 +1,5 @@
 export async function generateHospitalIntroVideo(customPrompt?: string): Promise<string | null> {
-  const session = JSON.parse(localStorage.getItem('currentUser') || '{}');
+  const session = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
   const response = await fetch('/api/v1/ai/hospital-video', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.token || ''}` },

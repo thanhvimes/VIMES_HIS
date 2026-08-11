@@ -172,23 +172,36 @@ const EyeExamTab: React.FC = () => {
                                     <input type="text" value={coKinhHaiMat} onChange={e => setCoKinhHaiMat(e.target.value)} className="w-full p-2 border border-slate-300 rounded-lg text-xs bg-slate-50 text-center font-bold" />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-3 gap-2 pt-2.5 border-t border-slate-200">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-2.5 border-t border-slate-200">
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Sắc giác</label>
+                                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Sắc giác (QĐ 1551)</label>
                                     <select value={sacGiac} onChange={e => setSacGiac(e.target.value)} className="w-full p-1.5 border border-slate-300 rounded-lg text-xs bg-slate-50 font-bold">
-                                        <option value="">-- Sắc giác --</option>
-                                        <option value="0">Bình thường</option>
-                                        <option value="1">Rối loạn màu 1 phần</option>
-                                        <option value="2">Mù màu hoàn toàn</option>
+                                        <option value="">-- Chọn sắc giác --</option>
+                                        <option value="1">1: Bình thường</option>
+                                        <option value="2">2: Mù màu toàn bộ</option>
+                                        <option value="3">3: Mù màu đỏ</option>
+                                        <option value="4">4: Mù màu xanh lá cây</option>
+                                        <option value="5">5: Mù màu vàng</option>
+                                        <option value="0">0: Bình thường (Mã cũ)</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Thị trường ngang</label>
-                                    <input type="text" value={thiTruongNgangHaiMat} onChange={e => setThiTruongNgangHaiMat(e.target.value)} className="w-full p-1.5 border border-slate-300 rounded-lg text-xs bg-white text-center" />
+                                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Thị trường ngang hai mắt</label>
+                                    <select value={thiTruongNgangHaiMat} onChange={e => setThiTruongNgangHaiMat(e.target.value)} className="w-full p-1.5 border border-slate-300 rounded-lg text-xs bg-white font-semibold">
+                                        <option value="Bình thường">Bình thường (&ge; 160 độ)</option>
+                                        <option value="Hạn chế">Hạn chế (&lt; 160 độ)</option>
+                                        <option value="1">1: Bình thường</option>
+                                        <option value="2">2: Hạn chế</option>
+                                    </select>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Thị trường đứng</label>
-                                    <input type="text" value={thiTruongDungHaiMat} onChange={e => setThiTruongDungHaiMat(e.target.value)} className="w-full p-1.5 border border-slate-300 rounded-lg text-xs bg-white text-center" />
+                                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Thị trường đứng hai mắt</label>
+                                    <select value={thiTruongDungHaiMat} onChange={e => setThiTruongDungHaiMat(e.target.value)} className="w-full p-1.5 border border-slate-300 rounded-lg text-xs bg-white font-semibold">
+                                        <option value="Bình thường">Bình thường (&ge; 30 độ trên &amp; dưới)</option>
+                                        <option value="Hạn chế">Hạn chế (&lt; 30 độ)</option>
+                                        <option value="1">1: Bình thường</option>
+                                        <option value="2">2: Hạn chế</option>
+                                    </select>
                                 </div>
                             </div>
                         </>

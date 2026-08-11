@@ -251,8 +251,7 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
 							<TSBT_BENH_KHAC>${escapeXml(findValue('TSBT_BENH_KHAC', src) || '0')}</TSBT_BENH_KHAC>
 							<TSBT_MA_BENH_KHAC>${escapeXml(findValue('TSBT_MA_BENH_KHAC', src) || '')}</TSBT_MA_BENH_KHAC>
 							<TSBT_TEN_THUOC_LIEU_LUONG>${escapeXml(findValue('TSBT_TEN_THUOC_LIEU_LUONG', src) || '')}</TSBT_TEN_THUOC_LIEU_LUONG>
-							<TSBT_THAI_SAN>${escapeXml(findValue('TSBT_THAI_SAN', src) || '0')}</TSBT_THAI_SAN>
-							<TSBT_TEN_THUOC_THAI_SAN>${escapeXml(findValue('TSBT_TEN_THUOC_THAI_SAN', src) || '')}</TSBT_TEN_THUOC_THAI_SAN>
+							<HANG_LAI_XE>${escapeXml(findValue('HANG_LAI_XE', src) || findValue('hang_lai_xe', src) || 'B2')}</HANG_LAI_XE>
 						</THONG_TIN_HANH_CHINH>`;
 
     // Build XML2: THONG_TIN_CHUNG_VE_LAN_KHAM
@@ -261,7 +260,9 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
         typeVal = 'ChildUnder';
     } else if (formType === '2' || formType === 'mau2-minor' || formType === 'minor') {
         typeVal = 'Minor';
-    } else if (formType === '3' || formType === 'mau3-adult' || formType === 'adult') {
+    } else if (formType === '3' || formType === 'driver' || formType === 'mau3-driver' || formType === 'mau3') {
+        typeVal = 'Driver';
+    } else if (formType === 'adult' || formType === 'mau3-adult') {
         typeVal = 'Adult';
     }
 
@@ -367,8 +368,37 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
 							<BENH_KHAC_RANG_HAM_MAT>${escapeXml(findValue('BENH_KHAC_RANG_HAM_MAT', src) || 'Không')}</BENH_KHAC_RANG_HAM_MAT>
 							<KHAM_RANG_HAM_MAT_PL>${escapeXml(findValue('KHAM_RANG_HAM_MAT_PL', src) || '1')}</KHAM_RANG_HAM_MAT_PL>
 							<CKDT_KHAM_RANG_HAM_MAT>${escapeXml(findValue('CKDT_KHAM_RANG_HAM_MAT', src))}</CKDT_KHAM_RANG_HAM_MAT>`;
+    } else if (typeVal === 'Driver') {
+        // Mẫu 3: Khám sức khỏe định kỳ cho người lái xe (QĐ 1551/QĐ-BYT & QĐ 2062)
+        xml7Content = `
+							<NOI_KHOA_TAM_THAN>${escapeXml(findValue('NOI_KHOA_TAM_THAN', src) || findValue('tam_than', src) || 'Bình thường')}</NOI_KHOA_TAM_THAN>
+							<NOI_KHOA_THAN_KINH>${escapeXml(findValue('NOI_KHOA_THAN_KINH', src) || findValue('than_kinh', src) || 'Bình thường')}</NOI_KHOA_THAN_KINH>
+							<KHONG_KINH_MAT_PHAI>${escapeXml(findValue('KHONG_KINH_MAT_PHAI', src) || findValue('khong_kinh_mat_phai', src) || '10/10')}</KHONG_KINH_MAT_PHAI>
+							<KHONG_KINH_MAT_TRAI>${escapeXml(findValue('KHONG_KINH_MAT_TRAI', src) || findValue('khong_kinh_mat_trai', src) || '10/10')}</KHONG_KINH_MAT_TRAI>
+							<CO_KINH_MAT_PHAI>${escapeXml(findValue('CO_KINH_MAT_PHAI', src) || findValue('co_kinh_mat_phai', src) || '10/10')}</CO_KINH_MAT_PHAI>
+							<CO_KINH_MAT_TRAI>${escapeXml(findValue('CO_KINH_MAT_TRAI', src) || findValue('co_kinh_mat_trai', src) || '10/10')}</CO_KINH_MAT_TRAI>
+							<KHONG_KINH_HAI_MAT>${escapeXml(findValue('KHONG_KINH_HAI_MAT', src) || findValue('khong_kinh_hai_mat', src) || '10/10')}</KHONG_KINH_HAI_MAT>
+							<CO_KINH_HAI_MAT>${escapeXml(findValue('CO_KINH_HAI_MAT', src) || findValue('co_kinh_hai_mat', src) || '10/10')}</CO_KINH_HAI_MAT>
+							<THI_TRUONG_NGANG_HAIMAT>${escapeXml(findValue('THI_TRUONG_NGANG_HAIMAT', src) || findValue('thi_truong_ngang_hai_mat', src) || '1')}</THI_TRUONG_NGANG_HAIMAT>
+							<THI_TRUONG_DUNG_HAIMAT>${escapeXml(findValue('THI_TRUONG_DUNG_HAIMAT', src) || findValue('thi_truong_dung_hai_mat', src) || '1')}</THI_TRUONG_DUNG_HAIMAT>
+							<SAC_GIAC>${escapeXml(findValue('SAC_GIAC', src) || findValue('sac_giac', src) || '1')}</SAC_GIAC>
+							<BENH_KHAC_MAT>${escapeXml(findValue('BENH_KHAC_MAT', src) || findValue('benh_khac_mat', src) || 'Không')}</BENH_KHAC_MAT>
+							<TAI_TRAI_NOI_THUONG>${escapeXml(findValue('TAI_TRAI_NOI_THUONG', src) || findValue('tai_trai_noi_thuong', src) || '5')}</TAI_TRAI_NOI_THUONG>
+							<TAI_TRAI_NOI_THAM>${escapeXml(findValue('TAI_TRAI_NOI_THAM', src) || findValue('tai_trai_noi_tham', src) || '0.5')}</TAI_TRAI_NOI_THAM>
+							<TAI_PHAI_NOI_THUONG>${escapeXml(findValue('TAI_PHAI_NOI_THUONG', src) || findValue('tai_phai_noi_thuong', src) || '5')}</TAI_PHAI_NOI_THUONG>
+							<TAI_PHAI_NOI_THAM>${escapeXml(findValue('TAI_PHAI_NOI_THAM', src) || findValue('tai_phai_noi_tham', src) || '0.5')}</TAI_PHAI_NOI_THAM>
+							<BENH_KHAC_TAI_MUI_HONG>${escapeXml(findValue('BENH_KHAC_TAI_MUI_HONG', src) || findValue('benh_khac_tai_mui_hong', src) || 'Không')}</BENH_KHAC_TAI_MUI_HONG>
+							<KQ_LAM_SANG_HO_HAP>${escapeXml(findValue('KQ_LAM_SANG_HO_HAP', src) || findValue('ho_hap', src) || 'Bình thường')}</KQ_LAM_SANG_HO_HAP>
+							<KQ_CO_XUONG_KHOP>${escapeXml(findValue('KQ_CO_XUONG_KHOP', src) || findValue('kq_co_xuong_khop', src) || 'Bình thường')}</KQ_CO_XUONG_KHOP>
+							<NOI_TIET>${escapeXml(findValue('NOI_TIET', src) || findValue('noi_tiet', src) || 'Bình thường')}</NOI_TIET>
+							<KET_QUA_KHAM_SAN_PHU_KHOA>${escapeXml(findValue('KET_QUA_KHAM_SAN_PHU_KHOA', src) || findValue('kham_san_phu_khoa', src) || 'Bình thường')}</KET_QUA_KHAM_SAN_PHU_KHOA>
+							<KHAM_SAN_PHU_KHOA_PL>${escapeXml(findValue('KHAM_SAN_PHU_KHOA_PL', src) || findValue('kham_san_phu_khoa_pl', src) || '1')}</KHAM_SAN_PHU_KHOA_PL>
+							<KQ_XN_MA_TUY>${escapeXml(findValue('KQ_XN_MA_TUY', src) || findValue('kq_xn_mai_tuy', src) || findValue('kq_xn_ma_tuy', src) || 'Âm tính')}</KQ_XN_MA_TUY>
+							<KET_QUA_XN_NONG_DO_CON>${escapeXml(findValue('KET_QUA_XN_NONG_DO_CON', src) || findValue('kq_xn_nong_do_con', src) || '0.0 mg/L (Âm tính)')}</KET_QUA_XN_NONG_DO_CON>
+							<KET_QUA_XN_KHAC>${escapeXml(findValue('KET_QUA_XN_KHAC', src) || findValue('kq_xn_khac', src) || 'Bình thường')}</KET_QUA_XN_KHAC>
+							<KET_LUAN_XN_KHAC>${escapeXml(findValue('KET_LUAN_XN_KHAC', src) || findValue('ket_luan_xn_khac', src) || 'Bình thường')}</KET_LUAN_XN_KHAC>`;
     } else {
-        // Mẫu 3: Người từ đủ 18 tuổi trở lên (Adult)
+        // Mẫu 2/Khác: Người từ đủ 18 tuổi trở lên (Adult)
         xml7Content = `
 							<NOI_KHOA_TUAN_HOAN>${escapeXml(findValue('NOI_KHOA_TUAN_HOAN', src) || 'Bình thường')}</NOI_KHOA_TUAN_HOAN>
 							<NOI_KHOA_TUAN_HOAN_PL>${escapeXml(findValue('NOI_KHOA_TUAN_HOAN_PL', src) || '1')}</NOI_KHOA_TUAN_HOAN_PL>

@@ -142,6 +142,7 @@ const ChildForm: React.FC<ChildFormProps> = ({
                                     <option value="1" className="text-slate-800 bg-white">Mẫu 1: Trẻ em dưới 06 tuổi</option>
                                     <option value="2" className="text-slate-800 bg-white">Mẫu 2: Người từ đủ 06 tuổi đến dưới 18 tuổi</option>
                                     <option value="3" className="text-slate-800 bg-white">Mẫu 3: Người từ đủ 18 tuổi trở lên</option>
+                                    <option value="driver" className="text-slate-800 bg-white">Giấy KSK người lái xe (Học lái xe / Nâng hạng / Đổi GPLX)</option>
                                 </select>
                             </div>
                         ) : (

@@ -41,6 +41,9 @@ export const healthCheckService = {
         status?: string;
         signatureStatus?: string;
         formType?: string;
+        contractId?: string;
+        limit?: number | string;
+        page?: number;
     }): Promise<HealthCheckDocument[]> => {
         try {
             const params = new URLSearchParams();
@@ -52,6 +55,9 @@ export const healthCheckService = {
                 if (filters.status) params.append('status', filters.status);
                 if (filters.signatureStatus) params.append('signatureStatus', filters.signatureStatus);
                 if (filters.formType) params.append('formType', filters.formType);
+                if (filters.contractId) params.append('contractId', filters.contractId);
+                if (filters.limit) params.append('limit', String(filters.limit));
+                if (filters.page) params.append('page', String(filters.page));
             }
             const queryStr = params.toString() ? `?${params.toString()}` : '';
             return await apiClient.get<HealthCheckDocument[]>(`/health-check-sync/documents${queryStr}`);

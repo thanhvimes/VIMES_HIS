@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OrganizationInfo, UserSession } from '../types/common';
@@ -8,14 +7,14 @@ interface SessionContextType {
     orgInfo: OrganizationInfo;
     setOrgInfo: (info: OrganizationInfo) => void;
     user: UserSession | null;
-    userInfo: UserInfo | null; // NEW: Full user info from backend
+    userInfo: UserInfo | null; // Full user info from backend
     isAuthenticated: boolean;
     login: (username: string, password: string) => Promise<void>;
     logout: () => void;
     updateDepartment: (deptId: string, deptName: string) => void;
     updateUserInfo: (info: Partial<UserInfo>) => void;
-    hasPermission: (permId: string) => boolean; // NEW: CheckPermission equivalent
-    setModuleContext: (moduleId: string) => void; // NEW: Set current module context
+    hasPermission: (permId: string) => boolean; // CheckPermission equivalent
+    setModuleContext: (moduleId: string) => void; // Set current module context
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -35,7 +34,7 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
 
     const [orgInfo, setOrgInfoState] = useState<OrganizationInfo>(() => {
         try {
-            const saved = localStorage.getItem('orgInfo');
+            const saved = sessionStorage.getItem('orgInfo') || localStorage.getItem('orgInfo');
             return saved ? JSON.parse(saved) : defaultOrgInfo;
         } catch {
             return defaultOrgInfo;
@@ -44,14 +43,18 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
 
     const [user, setUser] = useState<UserSession | null>(() => {
         try {
-            const savedUser = localStorage.getItem('currentUser');
+            const savedUser = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
             if (!savedUser) return null;
             const parsed = JSON.parse(savedUser);
             if (!parsed?.token) {
+                sessionStorage.removeItem('currentUser');
+                sessionStorage.removeItem('isAuthenticated');
                 localStorage.removeItem('currentUser');
                 localStorage.removeItem('isAuthenticated');
                 return null;
             }
+            // Ensure this tab's sessionStorage has its own isolated copy
+            sessionStorage.setItem('currentUser', savedUser);
             return parsed;
         } catch {
             return null;
@@ -60,8 +63,12 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
 
     const [userInfo, setUserInfo] = useState<UserInfo | null>(() => {
         try {
-            const saved = localStorage.getItem('userInfo');
-            return saved ? JSON.parse(saved) : null;
+            const saved = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+            if (saved) {
+                sessionStorage.setItem('userInfo', saved);
+                return JSON.parse(saved);
+            }
+            return null;
         } catch {
             return null;
         }
@@ -74,6 +81,7 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
                 try {
                     const info = await authService.getCurrentUser();
                     setUserInfo(info);
+                    sessionStorage.setItem('userInfo', JSON.stringify(info));
                     localStorage.setItem('userInfo', JSON.stringify(info));
 
                     // Also update legacy user format for compatibility
@@ -83,7 +91,7 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
                         fullName: info.name,
                         title: info.title || '',
                         departmentId: info.deptId,
-                        departmentName: info.deptId, // TODO: Get dept name from sys_dept
+                        departmentName: info.deptId,
                         role: (info.userId === 'admin' || info.groupId === 'M') ? 'admin' : 
                               info.groupId === 'D' ? 'doctor' : 
                               info.groupId === 'N' ? 'nurse' : 
@@ -97,6 +105,7 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
                         modules: info.modules || {}
                     };
                     setUser(legacyUser);
+                    sessionStorage.setItem('currentUser', JSON.stringify(legacyUser));
                     localStorage.setItem('currentUser', JSON.stringify(legacyUser));
                 } catch (error) {
                     console.error('Failed to load user info:', error);
@@ -108,6 +117,7 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
 
     const setOrgInfo = (info: OrganizationInfo) => {
         setOrgInfoState(info);
+        sessionStorage.setItem('orgInfo', JSON.stringify(info));
         localStorage.setItem('orgInfo', JSON.stringify(info));
     };
 
@@ -118,6 +128,7 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
             if (response.user) {
                 // Store full user info
                 setUserInfo(response.user);
+                sessionStorage.setItem('userInfo', JSON.stringify(response.user));
                 localStorage.setItem('userInfo', JSON.stringify(response.user));
 
                 // Create legacy user format for compatibility, including the token
@@ -142,6 +153,8 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
                 };
 
                 setUser(legacyUser);
+                sessionStorage.setItem('currentUser', JSON.stringify(legacyUser));
+                sessionStorage.setItem('isAuthenticated', 'true');
                 localStorage.setItem('currentUser', JSON.stringify(legacyUser));
                 localStorage.setItem('isAuthenticated', 'true');
             }
@@ -154,6 +167,9 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
         authService.logout();
         setUser(null);
         setUserInfo(null);
+        sessionStorage.removeItem('currentUser');
+        sessionStorage.removeItem('userInfo');
+        sessionStorage.removeItem('isAuthenticated');
         localStorage.removeItem('currentUser');
         localStorage.removeItem('userInfo');
         localStorage.removeItem('isAuthenticated');
@@ -164,11 +180,13 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
         if (user) {
             const updatedUser = { ...user, departmentId: deptId, departmentName: deptName };
             setUser(updatedUser);
+            sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
             localStorage.setItem('currentUser', JSON.stringify(updatedUser));
         }
         if (userInfo) {
             const updatedInfo = { ...userInfo, deptId: deptId };
             setUserInfo(updatedInfo);
+            sessionStorage.setItem('userInfo', JSON.stringify(updatedInfo));
             localStorage.setItem('userInfo', JSON.stringify(updatedInfo));
         }
     };
@@ -177,6 +195,7 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
         if (userInfo) {
             const updatedInfo = { ...userInfo, ...info };
             setUserInfo(updatedInfo);
+            sessionStorage.setItem('userInfo', JSON.stringify(updatedInfo));
             localStorage.setItem('userInfo', JSON.stringify(updatedInfo));
 
             // Sync legacy user too
@@ -187,6 +206,7 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
                     title: updatedInfo.title || user.title
                 };
                 setUser(updatedLegacy);
+                sessionStorage.setItem('currentUser', JSON.stringify(updatedLegacy));
                 localStorage.setItem('currentUser', JSON.stringify(updatedLegacy));
             }
         }
@@ -202,6 +222,7 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
         if (user) {
             const updatedUser = { ...user, moduleId };
             setUser(updatedUser);
+            sessionStorage.setItem('currentUser', JSON.stringify(updatedUser));
             localStorage.setItem('currentUser', JSON.stringify(updatedUser));
         }
     };
@@ -211,7 +232,7 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
             orgInfo,
             setOrgInfo,
             user,
-            userInfo, // NEW: Expose full user info
+            userInfo,
             isAuthenticated: !!user && authService.isAuthenticated(),
             login,
             logout,
@@ -227,7 +248,7 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
 
 export const useSession = () => {
     const context = useContext(SessionContext);
-    if (context === undefined) {
+    if (!context) {
         throw new Error('useSession must be used within a SessionProvider');
     }
     return context;

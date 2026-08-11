@@ -32,6 +32,7 @@ const QuickSpecialityBookingModal: React.FC<QuickSpecialityBookingModalProps> = 
     const [selectedSpeciality, setSelectedSpeciality] = useState('');
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [selectedTime, setSelectedTime] = useState('');
+    const [selectedRoomId, setSelectedRoomId] = useState<number | undefined>();
     const [reason, setReason] = useState('');
 
     // Load specialities
@@ -105,6 +106,7 @@ const QuickSpecialityBookingModal: React.FC<QuickSpecialityBookingModalProps> = 
                 phone: booking.phone,
                 deptId: booking.deptId || userInfo?.deptId || 'KB',
                 specialityCode: selectedSpeciality,
+                roomId: selectedRoomId,
                 bookingDate: selectedDate,
                 bookingTime: selectedTime,
                 reason: reason || booking.reason,
@@ -210,6 +212,7 @@ const QuickSpecialityBookingModal: React.FC<QuickSpecialityBookingModalProps> = 
                             onSelect={(id) => {
                                 setSelectedSpeciality(id);
                                 setSelectedTime('');
+                                setSelectedRoomId(undefined);
                             }}
                         />
                         {specialities.length === 0 && (
@@ -227,6 +230,7 @@ const QuickSpecialityBookingModal: React.FC<QuickSpecialityBookingModalProps> = 
                             onSelect={(date) => {
                                 setSelectedDate(date);
                                 setSelectedTime('');
+                                setSelectedRoomId(undefined);
                             }}
                         />
                     </div>
@@ -286,7 +290,10 @@ const QuickSpecialityBookingModal: React.FC<QuickSpecialityBookingModalProps> = 
                                             .map(s => (
                                                 <button
                                                     key={s.time}
-                                                    onClick={() => setSelectedTime(s.time)}
+                                                    onClick={() => {
+                                                        setSelectedTime(s.time);
+                                                        setSelectedRoomId(s.roomId);
+                                                    }}
                                                     disabled={s.status === 'F'}
                                                     className={`p-2.5 rounded-xl border-2 text-sm font-black transition-all ${s.status === 'F'
                                                             ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed opacity-50'

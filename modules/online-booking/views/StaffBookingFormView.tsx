@@ -54,6 +54,7 @@ const StaffBookingFormView: React.FC = () => {
         wardId: '',
         addressDetail: '',
         specialityId: '',
+        roomId: undefined as number | undefined,
         date: new Date().toISOString().split('T')[0],
         time: '',
         reason: '',
@@ -67,7 +68,7 @@ const StaffBookingFormView: React.FC = () => {
         setBookingData({
             patientId: '', name: '', phone: '', dob: '', gender: 'M',
             identityCard: '', identityIssueDate: '', provinceId: '', wardId: '',
-            addressDetail: '', specialityId: '', date: new Date().toISOString().split('T')[0],
+            addressDetail: '', specialityId: '', roomId: undefined, date: new Date().toISOString().split('T')[0],
             time: '', reason: '', isPriority: false, isInsurance: false
         });
         setErrors({});
@@ -283,14 +284,16 @@ const StaffBookingFormView: React.FC = () => {
                 wardId: bookingData.wardId ? parseInt(bookingData.wardId) : undefined,
                 address: bookingData.addressDetail,
                 phone: bookingData.phone,
-                deptId: bookingData.specialityId,
+                deptId: userInfo?.deptId || 'KB',
+                specialityCode: bookingData.specialityId,
+                roomId: bookingData.roomId,
                 bookingDate: bookingData.date,
                 bookingTime: bookingData.time,
                 reason: bookingData.reason,
                 idCardIssuedDate: convertDate(bookingData.identityIssueDate),
                 isPriority: bookingData.isPriority,
                 isInsurance: bookingData.isInsurance,
-                doctor: userInfo?.deptId // Using userDeptId as an additional indicator if needed, or just relying on backend mapping
+                doctor: userInfo?.deptId
             });
 
             console.log('✅ Converted birthDate:', convertDate(bookingData.dob));
@@ -431,7 +434,7 @@ const StaffBookingFormView: React.FC = () => {
                                                     .map(s => (
                                                         <button
                                                             key={s.time}
-                                                            onClick={() => setBookingData({ ...bookingData, time: s.time })}
+                                                            onClick={() => setBookingData({ ...bookingData, time: s.time, roomId: s.roomId })}
                                                             disabled={s.status === 'F'}
                                                             className={`p-3 rounded-xl border-2 text-sm font-black transition-all ${s.status === 'F'
                                                                 ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed opacity-50'

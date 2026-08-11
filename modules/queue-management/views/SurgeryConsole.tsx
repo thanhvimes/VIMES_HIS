@@ -52,7 +52,7 @@ export const SurgeryConsole: React.FC<SurgeryConsoleProps> = ({
 
   // Tự động tải danh sách bàn mổ
   useEffect(() => {
-    const currentUserStr = localStorage.getItem('currentUser');
+    const currentUserStr = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
     const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
     const userId = currentUser?.userId || currentUser?.user?.userId || currentUser?.su_userid || currentUser?.username || '';
 

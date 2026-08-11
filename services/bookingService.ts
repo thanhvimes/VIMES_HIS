@@ -97,16 +97,8 @@ const USE_MOCK = false;
 export const bookingService = {
     // --- DANH MỤC ---
     getSpecialities: async (deptId?: string): Promise<BookingSpeciality[]> => {
-        if (USE_MOCK) {
-            return [
-                { id: '00001', name: 'Nội tổng quát' },
-                { id: '00002', name: 'Ngoại tổng quát' },
-            ];
-        }
-        const url = deptId
-            ? `${API_BASE_URL}/specialities?deptId=${deptId}`
-            : `${API_BASE_URL}/specialities`;
-        const res = await fetch(url);
+        const targetDeptId = deptId || 'KB';
+        const res = await fetch(`${API_BASE_URL}/specialities?deptId=${targetDeptId}`);
         return res.json();
     },
 

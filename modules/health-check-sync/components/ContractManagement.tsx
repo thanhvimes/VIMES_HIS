@@ -626,12 +626,8 @@ const ContractManagement: React.FC = () => {
             return;
         }
 
-        if (!employeeFormData.phone.trim()) {
-            toast.error("Vui lòng nhập số điện thoại");
-            return;
-        }
-        if (employeeFormData.phone && !/^\d{10}$/.test(employeeFormData.phone)) {
-            toast.error("Số điện thoại phải có độ dài chính xác 10 chữ số");
+        if (employeeFormData.phone && !/^\d{10}$/.test(employeeFormData.phone.trim())) {
+            toast.error("Số điện thoại (nếu có) phải có độ dài chính xác 10 chữ số");
             return;
         }
 
@@ -1443,9 +1439,10 @@ const ContractManagement: React.FC = () => {
                                         onChange={(e) => setFormData({ ...formData, form_type: e.target.value })}
                                         className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#0f766e] focus:outline-none font-bold text-sm w-full cursor-pointer"
                                     >
-                                        <option value="1">Mẫu 1: Trẻ em 6T - dưới 18T</option>
-                                        <option value="2">{"Mẫu 2: Người lớn (>= 18T)"}</option>
-                                        <option value="3">Mẫu 3: Khám sức khỏe Lái xe</option>
+                                        <option value="1">Mẫu 1: Trẻ em dưới 06 tuổi</option>
+                                        <option value="2">Mẫu 2: Người từ đủ 06 tuổi đến dưới 18 tuổi</option>
+                                        <option value="3">Mẫu 3: Người từ đủ 18 tuổi trở lên</option>
+                                        <option value="driver">Giấy KSK người lái xe (Học lái xe / Nâng hạng / Đổi GPLX)</option>
                                     </select>
                                 </div>
                             </div>

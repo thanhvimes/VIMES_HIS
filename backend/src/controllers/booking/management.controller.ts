@@ -2,6 +2,7 @@
 // File: backend/src/controllers/booking/management.controller.ts
 
 import { Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
 import { query } from '../../config/database';
 import notificationService from '../../services/notification.service';
 import smsTemplateService from '../../services/sms-template.service';
@@ -30,18 +31,31 @@ class BookingManagementController {
                 isPriority, isInsurance, specialityCode
             } = (req as any).body;
 
-            const userDeptId = doctor || 'KB';
+            let userDeptId = doctor || (deptId && isNaN(Number(deptId)) ? deptId : 'KB');
+            const authHeader = (req as any).headers?.authorization;
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+                try {
+                    const token = authHeader.substring(7);
+                    const decoded: any = jwt.decode(token);
+                    if (decoded?.deptId) {
+                        userDeptId = decoded.deptId;
+                    }
+                } catch (e) {
+                    // Ignore token decode error
+                }
+            }
 
-            if (!name || !phone || !birthDate || !gender || !deptId || !bookingDate || !bookingTime) {
+            if (!name || !phone || !birthDate || !gender || (!deptId && !specialityCode) || !bookingDate || !bookingTime) {
                 return res.status(400).json({ error: 'Thiếu thông tin bắt buộc' });
             }
 
-            // Auto-assign room if not provided (Load balancing)
-            let assignedRoomId = roomId;
-            if (!assignedRoomId) {
-                const targetSpecCode = specialityCode || deptId;
-                const targetDeptId = (deptId && isNaN(Number(deptId))) ? deptId : 'KB';
+            // Target specialty code (e.g. '2' for Khám Vú, '8' for Khám Nội...)
+            const targetSpecCode = specialityCode || (deptId && !isNaN(Number(deptId)) ? deptId : '');
+            const targetDeptId = deptId && isNaN(Number(deptId)) ? deptId : 'KB';
 
+            // Auto-assign room if not provided or 0 (Load balancing)
+            let assignedRoomId = roomId ? Number(roomId) : 0;
+            if (!assignedRoomId) {
                 const roomsWithSlotResult = await query(`
                     SELECT 
                         k.hrk_id,
@@ -54,13 +68,13 @@ class BookingManagementController {
                         ) as current_bookings
                     FROM hms_roomlist_kios k
                     JOIN hms_schedule_exam hse ON (
-                        (hse.hse_deptid = k.hrk_deptid OR hse.hse_deptid = 'KB') AND 
+                        hse.hse_deptid = k.hrk_deptid AND 
                         hse.hse_roomid = k.hrk_id AND 
                         hse.hse_date = $3 AND 
                         hse.hse_time = $4
                     )
                     WHERE k.hrk_code::varchar = $1::varchar
-                      AND (k.hrk_deptid = $2 OR k.hrk_deptid = 'KB')
+                      AND k.hrk_deptid = $2
                       AND k.hrk_active = 'Y'
                       AND hse.hse_status = 'O'
                       AND NOT EXISTS (
@@ -75,12 +89,14 @@ class BookingManagementController {
                 `, [targetSpecCode, targetDeptId, bookingDate, bookingTime]);
 
                 if (roomsWithSlotResult.rows.length === 0) {
-                    // Fallback to query any kiosk room for targetSpecCode
+                    // Fallback to query any kiosk room for targetSpecCode within targetDeptId
                     const fallbackRoomResult = await query(`
                         SELECT hrk_id FROM hms_roomlist_kios 
-                        WHERE hrk_code::varchar = $1::varchar AND hrk_active = 'Y' 
+                        WHERE hrk_code::varchar = $1::varchar 
+                          AND (hrk_deptid = $2 OR $2 = '')
+                          AND hrk_active = 'Y' 
                         LIMIT 1
-                    `, [targetSpecCode]);
+                    `, [targetSpecCode, targetDeptId]);
 
                     if (fallbackRoomResult.rows.length > 0) {
                         assignedRoomId = fallbackRoomResult.rows[0].hrk_id;
@@ -91,6 +107,27 @@ class BookingManagementController {
                     }
                 } else {
                     assignedRoomId = roomsWithSlotResult.rows[0].hrk_id;
+                }
+            }
+
+            // Look up the exact room department from hms_schedule_exam / hms_roomlist_kios to ensure p_ma_khoa ($11) matches hms_schedule_exam
+            let actualRoomDeptId = userDeptId;
+            if (assignedRoomId) {
+                const scheduleDeptRes = await query(`
+                    SELECT hse_deptid FROM hms_schedule_exam 
+                    WHERE hse_roomid = $1 AND hse_date = $2 AND hse_time = $3 
+                    LIMIT 1
+                `, [assignedRoomId, bookingDate, bookingTime]);
+
+                if (scheduleDeptRes.rows.length > 0 && scheduleDeptRes.rows[0].hse_deptid) {
+                    actualRoomDeptId = scheduleDeptRes.rows[0].hse_deptid;
+                } else {
+                    const roomDeptRes = await query(`
+                        SELECT hrk_deptid FROM hms_roomlist_kios WHERE hrk_id = $1 LIMIT 1
+                    `, [assignedRoomId]);
+                    if (roomDeptRes.rows.length > 0 && roomDeptRes.rows[0].hrk_deptid) {
+                        actualRoomDeptId = roomDeptRes.rows[0].hrk_deptid;
+                    }
                 }
             }
 
@@ -109,11 +146,11 @@ class BookingManagementController {
             `, [
                 idCard, name, birthDate, dbGender, ethnic || '1',
                 provinceId, districtId, wardId, address, phone,
-                userDeptId, assignedRoomId, bookingDate, bookingTime, reason,
+                actualRoomDeptId, assignedRoomId, bookingDate, bookingTime, reason,
                 occupation || 0, doctor || '', email || '', 'ONL',
                 idCardIssuedDate === "" ? null : idCardIssuedDate,
                 isPriority || false, isInsurance || false,
-                specialityCode || deptId || ''
+                targetSpecCode
             ]);
 
             const bookingId = result.rows[0].booking_id;
@@ -123,13 +160,25 @@ class BookingManagementController {
             if (bookingId === -2) return res.status(400).json({ error: 'Khung giờ chưa được tạo.' });
             if (bookingId === -3) return res.status(400).json({ error: 'Bạn đã đăng ký lịch hẹn cho chuyên khoa này hôm nay rồi.' });
 
+            // Ensure qms_patient.qms_deptid is accurately set to the logged-in user's department
+            if (bookingId > 0 && userDeptId) {
+                await query(`UPDATE qms_patient SET qms_deptid = $2 WHERE qms_idx = $1`, [bookingId, userDeptId]);
+            }
+
             // Send Confirmation SMS
             const bookingDetails = await query(`
                 SELECT q.*, s.ss_desc as "specialtyName", COALESCE(rl.hrl_name, rl.hrl_roomname) as "roomName"
-                FROM qms_patient q
-                LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND (k.hrk_deptid = q.qms_deptid OR k.hrk_deptid = 'KB') AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
-                LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code::varchar = COALESCE(k.hrk_code::varchar, q.qms_specialty_code::varchar))
-                LEFT JOIN hms_roomlist rl ON (rl.hrl_id = q.qms_roomid AND (rl.hrl_deptid = q.qms_deptid OR rl.hrl_deptid = 'KB'))
+                FROM qms_patient q 
+                LEFT JOIN hms_roomlist_kios k
+                  ON (k.hrk_id = q.qms_roomid
+                    AND (k.hrk_deptid = q.qms_deptid)
+                    AND k.hrk_code::varchar = q.qms_specialty_code::varchar) 
+                LEFT JOIN sys_sel s
+                  ON (s.ss_id = 'hms_room_kios'
+                    AND s.ss_code::varchar = COALESCE(k.hrk_code::varchar, q.qms_specialty_code::varchar)) 
+                LEFT JOIN hms_roomlist rl
+                  ON (rl.hrl_id = q.qms_roomid
+                    AND (rl.hrl_deptid = q.qms_deptid))
                 WHERE q.qms_idx = $1
             `, [bookingId]);
 
@@ -179,16 +228,13 @@ class BookingManagementController {
                 q.qms_is_priority as "isPriority", q.qms_address as address,
                 q.qms_prov_id as "provinceId", q.qms_vill_id as "wardId",
                 q.qms_occupation as occupation, q.qms_email as email,
-                COALESCE(s.ss_desc, s_kb.ss_desc) as "specialityName",
-                COALESCE(hrl.hrl_roomname, hrl_kb.hrl_roomname) as "roomName"
+                s.ss_desc as "specialityName",
+                COALESCE(hrl.hrl_name, hrl.hrl_roomname) as "roomName"
             FROM qms_patient q
             LEFT JOIN sys_dept d ON (d.sd_id = q.qms_deptid)
             LEFT JOIN hms_roomlist hrl ON (hrl.hrl_id = q.qms_roomid AND hrl.hrl_deptid = q.qms_deptid)
-            LEFT JOIN hms_roomlist hrl_kb ON (hrl_kb.hrl_id = q.qms_roomid AND hrl_kb.hrl_deptid = 'KB')
             LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND k.hrk_deptid = q.qms_deptid AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
-            LEFT JOIN hms_roomlist_kios k_kb ON (k_kb.hrk_id = q.qms_roomid AND k_kb.hrk_deptid = 'KB' AND k_kb.hrk_code::varchar = q.qms_specialty_code::varchar)
-            LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code = k.hrk_code::varchar)
-            LEFT JOIN sys_sel s_kb ON (s_kb.ss_id = 'hms_room_kios' AND s_kb.ss_code = k_kb.hrk_code::varchar)
+            LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code = COALESCE(k.hrk_code::varchar, q.qms_specialty_code::varchar))
             WHERE q.qms_type = 'ONL'
         `;
 
@@ -241,21 +287,23 @@ class BookingManagementController {
                   AND hse_time = (SELECT qms_appointment_time FROM qms_patient WHERE qms_idx = $1)
             `, [id]);
 
-            // 2. Update qms_patient status to Scheduled ('S'), and update qms_deptid to the staff's working department if authenticated
-            const staffDeptId = (req as any).deptId;
-            if (staffDeptId) {
-                await query(`UPDATE qms_patient SET qms_status = 'S', qms_deptid = $2, qms_updateddate = NOW() WHERE qms_idx = $1`, [id, staffDeptId]);
-            } else {
-                await query(`UPDATE qms_patient SET qms_status = 'S', qms_updateddate = NOW() WHERE qms_idx = $1`, [id]);
-            }
+            // 2. Update qms_patient status to Scheduled ('S') without overwriting qms_deptid
+            await query(`UPDATE qms_patient SET qms_status = 'S', qms_updateddate = NOW() WHERE qms_idx = $1`, [id]);
 
             // 3. Fetch the updated booking details
             const bookingResult = await query(`
                 SELECT q.*, s.ss_desc as "specialtyName", COALESCE(rl.hrl_name, rl.hrl_roomname) as "roomName"
-                FROM qms_patient q
-                LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND (k.hrk_deptid = q.qms_deptid OR k.hrk_deptid = 'KB') AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
-                LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code::varchar = COALESCE(k.hrk_code::varchar, q.qms_specialty_code::varchar))
-                LEFT JOIN hms_roomlist rl ON (rl.hrl_id = q.qms_roomid AND (rl.hrl_deptid = q.qms_deptid OR rl.hrl_deptid = 'KB'))
+                FROM qms_patient q 
+                LEFT JOIN hms_roomlist_kios k
+                  ON (k.hrk_id = q.qms_roomid
+                    AND (k.hrk_deptid = q.qms_deptid)
+                    AND k.hrk_code::varchar = q.qms_specialty_code::varchar) 
+                LEFT JOIN sys_sel s
+                  ON (s.ss_id = 'hms_room_kios'
+                    AND s.ss_code::varchar = COALESCE(k.hrk_code::varchar, q.qms_specialty_code::varchar)) 
+                LEFT JOIN hms_roomlist rl
+                  ON (rl.hrl_id = q.qms_roomid
+                    AND (rl.hrl_deptid = q.qms_deptid))
                 WHERE q.qms_idx = $1
             `, [id]);
 
@@ -336,11 +384,18 @@ class BookingManagementController {
 
             // Query booking details to send cancellation SMS
             const bookingDetails = await query(`
-                SELECT q.*, s.ss_desc as "specialtyName", rl.hrl_roomname as "roomName"
-                FROM qms_patient q
-                LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND (k.hrk_deptid = q.qms_deptid OR k.hrk_deptid = 'KB') AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
-                LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code = k.hrk_code::varchar)
-                LEFT JOIN hms_roomlist rl ON (rl.hrl_id = q.qms_roomid AND (rl.hrl_deptid = q.qms_deptid OR rl.hrl_deptid = 'KB'))
+                SELECT q.*, s.ss_desc as "specialtyName", COALESCE(rl.hrl_name, rl.hrl_roomname) as "roomName"
+                FROM qms_patient q 
+                LEFT JOIN hms_roomlist_kios k
+                  ON (k.hrk_id = q.qms_roomid
+                    AND (k.hrk_deptid = q.qms_deptid)
+                    AND k.hrk_code::varchar = q.qms_specialty_code::varchar) 
+                LEFT JOIN sys_sel s
+                  ON (s.ss_id = 'hms_room_kios'
+                    AND s.ss_code::varchar = COALESCE(k.hrk_code::varchar, q.qms_specialty_code::varchar)) 
+                LEFT JOIN hms_roomlist rl
+                  ON (rl.hrl_id = q.qms_roomid
+                    AND (rl.hrl_deptid = q.qms_deptid))
                 WHERE q.qms_idx = $1
             `, [id]);
 
@@ -381,9 +436,18 @@ class BookingManagementController {
 
             // Query booking data BEFORE updating so we still have it for SMS
             const bookingDetails = await query(`
-                SELECT q.*, rl.hrl_roomname as "roomName"
-                FROM qms_patient q
-                LEFT JOIN hms_roomlist rl ON (rl.hrl_id = q.qms_roomid AND rl.hrl_deptid = q.qms_deptid)
+                SELECT q.*, s.ss_desc as "specialtyName", COALESCE(rl.hrl_name, rl.hrl_roomname) as "roomName"
+                FROM qms_patient q 
+                LEFT JOIN hms_roomlist_kios k
+                  ON (k.hrk_id = q.qms_roomid
+                    AND (k.hrk_deptid = q.qms_deptid)
+                    AND k.hrk_code::varchar = q.qms_specialty_code::varchar) 
+                LEFT JOIN sys_sel s
+                  ON (s.ss_id = 'hms_room_kios'
+                    AND s.ss_code::varchar = COALESCE(k.hrk_code::varchar, q.qms_specialty_code::varchar)) 
+                LEFT JOIN hms_roomlist rl
+                  ON (rl.hrl_id = q.qms_roomid
+                    AND (rl.hrl_deptid = q.qms_deptid))
                 WHERE q.qms_idx = $1
             `, [id]);
 
@@ -444,10 +508,17 @@ class BookingManagementController {
 
             const bookingResult = await query(`
                 SELECT q.*, s.ss_desc as "specialtyName", COALESCE(rl.hrl_name, rl.hrl_roomname) as "roomName"
-                FROM qms_patient q
-                LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND (k.hrk_deptid = q.qms_deptid OR k.hrk_deptid = 'KB') AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
-                LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code::varchar = COALESCE(k.hrk_code::varchar, q.qms_specialty_code::varchar))
-                LEFT JOIN hms_roomlist rl ON (rl.hrl_id = q.qms_roomid AND (rl.hrl_deptid = q.qms_deptid OR rl.hrl_deptid = 'KB'))
+                FROM qms_patient q 
+                LEFT JOIN hms_roomlist_kios k
+                  ON (k.hrk_id = q.qms_roomid
+                    AND (k.hrk_deptid = q.qms_deptid)
+                    AND k.hrk_code::varchar = q.qms_specialty_code::varchar) 
+                LEFT JOIN sys_sel s
+                  ON (s.ss_id = 'hms_room_kios'
+                    AND s.ss_code::varchar = COALESCE(k.hrk_code::varchar, q.qms_specialty_code::varchar)) 
+                LEFT JOIN hms_roomlist rl
+                  ON (rl.hrl_id = q.qms_roomid
+                    AND (rl.hrl_deptid = q.qms_deptid))
                 WHERE q.qms_idx = $1
             `, [id]);
 
@@ -490,13 +561,19 @@ class BookingManagementController {
             if (!logs || logs.length === 0) {
                 // Fetch booking details from qms_patient with verified column names
                 const bookingRes = await query(`
-                    SELECT q.*, s.ss_desc as "specialtyName", rl.hrl_roomname as "roomName"
-                    FROM qms_patient q
-                    LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND (k.hrk_deptid = q.qms_deptid OR k.hrk_deptid = 'KB') AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
-                    LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code = k.hrk_code::varchar)
-                    LEFT JOIN hms_roomlist rl ON (rl.hrl_id = q.qms_roomid AND (rl.hrl_deptid = q.qms_deptid OR rl.hrl_deptid = 'KB'))
-                    WHERE q.qms_idx = $1 OR q.qms_docno = $1
-                    ORDER BY q.qms_idx DESC
+                    SELECT q.*, s.ss_desc as "specialtyName", COALESCE(rl.hrl_name, rl.hrl_roomname) as "roomName"
+                    FROM qms_patient q 
+                    LEFT JOIN hms_roomlist_kios k
+                      ON (k.hrk_id = q.qms_roomid
+                        AND (k.hrk_deptid = q.qms_deptid)
+                        AND k.hrk_code::varchar = q.qms_specialty_code::varchar) 
+                    LEFT JOIN sys_sel s
+                      ON (s.ss_id = 'hms_room_kios'
+                        AND s.ss_code::varchar = COALESCE(k.hrk_code::varchar, q.qms_specialty_code::varchar)) 
+                    LEFT JOIN hms_roomlist rl
+                      ON (rl.hrl_id = q.qms_roomid
+                        AND (rl.hrl_deptid = q.qms_deptid))
+                    WHERE q.qms_idx = $1
                     LIMIT 1
                 `, [bookingIdNum]);
 

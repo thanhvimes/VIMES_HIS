@@ -307,12 +307,8 @@ const PatientReception: React.FC = () => {
                 toast.error("CCCD phải có độ dài chính xác 12 chữ số");
                 return;
             }
-            if (!editForm.phone.trim()) {
-                toast.error("Vui lòng nhập số điện thoại");
-                return;
-            }
-            if (editForm.phone && !/^\d{10}$/.test(editForm.phone)) {
-                toast.error("Số điện thoại phải có độ dài chính xác 10 chữ số");
+            if (editForm.phone && !/^\d{10}$/.test(editForm.phone.trim())) {
+                toast.error("Số điện thoại (nếu có) phải có độ dài chính xác 10 chữ số");
                 return;
             }
 

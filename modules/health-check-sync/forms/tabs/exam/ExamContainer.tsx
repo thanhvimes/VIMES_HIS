@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 
 const ExamContainer: React.FC = () => {
     const { formType, specialtyMetadata } = useDynamicFormContext();
-    const showPhysical = formType !== '2' && formType !== '3';
+    const showPhysical = formType !== '2';
     const [activeSubTab, setActiveSubTab] = useState(showPhysical ? 'physical' : 'internal');
 
     const tabs = [

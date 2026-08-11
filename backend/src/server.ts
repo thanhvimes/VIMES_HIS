@@ -135,19 +135,29 @@ import consultationRoutes from './routes/consultation.routes';
 import insuranceRoutes from './routes/insurance.routes';
 import healthCheckRoutes from './routes/health-check.routes';
 import auditRoutes from './routes/audit.routes';
-import queueRoutes from './routes/queue.routes';
 import qmsRoutes from './routes/qms.routes';
 import pacsRoutes from './routes/pacs.routes';
 import aiRoutes from './routes/ai.routes';
 import documentRoutes from './routes/document.routes';
 
 
-// API Health check
+const SERVER_BUILD_TIME = Date.now();
+
+// API Health check & Version check
 app.get('/api/health', (req: Request, res: Response) => {
     res.json({
         success: true,
         message: 'VIMES Backend API (TypeScript)',
-        version: '1.0.0'
+        version: '1.0.0',
+        buildTime: SERVER_BUILD_TIME
+    });
+});
+
+app.get('/api/v1/version', (req: Request, res: Response) => {
+    res.json({
+        success: true,
+        version: '1.0.0',
+        buildTime: SERVER_BUILD_TIME
     });
 });
 
@@ -170,7 +180,6 @@ app.use('/api/v1/consultation', consultationRoutes);
 app.use('/api/v1/insurance', insuranceRoutes);
 app.use('/api/v1/health-check-sync', healthCheckRoutes);
 app.use('/api/v1/audit', auditRoutes);
-app.use('/api/v1', queueRoutes);
 app.use('/api', qmsRoutes);
 app.use('/api', pacsRoutes);
 app.use('/api/v1/ai', aiRoutes);
@@ -193,12 +202,25 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 // Serve static files from frontend build (production mode)
 const frontendPath = path.join(__dirname, '../../dist');
 if (fs.existsSync(frontendPath)) {
-    app.use(express.static(frontendPath));
+    app.use(express.static(frontendPath, {
+        setHeaders: (res: Response, filePath: string) => {
+            if (filePath.endsWith('index.html')) {
+                res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+                res.setHeader('Pragma', 'no-cache');
+                res.setHeader('Expires', '0');
+            } else {
+                res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+            }
+        }
+    }));
     console.log('📂 Serving frontend from:', frontendPath);
 
     // SPA fallback
     app.get('*', (req: Request, res: Response) => {
         if (!req.path.startsWith('/api/')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
             res.sendFile(path.join(frontendPath, 'index.html'));
         } else {
             res.status(404).json({ error: 'API route not found' });

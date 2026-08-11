@@ -134,6 +134,8 @@ const HealthCheckSyncView: React.FC = () => {
     const [examFilter, setExamFilter] = useState<string>('All');
     const [startDate, setStartDate] = useState<string>(getLocalDateString());
     const [endDate, setEndDate] = useState<string>(getLocalDateString());
+    const [pageSize, setPageSize] = useState<number | string>(100);
+    const [currentPage, setCurrentPage] = useState<number>(1);
     // Selection
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [activeXmlDoc, setActiveXmlDoc] = useState<any | null>(null);
@@ -323,7 +325,10 @@ const HealthCheckSyncView: React.FC = () => {
                 searchTerm,
                 status: sendFilter,
                 signatureStatus: signFilter,
-                formType: formFilter
+                formType: formFilter,
+                contractId: contractFilter,
+                limit: pageSize,
+                page: currentPage
             });
             setDocuments(data);
         } catch (error) {
@@ -338,7 +343,7 @@ const HealthCheckSyncView: React.FC = () => {
         if (stepParam !== 'sync' && !stepParam.startsWith('settings')) {
             loadData();
         }
-    }, [startDate, endDate, searchTerm, sendFilter, signFilter, formFilter, stepParam]);
+    }, [startDate, endDate, searchTerm, sendFilter, signFilter, formFilter, contractFilter, pageSize, currentPage, stepParam]);
 
 
 
@@ -581,112 +586,131 @@ const HealthCheckSyncView: React.FC = () => {
         }
     };
 
-    const handleExportExcel = () => {
-        if (filteredDocuments.length === 0) {
-            toast.warning("Không có dữ liệu để xuất.");
-            return;
-        }
+    const handleExportExcel = async () => {
+        const toastId = toast.loading("Đang khởi tạo dữ liệu và xuất file Excel...");
+        try {
+            // Fetch all matching records without pagination limit for full export
+            const exportDocs = await healthCheckService.getDocumentsList({
+                startDate,
+                endDate,
+                searchTerm,
+                status: sendFilter,
+                signatureStatus: signFilter,
+                formType: formFilter,
+                contractId: contractFilter,
+                limit: 'all'
+            });
 
-        // 1. Define Headers
-        const headerRow = [
-            'STT',
-            'Mã đợt khám',
-            'Mã bệnh nhân',
-            'Họ và tên',
-            'Số CCCD',
-            'Ngày sinh',
-            'Giới tính',
-            'Loại mẫu biểu',
-            'Trạng thái ký số',
-            'Loại ký số',
-            'Trạng thái gửi cổng',
-            'Thời gian tạo',
-            'Thời gian gửi',
-            'Mã giao dịch',
-            'Thông báo lỗi'
-        ];
+            if (!exportDocs || exportDocs.length === 0) {
+                toast.warning("Không có dữ liệu để xuất.", { id: toastId });
+                return;
+            }
 
-        // 2. Map Document Rows
-        const dataRows = filteredDocuments.map((doc, idx) => {
-            let sigStatusText = doc.signature_status === 'Signed' ? 'Đã ký số' : 'Chưa ký số';
-            let sendStatusText = 'Chưa gửi';
-            if (doc.send_status === 'Success') sendStatusText = 'Thành công';
-            else if (doc.send_status === 'Pending') sendStatusText = 'Đang gửi';
-            else if (doc.send_status === 'Error') sendStatusText = 'Lỗi';
-
-            return [
-                idx + 1,
-                doc.doc_no || '',
-                doc.patient_id || '',
-                doc.patient_name || '',
-                doc.cccd || '',
-                doc.dob ? formatDate(doc.dob) : '',
-                doc.gender || 'Nam',
-                getFormName(doc.form_type),
-                sigStatusText,
-                doc.signature_type || '',
-                sendStatusText,
-                doc.created_at ? formatDateTime(doc.created_at) : '',
-                doc.sent_at ? formatDateTime(doc.sent_at) : '',
-                doc.transaction_id || '',
-                doc.error_message || ''
+            // 1. Define Headers
+            const headerRow = [
+                'STT',
+                'Mã đợt khám',
+                'Mã bệnh nhân',
+                'Họ và tên',
+                'Số CCCD',
+                'Ngày sinh',
+                'Giới tính',
+                'Loại mẫu biểu',
+                'Trạng thái ký số',
+                'Loại ký số',
+                'Trạng thái gửi cổng',
+                'Thời gian tạo',
+                'Thời gian gửi',
+                'Mã giao dịch',
+                'Thông báo lỗi'
             ];
-        });
 
-        // 3. Build AOA Data (Array of Arrays)
-        const fromDateStr = startDate ? getFilterDateDisplay(startDate) : '';
-        const toDateStr = endDate ? getFilterDateDisplay(endDate) : '';
-        let dateSubtitle = '';
-        if (fromDateStr && toDateStr) {
-            dateSubtitle = `Khoảng thời gian: Từ ngày ${fromDateStr} đến ngày ${toDateStr}`;
-        } else if (fromDateStr) {
-            dateSubtitle = `Khoảng thời gian: Từ ngày ${fromDateStr}`;
-        } else if (toDateStr) {
-            dateSubtitle = `Khoảng thời gian: Đến ngày ${toDateStr}`;
-        } else {
-            dateSubtitle = 'Khoảng thời gian: Tất cả';
+            // 2. Map Document Rows
+            const dataRows = exportDocs.map((doc: any, idx: number) => {
+                let sigStatusText = (doc.signature_status || doc.signatureStatus) === 'Signed' ? 'Đã ký số' : 'Chưa ký số';
+                let sendStatusText = 'Chưa gửi';
+                const status = doc.send_status || doc.sendStatus;
+                if (status === 'Success') sendStatusText = 'Thành công';
+                else if (status === 'Pending') sendStatusText = 'Đang gửi';
+                else if (status === 'Error') sendStatusText = 'Thất bại';
+
+                return [
+                    idx + 1,
+                    doc.doc_no || doc.docNo || '',
+                    doc.patient_id || doc.patientId || '',
+                    doc.patient_name || doc.patientName || '',
+                    doc.cccd || '',
+                    doc.dob ? formatDate(doc.dob) : '',
+                    doc.gender || 'Nam',
+                    getFormName(doc.form_type || doc.formType),
+                    sigStatusText,
+                    doc.signature_type || doc.signatureType || '',
+                    sendStatusText,
+                    (doc.created_at || doc.createdAt) ? formatDateTime(doc.created_at || doc.createdAt) : '',
+                    (doc.sent_at || doc.sentAt) ? formatDateTime(doc.sent_at || doc.sentAt) : '',
+                    doc.transaction_id || doc.transactionId || '',
+                    doc.error_message || doc.errorMessage || ''
+                ];
+            });
+
+            // 3. Build AOA Data (Array of Arrays)
+            const fromDateStr = startDate ? getFilterDateDisplay(startDate) : '';
+            const toDateStr = endDate ? getFilterDateDisplay(endDate) : '';
+            let dateSubtitle = '';
+            if (fromDateStr && toDateStr) {
+                dateSubtitle = `Khoảng thời gian: Từ ngày ${fromDateStr} đến ngày ${toDateStr}`;
+            } else if (fromDateStr) {
+                dateSubtitle = `Khoảng thời gian: Từ ngày ${fromDateStr}`;
+            } else if (toDateStr) {
+                dateSubtitle = `Khoảng thời gian: Đến ngày ${toDateStr}`;
+            } else {
+                dateSubtitle = 'Khoảng thời gian: Tất cả';
+            }
+
+            const aoaData = [
+                ['HỆ THỐNG QUẢN LÝ PHÒNG KHÁM VCLINIC'],
+                ['DANH SÁCH LIÊN THÔNG KHÁM SỨC KHỎE (VNeID)'],
+                [dateSubtitle],
+                [''],
+                headerRow,
+                ...dataRows
+            ];
+
+            // Create Worksheet
+            const ws = XLSX.utils.aoa_to_sheet(aoaData);
+
+            // Define column widths in characters
+            const colWidths = [
+                { wch: 6 },   // STT
+                { wch: 20 },  // Mã đợt khám
+                { wch: 15 },  // Mã bệnh nhân
+                { wch: 25 },  // Họ và tên
+                { wch: 18 },  // Số CCCD
+                { wch: 14 },  // Ngày sinh
+                { wch: 10 },  // Giới tính
+                { wch: 30 },  // Loại mẫu biểu
+                { wch: 18 },  // Trạng thái ký số
+                { wch: 12 },  // Loại ký số
+                { wch: 20 },  // Trạng thái gửi cổng
+                { wch: 22 },  // Thời gian tạo
+                { wch: 22 },  // Thời gian gửi
+                { wch: 30 },  // Mã giao dịch
+                { wch: 40 }   // Thông báo lỗi
+            ];
+            ws['!cols'] = colWidths;
+
+            // Create Workbook
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "DanhSachKSK");
+
+            // Write and download
+            const timestamp = new Date().toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-');
+            XLSX.writeFile(wb, `DanhSachLienThongKSK_${timestamp}.xlsx`);
+            toast.success(`Đã xuất ${exportDocs.length} hồ sơ ra file Excel thành công!`, { id: toastId });
+        } catch (err: any) {
+            console.error("Lỗi xuất Excel:", err);
+            toast.error("Lỗi xuất file Excel: " + (err?.message || err), { id: toastId });
         }
-
-        const aoaData = [
-            ['HỆ THỐNG QUẢN LÝ PHÒNG KHÁM VCLINIC'],
-            ['DANH SÁCH LIÊN THÔNG KHÁM SỨC KHỎE (VNeID)'],
-            [dateSubtitle],
-            [''],
-            headerRow,
-            ...dataRows
-        ];
-
-        // Create Worksheet
-        const ws = XLSX.utils.aoa_to_sheet(aoaData);
-
-        // Define column widths in characters
-        const colWidths = [
-            { wch: 6 },   // STT
-            { wch: 20 },  // Mã đợt khám
-            { wch: 15 },  // Mã bệnh nhân
-            { wch: 25 },  // Họ và tên
-            { wch: 18 },  // Số CCCD
-            { wch: 14 },  // Ngày sinh
-            { wch: 10 },  // Giới tính
-            { wch: 30 },  // Loại mẫu biểu
-            { wch: 18 },  // Trạng thái ký số
-            { wch: 12 },  // Loại ký số
-            { wch: 20 },  // Trạng thái gửi cổng
-            { wch: 22 },  // Thời gian tạo
-            { wch: 22 },  // Thời gian gửi
-            { wch: 30 },  // Mã giao dịch
-            { wch: 40 }   // Thông báo lỗi
-        ];
-        ws['!cols'] = colWidths;
-
-        // Create Workbook
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "DanhSachKSK");
-
-        // Write and download
-        const timestamp = new Date().toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-');
-        XLSX.writeFile(wb, `DanhSachLienThongKSK_${timestamp}.xlsx`);
-        toast.success("Xuất file Excel thành công!");
     };
 
     // Xuất Excel riêng cho trang Đồng bộ dữ liệu (danh sách gói khám/hợp đồng)
@@ -868,9 +892,13 @@ const HealthCheckSyncView: React.FC = () => {
 
     const getFormName = (type: string) => {
         const names: Record<string, string> = {
-            '1': 'Mẫu 1: Trẻ em 6T - dưới 18T',
-            '2': 'Mẫu 2: Người lớn >= 18T',
-            '3': 'Mẫu 3: Khám sức khỏe Lái xe',
+            '1': 'Mẫu 1: Trẻ em dưới 06 tuổi',
+            '2': 'Mẫu 2: Người từ đủ 06 tuổi đến dưới 18 tuổi',
+            '3': 'Mẫu 3: Người từ đủ 18 tuổi trở lên',
+            'driver': 'Giấy KSK người lái xe (TTLT 24/2015)',
+            'mau3-driver': 'Giấy KSK người lái xe (TTLT 24/2015)',
+            '4': 'Mẫu 4: KSK Nhân viên đường sắt',
+            '5': 'Mẫu 5: KSK Thuyền viên / Đi biển',
         };
         return names[type] || `Mẫu biểu ${type}`;
     };
@@ -1214,7 +1242,6 @@ const HealthCheckSyncView: React.FC = () => {
                                     onSend={handleSendSingleDocument}
                                     getFormName={getFormName}
                                     getFormColor={getFormColor}
-                                    onSeed={handleOpenSeedModal}
                                 />
                             )}
 

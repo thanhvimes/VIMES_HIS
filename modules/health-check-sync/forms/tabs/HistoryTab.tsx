@@ -9,6 +9,8 @@ const HistoryTab: React.FC = () => {
     const {
         formType,
         gender,
+        ts5Nam,
+        setTs5Nam,
         tsThanKinh,
         setTsThanKinh,
         tsMat,
@@ -21,6 +23,8 @@ const HistoryTab: React.FC = () => {
         setTsPhauThuatTim,
         tsHuyetAp,
         setTsHuyetAp,
+        tsKhoTho,
+        setTsKhoTho,
         tsPhoiHen,
         setTsPhoiHen,
         tsThan,
@@ -45,6 +49,8 @@ const HistoryTab: React.FC = () => {
         setTsSuDungMaTuy,
         tsBenhCotSong,
         setTsBenhCotSong,
+        tsMacBenh,
+        setTsMacBenh,
         tiemChungBcg,
         setTiemChungBcg,
         tiemChungBhHgUv,
@@ -694,79 +700,121 @@ const HistoryTab: React.FC = () => {
                             </div>
                         </div>
                     )}
-                </div>
-            ) : formType === 'driver' ? (
-                <div>
-                    <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">II.1. Tiền sử sức khỏe lái xe (Đánh giá Có/Không)</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3">
-                        {[
-                            { label: "Bệnh thần kinh / chấn thương đầu", val: tsThanKinh, set: setTsThanKinh },
-                            { label: "Bệnh mắt / giảm thị lực", val: tsMat, set: setTsMat },
-                            { label: "Bệnh tai / giảm thính lực / thăng bằng", val: tsTai, set: setTsTai },
-                            { label: "Bệnh tim mạch / nhồi máu cơ tim", val: tsTimMach, set: setTsTimMach },
-                            { label: "Phẫu thuật tim mạch can thiệp", val: tsPhauThuatTim, set: setTsPhauThuatTim },
-                            { label: "Tăng huyết áp", val: tsHuyetAp, set: setTsHuyetAp },
-                            { label: "Bệnh phổi / hen / khó thở", val: tsPhoiHen, set: setTsPhoiHen },
-                            { label: "Bệnh thận / suy thận / lọc máu", val: tsThan, set: setTsThan },
-                            { label: "Đái tháo đường", val: tsTieuDuong, set: setTsTieuDuong },
-                            { label: "Bệnh tâm thần", val: tsTamThan, set: setTsTamThan },
-                            { label: "Mất ý thức / co giật", val: tsYThuc, set: setTsYThuc },
-                            { label: "Ngất / chóng mặt / rối loạn thăng bằng", val: tsChongMat, set: setTsChongMat },
-                            { label: "Bệnh đường tiêu hóa nặng", val: tsTieuHoa, set: setTsTieuHoa },
-                            { label: "Rối loạn giấc ngủ / ngưng thở khi ngủ", val: tsGiacNgu, set: setTsGiacNgu },
-                            { label: "Tai biến mạch máu não", val: tsTaiBien, set: setTsTaiBien },
-                            { label: "Tiền sử lạm dụng rượu/bia", val: tsSuDungRuou, set: setTsSuDungRuou },
-                            { label: "Tiền sử sử dụng ma túy", val: tsSuDungMaTuy, set: setTsSuDungMaTuy },
-                            { label: "Bệnh lý/Chấn thương cột sống", val: tsBenhCotSong, set: setTsBenhCotSong },
-                        ].map((item, idx) => (
-                            <div key={idx} className="flex justify-between items-center p-2.5 rounded-lg border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30">
-                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{item.label}</span>
-                                <input type="checkbox" checked={item.val === 1} onChange={e => item.set(e.target.checked ? 1 : 0)} className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500 border-slate-300" />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            ) : formType !== '3' ? (
-                <div>
-                    <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">II.1. Lịch sử Tiêm chủng / Vaccine</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {[
-                            { label: "BCG (Lao)", val: tiemChungBcg, set: setTiemChungBcg },
-                            { label: "Bạch hầu, ho gà, uốn ván (DPT)", val: tiemChungBhHgUv, set: setTiemChungBhHgUv },
-                            { label: "Sởi", val: tiemChungSoi, set: setTiemChungSoi },
-                            { label: "Bại liệt (OPV/IPV)", val: tiemChungBaiLiet, set: setTiemChungBaiLiet },
-                            { label: "Viêm não Nhật Bản B", val: tiemChungVnnbB, set: setTiemChungVnnbB },
-                            { label: "Viêm gan B", val: tiemChungVgb, set: setTiemChungVgb },
-                        ].map((v, i) => (
-                            <div key={i}>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">{v.label}</label>
-                                <select value={v.val} onChange={e => v.set(e.target.value)} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
-                                    <option value="">-- Chọn trạng thái --</option>
-                                    <option value="1">Đã tiêm chủng đầy đủ</option>
-                                    <option value="0">Chưa được tiêm chủng</option>
-                                    <option value="99">Không nhớ rõ / Chưa có thông tin</option>
-                                </select>
-                            </div>
-                        ))}
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">Các loại vắc xin khác</label>
-                            <select value={tiemChungCacLoaiKhac} onChange={e => setTiemChungCacLoaiKhac(e.target.value)} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
-                                <option value="">-- Chọn --</option>
-                                <option value="0">Không tiêm loại khác</option>
-                                <option value="1">Có tiêm loại khác</option>
-                            </select>
-                        </div>
-                        {tiemChungCacLoaiKhac === '1' && (
-                            <div className="md:col-span-2">
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Tên vắc xin khác đã tiêm</label>
-                                <input type="text" value={tiemChungVacXinKhac} onChange={e => setTiemChungVacXinKhac(e.target.value)} className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="VD: Thủy đậu, Phế cầu, HPV..." />
-                            </div>
-                        )}
-                    </div>
-                </div>
-             ) : null}
 
-            {!isChild && (
+                    {/* Tiền sử bệnh người lái xe (cho Mẫu 3) */}
+                    {formType === '3' && (
+                        <div className="space-y-6">
+                            <div>
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 dark:border-slate-700 pb-2 mb-4 gap-2">
+                                    <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider">
+                                        II.1. Tiền sử bệnh tật của người lái xe (20 chỉ tiêu QĐ 1551)
+                                    </h4>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setTs5Nam(0);
+                                                setTsThanKinh(0);
+                                                setTsMat(0);
+                                                setTsTai(0);
+                                                setTsTimMach(0);
+                                                setTsPhauThuatTim(0);
+                                                setTsHuyetAp(0);
+                                                setTsKhoTho(0);
+                                                setTsPhoiHen(0);
+                                                setTsThan(0);
+                                                setTsTieuDuong(0);
+                                                setTsTamThan(0);
+                                                setTsYThuc(0);
+                                                setTsChongMat(0);
+                                                setTsTieuHoa(0);
+                                                setTsGiacNgu(0);
+                                                setTsTaiBien(0);
+                                                setTsBenhCotSong(0);
+                                                setTsSuDungRuou(0);
+                                                setTsSuDungMaTuy(0);
+                                                setTsMacBenh(0);
+                                            }}
+                                            className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/30 text-[#0f766e] dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 rounded-lg text-xs font-bold transition shadow-sm"
+                                        >
+                                            ✓ Tất cả bình thường (Không có bệnh)
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2.5">
+                                    {[
+                                        { id: 'ts5Nam', label: '1. Bệnh hay bị thương trong 5 năm qua', val: ts5Nam, set: setTs5Nam },
+                                        { id: 'tsThanKinh', label: '2. Bệnh thần kinh hoặc bị thương ở đầu', val: tsThanKinh, set: setTsThanKinh },
+                                        { id: 'tsMat', label: '3. Bệnh mắt hoặc giảm thị lực', val: tsMat, set: setTsMat },
+                                        { id: 'tsTai', label: '4. Bệnh tai, giảm sức nghe hoặc thăng bằng', val: tsTai, set: setTsTai },
+                                        { id: 'tsTimMach', label: '5. Bệnh ở tim hoặc nhồi máu cơ tim', val: tsTimMach, set: setTsTimMach },
+                                        { id: 'tsPhauThuatTim', label: '6. Phẫu thuật can thiệp tim - mạch', val: tsPhauThuatTim, set: setTsPhauThuatTim },
+                                        { id: 'tsHuyetAp', label: '7. Tăng huyết áp', val: tsHuyetAp, set: setTsHuyetAp },
+                                        { id: 'tsKhoTho', label: '8. Khó thở', val: tsKhoTho, set: setTsKhoTho },
+                                        { id: 'tsPhoiHen', label: '9. Bệnh phổi, hen, viêm phế quản mạn', val: tsPhoiHen, set: setTsPhoiHen },
+                                        { id: 'tsThan', label: '10. Bệnh thận, lọc máu', val: tsThan, set: setTsThan },
+                                        { id: 'tsTieuDuong', label: '11. Đái tháo đường, tăng đường huyết', val: tsTieuDuong, set: setTsTieuDuong },
+                                        { id: 'tsTamThan', label: '12. Bệnh tâm thần', val: tsTamThan, set: setTsTamThan },
+                                        { id: 'tsYThuc', label: '13. Mất ý thức, rối loạn ý thức', val: tsYThuc, set: setTsYThuc },
+                                        { id: 'tsChongMat', label: '14. Ngất, chóng mặt, ngất xỉu', val: tsChongMat, set: setTsChongMat },
+                                        { id: 'tsTieuHoa', label: '15. Bệnh tiêu hóa', val: tsTieuHoa, set: setTsTieuHoa },
+                                        { id: 'tsGiacNgu', label: '16. Rối loạn giấc ngủ, ngưng thở khi ngủ', val: tsGiacNgu, set: setTsGiacNgu },
+                                        { id: 'tsTaiBien', label: '17. Tai biến mạch máu não hoặc liệt', val: tsTaiBien, set: setTsTaiBien },
+                                        { id: 'tsBenhCotSong', label: '18. Bệnh hoặc tổn thương cột sống', val: tsBenhCotSong, set: setTsBenhCotSong },
+                                        { id: 'tsSuDungRuou', label: '19. Sử dụng rượu thường xuyên, liên tục', val: tsSuDungRuou, set: setTsSuDungRuou },
+                                        { id: 'tsSuDungMaTuy', label: '20. Sử dụng ma túy và chất gây nghiện', val: tsSuDungMaTuy, set: setTsSuDungMaTuy },
+                                    ].map((item) => (
+                                        <div key={item.id} className={`flex justify-between items-center p-2.5 rounded-lg border transition-all ${item.val === 1 ? 'border-rose-300 bg-rose-50/50 dark:bg-rose-950/20 text-rose-900 dark:text-rose-300 font-bold' : 'border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/30 text-slate-700 dark:text-slate-300'}`}>
+                                            <span className="text-xs font-semibold select-none pr-2">{item.label}</span>
+                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => item.set(item.val === 1 ? 0 : 1)}
+                                                    className={`px-2 py-0.5 rounded text-[11px] font-bold cursor-pointer transition ${item.val === 1 ? 'bg-rose-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-300'}`}
+                                                >
+                                                    {item.val === 1 ? 'CÓ' : 'KHÔNG'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
+                                    <h5 className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">21. Câu hỏi khác &amp; Điều trị thuốc</h5>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1">Có đang điều trị bệnh gì không?</label>
+                                            <select
+                                                value={tsMacBenh}
+                                                onChange={e => setTsMacBenh(parseInt(e.target.value) || 0)}
+                                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-semibold"
+                                            >
+                                                <option value="0">Không đang điều trị bệnh</option>
+                                                <option value="1">Có đang điều trị bệnh</option>
+                                            </select>
+                                        </div>
+                                        {tsMacBenh === 1 && (
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 mb-1">Tên các loại thuốc đang dùng và liều lượng</label>
+                                                <input
+                                                    type="text"
+                                                    value={tenThuoc}
+                                                    onChange={e => setTenThuoc(e.target.value)}
+                                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white"
+                                                    placeholder="Liệt kê tên thuốc, liều lượng đang dùng..."
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            ) : null}
+
+            {!isChild && formType !== '3' && (
                 <div>
                     <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">II.2. Tiền sử bệnh bản thân &amp; Gia đình</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

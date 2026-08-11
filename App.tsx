@@ -262,7 +262,67 @@ const MainApp: React.FC = () => {
   );
 }
 
+const useAutoRefreshOnUpdate = () => {
+  useEffect(() => {
+    // Only run auto-check in production mode
+    if (import.meta.env.DEV) return;
+
+    let currentBuildTime: number | null = null;
+
+    const checkVersion = async () => {
+      try {
+        const res = await fetch(`/api/v1/version?t=${Date.now()}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (data.buildTime) {
+          if (currentBuildTime === null) {
+            currentBuildTime = data.buildTime;
+          } else if (data.buildTime !== currentBuildTime) {
+            console.warn('⚡ [AutoUpgrade] Server version changed. Refreshing client...');
+            if ('caches' in window) {
+              try {
+                const keys = await caches.keys();
+                await Promise.all(keys.map(k => caches.delete(k)));
+              } catch {}
+            }
+            window.location.reload();
+          }
+        }
+      } catch (err) {
+        // Ignored on network loss
+      }
+    };
+
+    checkVersion();
+    const interval = setInterval(checkVersion, 120000); // Check every 2 minutes
+
+    // Catch dynamic chunk load failures (when new build replaces old js hashes)
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason?.message || event.reason || '';
+      if (
+        typeof reason === 'string' &&
+        (reason.includes('Failed to fetch dynamically imported module') ||
+         reason.includes('Importing a module script failed') ||
+         reason.includes('dynamically imported module'))
+      ) {
+        console.warn('⚡ [AutoUpgrade] Dynamic chunk load failed (server upgraded). Refreshing...');
+        window.location.reload();
+      }
+    };
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
+};
+
 const App: React.FC = () => {
+  useAutoRefreshOnUpdate();
+
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => { e.preventDefault(); return false; };
     const handleKeyDown = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && ['+', '-', '=', '0'].includes(e.key)) e.preventDefault(); };

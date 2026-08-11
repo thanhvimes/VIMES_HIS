@@ -187,9 +187,10 @@ class DocumentsController {
     }
 
     // 1. Lấy danh sách hồ sơ (kèm phân trang, lọc nâng cao)
+    // 1. Lấy danh sách hồ sơ (kèm phân trang, lọc nâng cao)
     async getDocuments(req: Request, res: Response) {
         try {
-            const { searchTerm, status, signatureStatus, formType, startDate, endDate, barcodePrinted } = req.query;
+            const { searchTerm, status, signatureStatus, formType, startDate, endDate, barcodePrinted, contractId, limit, page } = req.query;
             let sql = `
                 SELECT m.*, d.clinical_data, d.lab_data, d.conclusion_data 
                 FROM health_check_masters m
@@ -206,9 +207,13 @@ class DocumentsController {
             }
 
             if (status && status !== 'All') {
-                sql += ` AND m.send_status = $${paramIndex}`;
-                params.push(status);
-                paramIndex++;
+                if (status === 'Unsent') {
+                    sql += ` AND (m.send_status IS NULL OR m.send_status NOT IN ('Success', 'Pending'))`;
+                } else {
+                    sql += ` AND m.send_status = $${paramIndex}`;
+                    params.push(status);
+                    paramIndex++;
+                }
             }
 
             if (signatureStatus && signatureStatus !== 'All') {
@@ -241,10 +246,44 @@ class DocumentsController {
                 paramIndex++;
             }
 
-            sql += ` ORDER BY m.id DESC LIMIT 100`;
+            if (contractId && contractId !== 'All') {
+                const parsedContractId = parseInt(String(contractId), 10);
+                if (!isNaN(parsedContractId)) {
+                    sql += ` AND m.his_contract_id = $${paramIndex}`;
+                    params.push(parsedContractId);
+                    paramIndex++;
+                }
+            }
+
+            // Calculate total matching records count
+            const countSql = `SELECT COUNT(*) FROM (${sql}) AS count_query`;
+            const countRes = await query(countSql, params);
+            const totalCount = parseInt(countRes.rows[0]?.count || '0', 10);
+
+            // Dynamic limit & page calculation
+            let queryLimit = 500; // default 500 records instead of 100
+            if (limit) {
+                if (String(limit).toLowerCase() === 'all') {
+                    queryLimit = 100000;
+                } else {
+                    const parsedLimit = parseInt(String(limit), 10);
+                    if (!isNaN(parsedLimit) && parsedLimit > 0) {
+                        queryLimit = Math.min(parsedLimit, 100000);
+                    }
+                }
+            }
+
+            const queryPage = page ? Math.max(1, parseInt(String(page), 10) || 1) : 1;
+            const offset = (queryPage - 1) * queryLimit;
+
+            sql += ` ORDER BY m.id DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+            params.push(queryLimit, offset);
 
             const result = await query(sql, params);
             await this.enrichDocumentsMetadata(result.rows);
+
+            res.setHeader('X-Total-Count', totalCount.toString());
+            res.setHeader('Access-Control-Expose-Headers', 'X-Total-Count');
             return res.json(result.rows);
         } catch (error: any) {
             console.error('❌ KSK Controller: Lỗi getDocuments:', error);

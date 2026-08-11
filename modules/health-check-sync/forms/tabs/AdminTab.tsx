@@ -102,6 +102,8 @@ const AdminTab: React.FC = () => {
         setMaXaCuTruNghMe,
         licenseClass,
         setLicenseClass,
+        driverExamPurpose,
+        setDriverExamPurpose,
         chucDanh,
         setChucDanh,
         noiCongTac,
@@ -663,7 +665,7 @@ const AdminTab: React.FC = () => {
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">4. Số điện thoại <span className="text-red-500">*</span></label>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">4. Số điện thoại</label>
                                 <input 
                                     type="text" 
                                     value={phone} 
@@ -826,10 +828,77 @@ const AdminTab: React.FC = () => {
                     </div>
 
                     {/* THÔNG TIN ĐẶC THÙ THEO LOẠI HỒ SƠ */}
-                    {(formType === '2' || formType === '5') && (
+                    {(formType === '2' || formType === '3' || formType === '5') && (
                         <div>
                             <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">III. THÔNG TIN ĐẶC THÙ THEO ĐỐI TƯỢNG</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {formType === '3' && (
+                                    <>
+                                        <div className="md:col-span-2">
+                                            <label className="block text-xs font-bold text-slate-500 mb-1">
+                                                11. Đề nghị khám sức khỏe để lái xe hạng <span className="text-red-500">*</span>
+                                            </label>
+                                            <select
+                                                value={licenseClass}
+                                                onChange={e => setLicenseClass(e.target.value)}
+                                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-[#0f766e] dark:text-teal-300 font-bold"
+                                            >
+                                                <optgroup label="Phân hạng GPLX truyền thống (TTLT 24/2015 & QĐ 1551)">
+                                                    <option value="A1">Hạng A1 (Mô tô 2 bánh 50cc - 175cc)</option>
+                                                    <option value="A2">Hạng A2 (Mô tô 2 bánh từ 175cc trở lên)</option>
+                                                    <option value="A3">Hạng A3 (Mô tô 3 bánh, xe lam, xích lô máy)</option>
+                                                    <option value="A4">Hạng A4 (Máy kéo nhỏ đến 1.000 kg)</option>
+                                                    <option value="B1">Hạng B1 (Ô tô số tự động / Không hành nghề lái xe)</option>
+                                                    <option value="B2">Hạng B2 (Ô tô đến 9 chỗ, tải dưới 3.500 kg)</option>
+                                                    <option value="C">Hạng C (Ô tô tải từ 3.500 kg trở lên)</option>
+                                                    <option value="D">Hạng D (Ô tô chở người từ 10 đến 30 chỗ)</option>
+                                                    <option value="E">Hạng E (Ô tô chở người trên 30 chỗ)</option>
+                                                    <option value="FB2">Hạng FB2 (Kéo rơ moóc)</option>
+                                                    <option value="FC">Hạng FC (Đầu kéo sơ mi rơ moóc)</option>
+                                                    <option value="FD">Hạng FD</option>
+                                                    <option value="FE">Hạng FE</option>
+                                                </optgroup>
+                                                <optgroup label="Phân hạng mới theo Luật TTATGTĐB 2024">
+                                                    <option value="A">Hạng A (Mô tô trên 125cc)</option>
+                                                    <option value="B">Hạng B (Ô tô đến 8 chỗ, tải đến 3.500 kg)</option>
+                                                    <option value="C1">Hạng C1 (Ô tô tải 3.500 - 7.500 kg)</option>
+                                                    <option value="D1">Hạng D1 (Ô tô chở người 8 - 16 chỗ)</option>
+                                                    <option value="D2">Hạng D2 (Ô tô chở người 16 - 29 chỗ)</option>
+                                                    <option value="BE">Hạng BE (Ô tô hạng B kéo rơ moóc)</option>
+                                                    <option value="C1E">Hạng C1E</option>
+                                                    <option value="CE">Hạng CE</option>
+                                                    <option value="D1E">Hạng D1E</option>
+                                                    <option value="D2E">Hạng D2E</option>
+                                                    <option value="DE">Hạng DE</option>
+                                                </optgroup>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1">Mục đích khám</label>
+                                            <select
+                                                value={driverExamPurpose}
+                                                onChange={e => setDriverExamPurpose(e.target.value)}
+                                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-semibold"
+                                            >
+                                                <option value="Cấp mới">Cấp mới giấy phép lái xe</option>
+                                                <option value="Cấp đổi">Cấp đổi giấy phép lái xe</option>
+                                                <option value="Nâng hạng">Nâng hạng giấy phép lái xe</option>
+                                                <option value="Cấp lại">Cấp lại giấy phép lái xe</option>
+                                                <option value="Khám sức khỏe định kỳ">Khám sức khỏe định kỳ lái xe</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1">Cơ sở đào tạo / Nơi làm việc</label>
+                                            <input
+                                                type="text"
+                                                value={noiCongTacHienTai}
+                                                onChange={e => setNoiCongTacHienTai(e.target.value)}
+                                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white"
+                                                placeholder="VD: TT Sát hạch lái xe..."
+                                            />
+                                        </div>
+                                    </>
+                                )}
                                 {formType === '5' && (
                                     <>
                                         <div>

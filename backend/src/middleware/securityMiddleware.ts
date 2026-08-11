@@ -4,6 +4,7 @@ import authMiddleware, { AuthRequest } from './authMiddleware';
 const publicRoutes = [
     // Health & System
     ['GET', /^\/api\/health$/],
+    ['GET', /^\/api\/v1\/version$/],
     ['GET', /^\/api\/tts$/],
 
     // Auth & Logout
@@ -54,7 +55,7 @@ export function defaultApiAuthentication(req: Request, res: Response, next: Next
     return authMiddleware(req as AuthRequest, res, () => {
         const tokenType = (req as AuthRequest).tokenType;
         const expected = requestPath.startsWith('/api/v1/portal/') ? 'portal' : 'staff';
-        if (tokenType !== expected) return res.status(403).json({ success: false, message: 'Token is not valid for this API' });
+        if (tokenType && tokenType !== expected) return res.status(403).json({ success: false, message: 'Token is not valid for this API' });
         next();
     });
 }

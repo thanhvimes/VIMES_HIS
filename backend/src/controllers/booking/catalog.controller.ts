@@ -88,17 +88,17 @@ class BookingCatalogController {
         }
     }
 
-    // Lấy danh sách LOẠI KHÁM CHUYÊN KHOA
+    // Lấy danh sách LOẠI KHÁM CHUYÊN KHOA theo Mã Khoa (deptId) của user đăng nhập
     async getSpecialities(req: AuthRequest, res: Response) {
         try {
             await this.ensureKiosTable();
-            const userDeptId = ((req as any).query.deptId as string) || (req as any).user?.deptId;
+            const userDeptId = ((req as any).query.deptId as string) || (req as any).user?.deptId || 'KB';
 
             let sql = `
                 SELECT DISTINCT 
                     hrk_code as id, 
-                    ss_desc as name
-                    ${userDeptId ? ', hrk_deptid as "deptId"' : ''}
+                    ss_desc as name,
+                    hrk_deptid as "deptId"
                 FROM hms_roomlist_kios
                 LEFT JOIN sys_sel ON (ss_id = 'hms_room_kios' AND CAST(ss_code AS INT) = hrk_code)
                 WHERE hrk_active = 'Y'
@@ -106,7 +106,7 @@ class BookingCatalogController {
 
             const params: any[] = [];
 
-            if (userDeptId) {
+            if (userDeptId && userDeptId !== 'All') {
                 sql += ` AND hrk_deptid = $1`;
                 params.push(userDeptId);
             }
@@ -121,14 +121,14 @@ class BookingCatalogController {
         }
     }
 
-    // Lấy danh sách phòng theo LOẠI KHÁM CHUYÊN KHOA
+    // Lấy danh sách phòng theo KHOA + CHUYÊN KHOA
     async getRoomsBySpeciality(req: AuthRequest, res: Response) {
         try {
             await this.ensureKiosTable();
             const { specialityCode } = (req as any).params;
             const userDeptId = ((req as any).query.deptId as string) || (req as any).user?.deptId;
 
-            const result = await query(`
+            let sql = `
                 SELECT DISTINCT
                     hrk_id as id,
                     hrk_deptid as "deptId",
@@ -136,12 +136,20 @@ class BookingCatalogController {
                     hrk_code as code
                 FROM hms_roomlist_kios k
                 LEFT JOIN hms_roomlist r ON (k.hrk_deptid = r.hrl_deptid AND k.hrk_id = r.hrl_id)
-                WHERE hrk_code = $1 
-                  ${userDeptId ? 'AND hrk_deptid = $2' : ''}
-                  AND hrk_active = 'Y'
-                ORDER BY hrk_id
-            `, userDeptId ? [specialityCode, userDeptId] : [specialityCode]);
+                WHERE k.hrk_code::varchar = $1::varchar 
+                  AND k.hrk_active = 'Y'
+            `;
 
+            const params: any[] = [specialityCode];
+
+            if (userDeptId && userDeptId !== 'All') {
+                sql += ` AND k.hrk_deptid = $2`;
+                params.push(userDeptId);
+            }
+
+            sql += ` ORDER BY hrk_id`;
+
+            const result = await query(sql, params);
             return res.json(result.rows);
         } catch (error: any) {
             console.error('Error getting rooms by speciality:', error);
@@ -149,7 +157,7 @@ class BookingCatalogController {
         }
     }
 
-    // Lấy slots khả dụng
+    // Lấy slots khả dụng theo KHOA + CHUYÊN KHOA
     async getAvailableSlots(req: Request, res: Response) {
         try {
             const { deptId, roomId, date, specialityCode } = (req as any).query;
@@ -190,7 +198,7 @@ class BookingCatalogController {
                     FROM hms_schedule_exam hse
                     JOIN hms_roomlist_kios k ON (k.hrk_deptid = hse.hse_deptid AND k.hrk_id = hse.hse_roomid)
                     WHERE hse.hse_deptid = $1
-                      AND k.hrk_code = $2
+                      AND k.hrk_code::varchar = $2::varchar
                       AND hse.hse_date = $3
                       AND hse.hse_status = 'O'
                       AND k.hrk_active = 'Y'

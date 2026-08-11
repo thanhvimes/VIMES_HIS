@@ -452,7 +452,7 @@ const ChildAdminTab: React.FC = () => {
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">14. Điện thoại <span className="text-red-500">*</span></label>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">14. Điện thoại</label>
                                 <input
                                     type="text"
                                     value={phone}

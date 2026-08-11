@@ -1,7 +1,6 @@
 import { OrganizationInfo, UserSession } from '../types/common';
 
 // Helper to safely access environment variables
-// --- FIX: Added explicit return type 'any' to resolve property access errors on 'env' ---
 const getEnv = (): any => {
   try {
     // @ts-ignore
@@ -30,7 +29,6 @@ interface RequestOptions extends RequestInit {
   responseType?: 'json' | 'blob' | 'text';
 }
 
-
 class ApiClient {
   public baseUrl: string;
 
@@ -40,7 +38,7 @@ class ApiClient {
   }
 
   private getAuthToken(): string | null {
-    const userSession = localStorage.getItem('currentUser');
+    const userSession = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
     if (userSession) {
       try {
         const parsed = JSON.parse(userSession);
@@ -70,8 +68,6 @@ class ApiClient {
 
     const token = this.getAuthToken();
 
-    // 🔍 DEBUG LOGGING
-
     const defaultHeaders: HeadersInit = {
       ...(responseType === 'json' ? {
         'Content-Type': 'application/json',
@@ -80,7 +76,6 @@ class ApiClient {
       ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       ...headers,
     };
-
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
@@ -99,7 +94,12 @@ class ApiClient {
       if (!response.ok) {
         if (response.status === 401) {
           if (!skipAuthRedirect) {
+            sessionStorage.removeItem('currentUser');
+            sessionStorage.removeItem('userInfo');
+            sessionStorage.removeItem('isAuthenticated');
             localStorage.removeItem('currentUser');
+            localStorage.removeItem('userInfo');
+            localStorage.removeItem('isAuthenticated');
             window.location.href = '/';
           }
           const errorBody = await response.json().catch(() => ({}));

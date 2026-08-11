@@ -285,27 +285,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
             
             // Define the rendering logic wrapped in a promise
             const renderingPromise = (async () => {
-                // Mẫu 3 từng bị chia cứng thành 4 trang dù trang 1 và 3 còn
-                // rất nhiều chỗ trống. Ghép các khối liên tục trước khi chụp PDF.
-                if (document.form_type === '3' && containerRef.current) {
-                    const historyPart1 = containerRef.current.querySelector<HTMLTableElement>('[data-mau3-history-part="1"]');
-                    const historyPart2 = containerRef.current.querySelector<HTMLTableElement>('[data-mau3-history-part="2"]');
-                    const firstBody = historyPart1?.querySelector('tbody');
-                    const secondBody = historyPart2?.querySelector('tbody');
-                    if (firstBody && secondBody) {
-                        Array.from(secondBody.children).forEach(row => firstBody.appendChild(row));
-                        historyPart2?.remove();
-                    }
-
-                    const pageThreeMain = containerRef.current.querySelector<HTMLElement>('[data-mau3-page-three-main]');
-                    const conclusionContent = containerRef.current.querySelector<HTMLElement>('[data-mau3-conclusion-content]');
-                    const pageFour = containerRef.current.querySelector<HTMLElement>('[data-mau3-page="4"]');
-                    if (pageThreeMain && conclusionContent && pageFour) {
-                        conclusionContent.classList.add('mt-5', 'border-t', 'border-black', 'pt-3');
-                        pageThreeMain.appendChild(conclusionContent);
-                        pageFour.remove();
-                    }
-                }
+                // Poll for .a4-page elements to ensure DOM is fully mounted
 
                 // Poll for .a4-page elements to ensure DOM is fully mounted
                 let pages = containerRef.current?.querySelectorAll('.a4-page');
@@ -432,12 +412,14 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
 
     const getFormTitle = (type: string) => {
         const names: Record<string, string> = {
-            '1': 'GIẤY KHÁM SỨC KHỎE ĐỊNH KỲ (TRẺ EM 6 - 18 TUỔI)',
-            '2': 'SỔ KHÁM SỨC KHỎE ĐỊNH KỲ',
-            '3': 'SỔ KHÁM SỨC KHỎE CHO NGƯỜI LÁI XE',
+            '1': 'GIẤY KHÁM SỨC KHỎE ĐỊNH KỲ (DÙNG CHO NGƯỜI DƯỚI 06 TUỔI)',
+            '2': 'GIẤY KHÁM SỨC KHỎE ĐỊNH KỲ (DÙNG CHO NGƯỜI TỪ ĐỦ 06 TUỔI ĐẾN DƯỚI 18 TUỔI)',
+            '3': 'GIẤY KHÁM SỨC KHỎE ĐỊNH KỲ (DÙNG CHO NGƯỜI TỪ ĐỦ 18 TUỔI TRỞ LÊN)',
+            'driver': 'GIẤY KHÁM SỨC KHỎE CỦA NGƯỜI LÁI XE',
+            'mau3-driver': 'GIẤY KHÁM SỨC KHỎE CỦA NGƯỜI LÁI XE',
             '4': 'GIẤY KHÁM SỨC KHỎE NHÂN VIÊN ĐƯỜNG SẮT',
             '5': 'GIẤY KHÁM SỨC KHỎE ĐỊNH KỲ CHO THUYỀN VIÊN',
-            '6': 'SỔ KHÁM SỨC KHỎE ĐỊNH KỲ CHO TRẺ TRÊN 0 - 2 THÁNG',
+            '6': 'SỔ KHÁM SỨC KHỎE ĐỊNH KỲ CHO TRẺ 0 - 2 THÁNG',
             '7': 'SỔ KHÁM SỨC KHỎE ĐỊNH KỲ CHO TRẺ 2 - 3 THÁNG',
             '8': 'SỔ KHÁM SỨC KHỎE ĐỊNH KỲ CHO TRẺ 4 - 6 THÁNG',
             '9': 'SỔ KHÁM SỨC KHỎE ĐỊNH KỲ CHO TRẺ 7 - 9 THÁNG',
@@ -450,7 +432,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
             '16': 'SỔ KHÁM SỨC KHỎE ĐỊNH KỲ HỌC SINH LỚP 6 - LỚP 9',
             '17': 'SỔ KHÁM SỨC KHỎE ĐỊNH KỲ HỌC SINH LỚP 10 - LỚP 12',
         };
-        return names[type] || `GIẤY KHÁM SỨC KHỎE ĐỊNH KỲ (MẪU ${type})`;
+        return names[type] || 'GIẤY KHÁM SỨC KHỎE ĐỊNH KỲ (DÙNG CHO NGƯỜI TỪ ĐỦ 18 TUỔI TRỞ LÊN)';
     };
 
     const clinical = document.clinical_data || {};

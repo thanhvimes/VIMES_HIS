@@ -105,25 +105,16 @@ const DocumentList: React.FC<DocumentListProps> = ({
                         {documents.length === 0 ? (
                             <tr>
                                 <td colSpan={10} className="p-12 text-center">
-                                    <div className="flex flex-col items-center justify-center space-y-3 py-6">
+                                    <div className="flex flex-col items-center justify-center space-y-2 py-6">
                                         <div className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-full text-slate-400">
-                                            <RefreshIcon className="w-8 h-8 animate-pulse text-teal-500" />
+                                            <DocumentTextIcon className="w-8 h-8 text-slate-400" />
                                         </div>
                                         <div className="text-slate-700 dark:text-slate-300 font-bold text-sm">
                                             Không tìm thấy dữ liệu khám sức khỏe nào
                                         </div>
                                         <div className="text-slate-400 dark:text-slate-500 text-xs max-w-sm">
-                                            Để bắt đầu sử dụng và thử nghiệm liên thông VNeID, vui lòng nhấn nút dưới đây để đồng bộ dữ liệu mẫu từ hệ thống HIS.
+                                            Không có hồ sơ nào phù hợp với bộ lọc tìm kiếm hoặc chưa có dữ liệu trong khoảng thời gian đã chọn.
                                         </div>
-                                        {onSeed && (
-                                            <button
-                                                onClick={onSeed}
-                                                className="mt-2 px-5 py-2.5 bg-[#0f766e] hover:bg-[#0d9488] text-white rounded-lg text-xs font-bold shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
-                                            >
-                                                <RefreshIcon className="w-4 h-4" />
-                                                Khởi tạo dữ liệu mẫu từ HIS
-                                            </button>
-                                        )}
                                     </div>
                                 </td>
                             </tr>

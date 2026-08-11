@@ -37,9 +37,9 @@ async function verifyAddSpecialtyE2E() {
         const querySpec1 = await pool.query(`
             SELECT q.*, s.ss_desc as "specialtyName", COALESCE(rl.hrl_name, rl.hrl_roomname) as "roomName"
             FROM qms_patient q
-            LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND (k.hrk_deptid = q.qms_deptid OR k.hrk_deptid = 'KB') AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
+            LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND k.hrk_deptid = q.qms_deptid AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
             LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code::varchar = COALESCE(k.hrk_code::varchar, q.qms_specialty_code::varchar))
-            LEFT JOIN hms_roomlist rl ON (rl.hrl_id = q.qms_roomid AND (rl.hrl_deptid = q.qms_deptid OR rl.hrl_deptid = 'KB'))
+            LEFT JOIN hms_roomlist rl ON (rl.hrl_id = q.qms_roomid AND rl.hrl_deptid = q.qms_deptid)
             WHERE q.qms_specialty_code::varchar = $1::varchar
             LIMIT 1
         `, [String(spec1.spec_code)]);
@@ -47,9 +47,9 @@ async function verifyAddSpecialtyE2E() {
         const querySpec2 = await pool.query(`
             SELECT q.*, s.ss_desc as "specialtyName", COALESCE(rl.hrl_name, rl.hrl_roomname) as "roomName"
             FROM qms_patient q
-            LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND (k.hrk_deptid = q.qms_deptid OR k.hrk_deptid = 'KB') AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
+            LEFT JOIN hms_roomlist_kios k ON (k.hrk_id = q.qms_roomid AND k.hrk_deptid = q.qms_deptid AND k.hrk_code::varchar = q.qms_specialty_code::varchar)
             LEFT JOIN sys_sel s ON (s.ss_id = 'hms_room_kios' AND s.ss_code::varchar = COALESCE(k.hrk_code::varchar, q.qms_specialty_code::varchar))
-            LEFT JOIN hms_roomlist rl ON (rl.hrl_id = q.qms_roomid AND (rl.hrl_deptid = q.qms_deptid OR rl.hrl_deptid = 'KB'))
+            LEFT JOIN hms_roomlist rl ON (rl.hrl_id = q.qms_roomid AND rl.hrl_deptid = q.qms_deptid)
             WHERE q.qms_specialty_code::text = $1::text OR q.qms_idx = 161516
             LIMIT 1
         `, [String(spec2.spec_code)]);

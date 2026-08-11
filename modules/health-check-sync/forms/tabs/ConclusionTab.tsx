@@ -373,6 +373,47 @@ const ConclusionTab: React.FC = () => {
                     <textarea value={cacVanDeLuuY} onChange={e => setCacVanDeLuuY(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white h-20" />
                 </div>
 
+                {formType === '3' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 bg-teal-50/20 dark:bg-teal-950/20 p-4 rounded-xl border border-teal-200/40 dark:border-teal-900/30">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">
+                                Kết luận sức khỏe người lái xe <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                                value={ketLuanLoaiSucKhoe}
+                                onChange={e => setKetLuanLoaiSucKhoe(e.target.value)}
+                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-[#0f766e] dark:text-teal-300 font-bold"
+                            >
+                                <option value={`Đủ điều kiện sức khỏe lái xe hạng ${licenseClass || 'B2'}`}>
+                                    ✓ Đủ điều kiện sức khỏe lái xe hạng {licenseClass || 'B2'}
+                                </option>
+                                <option value={`Đạt tiêu chuẩn sức khỏe lái xe hạng ${licenseClass || 'B2'} (Yêu cầu đeo kính khi lái xe)`}>
+                                    ✓ Đạt tiêu chuẩn sức khỏe lái xe hạng {licenseClass || 'B2'} (Đeo kính khi lái xe)
+                                </option>
+                                <option value={`Không đủ điều kiện sức khỏe lái xe hạng ${licenseClass || 'B2'}`}>
+                                    ✗ Không đủ điều kiện sức khỏe lái xe hạng {licenseClass || 'B2'}
+                                </option>
+                                <option value="Cần khám lại sau 01 tháng">
+                                    ⏱ Cần khám lại sau 01 tháng
+                                </option>
+                                <option value="Cần khám lại sau 03 tháng">
+                                    ⏱ Cần khám lại sau 03 tháng
+                                </option>
+                                <option value="Cần khám lại sau 06 tháng">
+                                    ⏱ Cần khám lại sau 06 tháng
+                                </option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">Thời hạn hiệu lực giấy KSK</label>
+                            <div className="p-2.5 bg-white dark:bg-slate-700 rounded-lg border border-slate-300 dark:border-slate-600 text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center justify-between">
+                                <span>Giá trị trong 06 tháng (QĐ 1551/TTLT 24)</span>
+                                <span className="text-emerald-600 dark:text-emerald-400 font-bold">Hợp lệ</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {formType === '4' && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 bg-amber-50/10 dark:bg-amber-950/10 p-3 rounded-lg border border-amber-200/30">
                         <div className="md:col-span-3">

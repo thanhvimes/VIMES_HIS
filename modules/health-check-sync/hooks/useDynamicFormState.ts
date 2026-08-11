@@ -53,6 +53,7 @@ export const useDynamicFormState = (
     const [escortCccd, setEscortCccd] = useState(initialData?.clinical_data?.extra?.so_cccd_nguoi_di_cung || '');
     const [escortRelation, setEscortRelation] = useState(initialData?.clinical_data?.extra?.moi_quan_he_voi_tre || '');
     const [licenseClass, setLicenseClass] = useState(initialData?.clinical_data?.extra?.hang_lai_xe || 'B2');
+    const [driverExamPurpose, setDriverExamPurpose] = useState(initialData?.clinical_data?.extra?.driver_exam_purpose || 'Cấp mới');
     const [chucDanh, setChucDanh] = useState(initialData?.clinical_data?.extra?.chuc_danh || '');
     const [noiCongTac, setNoiCongTac] = useState(initialData?.clinical_data?.extra?.noi_cong_tac || '');
     const [viTriLamViec, setViTriLamViec] = useState(initialData?.clinical_data?.extra?.vi_tri_lam_viec || '');
@@ -111,6 +112,7 @@ export const useDynamicFormState = (
     const [tsSuDungRuou, setTsSuDungRuou] = useState(initialData?.clinical_data?.extra?.ts_su_dung_ruou || 0);
     const [tsSuDungMaTuy, setTsSuDungMaTuy] = useState(initialData?.clinical_data?.extra?.ts_su_dung_ma_tuy || 0);
     const [tsBenhCotSong, setTsBenhCotSong] = useState(initialData?.clinical_data?.extra?.ts_benh_cot_song || 0);
+    const [tsMacBenh, setTsMacBenh] = useState(initialData?.clinical_data?.extra?.ts_mac_benh || 0);
     const [tsbtMaBenhNgheNghiep, setTsbtMaBenhNgheNghiep] = useState(initialData?.clinical_data?.extra?.tsbt_ma_benh_nghe_nghiep || '');
     const [tsbtNamPhatHienBenhNgheNghiep, setTsbtNamPhatHienBenhNgheNghiep] = useState(initialData?.clinical_data?.extra?.tsbt_nam_phat_hien_benh_nghe_nghiep || '');
 
@@ -1113,10 +1115,8 @@ export const useDynamicFormState = (
         if (cccd.trim() && !/^\d{12}$/.test(cccd)) {
             newErrors.cccd = 'Định danh/CCCD phải gồm chính xác 12 chữ số';
         }
-        if (!phone.trim()) {
-            newErrors.phone = 'Số điện thoại bắt buộc nhập';
-        } else if (!/^\d{10}$/.test(phone.trim())) {
-            newErrors.phone = 'Số điện thoại liên hệ phải gồm chính xác 10 chữ số';
+        if (phone.trim() && !/^\d{10}$/.test(phone.trim())) {
+            newErrors.phone = 'Số điện thoại (nếu có) phải gồm chính xác 10 chữ số';
         }
         if (!dob) newErrors.dob = 'Ngày sinh bắt buộc chọn';
         if (guardianCccd && guardianCccd.trim() && !/^\d{12}$/.test(guardianCccd.trim())) {
@@ -1152,10 +1152,8 @@ export const useDynamicFormState = (
         if (cccd.trim() && !/^\d{12}$/.test(cccd)) {
             newErrors.cccd = 'Định danh/CCCD phải gồm chính xác 12 chữ số';
         }
-        if (!phone.trim()) {
-            newErrors.phone = 'Số điện thoại bắt buộc nhập';
-        } else if (!/^\d{10}$/.test(phone.trim())) {
-            newErrors.phone = 'Số điện thoại liên hệ phải gồm chính xác 10 chữ số';
+        if (phone.trim() && !/^\d{10}$/.test(phone.trim())) {
+            newErrors.phone = 'Số điện thoại (nếu có) phải gồm chính xác 10 chữ số';
         }
         if (!dob) newErrors.dob = 'Ngày sinh bắt buộc chọn';
         if (guardianCccd && guardianCccd.trim() && !/^\d{12}$/.test(guardianCccd.trim())) {
@@ -1362,6 +1360,7 @@ export const useDynamicFormState = (
                     so_cccd_nguoi_di_cung: escortCccd,
                     moi_quan_he_voi_tre: escortRelation,
                     hang_lai_xe: licenseClass,
+                    driver_exam_purpose: driverExamPurpose,
                     chuc_danh: chucDanh,
                     noi_cong_tac: noiCongTac,
                     vi_tri_lam_viec: viTriLamViec,
@@ -2037,6 +2036,8 @@ export const useDynamicFormState = (
         setEscortRelation,
         licenseClass,
         setLicenseClass,
+        driverExamPurpose,
+        setDriverExamPurpose,
         chucDanh,
         setChucDanh,
         noiCongTac,
@@ -2155,6 +2156,8 @@ export const useDynamicFormState = (
         setTsSuDungMaTuy,
         tsBenhCotSong,
         setTsBenhCotSong,
+        tsMacBenh,
+        setTsMacBenh,
         tsbtMaBenhNgheNghiep,
         setTsbtMaBenhNgheNghiep,
         tsTiepXucLao,

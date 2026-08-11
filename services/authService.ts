@@ -55,6 +55,33 @@ export interface LoginResponse {
 
 const API_BASE_URL = '/api/v1/auth';
 
+// Helper to get session with sessionStorage priority (Tab-isolated)
+const getStoredUserSession = (): string | null => {
+    const session = sessionStorage.getItem('currentUser');
+    if (session) return session;
+    const local = localStorage.getItem('currentUser');
+    if (local) {
+        // Cache to this tab's sessionStorage
+        sessionStorage.setItem('currentUser', local);
+        return local;
+    }
+    return null;
+};
+
+const setStoredUserSession = (sessionStr: string) => {
+    sessionStorage.setItem('currentUser', sessionStr);
+    localStorage.setItem('currentUser', sessionStr);
+};
+
+const removeStoredUserSession = () => {
+    sessionStorage.removeItem('currentUser');
+    sessionStorage.removeItem('userInfo');
+    sessionStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('userInfo');
+    localStorage.removeItem('isAuthenticated');
+};
+
 export const authService = {
     // Đăng nhập
     login: async (userId: string, password: string): Promise<LoginResponse> => {
@@ -71,10 +98,9 @@ export const authService = {
 
         const data = await res.json();
 
-        // Lưu token và user info vào localStorage
-        // QUAN TRỌNG: Phải lưu vào 'currentUser' để apiClient có thể đọc được
+        // Lưu token và user info vào sessionStorage (ưu tiên cho từng tab) và localStorage
         if (data.token && data.user) {
-            localStorage.setItem('currentUser', JSON.stringify({
+            setStoredUserSession(JSON.stringify({
                 token: data.token,
                 ...data.user
             }));
@@ -85,7 +111,7 @@ export const authService = {
 
     // Lấy thông tin user hiện tại
     getCurrentUser: async (): Promise<UserInfo> => {
-        const userSession = localStorage.getItem('currentUser');
+        const userSession = getStoredUserSession();
 
         if (!userSession) {
             throw new Error('Chưa đăng nhập');
@@ -107,7 +133,7 @@ export const authService = {
         if (!res.ok) {
             if (res.status === 401) {
                 // Token hết hạn hoặc không hợp lệ
-                localStorage.removeItem('currentUser');
+                removeStoredUserSession();
                 throw new Error('Phiên đăng nhập đã hết hạn');
             }
             throw new Error('Không thể lấy thông tin user');
@@ -119,7 +145,7 @@ export const authService = {
 
     // Đăng xuất
     logout: async (): Promise<void> => {
-        const userSession = localStorage.getItem('currentUser');
+        const userSession = getStoredUserSession();
 
         if (userSession) {
             try {
@@ -139,13 +165,13 @@ export const authService = {
             }
         }
 
-        // Xóa token khỏi localStorage
-        localStorage.removeItem('currentUser');
+        // Xóa token khỏi sessionStorage và localStorage
+        removeStoredUserSession();
     },
 
     // Kiểm tra đã đăng nhập chưa
     isAuthenticated: (): boolean => {
-        const userSession = localStorage.getItem('currentUser');
+        const userSession = getStoredUserSession();
         if (!userSession) return false;
 
         try {
@@ -158,7 +184,7 @@ export const authService = {
 
     // Lấy token
     getToken: (): string | null => {
-        const userSession = localStorage.getItem('currentUser');
+        const userSession = getStoredUserSession();
         if (!userSession) return null;
 
         try {

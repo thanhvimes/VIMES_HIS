@@ -42,10 +42,12 @@ interface ModuleCardConfig {
 
 const MODULE_CARDS: ModuleCardConfig[] = [
     { id: 'command-center', title: 'TT Điều hành (HCC)', description: 'Giám sát, chỉ huy và điều hành bệnh viện theo thời gian thực.', path: '/command-center', icon: <GlobeIcon className="w-10 h-10" />, color: 'red', permissionKey: 'hcc' },
+    { id: 'reception', title: 'Tiếp nhận & Điều phối', description: 'Đăng ký tại quầy, phân luồng khám bệnh và quản lý hàng đợi.', path: '/reception', icon: <UserGroupIcon className="w-10 h-10" />, color: 'teal', permissionKey: 'rm' },
     { id: 'online-booking', title: 'Đăng ký Online', description: 'Đặt lịch khám, duyệt lịch hẹn và cấu hình khung giờ tiếp nhận.', path: '/online-booking', icon: <CalendarPlusIcon className="w-10 h-10" />, color: 'sky', permissionKey: 'rol' },
     { id: 'queue-management', title: 'QMS – Gọi số', description: 'Gọi số tự động, màn hình hiển thị phòng khám và Kiosk self-service.', path: '/queue-management', icon: <TvIcon className="w-10 h-10" />, color: 'blue', permissionKey: 'qms' },
     { id: 'health-check-sync', title: 'Liên thông KSK VNeID', description: 'Đồng bộ 17 mẫu biểu khám sức khỏe lên ứng dụng VNeID theo QĐ 1551.', path: '/health-check', icon: <PaperAirplaneIcon className="w-10 h-10" />, color: 'blue', permissionKey: 'ksk' },
-    { id: 'admin', title: 'Quản trị hệ thống', description: 'Cấu hình tham số, phân quyền người dùng và nhật ký hoạt động.', path: '/admin', icon: <CogIcon className="w-10 h-10" />, color: 'slate', permissionKey: 'sys' }
+    { id: 'admin', title: 'Quản trị hệ thống', description: 'Cấu hình tham số, phân quyền người dùng và nhật ký hoạt động.', path: '/admin', icon: <CogIcon className="w-10 h-10" />, color: 'slate', permissionKey: 'sys' },
+    //{ id: 'clinical', title: 'Khám bệnh (EMR)', description: 'Khám, chẩn đoán, kê đơn thuốc và quản lý hồ sơ bệnh án điện tử.', path: '/consultation', icon: <HospitalIcon className="w-10 h-10" />, color: 'blue', permissionKey: 'em' },
     /*
     { id: 'reception', title: 'Tiếp nhận & Điều phối', description: 'Đăng ký tại quầy, phân luồng khám bệnh và quản lý hàng đợi.', path: '/reception', icon: <UserGroupIcon className="w-10 h-10" />, color: 'teal', permissionKey: 'rm' },
     { id: 'clinical', title: 'Khám bệnh (EMR)', description: 'Khám, chẩn đoán, kê đơn thuốc và quản lý hồ sơ bệnh án điện tử.', path: '/consultation', icon: <HospitalIcon className="w-10 h-10" />, color: 'blue', permissionKey: 'em' },
