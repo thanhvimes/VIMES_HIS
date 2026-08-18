@@ -34,7 +34,6 @@ const HR = React.lazy(() => import('./modules/hr/index'));
 const Portal = React.lazy(() => import('./modules/portal/index'));
 const CommandCenter = React.lazy(() => import('./modules/command-center/index'));
 const QueueManagement = React.lazy(() => import('./modules/queue-management/index'));
-const EmrModule = React.lazy(() => import('./modules/emr/index'));
 
 import { PdfPreviewProvider } from './contexts/PdfPreviewContext';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -214,7 +213,6 @@ const StaffSystem: React.FC = () => {
         <Route path="/insurance/*" element={<InsuranceModule />} />
         <Route path="/health-check/*" element={<HealthCheckSyncModule />} />
         <Route path="/documents/*" element={<Documents />} />
-        <Route path="/emr/*" element={<EmrModule />} />
         <Route path="/reports/*" element={<ReportsModule />} />
         <Route path="/command-center/*" element={<CommandCenter />} />
         <Route path="/queue-management/*" element={<QueueManagement />} />
