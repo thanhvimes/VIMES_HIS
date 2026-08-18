@@ -73,6 +73,22 @@ const HistoryTab: React.FC = () => {
         setTsgdMaBenh,
         tsbtMaBenh,
         setTsbtMaBenh,
+        tsbtNghienRuou,
+        setTsbtNghienRuou,
+        tsbtMaBenhKhac,
+        setTsbtMaBenhKhac,
+        tsbtThaiSan,
+        setTsbtThaiSan,
+        tsbtMaBenhThaiSan,
+        setTsbtMaBenhThaiSan,
+        tsbtTenThuocThaiSan,
+        setTsbtTenThuocThaiSan,
+        benhDangDieuTri,
+        setBenhDangDieuTri,
+        tsbtDangDieuTriBenh,
+        setTsbtDangDieuTriBenh,
+        nhiKhoaLamSangKhac,
+        setNhiKhoaLamSangKhac,
         tsbtNamPhatHienBenh,
         setTsbtNamPhatHienBenh,
         tenThuoc,
@@ -371,7 +387,8 @@ const HistoryTab: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* ĐÁNH GIÁ DẤU HIỆU SINH TỒN & THỂ LỰC */}
+                    {/* ĐÁNH GIÁ DẤU HIỆU SINH TỒN & THỂ LỰC (Chỉ hiển thị cho Trẻ em / Mẫu 1 & 2 Nhi khoa) */}
+                    {((isChild || formType === '2') && formType !== '1' && formType !== '3') && (
                     <div className="p-4 bg-slate-50/50 dark:bg-slate-800/20 border border-slate-200 dark:border-slate-700/60 rounded-xl space-y-4 shadow-sm">
                         <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700/50 pb-2">Đánh giá dấu hiệu sinh tồn &amp; Thể lực</h4>
                         
@@ -524,6 +541,7 @@ const HistoryTab: React.FC = () => {
                             </div>
                         </div>
                     </div>
+                    )}
 
                     {/* 18. TIỀN SỬ */}
                     {isChild && (
@@ -573,6 +591,20 @@ const HistoryTab: React.FC = () => {
                                             />
                                         </div>
                                     )}
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">Tiền sử nghiện rượu, bia</label>
+                                        <select value={tsbtNghienRuou} onChange={e => setTsbtNghienRuou(e.target.value)} disabled={isTabLocked} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                                            <option value="">-- Chưa ghi nhận --</option>
+                                            <option value="0">Không</option>
+                                            <option value="1">Có</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">Bệnh khác (mã ICD-10)</label>
+                                        <input type="text" value={tsbtMaBenhKhac} onChange={e => setTsbtMaBenhKhac(e.target.value)} disabled={isTabLocked} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="Nhiều mã phân cách bằng dấu ;" />
+                                    </div>
                                 </div>
                             </div>
 
@@ -698,16 +730,20 @@ const HistoryTab: React.FC = () => {
                                     </div>
                                 )}
                             </div>
+                            <div className="mt-4">
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Khám lâm sàng khác</label>
+                                <textarea value={nhiKhoaLamSangKhac} onChange={e => setNhiKhoaLamSangKhac(e.target.value)} disabled={isLocked} rows={3} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="Ghi nhận các kết quả khám lâm sàng khác theo QĐ 2062..." />
+                            </div>
                         </div>
                     )}
 
-                    {/* Tiền sử bệnh người lái xe (cho Mẫu 3) */}
+                    {/* Tiền sử bệnh người lái xe / người lớn (cho Mẫu 3) */}
                     {formType === '3' && (
                         <div className="space-y-6">
                             <div>
                                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 dark:border-slate-700 pb-2 mb-4 gap-2">
                                     <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider">
-                                        II.1. Tiền sử bệnh tật của người lái xe (20 chỉ tiêu QĐ 1551)
+                                        II.1. Tiền sử bệnh tật của người khám (22 chỉ tiêu QĐ 2062 / QĐ 1551)
                                     </h4>
                                     <div className="flex items-center gap-2">
                                         <button
@@ -723,6 +759,7 @@ const HistoryTab: React.FC = () => {
                                                 setTsKhoTho(0);
                                                 setTsPhoiHen(0);
                                                 setTsThan(0);
+                                                setTsbtNghienRuou('0');
                                                 setTsTieuDuong(0);
                                                 setTsTamThan(0);
                                                 setTsYThuc(0);
@@ -733,6 +770,7 @@ const HistoryTab: React.FC = () => {
                                                 setTsBenhCotSong(0);
                                                 setTsSuDungRuou(0);
                                                 setTsSuDungMaTuy(0);
+                                                setTsbtMaBenhKhac('');
                                                 setTsMacBenh(0);
                                             }}
                                             className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/30 text-[#0f766e] dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 rounded-lg text-xs font-bold transition shadow-sm"
@@ -754,16 +792,17 @@ const HistoryTab: React.FC = () => {
                                         { id: 'tsKhoTho', label: '8. Khó thở', val: tsKhoTho, set: setTsKhoTho },
                                         { id: 'tsPhoiHen', label: '9. Bệnh phổi, hen, viêm phế quản mạn', val: tsPhoiHen, set: setTsPhoiHen },
                                         { id: 'tsThan', label: '10. Bệnh thận, lọc máu', val: tsThan, set: setTsThan },
-                                        { id: 'tsTieuDuong', label: '11. Đái tháo đường, tăng đường huyết', val: tsTieuDuong, set: setTsTieuDuong },
-                                        { id: 'tsTamThan', label: '12. Bệnh tâm thần', val: tsTamThan, set: setTsTamThan },
-                                        { id: 'tsYThuc', label: '13. Mất ý thức, rối loạn ý thức', val: tsYThuc, set: setTsYThuc },
-                                        { id: 'tsChongMat', label: '14. Ngất, chóng mặt, ngất xỉu', val: tsChongMat, set: setTsChongMat },
-                                        { id: 'tsTieuHoa', label: '15. Bệnh tiêu hóa', val: tsTieuHoa, set: setTsTieuHoa },
-                                        { id: 'tsGiacNgu', label: '16. Rối loạn giấc ngủ, ngưng thở khi ngủ', val: tsGiacNgu, set: setTsGiacNgu },
-                                        { id: 'tsTaiBien', label: '17. Tai biến mạch máu não hoặc liệt', val: tsTaiBien, set: setTsTaiBien },
-                                        { id: 'tsBenhCotSong', label: '18. Bệnh hoặc tổn thương cột sống', val: tsBenhCotSong, set: setTsBenhCotSong },
-                                        { id: 'tsSuDungRuou', label: '19. Sử dụng rượu thường xuyên, liên tục', val: tsSuDungRuou, set: setTsSuDungRuou },
-                                        { id: 'tsSuDungMaTuy', label: '20. Sử dụng ma túy và chất gây nghiện', val: tsSuDungMaTuy, set: setTsSuDungMaTuy },
+                                        { id: 'tsbtNghienRuou', label: '11. Nghiện rượu, bia', val: tsbtNghienRuou === '1' ? 1 : 0, set: (v: number) => setTsbtNghienRuou(v === 1 ? '1' : '0') },
+                                        { id: 'tsTieuDuong', label: '12. Đái tháo đường, tăng đường huyết', val: tsTieuDuong, set: setTsTieuDuong },
+                                        { id: 'tsTamThan', label: '13. Bệnh tâm thần', val: tsTamThan, set: setTsTamThan },
+                                        { id: 'tsYThuc', label: '14. Mất ý thức, rối loạn ý thức', val: tsYThuc, set: setTsYThuc },
+                                        { id: 'tsChongMat', label: '15. Ngất, chóng mặt, ngất xỉu', val: tsChongMat, set: setTsChongMat },
+                                        { id: 'tsTieuHoa', label: '16. Bệnh tiêu hóa', val: tsTieuHoa, set: setTsTieuHoa },
+                                        { id: 'tsGiacNgu', label: '17. Rối loạn giấc ngủ, ngưng thở khi ngủ', val: tsGiacNgu, set: setTsGiacNgu },
+                                        { id: 'tsTaiBien', label: '18. Tai biến mạch máu não hoặc liệt', val: tsTaiBien, set: setTsTaiBien },
+                                        { id: 'tsBenhCotSong', label: '19. Bệnh hoặc tổn thương cột sống', val: tsBenhCotSong, set: setTsBenhCotSong },
+                                        { id: 'tsSuDungRuou', label: '20. Sử dụng rượu thường xuyên, liên tục', val: tsSuDungRuou, set: setTsSuDungRuou },
+                                        { id: 'tsSuDungMaTuy', label: '21. Sử dụng ma túy và chất gây nghiện', val: tsSuDungMaTuy, set: setTsSuDungMaTuy },
                                     ].map((item) => (
                                         <div key={item.id} className={`flex justify-between items-center p-2.5 rounded-lg border transition-all ${item.val === 1 ? 'border-rose-300 bg-rose-50/50 dark:bg-rose-950/20 text-rose-900 dark:text-rose-300 font-bold' : 'border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/30 text-slate-700 dark:text-slate-300'}`}>
                                             <span className="text-xs font-semibold select-none pr-2">{item.label}</span>
@@ -780,34 +819,111 @@ const HistoryTab: React.FC = () => {
                                     ))}
                                 </div>
 
-                                <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
-                                    <h5 className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">21. Câu hỏi khác &amp; Điều trị thuốc</h5>
+                                <div className="mt-4 p-4 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-200 dark:border-slate-700 space-y-4">
+                                    <h5 className="text-xs font-bold uppercase text-slate-600 dark:text-slate-300">22. Bệnh khác &amp; Điều trị thuốc (TSBT_MA_BENH_KHAC)</h5>
+                                    
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1">22. Bệnh khác (ghi rõ mã ICD-10) (TSBT_MA_BENH_KHAC)</label>
+                                            <input
+                                                type="text"
+                                                value={tsbtMaBenhKhac}
+                                                onChange={e => setTsbtMaBenhKhac(e.target.value)}
+                                                disabled={isLocked}
+                                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white"
+                                                placeholder="Ghi mã ICD-10, trường hợp nhiều mã phân cách bằng dấu ;"
+                                            />
+                                        </div>
                                         <div>
                                             <label className="block text-xs font-bold text-slate-500 mb-1">Có đang điều trị bệnh gì không?</label>
                                             <select
                                                 value={tsMacBenh}
                                                 onChange={e => setTsMacBenh(parseInt(e.target.value) || 0)}
+                                                disabled={isLocked}
                                                 className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-semibold"
                                             >
-                                                <option value="0">Không đang điều trị bệnh</option>
-                                                <option value="1">Có đang điều trị bệnh</option>
+                                                <option value="0">0 - Không đang điều trị bệnh</option>
+                                                <option value="1">1 - Có đang điều trị bệnh</option>
                                             </select>
                                         </div>
-                                        {tsMacBenh === 1 && (
+                                    </div>
+
+                                    {tsMacBenh === 1 && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100 dark:border-slate-700/50">
                                             <div>
-                                                <label className="block text-xs font-bold text-slate-500 mb-1">Tên các loại thuốc đang dùng và liều lượng</label>
+                                                <ICD10MultiSelect
+                                                    label="Tên bệnh đang điều trị (Mã bệnh ICD-10) (TSBT_MA_BENH)"
+                                                    value={tsbtMaBenh}
+                                                    onChange={setTsbtMaBenh}
+                                                    disabled={isLocked}
+                                                    placeholder="Tìm theo mã hoặc tên bệnh ICD-10 (VD: I10, E11...)"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 mb-1">Tên các loại thuốc đang dùng và liều lượng (BENH_DANG_DIEU_TRI)</label>
                                                 <input
                                                     type="text"
-                                                    value={tenThuoc}
-                                                    onChange={e => setTenThuoc(e.target.value)}
+                                                    value={tenThuoc || benhDangDieuTri}
+                                                    onChange={e => {
+                                                        setTenThuoc(e.target.value);
+                                                        setBenhDangDieuTri(e.target.value);
+                                                    }}
+                                                    disabled={isLocked}
                                                     className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white"
                                                     placeholder="Liệt kê tên thuốc, liều lượng đang dùng..."
                                                 />
                                             </div>
-                                        )}
-                                    </div>
+                                        </div>
+                                    )}
                                 </div>
+
+                                {/* Tiền sử thai sản (Đối với nữ) */}
+                                {(gender && (gender.toString().toLowerCase().includes('nữ') || gender.toString().toLowerCase().includes('female') || gender === '2' || gender === '0')) && (
+                                    <div className="mt-4 p-4 bg-pink-50/40 dark:bg-pink-950/20 rounded-xl border border-pink-200 dark:border-pink-900/40 space-y-4">
+                                        <h5 className="text-xs font-bold uppercase text-pink-700 dark:text-pink-300 flex items-center justify-between">
+                                            <span>23. Tiền sử thai sản (Đối với nữ)</span>
+                                            <span className="text-[10px] normal-case text-pink-500 font-bold">* Chuẩn QĐ 2062 (TSBT_THAI_SAN)</span>
+                                        </h5>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 mb-1">Tiền sử thai sản</label>
+                                                <select
+                                                    value={tsbtThaiSan}
+                                                    onChange={e => setTsbtThaiSan(e.target.value)}
+                                                    disabled={isLocked}
+                                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-semibold"
+                                                >
+                                                    <option value="0">0 - Không</option>
+                                                    <option value="1">1 - Có</option>
+                                                </select>
+                                            </div>
+                                            {tsbtThaiSan === '1' && (
+                                                <>
+                                                    <div className="md:col-span-2">
+                                                        <ICD10MultiSelect
+                                                            label="Cụ thể tên bệnh thai sản (Mã ICD-10)"
+                                                            value={tsbtMaBenhThaiSan}
+                                                            onChange={setTsbtMaBenhThaiSan}
+                                                            disabled={isLocked}
+                                                            placeholder="Tìm theo mã hoặc tên bệnh thai sản (VD: O24, O14...)"
+                                                        />
+                                                    </div>
+                                                    <div className="md:col-span-3">
+                                                        <label className="block text-xs font-bold text-slate-500 mb-1">Thuốc đang sử dụng điều trị bệnh thai sản</label>
+                                                        <input
+                                                            type="text"
+                                                            value={tsbtTenThuocThaiSan}
+                                                            onChange={e => setTsbtTenThuocThaiSan(e.target.value)}
+                                                            disabled={isLocked}
+                                                            className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white"
+                                                            placeholder="Liệt kê tên thuốc, liều lượng đang dùng..."
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
@@ -816,8 +932,12 @@ const HistoryTab: React.FC = () => {
 
             {!isChild && formType !== '3' && (
                 <div>
-                    <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">II.2. Tiền sử bệnh bản thân &amp; Gia đình</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2 mb-4">
+                        II.2. Tiền sử bệnh bản thân &amp; Gia đình {formType === '2' ? '(Chuẩn QĐ 1551 mục 36-39)' : ''}
+                    </h4>
+                    
+                    {/* Gia đình */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1">Gia đình có tiền sử bệnh bẩm sinh/truyền nhiễm</label>
                             <select value={tsgdMacBenh} onChange={e => setTsgdMacBenh(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
@@ -836,42 +956,186 @@ const HistoryTab: React.FC = () => {
                             />
                         )}
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                        <ICD10MultiSelect
-                            label="Mã bệnh bản thân đã/đang điều trị (Mã ICD-10)"
-                            value={tsbtMaBenh}
-                            onChange={setTsbtMaBenh}
-                            disabled={isLocked}
-                            placeholder="Tìm theo mã hoặc tên bệnh (VD: I10, E11...)"
-                        />
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">Năm phát hiện bệnh</label>
-                            <input type="text" value={tsbtNamPhatHienBenh} onChange={e => setTsbtNamPhatHienBenh(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="VD: 2021" />
+
+                    {/* Bản thân cho Mẫu 2 (Mục 36 - 39) */}
+                    {formType === '2' ? (
+                        <div className="p-4 bg-slate-50 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700 rounded-xl space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">
+                                        36. Mắc bệnh truyền nhiễm hoặc bệnh khác trong 5 năm qua (TSBT_BENH_TRONG_5_NAM_QUA)
+                                    </label>
+                                    <select
+                                        value={ts5Nam}
+                                        onChange={e => setTs5Nam(parseInt(e.target.value) || 0)}
+                                        disabled={isLocked}
+                                        className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white"
+                                    >
+                                        <option value="0">0 - Không</option>
+                                        <option value="1">1 - Có</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">
+                                        37. Hiện tại có đang mắc bệnh gì không (TSBT_MAC_BENH)
+                                    </label>
+                                    <select
+                                        value={tsMacBenh}
+                                        onChange={e => setTsMacBenh(parseInt(e.target.value) || 0)}
+                                        disabled={isLocked}
+                                        className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-semibold"
+                                    >
+                                        <option value="0">0 - Không</option>
+                                        <option value="1">1 - Có</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {tsMacBenh === 1 && (
+                                <div className="pt-2 border-t border-slate-100 dark:border-slate-700/50">
+                                    <ICD10MultiSelect
+                                        label="Tên bệnh đang mắc (Mã bệnh ICD-10) (TSBT_MA_BENH)"
+                                        value={tsbtMaBenh}
+                                        onChange={setTsbtMaBenh}
+                                        disabled={isLocked}
+                                        placeholder="Tìm theo mã hoặc tên bệnh ICD-10 (VD: J45, K29...)"
+                                    />
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100 dark:border-slate-700/50">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">
+                                        38. Đang điều trị bệnh gì không (TSBT_DANG_DIEU_TRI_BENH)
+                                    </label>
+                                    <select
+                                        value={tsbtDangDieuTriBenh}
+                                        onChange={e => setTsbtDangDieuTriBenh(e.target.value)}
+                                        disabled={isLocked}
+                                        className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white"
+                                    >
+                                        <option value="0">0 - Không</option>
+                                        <option value="1">1 - Có</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">
+                                        39. Cụ thể tên bệnh và liệt kê các thuốc đang dùng (BENH_DANG_DIEU_TRI)
+                                    </label>
+                                    <textarea
+                                        value={benhDangDieuTri || tenThuoc}
+                                        onChange={e => {
+                                            setBenhDangDieuTri(e.target.value);
+                                            setTenThuoc(e.target.value);
+                                        }}
+                                        disabled={isLocked}
+                                        rows={2}
+                                        className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white"
+                                        placeholder="Ghi rõ tên bệnh và danh sách các thuốc đang sử dụng..."
+                                    />
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    
-                    {/* Tiền sử bệnh nghề nghiệp QĐ 1551 */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50">
-                        <ICD10MultiSelect
-                            label="Mã bệnh nghề nghiệp (Mã ICD-10)"
-                            value={tsbtMaBenhNgheNghiep}
-                            onChange={setTsbtMaBenhNgheNghiep}
-                            disabled={isLocked}
-                            placeholder="Tìm theo mã hoặc tên bệnh (VD: J60, H83...)"
-                        />
+                    ) : (
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">Năm phát hiện bệnh nghề nghiệp</label>
-                            <input type="text" value={tsbtNamPhatHienBenhNgheNghiep} onChange={e => setTsbtNamPhatHienBenhNgheNghiep(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="VD: 2023" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                <ICD10MultiSelect
+                                    label="Mã bệnh bản thân đã/đang điều trị (Mã ICD-10)"
+                                    value={tsbtMaBenh}
+                                    onChange={setTsbtMaBenh}
+                                    disabled={isLocked}
+                                    placeholder="Tìm theo mã hoặc tên bệnh (VD: I10, E11...)"
+                                />
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">Năm phát hiện bệnh</label>
+                                    <input type="text" value={tsbtNamPhatHienBenh} onChange={e => setTsbtNamPhatHienBenh(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="VD: 2021" />
+                                </div>
+                            </div>
+                            
+                            {/* Tiền sử bệnh nghề nghiệp QĐ 1551 */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50">
+                                <ICD10MultiSelect
+                                    label="Mã bệnh nghề nghiệp (Mã ICD-10)"
+                                    value={tsbtMaBenhNgheNghiep}
+                                    onChange={setTsbtMaBenhNgheNghiep}
+                                    disabled={isLocked}
+                                    placeholder="Tìm theo mã hoặc tên bệnh (VD: J60, H83...)"
+                                />
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">Năm phát hiện bệnh nghề nghiệp</label>
+                                    <input type="text" value={tsbtNamPhatHienBenhNgheNghiep} onChange={e => setTsbtNamPhatHienBenhNgheNghiep(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="VD: 2023" />
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             )}
 
-            {!isChild && gender && (gender.toString().toLowerCase().includes('nữ') || gender.toString().toLowerCase().includes('female') || gender === '2') && (
+            {/* Tiền sử Sản khoa lúc sinh (Mẫu 2: 6-18 tuổi chuẩn mục 26-28 QĐ 1551 - ÁP DỤNG CẢ NAM VÀ NỮ) */}
+            {formType === '2' && (
+                <div className="p-4 bg-purple-50/30 dark:bg-purple-950/10 border border-purple-100/40 dark:border-purple-900/20 rounded-xl space-y-4">
+                    <h4 className="text-sm font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider border-b border-purple-100/50 dark:border-purple-900/30 pb-2 flex items-center justify-between">
+                        <span>II.3. Tiền sử Sản khoa lúc sinh (Đối với trẻ từ đủ 06 đến dưới 18 tuổi - Áp dụng cả Nam và Nữ)</span>
+                        <span className="text-[10px] normal-case text-purple-500 font-bold">* Chuẩn mục 26-28 QĐ 1551</span>
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">26. Tiền sử sản khoa lúc sinh (SAN_KHOA)</label>
+                            <select
+                                value={tsbtThaiSan !== undefined && tsbtThaiSan !== '' ? tsbtThaiSan : '1'}
+                                onChange={e => {
+                                    setTsbtThaiSan(e.target.value);
+                                    if (e.target.value === '1') {
+                                        setTinhChatKinhNguyet('0');
+                                        setTsbtMaBenhThaiSan('');
+                                    }
+                                }}
+                                disabled={isLocked}
+                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
+                            >
+                                <option value="1">1 - Bình thường</option>
+                                <option value="0">0 - Không bình thường</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">27. Bất thường sản khoa lúc sinh (SAN_KHOA_KHONG_BT)</label>
+                            <select
+                                value={tinhChatKinhNguyet || (tsbtThaiSan === '0' ? '1' : '0')}
+                                onChange={e => {
+                                    setTinhChatKinhNguyet(e.target.value);
+                                }}
+                                disabled={isLocked || tsbtThaiSan === '1'}
+                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white"
+                            >
+                                <option value="0">0 - Không có bất thường</option>
+                                <option value="1">1 - Đẻ thiếu tháng (&lt; 37 tuần)</option>
+                                <option value="2">2 - Đẻ thừa cân (&gt; 4000g)</option>
+                                <option value="3">3 - Đẻ có can thiệp (giác hút/mổ)</option>
+                                <option value="4">4 - Đẻ ngạt</option>
+                                <option value="5">5 - Mẹ bị bệnh trong thời kỳ mang thai</option>
+                            </select>
+                        </div>
+                    </div>
+                    {(tsbtThaiSan === '0' || (tinhChatKinhNguyet && tinhChatKinhNguyet !== '0')) && (
+                        <div className="pt-2 border-t border-purple-100 dark:border-purple-900/30">
+                            <ICD10MultiSelect
+                                label="28. Tên bệnh gây ra sản khoa không bình thường (Mã ICD-10) (MA_BENH_SAN_KHOA_KHONG_BT)"
+                                value={tsbtMaBenhThaiSan}
+                                onChange={setTsbtMaBenhThaiSan}
+                                disabled={isLocked}
+                                placeholder="Tìm theo mã hoặc tên bệnh ICD-10 (VD: P07, P08, P21, O99...)"
+                            />
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Tiền sử Sản phụ khoa cho các biểu mẫu người lớn khác (NGOẠI TRỪ MẪU 3 VÀ MẪU 2) */}
+            {!isChild && formType !== '2' && formType !== '3' && (gender && (gender.toString().toLowerCase().includes('nữ') || gender.toString().toLowerCase().includes('female') || gender === '2')) && (
                 <div className="animate-fadeIn p-4 bg-pink-50/30 dark:bg-pink-950/10 border border-pink-100/40 dark:border-pink-900/20 rounded-xl space-y-4">
                     <h4 className="text-sm font-bold text-pink-600 dark:text-pink-400 uppercase tracking-wider border-b border-pink-100/50 dark:border-pink-900/30 pb-2 flex items-center justify-between">
-                        <span>II.3. Tiền sử Sản phụ khoa (Đối với nữ)</span>
-                        <span className="text-[10px] normal-case text-pink-500 dark:text-pink-400 font-bold">* Chỉ nhập với giới tính Nữ</span>
+                        <span>II.3. Tiền sử Sản phụ khoa</span>
+                        <span className="text-[10px] normal-case text-pink-500 dark:text-pink-400 font-bold">* Chỉ nhập nội dung phù hợp đối tượng</span>
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>

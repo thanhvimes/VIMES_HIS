@@ -85,7 +85,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
         );
     }
     
-    const formState = useDynamicFormState(formType, initialData, onSave, onPreview);
+    const formState = useDynamicFormState(formType, initialData, onSave, onPreview, onChangeFormType);
     const {
         handlePreview,
         activeTab,
@@ -262,7 +262,6 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                                 <option value="1" className="text-slate-800 bg-white">Mẫu 1: Trẻ em dưới 06 tuổi</option>
                                 <option value="2" className="text-slate-800 bg-white">Mẫu 2: Người từ đủ 06 tuổi đến dưới 18 tuổi</option>
                                 <option value="3" className="text-slate-800 bg-white">Mẫu 3: Người từ đủ 18 tuổi trở lên</option>
-                                <option value="driver" className="text-slate-800 bg-white">Giấy KSK người lái xe (Học lái xe / Nâng hạng / Đổi GPLX)</option>
                             </select>
                         </div>
                     ) : (
@@ -348,7 +347,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
 
             {/* Footer Buttons */}
             <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/80 px-6 py-4 border-t border-slate-200 dark:border-slate-700">
-                <div>
+                <div className="flex items-center gap-2.5">
                     {isLocked ? (
                         <button
                             type="button"
@@ -365,34 +364,61 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                                     }
                                 });
                             }}
-                            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+                            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-1.5"
                         >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                            </svg>
                             Mở khóa hồ sơ
                         </button>
                     ) : (
-                        <button
-                            type="button"
-                            disabled={!patientName}
-                            onClick={() => {
-                                setConfirmConfig({
-                                    isOpen: true,
-                                    title: "Khóa & Ký Số",
-                                    message: "Bạn có chắc chắn muốn Khóa & Ký số hồ sơ này? Sau khi khóa sẽ không thể chỉnh sửa dữ liệu.",
-                                    confirmText: "Khóa & Ký Số",
-                                    cancelText: "Hủy bỏ",
-                                    severity: "success",
-                                    onConfirm: (sigType?: 'USB' | 'HSM') => {
-                                        setTimeout(() => {
-                                            handleSubmit(undefined, { shouldSign: true, signatureType: sigType });
-                                        }, 50);
-                                    }
-                                });
-                            }}
-                            className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
-                            title={!patientName ? "Vui lòng nhập thông tin bệnh nhân trước khi thực hiện" : ""}
-                        >
-                            Khóa &amp; Ký Số
-                        </button>
+                        <>
+                            <button
+                                type="button"
+                                disabled={!patientName}
+                                onClick={() => {
+                                    handleSubmit();
+                                }}
+                                className="px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-1.5"
+                                title="Lưu thông tin hồ sơ (không khóa sổ, có thể tiếp tục chỉnh sửa)"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                    <polyline points="17 21 17 13 7 13 7 21"/>
+                                    <polyline points="7 3 7 8 15 8"/>
+                                </svg>
+                                Lưu hồ sơ
+                            </button>
+
+                            <button
+                                type="button"
+                                disabled={!patientName}
+                                onClick={() => {
+                                    setConfirmConfig({
+                                        isOpen: true,
+                                        title: "Khóa & Ký Số",
+                                        message: "Bạn có chắc chắn muốn Khóa & Ký số hồ sơ này? Sau khi khóa sẽ không thể chỉnh sửa dữ liệu.",
+                                        confirmText: "Khóa & Ký Số",
+                                        cancelText: "Hủy bỏ",
+                                        severity: "success",
+                                        onConfirm: (sigType?: 'USB' | 'HSM') => {
+                                            setTimeout(() => {
+                                                handleSubmit(undefined, { shouldSign: true, signatureType: sigType });
+                                            }, 50);
+                                        }
+                                    });
+                                }}
+                                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-1.5"
+                                title={!patientName ? "Vui lòng nhập thông tin bệnh nhân trước khi thực hiện" : "Khóa và ký số hồ sơ để liên thông"}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                </svg>
+                                Khóa &amp; Ký Số
+                            </button>
+                        </>
                     )}
                 </div>
                 <div className="flex gap-3">

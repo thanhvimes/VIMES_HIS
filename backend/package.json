@@ -11,17 +11,33 @@
     "benchmark:documents": "node scripts/benchmark-document-engine.cjs",
     "smoke:carbone": "node scripts/smoke-carbone-live.cjs",
     "migrate": "ts-node src/scripts/run-migrations.ts",
-    "seed:template-studio": "ts-node scripts/seed-template-studio.ts"
+    "seed:template-studio": "ts-node scripts/seed-template-studio.ts",
+    "benchmark:template-queue": "node scripts/benchmark-template-queue.cjs",
+    "benchmark:template-render": "node scripts/benchmark-template-render.cjs",
+    "worker:template-preview": "ts-node src/scripts/template-preview-worker.ts",
+    "cleanup:preview-artifacts": "ts-node scripts/cleanup-preview-artifacts.ts",
+    "cleanup:template-notifications": "ts-node scripts/cleanup-template-notifications.ts",
+    "generate:template-benchmark-data": "node scripts/generate-template-benchmark-data.cjs",
+    "benchmark:template-rate": "node scripts/benchmark-template-rate.cjs",
+    "acceptance:preflight": "powershell -File scripts/staging-preflight.ps1",
+    "acceptance:bundle": "powershell -File scripts/run-acceptance-bundle.ps1",
+    "acceptance:smoke": "node scripts/smoke-validate-toolkit.cjs",
+    "acceptance:report": "node scripts/build-acceptance-report.cjs staging-evidence"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1107.0",
+    "@aws-sdk/s3-request-presigner": "^3.1107.0",
     "@google/genai": "^1.52.0",
     "axios": "^1.6.2",
     "bcrypt": "^6.0.0",
+    "bullmq": "^5.81.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "ioredis": "^5.11.1",
     "jsonwebtoken": "^9.0.3",
-    "pg": "^8.11.3"
+    "pg": "^8.11.3",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@types/axios": "^0.9.36",
@@ -32,6 +48,7 @@
     "@types/multer": "^2.1.0",
     "@types/node": "^25.4.0",
     "@types/pg": "^8.18.0",
+    "docx": "^9.7.1",
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"

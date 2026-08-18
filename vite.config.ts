@@ -36,6 +36,8 @@ export default defineConfig(({ mode }) => {
           manualChunks(id) {
             if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-')) return 'charts';
             if (id.includes('node_modules/jspdf') || id.includes('node_modules/pdfjs-dist')) return 'pdf';
+            if (id.includes('node_modules/xlsx')) return 'xlsx';
+            if (id.includes('node_modules/html2canvas')) return 'canvas';
           }
         }
       }

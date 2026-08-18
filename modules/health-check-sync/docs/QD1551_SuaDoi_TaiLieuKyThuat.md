@@ -309,7 +309,9 @@ Dữ liệu được đẩy lên cổng y tế thông qua giao thức API RESTfu
         "ref_msg_id": "<ref_id>",
         "send_datetime": 1718812673000
       },
-      "data": "CHUỖI_XML_ENVELOPE_ENCODE_BASE64",
+      "data": {
+        "file_content": "CHUỖI_XML_ENVELOPE_ENCODE_BASE64"
+      },
       "signature": "CHECKSUM_RSA_SHA256_BASE64"
     }
     ```
@@ -322,7 +324,7 @@ Dữ liệu được đẩy lên cổng y tế thông qua giao thức API RESTfu
 ## 11. Quy trình ký số & Băm dữ liệu (Checksum Signature)
 Để bảo đảm tính toàn vẹn, trước khi truyền tin, client phải tính toán chữ ký checksum:
 1. `hashA` = `SHA256(JSON.stringify(header))` (JSON header không có khoảng trắng/xuống dòng).
-2. `hashB` = `SHA256(data)` (data là chuỗi XML Base64 của toàn bộ Envelope).
+2. `hashB` = `SHA256(data)` (data là object chứa `file_content` XML Base64 của toàn bộ Envelope; canonicalize object trước khi băm).
 3. `message` = `hashA + "." + hashB`.
 4. `SIGNATURE` = `RSA-PKCS1-SHA256_Sign(message, PrivateKey)` → mã hóa Base64.
 

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>Vimes.Agent.Signing</AssemblyName></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Vimes.Agent.Contracts\Vimes.Agent.Contracts.csproj" />
+    <ProjectReference Include="..\Vimes.Agent.Ipc\Vimes.Agent.Ipc.csproj" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+</Project>

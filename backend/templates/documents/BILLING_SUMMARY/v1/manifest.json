@@ -1,0 +1,8 @@
+{
+  "code": "BILLING_SUMMARY",
+  "name": "Bảng kê chi phí khám chữa bệnh (Viện phí)",
+  "version": 1,
+  "file": "template.docx",
+  "documentType": "BILLING_SUMMARY",
+  "status": "published"
+}

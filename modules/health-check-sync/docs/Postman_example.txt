@@ -1,4 +1,5 @@
  Request 1 :
+ NOTE: Ví dụ payload lịch sử bên dưới dùng format cũ `data` là chuỗi Base64. Khi kiểm thử theo QĐ 2062, phải đổi thành `data: { "file_content": "<Base64 XML>" }` và tạo lại checksum theo payload mới. Xem `HuongDanTest_Postman.md`.
 postman request POST 'https://api-sandbox.emrhub.vn/api/platform/data-sync/push' \
   --header 'service-type: 100' \
   --header 'Content-Type: application/json' \

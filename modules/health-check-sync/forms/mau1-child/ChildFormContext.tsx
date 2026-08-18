@@ -110,6 +110,10 @@ export interface ChildFormContextType {
     setTsBanThan: React.Dispatch<React.SetStateAction<string>>;
     tsGiaDinh: string;
     setTsGiaDinh: React.Dispatch<React.SetStateAction<string>>;
+    tsbtNghienRuou: string;
+    setTsbtNghienRuou: React.Dispatch<React.SetStateAction<string>>;
+    tsbtMaBenhKhac: string;
+    setTsbtMaBenhKhac: React.Dispatch<React.SetStateAction<string>>;
     tsTiepXucLao: string;
     setTsTiepXucLao: React.Dispatch<React.SetStateAction<string>>;
 

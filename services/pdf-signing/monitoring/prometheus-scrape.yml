@@ -1,0 +1,10 @@
+# Merge this job into prometheus.yml (do not commit credentials here).
+scrape_configs:
+  - job_name: vimes-pdf-signing
+    metrics_path: /metrics/prometheus
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['vimes-pdf-signing:8080']
+        labels:
+          service: pdf-signing
+          environment: staging

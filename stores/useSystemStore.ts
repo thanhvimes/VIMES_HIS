@@ -1,17 +1,15 @@
-
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { NavItemType } from '../types/common';
 import { settingsService } from '../services/settingsService';
 import { RECEPTION_NAV_ITEMS } from '../modules/reception/constants';
-import { ONLINE_BOOKING_NAV_ITEMS } from '../modules/online-booking/constants'; // NEW
+import { ONLINE_BOOKING_NAV_ITEMS } from '../modules/online-booking/constants';
 import { CONSULTATION_NAV_ITEMS } from '../modules/consultation/constants';
 import { BILLING_NAV_ITEMS } from '../modules/billing/constants';
 import { PHARMACY_NAV_ITEMS } from '../modules/pharmacy/constants';
 import { MEDICAL_SUPPLIES_NAV_ITEMS } from '../modules/medical-supplies/constants';
 import { LAB_RESULTS_NAV_ITEMS } from '../modules/lab-results/constants';
 import { IMAGING_RESULTS_NAV_ITEMS } from '../modules/imaging-results/constants';
-import { PACS_RIS_NAV_ITEMS } from '../modules/pacs-ris/constants';
 import { INPATIENT_NAV_ITEMS, DOCTOR_NAV_ITEMS, NURSE_NAV_ITEMS } from '../modules/inpatient-treatment/constants';
 import { SURGERY_NAV_ITEMS } from '../modules/surgery/constants';
 import { EQUIPMENT_NAV_ITEMS } from '../modules/equipment/constants';
@@ -24,7 +22,7 @@ import { TELEMEDICINE_NAV_ITEMS } from '../modules/telemedicine/constants';
 import { CRM_NAV_ITEMS } from '../modules/crm/constants';
 import { HR_NAV_ITEMS } from '../modules/hr/constants';
 import { QUEUE_NAV_ITEMS } from '../modules/queue-management/constants';
-import { DOCUMENTS_NAV_ITEMS } from '../modules/documents/constants';
+import { DOCUMENTS_NAV_ITEMS } from '../modules/document-engine/constants';
 import { ICON_MAP } from '../components/icon-map';
 import React from 'react';
 
@@ -73,14 +71,13 @@ const defaultSlides: SlideItem[] = [
 
 const defaultMenuConfigRaw: Record<string, NavItemType[]> = {
     reception: RECEPTION_NAV_ITEMS,
-    'online-booking': ONLINE_BOOKING_NAV_ITEMS, // NEW
+    'online-booking': ONLINE_BOOKING_NAV_ITEMS,
     consultation: CONSULTATION_NAV_ITEMS,
     billing: BILLING_NAV_ITEMS,
     pharmacy: PHARMACY_NAV_ITEMS,
     'medical-supplies': MEDICAL_SUPPLIES_NAV_ITEMS,
     'lab-results': LAB_RESULTS_NAV_ITEMS,
     'imaging-results': IMAGING_RESULTS_NAV_ITEMS,
-    'pacs-ris': PACS_RIS_NAV_ITEMS,
     'inpatient-treatment': INPATIENT_NAV_ITEMS,
     surgery: SURGERY_NAV_ITEMS,
     equipment: EQUIPMENT_NAV_ITEMS,
@@ -155,30 +152,31 @@ export const useSystemStore = create<SystemState>()(
                 const defaultItems = defaultMenuConfigRaw[moduleId] || [];
 
                 if (config) {
-                    // AUTO-SYNC: Check if any default items are missing from current config
-                    const currentPaths = new Set(config.map(item => item.path));
+                    const defaultPaths = new Set(defaultItems.map(item => item.path));
+                    // Keep only valid items that exist in current module schema
+                    const validConfig = config.filter(item => defaultPaths.has(item.path));
+                    const currentPaths = new Set(validConfig.map(item => item.path));
                     const missingItems = defaultItems
                         .filter(item => !currentPaths.has(item.path))
                         .map(mapConstantToDTO);
 
-                    if (missingItems.length > 0) {
-                        const updatedConfig = [...config, ...missingItems];
-                        // Update state and persistence
+                    if (validConfig.length !== config.length || missingItems.length > 0) {
+                        const updatedConfig = [...validConfig, ...missingItems];
                         setTimeout(() => {
                             set((state) => ({
                                 menuConfig: { ...state.menuConfig, [moduleId]: updatedConfig }
                             }));
                         }, 0);
                         return updatedConfig
-                        .filter(item => item.isVisible !== false)
-                        .filter(item => !item.adminOnly || role === 'admin')
-                        .map(mapDTOToNavItem);
+                            .filter(item => item.isVisible !== false)
+                            .filter(item => !item.adminOnly || role === 'admin')
+                            .map(mapDTOToNavItem);
                     }
 
                     return config
-                    .filter(item => item.isVisible !== false)
-                    .filter(item => !item.adminOnly || role === 'admin')
-                    .map(mapDTOToNavItem);
+                        .filter(item => item.isVisible !== false)
+                        .filter(item => !item.adminOnly || role === 'admin')
+                        .map(mapDTOToNavItem);
                 }
                 return defaultItems;
             },
@@ -201,11 +199,8 @@ export const useSystemStore = create<SystemState>()(
                     // Also try to get core details from SYS_COMPANY table directly to ensure they are available
                     try {
                         const company = await settingsService.getCompanyInfo();
-                        // Only overwrite if it wasn't already set from settings, or prefer company info?
-                        // Usually company info is the source of truth for hospital name
                         if (company?.hospitalName) updates.hospitalName = company.hospitalName;
                         if (company?.parentOrg) updates.parentOrg = company.parentOrg;
-                        // Logo is now stored in SYS_COMPANY
                         if (company?.logoUrl) updates.logoUrl = company.logoUrl;
                     } catch (e) {
                         console.warn('SYS_COMPANY fetch failed:', e);

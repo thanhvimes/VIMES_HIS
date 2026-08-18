@@ -19,13 +19,12 @@ const Equipment = React.lazy(() => import('./modules/equipment/index'));
 const Billing = React.lazy(() => import('./modules/billing/index'));
 const LabResults = React.lazy(() => import('./modules/lab-results/index'));
 const ImagingResults = React.lazy(() => import('./modules/imaging-results/index'));
-const PacsRisModule = React.lazy(() => import('./modules/pacs-ris/index'));
 const Pharmacy = React.lazy(() => import('./modules/pharmacy/index'));
 const MedicalSupplies = React.lazy(() => import('./modules/medical-supplies/index'));
 const RecordStorage = React.lazy(() => import('./modules/record-storage/index'));
 const Admin = React.lazy(() => import('./modules/admin/index'));
 const ManagementReporting = React.lazy(() => import('./modules/management-reporting/index'));
-const Documents = React.lazy(() => import('./modules/documents/index'));
+const Documents = React.lazy(() => import('./modules/document-engine/index'));
 const ReportsModule = React.lazy(() => import('./modules/reports/index'));
 const InsuranceModule = React.lazy(() => import('./modules/insurance/index'));
 const HealthCheckSyncModule = React.lazy(() => import('./modules/health-check-sync/index'));
@@ -35,6 +34,7 @@ const HR = React.lazy(() => import('./modules/hr/index'));
 const Portal = React.lazy(() => import('./modules/portal/index'));
 const CommandCenter = React.lazy(() => import('./modules/command-center/index'));
 const QueueManagement = React.lazy(() => import('./modules/queue-management/index'));
+const EmrModule = React.lazy(() => import('./modules/emr/index'));
 
 import { PdfPreviewProvider } from './contexts/PdfPreviewContext';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -55,9 +55,8 @@ const moduleTitles: { [key: string]: string } = {
   equipment: 'Trang thiết bị Y tế',
   billing: 'Viện phí',
   'lab-results': 'KQ Xét nghiệm',
-  'imaging-results': 'KQ Hình ảnh',
-  'pacs-ris': 'Chẩn đoán Hình ảnh & PACS-RIS',
-  pharmacy: 'Dược & Vật tư',
+  'imaging-results': 'Chẩn đoán Hình ảnh (RIS)',
+    pharmacy: 'Dược & Vật tư',
   'medical-supplies': 'Vật tư Y tế',
   'record-storage': 'Lưu trữ hồ sơ',
   admin: 'Quản trị Hệ thống',
@@ -69,7 +68,8 @@ const moduleTitles: { [key: string]: string } = {
   hr: 'Quản lý Nhân sự',
   'command-center': 'Trung tâm Điều hành Bệnh viện',
   'queue-management': 'Quản lý Hàng đợi',
-  documents: 'Xem tài liệu',
+  documents: 'Thiết lập Mẫu biểu',
+  emr: 'Bệnh án Điện tử (EMR)',
   reports: 'Hệ thống Báo cáo',
   settings: 'Cài đặt',
 };
@@ -92,21 +92,22 @@ const WorkspaceLayout: React.FC = () => {
       'inpatient-treatment': 'tm',
       'surgery': 'sm',
       'lab-results': 'lab',
-      'imaging-results': 'us',
-      'pacs-ris': 'us',
-      'pharmacy': 'pm',
+      'imaging-results': 'Chẩn đoán Hình ảnh (RIS)',
+            'pharmacy': 'pm',
       'medical-supplies': 'ma',
       'billing': 'fam',
       'insurance': 'fam',
       'hr': 'hr',
       'management-reporting': 'st',
       'admin': 'sys',
+      'documents': 'doc',
     };
     return modulePermissionKeys[currentModuleRoot];
   }, [currentModuleRoot]);
 
   if (requiredPermissionKey && user && user.role !== 'admin' && user.userId !== 'admin') {
-    if (!user.modules || user.modules[requiredPermissionKey] !== true) {
+    const hasDocPerm = requiredPermissionKey === 'doc' && (user.role === 'admin' || (user.permissions && user.permissions.some(p => p.startsWith('DOCUMENT_TEMPLATE_'))));
+    if (!hasDocPerm && (!user.modules || user.modules[requiredPermissionKey] !== true)) {
       return <Navigate to="/staff-dashboard" replace />;
     }
   }
@@ -204,7 +205,7 @@ const StaffSystem: React.FC = () => {
         <Route path="/billing/*" element={<Billing />} />
         <Route path="/lab-results/*" element={<LabResults />} />
         <Route path="/imaging-results/*" element={<ImagingResults />} />
-        <Route path="/pacs-ris/*" element={<PacsRisModule />} />
+        <Route path="/pacs-ris/*" element={<Navigate to="/imaging-results" replace />} />
         <Route path="/pharmacy/*" element={<Pharmacy />} />
         <Route path="/medical-supplies/*" element={<MedicalSupplies />} />
         <Route path="/record-storage/*" element={<RecordStorage />} />
@@ -213,6 +214,7 @@ const StaffSystem: React.FC = () => {
         <Route path="/insurance/*" element={<InsuranceModule />} />
         <Route path="/health-check/*" element={<HealthCheckSyncModule />} />
         <Route path="/documents/*" element={<Documents />} />
+        <Route path="/emr/*" element={<EmrModule />} />
         <Route path="/reports/*" element={<ReportsModule />} />
         <Route path="/command-center/*" element={<CommandCenter />} />
         <Route path="/queue-management/*" element={<QueueManagement />} />

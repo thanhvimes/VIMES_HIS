@@ -1,0 +1,8 @@
+{
+  "code": "ULTRASOUND_RESULT",
+  "name": "Phiếu kết quả siêu âm (4 ảnh)",
+  "version": 1,
+  "file": "template.docx",
+  "documentType": "ULTRASOUND_RESULT",
+  "status": "published"
+}

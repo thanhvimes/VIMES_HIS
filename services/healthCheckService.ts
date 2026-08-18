@@ -95,6 +95,21 @@ export const healthCheckService = {
         }
     },
 
+    signAgentChallenge: async (signingPayload: string): Promise<{ signatureBase64: string }> => {
+        const response: any = await apiClient.post('/health-check-sync/agent/session/sign-challenge', { signingPayload });
+        return response.data || response;
+    },
+
+    prepareXmlSignature: async (id: string, certificateBase64: string, certificateChainBase64: string[] = []): Promise<any> => {
+        const response: any = await apiClient.post(`/health-check-sync/documents/${id}/xml-signature/prepare`, { certificateBase64, certificateChainBase64 });
+        return response.data || response;
+    },
+
+    completeXmlSignature: async (id: string, transactionId: string, rawSignatureBase64: string): Promise<any> => {
+        const response: any = await apiClient.post(`/health-check-sync/documents/${id}/xml-signature/complete`, { transactionId, rawSignatureBase64 });
+        return response.data || response;
+    },
+
     sendDocumentsToPortal: async (docIds: string[]): Promise<string[]> => {
         try {
             return await apiClient.post<string[]>('/health-check-sync/documents/send', { docIds });
@@ -104,8 +119,8 @@ export const healthCheckService = {
         }
     },
 
-    unlockDocument: async (id: string): Promise<boolean> => {
-        await apiClient.post(`/health-check-sync/documents/${id}/unlock`, {});
+    unlockDocument: async (id: string, reason = 'Điều chỉnh hồ sơ theo yêu cầu nghiệp vụ'): Promise<boolean> => {
+        await apiClient.post(`/health-check-sync/documents/${id}/unlock`, { reason });
         return true;
     },
 

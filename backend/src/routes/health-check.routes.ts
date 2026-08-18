@@ -7,6 +7,9 @@ import { servicesController } from '../controllers/health-check/services.control
 import { receptionController } from '../controllers/health-check/reception.controller';
 import { sampleTrackingController } from '../controllers/health-check/sample-tracking';
 import authMiddleware from '../middleware/authMiddleware';
+import { signPdfViaVimesSigningServer } from '../services/vimes-signing.service';
+import crypto from 'node:crypto';
+import { healthCheckXmlDsigService } from '../services/health-check-xmldsig.service';
 
 const router = express.Router();
 
@@ -23,6 +26,34 @@ router.delete('/documents/:id', healthCheckController.deleteDocument.bind(health
 // Batch Operations
 router.post('/documents/send', healthCheckController.sendDocuments.bind(healthCheckController));
 router.post('/documents/sign', healthCheckController.signDocuments.bind(healthCheckController));
+router.post('/agent/session/sign-challenge', (req: any, res, next) => {
+  try {
+    const payload = String(req.body?.signingPayload || '');
+    if (!payload.startsWith('VIMES-AGENT-CHALLENGE\n') || payload.length > 2048) throw Object.assign(new Error('Invalid Agent challenge payload'), { status: 422, code: 'INVALID_AGENT_CHALLENGE' });
+    const privateKey = String(process.env.WORKSTATION_AGENT_BACKEND_PRIVATE_KEY_PEM || '').replace(/\\n/g, '\n');
+    if (!privateKey) throw Object.assign(new Error('Workstation Agent enrollment key is not configured'), { status: 503, code: 'AGENT_ENROLLMENT_KEY_MISSING' });
+    const signature = crypto.sign('RSA-SHA256', Buffer.from(payload, 'utf8'), privateKey).toString('base64');
+    res.json({ success: true, data: { signatureBase64: signature } });
+  } catch (error) { next(error); }
+});
+router.post('/documents/:id/xml-signature/prepare', async (req: any, res, next) => {
+  try { res.json({ success: true, data: await healthCheckXmlDsigService.prepare(Number(req.params.id), String(req.userId), String(req.body?.certificateBase64 || ''), Array.isArray(req.body?.certificateChainBase64) ? req.body.certificateChainBase64 : []) }); } catch (error) { next(error); }
+});
+router.post('/documents/:id/xml-signature/complete', async (req: any, res, next) => {
+  try { res.json({ success: true, data: await healthCheckXmlDsigService.complete(Number(req.params.id), String(req.userId), String(req.body?.transactionId || ''), String(req.body?.rawSignatureBase64 || '')) }); } catch (error) { next(error); }
+});
+// Test/integration endpoint for the new VIMES Signing Server (PDF/PAdES).
+router.post('/documents/sign-pdf-vimes', async (req, res, next) => {
+  try {
+    const { pdfBase64, pageIndex, x1Pt, y1Pt, x2Pt, y2Pt, fieldName, reason, idempotencyKey } = req.body || {};
+    const result = await signPdfViaVimesSigningServer(pdfBase64, {
+      pageIndex: Number(pageIndex ?? 0), x1Pt: Number(x1Pt), y1Pt: Number(y1Pt),
+      x2Pt: Number(x2Pt), y2Pt: Number(y2Pt), fieldName, reason,
+      requestId: req.header('x-request-id') || undefined, idempotencyKey,
+    });
+    res.json({ success: true, data: result });
+  } catch (error) { next(error); }
+});
 router.post('/documents/:id/unlock', healthCheckController.unlockDocument.bind(healthCheckController));
 router.post('/documents/seed-from-his', healthCheckController.seedFromHis.bind(healthCheckController));
 router.post('/documents/mark-printed', healthCheckController.markBarcodePrinted.bind(healthCheckController));

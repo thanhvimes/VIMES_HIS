@@ -1,29 +1,50 @@
-
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import DashboardView from './views/DashboardView';
-import WorklistView from './views/WorklistView';
-import ReadingView from './views/ReadingView';
-import ResultsListView from './views/ResultsListView';
-import ConfigurationView from './views/ConfigurationView';
+import GlobalLoading from '../../components/ui/GlobalLoading';
+
+// Import 7 Pages from features
+import { DashboardPage } from './features/dashboard/DashboardPage';
+import { StudyListPage } from './features/studies/StudyListPage';
+import { DoctorTaskManagerPage } from './features/tasks/DoctorTaskManagerPage';
+import { PacsServerPage } from './features/pacs/PacsServerPage';
+import { AuditLogPage } from './features/audit/AuditLogPage';
+import { PatientPortalPage } from './features/portal/PatientPortalPage';
+import { SettingsPage } from './features/settings/SettingsPage';
+
+import { NotificationProvider } from './contexts/NotificationContext';
 
 const ImagingResults: React.FC = () => {
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="worklist" replace />} />
-      <Route path="dashboard" element={<DashboardView />} />
-      <Route path="worklist" element={<WorklistView />} />
-      
-      {/* Route dành riêng cho bác sĩ đọc kết quả - Giao diện Workstation */}
-      <Route path="reading" element={<ReadingView />} />
-      <Route path="reading/:requestId" element={<ReadingView />} />
-      
-      {/* Tra cứu kết quả lịch sử */}
-      <Route path="list" element={<ResultsListView />} />
-      <Route path="config" element={<ConfigurationView />} />
-      
-      <Route path="*" element={<div className="p-10 text-center text-slate-400 font-bold uppercase">Chức năng đang được phát triển.</div>} />
-    </Routes>
+    <NotificationProvider>
+      <Suspense fallback={<GlobalLoading message="Đang tải phân hệ Chẩn đoán hình ảnh..." />}>
+        <Routes>
+          <Route index element={<Navigate to="/imaging-results/dashboard" replace />} />
+          <Route path="/" element={<Navigate to="/imaging-results/dashboard" replace />} />
+          
+          {/* 1. Tổng quan */}
+          <Route path="dashboard" element={<DashboardPage />} />
+          
+          {/* 2. Chẩn đoán hình ảnh */}
+          <Route path="studies" element={<StudyListPage />} />
+          <Route path="worklist" element={<StudyListPage />} />
+          <Route path="tasks" element={<DoctorTaskManagerPage />} />
+          
+          {/* 3. Hệ thống & Bảo mật */}
+          <Route path="pacs-server" element={<PacsServerPage />} />
+          <Route path="audit-logs" element={<AuditLogPage />} />
+          <Route path="portal" element={<PatientPortalPage />} />
+          <Route path="settings" element={<SettingsPage />} />
+          
+          {/* Legacy / Direct study read & search */}
+          <Route path="reading" element={<StudyListPage />} />
+          <Route path="reading/:requestId" element={<StudyListPage />} />
+          <Route path="search" element={<StudyListPage />} />
+          
+          {/* Catch-all redirect */}
+          <Route path="*" element={<Navigate to="/imaging-results/dashboard" replace />} />
+        </Routes>
+      </Suspense>
+    </NotificationProvider>
   );
 };
 

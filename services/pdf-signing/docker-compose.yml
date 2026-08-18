@@ -1,0 +1,34 @@
+services:
+  pdf-signing:
+    build: .
+    container_name: ${PDF_SIGNING_CONTAINER_NAME:-vimes-pdf-signing}
+    restart: unless-stopped
+    ports:
+      - "${PDF_SIGNING_BIND:-127.0.0.1}:${PDF_SIGNING_PORT:-8080}:8080"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      SIGNING_SERVICE_VERSION: ${SIGNING_SERVICE_VERSION:-0.1.0}
+      SIGNING_PROVIDER: ${SIGNING_PROVIDER:-test}
+      SIGNING_PROFILE: ${SIGNING_PROFILE:-PAdES-B-T}
+      SIGNING_MAX_PDF_BYTES: ${SIGNING_MAX_PDF_BYTES:-26214400}
+      SIGNING_MAX_OUTPUT_BYTES: ${SIGNING_MAX_OUTPUT_BYTES:-31457280}
+      SIGNING_MAX_CONCURRENCY: ${SIGNING_MAX_CONCURRENCY:-4}
+      SIGNING_IDEMPOTENCY_TTL_SECONDS: ${SIGNING_IDEMPOTENCY_TTL_SECONDS:-900}
+      SIGNING_TSA_URL: ${SIGNING_TSA_URL:-}
+      SIGNING_OCSP_URL: ${SIGNING_OCSP_URL:-}
+      SIGNING_CRL_URL: ${SIGNING_CRL_URL:-}
+      SIGNING_TRUST_ROOTS_DIR: /run/trust-roots
+      SIGNING_REVOCATION_MODE: ${SIGNING_REVOCATION_MODE:-hard-fail}
+      SIGNING_PFX_PATH: /run/secrets/signing.pfx
+      SIGNING_PFX_PASSWORD: ${SIGNING_PFX_PASSWORD:-}
+    volumes:
+      - ./secrets:/run/secrets:ro
+      - ./trust-roots:/run/trust-roots:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/ready')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5

@@ -4,10 +4,10 @@ import { healthCheckService } from '../../../services/healthCheckService';
 import { SearchIcon, UserGroupIcon, RefreshIcon, CheckCircleIcon, PrinterIcon } from '../../../components/Icons';
 import { toast } from 'sonner';
 import { HealthCheckSettings } from '../models/HealthCheckSettings';
+import { printZplViaWorkstationAgent } from '../services/workstationAgentPrintClient';
 import Combobox from '../../../components/ui/Combobox';
 import { useCatalogs } from '../../../contexts/CatalogContext';
 import { CatalogItem } from '../../../services/catalogService';
-import { qzPrinterService } from '../../../services/qzPrinterService';
 
 interface EmployeeSearchResult {
     id: number;
@@ -511,11 +511,11 @@ const PatientReception: React.FC = () => {
             .replace(/\{\{address\}\}/g, emp.address || '')
             .replace(/\{\{dateStr\}\}/g, dateStr);
 
-        // 1. Kiểm tra cấu hình máy in để in im lặng qua QZ Tray
-        if (settings?.use_qz_tray && settings?.barcode_printer_name) {
+        // 1. In qua Vimes.PrintAgent nếu đã cấu hình máy in
+        if (settings?.barcode_printer_name) {
             try {
-                toast.loading("Đang gửi lệnh in phiếu tiếp đón qua QZ Tray...");
-                const cleanHtmlForQz = `
+                toast.loading("Đang gửi lệnh in phiếu tiếp đón qua Vimes.PrintAgent...");
+                const legacyBrowserTemplate = `
                     <!DOCTYPE html>
                     <html>
                     <head>
@@ -571,19 +571,19 @@ const PatientReception: React.FC = () => {
                     </html>
                 `;
 
-                const success = await qzPrinterService.printHTML(settings.barcode_printer_name, cleanHtmlForQz, {
-                    size: { width: 80, height: 150 }
-                });
+                const zpl = `^XA^CF0,28^FO20,20^FD${emp.name.toUpperCase()}^FS^CF0,22^FO20,60^FDMa ho so: ${docNo}^FS^FO20,95^FDSinh: ${emp.dob || ''}^FS^FO20,130^FDCCCD: ${emp.card_id || ''}^FS^BY2,2,55^FO30,165^BCN,55,Y,N,N^FD${docNo}^FS^XZ`;
+                await printZplViaWorkstationAgent(settings.barcode_printer_name, zpl, `reception-slip-${docNo}`);
+                const success = true;
                 
                 toast.dismiss();
                 if (success) {
-                    toast.success("Đã in phiếu tiếp đón qua QZ Tray thành công!");
+                    toast.success("Đã in phiếu tiếp đón qua Vimes.PrintAgent thành công!");
                     return;
                 }
             } catch (err: any) {
                 toast.dismiss();
-                console.warn("QZ Tray print failed, falling back to browser print:", err);
-                toast.error("Không thể in qua QZ Tray. Đang chuyển sang chế độ in qua trình duyệt...");
+                console.warn("Vimes.PrintAgent print failed, falling back to browser print:", err);
+                toast.error("Không thể in qua Vimes.PrintAgent. Đang chuyển sang chế độ in qua trình duyệt...");
             }
         }
 

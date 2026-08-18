@@ -9,7 +9,7 @@ import { useSystemStore } from '../../../stores/useSystemStore';
 import { Code128Barcode } from './PrintBarcodeForm';
 import { PatientWithOrders, LabOrder, calculateAge, getGenderShort, getSampleTypeShort, formatDateTime } from '../components/PrintBarcodeXnModal';
 import { HealthCheckSettings } from '../models/HealthCheckSettings';
-import { qzPrinterService } from '../../../services/qzPrinterService';
+import { printZplViaWorkstationAgent } from '../services/workstationAgentPrintClient';
 import { toast } from 'sonner';
 
 // ========== TYPES ==========
@@ -66,7 +66,7 @@ const PrintBarcodeXnForm: React.FC<PrintBarcodeXnFormProps> = ({
         p.orders.map(order => ({ patient: p.patient, order }))
     );
 
-    const printViaQzZpl = async (settings: HealthCheckSettings): Promise<boolean> => {
+    const printViaAgentZpl = async (settings: HealthCheckSettings): Promise<boolean> => {
         try {
             const printerName = settings.barcode_printer_name || 'Zebra';
             const template = settings.barcode_zpl_template_xn;
@@ -90,14 +90,14 @@ const PrintBarcodeXnForm: React.FC<PrintBarcodeXnFormProps> = ({
                     .replace(/{date}/g, formatDateTime(item.order.sampleDate))
                     .replace(/{code}/g, item.order.orderNo);
 
-                await qzPrinterService.printZPL(printerName, zpl);
+                await printZplViaWorkstationAgent(printerName, zpl, `xn-barcode-${item.order.orderNo}`);
             }
-            toast.success(`Đã in ${totalLabels} tem qua QZ Tray thành công!`);
+            toast.success(`Đã in ${totalLabels} tem qua Vimes.PrintAgent thành công!`);
             onClose();
             return true;
         } catch (err: any) {
-            console.error("ZPL print error via QZ Tray:", err);
-            toast.error("Không thể in qua QZ Tray: " + err.message + ". Đang chuyển sang chế độ in trình duyệt...");
+            console.error("ZPL print error via Vimes.PrintAgent:", err);
+            toast.error("Không thể in qua Vimes.PrintAgent: " + err.message + ". Đang chuyển sang chế độ in trình duyệt...");
             return false;
         }
     };
@@ -108,13 +108,13 @@ const PrintBarcodeXnForm: React.FC<PrintBarcodeXnFormProps> = ({
         const runPrint = async () => {
             try {
                 const settings = await HealthCheckSettings.loadFromServer();
-                // Nếu được thiết lập sử dụng QZ Tray và tên máy in, mẫu ZPL thô, thực hiện in trực tiếp qua QZ Tray
-                if (settings.use_qz_tray && settings.barcode_printer_name && settings.barcode_zpl_template_xn) {
-                    const success = await printViaQzZpl(settings);
+                // Nếu đã cấu hình tên máy in và mẫu ZPL, gửi trực tiếp qua Vimes.PrintAgent
+                if (settings.barcode_printer_name && settings.barcode_zpl_template_xn) {
+                    const success = await printViaAgentZpl(settings);
                     if (success) return; // In thành công, dừng lại không mở cửa sổ in trình duyệt
                 }
             } catch (err) {
-                console.warn("QZ Tray print fallback to default browser print:", err);
+                console.warn("Vimes.PrintAgent print fallback to default browser print:", err);
             }
             
             // Fallback: Tự động in trình duyệt như cũ

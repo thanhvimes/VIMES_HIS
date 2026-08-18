@@ -1,0 +1,38 @@
+groups:
+  - name: vimes-pdf-signing
+    rules:
+      - alert: VimesSigningErrorRateHigh
+        expr: rate(vimes_sign_errors_total[5m]) / clamp_min(rate(vimes_sign_requests_total[5m]), 1) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: PDF signing error rate exceeds 1%
+      - alert: VimesSigningLatencyHigh
+        expr: vimes_sign_duration_ms_avg > 3000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Average PDF signing latency exceeds 3 seconds
+      - alert: VimesSigningSizeRejections
+        expr: increase(vimes_sign_rejected_size_total[10m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: PDF signing size rejections increased
+      - alert: VimesSigningConcurrencyRejected
+        expr: increase(vimes_sign_rejected_concurrency_total[5m]) > 20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: PDF signing concurrency limit is rejecting requests
+      - alert: VimesSigningCertificateExpiring
+        expr: vimes_signing_certificate_expires_in_days >= 0 and vimes_signing_certificate_expires_in_days <= 30
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Signing certificate expires within 30 days

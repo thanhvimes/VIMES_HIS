@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { query, transaction } from '../../config/database';
 import { getHealthCheckSettings } from '../../config/health-check-settings';
 import { generateXmlPayload } from './xml-generator';
+import { validateNewHealthCheckDocument } from '../../services/health-check-new-document-validation';
 
 class DocumentsController {
     
@@ -332,6 +333,17 @@ class DocumentsController {
             return res.status(400).json({ error: "Loại mẫu biểu formType là bắt buộc" });
         }
 
+        const newDocumentErrors = validateNewHealthCheckDocument({
+            formType,
+            dob,
+            examDate: req.body.examDate || req.body.exam_date || new Date(),
+            fundingSource: clinicalData?.funding_source || clinicalData?.fundingSource || req.body.fundingSource || req.body.funding_source,
+            fitnessClass: conclusionData?.fitness_class || conclusionData?.fitnessClass || req.body.fitnessClass || req.body.fitness_class,
+        });
+        if (newDocumentErrors.length > 0) {
+            return res.status(400).json({ error: newDocumentErrors.join('; '), details: newDocumentErrors });
+        }
+
         try {
             const xmlData = generateXmlPayload(
                 formType, 
@@ -460,6 +472,17 @@ class DocumentsController {
         const conclusionData = req.body.conclusionData || req.body.conclusion_data;
 
         try {
+            const updateDocumentErrors = validateNewHealthCheckDocument({
+                formType,
+                dob,
+                examDate: req.body.examDate || req.body.exam_date || new Date(),
+                fundingSource: clinicalData?.funding_source || clinicalData?.fundingSource || req.body.fundingSource || req.body.funding_source,
+                fitnessClass: conclusionData?.fitness_class || conclusionData?.fitnessClass || req.body.fitnessClass || req.body.fitness_class,
+            });
+            if (updateDocumentErrors.length > 0) {
+                return res.status(400).json({ error: updateDocumentErrors.join('; '), details: updateDocumentErrors });
+            }
+
             // Check if document has already been successfully synced to VNeID
             const masterCheck = await query(`SELECT send_status, signature_status FROM health_check_masters WHERE id = $1`, [parseInt(id, 10)]);
             if (masterCheck.rows.length > 0 && masterCheck.rows[0].send_status === 'Success') {
@@ -675,6 +698,8 @@ class DocumentsController {
     async unlockDocument(req: Request, res: Response) {
         const id = parseInt(req.params.id as string, 10);
         if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID hồ sơ không hợp lệ.' });
+        const reason = String((req.body as any)?.reason || '').trim();
+        if (reason.length < 5 || reason.length > 500) return res.status(422).json({ error: 'Lý do mở khóa phải từ 5 đến 500 ký tự.' });
 
         try {
             await transaction(async (client) => {
@@ -693,9 +718,13 @@ class DocumentsController {
                 }
                 const doc = state.rows[0];
                 if (doc.send_status === 'Success') {
-                    const err: any = new Error('Hồ sơ đã gửi cổng thành công, không được phép hủy ký.');
-                    err.statusCode = 409;
-                    throw err;
+                    const permissions = Array.isArray((req as any).permissions) ? (req as any).permissions : [];
+                    const allowed = permissions.includes('health_check.signature.revoke') || permissions.includes('health_check.unlock') || permissions.includes('admin');
+                    if (!allowed) {
+                        const err: any = new Error('Hồ sơ đã gửi cổng; cần quyền thu hồi chữ ký để mở khóa.');
+                        err.statusCode = 403;
+                        throw err;
+                    }
                 }
 
                 const unsignedXml = generateXmlPayload(
@@ -711,6 +740,11 @@ class DocumentsController {
                          updated_at = NOW()
                      WHERE id = $2`,
                     [unsignedXml, id]
+                );
+                await client.query(
+                    `INSERT INTO sys_audit_log (table_name, record_id, action, old_data, new_data, changed_fields, user_id, client_ip, context_module)
+                     VALUES ('health_check_masters', $1, 'U', $2::jsonb, $3::jsonb, $4::jsonb, $5, $6, 'health-check-signature')`,
+                    [String(id), JSON.stringify({ signature_status: doc.signature_status, send_status: doc.send_status }), JSON.stringify({ signature_status: 'Unsigned', send_status: 'Unsent' }), JSON.stringify({ reason }), String((req as any).userId || ''), req.ip]
                 );
             });
             return res.json({ success: true, message: 'Đã hủy chữ ký số và mở khóa hồ sơ.' });

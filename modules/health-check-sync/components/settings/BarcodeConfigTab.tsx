@@ -1,8 +1,7 @@
-// File: modules/health-check-sync/components/settings/BarcodeConfigTab.tsx
-
 import React, { useState } from 'react';
 import PrintBarcodeXnForm from '../../forms/PrintBarcodeXnForm';
 import PrintBarcodeForm, { Code128Barcode } from '../../forms/PrintBarcodeForm';
+import { getAvailablePrintersViaAgent } from '../../services/workstationAgentPrintClient';
 
 interface BarcodeConfigTabProps {
     barcodeLabelSizeXn: string;
@@ -21,8 +20,6 @@ interface BarcodeConfigTabProps {
     setBarcodeZplTemplateKsk: (v: string) => void;
     barcodePrinterName: string;
     setBarcodePrinterName: (v: string) => void;
-    useQzTray: boolean;
-    setUseQzTray: (v: boolean) => void;
     inputClass: string;
 }
 
@@ -132,12 +129,34 @@ export const BarcodeConfigTab: React.FC<BarcodeConfigTabProps> = ({
     setBarcodeZplTemplateKsk,
     barcodePrinterName,
     setBarcodePrinterName,
-    useQzTray,
-    setUseQzTray,
     inputClass
 }) => {
     const [showTestPrintXn, setShowTestPrintXn] = useState(false);
     const [showTestPrintKsk, setShowTestPrintKsk] = useState(false);
+    const [availablePrinters, setAvailablePrinters] = useState<string[]>([]);
+    const [isScanningPrinters, setIsScanningPrinters] = useState(false);
+    const [scanMessage, setScanMessage] = useState<string | null>(null);
+
+    const handleScanPrinters = async () => {
+        setIsScanningPrinters(true);
+        setScanMessage(null);
+        try {
+            const list = await getAvailablePrintersViaAgent();
+            setAvailablePrinters(list);
+            if (list.length === 0) {
+                setScanMessage('Không tìm thấy máy in nào trên máy trạm.');
+            } else {
+                setScanMessage(`Tìm thấy ${list.length} máy in.`);
+                if (!barcodePrinterName && list.length > 0) {
+                    setBarcodePrinterName(list[0]);
+                }
+            }
+        } catch (err: any) {
+            setScanMessage(err.message || 'Không thể kết nối Vimes.PrintAgent.');
+        } finally {
+            setIsScanningPrinters(false);
+        }
+    };
 
     return (
         <section className="space-y-4 animate-in fade-in duration-200">
@@ -356,29 +375,61 @@ export const BarcodeConfigTab: React.FC<BarcodeConfigTabProps> = ({
             {/* Máy in thô & Mẫu ZPL */}
             <div className="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 border border-slate-200 dark:border-slate-700 space-y-4">
                 <div className="text-xs font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-widest flex items-center justify-between">
-                    <span>Cấu hình máy in thô & Mẫu ZPL (In im lặng qua QZ Tray)</span>
+                    <span>Cấu hình máy in thô & Mẫu ZPL (In qua Vimes.PrintAgent)</span>
                     <span className="text-[10px] text-slate-400 normal-case font-normal">Sử dụng máy in nhãn chuyên dụng Zebra/TSC</span>
                 </div>
 
                 <div className="border-b border-slate-250/50 dark:border-slate-700 pb-3">
-                    <ToggleRow
-                        label="Sử dụng gửi ra máy in (In im lặng qua QZ Tray)"
-                        desc="Bật để gửi lệnh in trực tiếp tới máy in thô ZPL/HTML qua ứng dụng QZ Tray (in không hiện hộp thoại trình duyệt)."
-                        value={useQzTray}
-                        onChange={setUseQzTray}
-                    />
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+                        Vimes.PrintAgent đang được sử dụng mặc định để gửi lệnh ZPL trực tiếp tới máy in Windows.
+                    </div>
                 </div>
                 
                 <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Tên máy in nhãn nhắm tới (Printer Name)</label>
-                    <input
-                        type="text"
-                        value={barcodePrinterName}
-                        onChange={e => setBarcodePrinterName(e.target.value)}
-                        className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none"
-                        placeholder="Ví dụ: Zebra, TSC, Xprinter,..."
-                    />
-                    <p className="text-[10px] text-slate-500">Mã in sẽ tìm kiếm máy in chứa cụm từ này trong hệ thống Windows.</p>
+                    <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Tên máy in nhãn nhắm tới (Printer Name)</label>
+                        <button
+                            type="button"
+                            onClick={handleScanPrinters}
+                            disabled={isScanningPrinters}
+                            className="text-[11px] font-bold text-teal-600 hover:text-teal-700 dark:text-teal-400 flex items-center gap-1 hover:underline disabled:opacity-50 cursor-pointer"
+                        >
+                            {isScanningPrinters ? 'Đang dò tìm máy in...' : '🔍 Quét máy in trên máy trạm'}
+                        </button>
+                    </div>
+
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            list="detected-printers"
+                            value={barcodePrinterName}
+                            onChange={e => setBarcodePrinterName(e.target.value)}
+                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-sm focus:ring-1 focus:ring-teal-500 focus:outline-none font-semibold text-slate-800 dark:text-white"
+                            placeholder="Ví dụ: Zebra, TSC, Xprinter,..."
+                        />
+                        {availablePrinters.length > 0 && (
+                            <select
+                                value={barcodePrinterName}
+                                onChange={e => setBarcodePrinterName(e.target.value)}
+                                className="p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-xs font-semibold text-slate-800 dark:text-white max-w-[220px] shrink-0"
+                            >
+                                <option value="">-- Chọn máy in đã phát hiện --</option>
+                                {availablePrinters.map(p => (
+                                    <option key={p} value={p}>{p}</option>
+                                ))}
+                            </select>
+                        )}
+                        <datalist id="detected-printers">
+                            {availablePrinters.map(p => (
+                                <option key={p} value={p} />
+                            ))}
+                        </datalist>
+                    </div>
+
+                    <div className="flex justify-between items-center text-[10px]">
+                        <span className="text-slate-500">Mã in sẽ tìm kiếm máy in chứa cụm từ này trong hệ thống Windows.</span>
+                        {scanMessage && <span className="font-bold text-teal-600 dark:text-teal-400">{scanMessage}</span>}
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -476,4 +527,3 @@ export const BarcodeConfigTab: React.FC<BarcodeConfigTabProps> = ({
         </section>
     );
 };
-

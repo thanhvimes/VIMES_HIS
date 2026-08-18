@@ -1,0 +1,8 @@
+{
+  "code": "SURGERY_CONSENT",
+  "name": "Giấy cam đoan chấp nhận phẫu thuật, thủ thuật và điều trị",
+  "version": 1,
+  "file": "template.docx",
+  "documentType": "SURGERY_CONSENT",
+  "status": "published"
+}

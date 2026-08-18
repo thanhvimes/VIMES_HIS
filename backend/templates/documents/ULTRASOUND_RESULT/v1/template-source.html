@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>Phiếu Kết Quả Siêu Âm - VIMES PACS</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 10mm 12mm 10mm 12mm;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 10.5pt;
+      line-height: 1.25;
+      color: #0f172a;
+      margin: 0;
+      padding: 0;
+      background: #fff;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    /* Header Section */
+    .header-table td {
+      border: 0;
+      vertical-align: top;
+    }
+    .hosp-info {
+      font-size: 9.5pt;
+      line-height: 1.2;
+    }
+    .hosp-name {
+      font-size: 10.5pt;
+      font-weight: bold;
+      color: #1e3a8a;
+      text-transform: uppercase;
+    }
+    .hosp-dept {
+      font-weight: bold;
+      color: #0f172a;
+    }
+    .doc-title-block {
+      text-align: center;
+      margin: 6pt 0 4pt;
+    }
+    .doc-title {
+      font-size: 14pt;
+      font-weight: bold;
+      color: #1e3a8a;
+      text-transform: uppercase;
+      margin: 0;
+      letter-spacing: 0.5px;
+    }
+    .doc-subtitle {
+      font-size: 10pt;
+      font-style: italic;
+      color: #475569;
+      margin: 2pt 0 0;
+    }
+    /* Administrative Patient Info Box */
+    .meta-box {
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 4pt 6pt;
+      margin-bottom: 6pt;
+      background-color: #f8fafc;
+    }
+    .meta-table td {
+      border: 0;
+      padding: 1.5pt 3pt;
+      font-size: 10pt;
+      vertical-align: top;
+    }
+    .meta-label {
+      color: #475569;
+    }
+    .meta-val {
+      font-weight: bold;
+      color: #0f172a;
+    }
+    /* 4-Image Grid: 2 Rows x 2 Columns */
+    .image-section-title {
+      font-size: 10.5pt;
+      font-weight: bold;
+      color: #1e3a8a;
+      text-transform: uppercase;
+      margin: 4pt 0 3pt;
+      border-bottom: 1.5px solid #1e3a8a;
+      padding-bottom: 1.5pt;
+    }
+    .image-grid-table {
+      width: 100%;
+      margin-bottom: 6pt;
+      border-collapse: separate;
+      border-spacing: 6pt 4pt;
+    }
+    .image-cell {
+      width: 50%;
+      border: 1px solid #94a3b8;
+      border-radius: 4px;
+      padding: 3pt;
+      background: #000;
+      text-align: center;
+      vertical-align: top;
+    }
+    .us-img {
+      width: 100%;
+      height: 135px;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto;
+      background-color: #000;
+      border-radius: 2px;
+    }
+    .img-caption {
+      background: #0f172a;
+      color: #38bdf8;
+      font-size: 8.5pt;
+      font-family: Arial, sans-serif;
+      font-weight: bold;
+      padding: 2pt 4pt;
+      margin-top: 2pt;
+      border-radius: 2px;
+      text-align: left;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    /* Findings and Impression */
+    .section-block {
+      margin-bottom: 4pt;
+    }
+    .sec-title {
+      font-weight: bold;
+      color: #1e3a8a;
+      font-size: 10.5pt;
+      text-transform: uppercase;
+      margin-bottom: 2pt;
+    }
+    .findings-list {
+      font-size: 9.5pt;
+      line-height: 1.25;
+      margin: 0;
+      padding-left: 12pt;
+    }
+    .findings-list li {
+      margin-bottom: 1.5pt;
+    }
+    .conclusion-box {
+      border: 1.5px solid #2563eb;
+      background-color: #eff6ff;
+      border-radius: 4px;
+      padding: 4pt 6pt;
+      margin-top: 4pt;
+    }
+    .conclusion-title {
+      font-weight: bold;
+      color: #1e3a8a;
+      font-size: 10.5pt;
+      margin-bottom: 2pt;
+      text-transform: uppercase;
+    }
+    .conclusion-text {
+      font-weight: bold;
+      color: #b91c1c;
+      font-size: 10pt;
+      line-height: 1.25;
+      margin: 0;
+      white-space: pre-line;
+    }
+    /* Signatures Section */
+    .sign-table {
+      width: 100%;
+      margin-top: 6pt;
+      border: 0;
+    }
+    .sign-table td {
+      border: 0;
+      text-align: center;
+      vertical-align: top;
+      font-size: 10pt;
+    }
+    .sign-date {
+      font-style: italic;
+      color: #475569;
+      margin-bottom: 2pt;
+    }
+    .sign-role {
+      font-weight: bold;
+      color: #0f172a;
+      text-transform: uppercase;
+    }
+    .sign-space {
+      height: 40pt;
+    }
+    .sign-name {
+      font-weight: bold;
+      color: #1e3a8a;
+      font-size: 10.5pt;
+    }
+    .digital-sign-badge {
+      display: inline-block;
+      border: 1px dashed #16a34a;
+      color: #16a34a;
+      font-size: 8pt;
+      font-weight: bold;
+      padding: 1pt 4pt;
+      border-radius: 3px;
+      margin-top: 2pt;
+    }
+    .doc-footer {
+      border-top: 0.5px solid #cbd5e1;
+      margin-top: 6pt;
+      padding-top: 2pt;
+      font-size: 8pt;
+      color: #64748b;
+      font-style: italic;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header Table -->
+  <table class="header-table">
+    <tr>
+      <td style="width: 55%;" class="hosp-info">
+        <div class="hosp-name">{d.hospital.name}</div>
+        <div class="hosp-dept">{d.hospital.department}</div>
+        <div>Đ/C: {d.hospital.address} • Hotline: {d.hospital.hotline}</div>
+      </td>
+      <td style="width: 45%; text-align: right; font-size: 9.5pt;">
+        <div><b>Số phiếu:</b> <span style="color: #b91c1c; font-family: monospace; font-size: 10.5pt;">{d.document.number}</span></div>
+        <div><b>Mã y tế (PID):</b> <span style="font-family: monospace; font-weight: bold;">{d.patient.code}</span></div>
+        <div><b>Ngày thực hiện:</b> {d.document.createdDate}</div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Document Title -->
+  <div class="doc-title-block">
+    <h1 class="doc-title">PHIẾU KẾT QUẢ SIÊU ÂM</h1>
+    <div class="doc-subtitle">{d.encounter.modality} (Thiết bị: {d.encounter.device})</div>
+  </div>
+
+  <!-- Patient Meta Info Box -->
+  <div class="meta-box">
+    <table class="meta-table">
+      <tr>
+        <td style="width: 50%;"><span class="meta-label">Họ và tên:</span> <span class="meta-val" style="text-transform: uppercase; font-size: 11pt; color: #1e3a8a;">{d.patient.fullName}</span></td>
+        <td style="width: 25%;"><span class="meta-label">Năm sinh:</span> <span class="meta-val">{d.patient.dob} ({d.patient.age})</span></td>
+        <td style="width: 25%;"><span class="meta-label">Giới tính:</span> <span class="meta-val">{d.patient.gender}</span></td>
+      </tr>
+      <tr>
+        <td colspan="2"><span class="meta-label">Địa chỉ:</span> <span class="meta-val">{d.patient.address}</span></td>
+        <td><span class="meta-label">Số thẻ BHYT:</span> <span class="meta-val" style="font-family: monospace;">{d.patient.insuranceNumber}</span></td>
+      </tr>
+      <tr>
+        <td><span class="meta-label">Nơi chỉ định:</span> <span class="meta-val">{d.encounter.department}</span></td>
+        <td colspan="2"><span class="meta-label">Bác sĩ chỉ định:</span> <span class="meta-val">{d.encounter.doctor}</span></td>
+      </tr>
+      <tr>
+        <td colspan="3"><span class="meta-label">Chẩn đoán lâm sàng:</span> <span class="meta-val" style="color: #b45309;">{d.encounter.diagnosis}</span></td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- 4-Image Ultrasound Layout (2 Rows x 2 Columns Grid) -->
+  <div class="image-section-title">HÌNH ẢNH SIÊU ÂM ĐIỂN HÌNH (4 MẶT CẮT KHẢO SÁT)</div>
+  <table class="image-grid-table">
+    <!-- Row 1: Image 1 & Image 2 -->
+    <tr>
+      <td class="image-cell">
+        <img class="us-img" src="{d.images[0].url}" alt="Image 1" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'200\' viewBox=\'0 0 300 200\'><rect width=\'300\' height=\'200\' fill=\'%23000\'/><text x=\'50%25\' y=\'50%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%2338bdf8\' font-family=\'Arial\' font-size=\'14\'>SIÊU ÂM MẶT CẮT 1</text></svg>'"/>
+        <div class="img-caption">{d.images[0].label}</div>
+      </td>
+      <td class="image-cell">
+        <img class="us-img" src="{d.images[1].url}" alt="Image 2" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'200\' viewBox=\'0 0 300 200\'><rect width=\'300\' height=\'200\' fill=\'%23000\'/><text x=\'50%25\' y=\'50%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%2338bdf8\' font-family=\'Arial\' font-size=\'14\'>SIÊU ÂM MẶT CẮT 2</text></svg>'"/>
+        <div class="img-caption">{d.images[1].label}</div>
+      </td>
+    </tr>
+    <!-- Row 2: Image 3 & Image 4 -->
+    <tr>
+      <td class="image-cell">
+        <img class="us-img" src="{d.images[2].url}" alt="Image 3" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'200\' viewBox=\'0 0 300 200\'><rect width=\'300\' height=\'200\' fill=\'%23000\'/><text x=\'50%25\' y=\'50%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%2338bdf8\' font-family=\'Arial\' font-size=\'14\'>SIÊU ÂM MẶT CẮT 3</text></svg>'"/>
+        <div class="img-caption">{d.images[2].label}</div>
+      </td>
+      <td class="image-cell">
+        <img class="us-img" src="{d.images[3].url}" alt="Image 4" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'200\' viewBox=\'0 0 300 200\'><rect width=\'300\' height=\'200\' fill=\'%23000\'/><text x=\'50%25\' y=\'50%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%2338bdf8\' font-family=\'Arial\' font-size=\'14\'>SIÊU ÂM MẶT CẮT 4</text></svg>'"/>
+        <div class="img-caption">{d.images[3].label}</div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Detailed Medical Findings Section -->
+  <div class="section-block">
+    <div class="sec-title">MÔ TẢ KẾT QUẢ KHẢO SÁT HÌNH ẢNH:</div>
+    <ul class="findings-list">
+      <li><b>Gan:</b> {d.findings.liver}</li>
+      <li><b>Túi mật & Đường mật:</b> {d.findings.gallbladder}</li>
+      <li><b>Tụy & Lách:</b> Tụy ({d.findings.pancreas}) • Lách ({d.findings.spleen})</li>
+      <li><b>Hệ Tiết Niệu:</b> Thận ({d.findings.kidneys}) • Bàng quang ({d.findings.urinaryBladder})</li>
+      <li><b>Khoang Màng Bụng & Vùng Khác:</b> {d.findings.peritoneum}</li>
+    </ul>
+  </div>
+
+  <!-- Conclusion Box -->
+  <div class="conclusion-box">
+    <div class="conclusion-title">KẾT LUẬN (IMPRESSION):</div>
+    <div class="conclusion-text">{d.conclusion}</div>
+    <div style="margin-top: 3pt; font-size: 9pt; color: #475569;">
+      <b>Lời dặn / Đề nghị:</b> {d.recommendation}
+    </div>
+  </div>
+
+  <!-- Signatures Section -->
+  <table class="sign-table">
+    <tr>
+      <td style="width: 50%;">
+        <div class="sign-role">BÁC SĨ CHỈ ĐỊNH</div>
+        <div class="sign-space"></div>
+        <div style="font-size: 9.5pt; color: #475569;">{d.encounter.doctor}</div>
+      </td>
+      <td style="width: 50%;">
+        <div class="sign-date">Hà Nội, ngày {d.document.createdDate}</div>
+        <div class="sign-role">BÁC SĨ CHẨN ĐOÁN HÌNH ẢNH</div>
+        <div class="sign-space">
+          <div class="digital-sign-badge">✓ ĐÃ KÝ SỐ Y TẾ (PAdES)</div>
+        </div>
+        <div class="sign-name">{d.approver.fullName}</div>
+        <div style="font-size: 8.5pt; color: #64748b;">{d.approver.title}</div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Print Footer -->
+  <div class="doc-footer">
+    Hệ thống VIMES PACS & EMR — Mẫu Phiếu Siêu Âm Chuẩn ULTRASOUND_RESULT@1 — Thời gian in: {d.document.createdDate}
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,8 @@
+import React, { useState } from 'react';
+import { templateStudioService } from '../../../services/templateStudioService';
+
+export const MappingDraftForm: React.FC<{ rules: string; onCreated: () => void; onError: (message: string) => void }> = ({ rules, onCreated, onError }) => {
+  const [code, setCode] = useState(''); const [moduleCode, setModuleCode] = useState(''); const [contractCode, setContractCode] = useState(''); const [busy, setBusy] = useState(false);
+  const submit = async () => { try { setBusy(true); await templateStudioService.createMapping({ code: code.toUpperCase(), moduleCode, contractCode, mappings: JSON.parse(rules) }); setCode(''); setModuleCode(''); setContractCode(''); onCreated(); } catch (error) { onError(error instanceof Error ? error.message : 'Không tạo được mapping'); } finally { setBusy(false); } };
+  return <div className="rounded border p-3"><h3 className="mb-2 font-semibold">Tạo mapping DRAFT</h3><div className="grid gap-2 md:grid-cols-3"><input value={code} onChange={e => setCode(e.target.value)} placeholder="Mã mapping" className="rounded border px-2 py-1 text-sm" /><input value={moduleCode} onChange={e => setModuleCode(e.target.value)} placeholder="Module" className="rounded border px-2 py-1 text-sm" /><input value={contractCode} onChange={e => setContractCode(e.target.value)} placeholder="Contract" className="rounded border px-2 py-1 text-sm" /></div><button type="button" disabled={busy || !code || !moduleCode || !contractCode} onClick={submit} className="mt-2 rounded bg-emerald-600 px-3 py-1 text-sm text-white disabled:opacity-50">{busy ? 'Đang tạo…' : 'Tạo DRAFT'}</button></div>;
+};

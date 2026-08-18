@@ -59,7 +59,10 @@ npx ts-node test_postman_sync.ts
     "data_type": "xml/base64",
     "send_datetime": 1784871059154
   },
-  "data": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4K..."
+  "data": {
+    "file_content": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4K..."
+  },
+  "signature": "<checksum RSA-SHA256 của canonical header.data>"
 }
 ```
 

@@ -30,6 +30,7 @@ const InternalMedTab: React.FC = () => {
         noiKhoaTamThanPl, setNoiKhoaTamThanPl,
         kqNoiTietChuyenHoa, setKqNoiTietChuyenHoa,
         kqTietNieu, setKqTietNieu,
+        nhiKhoaLamSangKhac, setNhiKhoaLamSangKhac,
         isLocked,
         handleAutofillTab,
     } = useDynamicFormContext();
@@ -88,83 +89,116 @@ const InternalMedTab: React.FC = () => {
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Tim mạch</label>
                         <textarea value={kqTimMach} onChange={e => setKqTimMach(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
-                        {formType === '2' && (
-                            <select value={noiKhoaTuanHoanPl} onChange={e => setNoiKhoaTuanHoanPl(e.target.value)} className="w-full mt-1 p-2 border rounded text-xs">
-                                <option value="">-- Phân loại --</option>
-                                <option value="1">Loại I</option><option value="2">Loại II</option><option value="3">Loại III</option><option value="4">Loại IV</option><option value="5">Loại V</option>
-                            </select>
-                        )}
+                        <select value={noiKhoaTuanHoanPl} onChange={e => setNoiKhoaTuanHoanPl(e.target.value)} className="w-full mt-1.5 p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-medium">
+                            <option value="">-- Phân loại Tuần hoàn --</option>
+                            <option value="1">Loại I (Rất khỏe)</option>
+                            <option value="2">Loại II (Khỏe)</option>
+                            <option value="3">Loại III (Trung bình)</option>
+                            <option value="4">Loại IV (Yếu)</option>
+                            <option value="5">Loại V (Rất yếu)</option>
+                        </select>
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Hô hấp</label>
                         <textarea value={kqHoHap} onChange={e => setKqHoHap(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
-                        {formType === '2' && (
-                            <select value={noiKhoaHoHapPl} onChange={e => setNoiKhoaHoHapPl(e.target.value)} className="w-full mt-1 p-2 border rounded text-xs">
-                                <option value="">-- Phân loại --</option>
-                                <option value="1">Loại I</option><option value="2">Loại II</option><option value="3">Loại III</option><option value="4">Loại IV</option><option value="5">Loại V</option>
-                            </select>
-                        )}
+                        <select value={noiKhoaHoHapPl} onChange={e => setNoiKhoaHoHapPl(e.target.value)} className="w-full mt-1.5 p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-medium">
+                            <option value="">-- Phân loại Hô hấp --</option>
+                            <option value="1">Loại I (Rất khỏe)</option>
+                            <option value="2">Loại II (Khỏe)</option>
+                            <option value="3">Loại III (Trung bình)</option>
+                            <option value="4">Loại IV (Yếu)</option>
+                            <option value="5">Loại V (Rất yếu)</option>
+                        </select>
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Tiêu hóa</label>
                         <textarea value={noiKhoaTieuHoa} onChange={e => setNoiKhoaTieuHoa(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
-                        {formType === '2' && (
-                            <select value={noiKhoaTieuHoaPl} onChange={e => setNoiKhoaTieuHoaPl(e.target.value)} className="w-full mt-1 p-2 border rounded text-xs">
-                                <option value="">-- Phân loại --</option>
-                                <option value="1">Loại I</option><option value="2">Loại II</option><option value="3">Loại III</option><option value="4">Loại IV</option><option value="5">Loại V</option>
-                            </select>
-                        )}
+                        <select value={noiKhoaTieuHoaPl} onChange={e => setNoiKhoaTieuHoaPl(e.target.value)} className="w-full mt-1.5 p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-medium">
+                            <option value="">-- Phân loại Tiêu hóa --</option>
+                            <option value="1">Loại I (Rất khỏe)</option>
+                            <option value="2">Loại II (Khỏe)</option>
+                            <option value="3">Loại III (Trung bình)</option>
+                            <option value="4">Loại IV (Yếu)</option>
+                            <option value="5">Loại V (Rất yếu)</option>
+                        </select>
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Thận - Tiết niệu</label>
                         <textarea value={kqTietNieu} onChange={e => setKqTietNieu(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
-                        {formType === '2' && (
-                            <select value={noiKhoaThanTietnieuPl} onChange={e => setNoiKhoaThanTietnieuPl(e.target.value)} className="w-full mt-1 p-2 border rounded text-xs">
-                                <option value="">-- Phân loại --</option>
-                                <option value="1">Loại I</option><option value="2">Loại II</option><option value="3">Loại III</option><option value="4">Loại IV</option><option value="5">Loại V</option>
-                            </select>
-                        )}
+                        <select value={noiKhoaThanTietnieuPl} onChange={e => setNoiKhoaThanTietnieuPl(e.target.value)} className="w-full mt-1.5 p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-medium">
+                            <option value="">-- Phân loại Thận - Tiết niệu --</option>
+                            <option value="1">Loại I (Rất khỏe)</option>
+                            <option value="2">Loại II (Khỏe)</option>
+                            <option value="3">Loại III (Trung bình)</option>
+                            <option value="4">Loại IV (Yếu)</option>
+                            <option value="5">Loại V (Rất yếu)</option>
+                        </select>
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Nội tiết / Chuyển hóa</label>
                         <textarea value={kqNoiTiet || kqNoiTietChuyenHoa} onChange={e => { setKqNoiTiet(e.target.value); setKqNoiTietChuyenHoa(e.target.value); }} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
-                        {formType === '2' && (
-                            <select value={noiKhoaNoiTietPl} onChange={e => setNoiKhoaNoiTietPl(e.target.value)} className="w-full mt-1 p-2 border rounded text-xs">
-                                <option value="">-- Phân loại --</option>
-                                <option value="1">Loại I</option><option value="2">Loại II</option><option value="3">Loại III</option><option value="4">Loại IV</option><option value="5">Loại V</option>
-                            </select>
-                        )}
+                        <select value={noiKhoaNoiTietPl} onChange={e => setNoiKhoaNoiTietPl(e.target.value)} className="w-full mt-1.5 p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-medium">
+                            <option value="">-- Phân loại Nội tiết --</option>
+                            <option value="1">Loại I (Rất khỏe)</option>
+                            <option value="2">Loại II (Khỏe)</option>
+                            <option value="3">Loại III (Trung bình)</option>
+                            <option value="4">Loại IV (Yếu)</option>
+                            <option value="5">Loại V (Rất yếu)</option>
+                        </select>
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Cơ xương khớp</label>
                         <textarea value={kqCoXuongKhop} onChange={e => setKqCoXuongKhop(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
-                        {formType === '2' && (
-                            <select value={noiKhoaCoXuongKhopPl} onChange={e => setNoiKhoaCoXuongKhopPl(e.target.value)} className="w-full mt-1 p-2 border rounded text-xs">
-                                <option value="">-- Phân loại --</option>
-                                <option value="1">Loại I</option><option value="2">Loại II</option><option value="3">Loại III</option><option value="4">Loại IV</option><option value="5">Loại V</option>
-                            </select>
-                        )}
+                        <select value={noiKhoaCoXuongKhopPl} onChange={e => setNoiKhoaCoXuongKhopPl(e.target.value)} className="w-full mt-1.5 p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-medium">
+                            <option value="">-- Phân loại Cơ xương khớp --</option>
+                            <option value="1">Loại I (Rất khỏe)</option>
+                            <option value="2">Loại II (Khỏe)</option>
+                            <option value="3">Loại III (Trung bình)</option>
+                            <option value="4">Loại IV (Yếu)</option>
+                            <option value="5">Loại V (Rất yếu)</option>
+                        </select>
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Thần kinh</label>
                         <textarea value={kqThanKinh} onChange={e => setKqThanKinh(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
-                        {formType === '2' && (
-                            <select value={noiKhoaThanKinhPl} onChange={e => setNoiKhoaThanKinhPl(e.target.value)} className="w-full mt-1 p-2 border rounded text-xs">
-                                <option value="">-- Phân loại --</option>
-                                <option value="1">Loại I</option><option value="2">Loại II</option><option value="3">Loại III</option><option value="4">Loại IV</option><option value="5">Loại V</option>
-                            </select>
-                        )}
+                        <select value={noiKhoaThanKinhPl} onChange={e => setNoiKhoaThanKinhPl(e.target.value)} className="w-full mt-1.5 p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-medium">
+                            <option value="">-- Phân loại Thần kinh --</option>
+                            <option value="1">Loại I (Rất khỏe)</option>
+                            <option value="2">Loại II (Khỏe)</option>
+                            <option value="3">Loại III (Trung bình)</option>
+                            <option value="4">Loại IV (Yếu)</option>
+                            <option value="5">Loại V (Rất yếu)</option>
+                        </select>
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Tâm thần</label>
                         <textarea value={kqTamThan} onChange={e => setKqTamThan(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
-                        {formType === '2' && (
-                            <select value={noiKhoaTamThanPl} onChange={e => setNoiKhoaTamThanPl(e.target.value)} className="w-full mt-1 p-2 border rounded text-xs">
-                                <option value="">-- Phân loại --</option>
-                                <option value="1">Loại I</option><option value="2">Loại II</option><option value="3">Loại III</option><option value="4">Loại IV</option><option value="5">Loại V</option>
-                            </select>
-                        )}
+                        <select value={noiKhoaTamThanPl} onChange={e => setNoiKhoaTamThanPl(e.target.value)} className="w-full mt-1.5 p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-medium">
+                            <option value="">-- Phân loại Tâm thần --</option>
+                            <option value="1">Loại I (Rất khỏe)</option>
+                            <option value="2">Loại II (Khỏe)</option>
+                            <option value="3">Loại III (Trung bình)</option>
+                            <option value="4">Loại IV (Yếu)</option>
+                            <option value="5">Loại V (Rất yếu)</option>
+                        </select>
                     </div>
+                    {formType === '2' && (
+                        <div className="md:col-span-2 lg:col-span-3">
+                            <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center justify-between">
+                                <span>Khám lâm sàng khác</span>
+                                <span className="text-[10px] text-teal-600 dark:text-emerald-400 font-bold">* Chuẩn QĐ 2062 / QĐ 1551 (NHI_KHOA_LAM_SANG_KHAC)</span>
+                            </label>
+                            <textarea
+                                value={nhiKhoaLamSangKhac || nhiKhac}
+                                onChange={e => {
+                                    setNhiKhoaLamSangKhac(e.target.value);
+                                    setNhiKhac(e.target.value);
+                                }}
+                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16"
+                                placeholder="Ghi nhận các kết quả khám lâm sàng khác cho học sinh 6-18 tuổi..."
+                            />
+                        </div>
+                    )}
                 </div>
             )}
             </fieldset>

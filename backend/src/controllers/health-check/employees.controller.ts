@@ -25,9 +25,9 @@ export class EmployeesController {
                     e.hee_cardid_date as card_id_date,
                     e.hee_cardid_place as card_id_place,
                     e.hee_ethnic as ethnic,
-                    e.hee_provid as prov_id,
-                    e.hee_villid as vill_id,
-                    e.hee_address as address,
+                    COALESCE(NULLIF(TRIM(e.hee_prov_code), ''), e.hee_provid::text, '') as prov_id,
+                    COALESCE(NULLIF(TRIM(e.hee_vill_code), ''), e.hee_villid::text, '') as vill_id,
+                    COALESCE(e.hee_address, '') as address,
                     (SELECT send_status FROM health_check_masters m 
                      WHERE m.his_employee_id::text = e.hee_employee_id::text AND m.his_contract_id::text = $1::text LIMIT 1) as sync_status
                 FROM hms_exm_employee e
@@ -92,6 +92,11 @@ export class EmployeesController {
 
                 const empCode = emp.code || `NV${currentMaxId}`;
 
+                const provCode = emp.province_code || (emp.province_id !== undefined && emp.province_id !== null ? String(emp.province_id).trim() : '');
+                const villCode = emp.ward_code || (emp.ward_id !== undefined && emp.ward_id !== null ? String(emp.ward_id).trim() : '');
+                const provNum = provCode ? (parseInt(provCode, 10) || null) : null;
+                const villNum = villCode ? (parseInt(villCode, 10) || null) : null;
+
                 const insertSql = `
                     INSERT INTO hms_exm_employee (
                         hee_employee_id, hee_contract_id, hee_id, 
@@ -101,8 +106,9 @@ export class EmployeesController {
                         hee_dept, hee_position_desc, hee_address,
                         hee_provid, hee_distid, hee_villid,
                         hee_cardid, hee_cardid_date, hee_cardid_place,
-                        hee_guardian_name, hee_guardian_cccd, hee_ethnic
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'O', 'Y', $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+                        hee_guardian_name, hee_guardian_cccd, hee_ethnic,
+                        hee_prov_code, hee_vill_code
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'O', 'Y', $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
                 `;
                 await query(insertSql, [
                     currentMaxId,
@@ -119,15 +125,17 @@ export class EmployeesController {
                     emp.dept || '',
                     emp.position || '',
                     emp.detail_address || '',
-                    emp.province_id ? parseInt(String(emp.province_id), 10) : null,
+                    provNum,
                     emp.district_id ? parseInt(String(emp.district_id), 10) : null,
-                    emp.ward_id ? parseInt(String(emp.ward_id), 10) : null,
+                    villNum,
                     emp.doc_no || '',
                     emp.cardid_date || '',
                     emp.cardid_place || '',
                     emp.guardian_name || '',
                     emp.guardian_cccd || '',
-                    emp.ethnic ? parseInt(String(emp.ethnic), 10) : null
+                    emp.ethnic ? parseInt(String(emp.ethnic), 10) : null,
+                    provCode || null,
+                    villCode || null
                 ]);
             }
 

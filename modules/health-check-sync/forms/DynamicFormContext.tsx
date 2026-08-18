@@ -154,6 +154,12 @@ export interface DynamicFormContextType {
     setTsgdMaBenh: React.Dispatch<React.SetStateAction<string>>;
     tsbtMaBenh: string;
     setTsbtMaBenh: React.Dispatch<React.SetStateAction<string>>;
+    tsbtNghienRuou: string;
+    setTsbtNghienRuou: React.Dispatch<React.SetStateAction<string>>;
+    tsbtMaBenhKhac: string;
+    setTsbtMaBenhKhac: React.Dispatch<React.SetStateAction<string>>;
+    nhiKhoaLamSangKhac: string;
+    setNhiKhoaLamSangKhac: React.Dispatch<React.SetStateAction<string>>;
     tsbtNamPhatHienBenh: string;
     setTsbtNamPhatHienBenh: React.Dispatch<React.SetStateAction<string>>;
     tiemChungBcg: string;
@@ -172,6 +178,14 @@ export interface DynamicFormContextType {
     setTiemChungCacLoaiKhac: React.Dispatch<React.SetStateAction<string>>;
     tiemChungVacXinKhac: string;
     setTiemChungVacXinKhac: React.Dispatch<React.SetStateAction<string>>;
+
+    // Tiền sử thai sản (QĐ 2062)
+    tsbtThaiSan: string;
+    setTsbtThaiSan: React.Dispatch<React.SetStateAction<string>>;
+    tsbtMaBenhThaiSan: string;
+    setTsbtMaBenhThaiSan: React.Dispatch<React.SetStateAction<string>>;
+    tsbtTenThuocThaiSan: string;
+    setTsbtTenThuocThaiSan: React.Dispatch<React.SetStateAction<string>>;
 
     // Tiền sử sản phụ khoa (nữ)
     coKinhNguyetNamBaoNhieuTuoi: string;
@@ -735,6 +749,12 @@ export interface DynamicFormContextType {
     setDiagnosis: React.Dispatch<React.SetStateAction<string>>;
     cacVanDeLuuY: string;
     setCacVanDeLuuY: React.Dispatch<React.SetStateAction<string>>;
+    cacBenhTatNeuCo: string;
+    setCacBenhTatNeuCo: React.Dispatch<React.SetStateAction<string>>;
+    benhDangDieuTri: string;
+    setBenhDangDieuTri: React.Dispatch<React.SetStateAction<string>>;
+    tsbtDangDieuTriBenh: string;
+    setTsbtDangDieuTriBenh: React.Dispatch<React.SetStateAction<string>>;
     ketLuanLoaiSucKhoe: string;
     setKetLuanLoaiSucKhoe: React.Dispatch<React.SetStateAction<string>>;
     conclusionDoctorId: string;

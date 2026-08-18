@@ -668,7 +668,7 @@ const LabTab: React.FC = () => {
                     </div>
                 </div>
 
-                {formType === '3' ? (
+                {(formType === 'driver' || formType === 'mau3-driver') ? (
                     <div className="mt-4 p-4 bg-amber-50/20 dark:bg-amber-950/10 border border-amber-200/40 dark:border-amber-900/20 rounded-xl space-y-4">
                         <h5 className="text-xs font-extrabold text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5 border-b border-amber-200/30 pb-2">
                             <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>

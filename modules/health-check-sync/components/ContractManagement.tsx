@@ -731,30 +731,33 @@ const ContractManagement: React.FC = () => {
                     return str.normalize('NFD')
                               .replace(/[\u0300-\u036f]/g, '')
                               .replace(/đ/g, 'd')
-                              .replace(/Đ/g, 'd');
+                              .replace(/Đ/g, 'd')
+                              .replace(/[_\-\s]+/g, ' ')
+                              .trim()
+                              .toLowerCase();
                 };
-                const headers = data[0].map(h => removeAccents(String(h).trim().toLowerCase()));
+                const headers = data[0].map(h => removeAccents(String(h || '')));
                 const nameIdx = headers.findIndex(h => h.includes('ten') || h.includes('ho') || h.includes('name'));
-                const dobIdx = headers.findIndex(h => h.includes('sinh') || h.includes('dob') || h.includes('birth'));
+                const dobIdx = headers.findIndex(h => h.includes('sinh') || h.includes('dob') || h.includes('birth') || h.includes('ngay sinh'));
                 const sexIdx = headers.findIndex(h => h.includes('gioi') || h.includes('sex') || h.includes('gender'));
-                const docIdx = headers.findIndex(h => h.includes('cccd') || h.includes('ho so') || h.includes('doc') || h.includes('card'));
-                const phoneIdx = headers.findIndex(h => h.includes('thoai') || h.includes('sdt') || h.includes('phone'));
-                const noteIdx = headers.findIndex(h => h.includes('chu') || h.includes('note'));
+                const docIdx = headers.findIndex(h => h.includes('cccd') || h.includes('ho so') || h.includes('doc') || h.includes('card') || h.includes('so cccd'));
+                const phoneIdx = headers.findIndex(h => h.includes('thoai') || h.includes('sdt') || h.includes('phone') || h.includes('dien thoai'));
+                const noteIdx = headers.findIndex(h => h.includes('chu') || h.includes('note') || h.includes('ghi chu'));
                 
-                const deptIdx = headers.findIndex(h => h.includes('bo phan') || h.includes('bophan') || h.includes('dept'));
-                const posIdx = headers.findIndex(h => h.includes('chuc') || h.includes('position'));
+                const deptIdx = headers.findIndex(h => h.includes('bo phan') || h.includes('bophan') || h.includes('dept') || h.includes('khoa'));
+                const posIdx = headers.findIndex(h => h.includes('chuc') || h.includes('position') || h.includes('vi tri'));
                 const ownerIdx = headers.findIndex(h => h.includes('ban than') || h.includes('banthan') || h.includes('owner'));
-                const addrIdx = headers.findIndex(h => h.includes('noi o') || h.includes('noi_o') || h.includes('dia chi') || h.includes('address'));
-                const provIdx = headers.findIndex(h => h.includes('tinh') || h.includes('prov'));
-                const distIdx = headers.findIndex(h => h.includes('huyen') || h.includes('dist'));
-                const wardIdx = headers.findIndex(h => h.includes('xa') || h.includes('ward') || h.includes('vill'));
+                const addrIdx = headers.findIndex(h => h.includes('noi o') || h.includes('dia chi') || h.includes('address') || h.includes('cho o') || h.includes('thuong tru'));
+                const provIdx = headers.findIndex(h => h.includes('matinh') || h.includes('ma tinh') || h.includes('tinh') || h.includes('prov'));
+                const distIdx = headers.findIndex(h => h.includes('mahuyen') || h.includes('ma huyen') || h.includes('huyen') || h.includes('dist') || h.includes('quan'));
+                const wardIdx = headers.findIndex(h => h.includes('maxa') || h.includes('ma xa') || h.includes('xa') || h.includes('ward') || h.includes('vill') || h.includes('phuong'));
 
-                const cardDateIdx = headers.findIndex(h => h.includes('ngay cap') || h.includes('ngaycap') || h.includes('cardid_date'));
-                const cardPlaceIdx = headers.findIndex(h => h.includes('noi cap') || h.includes('noicap') || h.includes('cardid_place'));
-                const guardianNameIdx = headers.findIndex(h => h.includes('giam ho') || h.includes('guardian_name'));
-                const guardianCccdIdx = headers.findIndex(h => h.includes('cccd_ngh') || h.includes('guardian_cccd'));
-                const ethnicIdx = headers.findIndex(h => h.includes('dan toc') || h.includes('ethnic'));
-                const maKhIdx = headers.findIndex(h => h.includes('ma kh') || h.includes('makh') || h.includes('ma_kh'));
+                const cardDateIdx = headers.findIndex(h => h.includes('ngay cap') || h.includes('ngaycap') || h.includes('cardid date'));
+                const cardPlaceIdx = headers.findIndex(h => h.includes('noi cap') || h.includes('noicap') || h.includes('cardid place'));
+                const guardianNameIdx = headers.findIndex(h => h.includes('giam ho') || h.includes('guardian name'));
+                const guardianCccdIdx = headers.findIndex(h => h.includes('cccd ngh') || h.includes('guardian cccd'));
+                const ethnicIdx = headers.findIndex(h => h.includes('dan toc') || h.includes('ethnic') || h.includes('ma dan toc'));
+                const maKhIdx = headers.findIndex(h => h.includes('ma kh') || h.includes('makh') || h.includes('ma nhan vien') || h.includes('manv'));
 
                 if (nameIdx === -1) {
                     toast.error("Không tìm thấy cột 'Họ và tên' trong file!");
@@ -766,31 +769,39 @@ const ContractManagement: React.FC = () => {
                     const row = data[i];
                     if (!row || row.length === 0 || !row[nameIdx]) continue;
 
-                    let docNo = docIdx !== -1 ? String(row[docIdx]).trim() : '';
-                    let phone = phoneIdx !== -1 ? String(row[phoneIdx]).trim() : '';
-                    let guardianCccd = guardianCccdIdx !== -1 ? String(row[guardianCccdIdx]).trim() : '';
-                    let maKh = maKhIdx !== -1 && row[maKhIdx] ? String(row[maKhIdx]).trim() : '';
+                    let docNo = docIdx !== -1 ? String(row[docIdx] ?? '').trim() : '';
+                    let phone = phoneIdx !== -1 ? String(row[phoneIdx] ?? '').trim() : '';
+                    let guardianCccd = guardianCccdIdx !== -1 ? String(row[guardianCccdIdx] ?? '').trim() : '';
+                    let maKh = maKhIdx !== -1 && row[maKhIdx] ? String(row[maKhIdx] ?? '').trim() : '';
+
+                    const cleanField = (val: any) => {
+                        if (val === undefined || val === null) return '';
+                        const s = String(val).trim();
+                        return s === 'undefined' || s === 'null' ? '' : s;
+                    };
 
                     parsedEmployees.push({
                         code: maKh,
                         name: String(row[nameIdx]).trim(),
-                        birth_date: dobIdx !== -1 ? String(row[dobIdx]).trim() : '',
-                        sex: sexIdx !== -1 ? String(row[sexIdx]).trim() : 'Nam',
+                        birth_date: dobIdx !== -1 ? cleanField(row[dobIdx]) : '',
+                        sex: sexIdx !== -1 ? (cleanField(row[sexIdx]) === 'Nữ' || cleanField(row[sexIdx]) === 'F' ? 'Nữ' : 'Nam') : 'Nam',
                         doc_no: docNo,
                         phone: phone,
-                        note: noteIdx !== -1 ? String(row[noteIdx]).trim() : '',
-                        dept: deptIdx !== -1 ? String(row[deptIdx]).trim() : '',
-                        position: posIdx !== -1 ? String(row[posIdx]).trim() : '',
-                        owner: ownerIdx !== -1 ? String(row[ownerIdx]).trim() : '',
-                        detail_address: addrIdx !== -1 ? String(row[addrIdx]).trim() : '',
-                        province_id: provIdx !== -1 ? parseInt(String(row[provIdx]), 10) || null : null,
-                        district_id: distIdx !== -1 ? parseInt(String(row[distIdx]), 10) || null : null,
-                        ward_id: wardIdx !== -1 ? parseInt(String(row[wardIdx]), 10) || null : null,
-                        cardid_date: cardDateIdx !== -1 ? String(row[cardDateIdx]).trim() : '',
-                        cardid_place: cardPlaceIdx !== -1 ? String(row[cardPlaceIdx]).trim() : '',
-                        guardian_name: guardianNameIdx !== -1 ? String(row[guardianNameIdx]).trim() : '',
+                        note: noteIdx !== -1 ? cleanField(row[noteIdx]) : '',
+                        dept: deptIdx !== -1 ? cleanField(row[deptIdx]) : '',
+                        position: posIdx !== -1 ? cleanField(row[posIdx]) : '',
+                        owner: ownerIdx !== -1 ? cleanField(row[ownerIdx]) : '',
+                        detail_address: addrIdx !== -1 ? cleanField(row[addrIdx]) : '',
+                        province_code: provIdx !== -1 ? cleanField(row[provIdx]) : '',
+                        province_id: provIdx !== -1 ? cleanField(row[provIdx]) : null,
+                        district_id: distIdx !== -1 ? parseInt(cleanField(row[distIdx]), 10) || null : null,
+                        ward_code: wardIdx !== -1 ? cleanField(row[wardIdx]) : '',
+                        ward_id: wardIdx !== -1 ? cleanField(row[wardIdx]) : null,
+                        cardid_date: cardDateIdx !== -1 ? cleanField(row[cardDateIdx]) : '',
+                        cardid_place: cardPlaceIdx !== -1 ? cleanField(row[cardPlaceIdx]) : '',
+                        guardian_name: guardianNameIdx !== -1 ? cleanField(row[guardianNameIdx]) : '',
                         guardian_cccd: guardianCccd,
-                        ethnic: ethnicIdx !== -1 ? String(row[ethnicIdx]).trim() : ''
+                        ethnic: ethnicIdx !== -1 ? cleanField(row[ethnicIdx]) : ''
                     });
                 }
 

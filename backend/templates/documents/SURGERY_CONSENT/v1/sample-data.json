@@ -1,0 +1,38 @@
+{
+  "hospital": {
+    "name": "BỆNH VIỆN ĐA KHOA VIMES",
+    "department": "KHOA PHẪU THUẬT - GÂY MÊ HỒI SỨC",
+    "address": "Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội"
+  },
+  "document": {
+    "number": "GCK-2026-00088",
+    "createdDate": "14/08/2026",
+    "location": "Hà Nội"
+  },
+  "patient": {
+    "code": "BN2026081401",
+    "fullName": "HOÀNG MINH TRÍ",
+    "dob": "20/10/1988",
+    "gender": "Nam",
+    "address": "Số 15 Phố Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội",
+    "insuranceNumber": "DN4010199887766",
+    "phone": "0987654321"
+  },
+  "representative": {
+    "fullName": "NGUYỄN THỊ MAI",
+    "relation": "Vợ người bệnh",
+    "idNumber": "001188009988",
+    "phone": "0912345678"
+  },
+  "surgery": {
+    "diagnosis": "Viêm ruột thừa cấp giờ thứ 12 (K35.8)",
+    "procedureName": "Phẫu thuật nội soi cắt ruột thừa viêm",
+    "anesthesiaMethod": "Gây mê nội khí quản",
+    "plannedTime": "14/08/2026 14:00",
+    "explainedRisks": "Nguy cơ chảy máu trong/sau mổ, nhiễm trùng vết mổ, dị ứng thuốc mê/thuốc tê, tổn thương tạng lân cận đã được Bác sĩ giải thích rõ ràng."
+  },
+  "doctor": {
+    "fullName": "BS. CKII NGUYỄN VĂN AN",
+    "title": "Bác sĩ phẫu thuật viên chính"
+  }
+}

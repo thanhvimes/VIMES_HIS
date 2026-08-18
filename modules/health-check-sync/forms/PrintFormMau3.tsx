@@ -85,11 +85,23 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
     const currentYear = new Date().getFullYear();
     const age = birthYear > 0 ? currentYear - birthYear : '';
 
+    const isDriver = document.form_type === 'driver' || document.form_type === 'mau3-driver' || Boolean(extra.is_driver);
     const licenseClass = extra.hang_lai_xe || 'B2';
     const driverExamPurpose = extra.driver_exam_purpose || 'Cấp mới';
 
     const tsgd = String(extra.tsgd_mac_benh || '').trim();
     const hasTsgd = tsgd === '1' || (tsgd !== '' && tsgd !== '0' && tsgd !== 'Không');
+
+    const formatFitnessClassName = (val: string) => {
+        const map: Record<string, string> = {
+            '1': 'Rất khỏe',
+            '2': 'Khỏe',
+            '3': 'Trung bình',
+            '4': 'Yếu',
+            '5': 'Rất yếu'
+        };
+        return map[val] || 'Khỏe';
+    };
 
     const historyItems = [
         { id: 1, label: '1. Bệnh hay bị thương trong 5 năm qua', val: extra.ts_benh_thuong_5_nam },
@@ -102,16 +114,18 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
         { id: 8, label: '8. Khó thở', val: extra.ts_kho_tho },
         { id: 9, label: '9. Bệnh phổi, hen, viêm phế quản mạn', val: extra.ts_benh_phoi_hen },
         { id: 10, label: '10. Bệnh thận, lọc máu', val: extra.ts_benh_than_loc_mau },
-        { id: 11, label: '11. Đái tháo đường, tăng đường huyết', val: extra.ts_dai_thao_duong },
-        { id: 12, label: '12. Bệnh tâm thần', val: extra.ts_benh_tam_than },
-        { id: 13, label: '13. Mất ý thức, rối loạn ý thức', val: extra.ts_mat_roi_loan_y_thuc },
-        { id: 14, label: '14. Ngất, chóng mặt, ngất xỉu', val: extra.ts_ngat_chong_mat },
-        { id: 15, label: '15. Bệnh tiêu hóa', val: extra.ts_benh_tieu_hoa },
-        { id: 16, label: '16. Rối loạn giấc ngủ, ngưng thở khi ngủ', val: extra.ts_roi_loan_giac_ngu },
-        { id: 17, label: '17. Tai biến mạch máu não hoặc liệt', val: extra.ts_tai_bien_mach_mau_nao || extra.ts_tai_bien_mach_nao },
-        { id: 18, label: '18. Bệnh hoặc tổn thương cột sống', val: extra.ts_benh_cot_song },
-        { id: 19, label: '19. Sử dụng rượu thường xuyên, liên tục', val: extra.ts_su_dung_ruou },
-        { id: 20, label: '20. Sử dụng ma túy và chất gây nghiện', val: extra.ts_su_dung_ma_tuy },
+        { id: 11, label: '11. Nghiện rượu, bia', val: extra.tsbt_nghien_ruou },
+        { id: 12, label: '12. Đái tháo đường, tăng đường huyết', val: extra.ts_dai_thao_duong },
+        { id: 13, label: '13. Bệnh tâm thần', val: extra.ts_benh_tam_than },
+        { id: 14, label: '14. Mất ý thức, rối loạn ý thức', val: extra.ts_mat_roi_loan_y_thuc },
+        { id: 15, label: '15. Ngất, chóng mặt, ngất xỉu', val: extra.ts_ngat_chong_mat },
+        { id: 16, label: '16. Bệnh tiêu hóa', val: extra.ts_benh_tieu_hoa },
+        { id: 17, label: '17. Rối loạn giấc ngủ, ngưng thở khi ngủ', val: extra.ts_roi_loan_giac_ngu },
+        { id: 18, label: '18. Tai biến mạch máu não hoặc liệt', val: extra.ts_tai_bien_mach_mau_nao || extra.ts_tai_bien_mach_nao },
+        { id: 19, label: '19. Bệnh hoặc tổn thương cột sống', val: extra.ts_benh_cot_song },
+        { id: 20, label: '20. Sử dụng rượu thường xuyên, liên tục', val: extra.ts_su_dung_ruou },
+        { id: 21, label: '21. Sử dụng ma túy và chất gây nghiện', val: extra.ts_su_dung_ma_tuy },
+        { id: 22, label: '22. Bệnh khác (ghi rõ mã ICD-10)', val: extra.tsbt_ma_benh_khac ? 1 : 0 },
     ];
 
     const isTreating = extra.ts_mac_benh === '1' || extra.ts_mac_benh === 1;
@@ -163,14 +177,20 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
 
                     {/* Form Title */}
                     <div className="text-center my-3">
-                        <h1 className="text-[16px] font-black uppercase tracking-wide">GIẤY KHÁM SỨC KHỎE CỦA NGƯỜI LÁI XE</h1>
-                        <p className="text-[11.5px] italic font-semibold text-slate-700">(Dùng cho người học lái xe, nâng hạng hoặc đổi giấy phép lái xe)</p>
+                        <h1 className="text-[16px] font-black uppercase tracking-wide">
+                            {isDriver ? 'GIẤY KHÁM SỨC KHỎE CỦA NGƯỜI LÁI XE' : 'GIẤY KHÁM SỨC KHỎE'}
+                        </h1>
+                        <p className="text-[11.5px] italic font-semibold text-slate-700">
+                            {isDriver 
+                                ? '(Dùng cho người học lái xe, nâng hạng hoặc đổi giấy phép lái xe)' 
+                                : '(Dành cho người từ đủ 18 tuổi trở lên theo Thông tư số 32/2023/TT-BYT & QĐ 2062/QĐ-BYT)'}
+                        </p>
                     </div>
 
-                    {/* Phần I: Thông tin người lái xe */}
+                    {/* Phần I: Thông tin đối tượng */}
                     <div className="mb-4">
                         <div className="font-bold text-[13px] uppercase border-b border-black pb-0.5 mb-2">
-                            I. THÔNG TIN CỦA NGƯỜI LÁI XE
+                            {isDriver ? 'I. THÔNG TIN CỦA NGƯỜI LÁI XE' : 'I. THÔNG TIN CỦA NGƯỜI ĐƯỢC KHÁM SỨC KHỎE'}
                         </div>
                         <div className="grid grid-cols-12 gap-3">
                             <div className="col-span-9 space-y-1">
@@ -200,16 +220,29 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                                     <span className="font-bold">5. Nơi ở hiện tại: </span>
                                     <span className="font-semibold">{document.address || ''}</span>
                                 </div>
-                                <div className="flex gap-6">
-                                    <div>
-                                        <span className="font-bold">6. Đề nghị khám lái xe hạng: </span>
-                                        <span className="font-extrabold text-[#0f766e] text-[13px] uppercase border border-black px-1.5 py-0.2 rounded bg-slate-50">{licenseClass}</span>
+                                {isDriver ? (
+                                    <div className="flex gap-6">
+                                        <div>
+                                            <span className="font-bold">6. Đề nghị khám lái xe hạng: </span>
+                                            <span className="font-extrabold text-[#0f766e] text-[13px] uppercase border border-black px-1.5 py-0.2 rounded bg-slate-50">{licenseClass}</span>
+                                        </div>
+                                        <div>
+                                            <span className="font-bold">Mục đích khám: </span>
+                                            <span className="font-semibold">{driverExamPurpose}</span>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <span className="font-bold">Mục đích khám: </span>
-                                        <span className="font-semibold">{driverExamPurpose}</span>
+                                ) : (
+                                    <div className="flex gap-6">
+                                        <div>
+                                            <span className="font-bold">6. Nghề nghiệp / Nơi công tác: </span>
+                                            <span className="font-semibold">{document.workplace || extra.workplace || document.position || 'Tự do'}</span>
+                                        </div>
+                                        <div>
+                                            <span className="font-bold">Lý do khám: </span>
+                                            <span className="font-semibold">{extra.ly_do_kham || 'Khám sức khỏe định kỳ'}</span>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                                 <div className="flex gap-6">
                                     <div>
                                         <span className="font-bold">7. Số điện thoại liên hệ: </span>
@@ -235,7 +268,7 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                     {/* Phần II: Tiền sử bệnh */}
                     <div className="mb-2">
                         <div className="font-bold text-[13px] uppercase border-b border-black pb-0.5 mb-2">
-                            II. TIỀN SỬ BỆNH CỦA NGƯỜI LÁI XE
+                            {isDriver ? 'II. TIỀN SỬ BỆNH CỦA NGƯỜI LÁI XE' : 'II. TIỀN SỬ BỆNH TẬT'}
                         </div>
                         
                         {/* Tiền sử gia đình */}
@@ -247,38 +280,38 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                             {hasTsgd && extra.tsgd_ma_benh && <span className="font-bold italic">({extra.tsgd_ma_benh})</span>}
                         </div>
 
-                        {/* Tiền sử bản thân (20 chỉ tiêu) */}
+                        {/* Tiền sử bản thân (22 chỉ tiêu) */}
                         <div className="mb-2">
-                            <span className="font-bold text-[12px] block mb-1">2. Tiền sử bản thân (Đánh giá Có/Không theo QĐ 1551/QĐ-BYT):</span>
-                            <table className="w-full border-collapse border border-black text-[11px]">
+                            <span className="font-bold text-[12px] block mb-1">2. Tiền sử bản thân (Đánh giá Có/Không theo QĐ 1551 &amp; QĐ 2062/QĐ-BYT):</span>
+                            <table className="w-full border-collapse border border-black text-[10.5px]">
                                 <thead>
                                     <tr className="bg-slate-100 text-center font-bold">
-                                        <th className="border border-black p-1 w-7">TT</th>
-                                        <th className="border border-black p-1 text-left">Tên bệnh, tình trạng sức khỏe</th>
-                                        <th className="border border-black p-1 w-12">Không</th>
-                                        <th className="border border-black p-1 w-12">Có</th>
-                                        <th className="border border-black p-1 w-7">TT</th>
-                                        <th className="border border-black p-1 text-left">Tên bệnh, tình trạng sức khỏe</th>
-                                        <th className="border border-black p-1 w-12">Không</th>
-                                        <th className="border border-black p-1 w-12">Có</th>
+                                        <th className="border border-black p-0.5 w-6">TT</th>
+                                        <th className="border border-black p-0.5 text-left">Tên bệnh, tình trạng sức khỏe</th>
+                                        <th className="border border-black p-0.5 w-10">Không</th>
+                                        <th className="border border-black p-0.5 w-10">Có</th>
+                                        <th className="border border-black p-0.5 w-6">TT</th>
+                                        <th className="border border-black p-0.5 text-left">Tên bệnh, tình trạng sức khỏe</th>
+                                        <th className="border border-black p-0.5 w-10">Không</th>
+                                        <th className="border border-black p-0.5 w-10">Có</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {Array.from({ length: 10 }).map((_, i) => {
+                                    {Array.from({ length: 11 }).map((_, i) => {
                                         const left = historyItems[i];
-                                        const right = historyItems[i + 10];
+                                        const right = historyItems[i + 11];
                                         const isLeftYes = left.val === 1 || left.val === '1' || left.val === true;
                                         const isRightYes = right.val === 1 || right.val === '1' || right.val === true;
 
                                         return (
                                             <tr key={i} className="hover:bg-slate-50">
                                                 <td className="border border-black p-0.5 text-center font-bold">{left.id}</td>
-                                                <td className="border border-black p-0.5 pl-1.5">{left.label.replace(/^\d+\.\s*/, '')}</td>
+                                                <td className="border border-black p-0.5 pl-1">{left.label.replace(/^\d+\.\s*/, '')}</td>
                                                 <td className="border border-black p-0.5 text-center font-bold">{!isLeftYes ? 'x' : ''}</td>
                                                 <td className="border border-black p-0.5 text-center font-bold text-red-600">{isLeftYes ? 'x' : ''}</td>
 
                                                 <td className="border border-black p-0.5 text-center font-bold">{right.id}</td>
-                                                <td className="border border-black p-0.5 pl-1.5">{right.label.replace(/^\d+\.\s*/, '')}</td>
+                                                <td className="border border-black p-0.5 pl-1">{right.label.replace(/^\d+\.\s*/, '')}</td>
                                                 <td className="border border-black p-0.5 text-center font-bold">{!isRightYes ? 'x' : ''}</td>
                                                 <td className="border border-black p-0.5 text-center font-bold text-red-600">{isRightYes ? 'x' : ''}</td>
                                             </tr>
@@ -288,10 +321,20 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                             </table>
                         </div>
 
-                        {/* Câu hỏi khác & Thuốc điều trị */}
-                        <div className="text-[12px] space-y-1 mb-2">
+                        {/* Tiền sử thai sản (đối với nữ) & Câu hỏi khác */}
+                        <div className="text-[11.5px] space-y-1 mb-2">
+                            {isNu && (
+                                <div>
+                                    <span className="font-bold">3. Tiền sử thai sản (đối với nữ): </span>
+                                    {renderCheckbox(extra.tsbt_thai_san !== '1', 'Không')}
+                                    {renderCheckbox(extra.tsbt_thai_san === '1', 'Có')}
+                                    {extra.tsbt_thai_san === '1' && extra.tsbt_ma_benh_thai_san && (
+                                        <span className="font-semibold italic ml-2">Mã bệnh: {extra.tsbt_ma_benh_thai_san}</span>
+                                    )}
+                                </div>
+                            )}
                             <div>
-                                <span className="font-bold">3. Câu hỏi khác: </span>
+                                <span className="font-bold">{isNu ? '4' : '3'}. Câu hỏi khác: </span>
                                 <span>Có đang điều trị bệnh gì không? </span>
                                 {renderCheckbox(!isTreating, 'Không')}
                                 {renderCheckbox(isTreating, 'Có')}
@@ -524,41 +567,175 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                             V. KHÁM CẬN LÂM SÀNG
                         </div>
 
-                        <div className="space-y-2">
-                            {/* A. Xét nghiệm ma túy */}
-                            <div className="p-2.5 border border-black rounded bg-slate-50">
-                                <div className="font-bold text-[12px] text-slate-900 mb-1 flex items-center justify-between">
-                                    <span>1. Xét nghiệm Ma túy (Morphin/Heroin, Amphetamin, Marijuana, Methamphetamin, Codein):</span>
-                                    <span className="text-[11px] px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold border border-emerald-300">Bắt buộc</span>
+                        {isDriver ? (
+                            <div className="space-y-2">
+                                {/* A. Xét nghiệm ma túy */}
+                                <div className="p-2.5 border border-black rounded bg-slate-50">
+                                    <div className="font-bold text-[12px] text-slate-900 mb-1 flex items-center justify-between">
+                                        <span>1. Xét nghiệm Ma túy (Morphin/Heroin, Amphetamin, Marijuana, Methamphetamin, Codein):</span>
+                                        <span className="text-[11px] px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold border border-emerald-300">Bắt buộc</span>
+                                    </div>
+                                    <div className="text-[12px]">
+                                        Kết quả: <span className="font-extrabold text-[12.5px] text-[#0f766e]">{lab.kq_xn_mai_tuy || lab.kq_xn_ma_tuy || 'Âm tính'}</span>
+                                    </div>
                                 </div>
-                                <div className="text-[12px]">
-                                    Kết quả: <span className="font-extrabold text-[12.5px] text-[#0f766e]">{lab.kq_xn_mai_tuy || lab.kq_xn_ma_tuy || 'Âm tính với các chất ma túy (Morphin, Amphetamin, Marijuana, Methamphetamin, Codein)'}</span>
-                                </div>
-                            </div>
 
-                            {/* B. Xét nghiệm nồng độ cồn */}
-                            <div className="p-2.5 border border-black rounded bg-slate-50">
-                                <div className="font-bold text-[12px] text-slate-900 mb-1 flex items-center justify-between">
-                                    <span>2. Xét nghiệm Nồng độ cồn (Định lượng nồng độ trong máu hoặc hơi thở):</span>
-                                    <span className="text-[11px] px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold border border-emerald-300">Bắt buộc</span>
+                                {/* B. Xét nghiệm nồng độ cồn */}
+                                <div className="p-2.5 border border-black rounded bg-slate-50">
+                                    <div className="font-bold text-[12px] text-slate-900 mb-1 flex items-center justify-between">
+                                        <span>2. Xét nghiệm Nồng độ cồn (Định lượng nồng độ trong máu hoặc hơi thở):</span>
+                                        <span className="text-[11px] px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold border border-emerald-300">Bắt buộc</span>
+                                    </div>
+                                    <div className="text-[12px]">
+                                        Kết quả: <span className="font-extrabold text-[12.5px] font-mono text-[#0f766e]">{lab.kq_xn_nong_do_con || '0.0 mg/L (Âm tính)'}</span>
+                                    </div>
                                 </div>
-                                <div className="text-[12px]">
-                                    Kết quả: <span className="font-extrabold text-[12.5px] font-mono text-[#0f766e]">{lab.kq_xn_nong_do_con || '0.0 mg/L (Âm tính)'}</span>
-                                </div>
-                            </div>
 
-                            {/* C. Các xét nghiệm khác */}
-                            <div className="p-2.5 border border-black rounded bg-slate-50">
-                                <div className="font-bold text-[12px] text-slate-900 mb-1">
-                                    3. Các xét nghiệm cận lâm sàng khác (nếu có chỉ định của Bác sĩ):
-                                </div>
-                                <div className="text-[11.5px] space-y-0.5">
-                                    <div>- X-quang tim phổi: <span className="font-semibold">{lab.x_quang || 'Bình thường, không tổn thương thâm nhiễm.'}</span></div>
-                                    <div>- Điện tâm đồ: <span className="font-semibold">{lab.dien_tim || 'Nhịp xoang đều, tần số 75 chu kỳ/phút.'}</span></div>
-                                    <div>- Kết luận cận lâm sàng khác: <span className="font-semibold">{lab.ket_luan_xn_khac || 'Các chỉ số sinh hóa, huyết học trong giới hạn bình thường.'}</span></div>
-                                </div>
+                                {/* C. Các xét nghiệm khác */}
+                                {(() => {
+                                    const otherLabText = [
+                                        lab.x_quang ? `- X-quang tim phổi: ${lab.x_quang}` : '',
+                                        lab.dien_tim ? `- Điện tâm đồ: ${lab.dien_tim}` : '',
+                                        lab.ket_luan_xn_khac ? `- Kết luận cận lâm sàng khác: ${lab.ket_luan_xn_khac}` : ''
+                                    ].filter(Boolean);
+
+                                    return otherLabText.length > 0 && (
+                                        <div className="p-2.5 border border-black rounded bg-slate-50">
+                                            <div className="font-bold text-[12px] text-slate-900 mb-1">
+                                                3. Các xét nghiệm cận lâm sàng khác (nếu có chỉ định của Bác sĩ):
+                                            </div>
+                                            <div className="text-[11.5px] space-y-0.5">
+                                                {otherLabText.map((t, idx) => (
+                                                    <div key={idx} className="font-semibold">{t}</div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
-                        </div>
+                        ) : (
+                            /* Biểu mẫu KSK định kỳ / Thông thường (Mẫu 3) */
+                            <div className="space-y-2.5">
+                                {(() => {
+                                    const paraclinicalItems: any[] = lab.paraclinical_items || lab.paraclinicalItems || [];
+                                    const validItems = paraclinicalItems.filter((item: any) => {
+                                        const val = String(item.value || item.conclusion || item.description || '').trim();
+                                        return val !== '' && val !== 'undefined' && val !== 'null';
+                                    });
+
+                                    const xnItems = validItems.filter((x: any) => x.type === 'XN' || String(x.group_id || '').startsWith('A'));
+                                    const haItems = validItems.filter((x: any) => x.type === 'HA' || String(x.group_id || '').startsWith('B2') || String(x.group_id || '').startsWith('C'));
+                                    const tdItems = validItems.filter((x: any) => x.type === 'TD' || String(x.group_id || '').startsWith('B3') || String(x.group_id || '').startsWith('D'));
+
+                                    const hasBloodFields = !!(lab.blood_test?.hemoglobin || lab.blood_test?.glycemia || lab.blood_test?.glucose || lab.glycemia || lab.hemoglobin);
+                                    const hasUrineFields = !!(lab.urine_test?.protein || lab.urine_test?.sugar || lab.protein);
+
+                                    if (validItems.length === 0 && !hasBloodFields && !hasUrineFields && !lab.ket_luan_xn_khac) {
+                                        return (
+                                            <div className="p-3 border border-dashed border-slate-300 rounded text-center text-slate-500 italic text-[11.5px]">
+                                                Không có chỉ định hoặc chưa có kết quả cận lâm sàng
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <>
+                                            {/* 1. Xét nghiệm (Máu & Nước tiểu) */}
+                                            {(xnItems.length > 0 || hasBloodFields || hasUrineFields) && (
+                                                <div className="border border-black rounded overflow-hidden">
+                                                    <div className="bg-slate-100 px-2.5 py-1 font-bold text-[11.5px] border-b border-black">
+                                                        1. KẾT QUẢ XÉT NGHIỆM
+                                                    </div>
+                                                    <table className="w-full text-[11.5px] border-collapse">
+                                                        <thead>
+                                                            <tr className="bg-slate-50 text-slate-700 border-b border-black">
+                                                                <th className="p-1.5 text-center w-[8%] border-r border-black">STT</th>
+                                                                <th className="p-1.5 text-left border-r border-black">Tên xét nghiệm / Chỉ số</th>
+                                                                <th className="p-1.5 text-center w-[25%] border-r border-black">Kết quả</th>
+                                                                <th className="p-1.5 text-center w-[15%] border-r border-black">Đơn vị</th>
+                                                                <th className="p-1.5 text-left w-[25%]">Đánh giá / Kết luận</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {/* Chỉ số đường máu / hemoglobin từ core fields nếu chưa có trong xnItems */}
+                                                            {hasBloodFields && !xnItems.some(x => String(x.service_name || '').toLowerCase().includes('đường') || String(x.service_name || '').toLowerCase().includes('glucose')) && (
+                                                                <tr className="border-b border-slate-200">
+                                                                    <td className="p-1.5 text-center border-r border-black">1</td>
+                                                                    <td className="p-1.5 font-semibold border-r border-black">Đường máu (Glucose / Glycemia)</td>
+                                                                    <td className="p-1.5 text-center font-bold text-[#0f766e] border-r border-black">{lab.blood_test?.glycemia || lab.glycemia || lab.blood_test?.glucose || ''}</td>
+                                                                    <td className="p-1.5 text-center border-r border-black">mmol/L</td>
+                                                                    <td className="p-1.5">Bình thường</td>
+                                                                </tr>
+                                                            )}
+                                                            {hasUrineFields && !xnItems.some(x => String(x.service_name || '').toLowerCase().includes('protein') || String(x.service_name || '').toLowerCase().includes('nước tiểu')) && (
+                                                                <tr className="border-b border-slate-200">
+                                                                    <td className="p-1.5 text-center border-r border-black">{hasBloodFields ? 2 : 1}</td>
+                                                                    <td className="p-1.5 font-semibold border-r border-black">Protein nước tiểu</td>
+                                                                    <td className="p-1.5 text-center font-bold text-[#0f766e] border-r border-black">{lab.urine_test?.protein || lab.protein || 'Âm tính'}</td>
+                                                                    <td className="p-1.5 text-center border-r border-black">g/L</td>
+                                                                    <td className="p-1.5">Bình thường</td>
+                                                                </tr>
+                                                            )}
+                                                            {xnItems.map((item: any, idx: number) => (
+                                                                <tr key={idx} className="border-b border-slate-200 last:border-b-0">
+                                                                    <td className="p-1.5 text-center border-r border-black">{idx + 1}</td>
+                                                                    <td className="p-1.5 font-semibold border-r border-black">{item.service_name || item.index_name}</td>
+                                                                    <td className="p-1.5 text-center font-bold text-[#0f766e] border-r border-black">{item.value || item.conclusion}</td>
+                                                                    <td className="p-1.5 text-center border-r border-black">{item.unit || ''}</td>
+                                                                    <td className="p-1.5">{item.conclusion || item.description || 'Bình thường'}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+
+                                            {/* 2. Chẩn đoán hình ảnh */}
+                                            {haItems.length > 0 && (
+                                                <div className="border border-black rounded overflow-hidden">
+                                                    <div className="bg-slate-100 px-2.5 py-1 font-bold text-[11.5px] border-b border-black">
+                                                        2. CHẨN ĐOÁN HÌNH ẢNH (X-QUANG, SIÊU ÂM, CT, MRI)
+                                                    </div>
+                                                    <div className="p-2 space-y-1.5">
+                                                        {haItems.map((item: any, idx: number) => (
+                                                            <div key={idx} className="text-[11.5px]">
+                                                                <span className="font-bold">• {item.service_name}: </span>
+                                                                <span className="font-semibold text-slate-800">{item.value || item.conclusion || item.description || 'Bình thường'}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* 3. Thăm dò chức năng */}
+                                            {tdItems.length > 0 && (
+                                                <div className="border border-black rounded overflow-hidden">
+                                                    <div className="bg-slate-100 px-2.5 py-1 font-bold text-[11.5px] border-b border-black">
+                                                        3. THĂM DÒ CHỨC NĂNG (ĐIỆN TIM, ĐIỆN NÃO, ĐO CHỨC NĂNG HÔ HẤP...)
+                                                    </div>
+                                                    <div className="p-2 space-y-1.5">
+                                                        {tdItems.map((item: any, idx: number) => (
+                                                            <div key={idx} className="text-[11.5px]">
+                                                                <span className="font-bold">• {item.service_name}: </span>
+                                                                <span className="font-semibold text-slate-800">{item.value || item.conclusion || item.description || 'Bình thường'}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Kết luận CLS khác nếu có */}
+                                            {lab.ket_luan_xn_khac && (
+                                                <div className="p-2 border border-black rounded bg-slate-50 text-[11.5px]">
+                                                    <span className="font-bold">Kết luận cận lâm sàng khác: </span>
+                                                    <span className="font-semibold">{lab.ket_luan_xn_khac}</span>
+                                                </div>
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        )}
                     </div>
 
                     {/* Phần VI: Kết luận */}
@@ -568,37 +745,55 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                         </div>
 
                         <div className="p-3 border-2 border-black rounded-lg bg-slate-50/50 space-y-2">
-                            <div className="text-[13px]">
-                                <span className="font-bold">1. Đánh giá tình trạng sức khỏe:</span>
-                                <div className="pl-3 mt-1 space-y-1">
-                                    <div>
-                                        {renderCheckbox(isDuDieuKien, '')}
-                                        <span className={`font-bold ${isDuDieuKien ? 'text-[#0f766e] text-[13.5px]' : ''}`}>
-                                            Đủ điều kiện sức khỏe lái xe hạng: <span className="underline uppercase font-extrabold">{licenseClass}</span>
-                                        </span>
-                                    </div>
-                                    <div>
-                                        {renderCheckbox(isKhongDuDieuKien, '')}
-                                        <span className={`font-bold ${isKhongDuDieuKien ? 'text-red-600 text-[13.5px]' : ''}`}>
-                                            Không đủ điều kiện sức khỏe lái xe hạng: <span className="uppercase font-extrabold">{licenseClass}</span>
-                                        </span>
-                                    </div>
-                                    <div>
-                                        {renderCheckbox(isKhamLai, '')}
-                                        <span className="font-semibold">Khám lại sau: ....................................................</span>
+                            {isDriver ? (
+                                <div className="text-[13px]">
+                                    <span className="font-bold">1. Đánh giá tình trạng sức khỏe:</span>
+                                    <div className="pl-3 mt-1 space-y-1">
+                                        <div>
+                                            {renderCheckbox(isDuDieuKien, '')}
+                                            <span className={`font-bold ${isDuDieuKien ? 'text-[#0f766e] text-[13.5px]' : ''}`}>
+                                                Đủ điều kiện sức khỏe lái xe hạng: <span className="underline uppercase font-extrabold">{licenseClass}</span>
+                                            </span>
+                                        </div>
+                                        <div>
+                                            {renderCheckbox(isKhongDuDieuKien, '')}
+                                            <span className={`font-bold ${isKhongDuDieuKien ? 'text-red-600 text-[13.5px]' : ''}`}>
+                                                Không đủ điều kiện sức khỏe lái xe hạng: <span className="uppercase font-extrabold">{licenseClass}</span>
+                                            </span>
+                                        </div>
+                                        <div>
+                                            {renderCheckbox(isKhamLai, '')}
+                                            <span className="font-semibold">Khám lại sau: ....................................................</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="text-[13px]">
+                                    <span className="font-bold">1. Phân loại sức khỏe: </span>
+                                    <span className="font-bold text-[13.5px] text-[#0f766e]">
+                                        Loại {conclusion.fitness_class || 'I'} - {formatFitnessClassName(conclusion.fitness_class || '1')}
+                                    </span>
+                                </div>
+                            )}
 
                             <div className="text-[12px]">
-                                <span className="font-bold">2. Chẩn đoán bệnh / Mã ICD-10: </span>
-                                <span className="font-extrabold text-[12.5px] font-mono text-slate-800">
-                                    {conclusion.diagnosis || conclusion.ket_luan_benh || 'Z00.0 (Khám sức khỏe tổng quát)'}
+                                <span className="font-bold">2. Các bệnh, tật (nếu có) / Mã ICD-10: </span>
+                                <span className="font-semibold font-mono text-slate-800">
+                                    {conclusion.diagnosis || conclusion.ket_luan_benh || 'Không phát hiện bất thường (Z00.0)'}
                                 </span>
                             </div>
 
+                            {!isDriver && (
+                                <div className="text-[12px]">
+                                    <span className="font-bold">3. Tình trạng sức khỏe; mắc các bệnh, tật (nếu có): </span>
+                                    <span className="font-semibold text-slate-800">
+                                        {conclusion.cac_benh_tat_neu_co || extra.cac_benh_tat_neu_co || 'Bình thường'}
+                                    </span>
+                                </div>
+                            )}
+
                             <div className="text-[12px]">
-                                <span className="font-bold">3. Các vấn đề sức khỏe cần lưu ý: </span>
+                                <span className="font-bold">{isDriver ? '3' : '4'}. Các vấn đề sức khỏe cần lưu ý: </span>
                                 <span className="font-semibold">
                                     {conclusion.cac_van_de_luu_y || conclusion.ket_luan_cac_van_de_suc_khoe || 'Không có vấn đề bất thường, duy trì lối sống lành mạnh.'}
                                 </span>

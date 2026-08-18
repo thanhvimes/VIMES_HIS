@@ -18,6 +18,8 @@ const ConclusionTab: React.FC = () => {
         setDiagnosis,
         cacVanDeLuuY,
         setCacVanDeLuuY,
+        cacBenhTatNeuCo,
+        setCacBenhTatNeuCo,
         duTieuChuanDkPtgtDuongSat,
         setDuTieuChuanDkPtgtDuongSat,
         khaNangChiuSong,
@@ -368,9 +370,32 @@ const ConclusionTab: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="mt-4">
-                    <label className="block text-xs font-bold text-slate-500 mb-1">Các vấn đề sức khỏe cần lưu ý</label>
-                    <textarea value={cacVanDeLuuY} onChange={e => setCacVanDeLuuY(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white h-20" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">
+                            Các vấn đề sức khỏe cần lưu ý (CAC_VAN_DE_SUC_KHOE)
+                        </label>
+                        <textarea
+                            value={cacVanDeLuuY}
+                            onChange={e => setCacVanDeLuuY(e.target.value)}
+                            disabled={isTabLocked}
+                            className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white h-20"
+                            placeholder="Ghi nhận các vấn đề sức khỏe cần lưu ý..."
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center justify-between">
+                            <span>Tình trạng sức khỏe; mắc các bệnh, tật (nếu có)</span>
+                            <span className="text-[10px] text-teal-600 dark:text-teal-400 font-bold">* Mục 121 QĐ 1551 (CAC_BENH_TAT_NEU_CO)</span>
+                        </label>
+                        <textarea
+                            value={cacBenhTatNeuCo}
+                            onChange={e => setCacBenhTatNeuCo(e.target.value)}
+                            disabled={isTabLocked}
+                            className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white h-20"
+                            placeholder="Ghi rõ tình trạng sức khỏe hoặc các bệnh, tật mắc phải nếu có..."
+                        />
+                    </div>
                 </div>
 
                 {formType === '3' && (
@@ -460,11 +485,11 @@ const ConclusionTab: React.FC = () => {
                             <label className="block text-xs font-bold text-slate-500 mb-1">Phân loại sức khỏe Thuyền viên</label>
                             <select value={ketLuanLoaiSucKhoe} onChange={e => setKetLuanLoaiSucKhoe(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold text-[#0f766e] dark:text-teal-400">
                                 <option value="">-- Chọn phân loại --</option>
-                                <option value="1">Loại I</option>
-                                <option value="2">Loại II</option>
-                                <option value="3">Loại III</option>
-                                <option value="4">Loại IV</option>
-                                <option value="5">Loại V</option>
+                                <option value="1">Loại I (Rất khỏe)</option>
+                                <option value="2">Loại II (Khỏe)</option>
+                                <option value="3">Loại III (Trung bình)</option>
+                                <option value="4">Loại IV (Yếu)</option>
+                                <option value="5">Loại V (Rất yếu)</option>
                             </select>
                         </div>
                     </div>

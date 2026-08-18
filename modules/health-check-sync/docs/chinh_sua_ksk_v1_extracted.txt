@@ -1,0 +1,37 @@
+Mu 1
+
+Mã 1= Ngân sách Trung ng
+Mã 2= Ngân sách a phng
+Mã 3= Qu Bo him y t
+Mã 4= Ngi s dng lao ng
+Mã 5= Xã hi hóa
+Mã 9= Khác
+
+Xem li d liu ch Ngun chi tr
+Tin s thiu s 11: Nghin ru, bia(TSBT_NGHIEN_RUOU | Mã 0= Không Mã 1= Có) và
+thiu s 22: Bnh khác (ghi rõ) (TSBT_MA_BENH_KHAC | Ghi mã các bnh khác ca bn thân
+
+theo mã ICD-10 do B trng B Y t ban hành hoc mã ca triu chng, hi chng. Lu ý: - Trng hp có
+nhiu mã thì c
+
+phân cách bng du chm phy ";")
+Phn Câu hi khác thiu Tên bnh ang iu tr (Mã bnh ICD 10)
+(TSBT_MA_BENH | Ghi mã các bnh khác ca bn thân theo mã ICD-10 do B trng B Y t ban hành hoc
+
+mã ca triu chng, hi chng. Lu ý: - Trng hp có nhiu mã thì c
+
+phân cách bng du chm phy ";")
+Phn Tin s thai sn sa li tng t vi phn Có ang iu tr bnh gì
+không
+Phn Khám lâm sàng  mu trên 18 tui ang thiu phn phân loi sc kho
+(mu t 6-18 tui thì có)
+Mu 2
+
+Ch Mã bnh bn thân ã/ang iu tr (Mã ICD-10) Thiu ch ánh thuc
+ang s dng và kim tra li trng d liu gi lên
+Mu 6-18 tui phn Tin s Sn ph khoa (i vi n) => Phi sa li cho c
+nam và n và sa li các trng d liu
+Mu 6-18 thiu Khám lâm sàng khác (NHI_KHOA_LAM_SANG_KHAC)
+ phn Phân loi sc kho ghi rõ loi I, II,.. là gì
+Phn XML gi lên không úng theo mu nu chuyn i gia các mu
+

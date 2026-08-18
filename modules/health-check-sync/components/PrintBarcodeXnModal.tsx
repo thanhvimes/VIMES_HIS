@@ -43,32 +43,13 @@ interface PrintBarcodeXnModalProps {
     onPrint: (selectedOrders: { patient: PatientWithOrders; orders: LabOrder[] }[]) => void;
 }
 
-// ========== MOCK DATA GENERATOR ==========
-// Tạo phiếu XN giả cho mỗi bệnh nhân để demo giao diện
-// Thay thế bằng API thật khi backend sẵn sàng
-
-const LAB_TEST_NAMES = [
-    'Tổng phân tích máu (CBC)',
-    'Đường huyết (Glucose)',
-    'Chức năng gan (AST, ALT)',
-    'Chức năng thận (Creatinine, Urea)',
-    'Mỡ máu toàn phần (Lipid profile)',
-    'Nước tiểu tổng quát (Urinalysis)',
-    'Điện giải đồ (Na, K, Cl)',
-    'Axit Uric máu',
-    'CRP (Protein phản ứng C)',
-    'TSH - Hormone tuyến giáp',
-];
-
-const SAMPLE_TYPES = ['Máu tĩnh mạch', 'Nước tiểu', 'Máu mao mạch'];
-
 // ========== HELPER FUNCTIONS FOR BARCODE STICKER FORMATTING ==========
 
 export function calculateAge(dob?: string, ageInput?: any): string {
     if (ageInput !== undefined && ageInput !== null && ageInput !== '') {
         return String(ageInput);
     }
-    if (!dob) return '46';
+    if (!dob) return '';
     const birthYear = parseInt(String(dob).substring(0, 4), 10);
     if (!isNaN(birthYear) && birthYear > 1900 && birthYear <= new Date().getFullYear()) {
         return String(new Date().getFullYear() - birthYear);
@@ -78,7 +59,7 @@ export function calculateAge(dob?: string, ageInput?: any): string {
         const y = parseInt(parts[2], 10);
         if (!isNaN(y) && y > 1900) return String(new Date().getFullYear() - y);
     }
-    return '46';
+    return '';
 }
 
 export function getGenderShort(gender?: string): string {
@@ -123,37 +104,16 @@ export function formatDateTime(dateStr?: string): string {
     }
 }
 
-function generateMockLabOrders(patientId: string, docNo: string): LabOrder[] {
-    const seed = parseInt(patientId, 10) || 1;
-    const count = (seed % 3) + 1;
-    const today = new Date();
-
-    return Array.from({ length: count }, (_, i) => {
-        const orderNo = `${docNo.replace(/\D/g, '').slice(-6).padStart(6, '0')}${(i + 1).toString().padStart(2, '0')}` || '13312658';
-        const testName = LAB_TEST_NAMES[(seed + i) % LAB_TEST_NAMES.length];
-        const sampleType = SAMPLE_TYPES[i % SAMPLE_TYPES.length];
-        return {
-            id: `${patientId}-order-${i + 1}`,
-            orderNo,
-            testName,
-            sampleType,
-            sampleTypeShort: getSampleTypeShort(testName, sampleType),
-            sampleDate: today.toISOString(),
-            status: 'pending' as const,
-            barcodePrinted: false,
-        };
-    });
-}
-
 // Chuyển đổi dữ liệu bệnh nhân từ health-check-sync sang PatientWithOrders
 function mapToPatientWithOrders(doc: any): PatientWithOrders {
     const patientId = doc.id?.toString() || '';
     
     // Trích xuất các phiếu xét nghiệm thực tế nếu có
-    const items = doc.lab_data?.paraclinical_items || [];
+    const items = doc.lab_data?.paraclinical_items || doc.labData?.paraclinical_items || doc.paraclinical_items || [];
     const testItems = items.filter((item: any) => {
         const groupId = String(item.group_id || '').toUpperCase();
-        return groupId.startsWith('A'); // Nhóm A là Xét nghiệm
+        const type = String(item.type || '').toUpperCase();
+        return groupId.startsWith('A') || type === 'XN' || String(item.service_name || '').toLowerCase().includes('máu') || String(item.service_name || '').toLowerCase().includes('nước tiểu');
     });
 
     let labOrders: LabOrder[] = [];
@@ -162,15 +122,14 @@ function mapToPatientWithOrders(doc: any): PatientWithOrders {
         const ordersMap = new Map<string, LabOrder>();
         
         testItems.forEach((item: any) => {
-            const orderId = item.order_id ? String(item.order_id).trim() : '';
-            if (!orderId) return;
+            const orderId = item.order_id ? String(item.order_id).trim() : (doc.doc_no ? String(doc.doc_no) : 'XN1');
             
             if (!ordersMap.has(orderId)) {
-                const groupName = item.group_name || 'Xét nghiệm tổng hợp';
-                const sType = item.sample_type || 'Máu tĩnh mạch';
+                const groupName = item.group_name || item.service_name || 'Xét nghiệm tổng hợp';
+                const sType = item.sample_type || (String(item.service_name || '').toLowerCase().includes('nước tiểu') ? 'Nước tiểu' : 'Máu tĩnh mạch');
                 ordersMap.set(orderId, {
                     id: `${patientId}-order-${orderId}`,
-                    orderNo: orderId, // Giá trị Barcode là hpc_orderid
+                    orderNo: orderId, // Giá trị Barcode là hpc_orderid hoặc doc_no
                     testName: groupName,
                     sampleType: sType,
                     sampleTypeShort: item.group_code || getSampleTypeShort(groupName, sType),
@@ -182,11 +141,17 @@ function mapToPatientWithOrders(doc: any): PatientWithOrders {
         });
         
         labOrders = Array.from(ordersMap.values());
-    }
-
-    // Fallback sang dữ liệu mock nếu không có phiếu thực tế
-    if (labOrders.length === 0) {
-        labOrders = generateMockLabOrders(patientId, doc.doc_no || '');
+    } else if (doc.doc_no) {
+        labOrders = [{
+            id: `${patientId}-order-${doc.doc_no}`,
+            orderNo: String(doc.doc_no),
+            testName: 'Xét nghiệm khám sức khỏe',
+            sampleType: 'Máu tĩnh mạch',
+            sampleTypeShort: 'HH',
+            sampleDate: doc.created_at || new Date().toISOString(),
+            status: 'pending' as const,
+            barcodePrinted: doc.barcode_printed === 'Y',
+        }];
     }
 
     const dob = doc.dob || '';
@@ -194,11 +159,11 @@ function mapToPatientWithOrders(doc: any): PatientWithOrders {
 
     return {
         id: patientId,
-        patientName: doc.patient_name || doc.fullname || 'Test22222',
+        patientName: doc.patient_name || doc.fullname || 'Chưa có tên',
         dob,
         age,
         gender: doc.gender || doc.sex || 'Nam',
-        docNo: doc.doc_no || doc.his_doc_no || '26265991',
+        docNo: doc.doc_no || doc.his_doc_no || '',
         deptCode: doc.dept_code || doc.department_code || doc.object_type || 'KB',
         labOrders: labOrders,
         contractId: doc.his_contract_id ? String(doc.his_contract_id) : '',
@@ -306,7 +271,8 @@ const PrintBarcodeXnModal: React.FC<PrintBarcodeXnModalProps> = ({
     const eligiblePatients = useMemo(() =>
         patients
             .filter(doc => (doc.barcode_printed || 'N') === 'N')
-            .map(mapToPatientWithOrders),
+            .map(mapToPatientWithOrders)
+            .filter(patient => patient.labOrders.length > 0),
         [patients]
     );
 

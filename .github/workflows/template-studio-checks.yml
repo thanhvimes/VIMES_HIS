@@ -1,0 +1,81 @@
+name: Template Studio checks
+on:
+  pull_request:
+    paths:
+      - 'backend/src/template-studio/**'
+      - 'backend/scripts/**'
+      - 'modules/document-engine/**'
+      - 'services/pdf-signing/**'
+      - 'services/pdf-signing/monitoring/**'
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - run: npm run typecheck
+        working-directory: backend
+      - run: node --check backend/scripts/*.cjs
+      - run: node backend/scripts/smoke-validate-toolkit.cjs
+      - run: node backend/scripts/scan-template-data-phi.cjs backend/benchmark-data
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m py_compile services/pdf-signing/app/*.py
+      - run: python -m py_compile services/pdf-signing/scripts/validate-pades.py
+      - name: PowerShell security scripts parse
+        shell: pwsh
+        run: |
+          $tokens = $null; $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile('services/pdf-signing/scripts/check-container-security.ps1',[ref]$tokens,[ref]$errors) | Out-Null
+          [System.Management.Automation.Language.Parser]::ParseFile('services/pdf-signing/scripts/scan-sensitive-logs.ps1',[ref]$tokens,[ref]$errors) | Out-Null
+          if ($errors) { throw 'PowerShell security script syntax error' }
+      - name: Production configuration script parse
+        shell: pwsh
+        run: |
+          $tokens = $null; $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile('services/pdf-signing/scripts/validate-production-config.ps1',[ref]$tokens,[ref]$errors) | Out-Null
+          if ($errors) { throw 'Production configuration script syntax error' }
+      - name: Production configuration negative tests
+        shell: pwsh
+        run: ./services/pdf-signing/scripts/test-production-config-gate.ps1
+      - run: python -m pip install --disable-pip-version-check -r services/pdf-signing/requirements.txt
+      - run: pytest -q services/pdf-signing/test_contract.py
+      - run: docker compose -f services/pdf-signing/docker-compose.yml config
+      - run: docker build --tag vimes-pdf-signing:ci services/pdf-signing
+      - name: Signing service container smoke
+        shell: bash
+        run: |
+          docker run -d --rm --name vimes-pdf-signing-ci -e NODE_ENV=development -e SIGNING_PROVIDER=test -p 18080:8080 vimes-pdf-signing:ci
+          trap 'docker stop vimes-pdf-signing-ci >/dev/null 2>&1 || true' EXIT
+          for i in {1..20}; do curl --fail --silent http://127.0.0.1:18080/ready && exit 0; sleep 2; done
+          docker logs vimes-pdf-signing-ci
+          exit 1
+      - name: Signing service production guard
+        shell: bash
+        run: |
+          docker run -d --rm --name vimes-pdf-signing-guard -e NODE_ENV=production -e SIGNING_PROVIDER=test -p 18081:8080 vimes-pdf-signing:ci
+          trap 'docker stop vimes-pdf-signing-guard >/dev/null 2>&1 || true' EXIT
+          for i in {1..20}; do
+            status=$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18081/ready || true)
+            if [ "$status" = "503" ]; then exit 0; fi
+            sleep 2
+          done
+          docker logs vimes-pdf-signing-guard
+          exit 1
+      - name: Signing container security checks
+        shell: pwsh
+        run: |
+          docker run -d --rm --read-only --tmpfs /tmp:size=64m,noexec,nosuid --name vimes-pdf-signing-security -e NODE_ENV=development -e SIGNING_PROVIDER=test -p 18082:8080 -v "${PWD}/services/pdf-signing/secrets:/run/secrets:ro" vimes-pdf-signing:ci
+          try {
+            ./services/pdf-signing/scripts/check-container-security.ps1 -Container vimes-pdf-signing-security
+            ./services/pdf-signing/scripts/scan-sensitive-logs.ps1 -Container vimes-pdf-signing-security
+          } finally {
+            docker stop vimes-pdf-signing-security 2>$null
+          }

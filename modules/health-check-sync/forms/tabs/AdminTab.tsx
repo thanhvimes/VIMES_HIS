@@ -513,6 +513,8 @@ const AdminTab: React.FC = () => {
                                     <option value="1">Ngân sách Trung ương</option>
                                     <option value="2">Ngân sách Địa phương</option>
                                     <option value="3">Quỹ Bảo hiểm y tế</option>
+                                    <option value="4">Người sử dụng lao động</option>
+                                    <option value="5">Xã hội hóa</option>
                                     <option value="9">Khác</option>
                                 </select>
                             </div>
@@ -778,6 +780,8 @@ const AdminTab: React.FC = () => {
                                     <option value="1">Ngân sách Trung ương</option>
                                     <option value="2">Ngân sách Địa phương</option>
                                     <option value="3">Quỹ Bảo hiểm y tế</option>
+                                    <option value="4">Người sử dụng lao động</option>
+                                    <option value="5">Xã hội hóa</option>
                                     <option value="9">Khác</option>
                                 </select>
                             </div>

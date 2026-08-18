@@ -14,6 +14,7 @@ const publicRoutes = [
 
     // Public Settings & Info (GET only)
     ['GET', /^\/api\/(v1\/)?settings(\/.*)?$/],
+    ['GET', /^\/api\/(v1\/)?his\/company$/],
 
     // Booking, Catalogs, Departments & Schedules (GET only)
     ['GET', /^\/api\/(v1\/)?departments(\/.*)?$/],
@@ -27,6 +28,12 @@ const publicRoutes = [
 
     // Public Registration
     ['POST', /^\/api\/v1\/booking\/register$/],
+
+    // Portal Study & PACS Public Info (GET only)
+    ['GET', /^\/api\/(v1\/)?portal\/study(\/.*)?$/],
+    ['GET', /^\/api\/(v1\/)?emr\/(public|catalogs)(\/.*)?$/],
+    ['GET', /^\/api\/(v1\/)?(pacs|studies|worklist|tasks|dashboard|audit-logs)(\/.*)?$/],
+    ['POST', /^\/api\/imaging\/(.*)?$/],
 
     // QMS, Queue, Kiosk, Counter, Areas & TV Displays (GET only)
     ['GET', /^\/api\/(v1\/)?(qms\/)?(public.*|counter.*|kiosk.*|queue.*|display.*|central.*|zoning.*|areas.*|departments.*)$/],

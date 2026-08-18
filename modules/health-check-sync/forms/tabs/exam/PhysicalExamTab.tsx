@@ -141,19 +141,17 @@ const PhysicalExamTab: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-500 mb-1">Chỉ số BMI (Tự động)</label>
                     <input type="text" value={bmi} disabled className="w-full p-2.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold" />
                 </div>
-                {formType === '2' && (
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">Phân loại thể lực</label>
-                        <select value={khamTheLucPl} onChange={e => setKhamTheLucPl(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold text-[#0f766e] dark:text-teal-400">
-                            <option value="">-- Phân loại --</option>
-                            <option value="1">Loại I</option>
-                            <option value="2">Loại II</option>
-                            <option value="3">Loại III</option>
-                            <option value="4">Loại IV</option>
-                            <option value="5">Loại V</option>
-                        </select>
-                    </div>
-                )}
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Phân loại thể lực</label>
+                    <select value={khamTheLucPl} onChange={e => setKhamTheLucPl(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold text-[#0f766e] dark:text-teal-400">
+                        <option value="">-- Phân loại --</option>
+                        <option value="1">Loại I (Rất khỏe)</option>
+                        <option value="2">Loại II (Khỏe)</option>
+                        <option value="3">Loại III (Trung bình)</option>
+                        <option value="4">Loại IV (Yếu)</option>
+                        <option value="5">Loại V (Rất yếu)</option>
+                    </select>
+                </div>
             </div>
 
             {/* Extra physical fields for child or sailor */}

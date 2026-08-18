@@ -24,6 +24,7 @@ import dotenv from 'dotenv';
 import { env, validateEnvironment } from './config/env';
 import { apiRateLimit, defaultApiAuthentication, securityHeaders } from './middleware/securityMiddleware';
 import templateStudioRoutes from './routes/template-studio.routes';
+import documentSignatureRoutes from './routes/document-signature.routes';
 
 // ==================== GLOBAL ERROR HANDLERS ====================
 process.on('uncaughtException', (error) => {
@@ -139,6 +140,7 @@ import qmsRoutes from './routes/qms.routes';
 import pacsRoutes from './routes/pacs.routes';
 import aiRoutes from './routes/ai.routes';
 import documentRoutes from './routes/document.routes';
+import emrRoutes from './routes/emr.routes';
 
 
 const SERVER_BUILD_TIME = Date.now();
@@ -185,6 +187,8 @@ app.use('/api', pacsRoutes);
 app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/documents', documentRoutes);
 app.use('/api/v1/template-studio', templateStudioRoutes);
+app.use('/api/v1/signatures', documentSignatureRoutes);
+app.use('/api/v1/emr', emrRoutes);
 
 // Error handling middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
@@ -195,7 +199,8 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     console.error('❌ Server Error:', err);
     res.status(err.status || 500).json({
         error: 'Internal server error',
-        message: err.message || 'Unknown error'
+        message: err.message || 'Unknown error',
+        ...(Array.isArray(err.details) ? { details: err.details } : {})
     });
 });
 
@@ -242,13 +247,13 @@ async function applyPendingMigrations() {
     try {
         const { query } = await import('./config/database');
         
-        // Only auto-run migrations if AUTO_RUN_MIGRATIONS=true in .env
-        if (process.env.AUTO_RUN_MIGRATIONS === 'true') {
-            console.log('🔄 AUTO_RUN_MIGRATIONS=true: Checking for pending database migrations...');
+        // Auto-run migrations by default on backend startup (unless explicitly disabled)
+        if (process.env.AUTO_RUN_MIGRATIONS !== 'false') {
+            console.log('🔄 Checking and applying pending database migrations...');
             await migrationService.runMigrations();
-            console.log('✅ Migrations applied successfully');
+            console.log('✅ Migrations check and execution completed.');
         } else {
-            console.log('ℹ️ Auto DB migrations on startup is DISABLED (Set AUTO_RUN_MIGRATIONS=true in .env to enable or run "npm run migrate").');
+            console.log('ℹ️ Auto DB migrations on startup is explicitly DISABLED (AUTO_RUN_MIGRATIONS=false).');
         }
 
         // Verify health_check_service_mappings table
@@ -278,7 +283,7 @@ async function startServer() {
     await applyPendingMigrations();
 
     // 2. Start listening for HTTP requests ONLY AFTER DB is ready
-    app.listen(PORT, async () => {
+    const server = app.listen(PORT, async () => {
         console.log(`🌐 HTTP Server is now listening on port ${PORT}`);
         
         // 3. Load background workers and memory configs
@@ -288,6 +293,19 @@ async function startServer() {
         startHealthCheckSyncWorker(); // Khởi chạy auto sync VNeID chạy ngầm
         startKeepAlivePing(); // Khởi chạy Ping DB định kỳ
     });
+
+    const shutdown = () => {
+        server.close(() => {
+            process.exit(0);
+        });
+    };
+    process.once('SIGUSR2', () => {
+        server.close(() => {
+            process.kill(process.pid, 'SIGUSR2');
+        });
+    });
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
 }
 
 if (require.main === module) {

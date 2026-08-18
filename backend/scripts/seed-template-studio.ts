@@ -62,7 +62,7 @@ async function main() {
             console.log(`${code}: SKIP (đã tồn tại, contract đã đồng bộ)`);
             continue;
         }
-        const versionId = await templateStudioService.repository.createTemplate({
+        const res = await templateStudioService.repository.createTemplate({
             code,
             name: manifest.name,
             documentType: manifest.documentType,
@@ -70,6 +70,7 @@ async function main() {
             description: `Imported from filesystem template ${code}@1`,
             sampleData
         }, 'template-studio-bootstrap');
+        const versionId = typeof res === 'object' ? res.versionId : res;
         const validation = await templateStudioService.upload(versionId, docx, 'template-studio-bootstrap');
         await query(`UPDATE hms_document_template_version SET contract_id=$2 WHERE id=$1`, [versionId, contract.rows[0].id]);
         await ensureTestCases(versionId, sampleData);

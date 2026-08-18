@@ -1,0 +1,90 @@
+{
+  "hospital": {
+    "name": "VIMES BENCHMARK"
+  },
+  "patient": {
+    "code": "TEST-1page"
+  },
+  "items": [
+    {
+      "i": 1,
+      "name": "Thuốc mẫu 1",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "1 viên",
+      "result": "1.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 2,
+      "name": "Thuốc mẫu 2",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "2 viên",
+      "result": "2.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 3,
+      "name": "Thuốc mẫu 3",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "3 viên",
+      "result": "3.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 4,
+      "name": "Thuốc mẫu 4",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "4 viên",
+      "result": "4.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 5,
+      "name": "Thuốc mẫu 5",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "5 viên",
+      "result": "5.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 6,
+      "name": "Thuốc mẫu 6",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "6 viên",
+      "result": "6.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 7,
+      "name": "Thuốc mẫu 7",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "7 viên",
+      "result": "7.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 8,
+      "name": "Thuốc mẫu 8",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "8 viên",
+      "result": "8.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 9,
+      "name": "Thuốc mẫu 9",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "9 viên",
+      "result": "9.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 10,
+      "name": "Thuốc mẫu 10",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "10 viên",
+      "result": "10.5",
+      "unit": "mg/L"
+    }
+  ]
+}

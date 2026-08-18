@@ -34,19 +34,17 @@ const GynecologyTab: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-500 mb-1">Kết quả Sản Phụ Khoa</label>
                     <textarea value={kqSinhDuc} onChange={e => setKqSinhDuc(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 h-24" />
                 </div>
-                {formType === '2' && (
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">Phân loại</label>
-                        <select value={khamSanPhuKhoaPl} onChange={e => setKhamSanPhuKhoaPl(e.target.value)} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white dark:bg-slate-700">
-                            <option value="">-- Phân loại --</option>
-                            <option value="1">Loại I</option>
-                            <option value="2">Loại II</option>
-                            <option value="3">Loại III</option>
-                            <option value="4">Loại IV</option>
-                            <option value="5">Loại V</option>
-                        </select>
-                    </div>
-                )}
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">Phân loại Sản Phụ Khoa</label>
+                    <select value={khamSanPhuKhoaPl} onChange={e => setKhamSanPhuKhoaPl(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-medium">
+                        <option value="">-- Phân loại --</option>
+                        <option value="1">Loại I (Rất khỏe)</option>
+                        <option value="2">Loại II (Khỏe)</option>
+                        <option value="3">Loại III (Trung bình)</option>
+                        <option value="4">Loại IV (Yếu)</option>
+                        <option value="5">Loại V (Rất yếu)</option>
+                    </select>
+                </div>
             </div>
             </fieldset>
         </SpecialtyCard>

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>Vimes.WorkstationAgent.Desktop</AssemblyName>
+    <RootNamespace>Vimes.Agent.Desktop</RootNamespace>
+    <ApplicationIcon>Assets\vimes.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Vimes.Agent.Ipc\Vimes.Agent.Ipc.csproj" />
+    <ProjectReference Include="..\Vimes.Agent.Contracts\Vimes.Agent.Contracts.csproj" />
+    <ProjectReference Include="..\Vimes.Agent.Signing\Vimes.Agent.Signing.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\vimes.ico">
+      <LogicalName>Vimes.Agent.Desktop.Assets.vimes.ico</LogicalName>
+    </EmbeddedResource>
+    <Content Include="Assets\vimes.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Assets\vimes.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+</Project>

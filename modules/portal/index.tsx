@@ -9,14 +9,16 @@ import PortalHomeView from './views/PortalHomeView';
 import BookingView from './views/BookingView';
 import HealthRecordsView from './views/HealthRecordsView';
 import FinanceView from './views/FinanceView';
+import PublicDocVerificationView from '../document-engine/views/PublicDocVerificationView';
 
 const Portal: React.FC = () => {
   console.log('[Portal] Component rendering');
   return (
     <PortalAuthProvider>
       <Routes>
-        {/* Public Route - Login */}
+        {/* Public Route - Login & Document Verification */}
         <Route path="login" element={<PortalLoginView />} />
+        <Route path="verify-doc" element={<PublicDocVerificationView />} />
 
         {/* Protected Routes - Require Authentication */}
         <Route element={

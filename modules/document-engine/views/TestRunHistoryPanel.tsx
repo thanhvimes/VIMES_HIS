@@ -1,0 +1,6 @@
+import React from 'react';
+import { StudioTestRun } from '../../../services/templateStudioService';
+import { TestLabToolbar } from './TestLabToolbar';
+import { TestCaseTransferPanel } from './TestCaseTransferPanel';
+
+export const TestRunHistoryPanel: React.FC<{ templateCode?: string; cases: any[]; runs: StudioTestRun[]; showAll: boolean; onRefresh: () => void; onToggle: () => void; onImportCases?: (cases: any[]) => void; onError?: (message: string) => void }> = ({ templateCode, cases, runs, showAll, onRefresh, onToggle, onImportCases = () => undefined, onError = () => undefined }) => <div className="border-t p-4"><TestLabToolbar templateCode={templateCode} cases={cases} runs={runs} showAll={showAll} onRefresh={onRefresh} onToggle={onToggle} /><TestCaseTransferPanel cases={cases} onImport={onImportCases} onError={onError} />{runs.length ? <div className="space-y-2">{runs.slice(0, showAll ? runs.length : 10).map(run => <div key={run.id} className="rounded-lg bg-slate-50 p-2 text-xs"><div className="flex justify-between gap-2"><span>#{run.id} · {run.status} · {run.durationMs || 0}ms</span><span>{new Date(run.createdAt).toLocaleString('vi-VN')}</span></div></div>)}</div> : <div className="text-xs text-slate-500">Chưa có test run.</div>}</div>;

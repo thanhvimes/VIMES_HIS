@@ -23,6 +23,7 @@ import { consultationService } from '../../../../services/consultationService';
 import { useNotification } from '../../../../contexts/NotificationContext';
 import { socketService } from '../../../../services/socketService';
 import { useTheme } from '../../../../contexts/ThemeContext';
+import { DynamicPrintSignModal } from '../../../../components/documents/DynamicPrintSignModal';
 
 const MedicationView: React.FC = () => {
     const { patientId } = useParams<{ patientId: string }>();
@@ -35,6 +36,7 @@ const MedicationView: React.FC = () => {
     const [history, setHistory] = useState<Prescription[]>([]);
     const [templates, setTemplates] = useState<PrescriptionTemplate[]>([]);
     const [isSaving, setIsSaving] = useState(false);
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [drugOptions, setDrugOptions] = useState<DrugItem[]>([]);
     const [isLoadingDrugs, setIsLoadingDrugs] = useState(false);
@@ -272,7 +274,11 @@ const MedicationView: React.FC = () => {
                     <button className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-xs font-bold transition-all border border-indigo-100">
                         <SparklesIcon className="w-4 h-4"/> Đơn AI gợi ý
                     </button>
-                    <button className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg text-xs font-bold transition-all border border-slate-200">
+                    <button 
+                        type="button"
+                        onClick={() => setIsPrintModalOpen(true)}
+                        className="flex items-center gap-2 px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 rounded-lg text-xs font-bold transition-all border border-blue-200 dark:border-blue-800 shadow-sm"
+                    >
                         <PrinterIcon className="w-4 h-4"/> In đơn thuốc
                     </button>
                 </div>
@@ -402,6 +408,36 @@ const MedicationView: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* DYNAMIC EMR PRINT & DIGITAL SIGN MODAL */}
+            <DynamicPrintSignModal
+                isOpen={isPrintModalOpen}
+                onClose={() => setIsPrintModalOpen(false)}
+                templateCode="DON_THUOC_NGOAI_TRU"
+                docNo={docNo ? `KB-${docNo}` : `KB-${Date.now()}`}
+                patientId={patientId || 'BN-10293'}
+                patientName="Bệnh nhân khám ngoại trú"
+                documentTitle="Đơn Thuốc Khám Ngoại Trú (Kèm Ký Số Bác Sĩ)"
+                data={{
+                    doc_no: docNo || '21000001',
+                    patient_id: patientId || 'BN-10293',
+                    patient_name: 'Nguyễn Văn An',
+                    gender: 'Nam',
+                    dob: '1985 (41 tuổi)',
+                    address: 'Số 18 Hoàng Hoa Thám, Ba Đình, Hà Nội',
+                    diagnosis: 'I10 - Tăng huyết áp vô căn; E11 - Đái tháo đường typ 2',
+                    medicines: prescription.length > 0 ? prescription.map((p, idx) => ({
+                        stt: idx + 1,
+                        name: p.drug.name || p.drugName,
+                        quantity: p.quantity,
+                        unit: p.drug.unit || 'Viên',
+                        dosage: p.usageNote || `Sáng: ${p.morning || 1}, Chiều: ${p.afternoon || 0}, Tối: ${p.night || 1} (Uống sau ăn)`
+                    })) : [
+                        { stt: 1, name: 'Amlodipine 5mg (Hộp 30 viên)', quantity: 30, unit: 'Viên', dosage: 'Uống 1 viên vào buổi sáng sau ăn' },
+                        { stt: 2, name: 'Metformin 850mg (Hộp 60 viên)', quantity: 60, unit: 'Viên', dosage: 'Uống 1 viên x 2 lần/ngày (sáng, tối sau ăn)' }
+                    ]
+                }}
+            />
         </div>
     );
 };

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <AssemblyName>Vimes.WorkstationAgent</AssemblyName>
+    <RootNamespace>Vimes.Agent.Host</RootNamespace>
+    <ApplicationIcon>Assets\vimes.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Vimes.Agent.Contracts\Vimes.Agent.Contracts.csproj" />
+    <ProjectReference Include="..\Vimes.Agent.Printing\Vimes.Agent.Printing.csproj" />
+    <ProjectReference Include="..\Vimes.Agent.Security\Vimes.Agent.Security.csproj" />
+    <ProjectReference Include="..\Vimes.Agent.Persistence\Vimes.Agent.Persistence.csproj" />
+    <ProjectReference Include="..\Vimes.Agent.Ipc\Vimes.Agent.Ipc.csproj" />
+    <ProjectReference Include="..\Vimes.Agent.Signing\Vimes.Agent.Signing.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Assets\vimes.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Assets\vimes.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+</Project>

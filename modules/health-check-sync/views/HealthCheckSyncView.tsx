@@ -25,7 +25,7 @@ import { catalogService, CatalogItem } from '../../../services/catalogService';
 import { FormDateInput } from '../../../components/ui/forms';
 import { formatDate, formatDateTime } from '../../../utils/formatters';
 import * as XLSX from 'xlsx';
-import { signXmlWithLocalEfyPlugin } from '../utils/efySigner';
+import { signHealthCheckXmlWithAgent } from '../services/healthCheckAgentXmlSigner';
 
 // Import Modular Components
 import Dashboard from '../components/Dashboard';
@@ -353,7 +353,12 @@ const HealthCheckSyncView: React.FC = () => {
             let docId = activeDocument?.id;
             if (options?.shouldUnlock) {
                 if (!docId) throw new Error('Không tìm thấy hồ sơ cần mở khóa.');
-                await healthCheckService.unlockDocument(docId.toString());
+                const reason = window.prompt('Nhập lý do hủy chữ ký/mở khóa hồ sơ:', 'Điều chỉnh hồ sơ theo yêu cầu nghiệp vụ');
+                if (!reason?.trim()) {
+                    toast.error('Bắt buộc nhập lý do hủy chữ ký/mở khóa hồ sơ.');
+                    return;
+                }
+                await healthCheckService.unlockDocument(docId.toString(), reason.trim());
                 const unlockedDoc = await healthCheckService.getDocument(docId.toString());
                 setActiveDocument(unlockedDoc);
                 await loadData();
@@ -385,9 +390,8 @@ const HealthCheckSyncView: React.FC = () => {
                             throw new Error("Không tìm thấy dữ liệu XML chưa ký.");
                         }
                         toast.loading("Đang yêu cầu ký số bằng USB Token. Vui lòng nhập PIN trên thiết bị...", { id: toastId });
-                        const signatureWrapperJson = await signXmlWithLocalEfyPlugin(docDetail.xml_data, docDetail.doc_no || `ksk_${docId}`);
+                        await signHealthCheckXmlWithAgent(docId.toString());
                         toast.loading("Đang gửi chữ ký số lên hệ thống...", { id: toastId });
-                        await healthCheckService.signDocuments([docId.toString()], 'USB', { [docId]: signatureWrapperJson });
                         toast.success("Đã khóa & ký số hồ sơ thành công bằng USB Token!", { id: toastId });
                     } catch (error: any) {
                         toast.error("Lỗi ký số USB Token: " + error.message, { id: toastId, duration: 6000 });
@@ -536,7 +540,6 @@ const HealthCheckSyncView: React.FC = () => {
             setIsSigning(true);
             const toastId = toast.loading("Đang khởi tạo kết nối USB Token...");
             try {
-                const signatures: Record<string, string> = {};
                 
                 for (let i = 0; i < idsToSign.length; i++) {
                     const id = idsToSign[i];
@@ -551,12 +554,10 @@ const HealthCheckSyncView: React.FC = () => {
                     toast.loading(`Đang yêu cầu ký số hồ sơ: ${docDetail.patient_name} (${i + 1}/${idsToSign.length}). Vui lòng nhập PIN trên thiết bị...`, { id: toastId });
                     
                     // Trigger USB signing via local EFY-CA eSigner service
-                    const signatureWrapperJson = await signXmlWithLocalEfyPlugin(docDetail.xml_data, docDetail.doc_no || `ksk_${id}`);
-                    signatures[id] = signatureWrapperJson;
+                    await signHealthCheckXmlWithAgent(id);
                 }
                 
                 toast.loading("Đang gửi chữ ký số lên hệ thống...", { id: toastId });
-                await healthCheckService.signDocuments(idsToSign, 'USB', signatures);
                 await loadData();
                 toast.success(`Đã hoàn tất ký số thành công cho ${idsToSign.length} hồ sơ bằng USB Token!`, { id: toastId });
                 setSelectedIds(new Set());
@@ -1208,7 +1209,7 @@ const HealthCheckSyncView: React.FC = () => {
                                     }}
                                     onPrintBarcode={(docs) => {
                                         setActiveBarcodeDocs(docs);
-                                        setViewMode('PRINT_BARCODE');
+                                        setIsPrintXnModalOpen(true);
                                     }}
                                     getFormName={getFormName}
                                     getFormColor={getFormColor}

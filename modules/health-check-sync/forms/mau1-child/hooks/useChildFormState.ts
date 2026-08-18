@@ -3,6 +3,7 @@ import { useSession } from '../../../../../contexts/SessionContext';
 import { useCatalogs } from '../../../../../contexts/CatalogContext';
 import { catalogService, CatalogItem } from '../../../../../services/catalogService';
 import { healthCheckService } from '../../../../../services/healthCheckService';
+import { validateNewFormAge } from '../../../utils/healthCheckAge';
 import { toast } from 'sonner';
 
 const DEFAULT_CHILD_CARE_NOTE = 'Theo dõi và hướng dẫn chăm sóc trẻ định kỳ theo độ tuổi.';
@@ -10,11 +11,13 @@ const DEFAULT_CHILD_CARE_NOTE = 'Theo dõi và hướng dẫn chăm sóc trẻ �
 export const useChildFormState = ({
     initialData,
     onSave,
-    onPreview
+    onPreview,
+    onChangeFormType
 }: {
     initialData?: any;
     onSave: (formData: any, options?: any) => void | Promise<void>;
     onPreview?: (formData: any) => void;
+    onChangeFormType?: (type: string) => void;
 }) => {
     const { user } = useSession();
     const { provinces, ethnicities, occupations, nations, getWards } = useCatalogs();
@@ -115,6 +118,8 @@ export const useChildFormState = ({
     // Medical history texts
     const [tsBanThan, setTsBanThan] = useState(initialData?.clinical_data?.extra?.ts_ban_than || '');
     const [tsGiaDinh, setTsGiaDinh] = useState(initialData?.clinical_data?.extra?.ts_gia_dinh || '');
+    const [tsbtNghienRuou, setTsbtNghienRuou] = useState(initialData?.clinical_data?.extra?.tsbt_nghien_ruou || '');
+    const [tsbtMaBenhKhac, setTsbtMaBenhKhac] = useState(initialData?.clinical_data?.extra?.tsbt_ma_benh_khac || '');
     const [tsTiepXucLao, setTsTiepXucLao] = useState(initialData?.clinical_data?.extra?.ts_tiep_xuc_lao || '0');
 
     // 3. Child Development, Nutrition, Vaccines
@@ -283,13 +288,50 @@ export const useChildFormState = ({
         try {
             const data = await healthCheckService.getHisPatient(hisSearchQuery);
             if (data) {
-                if (data.patientName) setPatientName(data.patientName);
+                if (data.patient_name || data.patientName) setPatientName((data.patient_name || data.patientName).toUpperCase());
                 if (data.cccd) setCccd(data.cccd);
-                if (data.dob) setDob(data.dob);
+                if (data.dob) setDob(new Date(data.dob).toISOString().split('T')[0]);
                 if (data.gender) setGender(data.gender);
-                if (data.phone) setPhone(data.phone);
-                if (data.address) setAddress(data.address);
-                setHisSyncMessage({ type: 'success', text: 'Đồng bộ dữ liệu hành chính HIS thành công!' });
+                if (data.clinical_data?.phone || data.phone) setPhone(data.clinical_data?.phone || data.phone);
+                if (data.clinical_data?.address || data.address) setAddress(data.clinical_data?.address || data.address);
+                if (data.clinical_data?.matinh_cu_tru) setMaTinhCuTru(String(data.clinical_data.matinh_cu_tru));
+                if (data.clinical_data?.maxa_cu_tru) setMaXaCuTru(String(data.clinical_data.maxa_cu_tru));
+                if (data.clinical_data?.examination?.height) setHeight(String(data.clinical_data.examination.height));
+                if (data.clinical_data?.examination?.weight) setWeight(String(data.clinical_data.examination.weight));
+                if (data.clinical_data?.examination?.pulse) setPulse(String(data.clinical_data.examination.pulse));
+                if (data.clinical_data?.examination?.blood_pressure || data.clinical_data?.examination?.bp) {
+                    setBp(String(data.clinical_data.examination.blood_pressure || data.clinical_data.examination.bp));
+                }
+                if (data.clinical_data?.examination?.temperature || data.clinical_data?.nhiet_do || data.clinical_data?.extra?.nhiet_do) {
+                    setNhietDo(String(data.clinical_data.examination?.temperature || data.clinical_data?.nhiet_do || data.clinical_data?.extra?.nhiet_do));
+                }
+                if (data.clinical_data?.examination?.breathing_rate || data.clinical_data?.nhip_tho || data.clinical_data?.extra?.nhip_tho) {
+                    setNhipTho(String(data.clinical_data.examination?.breathing_rate || data.clinical_data?.nhip_tho || data.clinical_data?.extra?.nhip_tho));
+                }
+                if (data.clinical_data?.extra?.gio_kham || data.clinical_data?.gio_kham) {
+                    setGioKham(String(data.clinical_data.extra?.gio_kham || data.clinical_data?.gio_kham));
+                }
+
+                // Tự động chuyển mẫu biểu nếu độ tuổi không thuộc Mẫu 1
+                let targetForm = data.form_type;
+                if (!targetForm && data.dob) {
+                    const bDate = new Date(data.dob);
+                    if (!isNaN(bDate.getTime())) {
+                        const today = new Date();
+                        let age = today.getFullYear() - bDate.getFullYear();
+                        if (today.getMonth() < bDate.getMonth() || (today.getMonth() === bDate.getMonth() && today.getDate() < bDate.getDate())) {
+                            age--;
+                        }
+                        if (age < 6) targetForm = '1';
+                        else if (age < 18) targetForm = '2';
+                        else targetForm = '3';
+                    }
+                }
+                if (targetForm && targetForm !== '1' && onChangeFormType) {
+                    onChangeFormType(targetForm);
+                }
+
+                setHisSyncMessage({ type: 'success', text: 'Đồng bộ dữ liệu hành chính & sinh hiệu HIS thành công!' });
             } else {
                 setHisSyncMessage({ type: 'error', text: 'Không tìm thấy thông tin bệnh nhân trên cổng HIS' });
             }
@@ -354,6 +396,8 @@ export const useChildFormState = ({
                     can_nang_luc_sinh: birthWeight,
                     ts_ban_than: tsBanThan,
                     ts_gia_dinh: tsGiaDinh,
+                    tsbt_nghien_ruou: tsbtNghienRuou,
+                    tsbt_ma_benh_khac: tsbtMaBenhKhac,
                     ts_tiep_xuc_lao: tsTiepXucLao,
 
                     chieu_dai_tuoi_sd: chieuDaiTuoiSd,
@@ -451,6 +495,9 @@ export const useChildFormState = ({
         if (!patientName) newErrors.patientName = 'Vui lòng nhập họ và tên trẻ';
         if (!dob) newErrors.dob = 'Vui lòng chọn ngày sinh';
         if (!gender) newErrors.gender = 'Vui lòng chọn giới tính';
+        if (!fundingSource) newErrors.fundingSource = 'Vui lòng chọn nguồn chi trả theo QĐ 2062';
+        if (!guardianName.trim()) newErrors.guardianName = 'Trẻ dưới 6 tuổi phải có họ tên người giám hộ';
+        if (!/^\d{12}$/.test(String(guardianCccd).trim())) newErrors.guardianCccd = 'CCCD người giám hộ phải gồm chính xác 12 chữ số';
 
         const isOverallClassThreeOrBelow = ['3', '4', '5', 'III', 'IV', 'V'].includes(fitnessClass);
         const normalizedNotes = (cacVanDeLuuY || '').trim().toLocaleLowerCase('vi-VN');
@@ -460,6 +507,7 @@ export const useChildFormState = ({
             newErrors.diagnosis = 'Bắt buộc nhập mã bệnh tật/chẩn đoán ICD-10 khi phân loại sức khỏe từ loại III trở xuống hoặc có vấn đề lưu ý';
         }
 
+        if (dob && validateNewFormAge('1', dob)) newErrors.dob = validateNewFormAge('1', dob)!;
         setErrors(newErrors);
 
         if (Object.keys(newErrors).length > 0) {
@@ -586,6 +634,10 @@ export const useChildFormState = ({
         setTsBanThan,
         tsGiaDinh,
         setTsGiaDinh,
+        tsbtNghienRuou,
+        setTsbtNghienRuou,
+        tsbtMaBenhKhac,
+        setTsbtMaBenhKhac,
         tsTiepXucLao,
         setTsTiepXucLao,
         sinhNon,

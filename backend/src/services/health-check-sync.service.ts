@@ -6,6 +6,11 @@ import { getHealthCheckSettings, loadHealthCheckSettings } from '../config/healt
 
 import axios from 'axios';
 import crypto from 'crypto';
+import { buildHealthCheckSyncPayload } from './health-check-sync-payload';
+import { validateDocumentBeforeSync } from './health-check-sync-validation';
+import { createHealthCheckChecksumSignature } from './health-check-checksum';
+import { isRetryableSyncFailure } from './health-check-sync-retry';
+import { validateHealthCheckEnvelope } from './health-check-xml-validation';
 
 let syncIntervalKey: NodeJS.Timeout | null = null;
 
@@ -54,7 +59,7 @@ function parsePrivateKey(rawKey: string): crypto.KeyObject | string {
     return trimmed;
 }
 
-function sanitizeXmlContent(rawXml: string, maCskcbGln?: string, maCskcbByt?: string): string {
+export function sanitizeXmlContent(rawXml: string, maCskcbGln?: string, maCskcbByt?: string): string {
     if (!rawXml) return '';
     let xml = rawXml;
     const glnCode = maCskcbGln || '8934285008135';
@@ -149,12 +154,19 @@ function sanitizeXmlContent(rawXml: string, maCskcbGln?: string, maCskcbByt?: st
             return m;
         });
 
-        // Fix TYPE based on NGAY_SINH if present in rawXml
+        // Fix TYPE based on exact birthday boundary, using NGAY_KHAM when present.
+        // Year subtraction alone misclassifies patients whose birthday has not occurred.
         const dobMatch = rawXml.match(/<NGAY_SINH>(\d{4})(\d{2})(\d{2})<\/NGAY_SINH>/);
         if (dobMatch) {
-            const birthYear = parseInt(dobMatch[1], 10);
-            const currentYear = new Date().getFullYear();
-            const age = currentYear - birthYear;
+            const examMatch = rawXml.match(/<NGAY_KHAM>(\d{4})(\d{2})(\d{2})<\/NGAY_KHAM>/);
+            const examDate = examMatch
+                ? new Date(Date.UTC(Number(examMatch[1]), Number(examMatch[2]) - 1, Number(examMatch[3])))
+                : new Date();
+            const birthDate = new Date(Date.UTC(Number(dobMatch[1]), Number(dobMatch[2]) - 1, Number(dobMatch[3])));
+            let age = examDate.getUTCFullYear() - birthDate.getUTCFullYear();
+            const birthdayNotReached = examDate.getUTCMonth() < birthDate.getUTCMonth()
+                || (examDate.getUTCMonth() === birthDate.getUTCMonth() && examDate.getUTCDate() < birthDate.getUTCDate());
+            if (birthdayNotReached) age--;
             if (age >= 18) {
                 decoded = decoded.replace(/<TYPE>.*?<\/TYPE>/g, '<TYPE>Adult</TYPE>');
             } else if (age < 6) {
@@ -215,6 +227,16 @@ function sanitizeXmlContent(rawXml: string, maCskcbGln?: string, maCskcbByt?: st
     });
 
     return xml;
+}
+
+export function validateFinalEncodedHealthCheckXml(base64Xml: string) {
+    let finalXml = '';
+    try {
+        finalXml = Buffer.from(base64Xml, 'base64').toString('utf8');
+    } catch {
+        finalXml = '';
+    }
+    return validateHealthCheckEnvelope(finalXml);
 }
 
 /**
@@ -279,6 +301,24 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
             const docQuery = await query(`SELECT id, doc_no, xml_data, patient_name, signature_status, signature FROM health_check_masters WHERE id = $1`, [parseInt(docId, 10)]);
             if (docQuery.rows.length === 0) continue;
             const doc = docQuery.rows[0];
+
+            const syncValidationError = validateDocumentBeforeSync(doc);
+            if (syncValidationError) {
+                await query(`
+                    UPDATE health_check_masters
+                    SET send_status = 'Error', error_message = $1, updated_at = NOW()
+                    WHERE id = $2
+                `, [syncValidationError, doc.id]);
+                failedIds.push(docId);
+                continue;
+            }
+            const xmlValidation = validateHealthCheckEnvelope(doc.xml_data);
+            if (!xmlValidation.valid) {
+                const xmlError = `XML không hợp lệ: ${xmlValidation.errors.join('; ')}`;
+                await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [xmlError.slice(0, 500), doc.id]);
+                failedIds.push(docId);
+                continue;
+            }
 
             if (!token) {
                 await query(`
@@ -347,6 +387,14 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                 base64Xml = Buffer.from(rawXmlToProcess, 'utf8').toString('base64');
             }
 
+            const finalXmlValidation = validateFinalEncodedHealthCheckXml(base64Xml);
+            if (!finalXmlValidation.valid) {
+                const finalXmlError = `XML cuối cùng không hợp lệ: ${finalXmlValidation.errors.join('; ')}`;
+                await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [finalXmlError.slice(0, 500), doc.id]);
+                failedIds.push(docId);
+                continue;
+            }
+
             const now = new Date();
             const yy = String(now.getFullYear()).slice(-2);
             const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -357,8 +405,7 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
 
             const receiverId = (settings.vneid_receiver_id && settings.vneid_receiver_id.trim()) ? settings.vneid_receiver_id : 'emrhub';
 
-            const payload: any = {
-                header: {
+            const payload: any = buildHealthCheckSyncPayload({
                     version: "1.0.6",
                     sender_id: glnCode,
                     receiver_id: receiverId,
@@ -367,38 +414,26 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                     data_type: "xml/base64",
                     send_datetime: Date.now(),
                     msg_id: msgId
-                },
-                data: base64Xml,
-                signature: ""
-            };
+                }, base64Xml);
 
             // Calculate Checksum Signature according to QD1551 Section 11 (hashA.hashB)
             if (settings.vneid_private_key) {
                 try {
                     const parsedKey = parsePrivateKey(settings.vneid_private_key);
-                    
-                    const headerStr = JSON.stringify(payload.header).replace(/\s+/g, '');
-                    const hashA = crypto.createHash('sha256').update(headerStr).digest('hex').toUpperCase();
-
-                    const dataStr = typeof payload.data === 'string' ? payload.data : JSON.stringify(payload.data).replace(/\s+/g, '');
-                    const hashB = crypto.createHash('sha256').update(dataStr).digest('hex').toUpperCase();
-
-                    const hashC = `${hashA}.${hashB}`;
-
-                    const sign = crypto.createSign('SHA256');
-                    sign.update(hashC);
-                    payload.signature = sign.sign({
-                        key: parsedKey as any,
-                        padding: crypto.constants.RSA_PKCS1_PADDING
-                    }, 'base64');
+                    payload.signature = createHealthCheckChecksumSignature(payload.header, payload.data, parsedKey);
                     console.log(`✅ [VNeID Sync] Generated QĐ1551 Checksum Signature for doc ${doc.doc_no}`);
                 } catch (e: any) {
                     console.error('❌ [VNeID Sync] Failed to sign payload with Private Key:', e.message);
-                    payload.signature = "cidHoD6pQjLqYDGEfxrHg8N5+16L3f+6N57+h2W4d3T/0k0+d9d8h/7j2ZtS7fN58x/n7zH7N9tB/5vH9sN44Q==";
+                    await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [`Không tạo được checksum chữ ký: ${e.message}`, doc.id]);
+                    failedIds.push(docId);
+                    continue;
                 }
             } else {
-                console.warn('⚠️ [VNeID Sync] No Private Key configured, using fallback signature string');
-                payload.signature = "cidHoD6pQjLqYDGEfxrHg8N5+16L3f+6N57+h2W4d3T/0k0+d9d8h/7j2ZtS7fN58x/n7zH7N9tB/5vH9sN44Q==";
+                const errorMessage = 'Chưa cấu hình private key để tạo checksum chữ ký';
+                console.error(`❌ [VNeID Sync] ${errorMessage}`);
+                await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [errorMessage, doc.id]);
+                failedIds.push(docId);
+                continue;
             }
 
             console.log('🔍 [VNeID Sync DEBUG] Final Header Payload:', JSON.stringify(payload.header));
@@ -455,7 +490,11 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                     friendlyMsg = 'Cấu trúc dữ liệu hoặc thông số không hợp lệ';
                 }
 
-                errorMsg = resCode ? `[${resCode}] ${friendlyMsg}` : `Lỗi kết nối cổng: ${err.response?.status || 500} - ${friendlyMsg}`;
+                const statusCode = err.response?.status;
+                errorMsg = resCode ? `[${resCode}] ${friendlyMsg}` : `Lỗi kết nối cổng: ${statusCode || 500} - ${friendlyMsg}`;
+                if (!isRetryableSyncFailure(statusCode, resCode, errorMsg)) {
+                    console.log(`ℹ️ [VNeID Sync] Permanent failure for doc ${doc.doc_no}; auto retry will be skipped.`);
+                }
                 responseLog = JSON.stringify(resData || { error: err.message });
                 console.log(`❌ [VNeID Sync DEBUG] Gateway returned error code: ${resCode}, message: ${resMsg}`);
             }
@@ -504,7 +543,16 @@ async function syncUnsentDocuments() {
         const sql = `
             SELECT id
             FROM health_check_masters
-            WHERE signature_status = 'Signed' AND (send_status = 'Unsent' OR send_status = 'Error')
+            WHERE signature_status = 'Signed'
+              AND (send_status = 'Unsent' OR (send_status = 'Error' AND (
+                error_message ILIKE 'Lỗi kết nối cổng:%'
+                OR error_message ILIKE '%timeout%'
+                OR error_message ILIKE '%ETIMEDOUT%'
+                OR error_message ILIKE '%ECONNRESET%'
+                OR error_message ILIKE '%504%'
+                OR error_message ILIKE '%503%'
+                OR error_message ILIKE '%429%'
+              )))
             LIMIT 50
         `;
         const res = await query(sql);

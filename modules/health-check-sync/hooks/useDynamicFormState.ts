@@ -4,12 +4,14 @@ import { toast } from 'sonner';
 import { useCatalogs } from '../../../contexts/CatalogContext';
 import { catalogService, CatalogItem } from '../../../services/catalogService';
 import { healthCheckService } from '../../../services/healthCheckService';
+import { validateNewFormAge } from '../utils/healthCheckAge';
 
 export const useDynamicFormState = (
     formType: string,
     initialData: any,
     onSave: (formData: any, options?: any) => void,
-    onPreview?: (formData: any) => void
+    onPreview?: (formData: any) => void,
+    onChangeFormType?: (type: string) => void
 ) => {
     const { user } = useSession();
     const { provinces, ethnicities, occupations, nations, getWards } = useCatalogs();
@@ -26,7 +28,34 @@ export const useDynamicFormState = (
     const [patientName, setPatientName] = useState(initialData?.patient_name || '');
     const [cccd, setCccd] = useState(initialData?.cccd || '');
     const [noCccd, setNoCccd] = useState(initialData?.clinical_data?.no_cccd || false);
-    const [dob, setDob] = useState(initialData?.dob ? new Date(initialData.dob).toISOString().split('T')[0] : '');
+    const [dob, setDobState] = useState(initialData?.dob ? new Date(initialData.dob).toISOString().split('T')[0] : '');
+
+    // Tự động chuyển đổi mẫu biểu khi ngày sinh thay đổi
+    const setDob: React.Dispatch<React.SetStateAction<string>> = (valOrFn) => {
+        setDobState(prev => {
+            const nextVal = typeof valOrFn === 'function' ? (valOrFn as any)(prev) : valOrFn;
+            if (nextVal && onChangeFormType) {
+                const bDate = new Date(nextVal);
+                if (!isNaN(bDate.getTime())) {
+                    const today = new Date();
+                    let age = today.getFullYear() - bDate.getFullYear();
+                    if (today.getMonth() < bDate.getMonth() || (today.getMonth() === bDate.getMonth() && today.getDate() < bDate.getDate())) {
+                        age--;
+                    }
+                    let targetForm = '3';
+                    if (age < 6) targetForm = '1';
+                    else if (age < 18) targetForm = '2';
+                    else targetForm = '3';
+
+                    if (targetForm !== formType) {
+                        console.log(`🔄 [Auto-switch Form] Tự động chuyển sang Mẫu ${targetForm} theo ngày sinh: ${nextVal} (Tuổi: ${age})`);
+                        onChangeFormType(targetForm);
+                    }
+                }
+            }
+            return nextVal;
+        });
+    };
     const [gender, setGender] = useState(initialData?.gender || '');
     const [docNo, setDocNo] = useState(initialData?.doc_no || Date.now().toString());
     const [address, setAddress] = useState(initialData?.clinical_data?.address || '');
@@ -65,6 +94,8 @@ export const useDynamicFormState = (
     const [tsgdMacBenh, setTsgdMacBenh] = useState(initialData?.clinical_data?.extra?.tsgd_mac_benh || '');
     const [tsgdMaBenh, setTsgdMaBenh] = useState(initialData?.clinical_data?.extra?.tsgd_ma_benh || '');
     const [tsbtMaBenh, setTsbtMaBenh] = useState(initialData?.clinical_data?.extra?.tsbt_ma_benh || '');
+    const [tsbtNghienRuou, setTsbtNghienRuou] = useState(initialData?.clinical_data?.extra?.tsbt_nghien_ruou || '');
+    const [tsbtMaBenhKhac, setTsbtMaBenhKhac] = useState(initialData?.clinical_data?.extra?.tsbt_ma_benh_khac || '');
     const [tsbtNamPhatHienBenh, setTsbtNamPhatHienBenh] = useState(initialData?.clinical_data?.extra?.tsbt_nam_phat_hien_benh || '');
     const [tiemChungBcg, setTiemChungBcg] = useState(initialData?.clinical_data?.extra?.tiem_chung_bcg || '');
     const [tiemChungBhHgUv, setTiemChungBhHgUv] = useState(initialData?.clinical_data?.extra?.tiem_chung_bh_hg_uv || '');
@@ -74,6 +105,11 @@ export const useDynamicFormState = (
     const [tiemChungVgb, setTiemChungVgb] = useState(initialData?.clinical_data?.extra?.tiem_chung_vgb || '');
     const [tiemChungCacLoaiKhac, setTiemChungCacLoaiKhac] = useState(initialData?.clinical_data?.extra?.tiem_chung_cac_loai_khac || '');
     const [tiemChungVacXinKhac, setTiemChungVacXinKhac] = useState(initialData?.clinical_data?.extra?.tiem_chung_vac_xin_khac || '');
+
+    // Tiền sử thai sản (QĐ 2062)
+    const [tsbtThaiSan, setTsbtThaiSan] = useState(initialData?.clinical_data?.extra?.tsbt_thai_san || '0');
+    const [tsbtMaBenhThaiSan, setTsbtMaBenhThaiSan] = useState(initialData?.clinical_data?.extra?.tsbt_ma_benh_thai_san || '');
+    const [tsbtTenThuocThaiSan, setTsbtTenThuocThaiSan] = useState(initialData?.clinical_data?.extra?.tsbt_ten_thuoc_thai_san || '');
 
     // Tiền sử sản phụ khoa (nữ)
     const [coKinhNguyetNamBaoNhieuTuoi, setCoKinhNguyetNamBaoNhieuTuoi] = useState(initialData?.clinical_data?.extra?.co_kinh_nguyet_nam_bao_nhieu_tuoi || '');
@@ -227,6 +263,7 @@ export const useDynamicFormState = (
     const [externalExam, setExternalExam] = useState(initialData?.clinical_data?.clinical_exam?.external || '');
     const [dermatologyExam, setDermatologyExam] = useState(initialData?.clinical_data?.clinical_exam?.dermatology || '');
     const [gynExam, setGynExam] = useState(initialData?.clinical_data?.clinical_exam?.gynecology || '');
+    const [nhiKhoaLamSangKhac, setNhiKhoaLamSangKhac] = useState(initialData?.clinical_data?.extra?.nhi_khoa_lam_sang_khac || '');
     
     // Khám lâm sàng chuyên khoa chi tiết QĐ 1551
     const [khongKinhMatPhai, setKhongKinhMatPhai] = useState(initialData?.clinical_data?.clinical_exam?.khong_kinh_mat_phai || '');
@@ -288,6 +325,19 @@ export const useDynamicFormState = (
     const [fitnessClass, setFitnessClass] = useState(initialData?.conclusion_data?.fitness_class || '');
     const [diagnosis, setDiagnosis] = useState(initialData?.conclusion_data?.diagnosis || '');
     const [cacVanDeLuuY, setCacVanDeLuuY] = useState(initialData?.conclusion_data?.cac_van_de_luu_y || '');
+    const [cacBenhTatNeuCo, setCacBenhTatNeuCo] = useState(
+        initialData?.conclusion_data?.cac_benh_tat_neu_co || 
+        initialData?.conclusion_data?.CAC_BENH_TAT_NEU_CO || 
+        initialData?.clinical_data?.extra?.cac_benh_tat_neu_co || ''
+    );
+    const [benhDangDieuTri, setBenhDangDieuTri] = useState(
+        initialData?.clinical_data?.extra?.benh_dang_dieu_tri || 
+        initialData?.clinical_data?.extra?.ten_thuoc || ''
+    );
+    const [tsbtDangDieuTriBenh, setTsbtDangDieuTriBenh] = useState(
+        initialData?.clinical_data?.extra?.tsbt_dang_dieu_tri_benh || 
+        (initialData?.clinical_data?.extra?.ts_mac_benh === 1 || initialData?.clinical_data?.extra?.ts_mac_benh === '1' ? '1' : '0')
+    );
     const [quanLyBenh, setQuanLyBenh] = useState(initialData?.conclusion_data?.quan_ly_benh || '');
     const [theoDoiTai, setTheoDoiTai] = useState(initialData?.conclusion_data?.theo_doi_tai || '');
     const [chuyenTuyen, setChuyenTuyen] = useState(initialData?.conclusion_data?.chuyen_tuyen || '');
@@ -331,7 +381,11 @@ export const useDynamicFormState = (
 
     // Occupational & other extra states
     const [maCskcb, setMaCskcb] = useState(initialData?.clinical_data?.extra?.ma_cskcb || '');
-    const [quocTich, setQuocTich] = useState(initialData?.clinical_data?.extra?.quoc_tich || 'VNM');
+    const [quocTich, setQuocTich] = useState(
+        initialData?.clinical_data?.clinical_exam?.quoc_tich ||
+        initialData?.clinical_data?.extra?.quoc_tich ||
+        'VNM'
+    );
     const [conThuMay, setConThuMay] = useState(initialData?.clinical_data?.extra?.con_thu_may || '');
     const [tongSoCon, setTongSoCon] = useState(initialData?.clinical_data?.extra?.tong_so_con || '');
     const [maTinhCuTruNghMe, setMaTinhCuTruNghMe] = useState(initialData?.clinical_data?.extra?.matinh_cu_tru_nghme || '');
@@ -478,14 +532,30 @@ export const useDynamicFormState = (
                 if (data.clinical_data?.matinh_cu_tru) setMaTinhCuTru(data.clinical_data.matinh_cu_tru);
                 if (data.clinical_data?.maxa_cu_tru) setMaXaCuTru(data.clinical_data.maxa_cu_tru);
                 if (data.clinical_data?.ly_do_vv) setLyDoVv(data.clinical_data.ly_do_vv);
-                if (data.clinical_data?.loai_hinh_kcb) setLoaiHinhKcb(data.clinical_data.loai_hinh_kcb);
-                if (data.clinical_data?.ngay_vao) setNgayVao(new Date(data.clinical_data.ngay_vao).toISOString().split('T')[0]);
+                if (data.clinical_data?.ngay_vao || data.clinical_data?.extra?.ngay_kham) {
+                    const rawDate = data.clinical_data.ngay_vao || data.clinical_data.extra?.ngay_kham;
+                    setNgayVao(rawDate.includes('T') ? new Date(rawDate).toISOString().split('T')[0] : rawDate);
+                }
+                if (data.clinical_data?.extra?.gio_kham || data.clinical_data?.gio_kham) {
+                    setGioKham(String(data.clinical_data.extra?.gio_kham || data.clinical_data?.gio_kham));
+                }
                 
-                // Đổ dữ liệu thể lực
-                if (data.clinical_data?.examination?.height) setHeight(data.clinical_data.examination.height);
-                if (data.clinical_data?.examination?.weight) setWeight(data.clinical_data.examination.weight);
-                if (data.clinical_data?.examination?.blood_pressure) setBp(data.clinical_data.examination.blood_pressure);
-                if (data.clinical_data?.examination?.pulse) setPulse(data.clinical_data.examination.pulse);
+                // Đổ dữ liệu thể lực / sinh hiệu từ HIS
+                if (data.clinical_data?.examination?.height) setHeight(String(data.clinical_data.examination.height));
+                if (data.clinical_data?.examination?.weight) setWeight(String(data.clinical_data.examination.weight));
+                if (data.clinical_data?.examination?.blood_pressure || data.clinical_data?.examination?.bp) {
+                    setBp(String(data.clinical_data.examination.blood_pressure || data.clinical_data.examination.bp));
+                }
+                if (data.clinical_data?.examination?.pulse) setPulse(String(data.clinical_data.examination.pulse));
+                if (data.clinical_data?.examination?.temperature || data.clinical_data?.examination?.nhiet_do || data.clinical_data?.extra?.nhiet_do) {
+                    setNhietDo(String(data.clinical_data.examination.temperature || data.clinical_data.examination.nhiet_do || data.clinical_data.extra?.nhiet_do));
+                }
+                if (data.clinical_data?.examination?.breathing_rate || data.clinical_data?.examination?.nhip_tho || data.clinical_data?.extra?.nhip_tho) {
+                    setNhipTho(String(data.clinical_data.examination.breathing_rate || data.clinical_data.examination.nhip_tho || data.clinical_data.extra?.nhip_tho));
+                }
+                if (data.clinical_data?.examination?.bmi || data.clinical_data?.extra?.bmi) {
+                    setBmi(String(data.clinical_data.examination.bmi || data.clinical_data.extra?.bmi));
+                }
                 
                 // Đổ dữ liệu khám lâm sàng chuyên khoa chi tiết
                 if (data.clinical_data?.clinical_exam?.internal) setInternalExam(data.clinical_data.clinical_exam.internal);
@@ -647,6 +717,17 @@ export const useDynamicFormState = (
                 if (data.conclusion_data?.fitness_class) setFitnessClass(data.conclusion_data.fitness_class);
                 if (data.conclusion_data?.diagnosis) setDiagnosis(data.conclusion_data.diagnosis);
                 if (data.conclusion_data?.cac_van_de_luu_y) setCacVanDeLuuY(data.conclusion_data.cac_van_de_luu_y);
+                if (data.conclusion_data?.cac_benh_tat_neu_co || data.conclusion_data?.CAC_BENH_TAT_NEU_CO) {
+                    setCacBenhTatNeuCo(data.conclusion_data.cac_benh_tat_neu_co || data.conclusion_data.CAC_BENH_TAT_NEU_CO);
+                }
+                if (data.clinical_data?.extra?.tsgd_mac_benh) setTsgdMacBenh(data.clinical_data.extra.tsgd_mac_benh);
+                if (data.clinical_data?.extra?.tsgd_ma_benh) setTsgdMaBenh(data.clinical_data.extra.tsgd_ma_benh);
+                if (data.clinical_data?.extra?.ts_mac_benh) setTsMacBenh(data.clinical_data.extra.ts_mac_benh);
+                if (data.clinical_data?.extra?.tsbt_ma_benh) setTsbtMaBenh(data.clinical_data.extra.tsbt_ma_benh);
+                if (data.clinical_data?.extra?.benh_dang_dieu_tri) setBenhDangDieuTri(data.clinical_data.extra.benh_dang_dieu_tri);
+                if (data.clinical_data?.extra?.tsbt_dang_dieu_tri_benh) setTsbtDangDieuTriBenh(data.clinical_data.extra.tsbt_dang_dieu_tri_benh);
+                if (data.clinical_data?.extra?.nhi_khoa_lam_sang_khac) setNhiKhoaLamSangKhac(data.clinical_data.extra.nhi_khoa_lam_sang_khac);
+                if (data.conclusion_data?.doctor_id) setConclusionDoctorId(data.conclusion_data.doctor_id);
                 if (data.conclusion_data?.du_tieu_chuan_dk_ptgt_duong_sat) setDuTieuChuanDkPtgtDuongSat(data.conclusion_data.du_tieu_chuan_dk_ptgt_duong_sat);
                 if (data.conclusion_data?.kha_nang_chiu_song) setKhaNangChiuSong(data.conclusion_data.kha_nang_chiu_song);
                 if (data.conclusion_data?.han_che) setHanChe(data.conclusion_data.han_che);
@@ -656,15 +737,35 @@ export const useDynamicFormState = (
                 if (data.conclusion_data?.theo_doi_tai) setTheoDoiTai(data.conclusion_data.theo_doi_tai);
                 if (data.conclusion_data?.chuyen_tuyen) setChuyenTuyen(data.conclusion_data.chuyen_tuyen);
 
+                // Tự động nhận diện và chuyển đổi Mẫu biểu áp dụng theo độ tuổi
+                let targetForm = data.form_type;
+                if (!targetForm && data.dob) {
+                    const bDate = new Date(data.dob);
+                    if (!isNaN(bDate.getTime())) {
+                        const today = new Date();
+                        let age = today.getFullYear() - bDate.getFullYear();
+                        if (today.getMonth() < bDate.getMonth() || (today.getMonth() === bDate.getMonth() && today.getDate() < bDate.getDate())) {
+                            age--;
+                        }
+                        if (age < 6) targetForm = '1';
+                        else if (age < 18) targetForm = '2';
+                        else targetForm = '3';
+                    }
+                }
+                if (targetForm && onChangeFormType && targetForm !== formType) {
+                    console.log(`🔄 [Auto-switch Form] Đổi từ Mẫu ${formType} sang Mẫu ${targetForm} cho BN: ${data.patient_name}`);
+                    onChangeFormType(targetForm);
+                }
+
                 if (data.source === 'HIS_DIRECT') {
                     setHisSyncMessage({ 
                         type: 'success', 
-                        text: `🔵 Nạp đợt khám trực tiếp từ HIS cho BN: ${data.patient_name} (Mã lượt khám: ${data.doc_no})! Vui lòng rà soát và bổ sung các trường thuộc Mẫu ${formType}.` 
+                        text: `🔵 Nạp đợt khám trực tiếp từ HIS cho BN: ${data.patient_name} (Mã lượt khám: ${data.doc_no})! Đã tự động áp dụng Mẫu ${targetForm || formType}.` 
                     });
                 } else {
                     setHisSyncMessage({ 
                         type: 'success', 
-                        text: `🟢 Tải thành công hồ sơ KSK VNeID đã lưu của BN: ${data.patient_name}!` 
+                        text: `🟢 Tải thành công hồ sơ KSK VNeID đã lưu của BN: ${data.patient_name} (Mẫu ${targetForm || formType})!` 
                     });
                 }
             } else {
@@ -1105,7 +1206,7 @@ export const useDynamicFormState = (
         });
     };
 
-    const validateForm = () => {
+    const validateForm = (isSigning: boolean = false) => {
         const newErrors: Record<string, string> = {};
         if (!patientName.trim()) newErrors.patientName = 'Họ và tên bắt buộc nhập';
         if (patientName.trim() && patientName !== patientName.toUpperCase()) {
@@ -1128,11 +1229,18 @@ export const useDynamicFormState = (
         if (bp && !/^\d{2,3}\/\d{2,3}$/.test(bp)) {
             newErrors.bp = 'Huyết áp phải nhập dạng Tâm thu/Tâm trương (VD: 120/80)';
         }
+        if (dob && validateNewFormAge(formType, dob)) newErrors.dob = validateNewFormAge(formType, dob)!;
         
-        const isOverallClassThreeOrBelow = ['3', '4', '5', 'III', 'IV', 'V'].includes(fitnessClass);
-        const hasNotes = !!(cacVanDeLuuY && cacVanDeLuuY.trim());
-        if ((isOverallClassThreeOrBelow || hasNotes) && !diagnosis.trim()) {
-            newErrors.diagnosis = 'Bắt buộc nhập mã bệnh tật/chẩn đoán ICD-10 khi phân loại sức khỏe từ loại III trở xuống hoặc có vấn đề lưu ý';
+        // Chỉ bắt buộc đầy đủ Kết luận, Phân loại sức khỏe và Nguồn chi trả khi thực hiện Khóa & Ký Số
+        if (isSigning) {
+            if (!fundingSource) newErrors.fundingSource = 'Nguồn chi trả bắt buộc chọn theo QĐ 2062';
+            if (formType !== '1' && !fitnessClass) newErrors.fitnessClass = 'Phân loại sức khỏe chung bắt buộc chọn';
+            
+            const isOverallClassThreeOrBelow = ['3', '4', '5', 'III', 'IV', 'V'].includes(fitnessClass);
+            const hasNotes = !!(cacVanDeLuuY && cacVanDeLuuY.trim());
+            if ((isOverallClassThreeOrBelow || hasNotes) && !diagnosis.trim()) {
+                newErrors.diagnosis = 'Bắt buộc nhập mã bệnh tật/chẩn đoán ICD-10 khi phân loại sức khỏe từ loại III trở xuống hoặc có vấn đề lưu ý';
+            }
         }
 
         setErrors(newErrors);
@@ -1142,6 +1250,7 @@ export const useDynamicFormState = (
     const handleSubmit = (e?: React.FormEvent, options?: { shouldSign?: boolean; shouldUnlock?: boolean; signatureType?: 'USB' | 'HSM' }): boolean => {
         if (e) e.preventDefault();
         
+        const isSigning = !!options?.shouldSign;
         // Perform validation and determine the appropriate tab to highlight
         const newErrors: Record<string, string> = {};
         if (!patientName.trim()) newErrors.patientName = 'Họ và tên bắt buộc nhập';
@@ -1165,19 +1274,26 @@ export const useDynamicFormState = (
         if (bp && !/^\d{2,3}\/\d{2,3}$/.test(bp)) {
             newErrors.bp = 'Huyết áp phải nhập dạng Tâm thu/Tâm trương (VD: 120/80)';
         }
+        if (dob && validateNewFormAge(formType, dob)) newErrors.dob = validateNewFormAge(formType, dob)!;
         
-        const isOverallClassThreeOrBelow = ['3', '4', '5', 'III', 'IV', 'V'].includes(fitnessClass);
-        const hasNotes = !!(cacVanDeLuuY && cacVanDeLuuY.trim());
-        if ((isOverallClassThreeOrBelow || hasNotes) && !diagnosis.trim()) {
-            newErrors.diagnosis = 'Bắt buộc nhập mã bệnh tật/chẩn đoán ICD-10 khi phân loại sức khỏe từ loại III trở xuống hoặc có vấn đề lưu ý';
+        // Chỉ bắt buộc đầy đủ Kết luận khi Khóa & Ký Số
+        if (isSigning) {
+            if (!fundingSource) newErrors.fundingSource = 'Nguồn chi trả bắt buộc chọn theo QĐ 2062';
+            if (formType !== '1' && !fitnessClass) newErrors.fitnessClass = 'Phân loại sức khỏe chung bắt buộc chọn';
+            
+            const isOverallClassThreeOrBelow = ['3', '4', '5', 'III', 'IV', 'V'].includes(fitnessClass);
+            const hasNotes = !!(cacVanDeLuuY && cacVanDeLuuY.trim());
+            if ((isOverallClassThreeOrBelow || hasNotes) && !diagnosis.trim()) {
+                newErrors.diagnosis = 'Bắt buộc nhập mã bệnh tật/chẩn đoán ICD-10 khi phân loại sức khỏe từ loại III trở xuống hoặc có vấn đề lưu ý';
+            }
         }
 
         setErrors(newErrors);
 
         if (Object.keys(newErrors).length > 0) {
             const firstError = Object.values(newErrors)[0];
-            toast.error(`Không thể lưu/ký: ${firstError}`);
-            if (newErrors.diagnosis) {
+            toast.error(isSigning ? `Không thể khóa/ký: ${firstError}` : `Không thể lưu: ${firstError}`);
+            if (newErrors.diagnosis || newErrors.fitnessClass) {
                 setActiveTab('conclusion');
             } else if (newErrors.bp) {
                 setActiveTab('exam');
@@ -1370,6 +1486,15 @@ export const useDynamicFormState = (
                     tsgd_mac_benh: tsgdMacBenh,
                     tsgd_ma_benh: tsgdMaBenh,
                     tsbt_ma_benh: tsbtMaBenh,
+                    tsbt_nghien_ruou: tsbtNghienRuou,
+                    tsbt_dang_dieu_tri_benh: tsbtDangDieuTriBenh,
+                    benh_dang_dieu_tri: benhDangDieuTri || tenThuoc,
+                    tsbt_ma_benh_khac: tsbtMaBenhKhac,
+                    tsbt_thai_san: tsbtThaiSan,
+                    tsbt_ma_benh_thai_san: tsbtMaBenhThaiSan,
+                    tsbt_ten_thuoc_thai_san: tsbtTenThuocThaiSan,
+                    nhi_khoa_lam_sang_khac: nhiKhoaLamSangKhac || nhiKhac,
+                    cac_benh_tat_neu_co: cacBenhTatNeuCo,
                     tsbt_nam_phat_hien_benh: tsbtNamPhatHienBenh,
                     tiem_chung_bcg: tiemChungBcg,
                     tiem_chung_bh_hg_uv: tiemChungBhHgUv,
@@ -1558,6 +1683,8 @@ export const useDynamicFormState = (
                 fitness_class: fitnessClass,
                 diagnosis,
                 cac_van_de_luu_y: cacVanDeLuuY,
+                cac_benh_tat_neu_co: cacBenhTatNeuCo,
+                CAC_BENH_TAT_NEU_CO: cacBenhTatNeuCo,
                 du_tieu_chuan_dk_ptgt_duong_sat: duTieuChuanDkPtgtDuongSat,
                 kha_nang_chiu_song: khaNangChiuSong,
                 han_che: hanChe,
@@ -1731,9 +1858,20 @@ export const useDynamicFormState = (
                     bo_phan_lam_viec: boPhanLamViec,
                     offshore_exp: offshoreExp,
                     railway_fit: railwayFit,
+                    gio_kham: gioKham,
+                    ngay_kham: ngayVao,
                     tsgd_mac_benh: tsgdMacBenh,
                     tsgd_ma_benh: tsgdMaBenh,
                     tsbt_ma_benh: tsbtMaBenh,
+                    tsbt_nghien_ruou: tsbtNghienRuou,
+                    tsbt_dang_dieu_tri_benh: tsbtDangDieuTriBenh,
+                    benh_dang_dieu_tri: benhDangDieuTri || tenThuoc,
+                    tsbt_ma_benh_khac: tsbtMaBenhKhac,
+                    tsbt_thai_san: tsbtThaiSan,
+                    tsbt_ma_benh_thai_san: tsbtMaBenhThaiSan,
+                    tsbt_ten_thuoc_thai_san: tsbtTenThuocThaiSan,
+                    nhi_khoa_lam_sang_khac: nhiKhoaLamSangKhac || nhiKhac,
+                    cac_benh_tat_neu_co: cacBenhTatNeuCo,
                     tsbt_nam_phat_hien_benh: tsbtNamPhatHienBenh,
                     tiem_chung_bcg: tiemChungBcg,
                     tiem_chung_bh_hg_uv: tiemChungBhHgUv,
@@ -1918,6 +2056,8 @@ export const useDynamicFormState = (
                 fitness_class: fitnessClass,
                 diagnosis,
                 cac_van_de_luu_y: cacVanDeLuuY,
+                cac_benh_tat_neu_co: cacBenhTatNeuCo,
+                CAC_BENH_TAT_NEU_CO: cacBenhTatNeuCo,
                 du_tieu_chuan_dk_ptgt_duong_sat: duTieuChuanDkPtgtDuongSat,
                 kha_nang_chiu_song: khaNangChiuSong,
                 han_che: hanChe,
@@ -2074,6 +2214,18 @@ export const useDynamicFormState = (
         setTsgdMaBenh,
         tsbtMaBenh,
         setTsbtMaBenh,
+        tsbtNghienRuou,
+        setTsbtNghienRuou,
+        tsbtMaBenhKhac,
+        setTsbtMaBenhKhac,
+        tsbtThaiSan,
+        setTsbtThaiSan,
+        tsbtMaBenhThaiSan,
+        setTsbtMaBenhThaiSan,
+        tsbtTenThuocThaiSan,
+        setTsbtTenThuocThaiSan,
+        nhiKhoaLamSangKhac,
+        setNhiKhoaLamSangKhac,
         tsbtNamPhatHienBenh,
         setTsbtNamPhatHienBenh,
         tiemChungBcg,
@@ -2629,6 +2781,12 @@ export const useDynamicFormState = (
         setDiagnosis,
         cacVanDeLuuY,
         setCacVanDeLuuY,
+        cacBenhTatNeuCo,
+        setCacBenhTatNeuCo,
+        benhDangDieuTri,
+        setBenhDangDieuTri,
+        tsbtDangDieuTriBenh,
+        setTsbtDangDieuTriBenh,
         ketLuanLoaiSucKhoe,
         setKetLuanLoaiSucKhoe,
         conclusionDoctorId,

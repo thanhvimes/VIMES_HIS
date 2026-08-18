@@ -114,7 +114,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
     const [barcodeZplTemplateXn, setBarcodeZplTemplateXn] = useState('');
     const [barcodeZplTemplateKsk, setBarcodeZplTemplateKsk] = useState('');
     const [barcodePrinterName, setBarcodePrinterName] = useState('Zebra');
-    const [useQzTray, setUseQzTray] = useState(false);
 
     // ── Reception Slip ────────────────────────────────────────────────────────
     const [receptionSlipTemplate, setReceptionSlipTemplate] = useState('');
@@ -147,7 +146,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                 setBarcodeZplTemplateXn(settings.barcode_zpl_template_xn || '');
                 setBarcodeZplTemplateKsk(settings.barcode_zpl_template_ksk || '');
                 setBarcodePrinterName(settings.barcode_printer_name || 'Zebra');
-                setUseQzTray(settings.use_qz_tray === true);
                 setReceptionSlipTemplate(settings.reception_slip_template || '');
                 setVneidPrivateKey(settings.vneid_private_key || '');
                 setVneidPublicKey(settings.vneid_public_key || '');
@@ -190,7 +188,8 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
             barcode_zpl_template_ksk: barcodeZplTemplateKsk,
             barcode_printer_name: barcodePrinterName,
             reception_slip_template: receptionSlipTemplate,
-            use_qz_tray: useQzTray,
+            // Legacy field retained for older backend schemas; QZ Tray is no longer supported.
+            use_qz_tray: false,
             vneid_private_key: vneidPrivateKey,
             vneid_public_key: vneidPublicKey,
             signature_type: signatureType,
@@ -263,7 +262,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
             setBarcodeZplTemplateXn(settings.barcode_zpl_template_xn || '');
             setBarcodeZplTemplateKsk(settings.barcode_zpl_template_ksk || '');
             setBarcodePrinterName(settings.barcode_printer_name || 'Zebra');
-            setUseQzTray(settings.use_qz_tray === true);
             setReceptionSlipTemplate(settings.reception_slip_template || '');
             setVneidPrivateKey(settings.vneid_private_key || '');
             setVneidPublicKey(settings.vneid_public_key || '');
@@ -431,8 +429,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                     setBarcodeZplTemplateKsk={setBarcodeZplTemplateKsk}
                     barcodePrinterName={barcodePrinterName}
                     setBarcodePrinterName={setBarcodePrinterName}
-                    useQzTray={useQzTray}
-                    setUseQzTray={setUseQzTray}
                     inputClass={inputClass}
                 />
             ) : (

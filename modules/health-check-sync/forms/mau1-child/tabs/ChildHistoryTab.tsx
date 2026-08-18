@@ -20,6 +20,8 @@ const ChildHistoryTab: React.FC = () => {
         dgDhstNhipTho, setDgDhstNhipTho,
         tsBanThan, setTsBanThan,
         tsGiaDinh, setTsGiaDinh,
+        tsbtNghienRuou, setTsbtNghienRuou,
+        tsbtMaBenhKhac, setTsbtMaBenhKhac,
         tsTiepXucLao, setTsTiepXucLao,
         maGtinCskcb,
         initialData,
@@ -443,6 +445,18 @@ const ChildHistoryTab: React.FC = () => {
                                     className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white"
                                     placeholder="Mô tả tiền sử bệnh lý gia đình..."
                                 />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">Tiền sử nghiện rượu, bia</label>
+                                    <select value={tsbtNghienRuou} onChange={e => setTsbtNghienRuou(e.target.value)} disabled={isTabLocked} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white">
+                                        <option value="">-- Chưa ghi nhận --</option><option value="0">Không</option><option value="1">Có</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">Bệnh khác (mã ICD-10)</label>
+                                    <input value={tsbtMaBenhKhac} onChange={e => setTsbtMaBenhKhac(e.target.value)} disabled={isTabLocked} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white" placeholder="Nhiều mã phân cách bằng dấu ;" />
+                                </div>
                             </div>
 
                             {/* Tiền sử tiếp xúc người bệnh lao */}

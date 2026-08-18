@@ -32,7 +32,8 @@ const ChildForm: React.FC<ChildFormProps> = ({
     const state = useChildFormState({
         initialData,
         onSave: handleSaveWrapper,
-        onPreview
+        onPreview,
+        onChangeFormType
     });
 
     const {

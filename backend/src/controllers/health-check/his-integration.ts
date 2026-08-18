@@ -199,14 +199,17 @@ class HisIntegrationController {
                 }
 
                 const item = pacsMap.get(key);
-                const resName = String(row.result_name).toLowerCase();
-                const descVal = String(row.result_desc).trim();
+                const resName = String(row.result_name || '').trim().toLowerCase();
+                const descVal = String(row.result_desc || '').trim();
 
                 if (resName === 'conclusion' || resName === 'result') {
                     item.conclusion = descVal;
                     item.value = descVal;
                 } else if (resName === 'remark') {
                     item.description = descVal;
+                } else if (descVal) {
+                    // HIS/PACS có thể không chuẩn hóa tên loại kết quả; vẫn giữ mô tả chi tiết.
+                    item.description = item.description ? `${item.description}; ${descVal}` : descVal;
                 }
             }
 
@@ -287,6 +290,7 @@ class HisIntegrationController {
                     hee.hee_cardid_date, hee.hee_cardid_place,
                     hee.hee_guardian_name, hee.hee_guardian_cccd,
                     to_char(d.hd_admitdate,'DD/MM/YYYY') as admitdate,
+                    to_char(d.hd_admitdate,'HH24:MI') as admit_time,
                     COALESCE(hms_getusername(d.hd_doctor), 'BS. Nguyễn Văn A') as doctor_name,
                     d.hd_provid, d.hd_distid, d.hd_villid, d.hd_cardno,
                     e.he_height, e.he_weight, e.he_bmi, e.he_pulse,
@@ -365,12 +369,11 @@ class HisIntegrationController {
                 const cccd = row.hee_cardid || '';
                 const patientId = String(row.hee_patientno || row.hee_employee_id);
 
-                const bp = row.he_bloodpressure && row.he_bloodpressurex
-                    ? `${row.he_bloodpressure}/${row.he_bloodpressurex}` : '120/80';
-                const height = row.he_height > 0 ? Number(row.he_height) : 165 + (i % 15);
-                const weight = row.he_weight > 0 ? Number(row.he_weight) : 55 + (i % 20);
-                const bmi = row.he_bmi > 0 ? Number(row.he_bmi) :
-                    parseFloat((weight / Math.pow(height / 100, 2)).toFixed(1));
+                const bp = row.he_bloodpressure != null && row.he_bloodpressurex != null
+                    ? `${row.he_bloodpressure}/${row.he_bloodpressurex}` : '';
+                const height = row.he_height > 0 ? Number(row.he_height) : '';
+                const weight = row.he_weight > 0 ? Number(row.he_weight) : '';
+                const bmi = row.he_bmi > 0 ? Number(row.he_bmi) : '';
                 const hasConclusion = (row.exam_status === 'T') || (row.he_diagnostic && row.he_diagnostic.trim() !== '');
                 const specialtyMetadata: any = {};
                 if (hasConclusion) {
@@ -401,32 +404,35 @@ class HisIntegrationController {
                     examination: {
                         height: String(height), weight: String(weight), bmi: String(bmi),
                         blood_pressure: bp,
-                        pulse: row.he_pulse > 0 ? String(row.he_pulse) : '75',
+                        pulse: row.he_pulse > 0 ? String(row.he_pulse) : '',
                     },
                     clinical_exam: {
                         specialty_metadata: specialtyMetadata,
-                        internal: row.he_examine || 'Nội khoa bình thường, tim phổi tốt.',
-                        eye: 'Mắt phải 10/10, Mắt trái 10/10.',
-                        ent: 'Tai mũi họng bình thường.',
-                        dental: 'Răng hàm mặt bình thường.',
-                        external: 'Ngoại khoa bình thường.',
-                        gynecology: gender === 'Nữ' ? 'Sản phụ khoa bình thường.' : 'Không khám.',
+                    internal: row.he_examine || '',
+                    eye: '',
+                    ent: '',
+                    dental: '',
+                    external: '',
+                    gynecology: '',
                     },
-                    extra: {}
+                    extra: {
+                        gio_kham: row.admit_time || '',
+                        ngay_kham_his: row.admitdate || ''
+                    }
                 };
 
                 const labData: any = {
                     blood_test: {
-                        hemoglobin: labAndPacs.hemoglobin || String(130 + (i % 20)),
-                        glycemia: labAndPacs.glycemia || (4.5 + (i % 10) * 0.1).toFixed(1)
+                        hemoglobin: labAndPacs.hemoglobin || '',
+                        glycemia: labAndPacs.glycemia || ''
                     },
-                    urine_test: { protein: labAndPacs.protein || 'Âm tính' },
+                    urine_test: { protein: labAndPacs.protein || '' },
                     kq_xn_khac: labAndPacs.kqXnKhac || '',
                     paraclinical_items: labAndPacs.paraclinical_items || []
                 };
 
                 // Form-specific extras
-                if (formType === '3') {
+                if (formType === 'driver' || formType === 'mau3-driver') {
                     clinicalData.clinical_exam = {
                         ...clinicalData.clinical_exam,
                         noi_khoa_tam_than: 'Bình thường, tâm thần ổn định',
@@ -507,7 +513,7 @@ class HisIntegrationController {
 
                 const conclusionData: any = hasConclusion ? {
                     fitness_class: (i % 3 === 0) ? '2' : '1',
-                    diagnosis: row.he_diagnostic || 'Đủ sức khỏe học tập và làm việc',
+                    diagnosis: row.he_diagnostic || '',
                     cac_van_de_luu_y: 'Không',
                     doctor_name: row.doctor_name,
                     ket_luan_loai_suc_khoe: (formType === '5') ? '1' : undefined
@@ -535,13 +541,14 @@ class HisIntegrationController {
                         if (hasExistingClinicalData) {
                             // ── 3A: Đã có dữ liệu khám → Chỉ merge phần hành chính vào clinical_data ──
                             const adminPatch = {
-                                address: clinicalData.address, phone: clinicalData.phone,
+                                ...(clinicalData.address ? { address: clinicalData.address } : {}),
+                                ...(clinicalData.phone ? { phone: clinicalData.phone } : {}),
                                 ethnic: clinicalData.ethnic,
                                 matinh_cu_tru: clinicalData.matinh_cu_tru,
                                 mahuyen_cu_tru: clinicalData.mahuyen_cu_tru,
                                 maxa_cu_tru: clinicalData.maxa_cu_tru,
-                                cccd_date: clinicalData.cccd_date,
-                                cccd_place: clinicalData.cccd_place,
+                                ...(clinicalData.cccd_date ? { cccd_date: clinicalData.cccd_date } : {}),
+                                ...(clinicalData.cccd_place ? { cccd_place: clinicalData.cccd_place } : {}),
                                 nguoi_giam_ho: clinicalData.nguoi_giam_ho,
                                 so_cccd_ngh: clinicalData.so_cccd_ngh,
                             };
@@ -774,6 +781,95 @@ async getHisPatient(req: Request, res: Response) {
                     }
                 }
 
+                let clinicalData = typeof row.clinical_data === 'string' ? JSON.parse(row.clinical_data) : { ...row.clinical_data };
+                let conclusionData = typeof row.conclusion_data === 'string' ? JSON.parse(row.conclusion_data) : { ...row.conclusion_data };
+
+                // Bổ sung sinh hiệu từ HIS nếu hồ sơ KSK chưa có hoặc rỗng
+                if (docNoVal) {
+                    try {
+                        const examRes = await query(`
+                            SELECT 
+                                e.he_pulse, 
+                                e.he_temperature, 
+                                e.he_bloodpressure, 
+                                e.he_bloodpressurex, 
+                                e.he_breathinterval, 
+                                e.he_weight, 
+                                e.he_height, 
+                                e.he_bmi, 
+                                e.he_doctor, 
+                                e.he_medical, 
+                                e.he_examine, 
+                                e.he_parts, 
+                                e.he_prediagnostic, 
+                                e.he_diagnostic, 
+                                e.he_icd10, 
+                                e.he_status,
+                                to_char(e.he_examdate, 'YYYY-MM-DD') as exam_date,
+                                to_char(e.he_examdate, 'HH24:MI') as exam_time,
+                                to_char(e.he_examdate, 'YYYY-MM-DD HH24:MI:SS') as exam_datetime,
+                                hms_getusername(e.he_doctor) as doctor_name
+                            FROM hms_exam e 
+                            WHERE e.he_docno = $1 
+                            ORDER BY (CASE WHEN e.he_status = 'T' THEN 1 ELSE 2 END), e.he_receptidx DESC 
+                            LIMIT 1
+                        `, [docNoVal]);
+                        if (examRes.rows.length > 0) {
+                            const ex = examRes.rows[0];
+                            if (!clinicalData.examination) clinicalData.examination = {};
+                            if (!clinicalData.examination.height && ex.he_height) clinicalData.examination.height = String(ex.he_height);
+                            if (!clinicalData.examination.weight && ex.he_weight) clinicalData.examination.weight = String(ex.he_weight);
+                            if (!clinicalData.examination.pulse && ex.he_pulse) clinicalData.examination.pulse = String(ex.he_pulse);
+                            if (!clinicalData.examination.temperature && ex.he_temperature) clinicalData.examination.temperature = String(ex.he_temperature);
+                            if (!clinicalData.examination.nhiet_do && ex.he_temperature) clinicalData.examination.nhiet_do = String(ex.he_temperature);
+                            if (!clinicalData.examination.breathing_rate && ex.he_breathinterval) clinicalData.examination.breathing_rate = String(ex.he_breathinterval);
+                            if (!clinicalData.examination.nhip_tho && ex.he_breathinterval) clinicalData.examination.nhip_tho = String(ex.he_breathinterval);
+                            if (!clinicalData.examination.bmi && ex.he_bmi) clinicalData.examination.bmi = Number(ex.he_bmi).toFixed(2);
+                            
+                            let bpLive = '';
+                            if (ex.he_bloodpressure && ex.he_bloodpressurex) bpLive = `${ex.he_bloodpressure}/${ex.he_bloodpressurex}`;
+                            else if (ex.he_bloodpressure) bpLive = String(ex.he_bloodpressure);
+                            if (!clinicalData.examination.blood_pressure && bpLive) clinicalData.examination.blood_pressure = bpLive;
+                            if (!clinicalData.examination.bp && bpLive) clinicalData.examination.bp = bpLive;
+
+                            if (!clinicalData.ngay_vao && ex.exam_date) clinicalData.ngay_vao = ex.exam_date;
+                            if (!clinicalData.gio_kham && ex.exam_time) clinicalData.gio_kham = ex.exam_time;
+                            if (!clinicalData.extra) clinicalData.extra = {};
+                            if (!clinicalData.extra.gio_kham && ex.exam_time) clinicalData.extra.gio_kham = ex.exam_time;
+                            if (!clinicalData.extra.ngay_kham && ex.exam_date) clinicalData.extra.ngay_kham = ex.exam_date;
+
+                            if (!conclusionData.diagnosis && ex.he_diagnostic) conclusionData.diagnosis = ex.he_diagnostic;
+                            if (!conclusionData.doctor_id && ex.he_doctor) conclusionData.doctor_id = ex.he_doctor;
+                        }
+                    } catch (examErr) {
+                        console.error('⚠️ [getHisPatient] Lỗi tra cứu exam cho HEALTH_CHECK_MASTER:', examErr);
+                    }
+                }
+
+                // Bổ sung thông tin địa chỉ từ hms_doc nếu hồ sơ KSK chưa có
+                if ((!clinicalData.address || !clinicalData.matinh_cu_tru) && docNoVal) {
+                    try {
+                        const addrRes = await query(`
+                            SELECT 
+                                COALESCE(NULLIF(TRIM(d.hd_dtladdr), ''), NULLIF(TRIM(p.hp_dtladdr), ''), hms_getaddress(COALESCE(d.hd_provid, p.hp_provid, 0), COALESCE(d.hd_distid, p.hp_distid, 0), COALESCE(d.hd_villid, p.hp_villid, 0)), '') as address,
+                                COALESCE(d.hd_provid, p.hp_provid, 0)::text as matinh_cu_tru,
+                                COALESCE(d.hd_villid, p.hp_villid, 0)::text as maxa_cu_tru
+                            FROM hms_doc d
+                            JOIN hms_patient p ON d.hd_patientno = p.hp_patientno
+                            WHERE d.hd_docno = $1
+                            LIMIT 1
+                        `, [docNoVal]);
+                        if (addrRes.rows.length > 0) {
+                            const a = addrRes.rows[0];
+                            if (!clinicalData.address && a.address) clinicalData.address = a.address;
+                            if (!clinicalData.matinh_cu_tru && a.matinh_cu_tru && a.matinh_cu_tru !== '0') clinicalData.matinh_cu_tru = a.matinh_cu_tru;
+                            if (!clinicalData.maxa_cu_tru && a.maxa_cu_tru && a.maxa_cu_tru !== '0') clinicalData.maxa_cu_tru = a.maxa_cu_tru;
+                        }
+                    } catch (addrErr) {
+                        console.error('⚠️ [getHisPatient] Lỗi tra cứu address từ hms_doc:', addrErr);
+                    }
+                }
+
                 return res.json({
                     source: 'HEALTH_CHECK_MASTER',
                     id: row.id,
@@ -784,9 +880,9 @@ async getHisPatient(req: Request, res: Response) {
                     dob: row.dob || '',
                     gender: row.gender || 'Nam',
                     form_type: row.form_type,
-                    clinical_data: typeof row.clinical_data === 'string' ? JSON.parse(row.clinical_data) : row.clinical_data,
+                    clinical_data: clinicalData,
                     lab_data: labData,
-                    conclusion_data: typeof row.conclusion_data === 'string' ? JSON.parse(row.conclusion_data) : row.conclusion_data
+                    conclusion_data: conclusionData
                 });
             } else {
                 // 2. DỰ PHÒNG FALLBACK (HIS DIRECT): Tra cứu đợt khám trực tiếp từ HIS (hms_doc JOIN hms_patient)
@@ -812,7 +908,9 @@ async getHisPatient(req: Request, res: Response) {
                                 ELSE 'Khác'
                             END as gender,
                             COALESCE(d.hd_telephone, '') as phone,
-                            '' as address,
+                            COALESCE(NULLIF(TRIM(d.hd_dtladdr), ''), NULLIF(TRIM(p.hp_dtladdr), ''), hms_getaddress(COALESCE(d.hd_provid, p.hp_provid, 0), COALESCE(d.hd_distid, p.hp_distid, 0), COALESCE(d.hd_villid, p.hp_villid, 0)), '') as address,
+                            COALESCE(d.hd_provid, p.hp_provid, 0)::text as matinh_cu_tru,
+                            COALESCE(d.hd_villid, p.hp_villid, 0)::text as maxa_cu_tru,
                             p.hp_ethnic as ethnic,
                             to_char(d.hd_admitdate, 'YYYY-MM-DD') as ngay_vao,
                             c.hc_cardno as insurance_card
@@ -840,7 +938,9 @@ async getHisPatient(req: Request, res: Response) {
                                 ELSE 'Khác'
                             END as gender,
                             COALESCE(d.hd_telephone, '') as phone,
-                            '' as address,
+                            COALESCE(NULLIF(TRIM(d.hd_dtladdr), ''), NULLIF(TRIM(p.hp_dtladdr), ''), hms_getaddress(COALESCE(d.hd_provid, p.hp_provid, 0), COALESCE(d.hd_distid, p.hp_distid, 0), COALESCE(d.hd_villid, p.hp_villid, 0)), '') as address,
+                            COALESCE(d.hd_provid, p.hp_provid, 0)::text as matinh_cu_tru,
+                            COALESCE(d.hd_villid, p.hp_villid, 0)::text as maxa_cu_tru,
                             p.hp_ethnic as ethnic,
                             to_char(d.hd_admitdate, 'YYYY-MM-DD') as ngay_vao,
                             c.hc_cardno as insurance_card
@@ -868,7 +968,9 @@ async getHisPatient(req: Request, res: Response) {
                                 ELSE 'Khác'
                             END as gender,
                             COALESCE(d.hd_telephone, '') as phone,
-                            '' as address,
+                            COALESCE(NULLIF(TRIM(d.hd_dtladdr), ''), NULLIF(TRIM(p.hp_dtladdr), ''), hms_getaddress(COALESCE(d.hd_provid, p.hp_provid, 0), COALESCE(d.hd_distid, p.hp_distid, 0), COALESCE(d.hd_villid, p.hp_villid, 0)), '') as address,
+                            COALESCE(d.hd_provid, p.hp_provid, 0)::text as matinh_cu_tru,
+                            COALESCE(d.hd_villid, p.hp_villid, 0)::text as maxa_cu_tru,
                             p.hp_ethnic as ethnic,
                             to_char(d.hd_admitdate, 'YYYY-MM-DD') as ngay_vao,
                             c.hc_cardno as insurance_card
@@ -884,9 +986,68 @@ async getHisPatient(req: Request, res: Response) {
                 if (hisResult.rows.length > 0) {
                     const hisRow = hisResult.rows[0];
                     const docNoVal = hisRow.his_doc_no ? parseInt(hisRow.his_doc_no, 10) : 0;
+                    const patientNoVal = hisRow.patient_id ? parseInt(hisRow.patient_id, 10) : 0;
                     console.log(`✅ [getHisPatient] Tìm thấy đợt khám trực tiếp từ HIS cho BN: ${hisRow.patient_name} (Mã HS: ${hisRow.his_doc_no})`);
 
-                    // Lấy kết quả CLS mới nhất từ HIS cho đợt khám này
+                    // 1. Lấy thông tin sinh hiệu & khám lâm sàng chi tiết từ hms_exam
+                    let examRow: any = null;
+                    if (docNoVal) {
+                        try {
+                            const examRes = await query(`
+                                SELECT 
+                                    e.he_pulse, 
+                                    e.he_temperature, 
+                                    e.he_bloodpressure, 
+                                    e.he_bloodpressurex, 
+                                    e.he_breathinterval, 
+                                    e.he_weight, 
+                                    e.he_height, 
+                                    e.he_bmi, 
+                                    e.he_doctor, 
+                                    e.he_medical, 
+                                    e.he_examine, 
+                                    e.he_parts, 
+                                    e.he_prediagnostic, 
+                                    e.he_diagnostic, 
+                                    e.he_icd10, 
+                                    e.he_status,
+                                    to_char(e.he_examdate, 'YYYY-MM-DD') as exam_date,
+                                    to_char(e.he_examdate, 'HH24:MI') as exam_time,
+                                    to_char(e.he_examdate, 'YYYY-MM-DD HH24:MI:SS') as exam_datetime,
+                                    hms_getusername(e.he_doctor) as doctor_name
+                                FROM hms_exam e 
+                                WHERE e.he_docno = $1 
+                                ORDER BY (CASE WHEN e.he_status = 'T' THEN 1 ELSE 2 END), e.he_receptidx DESC 
+                                LIMIT 1
+                            `, [docNoVal]);
+                            if (examRes.rows.length > 0) {
+                                examRow = examRes.rows[0];
+                            }
+                        } catch (examErr) {
+                            console.error('⚠️ [getHisPatient] Lỗi truy vấn hms_exam:', examErr);
+                        }
+                    }
+
+                    // 2. Lấy tiền sử bệnh tật & dị ứng từ hms_disease_hist
+                    let histRow: any = null;
+                    if (docNoVal || patientNoVal) {
+                        try {
+                            const histRes = await query(`
+                                SELECT hdh_owner, hdh_family, hdh_drugallergy 
+                                FROM hms_disease_hist 
+                                WHERE hdh_docno = $1 OR hdh_patientno = $2 
+                                ORDER BY (CASE WHEN hdh_docno = $1 THEN 1 ELSE 2 END), hdh_createddate DESC 
+                                LIMIT 1
+                            `, [docNoVal, patientNoVal]);
+                            if (histRes.rows.length > 0) {
+                                histRow = histRes.rows[0];
+                            }
+                        } catch (histErr) {
+                            console.error('⚠️ [getHisPatient] Lỗi truy vấn hms_disease_hist:', histErr);
+                        }
+                    }
+
+                    // 3. Lấy kết quả CLS mới nhất từ HIS cho đợt khám này
                     const liveParaclinical = docNoVal ? await this.fetchStructuredParaclinicalData(docNoVal) : null;
                     const labData: any = {
                         blood_test: {},
@@ -908,6 +1069,32 @@ async getHisPatient(req: Request, res: Response) {
                         }
                     }
 
+                    // 4. Xác định Mẫu biểu phù hợp dựa trên ngày sinh (Mẫu 1: < 6 tuổi, Mẫu 2: 6-18 tuổi, Mẫu 3: >= 18 tuổi)
+                    let resolvedFormType = '3';
+                    if (hisRow.dob) {
+                        const bDate = new Date(hisRow.dob);
+                        if (!isNaN(bDate.getTime())) {
+                            const today = new Date();
+                            let age = today.getFullYear() - bDate.getFullYear();
+                            if (today.getMonth() < bDate.getMonth() || (today.getMonth() === bDate.getMonth() && today.getDate() < bDate.getDate())) {
+                                age--;
+                            }
+                            if (age < 6) resolvedFormType = '1';
+                            else if (age < 18) resolvedFormType = '2';
+                            else resolvedFormType = '3';
+                        }
+                    }
+
+                    // Format Huyết áp
+                    let bpStr = '';
+                    if (examRow?.he_bloodpressure && examRow?.he_bloodpressurex) {
+                        bpStr = `${examRow.he_bloodpressure}/${examRow.he_bloodpressurex}`;
+                    } else if (examRow?.he_bloodpressure) {
+                        bpStr = String(examRow.he_bloodpressure);
+                    }
+
+                    const internalText = [examRow?.he_examine, examRow?.he_parts].filter(Boolean).map((s: string) => s.trim()).join('\n');
+
                     return res.json({
                         source: 'HIS_DIRECT',
                         id: null,
@@ -918,16 +1105,69 @@ async getHisPatient(req: Request, res: Response) {
                         cccd: hisRow.cccd || '',
                         dob: hisRow.dob || '',
                         gender: hisRow.gender || 'Nam',
-                        form_type: 'MAU_2',
+                        form_type: resolvedFormType,
                         clinical_data: {
                             phone: hisRow.phone || '',
                             address: hisRow.address || '',
+                            matinh_cu_tru: (hisRow.matinh_cu_tru && hisRow.matinh_cu_tru !== '0') ? String(hisRow.matinh_cu_tru) : '',
+                            maxa_cu_tru: (hisRow.maxa_cu_tru && hisRow.maxa_cu_tru !== '0') ? String(hisRow.maxa_cu_tru) : '',
                             ethnic: hisRow.ethnic || 'Kinh',
-                            ngay_vao: hisRow.ngay_vao || '',
-                            insurance_card: hisRow.insurance_card || ''
+                            ngay_vao: examRow?.exam_date || hisRow.ngay_vao || '',
+                            gio_kham: examRow?.exam_time || '',
+                            insurance_card: hisRow.insurance_card || '',
+                            examination: {
+                                height: examRow?.he_height ? String(examRow.he_height) : '',
+                                weight: examRow?.he_weight ? String(examRow.he_weight) : '',
+                                pulse: examRow?.he_pulse ? String(examRow.he_pulse) : '',
+                                blood_pressure: bpStr,
+                                bp: bpStr,
+                                temperature: examRow?.he_temperature ? String(examRow.he_temperature) : '',
+                                nhiet_do: examRow?.he_temperature ? String(examRow.he_temperature) : '',
+                                breathing_rate: examRow?.he_breathinterval ? String(examRow.he_breathinterval) : '',
+                                nhip_tho: examRow?.he_breathinterval ? String(examRow.he_breathinterval) : '',
+                                bmi: examRow?.he_bmi ? Number(examRow.he_bmi).toFixed(2) : ''
+                            },
+                            clinical_exam: {
+                                internal: internalText || '',
+                                noi_khoa_tuan_hoan: examRow?.he_parts ? String(examRow.he_parts).trim() : '',
+                                noi_khoa_ho_hap: examRow?.he_parts ? String(examRow.he_parts).trim() : '',
+                                noi_khoa_tieu_hoa: '',
+                                noi_khoa_than_tietnieu_pl: '',
+                                noi_khoa_than_kinh: '',
+                                noi_khoa_tam_than: '',
+                                nhi_tuan_hoan: examRow?.he_parts ? String(examRow.he_parts).trim() : '',
+                                nhi_ho_hap: examRow?.he_parts ? String(examRow.he_parts).trim() : '',
+                                nhi_tieu_hoa: '',
+                                nhi_than_kinh: '',
+                                nhi_tam_than: ''
+                            },
+                            extra: {
+                                gio_kham: examRow?.exam_time || '',
+                                ngay_kham: examRow?.exam_date || hisRow.ngay_vao || '',
+                                tsgd_mac_benh: histRow?.hdh_family ? '1' : '0',
+                                tsgd_ma_benh: histRow?.hdh_family ? String(histRow.hdh_family).trim() : '',
+                                ts_mac_benh: histRow?.hdh_owner ? '1' : '0',
+                                tsbt_ma_benh: histRow?.hdh_owner ? String(histRow.hdh_owner).trim() : '',
+                                tsbt_dang_dieu_tri_benh: (histRow?.hdh_owner || examRow?.he_medical) ? '1' : '0',
+                                benh_dang_dieu_tri: (histRow?.hdh_owner || examRow?.he_medical) ? String(histRow?.hdh_owner || examRow?.he_medical).trim() : '',
+                                di_ung_thuoc: histRow?.hdh_drugallergy ? String(histRow.hdh_drugallergy).trim() : '',
+                                qua_trinh_benh_ly: examRow?.he_medical ? String(examRow.he_medical).trim() : '',
+                                cac_benh_tat_neu_co: (histRow?.hdh_owner || examRow?.he_diagnostic) ? String(histRow?.hdh_owner || examRow?.he_diagnostic).trim() : '',
+                                nhiet_do: examRow?.he_temperature ? String(examRow.he_temperature) : '',
+                                nhip_tho: examRow?.he_breathinterval ? String(examRow.he_breathinterval) : '',
+                                bmi: examRow?.he_bmi ? Number(examRow.he_bmi).toFixed(2) : '',
+                                doctor_name: examRow?.doctor_name || ''
+                            }
                         },
                         lab_data: labData,
-                        conclusion_data: {}
+                        conclusion_data: {
+                            fitness_class: '1',
+                            diagnosis: examRow?.he_diagnostic ? String(examRow.he_diagnostic).trim() : (examRow?.he_icd10 || ''),
+                            doctor_id: examRow?.he_doctor || '',
+                            doctor_name: examRow?.doctor_name || '',
+                            cac_van_de_luu_y: examRow?.he_medical ? String(examRow.he_medical).trim() : '',
+                            cac_benh_tat_neu_co: (histRow?.hdh_owner || examRow?.he_diagnostic) ? String(histRow?.hdh_owner || examRow?.he_diagnostic).trim() : ''
+                        }
                     });
                 }
 

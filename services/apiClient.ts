@@ -200,6 +200,38 @@ class ApiClient {
       headers: { 'Content-Type': contentType, 'Accept': 'application/json' }
     });
   }
+
+  public postBinary<T>(endpoint: string, body: Blob, contentType: string): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body,
+      headers: { 'Content-Type': contentType, 'Accept': 'application/json' }
+    });
+  }
+
+  public putBinaryWithProgress<T>(endpoint: string, body: Blob, contentType: string, onProgress: (percent: number) => void, signal?: AbortSignal): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', `${this.baseUrl}${endpoint}`);
+      const token = this.getAuthToken();
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.setRequestHeader('Content-Type', contentType);
+      xhr.setRequestHeader('Accept', 'application/json');
+      xhr.upload.onprogress = event => { if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100)); };
+      xhr.onerror = () => reject(new Error('Không thể kết nối máy chủ khi upload DOCX'));
+      xhr.ontimeout = () => reject(new Error('Upload DOCX quá thời gian cho phép'));
+      xhr.onload = () => {
+        let data: any;
+        try { data = JSON.parse(xhr.responseText || '{}'); } catch { data = {}; }
+        if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+        else reject(new Error(data.message || `Upload thất bại (${xhr.status})`));
+      };
+      xhr.timeout = TIMEOUT;
+      signal?.addEventListener('abort', () => xhr.abort(), { once: true });
+      xhr.onabort = () => reject(new Error('Upload đã được hủy'));
+      xhr.send(body);
+    });
+  }
 }
 
 export const apiClient = new ApiClient(BASE_URL);

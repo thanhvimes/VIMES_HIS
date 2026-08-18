@@ -14,12 +14,15 @@ test('resolves the latest published document template', async () => {
     assert.equal(template.file, 'template.docx');
 });
 
-test('registry exposes the five published framework templates', async () => {
-    const templates = await registry.list();
-    assert.deepEqual(templates.map(item => item.code).sort(), [
-        'DISCHARGE_SUMMARY', 'LAB_RESULT', 'OUTPATIENT_EXAM', 'PRESCRIPTION', 'TREATMENT_SHEET'
-    ]);
-});
+  test('registry exposes the required published framework templates', async () => {
+      const templates = await registry.list();
+      const codes = new Set(templates.map(item => item.code));
+      for (const code of ['DISCHARGE_SUMMARY', 'LAB_RESULT', 'OUTPATIENT_EXAM', 'PRESCRIPTION', 'TREATMENT_SHEET']) {
+          assert.ok(codes.has(code), `missing required template ${code}`);
+      }
+      // The catalog is extensible; additional production templates must not break this contract test.
+      assert.ok(templates.length >= 5);
+  });
 
 test('rejects unsafe template codes', async () => {
     await assert.rejects(() => registry.resolve('../secrets'), /Invalid template code/);

@@ -22,7 +22,8 @@ import {
     GlobeIcon,
     TagIcon,
     CalendarPlusIcon, // NEW
-    PaperAirplaneIcon
+    PaperAirplaneIcon,
+    DocumentTextIcon
 } from '../../components/Icons';
 import { useSession } from '../../contexts/SessionContext';
 import { UserSession } from '../../types/common';
@@ -47,23 +48,27 @@ const MODULE_CARDS: ModuleCardConfig[] = [
     { id: 'queue-management', title: 'QMS – Gọi số', description: 'Gọi số tự động, màn hình hiển thị phòng khám và Kiosk self-service.', path: '/queue-management', icon: <TvIcon className="w-10 h-10" />, color: 'blue', permissionKey: 'qms' },
     { id: 'health-check-sync', title: 'Liên thông KSK VNeID', description: 'Đồng bộ 17 mẫu biểu khám sức khỏe lên ứng dụng VNeID theo QĐ 1551.', path: '/health-check', icon: <PaperAirplaneIcon className="w-10 h-10" />, color: 'blue', permissionKey: 'ksk' },
     { id: 'admin', title: 'Quản trị hệ thống', description: 'Cấu hình tham số, phân quyền người dùng và nhật ký hoạt động.', path: '/admin', icon: <CogIcon className="w-10 h-10" />, color: 'slate', permissionKey: 'sys' },
-    //{ id: 'clinical', title: 'Khám bệnh (EMR)', description: 'Khám, chẩn đoán, kê đơn thuốc và quản lý hồ sơ bệnh án điện tử.', path: '/consultation', icon: <HospitalIcon className="w-10 h-10" />, color: 'blue', permissionKey: 'em' },
+    { id: 'template-studio', title: 'Thiết lập Mẫu biểu', description: 'Thiết kế mẫu Word (.docx), cấu hình vùng ký số, kiểm thử và phát hành.', path: '/documents/template-studio', icon: <DocumentTextIcon className="w-10 h-10" />, color: 'indigo', permissionKey: 'doc' },
+    //{ id: 'clinical', title: 'Khám bệnh', description: 'Khám, chẩn đoán, kê đơn thuốc và chỉ định cận lâm sàng.', path: '/consultation', icon: <HospitalIcon className="w-10 h-10" />, color: 'blue', permissionKey: 'em' },
+    //{ id: 'emr', title: 'Bệnh án Điện tử (EMR)', description: '5 phần hồ sơ BYT, 42 mẫu chuyên khoa, sinh hiệu & ký số lưu trữ WORM.', path: '/emr/workspace', icon: <DocumentTextIcon className="w-10 h-10" />, color: 'teal', permissionKey: 'em' },
+
+
     /*
-    { id: 'reception', title: 'Tiếp nhận & Điều phối', description: 'Đăng ký tại quầy, phân luồng khám bệnh và quản lý hàng đợi.', path: '/reception', icon: <UserGroupIcon className="w-10 h-10" />, color: 'teal', permissionKey: 'rm' },
-    { id: 'clinical', title: 'Khám bệnh (EMR)', description: 'Khám, chẩn đoán, kê đơn thuốc và quản lý hồ sơ bệnh án điện tử.', path: '/consultation', icon: <HospitalIcon className="w-10 h-10" />, color: 'blue', permissionKey: 'em' },
-    { id: 'inpatient', title: 'Điều trị nội trú', description: 'Quản lý buồng bệnh, theo dõi y lệnh và chăm sóc bệnh nhân.', path: '/inpatient-treatment', icon: <ClipboardListIcon className="w-10 h-10" />, color: 'indigo', permissionKey: 'tm' },
-    { id: 'surgery', title: 'Phẫu thuật – Thủ thuật', description: 'Lên lịch mổ, quản lý ekip và tường trình phẫu thuật.', path: '/surgery', icon: <VideoCameraIcon className="w-10 h-10" />, color: 'rose', permissionKey: 'sm' },
-    { id: 'lab', title: 'Xét nghiệm (LIS)', description: 'Quản lý chỉ định, kết nối máy xét nghiệm và trả kết quả tự động.', path: '/lab-results', icon: <BeakerIcon className="w-10 h-10" />, color: 'cyan', permissionKey: 'lab' },
-    { id: 'imaging', title: 'CĐHA & PACS', description: 'X-Quang, Siêu âm, CT, MRI – xem ảnh DICOM trực tiếp.', path: '/imaging-results', icon: <VideoCameraIcon className="w-10 h-10" />, color: 'purple', permissionKey: 'us' },
-    { id: 'pacs-ris', title: 'Hệ thống PACS-RIS', description: 'Trạm làm việc đọc kết quả chẩn đoán và trình xem ảnh y khoa CornerstoneJS.', path: '/pacs-ris', icon: <TvIcon className="w-10 h-10" />, color: 'indigo', permissionKey: 'us' },
-    { id: 'pharmacy', title: 'Dược & Kho thuốc', description: 'Nhập – xuất – tồn, cấp phát thuốc và cảnh báo hạn sử dụng.', path: '/pharmacy', icon: <ArchiveIcon className="w-10 h-10" />, color: 'emerald', permissionKey: 'pm' },
-    { id: 'medical-supplies', title: 'Vật tư y tế', description: 'Quản lý vật tư tiêu hao, hóa chất và công cụ dụng cụ.', path: '/medical-supplies', icon: <TagIcon className="w-10 h-10" />, color: 'indigo', permissionKey: 'ma' },
-    { id: 'billing', title: 'Viện phí & Thu ngân', description: 'Thanh toán, tạm ứng, quyết toán và xuất hóa đơn điện tử.', path: '/billing', icon: <CurrencyDollarIcon className="w-10 h-10" />, color: 'green', permissionKey: 'fam' },
-    { id: 'insurance', title: 'Bảo hiểm y tế', description: 'Giám định hồ sơ, kiểm tra thẻ BHYT và xuất dữ liệu cổng BHXH.', path: '/insurance', icon: <ShieldCheckIcon className="w-10 h-10" />, color: 'orange', permissionKey: 'fam' },
-    { id: 'hr', title: 'Nhân sự (HR)', description: 'Hồ sơ nhân viên, chấm công FaceID và tính lương tự động.', path: '/hr', icon: <UserGroupIcon className="w-10 h-10" />, color: 'slate', permissionKey: 'hr' },
-    { id: 'reports', title: 'Báo cáo & Thống kê', description: 'Dashboard BI, phân tích KPI và báo cáo quản trị thông minh.', path: '/management-reporting', icon: <ChartBarIcon className="w-10 h-10" />, color: 'red', permissionKey: 'st' },
-    { id: 'admin', title: 'Quản trị hệ thống', description: 'Cấu hình tham số, phân quyền người dùng và nhật ký hoạt động.', path: '/admin', icon: <CogIcon className="w-10 h-10" />, color: 'slate', permissionKey: 'sys' }
-     */
+       { id: 'emr', title: 'Bệnh án Điện tử (EMR)', description: '5 phần hồ sơ BYT, 42 mẫu chuyên khoa, sinh hiệu & ký số lưu trữ WORM.', path: '/emr/workspace', icon: <DocumentTextIcon className="w-10 h-10" />, color: 'teal', permissionKey: 'em' },
+       { id: 'clinical', title: 'Khám bệnh', description: 'Khám, chẩn đoán, kê đơn thuốc và chỉ định cận lâm sàng.', path: '/consultation', icon: <HospitalIcon className="w-10 h-10" />, color: 'blue', permissionKey: 'em' },
+       { id: 'inpatient', title: 'Điều trị nội trú', description: 'Quản lý buồng bệnh, theo dõi y lệnh và chăm sóc bệnh nhân.', path: '/inpatient-treatment', icon: <ClipboardListIcon className="w-10 h-10" />, color: 'indigo', permissionKey: 'tm' },
+       { id: 'surgery', title: 'Phẫu thuật – Thủ thuật', description: 'Lên lịch mổ, quản lý ekip và tường trình phẫu thuật.', path: '/surgery', icon: <VideoCameraIcon className="w-10 h-10" />, color: 'rose', permissionKey: 'sm' },
+       { id: 'lab', title: 'Xét nghiệm (LIS)', description: 'Quản lý chỉ định, kết nối máy xét nghiệm và trả kết quả tự động.', path: '/lab-results', icon: <BeakerIcon className="w-10 h-10" />, color: 'cyan', permissionKey: 'lab' },        
+       { id: 'imaging', title: 'CĐHA & PACS', description: 'X-Quang, Siêu âm, CT, MRI – xem ảnh DICOM trực tiếp và ký số.', path: '/imaging-results', icon: <VideoCameraIcon className="w-10 h-10" />, color: 'purple', permissionKey: 'us' },       
+       { id: 'pharmacy', title: 'Dược & Kho thuốc', description: 'Nhập – xuất – tồn, cấp phát thuốc và cảnh báo hạn sử dụng.', path: '/pharmacy', icon: <ArchiveIcon className="w-10 h-10" />, color: 'emerald', permissionKey: 'pm' },
+       { id: 'medical-supplies', title: 'Vật tư y tế', description: 'Quản lý vật tư tiêu hao, hóa chất và công cụ dụng cụ.', path: '/medical-supplies', icon: <TagIcon className="w-10 h-10" />, color: 'indigo', permissionKey: 'ma' },
+       { id: 'billing', title: 'Viện phí & Thu ngân', description: 'Thanh toán, tạm ứng, quyết toán và xuất hóa đơn điện tử.', path: '/billing', icon: <CurrencyDollarIcon className="w-10 h-10" />, color: 'green', permissionKey: 'fam' },
+       { id: 'insurance', title: 'Bảo hiểm y tế', description: 'Giám định hồ sơ, kiểm tra thẻ BHYT và xuất dữ liệu cổng BHXH.', path: '/insurance', icon: <ShieldCheckIcon className="w-10 h-10" />, color: 'orange', permissionKey: 'fam' },
+       { id: 'template-studio', title: 'Thiết lập Mẫu biểu', description: 'Thiết kế mẫu Word (.docx), kiểm thử dữ liệu lâm sàng và phát hành biểu mẫu.', path: '/documents/template-studio', icon: <DocumentTextIcon className="w-10 h-10" />, color: 'indigo', permissionKey: 'doc' },
+       { id: 'hr', title: 'Nhân sự (HR)', description: 'Hồ sơ nhân viên, chấm công FaceID và tính lương tự động.', path: '/hr', icon: <UserGroupIcon className="w-10 h-10" />, color: 'slate', permissionKey: 'hr' },
+       { id: 'reports', title: 'Báo cáo & Thống kê', description: 'Dashboard BI, phân tích KPI và báo cáo quản trị thông minh.', path: '/management-reporting', icon: <ChartBarIcon className="w-10 h-10" />, color: 'red', permissionKey: 'st' },
+       { id: 'admin', title: 'Quản trị hệ thống', description: 'Cấu hình tham số, phân quyền người dùng và nhật ký hoạt động.', path: '/admin', icon: <CogIcon className="w-10 h-10" />, color: 'slate', permissionKey: 'sys' }
+    */
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -178,15 +183,15 @@ const ModuleCard: React.FC<{ item: ModuleCardConfig }> = ({ item }) => {
 };
 
 const fallbackRolePermissions: Record<string, string[]> = {
-    admin: ['hcc', 'rol', 'qms', 'ksk', 'rm', 'em', 'tm', 'sm', 'lab', 'us', 'pm', 'ma', 'fam', 'hr', 'st', 'sys'],
-    doctor: ['hcc', 'rol', 'qms', 'rm', 'em', 'tm', 'sm', 'lab', 'us', 'fam', 'st', 'sys'],
+    admin: ['hcc', 'rol', 'qms', 'ksk', 'rm', 'em', 'tm', 'sm', 'lab', 'us', 'pm', 'ma', 'fam', 'hr', 'st', 'sys', 'doc'],
+    doctor: ['hcc', 'rol', 'qms', 'rm', 'em', 'tm', 'sm', 'lab', 'us', 'fam', 'st', 'sys', 'doc'],
     nurse: ['rol', 'qms', 'rm', 'tm', 'sm', 'ma', 'sys'],
     receptionist: ['rol', 'qms', 'rm', 'fam', 'sys'],
-    technician: ['rol', 'qms', 'lab', 'us', 'sys'],
+    technician: ['rol', 'qms', 'lab', 'us', 'sys', 'doc'],
     accountant: ['rol', 'pm', 'ma', 'fam', 'st', 'sys'],
     pharmacist: ['rol', 'pm', 'ma', 'sys'],
     hr: ['rol', 'hr', 'sys'],
-    director: ['hcc', 'rol', 'sys']
+    director: ['hcc', 'rol', 'sys', 'doc']
 };
 
 const Dashboard: React.FC = () => {
@@ -194,6 +199,9 @@ const Dashboard: React.FC = () => {
     const allowedModules = useMemo(() => {
         return MODULE_CARDS.filter(m => {
             if (user?.role === 'admin' || user?.userId === 'admin') return true;
+            if (m.permissionKey === 'doc' && (user?.role === 'admin' || (user?.permissions && user.permissions.some(p => p.startsWith('DOCUMENT_TEMPLATE_'))))) {
+                return true;
+            }
             if (user?.modules && Object.keys(user.modules).length > 0) {
                 return user.modules[m.permissionKey] === true;
             }

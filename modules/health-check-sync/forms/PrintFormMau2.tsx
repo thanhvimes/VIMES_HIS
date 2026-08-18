@@ -885,7 +885,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                             </tr>
                             <tr>
                                 <td>
-                                    <span className="font-bold">{L.lblLamSangKhac}</span> <span className="text-slate-800">{clinicalExam.nhi_khac || 'Bình thường'}</span>
+                                    <span className="font-bold">{L.lblLamSangKhac}</span> <span className="text-slate-800">{clinicalExam.nhi_khoa_lam_sang_khac || clinicalExam.nhi_khac || clinicalExam.lam_sang_khac || 'Bình thường'}</span>
                                     {renderPl('lam_sang_khac')}
                                 </td>
                                 <td className="text-center font-bold text-slate-700">{renderDoctorCell('lam_sang_khac')}</td>

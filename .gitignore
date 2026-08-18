@@ -46,3 +46,7 @@ android/**/public_old_*/
 android/capacitor-cordova-android-plugins_old_*/
 *.dump
 *_debug.json
+services/pdf-signing/secrets/*.pfx
+services/pdf-signing/secrets/*.pem
+backend/storage/
+
