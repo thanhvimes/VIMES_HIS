@@ -1,1 +1,0 @@
-import{j as t,a9 as o,aa as e}from"./index-BSZp5kvi.js";import{R as s}from"./ReportsLayout-DCgePEUK.js";import"./forms-YkT6RR6y.js";const m=()=>t.jsxs(o,{children:[t.jsx(e,{path:"/",element:t.jsx(s,{})}),t.jsx(e,{path:":reportId",element:t.jsx(s,{})})]});export{m as default};

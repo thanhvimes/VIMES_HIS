@@ -1,52 +1,95 @@
-# Logs
-logs
+# Dependencies & Build Outputs
+node_modules/
+dist/
+dist-ssr/
+build/
+.vite/
+*.local
+
+# Editor & OS files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln.docstates
+*.sw?
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+*.key
+services/pdf-signing/secrets/*.pfx
+services/pdf-signing/secrets/*.pem
+
+# Logs & Diagnostics
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Environment files
-.env
-.env.*
-!.env.example
-
-# Debug logs and dumps
-backend/*.txt
-backend/*.json
+*_debug.json
 backend/debug_*.ts
+backend/inspect_*.js
+backend/inspect_*.ts
 
-# Archive directories
-archive/
-backend/archive/
-
-# Generated releases, diagnostics, uploads and local scratch files
-release/
+# Local Scratch, Temporary & Archives
 scratch/
 backend/scratch/
-backend/uploads/
-android/**/public_old_*/
-android/capacitor-cordova-android-plugins_old_*/
+archive/
+backend/archive/
+staging-evidence/
+release/
+*.tmp
 *.dump
-*_debug.json
-services/pdf-signing/secrets/*.pfx
-services/pdf-signing/secrets/*.pem
+*.bak
+
+# Runtime Uploads & Generated Storage
+backend/uploads/
 backend/storage/
+storage/
+
+# Android & Capacitor build artifacts & backups
+android/.gradle/
+android/app/build/
+android/build/
+android/**/public_old*
+android/**/public_old*/
+android/capacitor-cordova-android-plugins_old*
+android/capacitor-cordova-android-plugins_old*/
+*.apk
+*.aab
+
+# .NET / C# Visual Studio Build Artifacts & Caches
+**/bin/
+**/obj/
+**/publish/
+**/.vs/
+*.user
+*.cache
+*.dtbcache*
+*.futdcache*
+*.vsidx
+
+# Large binary documentation & archive files
+*.pdf
+*.zip
+*.docx
+modules/**/docs/*.pdf
+modules/**/docs/*.docx
+modules/**/docs/*.zip
+modules/**/tro-ly-y-te.docx
+
+# Preserve essential runtime document templates
+!backend/templates/**/*.docx
+
+
 
