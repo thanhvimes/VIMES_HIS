@@ -151,7 +151,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                         {getFormName(doc.form_type)}
                                     </td>
                                     <td className="p-4 text-xs text-slate-600 dark:text-slate-300">
-                                        <div className="font-medium">Trần Đại Đồng</div>
+                                        <div className="font-medium text-slate-800 dark:text-slate-200">{doc.created_by_name || doc.created_by || 'Nhân viên tiếp đón'}</div>
                                         <div className="text-[10px] text-slate-400 font-mono mt-0.5">{formatDateTime(doc.created_at)}</div>
                                     </td>
                                     <td className="p-4">

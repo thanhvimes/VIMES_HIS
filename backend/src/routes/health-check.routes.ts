@@ -6,6 +6,7 @@ import { employeesController } from '../controllers/health-check/employees.contr
 import { servicesController } from '../controllers/health-check/services.controller';
 import { receptionController } from '../controllers/health-check/reception.controller';
 import { sampleTrackingController } from '../controllers/health-check/sample-tracking';
+import { orderController } from '../controllers/health-check/order.controller';
 import authMiddleware from '../middleware/authMiddleware';
 import { signPdfViaVimesSigningServer } from '../services/vimes-signing.service';
 import crypto from 'node:crypto';
@@ -69,6 +70,7 @@ router.put('/contracts/:id/status', contractsController.updateContractStatus.bin
 router.delete('/contracts/:id', contractsController.deleteContract.bind(contractsController));
 router.get('/contracts/:id/employees', employeesController.getContractEmployees.bind(employeesController));
 router.post('/contracts/:id/employees/import', employeesController.importEmployees.bind(employeesController));
+router.post('/contracts/:id/receive-all', receptionController.receiveAllContractEmployees.bind(receptionController));
 router.delete('/employees/:id', employeesController.deleteEmployee.bind(employeesController));
 router.post('/employees', employeesController.createEmployee.bind(employeesController));
 
@@ -80,6 +82,7 @@ router.delete('/contracts/:id/services/:serviceId', contractsController.deleteCo
 router.get('/service-groups', servicesController.getServiceGroups.bind(servicesController));
 router.get('/service-groups/:groupId/services', servicesController.getServicesByGroup.bind(servicesController));
 router.get('/services/search', servicesController.searchAvailableServices.bind(servicesController));
+router.get('/services/fee-subitems', servicesController.getFeeSubitems.bind(servicesController));
 
 // Settings Config Endpoints
 router.get('/settings', contractsController.getSettings.bind(contractsController));
@@ -103,5 +106,8 @@ router.get('/samples/cancelled', sampleTrackingController.getCancelledSamples.bi
 router.post('/samples/receive', sampleTrackingController.confirmSampleReceipt.bind(sampleTrackingController));
 router.post('/samples/cancel', sampleTrackingController.cancelSampleReceipt.bind(sampleTrackingController));
 
+// HIS Paraclinical Order & Sync endpoints
+router.post('/orders/create-his-order', orderController.createHisParaclinicOrder.bind(orderController));
+router.post('/orders/cancel-his-order', orderController.cancelHisParaclinicItem.bind(orderController));
 
 export default router;

@@ -57,15 +57,15 @@ export const documentSignatureService = {
   createPlaceholder: (versionId: number, payload: Record<string, unknown>) => apiClient.post<any>(`/signatures/template-versions/${versionId}/placeholders`, payload).then(res => res.data),
   updatePlaceholder: (placeholderId: number, payload: Record<string, unknown>) => apiClient.put<any>(`/signatures/placeholders/${placeholderId}`, payload).then(res => res.data),
   retirePlaceholder: (placeholderId: number) => apiClient.delete<any>(`/signatures/placeholders/${placeholderId}`).then(res => res.data),
-  prepare: (requestId: string) => apiClient.post<any>(`/signatures/signature-requests/${requestId}/prepare`).then(res => res.data),
+  prepare: (requestId: string) => apiClient.post<any>(`/signatures/signature-requests/${requestId}/prepare`, {}).then(res => res.data),
   preparePdf: (requestId: string, certificateBase64: string, certificateChainBase64: string[]) => 
     apiClient.post<any>(`/signatures/signature-requests/${requestId}/prepare-pdf`, { certificateBase64, certificateChainBase64 }).then(res => res.data),
   authorizeAgentSignature: (requestId: string, payload: Record<string, unknown>) => 
     apiClient.post<any>(`/signatures/signature-requests/${requestId}/agent-signature`, payload).then(res => res.data),
-  finalizePdf: (requestId: string) => apiClient.post<any>(`/signatures/signature-requests/${requestId}/finalize-pdf`).then(res => res.data),
-  complete: (requestId: string) => apiClient.post<any>(`/signatures/signature-requests/${requestId}/complete`).then(res => res.data),
-  cancel: (requestId: string) => apiClient.post<any>(`/signatures/signature-requests/${requestId}/cancel`).then(res => res.data),
-  cancelSession: (sessionId: string) => apiClient.post<any>(`/signatures/signing-sessions/${sessionId}/cancel`).then(res => res.data)
+  finalizePdf: (requestId: string) => apiClient.post<any>(`/signatures/signature-requests/${requestId}/finalize-pdf`, {}).then(res => res.data),
+  complete: (requestId: string) => apiClient.post<any>(`/signatures/signature-requests/${requestId}/complete`, {}).then(res => res.data),
+  cancel: (requestId: string) => apiClient.post<any>(`/signatures/signature-requests/${requestId}/cancel`, {}).then(res => res.data),
+  cancelSession: (sessionId: string) => apiClient.post<any>(`/signatures/signing-sessions/${sessionId}/cancel`, {}).then(res => res.data)
 };
 
 export default documentSignatureService;

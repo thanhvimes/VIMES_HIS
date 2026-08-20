@@ -27,10 +27,14 @@ export class EmployeesController {
                     e.hee_ethnic as ethnic,
                     COALESCE(NULLIF(TRIM(e.hee_prov_code), ''), e.hee_provid::text, '') as prov_id,
                     COALESCE(NULLIF(TRIM(e.hee_vill_code), ''), e.hee_villid::text, '') as vill_id,
+                    p.sp_name as prov_name,
+                    v.sv_name as vill_name,
                     COALESCE(e.hee_address, '') as address,
                     (SELECT send_status FROM health_check_masters m 
                      WHERE m.his_employee_id::text = e.hee_employee_id::text AND m.his_contract_id::text = $1::text LIMIT 1) as sync_status
                 FROM hms_exm_employee e
+                LEFT JOIN sys_prov p ON p.sp_id::text = COALESCE(NULLIF(TRIM(e.hee_prov_code), ''), e.hee_provid::text)
+                LEFT JOIN sys_vill v ON v.sv_id::text = COALESCE(NULLIF(TRIM(e.hee_vill_code), ''), e.hee_villid::text)
                 WHERE e.hee_contract_id::text = $1::text AND e.hee_isactive='Y'
                 ORDER BY e.hee_employee_id ASC
             `, [contractId]);
@@ -42,7 +46,7 @@ export class EmployeesController {
         }
     }
 
-    // Import danh sách nhân viên từ Excel
+    // Import danh sách nhân viên từ Excel (Tối ưu hóa hiệu năng & Làm sạch dữ liệu)
     async importEmployees(req: Request, res: Response) {
         const { id } = req.params;
         const contractId = parseInt(id as string, 10);
@@ -57,86 +61,163 @@ export class EmployeesController {
             if (checkStatus.rows.length > 0 && checkStatus.rows[0].hec_status === 'A') {
                 return res.status(400).json({ success: false, message: 'Gói khám đã được duyệt chốt, không thể nhập thêm nhân viên!' });
             }
+
+            // 1. Tải trước danh mục Tỉnh/Thành phố vào bộ đệm (Pre-cache map) để loại bỏ N+1 query
+            const provMapById = new Map<string, { id: number, code: string }>();
+            const provMapByName = new Map<string, { id: number, code: string }>();
+            try {
+                const provRes = await query(`SELECT sp_id, sp_name FROM sys_prov`);
+                for (const row of provRes.rows) {
+                    const idNum = parseInt(String(row.sp_id), 10);
+                    const codeStr = String(row.sp_id).padStart(2, '0');
+                    provMapById.set(String(row.sp_id).trim(), { id: idNum, code: codeStr });
+                    provMapByName.set(String(row.sp_name).toLowerCase().trim(), { id: idNum, code: codeStr });
+                }
+            } catch (pErr) {
+                console.warn('⚠️ Không thể tải trước danh mục sys_prov:', pErr);
+            }
+
             const maxIdRes = await query(`SELECT COALESCE(MAX(hee_employee_id), 0) as max_id FROM hms_exm_employee`);
             let currentMaxId = parseInt(maxIdRes.rows[0].max_id, 10);
 
-            for (const emp of employees) {
-                currentMaxId++;
-                const fullName = String(emp.name || '').trim();
-                
-                const nameParts = fullName.split(/\s+/);
-                let surname = '';
-                let midname = '';
-                let firstname = '';
+            // 2. Bắt đầu Transaction để thực thi nhanh & đảm bảo an toàn toàn vẹn dữ liệu
+            await query('BEGIN');
 
-                if (nameParts.length === 1) {
-                    firstname = nameParts[0];
-                } else if (nameParts.length === 2) {
-                    surname = nameParts[0];
-                    firstname = nameParts[1];
-                } else if (nameParts.length > 2) {
-                    surname = nameParts[0];
-                    firstname = nameParts[nameParts.length - 1];
-                    midname = nameParts.slice(1, nameParts.length - 1).join(' ');
-                }
+            try {
+                // Chunk nhỏ xử lý batch nếu cần
+                const BATCH_SIZE = 50;
+                for (let b = 0; b < employees.length; b += BATCH_SIZE) {
+                    const batch = employees.slice(b, b + BATCH_SIZE);
 
-                let birthDate: Date | null = null;
-                if (emp.birth_date) {
-                    const parts = String(emp.birth_date).split('/');
-                    if (parts.length === 3) {
-                        birthDate = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
-                    } else {
-                        birthDate = new Date(emp.birth_date);
+                    for (const emp of batch) {
+                        currentMaxId++;
+                        const fullName = String(emp.name || '').replace(/\s+/g, ' ').trim();
+                        
+                        const nameParts = fullName.split(/\s+/);
+                        let surname = '';
+                        let midname = '';
+                        let firstname = '';
+
+                        if (nameParts.length === 1) {
+                            firstname = nameParts[0];
+                        } else if (nameParts.length === 2) {
+                            surname = nameParts[0];
+                            firstname = nameParts[1];
+                        } else if (nameParts.length > 2) {
+                            surname = nameParts[0];
+                            firstname = nameParts[nameParts.length - 1];
+                            midname = nameParts.slice(1, nameParts.length - 1).join(' ');
+                        }
+
+                        // Chuẩn hóa ngày sinh
+                        let birthDate: Date | null = null;
+                        if (emp.birth_date) {
+                            const dateStr = String(emp.birth_date).trim();
+                            const parts = dateStr.split(/[\/\-]/);
+                            if (parts.length === 3) {
+                                if (parts[0].length === 4) {
+                                    // YYYY-MM-DD
+                                    birthDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+                                } else {
+                                    // DD/MM/YYYY
+                                    birthDate = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+                                }
+                            } else if (!isNaN(Date.parse(dateStr))) {
+                                birthDate = new Date(dateStr);
+                            }
+                        }
+
+                        // Cắt gọt và làm sạch các trường độ dài cố định
+                        const empCode = String(emp.code || `NV${currentMaxId}`).trim().slice(0, 30);
+                        
+                        // CCCD: chỉ giữ số, cắt tối đa 12 ký tự
+                        const docNo = String(emp.doc_no || emp.cccd || '').replace(/\D/g, '').slice(0, 12);
+                        
+                        // SĐT: chỉ giữ số, format 84... -> 0..., cắt tối đa 10 ký tự
+                        let phone = String(emp.phone || '').replace(/\D/g, '');
+                        if (phone.startsWith('84') && (phone.length === 11 || phone.length === 12)) {
+                            phone = '0' + phone.slice(2);
+                        }
+                        phone = phone.slice(0, 10);
+
+                        // Ngày cấp & Nơi cấp CCCD
+                        const cardIdDate = String(emp.cardid_date || emp.card_id_date || '').trim().slice(0, 50);
+                        const cardIdPlace = String(emp.cardid_place || emp.card_id_place || '').trim().slice(0, 100);
+
+                        // Người giám hộ
+                        const guardianName = String(emp.guardian_name || '').trim().slice(0, 100);
+                        const guardianCccd = String(emp.guardian_cccd || '').replace(/\D/g, '').slice(0, 12);
+
+                        // Thông tin hành chính & địa chỉ
+                        let provCode = String(emp.province_code || (emp.province_id !== undefined && emp.province_id !== null ? emp.province_id : '')).trim();
+                        let villCode = String(emp.ward_code || (emp.ward_id !== undefined && emp.ward_id !== null ? emp.ward_id : '')).trim();
+                        let provNum: number | null = null;
+                        let villNum: number | null = villCode ? (parseInt(villCode, 10) || null) : null;
+
+                        // Tra cứu nhanh trong Memory Map
+                        if (provCode) {
+                            const cached = provMapById.get(provCode) || provMapByName.get(provCode.toLowerCase());
+                            if (cached) {
+                                provNum = cached.id;
+                                provCode = cached.code;
+                            } else {
+                                provNum = parseInt(provCode, 10) || null;
+                            }
+                        }
+
+                        const note = String(emp.note || '').trim().slice(0, 255);
+                        const dept = String(emp.dept || '').trim().slice(0, 100);
+                        const position = String(emp.position || '').trim().slice(0, 100);
+                        const address = String(emp.detail_address || emp.address || '').trim().slice(0, 255);
+
+                        const insertSql = `
+                            INSERT INTO hms_exm_employee (
+                                hee_employee_id, hee_contract_id, hee_id, 
+                                hee_surname, hee_midname, hee_firstname, 
+                                hee_birthdate, hee_sex, hee_docno, hee_phone, 
+                                hee_note, hee_status, hee_isactive,
+                                hee_dept, hee_position_desc, hee_address,
+                                hee_provid, hee_distid, hee_villid,
+                                hee_cardid, hee_cardid_date, hee_cardid_place,
+                                hee_guardian_name, hee_guardian_cccd, hee_ethnic,
+                                hee_prov_code, hee_vill_code
+                            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'O', 'Y', $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+                        `;
+                        await query(insertSql, [
+                            currentMaxId,
+                            contractId,
+                            empCode,
+                            surname,
+                            midname,
+                            firstname,
+                            birthDate,
+                            (emp.sex === 'Nữ' || emp.sex === 'F') ? 'F' : 'M',
+                            null,
+                            phone,
+                            note,
+                            dept,
+                            position,
+                            address,
+                            provNum,
+                            emp.district_id ? parseInt(String(emp.district_id), 10) : null,
+                            villNum,
+                            docNo,
+                            cardIdDate,
+                            cardIdPlace,
+                            guardianName,
+                            guardianCccd,
+                            emp.ethnic ? parseInt(String(emp.ethnic), 10) : null,
+                            provCode || null,
+                            villCode || null
+                        ]);
                     }
                 }
 
-                const empCode = emp.code || `NV${currentMaxId}`;
-
-                const provCode = emp.province_code || (emp.province_id !== undefined && emp.province_id !== null ? String(emp.province_id).trim() : '');
-                const villCode = emp.ward_code || (emp.ward_id !== undefined && emp.ward_id !== null ? String(emp.ward_id).trim() : '');
-                const provNum = provCode ? (parseInt(provCode, 10) || null) : null;
-                const villNum = villCode ? (parseInt(villCode, 10) || null) : null;
-
-                const insertSql = `
-                    INSERT INTO hms_exm_employee (
-                        hee_employee_id, hee_contract_id, hee_id, 
-                        hee_surname, hee_midname, hee_firstname, 
-                        hee_birthdate, hee_sex, hee_docno, hee_phone, 
-                        hee_note, hee_status, hee_isactive,
-                        hee_dept, hee_position_desc, hee_address,
-                        hee_provid, hee_distid, hee_villid,
-                        hee_cardid, hee_cardid_date, hee_cardid_place,
-                        hee_guardian_name, hee_guardian_cccd, hee_ethnic,
-                        hee_prov_code, hee_vill_code
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'O', 'Y', $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
-                `;
-                await query(insertSql, [
-                    currentMaxId,
-                    contractId,
-                    empCode,
-                    surname,
-                    midname,
-                    firstname,
-                    birthDate,
-                    (emp.sex === 'Nữ' || emp.sex === 'F') ? 'F' : 'M',
-                    null,
-                    emp.phone || '',
-                    emp.note || '',
-                    emp.dept || '',
-                    emp.position || '',
-                    emp.detail_address || '',
-                    provNum,
-                    emp.district_id ? parseInt(String(emp.district_id), 10) : null,
-                    villNum,
-                    emp.doc_no || '',
-                    emp.cardid_date || '',
-                    emp.cardid_place || '',
-                    emp.guardian_name || '',
-                    emp.guardian_cccd || '',
-                    emp.ethnic ? parseInt(String(emp.ethnic), 10) : null,
-                    provCode || null,
-                    villCode || null
-                ]);
+                await query('COMMIT');
+                console.log(`✅ [importEmployees] Đã import thành công ${employees.length} nhân viên vào hợp đồng #${contractId}.`);
+            } catch (insertError) {
+                await query('ROLLBACK');
+                throw insertError;
             }
 
             return res.json({ success: true, count: employees.length });

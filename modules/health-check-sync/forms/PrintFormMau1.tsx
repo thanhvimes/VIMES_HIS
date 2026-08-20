@@ -1,6 +1,7 @@
 import React from 'react';
 
 interface PrintFormMau1Props {
+    resolvedLocation?: { province?: string; ward?: string };
     document: any;
     hospitalName: string;
     logoUrl?: string;
@@ -17,7 +18,8 @@ export const PrintFormMau1: React.FC<PrintFormMau1Props> = ({
     getReportDate,
     getConclusionDoctorName,
     maCskcb,
-    doctorSignatures
+    doctorSignatures,
+    resolvedLocation
 }) => {
     const clinical = document.clinical_data || document.clinicalData || {};
     const extra = clinical.extra || {};
@@ -149,7 +151,20 @@ export const PrintFormMau1: React.FC<PrintFormMau1Props> = ({
                     <div>10. Nhóm máu: <strong>{clinical.blood_group || '...'}</strong></div>
 
                     <div className="col-span-2">
-                        11. Nơi ở hiện tại: Tỉnh/ thành: <strong>{clinical.address || '................................'}</strong>
+                        11. Nơi ở hiện tại: <strong>{(() => {
+    const rawDetail = String(clinical.address || document.address || '').trim();
+    const provName = String(clinical.province || clinical.province_name || clinical.ten_tinh || extra.ten_tinh || extra.province || resolvedLocation?.province || '').trim();
+    const wardName = String(clinical.ward || clinical.ward_name || clinical.ten_xa || extra.ten_xa || extra.ward || resolvedLocation?.ward || '').trim();
+    const distName = String(clinical.district || clinical.district_name || clinical.ten_huyen || extra.ten_huyen || '').trim();
+
+    const parts = [];
+    if (rawDetail) parts.push(rawDetail);
+    if (wardName && !rawDetail.toLowerCase().includes(wardName.toLowerCase())) parts.push(wardName);
+    if (distName && !rawDetail.toLowerCase().includes(distName.toLowerCase()) && !wardName.toLowerCase().includes(distName.toLowerCase())) parts.push(distName);
+    if (provName && !rawDetail.toLowerCase().includes(provName.toLowerCase())) parts.push(provName);
+
+    return parts.length > 0 ? parts.join(', ') : '................................';
+})()}</strong>
                     </div>
 
                     <div className="col-span-2">12. Họ tên người đi cùng trẻ: <strong>{extra.ho_ten_nguoi_di_cung || '................................'}</strong></div>
@@ -649,11 +664,7 @@ export const PrintFormMau1: React.FC<PrintFormMau1Props> = ({
                         <span className="italic text-[10.5px] text-slate-500 font-normal mb-5">(Ký, ghi rõ họ tên và đóng dấu)</span>
 
                         {(() => {
-                            const sigImg = resolveConclusionSignature();
-
-                            // Prefer the doctor's visible signature image in the printed form.
-                            // The digital-signature badge is only a fallback when no image exists.
-                            if (document.signature_status === 'Signed' && !sigImg) {
+                            if (document.signature_status === 'Signed') {
                                 return (
                                     <div className="my-2 p-2 border border-green-600 rounded bg-green-50/50 text-[10px] font-bold text-green-700 leading-tight text-left w-full shadow-sm max-w-[220px] font-sans">
                                         <div className="flex items-center gap-1 mb-1 text-green-800">
@@ -668,11 +679,7 @@ export const PrintFormMau1: React.FC<PrintFormMau1Props> = ({
                                 );
                             }
 
-                            if (sigImg) {
-                                return <img src={sigImg} alt="Chữ ký bác sĩ" className="h-16 max-w-[180px] object-contain my-1" />;
-                            }
-
-                            return <div className="h-14"></div>;
+                            return <div className="h-16"></div>;
                         })()}
                         
                         <span className="font-bold text-[13.5px] mt-1.5 text-slate-900 block">{getConclusionDoctorName()}</span>

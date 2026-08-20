@@ -34,6 +34,8 @@ const HR = React.lazy(() => import('./modules/hr/index'));
 const Portal = React.lazy(() => import('./modules/portal/index'));
 const CommandCenter = React.lazy(() => import('./modules/command-center/index'));
 const QueueManagement = React.lazy(() => import('./modules/queue-management/index'));
+const EMRModule = React.lazy(() => import('./modules/emr/index'));
+const HospitalStatisticsModule = React.lazy(() => import('./modules/hospital-statistics/index'));
 
 import { PdfPreviewProvider } from './contexts/PdfPreviewContext';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -69,6 +71,7 @@ const moduleTitles: { [key: string]: string } = {
   'queue-management': 'Quản lý Hàng đợi',
   documents: 'Thiết lập Mẫu biểu',
   emr: 'Bệnh án Điện tử (EMR)',
+  'hospital-statistics': 'Thống kê Bệnh viện',
   reports: 'Hệ thống Báo cáo',
   settings: 'Cài đặt',
 };
@@ -100,6 +103,8 @@ const WorkspaceLayout: React.FC = () => {
       'management-reporting': 'st',
       'admin': 'sys',
       'documents': 'doc',
+      'emr': 'em',
+      'hospital-statistics': 'st',
     };
     return modulePermissionKeys[currentModuleRoot];
   }, [currentModuleRoot]);
@@ -119,7 +124,8 @@ const WorkspaceLayout: React.FC = () => {
     location.pathname.includes('/reception') ||
     location.pathname.includes('/command-center') ||
     location.pathname.includes('/queue-management') ||
-    location.pathname.includes('/health-check');
+    location.pathname.includes('/health-check') ||
+    location.pathname.includes('/emr');
 
   const { pageTitle, moduleNavItems } = useMemo(() => {
     const currentModuleRoot = location.pathname.split('/')[1];
@@ -213,6 +219,8 @@ const StaffSystem: React.FC = () => {
         <Route path="/insurance/*" element={<InsuranceModule />} />
         <Route path="/health-check/*" element={<HealthCheckSyncModule />} />
         <Route path="/documents/*" element={<Documents />} />
+        <Route path="/emr/*" element={<EMRModule />} />
+        <Route path="/hospital-statistics/*" element={<HospitalStatisticsModule />} />
         <Route path="/reports/*" element={<ReportsModule />} />
         <Route path="/command-center/*" element={<CommandCenter />} />
         <Route path="/queue-management/*" element={<QueueManagement />} />

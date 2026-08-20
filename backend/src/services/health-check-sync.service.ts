@@ -298,29 +298,81 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
 
         // 2. Loop through and push each document
         for (const docId of docIds) {
+            console.log(`\n===============================================================`);
+            console.log(`📡 [VNeID SYNC DEBUG] BẮT ĐẦU XỬ LÝ GỬI HỒ SƠ ID: ${docId}`);
+            console.log(`===============================================================`);
+
             const docQuery = await query(`SELECT id, doc_no, xml_data, patient_name, signature_status, signature FROM health_check_masters WHERE id = $1`, [parseInt(docId, 10)]);
-            if (docQuery.rows.length === 0) continue;
+            if (docQuery.rows.length === 0) {
+                console.warn(`⚠️ [VNeID Sync] Không tìm thấy hồ sơ ID: ${docId} trong CSDL.`);
+                continue;
+            }
             const doc = docQuery.rows[0];
 
-            const syncValidationError = validateDocumentBeforeSync(doc);
+            console.log(`📋 [VNeID Sync] Trạng thái hiện tại của hồ sơ:`, {
+                id: doc.id,
+                doc_no: doc.doc_no,
+                patient_name: doc.patient_name,
+                signature_status: doc.signature_status || 'Unsigned',
+                has_xml: !!(doc.xml_data && doc.xml_data.trim()),
+                has_signature: !!(doc.signature && String(doc.signature).trim()),
+                allow_unsigned_sync: settings.allow_unsigned_sync === true
+            });
+
+            // 2.1 Kiểm tra điều kiện ký số & dữ liệu bắt buộc
+            const syncValidationError = validateDocumentBeforeSync(doc, { allow_unsigned_sync: settings.allow_unsigned_sync === true });
             if (syncValidationError) {
+                console.error(`❌ [VNeID Sync TỪ CHỐI GỬI]: ${syncValidationError}`);
+                console.error(`   👉 Chi tiết: Hồ sơ "${doc.doc_no}" (${doc.patient_name}) trạng thái ký = "${doc.signature_status || 'Chưa ký'}". Quy định QĐ 1551/QĐ-BYT yêu cầu hồ sơ phải được Ký Số trước khi liên thông cổng.`);
+                const diagLog = JSON.stringify({
+                    error: syncValidationError,
+                    stage: 'pre_sync_validation',
+                    doc_no: doc.doc_no,
+                    patient_name: doc.patient_name,
+                    signature_status: doc.signature_status || 'Unsigned',
+                    suggestion: 'Vui lòng mở hồ sơ và thực hiện Khóa & Ký Số trước khi bấm Gửi cổng.',
+                    timestamp: new Date().toISOString()
+                }, null, 2);
+
                 await query(`
                     UPDATE health_check_masters
-                    SET send_status = 'Error', error_message = $1, updated_at = NOW()
-                    WHERE id = $2
-                `, [syncValidationError, doc.id]);
+                    SET send_status = 'Error', 
+                        error_message = $1, 
+                        response_log = $2, 
+                        updated_at = NOW()
+                    WHERE id = $3
+                `, [syncValidationError, diagLog, doc.id]);
                 failedIds.push(docId);
                 continue;
             }
+
+            // 2.2 Kiểm tra cấu trúc XML Envelope
             const xmlValidation = validateHealthCheckEnvelope(doc.xml_data);
             if (!xmlValidation.valid) {
                 const xmlError = `XML không hợp lệ: ${xmlValidation.errors.join('; ')}`;
-                await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [xmlError.slice(0, 500), doc.id]);
+                console.error(`❌ [VNeID Sync LỖI XML]: ${xmlError}`);
+                const xmlDiagLog = JSON.stringify({
+                    error: xmlError,
+                    stage: 'xml_envelope_validation',
+                    details: xmlValidation.errors,
+                    timestamp: new Date().toISOString()
+                }, null, 2);
+
+                await query(`
+                    UPDATE health_check_masters 
+                    SET send_status = 'Error', 
+                        error_message = $1, 
+                        response_log = $2, 
+                        updated_at = NOW() 
+                    WHERE id = $3
+                `, [xmlError.slice(0, 500), xmlDiagLog, doc.id]);
                 failedIds.push(docId);
                 continue;
             }
 
+            // 2.3 Kiểm tra phiên xác thực Token Cổng
             if (!token) {
+                console.error(`❌ [VNeID Sync LỖI AUTH CỔNG]: Không có Token đăng nhập Cổng VNeID/EMRHub. Chi tiết: ${loginResponseLog}`);
                 await query(`
                     UPDATE health_check_masters
                     SET send_status = 'Error',
@@ -539,12 +591,12 @@ async function syncUnsentDocuments() {
             return;
         }
 
-        // Query signed documents that are unsent or had previous errors
+        // Query documents that are unsent or had previous errors (respecting allow_unsigned_sync)
+        const signatureFilter = settings.allow_unsigned_sync ? '' : "signature_status = 'Signed' AND ";
         const sql = `
             SELECT id
             FROM health_check_masters
-            WHERE signature_status = 'Signed'
-              AND (send_status = 'Unsent' OR (send_status = 'Error' AND (
+            WHERE ${signatureFilter}(send_status = 'Unsent' OR (send_status = 'Error' AND (
                 error_message ILIKE 'Lỗi kết nối cổng:%'
                 OR error_message ILIKE '%timeout%'
                 OR error_message ILIKE '%ETIMEDOUT%'

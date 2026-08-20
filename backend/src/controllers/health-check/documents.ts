@@ -193,8 +193,11 @@ class DocumentsController {
         try {
             const { searchTerm, status, signatureStatus, formType, startDate, endDate, barcodePrinted, contractId, limit, page } = req.query;
             let sql = `
-                SELECT m.*, d.clinical_data, d.lab_data, d.conclusion_data 
+                SELECT m.*, 
+                       COALESCE(m.created_by_name, u.su_name, m.created_by, 'Nhân viên tiếp đón') AS created_by_name,
+                       d.clinical_data, d.lab_data, d.conclusion_data 
                 FROM health_check_masters m
+                LEFT JOIN sys_user u ON u.su_userid = m.created_by
                 JOIN health_check_details d ON m.id = d.master_id
                 WHERE 1=1
             `;
@@ -333,15 +336,28 @@ class DocumentsController {
             return res.status(400).json({ error: "Loại mẫu biểu formType là bắt buộc" });
         }
 
+        const isSigning = !!req.body.isSigning || !!req.body.shouldSign;
         const newDocumentErrors = validateNewHealthCheckDocument({
             formType,
             dob,
             examDate: req.body.examDate || req.body.exam_date || new Date(),
             fundingSource: clinicalData?.funding_source || clinicalData?.fundingSource || req.body.fundingSource || req.body.funding_source,
             fitnessClass: conclusionData?.fitness_class || conclusionData?.fitnessClass || req.body.fitnessClass || req.body.fitness_class,
+            isSigning
         });
         if (newDocumentErrors.length > 0) {
             return res.status(400).json({ error: newDocumentErrors.join('; '), details: newDocumentErrors });
+        }
+
+        const currentUserId = (req as any).userId || 'admin';
+        let currentUserName = (req as any).userName || '';
+        if (!currentUserName && currentUserId) {
+            try {
+                const uRes = await query(`SELECT su_name FROM sys_user WHERE su_userid = $1`, [currentUserId]);
+                if (uRes.rows.length > 0 && uRes.rows[0].su_name) {
+                    currentUserName = uRes.rows[0].su_name;
+                }
+            } catch {}
         }
 
         try {
@@ -382,13 +398,15 @@ class DocumentsController {
                         SET patient_id = $1, patient_name = $2, cccd = $3, dob = $4, 
                             gender = $5, xml_data = $6, updated_at = NOW(),
                             signature = NULL, signature_status = 'Unsigned', send_status = 'Unsent',
-                            sent_at = NULL, transaction_id = NULL, error_message = NULL, response_log = NULL
+                            sent_at = NULL, transaction_id = NULL, error_message = NULL, response_log = NULL,
+                            created_by = COALESCE(created_by, $8),
+                            created_by_name = COALESCE(created_by_name, $9)
                         WHERE id = $7
                     `;
                     await client.query(masterSql, [
                         patientId || null, patientName || '', cccd || '', 
                         dob ? new Date(dob) : null, gender || 'Nam', 
-                        xmlData, masterId
+                        xmlData, masterId, currentUserId, currentUserName
                     ]);
 
                     // UPDATE existing details
@@ -418,14 +436,15 @@ class DocumentsController {
                     // INSERT new master
                     const masterSql = `
                         INSERT INTO health_check_masters (
-                            patient_id, patient_name, cccd, dob, gender, doc_no, form_type, xml_data
-                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                            patient_id, patient_name, cccd, dob, gender, doc_no, form_type, xml_data, created_by, created_by_name
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                         RETURNING id
                     `;
                     const masterRes = await client.query(masterSql, [
                         patientId || null, patientName || '', cccd || '', 
                         dob ? new Date(dob) : null, gender || 'Nam', 
-                        docNo || Date.now().toString(), formType, xmlData
+                        docNo || Date.now().toString(), formType, xmlData,
+                        currentUserId, currentUserName
                     ]);
                     masterId = masterRes.rows[0].id;
 
@@ -470,6 +489,7 @@ class DocumentsController {
         const clinicalData = req.body.clinicalData || req.body.clinical_data;
         const labData = req.body.labData || req.body.lab_data;
         const conclusionData = req.body.conclusionData || req.body.conclusion_data;
+        const isSigning = !!req.body.isSigning || !!req.body.shouldSign;
 
         try {
             const updateDocumentErrors = validateNewHealthCheckDocument({
@@ -478,6 +498,7 @@ class DocumentsController {
                 examDate: req.body.examDate || req.body.exam_date || new Date(),
                 fundingSource: clinicalData?.funding_source || clinicalData?.fundingSource || req.body.fundingSource || req.body.funding_source,
                 fitnessClass: conclusionData?.fitness_class || conclusionData?.fitnessClass || req.body.fitnessClass || req.body.fitness_class,
+                isSigning,
             });
             if (updateDocumentErrors.length > 0) {
                 return res.status(400).json({ error: updateDocumentErrors.join('; '), details: updateDocumentErrors });

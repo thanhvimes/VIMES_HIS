@@ -94,6 +94,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
         setIsLocked,
         patientName,
         patientId,
+        docNo,
         cccd,
         dob,
         gender,
@@ -177,6 +178,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
     const isChild = formType === '1';
 
     return (
+        <TabErrorBoundary>
         <DynamicFormContext.Provider value={formState}>
         <form onSubmit={handleSubmit} autoComplete="off" spellCheck={false} className="health-check-form flex flex-col h-full bg-white dark:bg-slate-800 rounded-none shadow-none border-0 overflow-hidden transition-all duration-300">
             {isLocked && (
@@ -217,9 +219,15 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                         ) : (
                             <span className="italic text-teal-300 text-sm">Chưa có thông tin bệnh nhân</span>
                         )}
+                        {docNo && (
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-extrabold uppercase text-teal-200 tracking-wider">Số hồ sơ:</span>
+                                <span className="font-mono font-bold text-white text-sm">{docNo}</span>
+                            </div>
+                        )}
                         {patientId && (
                             <div className="flex items-center gap-1.5">
-                                <span className="text-[11px] font-extrabold uppercase text-teal-200 tracking-wider">Mã HS:</span>
+                                <span className="text-[11px] font-extrabold uppercase text-teal-200 tracking-wider">Mã BN:</span>
                                 <span className="font-mono font-bold text-white text-sm">{patientId}</span>
                             </div>
                         )}
@@ -275,57 +283,135 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
             </div>
 
             {/* Navigation Tabs */}
-            <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-4 overflow-x-auto whitespace-nowrap scrollbar-none flex-nowrap">
-                <button type="button" onClick={() => handleTabChange('admin')} className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${activeTab === 'admin' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-                    Thông tin hành chính
-                </button>
-                <button 
-                    type="button" 
-                    disabled={!patientName}
-                    onClick={() => handleTabChange('history')} 
-                    className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${!patientName ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent' : activeTab === 'history' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                    title={!patientName ? "Vui lòng tìm kiếm/nhập thông tin hành chính bệnh nhân trước" : ""}
-                >
-                    Tiền sử & Khám thể lực
-                </button>
-                {isChild && (
-                    <button 
-                        type="button" 
-                        disabled={!patientName}
-                        onClick={() => handleTabChange('childDev')} 
-                        className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${!patientName ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent' : activeTab === 'childDev' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                    >
-                        Dinh dưỡng &amp; Phát triển
-                    </button>
-                )}
-                <button 
-                    type="button" 
-                    disabled={!patientName}
-                    onClick={() => handleTabChange('exam')} 
-                    className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${!patientName ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent' : activeTab === 'exam' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                    title={!patientName ? "Vui lòng tìm kiếm/nhập thông tin hành chính bệnh nhân trước" : ""}
-                >
-                    Khám lâm sàng
-                </button>
-                <button 
-                    type="button" 
-                    disabled={!patientName}
-                    onClick={() => handleTabChange('lab')} 
-                    className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${!patientName ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent' : activeTab === 'lab' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                    title={!patientName ? "Vui lòng tìm kiếm/nhập thông tin hành chính bệnh nhân trước" : ""}
-                >
-                    Cận lâm sàng
-                </button>
-                <button 
-                    type="button" 
-                    disabled={!patientName}
-                    onClick={() => handleTabChange('conclusion')} 
-                    className={`px-4 py-3 text-sm font-bold border-b-2 transition-all duration-200 flex-shrink-0 ${!patientName ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent' : activeTab === 'conclusion' ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                    title={!patientName ? "Vui lòng tìm kiếm/nhập thông tin hành chính bệnh nhân trước" : ""}
-                >
-                    Kết luận
-                </button>
-            </div>
+            {(() => {
+                const specMeta = formState.specialtyMetadata || {};
+                const getTabStatus = (key: string) => {
+                    if (key === 'exam') {
+                        const examKeys = ['internal', 'surgery', 'dermatology', 'eye', 'ent', 'dental', 'gynecology'];
+                        if (formType !== '2') examKeys.unshift('physical');
+                        const total = examKeys.length;
+                        const doneCount = examKeys.filter(k => specMeta[k]?.status === 'ĐÃ_DUYỆT' || specMeta[k]?.status === 'ĐÃ_KHÁM').length;
+                        const isExamining = examKeys.some(k => specMeta[k]?.status === 'ĐANG_KHÁM');
+                        if (isExamining) return { text: 'Đang khám', color: 'bg-blue-100 text-blue-800' };
+                        if (doneCount === total) return { text: 'Đã khám', color: 'bg-emerald-100 text-emerald-800' };
+                        if (doneCount > 0) return { text: `${doneCount}/${total} đã khám`, color: 'bg-teal-100 text-teal-800' };
+                        return { text: 'Chưa khám', color: 'bg-slate-200 text-slate-600' };
+                    }
+                    const st = specMeta[key]?.status;
+                    if (st === 'ĐÃ_DUYỆT' || st === 'ĐÃ_KHÁM' || st === 'ĐÃ_KẾT_LUẬN') {
+                        return { text: 'Đã khám', color: 'bg-emerald-100 text-emerald-800' };
+                    }
+                    if (st === 'ĐANG_KHÁM') {
+                        return { text: 'Đang khám', color: 'bg-blue-100 text-blue-800' };
+                    }
+                    return { text: 'Chưa khám', color: 'bg-slate-200 text-slate-600' };
+                };
+
+                return (
+                    <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-4 overflow-x-auto whitespace-nowrap scrollbar-none flex-nowrap gap-1">
+                        <button 
+                            type="button" 
+                            onClick={() => handleTabChange('admin')} 
+                            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all duration-200 flex items-center gap-2 flex-shrink-0 cursor-pointer ${
+                                activeTab === 'admin' 
+                                    ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400 bg-white dark:bg-slate-800 shadow-sm' 
+                                    : 'border-transparent text-slate-600 hover:text-slate-900'
+                            }`}
+                        >
+                            <span>Thông tin hành chính</span>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${getTabStatus('admin').color}`}>
+                                {getTabStatus('admin').text}
+                            </span>
+                        </button>
+                        <button 
+                            type="button" 
+                            disabled={!patientName}
+                            onClick={() => handleTabChange('history')} 
+                            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all duration-200 flex items-center gap-2 flex-shrink-0 cursor-pointer ${
+                                !patientName ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent' : 
+                                activeTab === 'history' 
+                                    ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400 bg-white dark:bg-slate-800 shadow-sm' 
+                                    : 'border-transparent text-slate-600 hover:text-slate-900'
+                            }`}
+                            title={!patientName ? "Vui lòng tìm kiếm/nhập thông tin hành chính bệnh nhân trước" : ""}
+                        >
+                            <span>Tiền sử &amp; Khám thể lực</span>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${getTabStatus('history').color}`}>
+                                {getTabStatus('history').text}
+                            </span>
+                        </button>
+                        {isChild && (
+                            <button 
+                                type="button" 
+                                disabled={!patientName}
+                                onClick={() => handleTabChange('childDev')} 
+                                className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all duration-200 flex items-center gap-2 flex-shrink-0 cursor-pointer ${
+                                    !patientName ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent' : 
+                                    activeTab === 'childDev' 
+                                        ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400 bg-white dark:bg-slate-800 shadow-sm' 
+                                        : 'border-transparent text-slate-600 hover:text-slate-900'
+                                }`}
+                            >
+                                <span>Dinh dưỡng &amp; Phát triển</span>
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${getTabStatus('childDev').color}`}>
+                                    {getTabStatus('childDev').text}
+                                </span>
+                            </button>
+                        )}
+                        <button 
+                            type="button" 
+                            disabled={!patientName}
+                            onClick={() => handleTabChange('exam')} 
+                            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all duration-200 flex items-center gap-2 flex-shrink-0 cursor-pointer ${
+                                !patientName ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent' : 
+                                activeTab === 'exam' 
+                                    ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400 bg-white dark:bg-slate-800 shadow-sm' 
+                                    : 'border-transparent text-slate-600 hover:text-slate-900'
+                            }`}
+                            title={!patientName ? "Vui lòng tìm kiếm/nhập thông tin hành chính bệnh nhân trước" : ""}
+                        >
+                            <span>Khám lâm sàng</span>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${getTabStatus('exam').color}`}>
+                                {getTabStatus('exam').text}
+                            </span>
+                        </button>
+                        <button 
+                            type="button" 
+                            disabled={!patientName}
+                            onClick={() => handleTabChange('lab')} 
+                            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all duration-200 flex items-center gap-2 flex-shrink-0 cursor-pointer ${
+                                !patientName ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent' : 
+                                activeTab === 'lab' 
+                                    ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400 bg-white dark:bg-slate-800 shadow-sm' 
+                                    : 'border-transparent text-slate-600 hover:text-slate-900'
+                            }`}
+                            title={!patientName ? "Vui lòng tìm kiếm/nhập thông tin hành chính bệnh nhân trước" : ""}
+                        >
+                            <span>Cận lâm sàng</span>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${getTabStatus('lab').color}`}>
+                                {getTabStatus('lab').text}
+                            </span>
+                        </button>
+                        <button 
+                            type="button" 
+                            disabled={!patientName}
+                            onClick={() => handleTabChange('conclusion')} 
+                            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all duration-200 flex items-center gap-2 flex-shrink-0 cursor-pointer ${
+                                !patientName ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent' : 
+                                activeTab === 'conclusion' 
+                                    ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400 bg-white dark:bg-slate-800 shadow-sm' 
+                                    : 'border-transparent text-slate-600 hover:text-slate-900'
+                            }`}
+                            title={!patientName ? "Vui lòng tìm kiếm/nhập thông tin hành chính bệnh nhân trước" : ""}
+                        >
+                            <span>Kết luận</span>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${getTabStatus('conclusion').color}`}>
+                                {getTabStatus('conclusion').text}
+                            </span>
+                        </button>
+                    </div>
+                );
+            })()}
 
             {/* Content Area */}
             <div className="px-6 py-5 space-y-6 overflow-y-auto flex-1 min-h-0 custom-scrollbar scroll-smooth">
@@ -521,6 +607,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
             </div>
         )}
         </DynamicFormContext.Provider>
+        </TabErrorBoundary>
     );
 };
 

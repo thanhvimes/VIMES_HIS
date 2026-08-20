@@ -74,6 +74,44 @@ export class ServicesController {
             return res.status(500).json({ error: error.message });
         }
     }
+
+    // Lấy các chỉ số con (sub-items) của dịch vụ kỹ thuật (nếu có)
+    async getFeeSubitems(req: Request, res: Response) {
+        try {
+            const { parent_codes } = req.query;
+            if (!parent_codes) {
+                return res.json([]);
+            }
+            const codes = String(parent_codes).split(',').map(s => s.trim()).filter(Boolean);
+            if (codes.length === 0) {
+                return res.json([]);
+            }
+
+            const result = await query(`
+                SELECT 
+                    TRIM(f.hfl_feeid) AS service_code,
+                    f.hfl_name AS service_name,
+                    f.hfl_unit AS unit,
+                    TRIM(f.hfl_groupid) AS group_id,
+                    g.hfg_name AS group_name,
+                    f.hfl_line AS line_no,
+                    TRIM(f.hfl_subitem) AS subitem,
+                    p.hfl_name AS parent_name,
+                    TRIM(p.hfl_feeid) AS parent_code,
+                    p.hfl_line AS parent_line
+                FROM hms_fee_list f
+                JOIN hms_fee_list p ON TRIM(p.hfl_feeid) = TRIM(f.hfl_subitem)
+                LEFT JOIN hms_fee_group g ON TRIM(g.hfg_id) = TRIM(f.hfl_groupid)
+                WHERE TRIM(f.hfl_subitem) = ANY($1) AND f.hfl_active = 'Y'
+                ORDER BY f.hfl_subitem, f.hfl_line
+            `, [codes]);
+
+            return res.json(result.rows);
+        } catch (error: any) {
+            console.error('❌ KSK Controller: Lỗi getFeeSubitems:', error);
+            return res.status(500).json({ error: error.message });
+        }
+    }
 }
 
 export const servicesController = new ServicesController();

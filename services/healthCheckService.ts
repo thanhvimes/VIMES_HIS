@@ -303,6 +303,53 @@ export const healthCheckService = {
         }
     },
 
+    getFeeSubitems: async (parentCodes: string[]): Promise<any[]> => {
+        try {
+            return await apiClient.get<any[]>(`/health-check-sync/services/fee-subitems?parent_codes=${encodeURIComponent(parentCodes.join(','))}`);
+        } catch (error) {
+            console.error("Error fetching fee subitems:", error);
+            return [];
+        }
+    },
+
+    createHisParaclinicOrder: async (payload: {
+        docNo: string | number;
+        patientNo?: string | number;
+        patientId?: string;
+        doctorId?: string;
+        doctorName?: string;
+        deptId?: string;
+        roomId?: number;
+        items: Array<{
+            service_code: string;
+            service_name?: string;
+            group_id?: string;
+            qty?: number;
+            unit?: string;
+            note?: string;
+        }>;
+    }): Promise<{ success: boolean; message: string; orderIds?: number[]; labData?: any }> => {
+        try {
+            return await apiClient.post<any>('/health-check-sync/orders/create-his-order', payload);
+        } catch (error) {
+            console.error("Error creating HIS paraclinic order:", error);
+            throw error;
+        }
+    },
+
+    cancelHisParaclinicItem: async (payload: {
+        docNo: string | number;
+        orderId?: string | number;
+        serviceCode: string;
+    }): Promise<{ success: boolean; message: string; labData?: any }> => {
+        try {
+            return await apiClient.post<any>('/health-check-sync/orders/cancel-his-order', payload);
+        } catch (error) {
+            console.error("Error cancelling HIS paraclinic item:", error);
+            throw error;
+        }
+    },
+
 
 
     getSettings: async (): Promise<any> => {
@@ -356,6 +403,15 @@ export const healthCheckService = {
             return await apiClient.post<{ success: boolean; message: string; docNo: string; patientNo: string; services: any[] }>('/health-check-sync/reception/receive', { employeeId, roomId });
         } catch (error) {
             console.error("Error receiving contract employee:", error);
+            throw error;
+        }
+    },
+
+    receiveAllContractEmployees: async (contractId: string | number, roomId?: number): Promise<{ success: boolean; message: string; count: number; total: number; failed: number; errors?: string[] }> => {
+        try {
+            return await apiClient.post<{ success: boolean; message: string; count: number; total: number; failed: number; errors?: string[] }>(`/health-check-sync/contracts/${contractId}/receive-all`, { roomId });
+        } catch (error) {
+            console.error("Error receiving all contract employees:", error);
             throw error;
         }
     },

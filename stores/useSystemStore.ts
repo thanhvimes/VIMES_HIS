@@ -23,6 +23,8 @@ import { CRM_NAV_ITEMS } from '../modules/crm/constants';
 import { HR_NAV_ITEMS } from '../modules/hr/constants';
 import { QUEUE_NAV_ITEMS } from '../modules/queue-management/constants';
 import { DOCUMENTS_NAV_ITEMS } from '../modules/document-engine/constants';
+import { EMR_NAV_ITEMS } from '../modules/emr/constants';
+import { HOSPITAL_STATISTICS_NAV_ITEMS } from '../modules/hospital-statistics/constants';
 import { ICON_MAP } from '../components/icon-map';
 import React from 'react';
 
@@ -91,6 +93,8 @@ const defaultMenuConfigRaw: Record<string, NavItemType[]> = {
     hr: HR_NAV_ITEMS,
     'queue-management': QUEUE_NAV_ITEMS,
     documents: DOCUMENTS_NAV_ITEMS,
+    emr: EMR_NAV_ITEMS,
+    'hospital-statistics': HOSPITAL_STATISTICS_NAV_ITEMS,
 };
 
 const mapConstantToDTO = (item: NavItemType): NavItemDTO => ({
@@ -124,8 +128,8 @@ export const useSystemStore = create<SystemState>()(
             isMobileSidebarOpen: false,
             slides: defaultSlides,
             menuConfig: initialMenuConfig,
-            hospitalName: 'VIMES HIS',
-            parentOrg: 'SỞ Y TẾ THÀNH PHỐ HÀ NỘI',
+            hospitalName: 'BỆNH VIỆN ĐA KHOA TỈNH',
+            parentOrg: 'SỞ Y TẾ NINH BÌNH',
             systemName: 'Hệ thống Quản lý Tổng thể Bệnh viện',
             logoUrl: '',
             brandingLoaded: false,
@@ -184,19 +188,7 @@ export const useSystemStore = create<SystemState>()(
                 try {
                     const updates: Partial<SystemState> = { brandingLoaded: true };
                     
-                    // Always try to fetch general settings for other keys
-                    try {
-                        const settings = await settingsService.getSettingsByCategory('general');
-                        settings.forEach(s => {
-                            if (s.key === 'general_hospital_name' && s.value) updates.hospitalName = s.value;
-                            if (s.key === 'general_parent_org' && s.value) updates.parentOrg = s.value;
-                            if (s.key === 'general_system_name' && s.value) updates.systemName = s.value;
-                        });
-                    } catch (e) {
-                        console.warn('Failed to fetch general settings API:', e);
-                    }
-
-                    // Also try to get core details from SYS_COMPANY table directly to ensure they are available
+                    // Core details retrieved EXCLUSIVELY from SYS_COMPANY (Source of Truth)
                     try {
                         const company = await settingsService.getCompanyInfo();
                         if (company?.hospitalName) updates.hospitalName = company.hospitalName;

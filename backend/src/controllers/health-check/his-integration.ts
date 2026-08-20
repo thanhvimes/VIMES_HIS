@@ -158,6 +158,52 @@ class HisIntegrationController {
                 });
             }
 
+            // 1.1 Tự động nạp chỉ số xét nghiệm con nếu chỉ định cha chưa mở rộng các dòng chi tiết
+            const parentCodes = testRes.rows
+                .map((r: any) => String(r.service_code || '').trim())
+                .filter(Boolean);
+
+            if (parentCodes.length > 0) {
+                const subRes = await query(`
+                    SELECT TRIM(f.hfl_feeid) AS service_code, f.hfl_name AS service_name,
+                           f.hfl_unit AS unit, TRIM(f.hfl_groupid) AS group_id, g.hfg_name AS group_name,
+                           f.hfl_line AS line_no, TRIM(f.hfl_subitem) AS subitem,
+                           p.hfl_name AS parent_name, TRIM(p.hfl_feeid) AS parent_code,
+                           COALESCE(p.hfl_line, f.hfl_line) AS parent_line
+                    FROM hms_fee_list f
+                    JOIN hms_fee_list p ON TRIM(p.hfl_feeid) = TRIM(f.hfl_subitem)
+                    LEFT JOIN hms_fee_group g ON TRIM(g.hfg_id) = TRIM(f.hfl_groupid)
+                    WHERE TRIM(f.hfl_subitem) = ANY($1) AND f.hfl_active = 'Y'
+                    ORDER BY f.hfl_subitem, f.hfl_line
+                `, [parentCodes]);
+
+                for (const subRow of subRes.rows) {
+                    const existing = items.find(it => it.service_code === subRow.service_code);
+                    if (!existing) {
+                        const parentItem = items.find(it => it.service_code === subRow.parent_code);
+                        items.push({
+                            service_code: subRow.service_code,
+                            service_name: subRow.service_name,
+                            index_code: subRow.service_code,
+                            index_name: subRow.service_name,
+                            value: '',
+                            unit: subRow.unit || '',
+                            description: '',
+                            conclusion: '',
+                            group_id: subRow.group_id || 'B1100',
+                            group_name: subRow.group_name || 'Xét nghiệm',
+                            order_id: parentItem?.order_id || '',
+                            type: 'XN',
+                            line_no: subRow.line_no,
+                            subitem: subRow.subitem,
+                            parent_name: subRow.parent_name || '',
+                            parent_code: subRow.parent_code || '',
+                            parent_line: subRow.parent_line
+                        });
+                    }
+                }
+            }
+
             // 2. Truy vấn kết quả hình ảnh & thăm dò chức năng (Nhóm B và C) - Lấy tất cả chỉ định từ HIS
             const pacsRes = await query(`
                 SELECT f.hfl_feeid AS service_code, f.hfl_name AS service_name,
@@ -400,7 +446,7 @@ class HisIntegrationController {
                     cccd_place: row.hee_cardid_place || '',
                     nguoi_giam_ho: row.hee_guardian_name || '',
                     so_cccd_ngh: row.hee_guardian_cccd || '',
-                    blood_group: 'O', target_group: '14', funding_source: '9',
+                    blood_group: '', target_group: '14', funding_source: '9',
                     examination: {
                         height: String(height), weight: String(weight), bmi: String(bmi),
                         blood_pressure: bp,

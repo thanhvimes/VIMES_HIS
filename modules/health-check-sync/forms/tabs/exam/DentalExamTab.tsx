@@ -6,6 +6,7 @@ const DentalExamTab: React.FC = () => {
     const {
         formType,
         dentalExam, setDentalExam,
+        benhKhacRangHamMat, setBenhKhacRangHamMat,
         khamRangHamMatPl, setKhamRangHamMatPl,
         hamTren, setHamTren,
         hamDuoi, setHamDuoi,
@@ -34,20 +35,38 @@ const DentalExamTab: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">Mô tả tình trạng răng, niêm mạc miệng, khớp cắn</label>
-                        <textarea value={dentalExam} onChange={e => setDentalExam(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 h-20" />
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">
+                            Mô tả tình trạng răng, niêm mạc miệng, khớp cắn <span className="text-[10px] text-slate-400 font-mono font-normal">(BENH_RANG_HAM_MAT)</span>
+                        </label>
+                        <textarea 
+                            value={dentalExam} 
+                            onChange={e => setDentalExam(e.target.value)} 
+                            placeholder="Mô tả răng, niêm mạc miệng, khớp cắn..."
+                            className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white h-16" 
+                        />
                     </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">Phân loại Răng - Hàm - Mặt</label>
-                            <select value={khamRangHamMatPl} onChange={e => setKhamRangHamMatPl(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-medium">
-                                <option value="">-- Phân loại --</option>
-                                <option value="1">Loại I (Rất khỏe)</option>
-                                <option value="2">Loại II (Khỏe)</option>
-                                <option value="3">Loại III (Trung bình)</option>
-                                <option value="4">Loại IV (Yếu)</option>
-                                <option value="5">Loại V (Rất yếu)</option>
-                            </select>
-                        </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">
+                            Các bệnh về răng - hàm - mặt (nếu có) <span className="text-[10px] text-slate-400 font-mono font-normal">(BENH_KHAC_RANG_HAM_MAT)</span>
+                        </label>
+                        <textarea 
+                            value={benhKhacRangHamMat} 
+                            onChange={e => setBenhKhacRangHamMat(e.target.value)} 
+                            placeholder="Ghi rõ các bệnh về răng hàm mặt nếu có..."
+                            className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white h-16" 
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Phân loại Răng - Hàm - Mặt</label>
+                        <select value={khamRangHamMatPl} onChange={e => setKhamRangHamMatPl(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-medium">
+                            <option value="">-- Phân loại --</option>
+                            <option value="1">Loại I (Rất khỏe)</option>
+                            <option value="2">Loại II (Khỏe)</option>
+                            <option value="3">Loại III (Trung bình)</option>
+                            <option value="4">Loại IV (Yếu)</option>
+                            <option value="5">Loại V (Rất yếu)</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 space-y-3 justify-center flex flex-col">

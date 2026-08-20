@@ -1,0 +1,336 @@
+=== PAGE 1 ===
+EMR 
+Made by FPT Information System Corp. 
+Công ty hệ thống thông tin FPT 
+Email:  contact@fis.com.vn 
+Web:  http://www.fis.com.vn 
+Bệnh án điện tử 
+FPT.eHospital 2.0+ 
+
+=== PAGE 2 ===
+Nội dung 
+Căn cứ xây dựng ​ 
+Yêu cầu EMR 
+Giới thiệu hệ thống FPT.EMR 
+Kế hoạch triển khai 
+1 
+2 
+3 
+4 
+
+=== PAGE 3 ===
+Căn cứ xây dựng 
+Thông tư 54/2017/TT-BYT ngày 29/12/2017: quy định tổng quát​ 
+​ 
+Ban hành Bộ tiêu chí ứng dụng công nghệ thông tin tại các cơ sở khám bệnh, chữa bệnh.  
+​ 
+ ​ 
+ 
+Thông tư 46/2018/TT-BYT ngày 28/12/2018: quy định chi tiết​ 
+​ 
+Quy định HỒ SƠ BỆNH ÁN ĐIỆN TỬ.  
+
+=== PAGE 4 ===
+Bệnh án điện tử là gì ? 
+• Phiên bản số của hồ sơ bệnh án. Được ghi chép, hiển thị và lưu trữ bằng phương tiện điện tử. 
+Có cơ sở pháp lý và chức năng tương đương bệnh án giấy được quy định tại Luật Khám bệnh, chữa bệnh.​ 
+ 
+• Hệ thống quản lý hồ sơ bệnh án điện tử là một hệ thống độc lập cho phép lưu trữ,  
+thu thập, tra cứu, sửa đổi và bổ sung các thông tin liên quan hồ sơ bệnh án.​ 
+ 
+
+=== PAGE 5 ===
+Nguyên tắc thực hiện hồ sơ bệnh án điện tử 
+Mỗi người bệnh chỉ có một mã số quản lý, lưu trữ hồ sơ bệnh án điện tử tại một 
+cơ sở khám bệnh, chữa bệnh.​ 
+​Hồ sơ bệnh án điện tử phải đáp ứng:​ 
+• Phải ghi nhận toàn bộ nội dung thông tin như hồ sơ bệnh án giấy.​ 
+• Phải có chữ ký số của người chịu trách nhiệm nội dung thông tin được nhập 
+vào hồ sơ bệnh án điện tử.​ 
+• Tuân thủ việc bảo vệ thông tin cá nhân theo quy định tại Mục 2, Chương II 
+Luật An toàn thông tin mạng.​ 
+​Cơ sở khám bệnh, chữa bệnh được phép sử dụng, lưu trữ hồ sơ bệnh án điện tử 
+thay cho hồ sơ bệnh án giấy khi đáp ứng các quy định. 
+
+=== PAGE 6 ===
+Yêu cầu chức năng (TT54) 
+  
+ 
+Mức Cơ Bản Mức Nâng Cao 
+Cung cấp dịch vụ chăm sóc sức khỏe 
+• ​Quản lý thông tin tiền sử của bệnh nhân 
+• Quản lý tài liệu lâm sàng​ 
+• Quản lý chỉ định​ 
+• Quản lý kết quả (xét nghiệm, chẩn đoán hìnhảnh)​ 
+• Quản lý điều trị​ 
+• Quản lý thuốc​ 
+ 
+Quản lý thông tin hành chính​ 
+• Quản lý thông tin bác sỹ, dược sỹ, nhân viên y tế​ 
+• Quản lý thông tin nhân khẩu của bệnh nhân và việc đồng bộ 
+thông tin nhân khẩu​ 
+• Quản lý việc kết nối, tương tác với các hệ thống thông tin khác 
+trong bệnh viện​ 
+Quản lý hồ sơ bệnh án 
+• Quản lý vòng đời và tuổi thọ của hồ sơ bệnh án​ 
+• Đồng bộ hồ sơ bệnh án​ 
+• Lưu trữ và phục hồi hồ sơ bệnh án​ 
+ 
+Quản lý hạ tầng thông tin 
+• An ninh hệ thống​ 
+• Kiểm tra, giámsát​ 
+• Quản lý thuật ngữ (danh mục dùng chung) nội bộ và tiêu chuẩn​ 
+• Quản lý kết nối, liên thông dựa vào các tiêu chuẩn (kết xuất 
+bệnh án điện tử theo tiêu chuẩn HL7 CDA, CCD)​ 
+• Quản lý các quy tắc nghiệp vụ​ 
+• Sao lưu dự phòng và phục hồi CSDL​ 
+
+=== PAGE 7 ===
+Yêu cầu chi tiết theo TT46 
+Tính năng phần mềm Bệnh án điện tử (EMR) 
+Phần mềm hồ sơ bệnh án điện tử đạt mức nâng cao theo quy định tại Thông tư số 54/2017/TT-BYTngày 29/12/2017 1 
+Đối tượng sử dụng (Theo Điều 59 Luật KCB) 
+Bệnh viện, cơ quan quản lý về y tế, sinh viên thực tập, người bệnh. 2 
+Tuân thủ chuẩn CNTT của BYT 
+Chuẩn HL7 CDA, HL7 FHIR. 3 
+Kiểm soát truy cập 
+Kiểm soát truy cập, truy vết của người dùng (nhân viên công nghệ thông tin và nhân viên y tế) tại bất kỳ thời điểm nào.  4 
+Kết xuất bản điện tử XML 
+Tóm tắt HSBA, thông tin BHYT theo QĐ 4210/2018, thông tin hồ sơ sức khoẻ theo QĐ 831/2017 5 
+Tra cứu, in ấn 
+Hiển thị trên màn hình máy tính hoặc các thiết bị điện tử khác theo mẫu hồ sơ bệnh án 6 
+Lưu trữ dự phòng 
+Định kỳ hàng tuần lưu trữ dự phòng trên DC 7 
+Áp dụng chữ ký số 
+Bệnh viện, người bệnh. 8 
+Thông tin định danh người bệnh 
+Thông tin định danh người bệnh được xây dựng thống nhất trên toàn quốc theo quy định của Bộ trưởng Bộ Y tế 9 
+
+=== PAGE 8 ===
+Lộ trình thực hiện (TT46) 
+2019 2023 
+2024 2028 
+Giai đoạn 1 
+ 
+• Bệnh viện hạng I trở lên chủ động nâng cấp hệ 
+thống CNTT triển khai hồ sơ bệnh án điện tử. 
+ 
+• Bệnh viện khác căn cứ vào nhu cầu, năng lực 
+thực tế để chuẩn bị các điều kiện cần thiết cho 
+việc triển khai hồ sơ bệnh án điện tử. 
+Giai đoạn 2 
+ 
+• Tất cả các cơ sở khám bệnh, chữa bệnh trên 
+toàn quốc phải triển khai hồ sơ bệnh án điện tử. 
+ 
+• Trường hợp cơ sở khám bệnh, chữa bệnh  
+chưa triển khai được hồ sơ bệnh án điện tử thì 
+phải có văn bản báo cáo Bộ hoặc Sở Y tế trực 
+thuộc. Văn bản báo cáo phải nêu rõ lý do, lộ 
+trình triển khai nhưng phải hoàn thành trước 
+ngày 31/12/2030. 
+ 
+
+=== PAGE 9 ===
+Quản lý toàn bộ thông tin điều trị của người bệnh, vòng đời hồ sơ bệnh án. 
+Liên thông hồ sơ bệnh án giữa các cơ sở khám chữa bệnh theo chuẩn quốc tế HL7 CDA. 
+Hướng tới mô hình bệnh viện không giấy tờ. 
+EMR 
+FPT.eHospital 2.0+ 
+
+=== PAGE 10 ===
+Quy trình nghiệp vụ 
+ 
+ 
+ 
+ 
+Hệ thống  
+lưu trữ BAĐT 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+1. Khởi tạo 
+HSBA 
+2. Ghi nhận 
+thông tin 
+điều trị 
+3. Ký chữ ký số 
+4. Chuyển  
+lưu trữ  
+HSBA 
+1. Yêu cầu 
+truy cập BAĐT 
+2. Duyệt  
+yêu cầu 
+3. Cấp quyền,  
+phạm vi 
+truy cập  
+BAĐT 
+4. Truy 
+cập 
+BAĐT 
+Người bệnh 
+nhập viện 
+Người bệnh 
+điều trị 
+Nhân viên y tế 
+Đối tượng khai thác HSBA 
+Người duyệt yêu cầu 
+Người cấp quyền  
+truy cập 
+Tạo và lưu trữ BAĐT Cấp quyền truy cập BAĐT 
+
+
+=== PAGE 11 ===
+Các chức năng chính 
+Quản lý thông tin 
+hồ sơ bệnh án 
+Quản lý vòng đời 
+hồ sơ bệnh án 
+Bảo mật, an ninh 
+hệ thống 
+Quản lý truy 
+cập, truy vết 
+Ký số 
+Đồng bộ thông tin 
+hồ sơ bệnh án 
+Lưu trữ dự phòng  
+hồ sơ bệnh án 
+Quản lý liên thông, 
+kết nối HL7 CDA 
+
+
+=== PAGE 12 ===
+Kiến trúc hệ thống 
+Web browser 
+ Web API 
+ DB 
+Files 
+
+
+=== PAGE 13 ===
+Kiến trúc ứng dụng 
+Back-end (Micro services) 
+Front-end (SPA) 
+CMS IAM Index/Search 
+engine 
+API gateway 
+Các hệ 
+thống HIS 
+(non- HL7) 
+XML 
+Database 
+Hệ thống 
+EMR , HIS HL7 
+Tìm kiếm, 
+xem HSBA 
+Tìm kiếm, xem 
+thông tin hành 
+chính bệnh nhân 
+Tạo/Cập nhật 
+thông tin người 
+dùng 
+Xem thông tin / 
+Phê duyệt truy 
+cập HSBA 
+Quản lý danh 
+mục 
+Cập nhật, kí 
+HSBA 
+HSM 
+Quản lý hồ sơ 
+Quản lý chữ kí 
+điện tử 
+Quản lý người 
+dùng 
+Quản lý truy 
+cập 
+Quản lý danh 
+mục 
+Quản lý tích 
+hợp 
+
+
+=== PAGE 14 ===
+DEMO 
+
+=== PAGE 15 ===
+chiennd8 
+******** 
+
+
+=== PAGE 16 ===
+
+
+=== PAGE 17 ===
+
+
+=== PAGE 18 ===
+Thực hiện tạo yêu cầu khai thác hồ sơ bệnh 
+án 
+
+=== PAGE 19 ===
+
+
+=== PAGE 20 ===
+
+
+=== PAGE 21 ===
+
+
+=== PAGE 22 ===
+Người quản trị sẽ quản lý và duyệt phiếu yêu cầu 
+
+=== PAGE 23 ===
+
+
+=== PAGE 24 ===
+
+
+=== PAGE 25 ===
+
+
+=== PAGE 26 ===
+
+
+=== PAGE 27 ===
+
+
+=== PAGE 28 ===
+
+
+=== PAGE 29 ===
+
+
+=== PAGE 30 ===
+
+
+=== PAGE 31 ===
+
+
+=== PAGE 32 ===
+
+
+=== PAGE 33 ===
+
+
+=== PAGE 34 ===
+
+
+=== PAGE 35 ===
+Thank you 
+
+

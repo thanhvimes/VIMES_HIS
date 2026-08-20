@@ -1,0 +1,830 @@
+=== PAGE 1 ===
+ 
+ 
+BỘ Y TẾ CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM 
+Độc lập - Tự do - Hạnh phúc 
+Số: 54/2017/TT-BYT Hà Nội, ngày 29 tháng 12 năm 2017 
+ 
+THÔNG TƯ 
+Ban hành Bộ tiêu chí ứng dụng công nghệ thông tin  
+tại các cơ sở khám bệnh, chữa bệnh 
+ 
+Căn c ứ Nghị định s ố 75/2017/NĐ-CP ngày 20 tháng 6 năm 201 7 của 
+Chính ph ủ quy đ ịnh ch ức năng, nhi ệm vụ, quy ền h ạn và cơ c ấu t ổ chức của 
+Bộ Y tế; 
+Theo đề nghị của Cục trưởng Cục Công ngh ệ thông tin , 
+Bộ trưởng Bộ Y tế ban hành Thông tư ban hành Bộ tiêu chí về ứng dụng 
+công nghệ thông tin tại các cơ sở khám bệnh, chữa bệnh. 
+ 
+Điều 1. Phạm vi điều chỉnh và đối tượng áp dụng 
+1. Thông tư này b an hành Bộ tiêu chí ứng dụng công ngh ệ thông tin và 
+hướng dẫn xác đ ịnh mức ứng dụng công ngh ệ thông tin tại cơ s ở khám bệnh, 
+chữa bệnh. 
+2. Thông tư này á p dụng cho cơ s ở khám bệnh, chữa bệnh đã được cấp 
+giấy phép hoạt động theo quy định của Luật Khám bệnh, chữa bệnh. 
+Điều 2. Giải thích từ ngữ 
+Trong Thông tư này, các từ ngữ dưới đây được hiểu như sau: 
+1. HIS là chữ viết t ắt c ủa c ụm t ừ tiếng Anh “Hospital In formation 
+System” được dịch sang tiếng Việt là “Hệ thống thông tin bệnh viện”. 
+2. LIS là ch ữ viết t ắt c ủa c ụm t ừ tiếng Anh “Laboratory Information 
+System” được dịch sang tiếng Việt là “Hệ thống thông tin xét nghiệm”. 
+3. RIS là ch ữ viết t ắt c ủa c ụm t ừ tiếng Anh “Radiology Information 
+System”  được dịch sang tiếng Việt là “Hệ thống thông tin chẩn đoán hình ảnh”. 
+4. PACS là ch ữ viết t ắt c ủa c ụm t ừ tiếng Anh  “Picture Archiving and 
+Communication System ” được d ịch sang ti ếng Vi ệt là “Hệ thống lưu tr ữ và 
+truyền tải hình ảnh”. 
+5. EMR là chữ viết tắt của cụm từ tiếng Anh “Electronic Medical Record” 
+được dịch sang tiếng Việt là “Bệnh án điện tử”. 
+
+=== PAGE 2 ===
+ 2       
+  
+6. CDR là chữ viết tắt của cụm từ tiếng Anh “Clinical Data Repository ” 
+được dịch sang tiếng Việt là “Kho dữ liệu lâm sàng”. 
+7. CDSS là chữ viết tắt của cụm từ tiếng Anh “Clinical Decision Support 
+System” được dịch sang tiếng Việt là “Hệ thống hỗ trợ quyết định lâm sàng”. 
+8. Tiêu chuẩn HL7 là chữ viết tắt của cụm từ tiếng Anh “ Health Level 7  
+Standard” là tiêu chu ẩn quốc tế cung cấp giao th ức về quản lý, trao đ ổi và tích 
+hợp thông tin y tế điện tử giữa các hệ thống thông tin y tế. 
+9. Tiêu chuẩn HL7 CDA chữ viết tắt của cụm từ tiếng Anh “Health Level 
+7 Clinical Document Architecture ” là tài li ệu có c ấu trúc d ựa trên đ ịnh d ạng 
+XML quy định cấu trúc và ngữ nghĩa dữ liệu lâm sàng phục vụ mục tiêu trao đổi 
+dữ liệu giữa các bên liên quan. 
+10. CCD là ch ữ viết t ắt c ủa c ụm t ừ tiếng Anh “Continuity of Care 
+Document” được dịch sang tiếng Việt là tập tin điện tử về tài liệu chăm sóc s ức 
+khỏe liên tục. 
+11. DICOM là ch ữ viết t ắt c ủa c ụm t ừ tiếng Anh “Digital Imaging 
+Communication in Medicine ” là tiêu chuẩn quốc tế để truyền tải, lưu tr ữ, truy 
+xuất, in ấn, xử lý và hiển thị thông tin hình ảnh y khoa. 
+Điều 3. Ban hành B ộ tiêu chí ứng dụng công nghệ thông tin tại cơ sở 
+khám bệnh, chữa bệnh 
+Bộ tiêu chí ứng dụng công nghệ thông tin tại cơ sở khám bệnh, chữa bệnh 
+bao gồm 08 nhóm tiêu chí về: Hạ tầng, phần mềm quản lý điều hành, HIS, RIS-
+PACS, LIS, phi ch ức năng, bảo mật và an toàn thông tin, EMR  được quy định 
+tại Phụ lục I Thông tư này. 
+Điều 4. Nguyên tắc xác định mức ứng dụng công nghệ thông tin 
+1. Mức ứng d ụng công ngh ệ thông tin t ại cơ s ở khám bệnh, ch ữa b ệnh 
+được xác định theo bảng tổng hợp tiêu chí để đánh giá mức ứng dụng công nghệ 
+thông tin tại cơ sở khám bệnh, chữa bệnh quy định tại Phụ lục II Thông tư này. 
+2. Bảo đảm nguyên tắc khách quan, chính xác và trung thực. 
+3. Phải đạt tất cả tiêu chí ở mức đánh giá. Nếu có ít nhất 01 tiêu chí không 
+đạt thì xếp ở mức thấp hơn liền kề. 
+Điều 5. Hướng dẫn việc xác định mức ứng dụng công nghệ thông tin  
+1. Căn cứ vào quy đ ịnh tại Điều 3 và Điều 4 Thông tư này, người đứng 
+đầu cơ sở khám bệnh, chữa bệnh quyết định đầu tư theo thẩm quyền và ban hành 
+quyết đ ịnh xác đ ịnh mức ứng d ụng công ngh ệ thông tin  tại cơ s ở phụ trách. 
+Trong trường hợp cần thiết, người đứng đầu cơ sở khám bệnh, chữa bệnh thành 
+
+=== PAGE 3 ===
+ 3       
+  
+lập Hội đ ồng chuyên môn hoặc thuê t ổ chức độc lập để tư vấn vi ệc xác đ ịnh 
+mức ứng dụng công nghệ thông tin tại cơ sở phụ trách. 
+2. Quy ết đ ịnh xác đ ịnh m ức ứng d ụng công nghệ thông tin của cơ s ở 
+khám b ệnh, ch ữa b ệnh phải đư ợc gửi báo cáo cơ quan qu ản lý c ấp trên tr ực 
+tiếp và gửi Cục Công ngh ệ thông tin  - Bộ Y tế. 
+3. Người đứng đầu cơ sở khám bệnh, chữa bệnh chịu trách nhi ệm trước 
+pháp luật và cơ quan quản lý cấp trên về việc xác định mức ứng dụng công nghệ 
+thông tin tại cơ s ở phụ trách; có trách nhi ệm xác đ ịnh lại mức ứng dụng công 
+nghệ thông tin nếu cơ quan qu ản lý y t ế cấp trên kiểm tra phát hiện mức ứng 
+dụng công nghệ thông tin tại cơ sở khám bệnh, chữa bệnh chưa phù hợp với văn 
+bản báo cáo. 
+Điều 6. Hiệu lực thi hành  
+Thông tư này có hiệu lực kể từ ngày 27 tháng 02 năm 2018. 
+Điều 7. Tổ chức thực hiện 
+1. Các Vụ, Cục, Tổng cục, Thanh tra Bộ, Văn phòng Bộ thuộc Bộ Y tế có 
+trách nhiệm: 
+a) C ục Công nghệ thông tin ch ủ trì, ph ối hợp v ới C ục Qu ản lý Khám, 
+chữa bệnh chỉ đạo, hướng dẫn, thanh tra  và kiểm tra vi ệc thực hiện Thông tư 
+này; công bố mức ứng dụng công nghệ thông tin của các cơ sở khám bệnh, chữa 
+bệnh trên toàn qu ốc trên Trang thông tin đi ện tử tổng hợp của Cục Công nghệ 
+thông tin (http://ehealth.gov.vn). 
+b) Văn phòng B ộ, Thanh tra B ộ, các Vụ, Cục, Tổng cục thuộc Bộ Y tế 
+phối hợp với Cục Công nghệ thông tin tham gia công tác qu ản lý nhà nư ớc đối 
+với ho ạt đ ộng ứng dụng công ngh ệ thông tin theo chức năng, nhi ệm vụ được 
+giao. 
+2. Sở Y tế và Y tế Bộ, ngành có trách nhiệm chỉ đạo, hướng dẫn, kiểm tra, 
+thanh tra vi ệc th ực hi ện Thông tư này theo th ẩm quyền qu ản lý; đ ịnh k ỳ vào 
+tháng 12 hằng năm tổng hợp báo cáo Cục Công nghệ thông tin - Bộ Y tế về tình 
+hình ứng dụng công nghệ thông tin của các đơn vị thuộc thẩm quyền quản lý. 
+3. Các cơ s ở khám b ệnh, ch ữa b ệnh có trách nhi ệm xác đ ịnh m ức ứng 
+dụng công ngh ệ thông tin và có văn b ản báo cáo (mẫu quy đ ịnh tại Phụ lục III 
+Thông tư này) cơ quan quản lý y tế cấp trên trực tiếp, cụ thể như sau: 
+a) Đối với cơ sở khám bệnh, chữa bệnh trực thuộc Bộ Y tế: Văn bản báo 
+cáo mức ứng dụng công nghệ thông tin gửi về Cục Công nghệ thông tin - Bộ Y 
+tế. 
+
+=== PAGE 4 ===
+ 4       
+  
+b) Đối với cơ sở khám bệnh, chữa bệnh thuộc thẩm quyền quản lý của Bộ 
+Quốc phòng, văn b ản báo cáo m ức ứng dụng công ngh ệ thông tin gửi về Cục 
+Quân Y - Bộ Quốc phòng; cơ sở khám bệnh, chữa bệnh thuộc thẩm quyền quản 
+lý của Bộ Công an, văn b ản báo cáo m ức ứng dụng công nghệ thông tin gửi về 
+Cục Y tế - Bộ Công an; cơ sở khám bệnh, chữa bệnh thuộc thẩm quyền quản lý 
+của Bộ Giao thông vận tải, văn bản báo cáo mức ứng dụng công nghệ thông tin  
+gửi về Cục Y tế Giao thông vận tải - Bộ Giao thông Vận tải. 
+c) Đối với cơ sở khám bệnh, chữa bệnh thuộc thẩm quyền quản lý của Sở 
+Y tế tỉnh, thành phố trực thuộc Trung ương; cơ sở khám bệnh, chữa bệnh có trụ 
+sở tại tỉnh, thành ph ố trực thuộc Trung ương (tr ừ các cơ s ở khám bệnh, ch ữa 
+bệnh quy định tại điểm a và đi ểm b khoản 3 Đi ều này): Văn b ản báo cáo m ức 
+ứng dụng công ngh ệ thông tin gửi về Sở Y tế nơi cơ sở khám bệnh, chữa bệnh 
+đặt trụ sở. 
+d) Định kỳ vào tháng 12 h ằng năm báo cáo cơ quan qu ản lý y t ế cấp trên 
+trực tiếp về tình hình ứng dụng công nghệ thông tin. 
+Trong quá trình th ực hiện nếu có khó khăn, vư ớng mắc, đề nghị các tổ 
+chức, cá nhân  phản ánh v ề Bộ Y t ế (Cục Công ngh ệ thông tin) đ ể xem xét, 
+giải quyết./. 
+Nơi nhận: 
+- Ủy ban về các vấn đề XH của Quốc hội (để giám sát); 
+- Ủy ban Quốc gia về CNTT; 
+- Các Bộ, cơ quan ngang Bộ, cơ quan thuộc CP;  
+- UBND các tỉnh, thành phố trực thuộc TƯ; 
+- Bộ trưởng và các Thứ trưởng BYT; 
+- Phòng Công báo, Cổng TTĐT CP; 
+- Cục Kiểm tra văn bản QPPL, Bộ Tư pháp; 
+- Các đơn vị thuộc và trực thuộc BYT; 
+- Y tế các Bộ, ngành; 
+- Sở Y tế tỉnh, thành phố trực thuộc TƯ; 
+- Cổng Thông tin điện tử BYT; 
+- Lưu: VT, PC, CNTT (03b). 
+ 
+
+=== PAGE 5 ===
+ 5       
+  
+Phụ lục 1 
+BỘ TIÊU CHÍ VỀ ỨNG DỤNG CÔNG NGHỆ THÔNG TIN 
+TẠI CƠ SỞ KHÁM BỆNH, CHỮA BỆNH 
+(Kèm theo Thông tư số 54/2017/TT-BYT ngày 29 tháng 12 năm 2017 
+của Bộ trưởng Bộ Y tế) 
+I. Nhóm tiêu chí hạ tầng 
+TT Tiêu chí Mức 
+1 Trang bị máy tính  tối thiểu phải  đáp ứng triển khai ứng 
+dụng công nghệ thông tin (CNTT) 
+mức 1 2 Mạng nội bộ (LAN)  
+3 Đường truyền kết nối Internet 
+4 Máy chủ chuyên dụng (máy chủ ứng dụng/máy chủ cơ sở 
+dữ liệu - CSDL) 
+mức 2 5 Phòng máy chủ  (thiết bị phòng cháy, chữa cháy; thiết bị 
+theo dõi nhiệt độ, độ ẩm; thiết bị kiểm soát người vào/ra) 
+6 
+Phần mềm hệ thống (hệ điều hành, hệ quản trị CSDL) vẫn 
+còn được hỗ trợ từ nhà sản xuất  (ngoại trừ phần mềm mã 
+nguồn mở) 
+7 Thiết bị tường lửa 
+mức 3 8 Thiết bị lưu trữ (Máy chủ lưu trữ hoặc thiết bị lưu trữ 
+ngoài) 
+9 Thiết bị đọc mã vạch 
+10 Máy in mã vạch 
+11 Hệ thống lưu trữ (SAN hoặc NAS) 
+mức 4 12 Hệ thống lấy số xếp hàng 
+13 Màn hình hiển thị (số xếp hàng) 
+14 Bảng thông báo điện tử (Thông báo bản tin bệnh viện, giá 
+dịch vụ y tế,…)  mức 5 
+15 Thiết bị di động (máy tí nh bảng, điện thoại thông minh) , 
+mạng LAN không dây (wireless) 
+mức 6 16 Camera an ninh bệnh viện 
+17 Hệ thống lưu trữ dự phòng 
+18 Kios thông tin (cho phép bệnh nhân và người nhà tra cứu 
+thông tin về bệnh viện, thông tin khám bệnh, chữa bệnh) mức 7 
+
+=== PAGE 6 ===
+ 6       
+  
+TT Tiêu chí Mức 
+19 Phần mềm giám sát mạng bệnh viện 
+II. Nhóm tiêu chí phần mềm quản lý điều hành 
+TT Tiêu chí Mức 
+20 Quản lý tài chính - kế toán 
+Cơ bản 21 Quản lý tài sản, trang thiết bị 
+22 Quản lý nhân lực 
+23 Quản lý văn bản 
+Nâng cao 
+24 Chỉ đạo tuyến 
+25 Trang thông tin điện tử 
+26 Thư điện tử nội bộ 
+27 Quản lý đào tạo 
+28 Quản lý nghiên cứu khoa học 
+29 Quản lý chất lượng bệnh viện 
+III. Nhóm tiêu chí hệ thống thông tin bệnh viện (HIS) 
+TT Tiêu chí Mức 
+30 Quản trị hệ thống (Quản lý người dùng, quản lý cấu hình) 
+mức 1 
+31 Quản lý danh mục dùng chung   
+32 Tiếp nhận đăng ký khám bệnh, chữa bệnh 
+33 Quản lý khám bệnh, chữa bệnh ngoại trú 
+34 Quản lý dược  
+35 Quản lý viện phí và thanh toán BHYT 
+36 Kết nối với BHXH thanh quyết toán BHYT (tập tin XML) 
+37 Quản lý chỉ định lâm sàng, cận lâm sàng 
+mức 2 
+38 Quản lý kết quả cận lâm sàng 
+39 Quản lý điều trị nội trú 
+mức 3 
+40 Quản lý phòng bệnh, giường bệnh 
+41 Quản lý suất ăn cho bệnh nhân 
+42 Báo cáo thống kê 
+
+=== PAGE 7 ===
+ 7       
+  
+TT Tiêu chí Mức 
+43 Quản lý khám sức khỏe 
+44 Quản lý hàng đợi xếp hàng tự động 
+mức 4 
+45 Quản lý hóa chất, vật tư tiêu hao và nhà thuốc bệnh viện 
+46 Quản lý trang thiết bị y tế 
+47 Kết nối với PACS cơ bản 
+48 Quản lý khoa/phòng cấp cứu 
+mức 5 
+49 Quản lý phòng mổ 
+50 Quản lý lịch hẹn điều trị, nhắc lịch hẹn tái khám 
+51 Quản lý ngân hàng máu (nếu có) 
+52 Quản lý người bệnh bằng thẻ điện tử 
+53 Quản lý tương tác thuốc/thuốc 
+mức 6 
+54 Quản lý phác đồ điều trị  
+55 Quản lý dinh dưỡng 
+56 Kê đơn, chỉ định, trả kết quả cận lâm sàng trên máy tính 
+bảng, điện thoại thông minh 
+57 Quản lý quy trình kỹ thuật chuyên môn 
+mức 7 
+58 Quản lý hồ sơ bệnh án điện tử 
+59 Ứng dụng nhận dạng giọng nói để hỗ trợ EMR 
+60 Tìm kiếm và tra cứu thông tin (KIOS thông tin) 
+61 Thanh toán viện phí điện tử 
+IV. Nhóm tiêu chí hệ thống lưu trữ và truyền tải hình ảnh (RIS-PACS) 
+TT Tiêu chí Mức 
+62 Quản trị hệ thống 
+Cơ bản 
+63 Cấu hình quản lý máy chủ PACS 
+64 Cấu hình quản lý máy trạm PACS 
+65 Quản lý thông tin chỉ định  
+66 Quản lý danh sách bệnh nhân được chỉ định 
+67 
+Giao diện kết nối (Interface) 2 chiều với các thiết bị chẩn 
+đoán hình ảnh thông dụng (CT, MRI, X -quang, DSA, siêu 
+âm) 
+
+=== PAGE 8 ===
+ 8       
+  
+TT Tiêu chí Mức 
+68 
+Interface kết nối, liên thông với HIS: 
+- RIS nhận thông tin chỉ định từ HIS, RIS chuyển thông 
+tin chỉ định vào máy chẩn đoán hình ảnh theo tiêu chuẩn  
+HL7; 
+- PACS nhận hình bệnh lý đã được xử lý từ trạm xử lý 
+(workstation) của bác sĩ; 
+- PACS chuyển đổi hình bệnh lý từ định dạng DICOM 
+sang định dạng JPEG và chuyển cho hệ thống RIS, RIS 
+chuyển trả hình bệnh lý định dạng JPEG cho hệ thống HIS 
+lưu trữ nhằm hoàn thiện hồ sơ bệnh án; 
+- Liên thông hai chiều báo cáo chẩn đoán hình ảnh của 
+bệnh nhân giữa PACS và HIS (tức là nếu có thay đổi bên 
+PACS thì HIS cũng nhận được và ngược lại) 
+69 Quản lý kết quả chẩn đoán hình ảnh 
+70 Hỗ trợ tiêu chuẩn HL7 bản tin, DICOM 
+71 Chức năng đo lường 
+72 Chức năng xử lý hình ảnh 2D 
+73 Chức năng xử lý hình ảnh 3D 
+74 
+Kết xuất hình ảnh DICOM ra đĩa CD/DVD cùng với phần 
+mềm xem ảnh DICOM hoặc cung cấp đường dẫn truy cập 
+hình ảnh trên web 
+75 Kết xuất báo cáo thống kê 
+76 Chức năng biên tập và xử lý hình ảnh DICOM 
+Nâng cao 
+77 Chức năng nén ảnh theo giải thuật JPEG2000 
+78 Hỗ trợ xem ảnh DICOM qua WebView 
+79 
+Hỗ trợ hội chẩn nhiều điểm cầu ( multi-site) chẩn đoán 
+hình ảnh qua mạng  (hỗ trợ các thiết bị di động như điện 
+thoại thông minh, máy tính bảng) 
+V. Nhóm tiêu chí hệ thống thông tin xét nghiệm (LIS) 
+TT Tiêu chí Mức 
+80 Quản trị hệ thống 
+Cơ bản 81 Quản lý danh mục 
+82 Quản lý chỉ định xét nghiệm 
+
+=== PAGE 9 ===
+ 9       
+  
+TT Tiêu chí Mức 
+83 Quản lý kết quả xét nghiệm 
+84 Kết nối máy xét nghiệm (ra lệnh và nh ận kết quả xét 
+nghiệm tự động từ máy xét nghiệm) 
+85 Báo cáo thống kê 
+86 Quản lý mẫu xét nghiệm 
+Nâng cao 
+87 Quản lý hóa chất xét nghiệm 
+88 Kết nối liên thông với phần mềm HIS (nhận chỉ định từ 
+HIS và đồng bộ kết quả xét nghiệm với HIS) 
+89 Thiết lập thông số cảnh báo khi vượt ngưỡng bình thường 
+VI. Nhóm tiêu chí phi chức năng 
+TT Tiêu chí Mức 
+90 Tính khả dụng 
+Dễ hiểu/dễ sử dụng 
+Cơ bản 
+Hệ thống đơn giản trong cài đặt và 
+quản lý 
+Giao diện thân thiện phù hợp với quy 
+trình nghiệp vụ hiện đang vận hành. 
+91 Tính ổn định 
+Dữ liệu đầu ra chính xác 
+Hệ thống gây trung bình dưới 10 
+lỗi/tháng trong 3 tháng vận hành đầu 
+tiên. Dưới 10 lỗi/năm trong 3 năm vận 
+hành tiếp theo và dưới 3 lỗi/năm trong 
+các năm vận hành tiếp theo (l ỗi gây 
+dừng/tổn hại hệ thống) 
+Thời gian trung bình gi ữa hai sự cố 
+phải lớn hơn 4 giờ. 
+92 Hiệu năng 
+Khả năng đáp ứng 90% tổng số cán 
+bộ online 
+Thời gian xử lý chấp nhận được (tra 
+cứu dữ liệu, kết xuất báo cáo  thống 
+kê) 
+93 Tính hỗ trợ 
+Tổ chức tập huấn người dùng cuối sử 
+dụng hệ thống. 
+Các hỗ trợ được  phản hồi trong vòng 
+tối đa 12 giờ làm việc. 
+
+=== PAGE 10 ===
+ 10       
+  
+TT Tiêu chí Mức 
+94 Cơ chế ghi nhận 
+lỗi 
+Ghi vết (log) lại toàn bộ tác động của 
+các người dùng trên  hệ thống, lưu trữ 
+tập trung t rên máy chủ để làm cơ sở 
+phân tích các lỗi hoặc quá trình tác 
+động hệ thống khi cần thiết. 
+Có quy  định ghi lại các lỗi và quá 
+trình xử lý lỗi, đặc biệt các lỗi liên 
+quan tới an toàn, bảo mật trong kiểm 
+tra và thử nghiệm. 
+95 Bảo hành, bảo trì Thời gian bảo hành hệ thống tối thiểu 
+12 tháng. 
+96 
+Tài liệu hướng 
+dẫn người sử 
+dụng 
+Cung cấp các tài liệu người dùng: Tài 
+liệu hướng dẫn sử dụng hệ thống, t ài 
+liệu mô tả nghiệp vụ các tính năng hệ 
+thống. 
+Cung cấp các tài liệu quản trị vận 
+hành hệ thống: Tài liệu hướng dẫn cài 
+đặt hệ thống, tài liệu mã lỗi và xử lý 
+sự cố, tài liệu hướng dẫn vận hành hệ 
+thống 
+97 Nhân lực Có cán bộ chuyên trách CNTT hoặc 
+tổ CNTT. 
+98 Hỗ trợ người 
+dùng Hỗ trợ từ xa. 
+99 Công nghệ phát 
+triển hệ thống 
+Sử dụng các hệ thống CSDL phổ 
+biến, ưu tiên hệ thống CSDL có khả 
+năng lưu trữ dữ liệu lớn. 
+Nâng cao 
+Sử dụng các công nghệ, lập trình 
+hướng dịch vụ tạo tính mềm dẻo, linh 
+hoạt trong việc lựa chọn công nghệ, 
+nền tảng hệ thống, nhà cung cấp và 
+người sử dụng cho mô hình SOA; 
+đồng thời tạo điều kiện thuận lợi cho 
+việc bảo trì hệ thống. 
+100 Tính module hóa 
+Hệ thống được chia thành các phân hệ 
+(module) xử lý độc lập. Có khả năng 
+thêm mới/loại bỏ các module chức 
+năng cụ thể một cách linh hoạt, không 
+ảnh hưởng tới tính chính xác và hoạt  
+động của hệ thống tổng thể nói chung. 
+
+=== PAGE 11 ===
+ 11       
+  
+TT Tiêu chí Mức 
+101 Tính khả dụng 
+Cho phép khai thác hệ thống từ xa qua 
+trình duyệt Web (hỗ trợ các trình 
+duyệt Web  thông dụng như  Chrome, 
+IE, Mozilla Firefox, …) 
+102 Tính ổn định 
+Lỗi chấp nhận là lỗi không gây tổn 
+hại trầm trọng  hệ thống và có thể 
+phục hồi trong thời gian dưới 5 phút 
+nhưng không được quá 10 lỗi/tháng 
+khi triển khai. 
+Khi xảy ra các sự cố làm ngừng vận 
+hành hệ thống, hệ thống phải đảm bảo 
+phục hồi 70% trong v òng 1 giờ và 
+100% trong vòng 24 giờ. 
+103 Tính hỗ trợ Hệ thống được hỗ trợ 24/24.  
+104 Tiếp nhận, phản 
+hồi, xử lý sự cố 
+Thời gian tiếp nhận và phản hồi khi 
+có sự cố dưới 24 giờ. 
+Thời gian xử lý lỗi hệ thống dưới 48 
+giờ. 
+Thời gian hướng dẫ n xử lý các lỗi dữ 
+liệu dưới 72 giờ. 
+105 Hiệu năng 
+Hệ thống đảm bảo phục vụ 100% tổng 
+số cán bộ online 
+Hệ thống truy cập thời gian thực. Các 
+tác vụ thực hiện p hản hồi trong thời 
+gian dưới 10 giây 
+106 Độ tin cậy 
+Hệ thống online 24/7 
+Khả năng chịu lỗi 
+Khả năng phục hồi 
+107 Khả năng kết nối, 
+liên thông 
+Kết nối, chia sẻ dữ liệu với Cổng tiếp 
+nhận dữ liệu hệ thống thông tin giám 
+định BHYT. 
+108 
+Khả năng kết nối, 
+liên thông với các 
+hệ thống thông tin 
+khác 
+Kết nối, chia sẻ dữ liệu giữa các phần 
+mềm HIS, LIS, PACS, EMR và các 
+hệ thống thông tin y tế khác. 
+
+=== PAGE 12 ===
+ 12       
+  
+TT Tiêu chí Mức 
+109 
+Áp dụng các tiêu 
+chuẩn, hợp chuẩn 
+theo quy định 
+hiện hành 
+ Áp dụng các tiêu chuẩn trong nước 
+hoặc tiêu chuẩn quốc tế  (tiêu chuẩn 
+HL7, HL7 CDA, DICOM, ICD -10, 
+…) 
+110 Bản quyền 
+Phần mềm thương mại hoặc nguồn 
+mở 
+Phần mềm bản quyền vẫn còn được 
+nhà sản xuất hỗ trợ cập nhật các bản 
+vá lỗi 
+111 
+Cơ chế giám sát 
+và cập nhật phần 
+mềm 
+Cung cấp đầy đủ các công cụ hỗ trợ 
+vận hành, giám sát, cảnh báo hệ thống 
+Toàn bộ các cảnh báo/lỗi/log được 
+phân loại/lọc để dễ dàng theo dõi 
+Ghi vết  hệ thống, tiến  trình và tác 
+động của người dùng 
+Có cơ chế cập nhật phần mềm tự động 
+khi có các phiên bản cập nhật phần 
+mềm 
+112 Nhân lực Phòng CNTT (đáp ứng theo quy định 
+của Thông tư số 53/2014/TT-BYT) 
+113 Hỗ trợ người 
+dùng 
+Hỗ trợ người dùng trực tiếp 
+Hỗ trợ người dùng trực tuyến ( duy trì 
+1 số điện thoại hỗ trợ 24/24 các vấn 
+đề phát sinh) 
+VII. Nhóm tiêu chí bảo mật và an toàn thông tin 
+TT Tiêu chí Mức 
+114 
+Kiểm soát người 
+dùng truy cập hệ 
+thống 
+Quản lý xác thực 
+Cơ bản 
+Quản lý phiên đăng nhập 
+Phân quyền người dùng 
+Kiểm soát dữ liệu đầu vào 
+  
+Kiểm soát dữ liệu đầu ra  
+Kiểm soát ngoại lệ và ghi vết ứng 
+dụng 
+
+=== PAGE 13 ===
+ 13       
+  
+TT Tiêu chí Mức 
+115 Kiểm soát người 
+dùng truy cập CSDL 
+Phải thiết lập chính sách tài khoản 
+và phân quyền an toàn 
+Cấu hình giới hạn truy cập từ địa 
+chỉ IP hợp lệ và ghi vết cho hệ 
+quản trị CSDL 
+116 Ghi vết (log) toàn bộ 
+tác động lên hệ thống 
+Hệ thống phải đảm bảo ghi vết các 
+chức năng cập nhật dữ liệu vào hệ 
+thống và các chức năng khai thác 
+dữ liệu chính 
+Hệ thống có chức năng xem lịch 
+sử tác động hệ thống 
+117 Phần mềm diệt virus  Cập nhật CSDL virus thường 
+xuyên. 
+118 
+Cơ chế kiểm soát 
+chống sao chép dữ 
+liệu 
+Ngăn chặn các thiết bị vật lý lưu 
+trữ sao chép dữ liệu (USB , ổ cứng 
+di động)   
+Cài đặt phần mềm chống sao chép 
+dữ liệu 
+119 
+Hệ thống t ường lửa 
+chống xâm nhập từ 
+xa 
+Có tường lửa chuyên dụng phân 
+tách giữa các vùng Internet, máy 
+chủ ứng dụng và người dùng mạng 
+nội bộ; ngăn chặn các xâm nhập 
+trái phép. 
+Nâng cao 
+120 
+Quy định phổ biến và 
+hướng dẫn định kỳ 
+cách phòng ngừa 
+virus 
+Quy định rà qu ét kiểm tra định k ỳ 
+phát hiện và phòng chống mã độc 
+(malware) trên hệ thống dịch vụ 
+121 Hệ thống sao lưu, 
+phục hồi dữ liệu 
+Xây dựng phương án sao lưu , dự 
+phòng và khôi phục phù hợp, phải 
+thực hiện sao lưu hàng ngày. 
+122 Phương thức mã hóa 
+dữ liệu/thông tin 
+Các dữ liệu quan trọng, nhạy cảm 
+có thể được mã hóa bằng các kỹ 
+thuật tránh lấy cắp dữ liệu 
+Hệ thống quản lý được các bộ 
+khóa giải mã dữ liệu 
+Người sử dụng giải mã được dữ 
+liệu khi được cung cấp khóa giải 
+
+=== PAGE 14 ===
+ 14       
+  
+TT Tiêu chí Mức 
+mã 
+123 
+Phương thức mã hóa 
+mật khẩu c ủa người 
+dùng 
+Mật khẩu của người dùng phải 
+được mã hóa bằng các kỹ thuật 
+salt, hash (MD 5, SHA) tránh lấy 
+cắp mật khẩu  
+124 
+Có kịch bản phòng 
+ngừa, khắc phục sự 
+cố 
+Xây dựng các bài kiểm tra,  thử 
+nghiệm mô phỏng các hình thức 
+tấn công gây mất an toàn thông tin, 
+từ đó đưa ra phương pháp phòng 
+chống và khắc phục sự cố gây mất 
+an toàn thông tin 
+125 Có quy trình an toàn, 
+an ninh thông tin 
+Xây dựng quy trình, quy định đối 
+với người dùng và đối với quản trị 
+khi tiếp nhận và vận hành hệ thống 
+nhằm tăng cường tín h an ninh cho 
+hệ thống dịch vụ  
+126 
+Có cơ chế chống tấn 
+công, xâm nhập từ xa 
+(DOS, DDOS) 
+Thiết lập cơ chế chống tấn công từ 
+chối dịch vụ trên hệ thống  
+127 
+Có cơ chế cảnh báo 
+và chống tấn công có 
+chủ đích đối với các 
+hệ thống cung cấp 
+dịch vụ qua Internet 
+  
+128 Tích hợp chữ ký số  
+VIII. Bệnh án điện tử (EMR) 
+TT Tiêu chí Mức 
+Cung cấp dịch vụ chăm sóc sức khỏe 
+Cơ bản 
+129 Quản lý thông tin tiền sử của bệnh nhân 
+130 Quản lý tài liệu lâm sàng 
+131 Quản lý chỉ định 
+132 Quản lý kết quả cận lâm sàng 
+133 Quản lý điều trị 
+
+=== PAGE 15 ===
+ 15       
+  
+TT Tiêu chí Mức 
+134 Quản lý thuốc đã kê đơn cho người bệnh  
+Quản lý thông tin hành chính 
+135 Quản lý thông tin bác sỹ, dược sỹ, nhân viên y tế 
+136 Quản lý thông tin nhân khẩu của bệnh nhân và việc đồng 
+bộ thông tin nhân khẩu 
+137 Quản lý việc kết nối, tương tác với các hệ thống thông tin 
+khác trong bệnh viện 
+Quản lý hồ sơ bệnh án 
+Nâng cao 
+138 Quản lý hồ sơ bệnh án theo thời gian quy định của Luật 
+Khám bệnh, chữa bệnh 
+139 Đồng bộ hồ sơ bệnh án 
+140 Lưu trữ và phục hồi hồ sơ bệnh án 
+Quản lý hạ tầng thông tin 
+141 An ninh hệ thống 
+142 Kiểm tra, giám sát 
+143 Quản lý danh mục dùng chung nội bộ và tiêu chuẩn 
+144 Quản lý kết nối, liên thông theo các tiêu chuẩn  (kết xuất 
+bệnh án điện tử theo tiêu chuẩn HL7 CDA, CCD) 
+145 Quản lý các quy tắc nghiệp vụ thao tác trên hồ sơ bệnh án 
+146 Sao lưu dự phòng và phục hồi CSDL 
+ 
+
+=== PAGE 16 ===
+ 16       
+  
+Phụ lục II 
+BẢNG TỔNG HỢP TIÊU CHÍ 
+ĐÁNH GIÁ MỨC ỨNG DỤNG CÔNG NGHỆ THÔNG TIN 
+TẠI CƠ SỞ KHÁM BỆNH, CHỮA BỆNH 
+(Kèm theo Thông tư số 54/2017/TT-BYT ngày 29 tháng 12 năm 2017 
+của Bộ trưởng Bộ Y tế) 
+ 
+BẢNG TỔNG HỢP TIÊU CHÍ 
+ĐÁNH GIÁ MỨC ỨNG DỤNG CÔNG NGHỆ THÔNG TIN 
+TẠI CƠ SỞ KHÁM BỆNH, CHỮA BỆNH 
+ 
+Mức Tiêu chí 
+1 
+- Hạ tầng đáp ứng mức 1; 
+- HIS đáp ứng mức 1; 
+- Cho phép truy cập thông tin điện tử về người bệnh. 
+2 
+Đáp ứng các yêu cầu của mức 1 và các yêu cầu sau đây: 
+- Hạ tầng đáp ứng mức 2; 
+- HIS đáp ứng mức 2; 
+- Xây dựng được kho d ữ liệu lâm sàng (CDR) t ập trung bao g ồm danh 
+mục dùng chung, dược, chỉ định và kết quả xét nghiệm (nếu có); 
+- Chia sẻ thông tin/dữ liệu (hiện tồn tại trong CDR) gi ữa các bên liên 
+quan tham gia vào quá trình chăm sóc người bệnh. 
+3 
+Đáp ứng các yêu cầu của mức 2 và các yêu cầu sau đây: 
+- Hạ tầng đáp ứng mức 3; 
+- HIS đáp ứng mức 3; 
+- LIS đáp ứng mức cơ bản; 
+- Quản lý điều hành đáp ứng mức cơ bản; 
+- Tiêu chí phi chức năng đáp ứng mức cơ bản; 
+- Bảo mật và an toàn thông tin đáp ứng mức cơ bản; 
+- Hồ sơ điện tử bao gồm sinh hiệu (nhịp mạch, nhiệt độ, huyết áp), ghi 
+chép của điều dưỡng, thông tin về thủ thuật/kỹ thuật/phẫu thuật của lần 
+khám bệnh chữa bệnh lưu trữ tập trung tại CDR; 
+- Triệu chứng lâm sàng, kê đơn thuốc điện tử: 
++ Hệ thống hỗ trợ ra quyết định lâm sàng (CDSS) c ấp độ 1 hỗ trợ việc 
+kê đơn thuốc điện tử (đơn thuốc mới và kê lại đơn thuốc cũ); 
++ T ất c ả thông tin thu ốc đ ều s ẵn sàng trên môi trư ờng m ạng h ỗ trợ 
+CDSS. 
+
+=== PAGE 17 ===
+ 17       
+  
+Mức Tiêu chí 
+4 
+Đáp ứng mức 3 và các yêu cầu sau đây: 
+- Hạ tầng đáp ứng mức 4; 
+- HIS đáp ứng mức 4; 
+- LIS đáp ứng mức đầy đủ; 
+- PACS đáp ứng cơ bản , cho phép các bác s ỹ truy cập hình ảnh y khoa 
+từ bên ngoài khoa chẩn đoán hình ảnh; 
+- Các bác sỹ chỉ định trên môi trường điện tử; 
+- Quản lý toàn bộ chỉ định của dịch vụ bệnh nhân nội trú. 
+5 
+Đáp ứng mức 4 và yêu cầu sau đây: 
+- Hạ tầng đáp ứng mức 5; 
+- HIS đáp ứng mức 5; 
+- PACS đáp ứng nâng cao, thay thế tất cả phim. 
+6 
+Mức 6 (bệnh viện thông minh) gồm các tiêu chí cụ thể sau: 
+- Đáp ứng mức 5; 
+- Hạ tầng đáp ứng mức 6; 
+- HIS đáp ứng mức 6; 
+- EMR mức cơ bản; 
+- Quản lý điều hành đáp ứng mức nâng cao; 
+- Tiêu chí phi chức năng đáp ứng nâng cao; 
+- Bảo mật và an toàn thông tin đáp ứng nâng cao; 
+- CDSS cấp độ 2 hỗ trợ quy trình/phác đồ điều trị dựa trên bằng chứng 
+(các cảnh báo duy trì sức khỏe, dược): 
++ CDSS hỗ trợ kiểm tra tương tác thuốc/thuốc; 
++ Bộ quy tắc kiểm tra và phát hiện xung đột ban đầu trong chỉ định hoặc 
+kê toa thuốc. 
+- Điện tử hóa tất cả các biểu mẫu ghi chép của bác s ỹ, điều dưỡng với 
+các biểu mẫu có cấu trúc bao g ồm ghi chú di ễn biến, tư vấn, danh sách 
+các vấn đề, tóm tắt ra viện;  
+- Quản lý thu ốc theo quy trình khép kín, s ử dụng mã v ạch (bar code) 
+hoặc các công ngh ệ khác để định danh t ự động (như RFID),  cấp phát 
+thuốc tại giường bệnh, sử dụng công nghệ định danh tự động chẳng hạn 
+như quét mã vạch trên bao bì thuốc và mã vạch ID bệnh nhân. 
+7 
+Mức 7 (bệnh viện không s ử dụng bệnh án gi ấy, nếu đáp ứng được các 
+quy định của pháp luật có liên quan) gồm các tiêu chí cụ thể sau: 
+- Đáp ứng mức 6; 
+- Hạ tầng đáp ứng mức 7; 
+- HIS đáp ứng mức 7; 
+
+=== PAGE 18 ===
+ 18       
+  
+Mức Tiêu chí 
+- EMR nâng cao; 
+- CDSS cấp độ 3 cung cấp hướng dẫn cho tất cả các hoạt động của bác 
+sỹ liên quan đến phác đồ và kết quả điều trị theo các biểu mẫu cảnh báo 
+tùy chỉnh phù hợp; 
+- Áp d ụng các m ẫu phân tích d ữ liệu đ ối v ới kho d ữ liệu lâm sàng 
+(CDR) để nâng cao ch ất lượng dịch vụ chăm sóc, s ự an toàn c ủa bệnh 
+nhân và hiệu quả trong công tác chăm sóc sức khỏe; 
+- Thông tin lâm sàng luôn trong trạng thái sẵn sàng cho việc chia sẻ giữa 
+các thực thể có thẩm quyền điều trị bệnh nhân thông qua các giao d ịch 
+điện tử tiêu chuẩn (HL7, HL7 CDA, CCD); 
+- Kết xuất tóm tắt dữ liệu liên tục của tất cả các dịch vụ trong bệnh viện 
+(nội trú, ngoại trú, cấp cứu, phòng khám, …). 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+=== PAGE 19 ===
+ 19       
+  
+Phụ lục III 
+BÁO CÁO MỨC ỨNG DỤNG CÔNG NGHỆ THÔNG TIN 
+TẠI CƠ SỞ KHÁM BỆNH, CHỮA BỆNH 
+(Kèm theo Thông tư số 54/2017/TT-BYT ngày 29 tháng 12 năm 2017 
+của Bộ trưởng Bộ Y tế) 
+ 
+…….[1].…….. 
+……[2].......... 
+ 
+CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM 
+Độc lập - Tự do - Hạnh phúc 
+ 
+Số:         /…[3]… …….…[4]……., ngày …… tháng …… năm 20…… 
+  
+ BÁO CÁO 
+Mức ứng dụng công nghệ thông tin tại cơ sở khám bệnh, chữa bệnh 
+ 
+Kính gửi:………………[1]…………………. 
+ 
+Tên cơ sở KBCB: [2] ..................................................................................  
+Địa chỉ: [5] ..................................................................................................  
+Người đứng đầu cơ sở KBCB:  ...................................................................  
+Điện thoại liên hệ:  ................ Email:  .........................................................  
+Căn cứ quy định tại Thông tư…/2017/TT-BYT ngày…tháng…năm 2017 
+của Bộ Y tế về Ban hành Bộ tiêu chí về ứng dụng công nghệ thông tin tại các cơ 
+sở khám bệnh, chữa bệnh; 
+…[2]….. đạt mức……[6]……về ứng dụng công nghệ thông tin. 
+…[2]… báo cáo v ới …[1]… đ ể tổng hợp, theo dõi ki ểm tra và đăng t ải 
+thông tin theo quy định./. 
+  Nơi nhận: 
+- Như trên; 
+- Cục CNTT (để b/c); 
+- Lưu: VT, CNTT. 
+Thủ trưởng đơn vị 
+(Ký tên đóng dấu) 
+ 
+ 
+ 
+ 
+______________ 
+1 Tên cơ quan chủ quản của cơ sở KBCB. 
+2 Tên cơ sở KBCB. 
+3 Ký hiệu văn bản. 
+4 Địa danh tỉnh/thành phố trực thuộc trung ương. 
+5 Địa chỉ cụ thể của cơ sở KBCB. 
+6 Mức UDCNTT. 
+

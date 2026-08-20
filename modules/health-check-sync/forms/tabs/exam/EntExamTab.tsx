@@ -6,6 +6,7 @@ const EntExamTab: React.FC = () => {
     const {
         formType,
         entExam, setEntExam,
+        benhKhacTaiMuiHong, setBenhKhacTaiMuiHong,
         khamTaiMuiHongPl, setKhamTaiMuiHongPl,
         taiPhaiNoiThuong, setTaiPhaiNoiThuong,
         taiPhaiNoiTham, setTaiPhaiNoiTham,
@@ -38,20 +39,38 @@ const EntExamTab: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">Mô tả khám tai mũi họng &amp; màng nhĩ</label>
-                        <textarea value={entExam || kqTaiMuiHong} onChange={e => { setEntExam(e.target.value); setKqTaiMuiHong(e.target.value); }} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 h-20" />
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">
+                            Mô tả khám tai mũi họng &amp; màng nhĩ <span className="text-[10px] text-slate-400 font-mono font-normal">(BENH_TAI_MUI_HONG)</span>
+                        </label>
+                        <textarea 
+                            value={entExam || kqTaiMuiHong} 
+                            onChange={e => { setEntExam(e.target.value); setKqTaiMuiHong(e.target.value); }} 
+                            placeholder="Mô tả tai, mũi, họng, màng nhĩ..."
+                            className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white h-16" 
+                        />
                     </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">Phân loại Tai - Mũi - Họng</label>
-                            <select value={khamTaiMuiHongPl} onChange={e => setKhamTaiMuiHongPl(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-medium">
-                                <option value="">-- Phân loại --</option>
-                                <option value="1">Loại I (Rất khỏe)</option>
-                                <option value="2">Loại II (Khỏe)</option>
-                                <option value="3">Loại III (Trung bình)</option>
-                                <option value="4">Loại IV (Yếu)</option>
-                                <option value="5">Loại V (Rất yếu)</option>
-                            </select>
-                        </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">
+                            Các bệnh về tai mũi họng (nếu có) <span className="text-[10px] text-slate-400 font-mono font-normal">(BENH_KHAC_TAI_MUI_HONG)</span>
+                        </label>
+                        <textarea 
+                            value={benhKhacTaiMuiHong} 
+                            onChange={e => setBenhKhacTaiMuiHong(e.target.value)} 
+                            placeholder="Ghi rõ các bệnh về tai mũi họng nếu có..."
+                            className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white h-16" 
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Phân loại Tai - Mũi - Họng</label>
+                        <select value={khamTaiMuiHongPl} onChange={e => setKhamTaiMuiHongPl(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-medium">
+                            <option value="">-- Phân loại --</option>
+                            <option value="1">Loại I (Rất khỏe)</option>
+                            <option value="2">Loại II (Khỏe)</option>
+                            <option value="3">Loại III (Trung bình)</option>
+                            <option value="4">Loại IV (Yếu)</option>
+                            <option value="5">Loại V (Rất yếu)</option>
+                        </select>
+                    </div>
                     {formType === '5' && (
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1">Tai Mũi Họng (Mẫu 5)</label>

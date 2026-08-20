@@ -284,6 +284,11 @@ export const useDynamicFormState = (
     const [hamTren, setHamTren] = useState(initialData?.clinical_data?.clinical_exam?.ham_tren || '');
     const [hamDuoi, setHamDuoi] = useState(initialData?.clinical_data?.clinical_exam?.ham_duoi || '');
 
+    // Bệnh chuyên khoa nếu có (QĐ 1551 & TT 32)
+    const [benhKhacMat, setBenhKhacMat] = useState(initialData?.clinical_data?.clinical_exam?.benh_khac_mat || initialData?.clinical_data?.clinical_exam?.eye || '');
+    const [benhKhacTaiMuiHong, setBenhKhacTaiMuiHong] = useState(initialData?.clinical_data?.clinical_exam?.benh_khac_tai_mui_hong || initialData?.clinical_data?.clinical_exam?.benh_tai_mui_hong || initialData?.clinical_data?.clinical_exam?.ent || '');
+    const [benhKhacRangHamMat, setBenhKhacRangHamMat] = useState(initialData?.clinical_data?.clinical_exam?.benh_khac_rang_ham_mat || initialData?.clinical_data?.clinical_exam?.benh_rang_ham_mat || initialData?.clinical_data?.clinical_exam?.dental || '');
+
     // Phân loại chuyên khoa (Mẫu 2)
     const [khamTheLucPl, setKhamTheLucPl] = useState(initialData?.clinical_data?.clinical_exam?.kham_the_luc_pl || '');
     const [noiKhoaTuanHoanPl, setNoiKhoaTuanHoanPl] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_tuan_hoan_pl || '');
@@ -408,43 +413,43 @@ export const useDynamicFormState = (
     const [wardsNghMe, setWardsNghMe] = useState<CatalogItem[]>([]);
 
     // Clinical examinations detail (QĐ 1551 / Mẫu 4/5)
-    const [thanKinhTamLy, setThanKinhTamLy] = useState(initialData?.clinical_data?.clinical_exam?.than_kinh_tam_ly || 'Bình thường');
-    const [noiKhoaTamThan, setNoiKhoaTamThan] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_tam_than || 'Bình thường');
-    const [noiKhoaThanKinh, setNoiKhoaThanKinh] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_than_kinh || 'Bình thường');
+    const [thanKinhTamLy, setThanKinhTamLy] = useState(initialData?.clinical_data?.clinical_exam?.than_kinh_tam_ly || '');
+    const [noiKhoaTamThan, setNoiKhoaTamThan] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_tam_than || '');
+    const [noiKhoaThanKinh, setNoiKhoaThanKinh] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_than_kinh || '');
     const [tenThuoc, setTenThuoc] = useState(initialData?.clinical_data?.extra?.ten_thuoc || '');
 
-    const [kqTamThan, setKqTamThan] = useState(initialData?.clinical_data?.clinical_exam?.kq_tam_than || 'Bình thường');
-    const [kqThanKinh, setKqThanKinh] = useState(initialData?.clinical_data?.clinical_exam?.kq_than_kinh || 'Bình thường');
-    const [kqTimMach, setKqTimMach] = useState(initialData?.clinical_data?.clinical_exam?.kq_tim_mach || 'Bình thường');
-    const [kqHoHap, setKqHoHap] = useState(initialData?.clinical_data?.clinical_exam?.kq_ho_hap || 'Bình thường');
-    const [kqNoiTiet, setKqNoiTiet] = useState(initialData?.clinical_data?.clinical_exam?.kq_noi_tiet || 'Bình thường');
-    const [kqNgoaiKhoa, setKqNgoaiKhoa] = useState(initialData?.clinical_data?.clinical_exam?.kq_ngoai_khoa || 'Bình thường');
-    const [kqDaLieu, setKqDaLieu] = useState(initialData?.clinical_data?.clinical_exam?.kq_da_lieu || 'Bình thường');
-    const [kqTietNieu, setKqTietNieu] = useState(initialData?.clinical_data?.clinical_exam?.kq_tiet_nieu || 'Bình thường');
-    const [kqSinhDuc, setKqSinhDuc] = useState(initialData?.clinical_data?.clinical_exam?.kq_sinh_duc || 'Bình thường');
-    const [kqTaiMuiHong, setKqTaiMuiHong] = useState(initialData?.clinical_data?.clinical_exam?.kq_tai_mui_hong || 'Bình thường');
-    const [kqCoXuongKhop, setKqCoXuongKhop] = useState(initialData?.clinical_data?.clinical_exam?.kq_co_xuong_khop || 'Bình thường');
-    const [kqNoiTietChuyenHoa, setKqNoiTietChuyenHoa] = useState(initialData?.clinical_data?.clinical_exam?.kq_noi_tiet_chuyen_hoa || 'Bình thường');
+    const [kqTamThan, setKqTamThan] = useState(initialData?.clinical_data?.clinical_exam?.kq_tam_than || '');
+    const [kqThanKinh, setKqThanKinh] = useState(initialData?.clinical_data?.clinical_exam?.kq_than_kinh || '');
+    const [kqTimMach, setKqTimMach] = useState(initialData?.clinical_data?.clinical_exam?.kq_tim_mach || '');
+    const [kqHoHap, setKqHoHap] = useState(initialData?.clinical_data?.clinical_exam?.kq_ho_hap || '');
+    const [kqNoiTiet, setKqNoiTiet] = useState(initialData?.clinical_data?.clinical_exam?.kq_noi_tiet || '');
+    const [kqNgoaiKhoa, setKqNgoaiKhoa] = useState(initialData?.clinical_data?.clinical_exam?.kq_ngoai_khoa || '');
+    const [kqDaLieu, setKqDaLieu] = useState(initialData?.clinical_data?.clinical_exam?.kq_da_lieu || '');
+    const [kqTietNieu, setKqTietNieu] = useState(initialData?.clinical_data?.clinical_exam?.kq_tiet_nieu || '');
+    const [kqSinhDuc, setKqSinhDuc] = useState(initialData?.clinical_data?.clinical_exam?.kq_sinh_duc || '');
+    const [kqTaiMuiHong, setKqTaiMuiHong] = useState(initialData?.clinical_data?.clinical_exam?.kq_tai_mui_hong || '');
+    const [kqCoXuongKhop, setKqCoXuongKhop] = useState(initialData?.clinical_data?.clinical_exam?.kq_co_xuong_khop || '');
+    const [kqNoiTietChuyenHoa, setKqNoiTietChuyenHoa] = useState(initialData?.clinical_data?.clinical_exam?.kq_noi_tiet_chuyen_hoa || '');
     const [duTieuChuanDkPtgtDuongSat, setDuTieuChuanDkPtgtDuongSat] = useState(initialData?.conclusion_data?.du_tieu_chuan_dk_ptgt_duong_sat || '');
 
     const [lucKeoThan, setLucKeoThan] = useState(initialData?.clinical_data?.extra?.luc_keo_than || '');
     const [haTamThu, setHaTamThu] = useState(initialData?.clinical_data?.examination?.ha_tam_thu || '');
     const [haTamTruong, setHaTamTruong] = useState(initialData?.clinical_data?.examination?.ha_tam_truong || '');
     const [nhipTim, setNhipTim] = useState(initialData?.clinical_data?.examination?.nhip_tim || '');
-    const [timMach, setTimMach] = useState(initialData?.clinical_data?.clinical_exam?.tim_mach || 'Bình thường');
-    const [hoHap, setHoHap] = useState(initialData?.clinical_data?.clinical_exam?.ho_hap || 'Bình thường');
-    const [tietNieuSinhDuc, setTietNieuSinhDuc] = useState(initialData?.clinical_data?.clinical_exam?.tiet_nieu_sinh_duc || 'Bình thường');
-    const [noiKhoaTieuHoa, setNoiKhoaTieuHoa] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_tieu_hoa || 'Bình thường');
-    const [ganMat, setGanMat] = useState(initialData?.clinical_data?.clinical_exam?.gan_mat || 'Bình thường');
-    const [mauCoQuanTaoMau, setMauCoQuanTaoMau] = useState(initialData?.clinical_data?.clinical_exam?.mau_co_quan_tao_mau || 'Bình thường');
-    const [daToChucDuoiDa, setDaToChucDuoiDa] = useState(initialData?.clinical_data?.clinical_exam?.da_to_chuc_duoi_da || 'Bình thường');
-    const [kqCoXuongKhopM5, setKqCoXuongKhopM5] = useState(initialData?.clinical_data?.clinical_exam?.kq_co_xuong_khop_m5 || 'Bình thường');
-    const [thanKinhM5, setThanKinhM5] = useState(initialData?.clinical_data?.clinical_exam?.than_kinh_m5 || 'Bình thường');
+    const [timMach, setTimMach] = useState(initialData?.clinical_data?.clinical_exam?.tim_mach || '');
+    const [hoHap, setHoHap] = useState(initialData?.clinical_data?.clinical_exam?.ho_hap || '');
+    const [tietNieuSinhDuc, setTietNieuSinhDuc] = useState(initialData?.clinical_data?.clinical_exam?.tiet_nieu_sinh_duc || '');
+    const [noiKhoaTieuHoa, setNoiKhoaTieuHoa] = useState(initialData?.clinical_data?.clinical_exam?.noi_khoa_tieu_hoa || '');
+    const [ganMat, setGanMat] = useState(initialData?.clinical_data?.clinical_exam?.gan_mat || '');
+    const [mauCoQuanTaoMau, setMauCoQuanTaoMau] = useState(initialData?.clinical_data?.clinical_exam?.mau_co_quan_tao_mau || '');
+    const [daToChucDuoiDa, setDaToChucDuoiDa] = useState(initialData?.clinical_data?.clinical_exam?.da_to_chuc_duoi_da || '');
+    const [kqCoXuongKhopM5, setKqCoXuongKhopM5] = useState(initialData?.clinical_data?.clinical_exam?.kq_co_xuong_khop_m5 || '');
+    const [thanKinhM5, setThanKinhM5] = useState(initialData?.clinical_data?.clinical_exam?.than_kinh_m5 || '');
     const [maBenhNgoaiKhoa, setMaBenhNgoaiKhoa] = useState(initialData?.clinical_data?.clinical_exam?.ma_benh_ngoai_khoa || '');
-    const [khamTaiMuiHongM5, setKhamTaiMuiHongM5] = useState(initialData?.clinical_data?.clinical_exam?.kham_tai_mui_hong_m5 || 'Bình thường');
-    const [khamMatM5, setKhamMatM5] = useState(initialData?.clinical_data?.clinical_exam?.kham_mat_m5 || 'Bình thường');
+    const [khamTaiMuiHongM5, setKhamTaiMuiHongM5] = useState(initialData?.clinical_data?.clinical_exam?.kham_tai_mui_hong_m5 || '');
+    const [khamMatM5, setKhamMatM5] = useState(initialData?.clinical_data?.clinical_exam?.kham_mat_m5 || '');
     const [benhKhac, setBenhKhac] = useState(initialData?.clinical_data?.clinical_exam?.benh_khac || '');
-    const [khamMatThiGiacMau, setKhamMatThiGiacMau] = useState(initialData?.clinical_data?.clinical_exam?.kham_mat_thi_giac_mau || 'Bình thường');
+    const [khamMatThiGiacMau, setKhamMatThiGiacMau] = useState(initialData?.clinical_data?.clinical_exam?.kham_mat_thi_giac_mau || '');
 
     // Laboratory detail (Mẫu 5)
     const [chiSoHc, setChiSoHc] = useState(initialData?.lab_data?.blood_test?.chi_so_hc || '');
@@ -472,18 +477,18 @@ export const useDynamicFormState = (
     const [nuocTieuKhac, setNuocTieuKhac] = useState(initialData?.lab_data?.nuoc_tieu_test_nhanh?.khac || '');
  
     // Diagnostics & Imaging
-    const [ketQuaChanDoanHinhAnh, setKetQuaChanDoanHinhAnh] = useState(initialData?.lab_data?.imaging?.ket_qua || 'Bình thường');
-    const [ketQuaDienTim, setKetQuaDienTim] = useState(initialData?.lab_data?.ecg?.ket_qua || 'Nhịp xoang đều');
-    const [chucNangHoHap, setChucNangHoHap] = useState(initialData?.lab_data?.spiro?.ket_qua || 'Bình thường');
-    const [ketQuaSieuAmBung, setKetQuaSieuAmBung] = useState(initialData?.lab_data?.us?.ket_qua || 'Bình thường');
+    const [ketQuaChanDoanHinhAnh, setKetQuaChanDoanHinhAnh] = useState(initialData?.lab_data?.imaging?.ket_qua || '');
+    const [ketQuaDienTim, setKetQuaDienTim] = useState(initialData?.lab_data?.ecg?.ket_qua || '');
+    const [chucNangHoHap, setChucNangHoHap] = useState(initialData?.lab_data?.spiro?.ket_qua || '');
+    const [ketQuaSieuAmBung, setKetQuaSieuAmBung] = useState(initialData?.lab_data?.us?.ket_qua || '');
  
     // Conclusion extra
     const [khaNangChiuSong, setKhaNangChiuSong] = useState(initialData?.conclusion_data?.kha_nang_chiu_song || '');
     const [hanChe, setHanChe] = useState(initialData?.conclusion_data?.han_che || '');
     const [yeuCauDeoKinh, setYeuCauDeoKinh] = useState(initialData?.conclusion_data?.yeu_cau_deo_kinh || '');
     const [vongNgucTrungBinh, setVongNgucTrungBinh] = useState(initialData?.clinical_data?.examination?.vong_nguc_tb || '');
-    const [noiTietDinhDuongChuyenHoa, setNoiTietDinhDuongChuyenHoa] = useState(initialData?.clinical_data?.clinical_exam?.noi_tiet_dinh_duong_chuyen_hoa || 'Bình thường');
-    const [roiLoanHanhViTamThan, setRoiLoanHanhViTamThan] = useState(initialData?.clinical_data?.clinical_exam?.roi_loan_hanh_vi_tam_than || 'Bình thường');
+    const [noiTietDinhDuongChuyenHoa, setNoiTietDinhDuongChuyenHoa] = useState(initialData?.clinical_data?.clinical_exam?.noi_tiet_dinh_duong_chuyen_hoa || '');
+    const [roiLoanHanhViTamThan, setRoiLoanHanhViTamThan] = useState(initialData?.clinical_data?.clinical_exam?.roi_loan_hanh_vi_tam_than || '');
     const [ketLuanLoaiSucKhoe, setKetLuanLoaiSucKhoe] = useState(initialData?.conclusion_data?.ket_luan_loai_suc_khoe || '');
     const [conclusionDoctorId, setConclusionDoctorId] = useState(initialData?.conclusion_data?.doctor_id || '');
 
@@ -584,6 +589,9 @@ export const useDynamicFormState = (
                 
                 if (data.clinical_data?.clinical_exam?.ham_tren) setHamTren(data.clinical_data.clinical_exam.ham_tren);
                 if (data.clinical_data?.clinical_exam?.ham_duoi) setHamDuoi(data.clinical_data.clinical_exam.ham_duoi);
+                if (data.clinical_data?.clinical_exam?.benh_khac_mat) setBenhKhacMat(data.clinical_data.clinical_exam.benh_khac_mat);
+                if (data.clinical_data?.clinical_exam?.benh_khac_tai_mui_hong) setBenhKhacTaiMuiHong(data.clinical_data.clinical_exam.benh_khac_tai_mui_hong);
+                if (data.clinical_data?.clinical_exam?.benh_khac_rang_ham_mat) setBenhKhacRangHamMat(data.clinical_data.clinical_exam.benh_khac_rang_ham_mat);
 
                 // Phân loại chuyên khoa
                 if (data.clinical_data?.clinical_exam?.kham_the_luc_pl) setKhamTheLucPl(data.clinical_data.clinical_exam.kham_the_luc_pl);
@@ -722,8 +730,16 @@ export const useDynamicFormState = (
                 }
                 if (data.clinical_data?.extra?.tsgd_mac_benh) setTsgdMacBenh(data.clinical_data.extra.tsgd_mac_benh);
                 if (data.clinical_data?.extra?.tsgd_ma_benh) setTsgdMaBenh(data.clinical_data.extra.tsgd_ma_benh);
-                if (data.clinical_data?.extra?.ts_mac_benh) setTsMacBenh(data.clinical_data.extra.ts_mac_benh);
+                if (data.clinical_data?.extra?.ts_mac_benh !== undefined && data.clinical_data?.extra?.ts_mac_benh !== null) {
+                    setTsMacBenh(Number(data.clinical_data.extra.ts_mac_benh));
+                } else if (data.clinical_data?.extra?.tsbt_dang_dieu_tri_benh) {
+                    setTsMacBenh(data.clinical_data.extra.tsbt_dang_dieu_tri_benh === '1' ? 1 : 0);
+                }
                 if (data.clinical_data?.extra?.tsbt_ma_benh) setTsbtMaBenh(data.clinical_data.extra.tsbt_ma_benh);
+                if (data.clinical_data?.extra?.tsbt_ma_benh_khac) setTsbtMaBenhKhac(data.clinical_data.extra.tsbt_ma_benh_khac);
+                if (data.clinical_data?.extra?.tsbt_thai_san) setTsbtThaiSan(data.clinical_data.extra.tsbt_thai_san);
+                if (data.clinical_data?.extra?.tsbt_ma_benh_thai_san) setTsbtMaBenhThaiSan(data.clinical_data.extra.tsbt_ma_benh_thai_san);
+                if (data.clinical_data?.extra?.tsbt_ten_thuoc_thai_san) setTsbtTenThuocThaiSan(data.clinical_data.extra.tsbt_ten_thuoc_thai_san);
                 if (data.clinical_data?.extra?.benh_dang_dieu_tri) setBenhDangDieuTri(data.clinical_data.extra.benh_dang_dieu_tri);
                 if (data.clinical_data?.extra?.tsbt_dang_dieu_tri_benh) setTsbtDangDieuTriBenh(data.clinical_data.extra.tsbt_dang_dieu_tri_benh);
                 if (data.clinical_data?.extra?.nhi_khoa_lam_sang_khac) setNhiKhoaLamSangKhac(data.clinical_data.extra.nhi_khoa_lam_sang_khac);
@@ -1321,6 +1337,11 @@ export const useDynamicFormState = (
         // Cập nhật lại state để giao diện đồng bộ
         setSpecialtyMetadata(calculatedMetadata);
         
+        const currentProv = provinces.find(p => String(p.id) === String(maTinhCuTru) || String(p.code) === String(maTinhCuTru));
+        const currentWard = wards.find(w => String(w.id) === String(maXaCuTru) || String(w.code) === String(maXaCuTru));
+        const currentProvName = currentProv?.name || '';
+        const currentWardName = currentWard?.name || '';
+
         const fullPayload = {
             patientId,
             patientName: patientName.toUpperCase(),
@@ -1342,6 +1363,12 @@ export const useDynamicFormState = (
                 ma_gtin_cskcb: maGtinCskcb,
                 matinh_cu_tru: maTinhCuTru,
                 maxa_cu_tru: maXaCuTru,
+                province: currentProvName,
+                province_name: currentProvName,
+                ten_tinh: currentProvName,
+                ward: currentWardName,
+                ward_name: currentWardName,
+                ten_xa: currentWardName,
                 ly_do_vv: lyDoVv,
                 loai_hinh_kcb: loaiHinhKcb,
                 ngay_vao: ngayVao,
@@ -1359,8 +1386,15 @@ export const useDynamicFormState = (
                     specialty_metadata: calculatedMetadata,
                     internal: internalExam,
                     eye: eyeExam,
+                    kham_mat: eyeExam,
+                    benh_khac_mat: benhKhacMat || eyeExam,
                     ent: entExam,
+                    benh_tai_mui_hong: entExam,
+                    benh_khac_tai_mui_hong: benhKhacTaiMuiHong || entExam,
                     dental: dentalExam,
+                    kham_rang_ham_mat: dentalExam,
+                    benh_rang_ham_mat: dentalExam,
+                    benh_khac_rang_ham_mat: benhKhacRangHamMat || dentalExam,
                     external: externalExam,
                     dermatology: dermatologyExam,
                     gynecology: gynExam,
@@ -1485,9 +1519,10 @@ export const useDynamicFormState = (
                     railway_fit: railwayFit,
                     tsgd_mac_benh: tsgdMacBenh,
                     tsgd_ma_benh: tsgdMaBenh,
+                    ts_mac_benh: tsMacBenh,
                     tsbt_ma_benh: tsbtMaBenh,
                     tsbt_nghien_ruou: tsbtNghienRuou,
-                    tsbt_dang_dieu_tri_benh: tsbtDangDieuTriBenh,
+                    tsbt_dang_dieu_tri_benh: tsMacBenh === 1 ? '1' : (tsbtDangDieuTriBenh || '0'),
                     benh_dang_dieu_tri: benhDangDieuTri || tenThuoc,
                     tsbt_ma_benh_khac: tsbtMaBenhKhac,
                     tsbt_thai_san: tsbtThaiSan,
@@ -1702,6 +1737,11 @@ export const useDynamicFormState = (
     };
 
     const handlePreview = () => {
+        const currentProv = provinces.find(p => String(p.id) === String(maTinhCuTru) || String(p.code) === String(maTinhCuTru));
+        const currentWard = wards.find(w => String(w.id) === String(maXaCuTru) || String(w.code) === String(maXaCuTru));
+        const currentProvName = currentProv?.name || '';
+        const currentWardName = currentWard?.name || '';
+
         const fullPayload = {
             id: initialData?.id,
             patientId,
@@ -1724,6 +1764,12 @@ export const useDynamicFormState = (
                 ma_gtin_cskcb: maGtinCskcb,
                 matinh_cu_tru: maTinhCuTru,
                 maxa_cu_tru: maXaCuTru,
+                province: currentProvName,
+                province_name: currentProvName,
+                ten_tinh: currentProvName,
+                ward: currentWardName,
+                ward_name: currentWardName,
+                ten_xa: currentWardName,
                 ly_do_vv: lyDoVv,
                 ngay_vao: ngayVao,
                 examination: {
@@ -1738,8 +1784,15 @@ export const useDynamicFormState = (
                     specialty_metadata: specialtyMetadata,
                     internal: internalExam,
                     eye: eyeExam,
+                    kham_mat: eyeExam,
+                    benh_khac_mat: benhKhacMat || eyeExam,
                     ent: entExam,
+                    benh_tai_mui_hong: entExam,
+                    benh_khac_tai_mui_hong: benhKhacTaiMuiHong || entExam,
                     dental: dentalExam,
+                    kham_rang_ham_mat: dentalExam,
+                    benh_rang_ham_mat: dentalExam,
+                    benh_khac_rang_ham_mat: benhKhacRangHamMat || dentalExam,
                     external: externalExam,
                     dermatology: dermatologyExam,
                     gynecology: gynExam,
@@ -2775,6 +2828,12 @@ export const useDynamicFormState = (
         setTaiTrai6000hz,
         thanKinhTamLy,
         setThanKinhTamLy,
+        benhKhacMat,
+        setBenhKhacMat,
+        benhKhacTaiMuiHong,
+        setBenhKhacTaiMuiHong,
+        benhKhacRangHamMat,
+        setBenhKhacRangHamMat,
         fitnessClass,
         setFitnessClass,
         diagnosis,

@@ -25,6 +25,7 @@ const publicRoutes = [
     ['GET', /^\/api\/(v1\/)?catalogs(\/.*)?$/],
     ['GET', /^\/api\/(v1\/)?room-schedules(\/.*)?$/],
     ['GET', /^\/api\/(v1\/)?sms-templates(\/.*)?$/],
+    ['GET', /^\/api\/(v1\/)?statistics(\/.*)?$/],
 
     // Public Registration
     ['POST', /^\/api\/v1\/booking\/register$/],

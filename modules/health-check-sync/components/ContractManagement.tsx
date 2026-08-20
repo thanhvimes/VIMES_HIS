@@ -19,6 +19,7 @@ import {
     CheckCircleIcon,
     AlertCircleIcon,
     CloudUploadIcon,
+    DownloadIcon,
     LockIcon,
     ShieldCheckIcon
 } from '../../../components/Icons';
@@ -85,6 +86,7 @@ const ContractManagement: React.FC = () => {
     const [examFees, setExamFees] = useState<any[]>([]);
     const [isLoadingContracts, setIsLoadingContracts] = useState(false);
     const [isLoadingEmployees, setIsLoadingEmployees] = useState(false);
+    const [isReceivingAll, setIsReceivingAll] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [startDate, setStartDate] = useState(getLocalDateString());
     const [endDate, setEndDate] = useState(getLocalDateString());
@@ -707,6 +709,130 @@ const ContractManagement: React.FC = () => {
         );
     };
 
+    const handleReceiveAllEmployees = async () => {
+        if (!selectedContract) return;
+        const unreceivedEmployees = employees.filter(e => !e.doc_no || e.doc_no === '0' || e.doc_no === '');
+        if (unreceivedEmployees.length === 0) {
+            toast.info("Tất cả nhân viên trong gói khám này đã được tiếp đón!");
+            return;
+        }
+
+        showConfirm(
+            "Tiếp đón toàn bộ nhân viên",
+            `Bạn có chắc chắn muốn thực hiện tiếp đón và sinh số hồ sơ tự động cho toàn bộ ${unreceivedEmployees.length} nhân viên chưa tiếp đón trong gói [${selectedContract.name}]?`,
+            async () => {
+                setIsReceivingAll(true);
+                const toastId = toast.loading(`Đang tiếp đón ${unreceivedEmployees.length} nhân viên...`);
+                try {
+                    const res = await healthCheckService.receiveAllContractEmployees(selectedContract.id);
+                    toast.dismiss(toastId);
+                    if (res.success) {
+                        toast.success(res.message || `Đã tiếp đón thành công ${res.count} nhân viên!`);
+                        await loadEmployees(selectedContract.id);
+                        await loadContracts();
+                    } else {
+                        toast.error(res.message || "Tiếp đón hàng loạt thất bại!");
+                    }
+                } catch (err: any) {
+                    toast.dismiss(toastId);
+                    toast.error("Lỗi tiếp đón: " + (err.message || "Lỗi hệ thống"));
+                } finally {
+                    setIsReceivingAll(false);
+                }
+            }
+        );
+    };
+
+    const handleDownloadTemplate = () => {
+        const headers = [
+            'MA_KH',
+            'HO_TEN',
+            'GIOI_TINH',
+            'NGAY_SINH',
+            'MA_DAN_TOC',
+            'SO_CCCD',
+            'NGAYCAP_CCCD',
+            'NOICAP_CCCD',
+            'NGUOI_GIAM_HO',
+            'SO_CCCD_NGH',
+            'DIA_CHI',
+            'MATINH_CU_TRU',
+            'MAXA_CU_TRU',
+            'DIEN_THOAI',
+            'BOPHAN',
+            'CHUCVU',
+            'GHICHU'
+        ];
+
+        const sampleRows = [
+            [
+                'NV001',
+                'Nguyễn Văn An',
+                'Nam',
+                '15/05/1990',
+                '1',
+                '037095000123',
+                '20/10/2021',
+                'Cục C06',
+                '',
+                '',
+                '12 Láng Hạ, Ba Đình, Hà Nội',
+                '01',
+                '00001',
+                '0912345678',
+                'Phòng Kỹ thuật',
+                'Kỹ sư',
+                'Khám sức khỏe định kỳ'
+            ],
+            [
+                'NV002',
+                'Phạm Minh Thư',
+                'Nữ',
+                '22/08/1995',
+                '1',
+                '038096000234',
+                '15/12/2022',
+                'Cục C06',
+                '',
+                '',
+                '45 Nguyễn Trãi, Thanh Xuân, Hà Nội',
+                '01',
+                '00003',
+                '0987654321',
+                'Phòng Kế toán',
+                'Kế toán viên',
+                'Khám sức khỏe định kỳ'
+            ]
+        ];
+
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
+        
+        ws['!cols'] = [
+            { wch: 12 }, // MA_KH
+            { wch: 22 }, // HO_TEN
+            { wch: 10 }, // GIOI_TINH
+            { wch: 14 }, // NGAY_SINH
+            { wch: 12 }, // MA_DAN_TOC
+            { wch: 16 }, // SO_CCCD
+            { wch: 14 }, // NGAYCAP_CCCD
+            { wch: 16 }, // NOICAP_CCCD
+            { wch: 20 }, // NGUOI_GIAM_HO
+            { wch: 16 }, // SO_CCCD_NGH
+            { wch: 30 }, // DIA_CHI
+            { wch: 15 }, // MATINH_CU_TRU
+            { wch: 15 }, // MAXA_CU_TRU
+            { wch: 14 }, // DIEN_THOAI
+            { wch: 18 }, // BOPHAN
+            { wch: 18 }, // CHUCVU
+            { wch: 25 }  // GHICHU
+        ];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'mau_import_nhan_vien_ksk');
+        XLSX.writeFile(wb, 'mau_import_nhan_vien_ksk.xlsx');
+        toast.success("Đã tải file Excel mẫu thành công!");
+    };
+
     const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !selectedContract) return;
@@ -736,70 +862,118 @@ const ContractManagement: React.FC = () => {
                               .trim()
                               .toLowerCase();
                 };
-                const headers = data[0].map(h => removeAccents(String(h || '')));
-                const nameIdx = headers.findIndex(h => h.includes('ten') || h.includes('ho') || h.includes('name'));
-                const dobIdx = headers.findIndex(h => h.includes('sinh') || h.includes('dob') || h.includes('birth') || h.includes('ngay sinh'));
-                const sexIdx = headers.findIndex(h => h.includes('gioi') || h.includes('sex') || h.includes('gender'));
-                const docIdx = headers.findIndex(h => h.includes('cccd') || h.includes('ho so') || h.includes('doc') || h.includes('card') || h.includes('so cccd'));
-                const phoneIdx = headers.findIndex(h => h.includes('thoai') || h.includes('sdt') || h.includes('phone') || h.includes('dien thoai'));
-                const noteIdx = headers.findIndex(h => h.includes('chu') || h.includes('note') || h.includes('ghi chu'));
-                
-                const deptIdx = headers.findIndex(h => h.includes('bo phan') || h.includes('bophan') || h.includes('dept') || h.includes('khoa'));
-                const posIdx = headers.findIndex(h => h.includes('chuc') || h.includes('position') || h.includes('vi tri'));
-                const ownerIdx = headers.findIndex(h => h.includes('ban than') || h.includes('banthan') || h.includes('owner'));
-                const addrIdx = headers.findIndex(h => h.includes('noi o') || h.includes('dia chi') || h.includes('address') || h.includes('cho o') || h.includes('thuong tru'));
-                const provIdx = headers.findIndex(h => h.includes('matinh') || h.includes('ma tinh') || h.includes('tinh') || h.includes('prov'));
-                const distIdx = headers.findIndex(h => h.includes('mahuyen') || h.includes('ma huyen') || h.includes('huyen') || h.includes('dist') || h.includes('quan'));
-                const wardIdx = headers.findIndex(h => h.includes('maxa') || h.includes('ma xa') || h.includes('xa') || h.includes('ward') || h.includes('vill') || h.includes('phuong'));
 
-                const cardDateIdx = headers.findIndex(h => h.includes('ngay cap') || h.includes('ngaycap') || h.includes('cardid date'));
-                const cardPlaceIdx = headers.findIndex(h => h.includes('noi cap') || h.includes('noicap') || h.includes('cardid place'));
-                const guardianNameIdx = headers.findIndex(h => h.includes('giam ho') || h.includes('guardian name'));
-                const guardianCccdIdx = headers.findIndex(h => h.includes('cccd ngh') || h.includes('guardian cccd'));
-                const ethnicIdx = headers.findIndex(h => h.includes('dan toc') || h.includes('ethnic') || h.includes('ma dan toc'));
-                const maKhIdx = headers.findIndex(h => h.includes('ma kh') || h.includes('makh') || h.includes('ma nhan vien') || h.includes('manv'));
+                const formatExcelDate = (val: any): string => {
+                    if (val === undefined || val === null || val === '') return '';
+                    if (typeof val === 'number') {
+                        const parsed = new Date(Math.round((val - 25569) * 86400 * 1000));
+                        if (!isNaN(parsed.getTime())) {
+                            const y = parsed.getFullYear();
+                            const m = String(parsed.getMonth() + 1).padStart(2, '0');
+                            const d = String(parsed.getDate()).padStart(2, '0');
+                            return `${d}/${m}/${y}`;
+                        }
+                    }
+                    const s = String(val).trim();
+                    if (/^\d{4}-\d{1,2}-\d{1,2}/.test(s)) {
+                        const parts = s.split('T')[0].split('-');
+                        return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+                    }
+                    const dmy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+                    if (dmy) {
+                        return `${dmy[1].padStart(2, '0')}/${dmy[2].padStart(2, '0')}/${dmy[3]}`;
+                    }
+                    if (/^\d{4}$/.test(s)) {
+                        return `01/01/${s}`;
+                    }
+                    return s;
+                };
+
+                const sanitizeCccd = (val: any): string => {
+                    if (val === undefined || val === null) return '';
+                    return String(val).replace(/\D/g, '').slice(0, 12);
+                };
+
+                const sanitizePhone = (val: any): string => {
+                    if (val === undefined || val === null) return '';
+                    let p = String(val).replace(/\D/g, '');
+                    if (p.startsWith('84') && (p.length === 11 || p.length === 12)) {
+                        p = '0' + p.slice(2);
+                    } else if (p.length === 9) {
+                        p = '0' + p;
+                    }
+                    return p.slice(0, 10);
+                };
+
+                const rawHeaders = data[0].map(h => removeAccents(String(h || '')));
+                const compactHeaders = rawHeaders.map(h => h.replace(/\s+/g, ''));
+                const findHeaderIdx = (patterns: string[]) => compactHeaders.findIndex(h => patterns.some(p => h.includes(p)));
+
+                const nameIdx = findHeaderIdx(['hoten', 'ten', 'ho', 'fullname', 'name']);
+                const dobIdx = findHeaderIdx(['ngaysinh', 'dob', 'birth', 'sinh']);
+                const sexIdx = findHeaderIdx(['gioitinh', 'gioi', 'sex', 'gender']);
+                const docIdx = findHeaderIdx(['socccd', 'cccd', 'socmnd', 'cmnd', 'hoso', 'card', 'doc']);
+                const cardDateIdx = findHeaderIdx(['ngaycapcccd', 'ngaycap', 'cardiddate', 'issuedate', 'dateofissue']);
+                const cardPlaceIdx = findHeaderIdx(['noicapcccd', 'noicap', 'cardidplace', 'placeofissue']);
+                const guardianNameIdx = findHeaderIdx(['nguoigiamho', 'giamho', 'guardianname']);
+                const guardianCccdIdx = findHeaderIdx(['socccdngh', 'cccdngh', 'guardiancccd', 'cccdgiamho']);
+                const ethnicIdx = findHeaderIdx(['madantoc', 'dantoc', 'ethnic']);
+                const maKhIdx = findHeaderIdx(['makh', 'manhanvien', 'manv', 'code']);
+
+                const addrIdx = findHeaderIdx(['diachi', 'noio', 'address', 'choo', 'thuongtru']);
+                const provIdx = compactHeaders.findIndex(h => (h.includes('matinh') || h.includes('tinh') || h.includes('prov') || h.includes('thanhpho')) && !h.includes('gioi'));
+                const distIdx = compactHeaders.findIndex(h => (h.includes('mahuyen') || h.includes('huyen') || h.includes('dist') || h.includes('quan')) && !h.includes('chuyen'));
+                const wardIdx = compactHeaders.findIndex(h => h.includes('maxa') || h.includes('xa') || h.includes('ward') || h.includes('vill') || h.includes('phuong'));
+                const phoneIdx = findHeaderIdx(['dienthoai', 'sdt', 'phone', 'thoai']);
+                const deptIdx = findHeaderIdx(['bophan', 'phongban', 'dept', 'khoa', 'donvi']);
+                const posIdx = findHeaderIdx(['chucvu', 'vitri', 'position', 'chuc']);
+                const ownerIdx = findHeaderIdx(['banthan', 'owner']);
+                const noteIdx = findHeaderIdx(['ghichu', 'note', 'ghi']);
 
                 if (nameIdx === -1) {
                     toast.error("Không tìm thấy cột 'Họ và tên' trong file!");
                     return;
                 }
 
+                const cleanField = (val: any) => {
+                    if (val === undefined || val === null) return '';
+                    const s = String(val).trim();
+                    return s === 'undefined' || s === 'null' ? '' : s;
+                };
+
                 const parsedEmployees = [];
                 for (let i = 1; i < data.length; i++) {
                     const row = data[i];
                     if (!row || row.length === 0 || !row[nameIdx]) continue;
 
-                    let docNo = docIdx !== -1 ? String(row[docIdx] ?? '').trim() : '';
-                    let phone = phoneIdx !== -1 ? String(row[phoneIdx] ?? '').trim() : '';
-                    let guardianCccd = guardianCccdIdx !== -1 ? String(row[guardianCccdIdx] ?? '').trim() : '';
-                    let maKh = maKhIdx !== -1 && row[maKhIdx] ? String(row[maKhIdx] ?? '').trim() : '';
-
-                    const cleanField = (val: any) => {
-                        if (val === undefined || val === null) return '';
-                        const s = String(val).trim();
-                        return s === 'undefined' || s === 'null' ? '' : s;
-                    };
+                    let docNo = docIdx !== -1 ? sanitizeCccd(row[docIdx]) : '';
+                    let phone = phoneIdx !== -1 ? sanitizePhone(row[phoneIdx]) : '';
+                    let guardianCccd = guardianCccdIdx !== -1 ? sanitizeCccd(row[guardianCccdIdx]) : '';
+                    let maKh = maKhIdx !== -1 && row[maKhIdx] ? String(row[maKhIdx] ?? '').trim().slice(0, 30) : '';
+                    let birthDate = dobIdx !== -1 ? formatExcelDate(row[dobIdx]) : '';
+                    let cardIdDate = cardDateIdx !== -1 ? formatExcelDate(row[cardDateIdx]) : '';
+                    let cardIdPlace = cardPlaceIdx !== -1 ? cleanField(row[cardPlaceIdx]).slice(0, 100) : '';
 
                     parsedEmployees.push({
                         code: maKh,
-                        name: String(row[nameIdx]).trim(),
-                        birth_date: dobIdx !== -1 ? cleanField(row[dobIdx]) : '',
+                        name: String(row[nameIdx]).replace(/\s+/g, ' ').trim(),
+                        birth_date: birthDate,
                         sex: sexIdx !== -1 ? (cleanField(row[sexIdx]) === 'Nữ' || cleanField(row[sexIdx]) === 'F' ? 'Nữ' : 'Nam') : 'Nam',
                         doc_no: docNo,
                         phone: phone,
-                        note: noteIdx !== -1 ? cleanField(row[noteIdx]) : '',
-                        dept: deptIdx !== -1 ? cleanField(row[deptIdx]) : '',
-                        position: posIdx !== -1 ? cleanField(row[posIdx]) : '',
+                        note: noteIdx !== -1 ? cleanField(row[noteIdx]).slice(0, 255) : '',
+                        dept: deptIdx !== -1 ? cleanField(row[deptIdx]).slice(0, 100) : '',
+                        position: posIdx !== -1 ? cleanField(row[posIdx]).slice(0, 100) : '',
                         owner: ownerIdx !== -1 ? cleanField(row[ownerIdx]) : '',
-                        detail_address: addrIdx !== -1 ? cleanField(row[addrIdx]) : '',
+                        detail_address: addrIdx !== -1 ? cleanField(row[addrIdx]).slice(0, 255) : '',
                         province_code: provIdx !== -1 ? cleanField(row[provIdx]) : '',
                         province_id: provIdx !== -1 ? cleanField(row[provIdx]) : null,
                         district_id: distIdx !== -1 ? parseInt(cleanField(row[distIdx]), 10) || null : null,
                         ward_code: wardIdx !== -1 ? cleanField(row[wardIdx]) : '',
                         ward_id: wardIdx !== -1 ? cleanField(row[wardIdx]) : null,
-                        cardid_date: cardDateIdx !== -1 ? cleanField(row[cardDateIdx]) : '',
-                        cardid_place: cardPlaceIdx !== -1 ? cleanField(row[cardPlaceIdx]) : '',
-                        guardian_name: guardianNameIdx !== -1 ? cleanField(row[guardianNameIdx]) : '',
+                        cardid_date: cardIdDate,
+                        cardid_place: cardIdPlace,
+                        guardian_name: guardianNameIdx !== -1 ? cleanField(row[guardianNameIdx]).slice(0, 100) : '',
                         guardian_cccd: guardianCccd,
                         ethnic: ethnicIdx !== -1 ? cleanField(row[ethnicIdx]) : ''
                     });
@@ -837,7 +1011,7 @@ const ContractManagement: React.FC = () => {
 
                     const nameKey = `${emp.name.toLowerCase()}_${emp.birth_date}`;
                     if (dupNames.has(nameKey)) {
-                        duplicatesInFile.push(`Trùng trùng lặp Họ tên & Ngày sinh '${emp.name} - ${emp.birth_date}' ở dòng ${rowNum}`);
+                        duplicatesInFile.push(`Trùng lặp Họ tên & Ngày sinh '${emp.name} - ${emp.birth_date}' ở dòng ${rowNum}`);
                     } else {
                         dupNames.add(nameKey);
                     }
@@ -1037,100 +1211,175 @@ const ContractManagement: React.FC = () => {
 
                 {/* Right Side: Employees List */}
                 <div className="lg:w-8/12 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col min-h-0 overflow-hidden">
-                    <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-[#fff1f2] dark:bg-rose-950/20">
-                        <span className="text-xs font-extrabold text-[#9f1239] dark:text-rose-300 uppercase tracking-wider flex items-center gap-2">
-                            <UserGroupIcon className="w-4 h-4" />
-                            Gói khám: {selectedContract ? selectedContract.name : 'Chưa chọn'}
-                        </span>
-                        <div className="flex items-center gap-3">
-                            {selectedContract && activeTab === 'employees' && (
-                                <span className="px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300 font-bold text-[10px]">
-                                    {employees.length} Nhân viên
-                                </span>
-                            )}
-                            {selectedContract && activeTab === 'services' && (
-                                <span className="px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300 font-bold text-[10px]">
-                                    {services.length} Dịch vụ
-                                </span>
-                            )}
-                            {selectedContract && selectedContract.status !== 'A' && activeTab === 'employees' && (
-                                <>
-                                    <button
-                                        onClick={handleAddNewEmployeeClick}
-                                        className="px-3 py-1.5 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition shadow-sm flex items-center gap-1 active:scale-95 cursor-pointer"
-                                    >
-                                        <PlusIcon className="w-3.5 h-3.5" />
-                                        Thêm thành viên
-                                    </button>
-                                    <label className="px-3 py-1.5 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition shadow-sm cursor-pointer flex items-center gap-1 active:scale-95">
-                                        <CloudUploadIcon className="w-3.5 h-3.5" />
-                                        Import Excel
-                                        <input
-                                            type="file"
-                                            accept=".xlsx, .xls"
-                                            onChange={handleImportExcel}
-                                            className="hidden"
-                                        />
-                                    </label>
-                                </>
-                            )}
-                            {selectedContract && selectedContract.status !== 'A' && (
-                                <button
-                                    onClick={() => setIsServiceModalOpen(true)}
-                                    className="px-3 py-1.5 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition shadow-sm flex items-center gap-1 active:scale-95 cursor-pointer"
-                                >
-                                    <PlusIcon className="w-3.5 h-3.5" />
-                                    Thêm dịch vụ
-                                </button>
-                            )}
-                            {selectedContract && (
-                                <button
-                                    onClick={() => handleToggleContractStatus(selectedContract)}
-                                    className={`px-3 py-1.5 rounded-xl text-xs font-extrabold uppercase tracking-wider transition shadow-sm flex items-center gap-1 active:scale-95 cursor-pointer ${
-                                        selectedContract.status === 'A'
-                                            ? 'bg-amber-600 hover:bg-amber-700 text-white'
-                                            : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                                    }`}
-                                >
-                                    {selectedContract.status === 'A' ? (
-                                        <>
-                                            <LockIcon className="w-3.5 h-3.5" />
-                                            Mở khóa
-                                        </>
-                                    ) : (
-                                        <>
-                                            <ShieldCheckIcon className="w-3.5 h-3.5" />
-                                            Duyệt chốt
-                                        </>
+                    {/* Header Row: Contract Title & High-level Status */}
+                    <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700/80 flex flex-wrap justify-between items-center bg-gradient-to-r from-rose-50/60 via-slate-50/40 to-transparent dark:from-rose-950/20 dark:via-slate-900/40 dark:to-transparent gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <div className="p-1.5 bg-rose-100/80 dark:bg-rose-950/60 rounded-lg text-[#9f1239] dark:text-rose-300 shrink-0">
+                                <UserGroupIcon className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate" title={selectedContract?.name}>
+                                        {selectedContract ? selectedContract.name : 'Chưa chọn hợp đồng'}
+                                    </h3>
+                                    {selectedContract && (
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide shrink-0 ${
+                                            selectedContract.status === 'A'
+                                                ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                                : 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                                        }`}>
+                                            {selectedContract.status === 'A' ? 'Đã chốt duyệt' : 'Đang xử lý'}
+                                        </span>
                                     )}
-                                </button>
-                            )}
+                                </div>
+                                {selectedContract && (
+                                    <div className="text-[11px] text-slate-400 dark:text-slate-400 flex items-center gap-2 mt-0.5">
+                                        <span>Mã HĐ: <strong className="text-slate-600 dark:text-slate-300">{selectedContract.code || '---'}</strong></span>
+                                        <span>•</span>
+                                        <span>Tổng: <strong className="text-slate-600 dark:text-slate-300">{employees.length}</strong> NV</span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
+
+                        {selectedContract && (
+                            <button
+                                onClick={() => handleToggleContractStatus(selectedContract)}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1.5 active:scale-95 cursor-pointer shrink-0 ${
+                                    selectedContract.status === 'A'
+                                        ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                                        : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                }`}
+                            >
+                                {selectedContract.status === 'A' ? (
+                                    <>
+                                        <LockIcon className="w-3.5 h-3.5" />
+                                        Mở khóa gói
+                                    </>
+                                ) : (
+                                    <>
+                                        <ShieldCheckIcon className="w-3.5 h-3.5" />
+                                        Duyệt chốt gói
+                                    </>
+                                )}
+                            </button>
+                        )}
                     </div>
 
-                    {/* Tabs row matching C++ list view */}
+                    {/* Tabs row & Action Toolbar */}
                     {selectedContract && (
-                        <div className="flex border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/10 px-5">
-                            <button
-                                onClick={() => setActiveTab('employees')}
-                                className={`px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
-                                    activeTab === 'employees'
-                                        ? 'border-[#9f1239] text-[#9f1239] dark:text-rose-400'
-                                        : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                                }`}
-                            >
-                                DS nhân viên
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('services')}
-                                className={`px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
-                                    activeTab === 'services'
-                                        ? 'border-[#9f1239] text-[#9f1239] dark:text-rose-400'
-                                        : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                                }`}
-                            >
-                                Gói DV
-                            </button>
+                        <div className="flex flex-wrap justify-between items-center border-b border-slate-100 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/30 px-5 py-2 gap-3">
+                            {/* Left: Navigation Tabs */}
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={() => setActiveTab('employees')}
+                                    className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                                        activeTab === 'employees'
+                                            ? 'bg-white dark:bg-slate-800 text-[#9f1239] dark:text-rose-400 shadow-sm border border-slate-200/80 dark:border-slate-700'
+                                            : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                                    }`}
+                                >
+                                    <span>DS Nhân viên</span>
+                                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                                        activeTab === 'employees' 
+                                            ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' 
+                                            : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                                    }`}>
+                                        {employees.length}
+                                    </span>
+                                </button>
+
+                                <button
+                                    onClick={() => setActiveTab('services')}
+                                    className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                                        activeTab === 'services'
+                                            ? 'bg-white dark:bg-slate-800 text-[#9f1239] dark:text-rose-400 shadow-sm border border-slate-200/80 dark:border-slate-700'
+                                            : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                                    }`}
+                                >
+                                    <span>Gói dịch vụ</span>
+                                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                                        activeTab === 'services' 
+                                            ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' 
+                                            : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                                    }`}>
+                                        {services.length}
+                                    </span>
+                                </button>
+                            </div>
+
+                            {/* Right: Contextual Toolbar */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                                {activeTab === 'employees' && selectedContract.status !== 'A' && (
+                                    <>
+                                        {/* Group: Excel operations */}
+                                        <div className="flex items-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-0.5 shadow-sm">
+                                            <button
+                                                onClick={handleDownloadTemplate}
+                                                className="px-2.5 py-1 text-slate-600 dark:text-slate-300 hover:text-[#0f766e] dark:hover:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/40 rounded-lg text-xs font-semibold transition flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                                                title="Tải file Excel mẫu 17 cột chuẩn QĐ 1551"
+                                            >
+                                                <DownloadIcon className="w-3.5 h-3.5 text-[#0f766e] dark:text-teal-400" />
+                                                Tải file mẫu
+                                            </button>
+                                            <div className="w-[1px] h-3.5 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+                                            <label className="px-2.5 py-1 text-slate-600 dark:text-slate-300 hover:text-[#0f766e] dark:hover:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/40 rounded-lg text-xs font-semibold transition flex items-center gap-1 cursor-pointer whitespace-nowrap">
+                                                <CloudUploadIcon className="w-3.5 h-3.5 text-[#0f766e] dark:text-teal-400" />
+                                                Nhập Excel
+                                                <input
+                                                    type="file"
+                                                    accept=".xlsx, .xls"
+                                                    onChange={handleImportExcel}
+                                                    className="hidden"
+                                                />
+                                            </label>
+                                        </div>
+
+                                        {/* Add Employee Button */}
+                                        <button
+                                            onClick={handleAddNewEmployeeClick}
+                                            className="px-3 py-1.5 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1 active:scale-95 cursor-pointer whitespace-nowrap"
+                                        >
+                                            <PlusIcon className="w-3.5 h-3.5" />
+                                            Thêm nhân viên
+                                        </button>
+
+                                        {/* Bulk Reception Button */}
+                                        <button
+                                            onClick={handleReceiveAllEmployees}
+                                            disabled={isReceivingAll || employees.every(e => !!e.doc_no && e.doc_no !== '0')}
+                                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1.5 active:scale-95 whitespace-nowrap cursor-pointer ${
+                                                employees.some(e => !e.doc_no || e.doc_no === '0')
+                                                    ? 'bg-[#9f1239] hover:bg-[#881337] text-white shadow-rose-900/20 ring-1 ring-rose-700/50'
+                                                    : 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed opacity-60'
+                                            }`}
+                                            title="Duyệt tiếp đón và sinh số hồ sơ HIS tự động cho toàn bộ nhân viên chưa tiếp đón"
+                                        >
+                                            {isReceivingAll ? (
+                                                <RefreshIcon className="w-3.5 h-3.5 animate-spin" />
+                                            ) : (
+                                                <CheckCircleIcon className="w-3.5 h-3.5" />
+                                            )}
+                                            <span>
+                                                {isReceivingAll 
+                                                    ? 'Đang tiếp đón...' 
+                                                    : `Tiếp đón tất cả${employees.filter(e => !e.doc_no || e.doc_no === '0').length > 0 ? ` (${employees.filter(e => !e.doc_no || e.doc_no === '0').length})` : ''}`
+                                                }
+                                            </span>
+                                        </button>
+                                    </>
+                                )}
+
+                                {activeTab === 'services' && selectedContract.status !== 'A' && (
+                                    <button
+                                        onClick={() => setIsServiceModalOpen(true)}
+                                        className="px-3 py-1.5 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1 active:scale-95 cursor-pointer whitespace-nowrap"
+                                    >
+                                        <PlusIcon className="w-3.5 h-3.5" />
+                                        Thêm dịch vụ
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     )}
  

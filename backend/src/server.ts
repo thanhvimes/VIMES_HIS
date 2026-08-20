@@ -141,6 +141,7 @@ import pacsRoutes from './routes/pacs.routes';
 import aiRoutes from './routes/ai.routes';
 import documentRoutes from './routes/document.routes';
 import emrRoutes from './routes/emr.routes';
+import statisticsRoutes from './routes/statistics.routes';
 
 
 const SERVER_BUILD_TIME = Date.now();
@@ -189,6 +190,7 @@ app.use('/api/v1/documents', documentRoutes);
 app.use('/api/v1/template-studio', templateStudioRoutes);
 app.use('/api/v1/signatures', documentSignatureRoutes);
 app.use('/api/v1/emr', emrRoutes);
+app.use('/api/v1/statistics', statisticsRoutes);
 
 // Error handling middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

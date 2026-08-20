@@ -11,7 +11,7 @@ export interface HealthCheckSyncHeader {
 
 export interface HealthCheckSyncPayload {
     header: HealthCheckSyncHeader;
-    data: { file_content: string };
+    data: string | { file_content: string };
     signature: string;
 }
 
@@ -19,5 +19,5 @@ export function buildHealthCheckSyncPayload(header: HealthCheckSyncHeader, fileC
     if (!fileContentBase64 || !fileContentBase64.trim()) {
         throw new Error('file_content Base64 không được để trống');
     }
-    return { header, data: { file_content: fileContentBase64.replace(/\s+/g, '') }, signature: '' };
+    return { header, data: fileContentBase64.replace(/\s+/g, ''), signature: '' };
 }

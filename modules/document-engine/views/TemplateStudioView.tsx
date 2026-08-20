@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { ContractField, StudioAudit, StudioTemplate, StudioTestCase, StudioVersion, templateStudioService } from '../../../services/templateStudioService';
+import { ContractField, StudioAudit, StudioTemplate, StudioTestCase, StudioTestRun, StudioVersion, templateStudioService } from '../../../services/templateStudioService';
 import { useSession } from '../../../contexts/SessionContext';
 import { SignaturePlaceholdersPanel } from './SignaturePlaceholdersPanel';
 import { CreateTemplateModal } from './CreateTemplateModal';

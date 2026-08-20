@@ -51,6 +51,13 @@ export function findValue(tag: string, ...sources: any[]): string {
         'nhi_khoa_lam_sang_khac': ['nhi_khoa_lam_sang_khac', 'nhikhoalamsangkhac', 'nhi_khac', 'nhikhac', 'ckdt_nhi_khoa_lam_sang_khac'],
         'ckdt_nhi_khoa_lam_sang_khac': ['ckdt_nhi_khoa_lam_sang_khac', 'nhi_khac', 'nhikhac'],
 
+        // Bệnh chuyên khoa nếu có (QĐ 1551 & TT 32)
+        'benh_khac_mat': ['benh_khac_mat', 'benhkhacmat', 'eye_exam', 'eyeexam', 'kham_mat', 'khammat', 'eye'],
+        'benh_tai_mui_hong': ['benh_tai_mui_hong', 'benhtaimuihong', 'ent_exam', 'entexam', 'kq_tai_mui_hong', 'kqtaimuihong', 'kham_tai_mui_hong', 'khamtaimuihong', 'ent'],
+        'benh_khac_tai_mui_hong': ['benh_khac_tai_mui_hong', 'benhkhactaimuihong', 'benh_tai_mui_hong_khac', 'ent_exam', 'entexam', 'kq_tai_mui_hong', 'kqtaimuihong'],
+        'benh_rang_ham_mat': ['benh_rang_ham_mat', 'benhranghammat', 'dental_exam', 'dentalexam', 'kham_rang_ham_mat', 'khamranghammat', 'dental'],
+        'benh_khac_rang_ham_mat': ['benh_khac_rang_ham_mat', 'benhkhacranghammat', 'benh_rang_ham_mat_khac', 'dental_exam', 'dentalexam'],
+
         // Tiền sử & kết luận bổ sung
         'cac_benh_tat_neu_co': ['cac_benh_tat_neu_co', 'cacbenhtatneuco', 'cac_benh_tat', 'cacbenhtat'],
         'benh_dang_dieu_tri': ['benh_dang_dieu_tri', 'benhdangdieutri', 'ten_thuoc', 'tenthuoc', 'tsbt_ten_thuoc_lieu_luong'],
@@ -213,7 +220,7 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
 
     const ngayCapCccd = formatYmd(findValue('NGAYCAP_CCCD', src)) || '20210101';
     const noiCapCccd = findValue('NOICAP_CCCD', src) || 'Cục Cảnh sát QLHC về trật tự xã hội';
-    const nhomMau = findValue('NHOM_MAU', src) || 'O+';
+    const nhomMau = findValue('NHOM_MAU', src) || '';
     const dienThoai = findValue('DIEN_THOAI', src);
     const nguoiGiamHo = findValue('NGUOI_GIAM_HO', src);
     let soCccdNgh = String(findValue('SO_CCCD_NGH', src) || '').trim();
@@ -446,61 +453,90 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
 							<KET_LUAN_XN_KHAC>${escapeXml(findValue('KET_LUAN_XN_KHAC', src) || findValue('ket_luan_xn_khac', src))}</KET_LUAN_XN_KHAC>`;
     } else {
         // Mẫu 2/Khác: Người từ đủ 18 tuổi trở lên (Adult)
+        const specMeta = clinical?.clinical_exam?.specialty_metadata || {};
+        const isSpecExamined = (key: string, ...valKeys: string[]) => {
+            const meta = specMeta[key];
+            if (meta && typeof meta === 'object') {
+                if (meta.status === 'DA_KHAM' || meta.status === 'DA_DUYET') return true;
+                if (meta.status === 'CHUA_KHAM') return false;
+            }
+            for (const vk of valKeys) {
+                const v = findValue(vk, src);
+                if (v && v.trim() !== '') return true;
+            }
+            return false;
+        };
+
+        const isTuanHoan = isSpecExamined('circulatory', 'noi_khoa_tuan_hoan', 'kq_tim_mach');
+        const isHoHap = isSpecExamined('respiratory', 'noi_khoa_ho_hap', 'kq_ho_hap');
+        const isTieuHoa = isSpecExamined('digestive', 'noi_khoa_tieu_hoa');
+        const isThan = isSpecExamined('urinary', 'noi_khoa_than_tn_sd', 'kq_tiet_nieu');
+        const isNoiTiet = isSpecExamined('endocrine', 'noi_khoa_noi_tiet', 'kq_noi_tiet');
+        const isCoXuongKhop = isSpecExamined('musculoskeletal', 'noi_khoa_co_xuong_khop', 'kq_co_xuong_khop');
+        const isThanKinh = isSpecExamined('neurology', 'noi_khoa_than_kinh', 'kq_than_kinh');
+        const isTamThan = isSpecExamined('psychiatry', 'noi_khoa_tam_than', 'kq_tam_than');
+        const isSurgery = isSpecExamined('surgery', 'kq_ngoai_khoa', 'external', 'kham_ngoai_khoa');
+        const isDermatology = isSpecExamined('dermatology', 'kq_da_lieu', 'dermatology');
+        const isGynecology = isSpecExamined('gynecology', 'kham_san_phu_khoa', 'gynecology');
+        const isEye = isSpecExamined('eye', 'khong_kinh_mat_phai', 'khong_kinh_mat_trai', 'benh_khac_mat', 'kham_mat', 'eye');
+        const isEnt = isSpecExamined('ent', 'tai_trai_noi_thuong', 'tai_phai_noi_thuong', 'benh_tai_mui_hong', 'benh_khac_tai_mui_hong', 'ent');
+        const isDental = isSpecExamined('dental', 'ham_tren', 'ham_duoi', 'benh_rang_ham_mat', 'benh_khac_rang_ham_mat', 'dental');
+
         xml7Content = `
-							<NOI_KHOA_TUAN_HOAN>${escapeXml(findValue('NOI_KHOA_TUAN_HOAN', src))}</NOI_KHOA_TUAN_HOAN>
-							<NOI_KHOA_TUAN_HOAN_PL>${escapeXml(findValue('NOI_KHOA_TUAN_HOAN_PL', src))}</NOI_KHOA_TUAN_HOAN_PL>
-							<CKDT_NOI_KHOA_TUAN_HOAN>${escapeXml(findValue('CKDT_NOI_KHOA_TUAN_HOAN', src))}</CKDT_NOI_KHOA_TUAN_HOAN>
-							<NOI_KHOA_HO_HAP>${escapeXml(findValue('NOI_KHOA_HO_HAP', src))}</NOI_KHOA_HO_HAP>
-							<NOI_KHOA_HO_HAP_PL>${escapeXml(findValue('NOI_KHOA_HO_HAP_PL', src))}</NOI_KHOA_HO_HAP_PL>
-							<CKDT_NOI_KHOA_HO_HAP>${escapeXml(findValue('CKDT_NOI_KHOA_HO_HAP', src))}</CKDT_NOI_KHOA_HO_HAP>
-							<NOI_KHOA_TIEU_HOA>${escapeXml(findValue('NOI_KHOA_TIEU_HOA', src))}</NOI_KHOA_TIEU_HOA>
-							<NOI_KHOA_TIEU_HOA_PL>${escapeXml(findValue('NOI_KHOA_TIEU_HOA_PL', src))}</NOI_KHOA_TIEU_HOA_PL>
-							<CKDT_NOI_KHOA_TIEU_HOA>${escapeXml(findValue('CKDT_NOI_KHOA_TIEU_HOA', src))}</CKDT_NOI_KHOA_TIEU_HOA>
-							<NOI_KHOA_THAN_TN_SD>${escapeXml(findValue('NOI_KHOA_THAN_TN_SD', src))}</NOI_KHOA_THAN_TN_SD>
-							<NOI_KHOA_THAN_TN_SD_PL>${escapeXml(findValue('NOI_KHOA_THAN_TN_SD_PL', src))}</NOI_KHOA_THAN_TN_SD_PL>
-							<CKDT_NOI_KHOA_THAN_TN_SD>${escapeXml(findValue('CKDT_NOI_KHOA_THAN_TN_SD', src))}</CKDT_NOI_KHOA_THAN_TN_SD>
-							<NOI_KHOA_NOI_TIET>${escapeXml(findValue('NOI_KHOA_NOI_TIET', src))}</NOI_KHOA_NOI_TIET>
-							<NOI_KHOA_NOI_TIET_PL>${escapeXml(findValue('NOI_KHOA_NOI_TIET_PL', src))}</NOI_KHOA_NOI_TIET_PL>
-							<CKDT_NOI_KHOA_NOI_TIET>${escapeXml(findValue('CKDT_NOI_KHOA_NOI_TIET', src))}</CKDT_NOI_KHOA_NOI_TIET>
-							<NOI_KHOA_CO_XUONG_KHOP>${escapeXml(findValue('NOI_KHOA_CO_XUONG_KHOP', src))}</NOI_KHOA_CO_XUONG_KHOP>
-							<NOI_KHOA_CO_XUONG_KHOP_PL>${escapeXml(findValue('NOI_KHOA_CO_XUONG_KHOP_PL', src))}</NOI_KHOA_CO_XUONG_KHOP_PL>
-							<CKDT_NOI_KHOA_CO_XUONG_KHOP>${escapeXml(findValue('CKDT_NOI_KHOA_CO_XUONG_KHOP', src))}</CKDT_NOI_KHOA_CO_XUONG_KHOP>
-							<NOI_KHOA_THAN_KINH>${escapeXml(findValue('NOI_KHOA_THAN_KINH', src))}</NOI_KHOA_THAN_KINH>
-							<NOI_KHOA_THAN_KINH_PL>${escapeXml(findValue('NOI_KHOA_THAN_KINH_PL', src))}</NOI_KHOA_THAN_KINH_PL>
-							<CKDT_NOI_KHOA_THAN_KINH>${escapeXml(findValue('CKDT_NOI_KHOA_THAN_KINH', src))}</CKDT_NOI_KHOA_THAN_KINH>
-							<NOI_KHOA_TAM_THAN>${escapeXml(findValue('NOI_KHOA_TAM_THAN', src))}</NOI_KHOA_TAM_THAN>
-							<NOI_KHOA_TAM_THAN_PL>${escapeXml(findValue('NOI_KHOA_TAM_THAN_PL', src))}</NOI_KHOA_TAM_THAN_PL>
-							<CKDT_NOI_KHOA_TAM_THAN>${escapeXml(findValue('CKDT_NOI_KHOA_TAM_THAN', src))}</CKDT_NOI_KHOA_TAM_THAN>
-							<KET_QUA_KHAM_NGOAI_KHOA>${escapeXml(findValue('KET_QUA_KHAM_NGOAI_KHOA', src))}</KET_QUA_KHAM_NGOAI_KHOA>
-							<KHAM_NGOAI_KHOA_PL>${escapeXml(findValue('KHAM_NGOAI_KHOA_PL', src))}</KHAM_NGOAI_KHOA_PL>
-							<CKDT_KHAM_NGOAI_KHOA>${escapeXml(findValue('CKDT_KHAM_NGOAI_KHOA', src))}</CKDT_KHAM_NGOAI_KHOA>
-							<KET_QUA_KHAM_DA_LIEU>${escapeXml(findValue('KET_QUA_KHAM_DA_LIEU', src))}</KET_QUA_KHAM_DA_LIEU>
-							<KHAM_DA_LIEU_PL>${escapeXml(findValue('KHAM_DA_LIEU_PL', src))}</KHAM_DA_LIEU_PL>
-							<CKDT_KHAM_DA_LIEU>${escapeXml(findValue('CKDT_KHAM_DA_LIEU', src))}</CKDT_KHAM_DA_LIEU>
-							<KET_QUA_KHAM_SAN_PHU_KHOA>${escapeXml(findValue('KET_QUA_KHAM_SAN_PHU_KHOA', src))}</KET_QUA_KHAM_SAN_PHU_KHOA>
-							<KHAM_SAN_PHU_KHOA_PL>${escapeXml(findValue('KHAM_SAN_PHU_KHOA_PL', src))}</KHAM_SAN_PHU_KHOA_PL>
-							<CKDT_KHAM_SAN_PHU_KHOA>${escapeXml(findValue('CKDT_KHAM_SAN_PHU_KHOA', src))}</CKDT_KHAM_SAN_PHU_KHOA>
-							<KHONG_KINH_MAT_PHAI>${escapeXml(findValue('KHONG_KINH_MAT_PHAI', src))}</KHONG_KINH_MAT_PHAI>
-							<KHONG_KINH_MAT_TRAI>${escapeXml(findValue('KHONG_KINH_MAT_TRAI', src))}</KHONG_KINH_MAT_TRAI>
-							<CO_KINH_MAT_PHAI>${escapeXml(findValue('CO_KINH_MAT_PHAI', src))}</CO_KINH_MAT_PHAI>
-							<CO_KINH_MAT_TRAI>${escapeXml(findValue('CO_KINH_MAT_TRAI', src))}</CO_KINH_MAT_TRAI>
-							<BENH_KHAC_MAT>${escapeXml(findValue('BENH_KHAC_MAT', src))}</BENH_KHAC_MAT>
-							<CKDT_KHAM_MAT>${escapeXml(findValue('CKDT_KHAM_MAT', src))}</CKDT_KHAM_MAT>
-							<KHAM_MAT_PL>${escapeXml(findValue('KHAM_MAT_PL', src))}</KHAM_MAT_PL>
-							<TAI_TRAI_NOI_THUONG>${escapeXml(findValue('TAI_TRAI_NOI_THUONG', src))}</TAI_TRAI_NOI_THUONG>
-							<TAI_TRAI_NOI_THAM>${escapeXml(findValue('TAI_TRAI_NOI_THAM', src))}</TAI_TRAI_NOI_THAM>
-							<TAI_PHAI_NOI_THUONG>${escapeXml(findValue('TAI_PHAI_NOI_THUONG', src))}</TAI_PHAI_NOI_THUONG>
-							<TAI_PHAI_NOI_THAM>${escapeXml(findValue('TAI_PHAI_NOI_THAM', src))}</TAI_PHAI_NOI_THAM>
-							<BENH_TAI_MUI_HONG>${escapeXml(findValue('BENH_TAI_MUI_HONG', src))}</BENH_TAI_MUI_HONG>
-							<BENH_KHAC_TAI_MUI_HONG>${escapeXml(findValue('BENH_KHAC_TAI_MUI_HONG', src))}</BENH_KHAC_TAI_MUI_HONG>
-							<KHAM_TAI_MUI_HONG_PL>${escapeXml(findValue('KHAM_TAI_MUI_HONG_PL', src))}</KHAM_TAI_MUI_HONG_PL>
-							<CKDT_KHAM_TAI_MUI_HONG>${escapeXml(findValue('CKDT_KHAM_TAI_MUI_HONG', src))}</CKDT_KHAM_TAI_MUI_HONG>
-							<HAM_TREN>${escapeXml(findValue('HAM_TREN', src))}</HAM_TREN>
-							<HAM_DUOI>${escapeXml(findValue('HAM_DUOI', src))}</HAM_DUOI>
-							<BENH_RANG_HAM_MAT>${escapeXml(findValue('BENH_RANG_HAM_MAT', src))}</BENH_RANG_HAM_MAT>
-							<BENH_KHAC_RANG_HAM_MAT>${escapeXml(findValue('BENH_KHAC_RANG_HAM_MAT', src))}</BENH_KHAC_RANG_HAM_MAT>
-							<KHAM_RANG_HAM_MAT_PL>${escapeXml(findValue('KHAM_RANG_HAM_MAT_PL', src))}</KHAM_RANG_HAM_MAT_PL>
-							<CKDT_KHAM_RANG_HAM_MAT>${escapeXml(findValue('CKDT_KHAM_RANG_HAM_MAT', src))}</CKDT_KHAM_RANG_HAM_MAT>`;
+							<NOI_KHOA_TUAN_HOAN>${escapeXml(isTuanHoan ? findValue('NOI_KHOA_TUAN_HOAN', src) : '')}</NOI_KHOA_TUAN_HOAN>
+							<NOI_KHOA_TUAN_HOAN_PL>${escapeXml(isTuanHoan ? findValue('NOI_KHOA_TUAN_HOAN_PL', src) : '')}</NOI_KHOA_TUAN_HOAN_PL>
+							<CKDT_NOI_KHOA_TUAN_HOAN>${escapeXml(isTuanHoan ? (findValue('CKDT_NOI_KHOA_TUAN_HOAN', src) || specMeta?.circulatory?.doctor_name || specMeta?.circulatory?.doctor || '') : '')}</CKDT_NOI_KHOA_TUAN_HOAN>
+							<NOI_KHOA_HO_HAP>${escapeXml(isHoHap ? findValue('NOI_KHOA_HO_HAP', src) : '')}</NOI_KHOA_HO_HAP>
+							<NOI_KHOA_HO_HAP_PL>${escapeXml(isHoHap ? findValue('NOI_KHOA_HO_HAP_PL', src) : '')}</NOI_KHOA_HO_HAP_PL>
+							<CKDT_NOI_KHOA_HO_HAP>${escapeXml(isHoHap ? (findValue('CKDT_NOI_KHOA_HO_HAP', src) || specMeta?.respiratory?.doctor_name || specMeta?.respiratory?.doctor || '') : '')}</CKDT_NOI_KHOA_HO_HAP>
+							<NOI_KHOA_TIEU_HOA>${escapeXml(isTieuHoa ? findValue('NOI_KHOA_TIEU_HOA', src) : '')}</NOI_KHOA_TIEU_HOA>
+							<NOI_KHOA_TIEU_HOA_PL>${escapeXml(isTieuHoa ? findValue('NOI_KHOA_TIEU_HOA_PL', src) : '')}</NOI_KHOA_TIEU_HOA_PL>
+							<CKDT_NOI_KHOA_TIEU_HOA>${escapeXml(isTieuHoa ? (findValue('CKDT_NOI_KHOA_TIEU_HOA', src) || specMeta?.digestive?.doctor_name || specMeta?.digestive?.doctor || '') : '')}</CKDT_NOI_KHOA_TIEU_HOA>
+							<NOI_KHOA_THAN_TN_SD>${escapeXml(isThan ? findValue('NOI_KHOA_THAN_TN_SD', src) : '')}</NOI_KHOA_THAN_TN_SD>
+							<NOI_KHOA_THAN_TN_SD_PL>${escapeXml(isThan ? findValue('NOI_KHOA_THAN_TN_SD_PL', src) : '')}</NOI_KHOA_THAN_TN_SD_PL>
+							<CKDT_NOI_KHOA_THAN_TN_SD>${escapeXml(isThan ? (findValue('CKDT_NOI_KHOA_THAN_TN_SD', src) || specMeta?.urinary?.doctor_name || specMeta?.urinary?.doctor || '') : '')}</CKDT_NOI_KHOA_THAN_TN_SD>
+							<NOI_KHOA_NOI_TIET>${escapeXml(isNoiTiet ? findValue('NOI_KHOA_NOI_TIET', src) : '')}</NOI_KHOA_NOI_TIET>
+							<NOI_KHOA_NOI_TIET_PL>${escapeXml(isNoiTiet ? findValue('NOI_KHOA_NOI_TIET_PL', src) : '')}</NOI_KHOA_NOI_TIET_PL>
+							<CKDT_NOI_KHOA_NOI_TIET>${escapeXml(isNoiTiet ? (findValue('CKDT_NOI_KHOA_NOI_TIET', src) || specMeta?.endocrine?.doctor_name || specMeta?.endocrine?.doctor || '') : '')}</CKDT_NOI_KHOA_NOI_TIET>
+							<NOI_KHOA_CO_XUONG_KHOP>${escapeXml(isCoXuongKhop ? findValue('NOI_KHOA_CO_XUONG_KHOP', src) : '')}</NOI_KHOA_CO_XUONG_KHOP>
+							<NOI_KHOA_CO_XUONG_KHOP_PL>${escapeXml(isCoXuongKhop ? findValue('NOI_KHOA_CO_XUONG_KHOP_PL', src) : '')}</NOI_KHOA_CO_XUONG_KHOP_PL>
+							<CKDT_NOI_KHOA_CO_XUONG_KHOP>${escapeXml(isCoXuongKhop ? (findValue('CKDT_NOI_KHOA_CO_XUONG_KHOP', src) || specMeta?.musculoskeletal?.doctor_name || specMeta?.musculoskeletal?.doctor || '') : '')}</CKDT_NOI_KHOA_CO_XUONG_KHOP>
+							<NOI_KHOA_THAN_KINH>${escapeXml(isThanKinh ? findValue('NOI_KHOA_THAN_KINH', src) : '')}</NOI_KHOA_THAN_KINH>
+							<NOI_KHOA_THAN_KINH_PL>${escapeXml(isThanKinh ? findValue('NOI_KHOA_THAN_KINH_PL', src) : '')}</NOI_KHOA_THAN_KINH_PL>
+							<CKDT_NOI_KHOA_THAN_KINH>${escapeXml(isThanKinh ? (findValue('CKDT_NOI_KHOA_THAN_KINH', src) || specMeta?.neurology?.doctor_name || specMeta?.neurology?.doctor || '') : '')}</CKDT_NOI_KHOA_THAN_KINH>
+							<NOI_KHOA_TAM_THAN>${escapeXml(isTamThan ? findValue('NOI_KHOA_TAM_THAN', src) : '')}</NOI_KHOA_TAM_THAN>
+							<NOI_KHOA_TAM_THAN_PL>${escapeXml(isTamThan ? findValue('NOI_KHOA_TAM_THAN_PL', src) : '')}</NOI_KHOA_TAM_THAN_PL>
+							<CKDT_NOI_KHOA_TAM_THAN>${escapeXml(isTamThan ? (findValue('CKDT_NOI_KHOA_TAM_THAN', src) || specMeta?.psychiatry?.doctor_name || specMeta?.psychiatry?.doctor || '') : '')}</CKDT_NOI_KHOA_TAM_THAN>
+							<KET_QUA_KHAM_NGOAI_KHOA>${escapeXml(isSurgery ? (findValue('kq_ngoai_khoa', src) || findValue('external', src) || findValue('kham_ngoai_khoa', src)) : '')}</KET_QUA_KHAM_NGOAI_KHOA>
+							<KHAM_NGOAI_KHOA_PL>${escapeXml(isSurgery ? findValue('KHAM_NGOAI_KHOA_PL', src) : '')}</KHAM_NGOAI_KHOA_PL>
+							<CKDT_KHAM_NGOAI_KHOA>${escapeXml(isSurgery ? (findValue('CKDT_KHAM_NGOAI_KHOA', src) || specMeta?.surgery?.doctor_name || specMeta?.surgery?.doctor || '') : '')}</CKDT_KHAM_NGOAI_KHOA>
+							<KET_QUA_KHAM_DA_LIEU>${escapeXml(isDermatology ? findValue('KET_QUA_KHAM_DA_LIEU', src) : '')}</KET_QUA_KHAM_DA_LIEU>
+							<KHAM_DA_LIEU_PL>${escapeXml(isDermatology ? findValue('KHAM_DA_LIEU_PL', src) : '')}</KHAM_DA_LIEU_PL>
+							<CKDT_KHAM_DA_LIEU>${escapeXml(isDermatology ? (findValue('CKDT_KHAM_DA_LIEU', src) || specMeta?.dermatology?.doctor_name || specMeta?.dermatology?.doctor || '') : '')}</CKDT_KHAM_DA_LIEU>
+							<KET_QUA_KHAM_SAN_PHU_KHOA>${escapeXml(isGynecology ? findValue('KET_QUA_KHAM_SAN_PHU_KHOA', src) : '')}</KET_QUA_KHAM_SAN_PHU_KHOA>
+							<KHAM_SAN_PHU_KHOA_PL>${escapeXml(isGynecology ? findValue('KHAM_SAN_PHU_KHOA_PL', src) : '')}</KHAM_SAN_PHU_KHOA_PL>
+							<CKDT_KHAM_SAN_PHU_KHOA>${escapeXml(isGynecology ? (findValue('CKDT_KHAM_SAN_PHU_KHOA', src) || specMeta?.gynecology?.doctor_name || specMeta?.gynecology?.doctor || '') : '')}</CKDT_KHAM_SAN_PHU_KHOA>
+							<KHONG_KINH_MAT_PHAI>${escapeXml(isEye ? findValue('KHONG_KINH_MAT_PHAI', src) : '')}</KHONG_KINH_MAT_PHAI>
+							<KHONG_KINH_MAT_TRAI>${escapeXml(isEye ? findValue('KHONG_KINH_MAT_TRAI', src) : '')}</KHONG_KINH_MAT_TRAI>
+							<CO_KINH_MAT_PHAI>${escapeXml(isEye ? findValue('CO_KINH_MAT_PHAI', src) : '')}</CO_KINH_MAT_PHAI>
+							<CO_KINH_MAT_TRAI>${escapeXml(isEye ? findValue('CO_KINH_MAT_TRAI', src) : '')}</CO_KINH_MAT_TRAI>
+							<BENH_KHAC_MAT>${escapeXml(isEye ? findValue('BENH_KHAC_MAT', src) : '')}</BENH_KHAC_MAT>
+							<CKDT_KHAM_MAT>${escapeXml(isEye ? (findValue('CKDT_KHAM_MAT', src) || specMeta?.eye?.doctor_name || specMeta?.eye?.doctor || '') : '')}</CKDT_KHAM_MAT>
+							<KHAM_MAT_PL>${escapeXml(isEye ? findValue('KHAM_MAT_PL', src) : '')}</KHAM_MAT_PL>
+							<TAI_TRAI_NOI_THUONG>${escapeXml(isEnt ? findValue('TAI_TRAI_NOI_THUONG', src) : '')}</TAI_TRAI_NOI_THUONG>
+							<TAI_TRAI_NOI_THAM>${escapeXml(isEnt ? findValue('TAI_TRAI_NOI_THAM', src) : '')}</TAI_TRAI_NOI_THAM>
+							<TAI_PHAI_NOI_THUONG>${escapeXml(isEnt ? findValue('TAI_PHAI_NOI_THUONG', src) : '')}</TAI_PHAI_NOI_THUONG>
+							<TAI_PHAI_NOI_THAM>${escapeXml(isEnt ? findValue('TAI_PHAI_NOI_THAM', src) : '')}</TAI_PHAI_NOI_THAM>
+							<BENH_TAI_MUI_HONG>${escapeXml(isEnt ? findValue('BENH_TAI_MUI_HONG', src) : '')}</BENH_TAI_MUI_HONG>
+							<BENH_KHAC_TAI_MUI_HONG>${escapeXml(isEnt ? findValue('BENH_KHAC_TAI_MUI_HONG', src) : '')}</BENH_KHAC_TAI_MUI_HONG>
+							<KHAM_TAI_MUI_HONG_PL>${escapeXml(isEnt ? findValue('KHAM_TAI_MUI_HONG_PL', src) : '')}</KHAM_TAI_MUI_HONG_PL>
+							<CKDT_KHAM_TAI_MUI_HONG>${escapeXml(isEnt ? (findValue('CKDT_KHAM_TAI_MUI_HONG', src) || specMeta?.ent?.doctor_name || specMeta?.ent?.doctor || '') : '')}</CKDT_KHAM_TAI_MUI_HONG>
+							<HAM_TREN>${escapeXml(isDental ? findValue('HAM_TREN', src) : '')}</HAM_TREN>
+							<HAM_DUOI>${escapeXml(isDental ? findValue('HAM_DUOI', src) : '')}</HAM_DUOI>
+							<BENH_RANG_HAM_MAT>${escapeXml(isDental ? findValue('BENH_RANG_HAM_MAT', src) : '')}</BENH_RANG_HAM_MAT>
+							<BENH_KHAC_RANG_HAM_MAT>${escapeXml(isDental ? findValue('BENH_KHAC_RANG_HAM_MAT', src) : '')}</BENH_KHAC_RANG_HAM_MAT>
+							<KHAM_RANG_HAM_MAT_PL>${escapeXml(isDental ? findValue('KHAM_RANG_HAM_MAT_PL', src) : '')}</KHAM_RANG_HAM_MAT_PL>
+							<CKDT_KHAM_RANG_HAM_MAT>${escapeXml(isDental ? (findValue('CKDT_KHAM_RANG_HAM_MAT', src) || specMeta?.dental?.doctor_name || specMeta?.dental?.doctor || '') : '')}</CKDT_KHAM_RANG_HAM_MAT>`;
     }
 
     const xml7 = `<KHAM_LAM_SANG>${xml7Content}

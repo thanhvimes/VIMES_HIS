@@ -2,6 +2,7 @@ import React from 'react';
 import { VIMES_LOGO_BASE64 } from '../../../config/vimesLogoBase64';
 
 interface PrintFormMau2Props {
+    resolvedLocation?: { province?: string; ward?: string };
     document: any;
     hospitalName: string;
     logoUrl?: string;
@@ -150,7 +151,8 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
     icd10Names,
     COMMON_ICD10,
     maCskcb,
-    doctorSignatures
+    doctorSignatures,
+    resolvedLocation
 }) => {
     const normalizeObject = (obj: any): any => {
         if (!obj) return obj;
@@ -171,7 +173,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
     const L = normalizeObject(STATIC_LABELS);
 
     const clinical = docNormalized.clinical_data || docNormalized.clinicalData || {};
-    const clinicalExam = clinical.clinical_exam || clinical.clinicalExam || {};
+    const clinicalExam = { ...(clinical.examination || {}), ...clinical, ...(clinical.clinical_exam || {}), ...(clinical.clinicalExam || {}) };
     const extra = clinical.extra || {};
     const lab = docNormalized.lab_data || docNormalized.labData || {};
     const conclusion = docNormalized.conclusion_data || docNormalized.conclusionData || {};
@@ -340,11 +342,6 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
         let docCode = (docMeta?.doctorCode || docMeta?.doctorUsername || matchedDoctor?.code
             || matchedDoctor?.username || matchedDoctor?.hee_employee_id || docMeta?.doctorId || '').toString().trim().toUpperCase();
 
-        if (!docCode) {
-            const conclusion = document.conclusion_data || document.conclusionData || {};
-            docCode = (conclusion.doctor_code || conclusion.doctor_username || conclusion.conclusion_doctor || conclusion.doctor || '').toString().trim().toUpperCase();
-        }
-
         const sigImg = resolveDoctorSignature(
             docCode,
             docMeta?.doctorCode,
@@ -405,7 +402,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
     const examWeight = clinical.examination?.weight || extra.weight || '';
     const examBmi = clinical.examination?.bmi || extra.bmi || '';
     const examPulse = clinical.examination?.pulse || extra.pulse || '';
-    const examBp = clinical.examination?.blood_pressure || extra.bp || '';
+    const examBp = clinical.examination?.blood_pressure || extra.bp || extra.huyet_ap || clinical.huyet_ap || clinical.blood_pressure || clinical.bp || '';
     const physicalPl = clinical.examination?.kham_the_luc_pl || extra.kham_the_luc_pl || '';
 
     const findParaclinicalValue = (keywords: string[]) => {
@@ -603,7 +600,21 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                             <span className="font-bold">{L.lblCccdGiamHo}</span> <span>{extra.so_cccd_ngh || '...'}</span>
                         </div>
                         <div>
-                            <span className="font-bold">{L.lblChỏO}</span> <span className="font-semibold">{clinical.province || 'Hoa Lư'}, {clinical.ward || 'Tỉnh Ninh Bình'}</span>
+                            <span className="font-bold">{L.lblChỏO}</span> {(() => {
+    const rawDetail = String(clinical.address || docNormalized.address || clinical.patient_address || '').trim();
+    const provName = String(clinical.province || clinical.province_name || clinical.ten_tinh || extra.ten_tinh || extra.province || resolvedLocation?.province || '').trim();
+    const wardName = String(clinical.ward || clinical.ward_name || clinical.ten_xa || extra.ten_xa || extra.ward || resolvedLocation?.ward || '').trim();
+    const distName = String(clinical.district || clinical.district_name || clinical.ten_huyen || extra.ten_huyen || '').trim();
+
+    const parts = [];
+    if (rawDetail) parts.push(rawDetail);
+    if (wardName && !rawDetail.toLowerCase().includes(wardName.toLowerCase())) parts.push(wardName);
+    if (distName && !rawDetail.toLowerCase().includes(distName.toLowerCase()) && !wardName.toLowerCase().includes(distName.toLowerCase())) parts.push(distName);
+    if (provName && !rawDetail.toLowerCase().includes(provName.toLowerCase())) parts.push(provName);
+
+    const fullAddr = parts.length > 0 ? parts.join(', ') : '...';
+    return <span className="font-semibold">{fullAddr}</span>;
+})()}
                         </div>
                         <div>
                             <span className="font-bold">{L.lblSdt}</span> <span>{clinical.phone || '...'}</span>
@@ -1038,25 +1049,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                             <span className="italic text-[11px] block mb-4">{L.lblKyGhiRoDongDau}</span>
                             
                             {(() => {
-                                const docCode = (conclusion.doctor_code || conclusion.doctor_username || conclusion.conclusion_doctor || conclusion.doctor || '').toString().trim().toUpperCase();
-                                const conclusionDoctor = findDoctorByIdentifier(docCode)
-                                    || doctors.find(d => (d.name || d.hee_fullname) === getConclusionDoctorName());
-                                const sigImg = resolveDoctorSignature(
-                                    docCode,
-                                    conclusion.doctor_code,
-                                    conclusion.doctor_username,
-                                    conclusion.conclusion_doctor,
-                                    conclusion.doctor,
-                                    conclusionDoctor?.code,
-                                    conclusionDoctor?.username,
-                                    conclusionDoctor?.id,
-                                    conclusionDoctor?.hee_employee_id,
-                                    conclusionDoctor?.name,
-                                    conclusionDoctor?.hee_fullname,
-                                    getConclusionDoctorName()
-                                );
-
-                                if (docNormalized.signature_status === 'Signed' && !sigImg) {
+                                if (docNormalized.signature_status === 'Signed') {
                                     return (
                                         <div className="my-2 p-2 border border-green-600 rounded bg-green-50/50 text-[11px] font-bold text-green-700 leading-tight text-left w-full shadow-sm max-w-[240px] font-sans">
                                             <div className="flex items-center gap-1 mb-1 text-green-800">
@@ -1069,10 +1062,6 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                                             Time: {docNormalized.updated_at ? new Date(docNormalized.updated_at).toLocaleString('vi-VN') : '2026-06-03'}
                                         </div>
                                     );
-                                }
-
-                                if (sigImg) {
-                                    return <img src={sigImg} alt="Chữ ký bác sĩ" className="h-16 max-w-[180px] object-contain my-1" />;
                                 }
 
                                 return <div className="h-16"></div>;

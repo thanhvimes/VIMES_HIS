@@ -3,6 +3,8 @@ import { useDynamicFormContext } from '../DynamicFormContext';
 import { useSession } from '../../../../contexts/SessionContext';
 import { toast } from 'sonner';
 import Combobox from '../../../../components/ui/Combobox';
+import { healthCheckService } from '../../../../services/healthCheckService';
+import { SearchIcon, PlusIcon } from '../../../../components/Icons';
 
 const LabTab: React.FC = () => {
     const {
@@ -81,6 +83,8 @@ const LabTab: React.FC = () => {
         setSpecialtyMetadata,
         doctors,
         handleSubmit,
+        docNo,
+        patientId,
     } = useDynamicFormContext();
 
     const { user } = useSession();
@@ -101,6 +105,278 @@ const LabTab: React.FC = () => {
         description: '',
         conclusion: ''
     });
+
+    // Add Service from Catalog Modal State
+    const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
+    const [serviceGroups, setServiceGroups] = useState<any[]>([]);
+    const [selectedGroup, setSelectedGroup] = useState<string>('');
+    const [groupFilterType, setGroupFilterType] = useState<'ALL' | 'XN' | 'HA' | 'TD'>('ALL');
+    const [groupServices, setGroupServices] = useState<any[]>([]);
+    const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+    const [isLoadingGroupServices, setIsLoadingGroupServices] = useState(false);
+    const [serviceSearchTerm, setServiceSearchTerm] = useState('');
+
+    // Helper phân loại nhóm theo tiền tố mã nhóm HIS
+    const getGroupCategory = (groupId: string): 'XN' | 'HA' | 'TD' => {
+        const id = String(groupId || '').trim().toUpperCase();
+        if (id.startsWith('B1') || id.startsWith('A')) return 'XN';
+        if (id.startsWith('B2') || id.startsWith('B0') || id.startsWith('C')) return 'HA';
+        if (id.startsWith('B3') || id.startsWith('B4') || id.startsWith('B5') || id.startsWith('D')) return 'TD';
+        return 'XN';
+    };
+
+    // Danh sách nhóm dịch vụ đã qua bộ lọc loại (ALL / XN / HA / TD)
+    const filteredServiceGroups = serviceGroups.filter(g => {
+        if (groupFilterType === 'ALL') return true;
+        return getGroupCategory(g.id) === groupFilterType;
+    });
+
+    // Pending selected services (Buffer trước khi nhấn "Áp dụng")
+    interface PendingServiceItem {
+        item_id: string;
+        code: string;
+        name: string;
+        unit: string;
+        price: number;
+        qty: number;
+        note: string;
+        group_id: string;
+        group_name: string;
+        type: 'XN' | 'HA' | 'TD';
+    }
+    const [pendingServices, setPendingServices] = useState<PendingServiceItem[]>([]);
+    const [isApplyingHis, setIsApplyingHis] = useState(false);
+
+    const handleOpenAddServiceModal = async () => {
+        setIsAddServiceModalOpen(true);
+        setPendingServices([]); // reset buffer khi mở modal
+        setServiceSearchTerm('');
+        
+        // Tự động chọn tab phân loại tương ứng với sub-tab hiện tại của form
+        const initialType: 'ALL' | 'XN' | 'HA' | 'TD' = labSubTab === 'HA' ? 'HA' : labSubTab === 'TD' ? 'TD' : 'XN';
+        setGroupFilterType(initialType);
+
+        if (serviceGroups.length === 0) {
+            setIsLoadingGroups(true);
+            try {
+                const groups = await healthCheckService.getServiceGroups();
+                setServiceGroups(groups);
+                const matchingGroups = groups.filter((g: any) => getGroupCategory(g.id) === initialType);
+                const targetGroup = matchingGroups[0] || groups[0];
+                if (targetGroup) {
+                    setSelectedGroup(targetGroup.id);
+                    loadServicesByGroup(targetGroup.id);
+                }
+            } catch (err) {
+                console.error("Failed to load service groups:", err);
+            } finally {
+                setIsLoadingGroups(false);
+            }
+        } else {
+            const matchingGroups = serviceGroups.filter(g => getGroupCategory(g.id) === initialType);
+            const targetGroup = matchingGroups[0] || serviceGroups[0];
+            if (targetGroup) {
+                setSelectedGroup(targetGroup.id);
+                loadServicesByGroup(targetGroup.id);
+            }
+        }
+    };
+
+    const handleSelectFilterType = (type: 'ALL' | 'XN' | 'HA' | 'TD') => {
+        setGroupFilterType(type);
+        setServiceSearchTerm('');
+        const matching = serviceGroups.filter(g => type === 'ALL' || getGroupCategory(g.id) === type);
+        if (matching.length > 0) {
+            const first = matching[0];
+            setSelectedGroup(first.id);
+            loadServicesByGroup(first.id);
+        }
+    };
+
+    const loadServicesByGroup = async (groupId: string) => {
+        setIsLoadingGroupServices(true);
+        try {
+            const svcs = await healthCheckService.getServicesByGroup(groupId);
+            setGroupServices(svcs);
+        } catch (err) {
+            console.error("Failed to load services in group:", err);
+        } finally {
+            setIsLoadingGroupServices(false);
+        }
+    };
+
+    // Đưa dịch vụ vào danh sách chờ (Pending List)
+    const handleQueueService = (svc: any) => {
+        const code = String(svc.item_id || svc.id || '').trim();
+        if (!code) return;
+        
+        if (pendingServices.some(p => p.code === code)) {
+            // Nếu đã có thì tăng số lượng lên 1
+            handleUpdatePendingQty(code, 1);
+            toast.success(`Đã tăng số lượng "${svc.name}" lên +1.`);
+            return;
+        }
+
+        const selectedGroupName = serviceGroups.find(g => g.id === selectedGroup)?.name || '';
+        const itemGroupId = selectedGroup || (labSubTab === 'XN' ? 'B1100' : labSubTab === 'HA' ? 'B2100' : 'B4100');
+        const type = svc.type || (itemGroupId.startsWith('B1') || itemGroupId.startsWith('A') ? 'XN' : (itemGroupId.startsWith('B2') || itemGroupId.startsWith('B3') ? 'HA' : 'TD'));
+
+        const newPending: PendingServiceItem = {
+            item_id: code,
+            code: code,
+            name: svc.name || 'Dịch vụ kỹ thuật',
+            unit: svc.unit || (type === 'XN' ? 'g/L' : ''),
+            price: parseFloat(svc.price || 0),
+            qty: 1,
+            note: '',
+            group_id: itemGroupId,
+            group_name: selectedGroupName || (type === 'XN' ? 'Xét nghiệm' : type === 'HA' ? 'Chẩn đoán hình ảnh' : 'Thăm dò chức năng'),
+            type: type as 'XN' | 'HA' | 'TD'
+        };
+
+        setPendingServices(prev => [...prev, newPending]);
+    };
+
+    const handleRemovePending = (code: string) => {
+        setPendingServices(prev => prev.filter(p => p.code !== code));
+    };
+
+    const handleClearAllPending = () => {
+        setPendingServices([]);
+    };
+
+    const handleUpdatePendingQty = (code: string, delta: number) => {
+        setPendingServices(prev => prev.map(p => {
+            if (p.code === code) {
+                const newQty = Math.max(1, p.qty + delta);
+                return { ...p, qty: newQty };
+            }
+            return p;
+        }));
+    };
+
+    // Nhấn "Áp dụng" -> Mới chính thức gọi hàm kê vào HIS Core và cập nhật sang KSK
+    const handleApplySelectedServices = async () => {
+        if (pendingServices.length === 0) {
+            toast.warning('Vui lòng chọn ít nhất 1 dịch vụ kỹ thuật trước khi nhấn "Áp dụng".');
+            return;
+        }
+
+        setIsApplyingHis(true);
+        try {
+            if (docNo) {
+                const orderRes = await healthCheckService.createHisParaclinicOrder({
+                    docNo,
+                    patientId,
+                    doctorId: labMetadata.doctorId || user?.userId,
+                    doctorName: labMetadata.doctorName || user?.name,
+                    deptId: 'KKB',
+                    roomId: 1,
+                    items: pendingServices.map(p => ({
+                        service_code: p.code,
+                        service_name: p.name,
+                        group_id: p.group_id,
+                        unit: p.unit,
+                        qty: p.qty,
+                        note: p.note
+                    }))
+                });
+
+                if (orderRes.success && orderRes.labData?.paraclinical_items) {
+                    setParaclinicalItems(orderRes.labData.paraclinical_items);
+                    syncGridToCoreFields(orderRes.labData.paraclinical_items);
+                    toast.success(`Đã áp dụng thành công ${pendingServices.length} dịch vụ vào HIS!`);
+                    setIsAddServiceModalOpen(false);
+                    setPendingServices([]);
+                    return;
+                }
+            }
+
+            // Fallback thêm cục bộ nếu chưa có docNo
+            const parentCodes = pendingServices.map(p => p.code);
+            const subItems = await healthCheckService.getFeeSubitems(parentCodes);
+
+            const newItems: any[] = [];
+            for (const p of pendingServices) {
+                newItems.push({
+                    service_code: p.code,
+                    service_name: p.name,
+                    index_code: p.code,
+                    index_name: p.name,
+                    value: '',
+                    unit: p.unit,
+                    description: '',
+                    conclusion: '',
+                    group_id: p.group_id,
+                    group_name: p.group_name,
+                    type: p.type,
+                    subitem: subItems.some(s => s.parent_code === p.code) ? 'Y' : '',
+                    user_edited: true
+                });
+
+                // Thêm các chỉ số con thuộc dịch vụ này
+                const children = subItems.filter(s => s.parent_code === p.code);
+                for (const child of children) {
+                    newItems.push({
+                        service_code: child.service_code,
+                        service_name: child.service_name,
+                        index_code: child.service_code,
+                        index_name: child.service_name,
+                        value: '',
+                        unit: child.unit || '',
+                        description: '',
+                        conclusion: '',
+                        group_id: child.group_id || p.group_id,
+                        group_name: child.group_name || p.group_name,
+                        type: 'XN',
+                        line_no: child.line_no,
+                        subitem: child.subitem,
+                        parent_name: p.name,
+                        parent_code: p.code,
+                        parent_line: child.parent_line,
+                        user_edited: true
+                    });
+                }
+            }
+
+            const updated = [...paraclinicalItems, ...newItems];
+            setParaclinicalItems(updated);
+            syncGridToCoreFields(updated);
+            toast.success(`Đã thêm ${pendingServices.length} dịch vụ (kèm các chỉ số chi tiết) vào hồ sơ!`);
+            setIsAddServiceModalOpen(false);
+            setPendingServices([]);
+        } catch (err: any) {
+            console.error("Lỗi khi áp dụng chỉ định CLS vào HIS:", err);
+            toast.error(`Lỗi áp dụng vào HIS: ${err.message || 'Không thể ghi nhận chỉ định'}`);
+        } finally {
+            setIsApplyingHis(false);
+        }
+    };
+
+    const handleRemoveItem = async (item: any) => {
+        if (docNo && item.service_code) {
+            try {
+                const cancelRes = await healthCheckService.cancelHisParaclinicItem({
+                    docNo,
+                    orderId: item.order_id,
+                    serviceCode: item.service_code
+                });
+                if (cancelRes.success && cancelRes.labData?.paraclinical_items) {
+                    setParaclinicalItems(cancelRes.labData.paraclinical_items);
+                    syncGridToCoreFields(cancelRes.labData.paraclinical_items);
+                    toast.success(`Đã hủy dịch vụ ${item.service_name} trên HIS`);
+                    return;
+                }
+            } catch (err: any) {
+                console.error("Lỗi hủy dịch vụ trên HIS:", err);
+            }
+        }
+
+        const updated = paraclinicalItems.filter((_, idx) => idx !== item.originalIndex);
+        setParaclinicalItems(updated);
+        syncGridToCoreFields(updated);
+        toast.success(`Đã xóa dịch vụ: ${item.service_name}`);
+    };
 
     const handleOpenResultModal = (item: any) => {
         setResultModal({
@@ -207,10 +483,10 @@ const LabTab: React.FC = () => {
 
     const renderBadge = () => {
         switch (labMetadata.status) {
-            case 'ĐANG_KHÁM': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Đang khám</span>;
-            case 'ĐÃ_KHÁM': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Đã khám</span>;
-            case 'ĐÃ_DUYỆT': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-teal-100 text-teal-800">Đã duyệt</span>;
-            default: return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Chưa khám</span>;
+            case 'ĐANG_KHÁM': return <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-800 border border-blue-200">Trạng thái: Đang khám</span>;
+            case 'ĐÃ_KHÁM': return <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-green-100 text-green-800 border border-green-200">Trạng thái: Đã khám</span>;
+            case 'ĐÃ_DUYỆT': return <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">Trạng thái: Đã duyệt</span>;
+            default: return <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-100 text-slate-600 border border-slate-200">Trạng thái: Chưa khám</span>;
         }
     };
 
@@ -296,9 +572,18 @@ const LabTab: React.FC = () => {
                 </div>
             )}
 
-            {/* Action Row: Autofill & HIS Sync */}
+            {/* Action Row: Autofill & HIS Sync & Add Service */}
             {!isTabLocked && (
                 <div className="flex justify-end gap-3">
+                    <button
+                        type="button"
+                        onClick={handleOpenAddServiceModal}
+                        className="px-4 py-2 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:shadow active:scale-95"
+                    >
+                        <PlusIcon className="w-4 h-4" />
+                        + Thêm dịch vụ từ danh mục
+                    </button>
+
                     <button
                         type="button"
                         onClick={handleSyncParaclinical}
@@ -357,19 +642,19 @@ const LabTab: React.FC = () => {
                         <table className="w-full text-left border-collapse text-xs">
                             <thead>
                                 <tr className="border-b border-slate-250 dark:border-slate-750 text-[10px] font-extrabold text-slate-500 uppercase">
-                                    <th className="py-2.5 px-3 w-[30%]">Tên dịch vụ/chỉ số</th>
-                                    <th className="py-2.5 px-3 w-[20%]">Kết quả</th>
+                                    <th className={`py-2.5 px-3 ${labSubTab === 'XN' ? 'w-[35%]' : 'w-[30%]'}`}>Tên dịch vụ/chỉ số</th>
+                                    <th className={`py-2.5 px-3 ${labSubTab === 'XN' ? 'w-[25%]' : 'w-[20%]'}`}>Kết quả</th>
                                     {labSubTab === 'XN' && <th className="py-2.5 px-3 w-[15%]">Đơn vị</th>}
                                     {labSubTab !== 'XN' && <th className="py-2.5 px-3 w-[25%]">Mô tả chi tiết</th>}
-                                    <th className="py-2.5 px-3 w-[25%]">Kết luận</th>
-                                    <th className="py-2.5 px-3 w-[10%] text-center">Thao tác</th>
+                                    <th className={`py-2.5 px-3 ${labSubTab === 'XN' ? 'w-[25%]' : 'w-[15%]'}`}>Kết luận</th>
+                                    {labSubTab !== 'XN' && <th className="py-2.5 px-3 w-[10%] text-center">Thao tác</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100/60 dark:divide-slate-800/40">
                                 {paraclinicalItems.filter(item => item.type === labSubTab).length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="py-6 text-center text-slate-400 dark:text-slate-500 italic">
-                                            Chưa có dịch vụ nào được nhập cho nhóm này. Nhấp nút thêm bên dưới.
+                                        <td colSpan={labSubTab === 'XN' ? 4 : 5} className="py-6 text-center text-slate-400 dark:text-slate-500 italic">
+                                            Chưa có dịch vụ nào được chỉ định cho nhóm này.
                                         </td>
                                     </tr>
                                 ) : (() => {
@@ -436,7 +721,7 @@ const LabTab: React.FC = () => {
                                             <React.Fragment key={g.name}>
                                                 {/* Nhóm Xét Nghiệm Header Row */}
                                                 <tr className="bg-slate-100 dark:bg-slate-800 border-y border-slate-200 dark:border-slate-700">
-                                                    <td colSpan={5} className="py-2.5 px-3 font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider text-[10px]">
+                                                    <td colSpan={labSubTab === 'XN' ? 4 : 5} className="py-2.5 px-3 font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider text-[10px]">
                                                         {g.name === 'Chưa phân nhóm' ? 'Chưa phân nhóm (Dịch vụ tự thêm)' : g.name}
                                                     </td>
                                                 </tr>
@@ -454,7 +739,7 @@ const LabTab: React.FC = () => {
                                                         lastParentCode = currentParentCode;
                                                         elements.push(
                                                             <tr key={`parent-${currentParentCode}`} className="bg-teal-50/40 dark:bg-teal-950/20 text-teal-800 dark:text-teal-300 font-bold border-y border-teal-100/30 dark:border-teal-900/20">
-                                                                <td colSpan={5} className="py-2 px-3 text-[11px] font-bold">
+                                                                <td colSpan={labSubTab === 'XN' ? 4 : 5} className="py-2 px-3 text-[11px] font-bold">
                                                                     <span className="mr-1.5 text-teal-600 dark:text-teal-400">📂</span> {currentParentName}
                                                                 </td>
                                                             </tr>
@@ -475,14 +760,14 @@ const LabTab: React.FC = () => {
                                                                 {labSubTab === 'XN' && <td className="py-2.5 px-3"></td>}
                                                                 {labSubTab !== 'XN' && <td className="py-2.5 px-3"></td>}
                                                                 <td className="py-2.5 px-3"></td>
-                                                                <td className="py-2.5 px-3 text-center"></td>
+                                                                {labSubTab !== 'XN' && <td className="py-2.5 px-3 text-center"></td>}
                                                             </tr>
                                                         );
                                                         return elements;
                                                     }
 
                                                     elements.push(
-                                                        <tr key={item.originalIndex} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/40">
+                                                        <tr key={item.originalIndex} className="hover:bg-slate-50/50 dark:hover:bg-slate-855/40">
                                                             <td className="py-2 px-1.5">
                                                                 <div className="flex items-center">
                                                                     {hasParent && (
@@ -584,29 +869,17 @@ const LabTab: React.FC = () => {
                                                                     className="w-full px-2 py-1.5 border border-slate-300 dark:border-slate-650 rounded bg-transparent text-slate-800 dark:text-white font-semibold"
                                                                 />
                                                             </td>
-                                                            <td className="py-2 px-1.5 text-center space-x-1.5">
-                                                                {labSubTab !== 'XN' && (
+                                                            {labSubTab !== 'XN' && (
+                                                                <td className="py-2 px-1.5 text-center">
                                                                     <button
                                                                         type="button"
                                                                         onClick={() => handleOpenResultModal(item)}
-                                                                        className="px-2 py-1 bg-teal-605 hover:bg-[#0d645c] text-white rounded text-[10px] font-bold transition-all cursor-pointer inline-flex items-center gap-0.5 active:scale-95"
-                                                                        style={{ backgroundColor: '#0f766e' }}
+                                                                        className="px-2.5 py-1 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded text-[10px] font-bold transition-all cursor-pointer inline-flex items-center gap-0.5 active:scale-95 shadow-xs"
                                                                     >
                                                                         Nhập KQ
                                                                     </button>
-                                                                )}
-                                                                <button 
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        const updated = paraclinicalItems.filter((_, idx) => idx !== item.originalIndex);
-                                                                        setParaclinicalItems(updated);
-                                                                        syncGridToCoreFields(updated);
-                                                                    }}
-                                                                    className="px-2 py-1 bg-red-500 hover:bg-red-650 text-white rounded text-[10px] font-bold transition-colors cursor-pointer"
-                                                                >
-                                                                    Xóa
-                                                                </button>
-                                                            </td>
+                                                                </td>
+                                                            )}
                                                         </tr>
                                                     );
                                                     return elements;
@@ -625,45 +898,6 @@ const LabTab: React.FC = () => {
                                     {paraclinicalItems.filter(item => item.type === labSubTab).length}
                                 </span>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    const defaultNames: Record<string, string> = {
-                                        XN: 'Xét nghiệm máu / Nước tiểu mới',
-                                        HA: 'Chẩn đoán hình ảnh mới',
-                                        TD: 'Thăm dò chức năng mới'
-                                    };
-                                    const defaultGroups: Record<string, string> = {
-                                        XN: 'A01',
-                                        HA: 'B01',
-                                        TD: 'C01'
-                                    };
-                                    const defaultGroupNames: Record<string, string> = {
-                                        XN: 'Xét nghiệm',
-                                        HA: 'Chẩn đoán hình ảnh',
-                                        TD: 'Thăm dò chức năng'
-                                    };
-                                    const updated = [...paraclinicalItems, {
-                                        service_code: `${labSubTab}-${Date.now()}`,
-                                        service_name: defaultNames[labSubTab],
-                                        index_code: `${labSubTab}-${Date.now()}`,
-                                        index_name: defaultNames[labSubTab],
-                                        value: '',
-                                        unit: labSubTab === 'XN' ? 'g/L' : '',
-                                        description: '',
-                                        conclusion: 'Bình thường',
-                                        group_id: defaultGroups[labSubTab],
-                                        group_name: defaultGroupNames[labSubTab],
-                                        type: labSubTab,
-                                        user_edited: true
-                                    }];
-                                    setParaclinicalItems(updated);
-                                    syncGridToCoreFields(updated);
-                                }}
-                                className="px-3.5 py-1.5 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded text-xs font-bold flex items-center gap-1 shadow-sm active:scale-95 transition-all"
-                            >
-                                + Thêm dịch vụ
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -1034,6 +1268,464 @@ const LabTab: React.FC = () => {
                             >
                                 Lưu kết quả
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Chọn Dịch Vụ từ Danh Mục (Chuẩn HIS Core 3 Cột: Nhóm -> Danh sách -> Đã chọn -> Áp dụng) */}
+            {isAddServiceModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/65 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-[1520px] w-[98vw] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-[92vh] max-h-[850px] animate-in zoom-in-95 duration-200">
+                        {/* Modal Header với Tab Lọc Phân Loại Nhanh */}
+                        <div className="px-6 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-900/80">
+                            <div className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-xl flex items-center justify-center bg-teal-50 dark:bg-teal-950/30 text-[#0f766e] dark:text-teal-400 font-black shadow-xs shrink-0">
+                                    <PlusIcon className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h5 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                                            Chỉ định dịch vụ Cận lâm sàng từ Danh mục HIS
+                                        </h5>
+                                        <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-teal-100 text-teal-800 dark:bg-teal-950/50 dark:text-teal-300">
+                                            HIS CORE
+                                        </span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 mt-0.5">
+                                        Chọn nhóm, nhấp <span className="font-bold text-[#0f766e] dark:text-teal-400">"+ Chọn"</span> hoặc kích đúp để đưa vào danh sách chờ. Nhấn <span className="font-bold text-[#0f766e] dark:text-teal-400">"Áp dụng"</span> để kê chính thức.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                {/* Phân loại Tab nhanh trong Header */}
+                                <div className="inline-flex p-1 bg-slate-200/70 dark:bg-slate-800 rounded-xl gap-1 text-xs font-bold">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSelectFilterType('ALL')}
+                                        className={`px-3 py-1 rounded-lg transition cursor-pointer ${
+                                            groupFilterType === 'ALL'
+                                                ? 'bg-white dark:bg-slate-700 text-[#0f766e] dark:text-teal-300 font-extrabold shadow-xs'
+                                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                                        }`}
+                                    >
+                                        Tất cả
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSelectFilterType('XN')}
+                                        className={`px-3 py-1 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+                                            groupFilterType === 'XN'
+                                                ? 'bg-[#0f766e] text-white font-extrabold shadow-xs'
+                                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                                        }`}
+                                    >
+                                        <span>🧪</span> Xét nghiệm
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSelectFilterType('HA')}
+                                        className={`px-3 py-1 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+                                            groupFilterType === 'HA'
+                                                ? 'bg-[#0f766e] text-white font-extrabold shadow-xs'
+                                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                                        }`}
+                                    >
+                                        <span>🖼️</span> CĐHA
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSelectFilterType('TD')}
+                                        className={`px-3 py-1 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+                                            groupFilterType === 'TD'
+                                                ? 'bg-[#0f766e] text-white font-extrabold shadow-xs'
+                                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                                        }`}
+                                    >
+                                        <span>📈</span> Thăm dò CN
+                                    </button>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAddServiceModalOpen(false)}
+                                    className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
+                                    title="Đóng cửa sổ"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Body 3 Cột Cân Đối: Cột 1 (Nhóm - 240px) | Cột 2 (Danh sách - flex-1 min-w-[500px]) | Cột 3 (Đã chọn - 290px) */}
+                        <div className="flex-1 flex overflow-hidden min-h-0">
+                            {/* Panel 1: Nhóm Dịch Vụ (w-[240px] shrink-0) */}
+                            <div 
+                                style={{ width: '240px', minWidth: '240px', maxWidth: '240px' }}
+                                className="w-[240px] shrink-0 border-r border-slate-200 dark:border-slate-800 p-3 overflow-y-auto bg-slate-50/60 dark:bg-slate-900/40 flex flex-col"
+                            >
+                                <div className="flex items-center justify-between mb-2 px-1">
+                                    <h6 className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                        Nhóm dịch vụ ({filteredServiceGroups.length})
+                                    </h6>
+                                </div>
+                                {isLoadingGroups ? (
+                                    <div className="py-12 text-center text-xs text-slate-400 font-semibold">Đang tải nhóm...</div>
+                                ) : filteredServiceGroups.length === 0 ? (
+                                    <div className="py-12 text-center text-xs text-slate-400 font-semibold">Không có nhóm phù hợp</div>
+                                ) : (
+                                    <div className="space-y-1 overflow-y-auto flex-1 pr-0.5">
+                                        {filteredServiceGroups.map(g => {
+                                            const isSelected = selectedGroup === g.id && !serviceSearchTerm;
+                                            return (
+                                                <button
+                                                    key={g.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelectedGroup(g.id);
+                                                        setServiceSearchTerm('');
+                                                        loadServicesByGroup(g.id);
+                                                    }}
+                                                    className={`w-full text-left px-3 py-2 rounded-xl text-xs transition cursor-pointer flex items-center justify-between gap-1.5 relative group ${
+                                                        isSelected
+                                                            ? 'bg-teal-50 dark:bg-teal-950/40 text-[#0f766e] dark:text-teal-300 font-extrabold border border-teal-200 dark:border-teal-900/40 shadow-xs'
+                                                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium'
+                                                    }`}
+                                                >
+                                                    {isSelected && (
+                                                        <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#0f766e] rounded-r-full" />
+                                                    )}
+                                                    <span className="flex-1 min-w-0 pr-1 text-xs leading-snug break-words whitespace-normal">{g.name}</span>
+                                                    <span className="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-slate-200/60 dark:bg-slate-800 text-slate-500 group-hover:text-slate-700 shrink-0 font-bold">
+                                                        {g.id}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Panel 2: Danh Sách Dịch Vụ Kỹ Thuật (flex-1 min-w-[500px] - Không gian rộng rãi) */}
+                            <div className="flex-1 min-w-0 border-r border-slate-200 dark:border-slate-800 p-3.5 overflow-y-auto flex flex-col bg-white dark:bg-slate-900">
+                                {/* Thanh tìm kiếm & Trạng thái lọc */}
+                                <div className="mb-3 flex items-center gap-2.5">
+                                    <div className="relative flex-1 min-w-0">
+                                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                                            <SearchIcon className="w-4 h-4" />
+                                        </span>
+                                        <input
+                                            type="text"
+                                            placeholder="Tìm theo mã hoặc tên dịch vụ..."
+                                            value={serviceSearchTerm}
+                                            onChange={async (e) => {
+                                                const val = e.target.value;
+                                                setServiceSearchTerm(val);
+                                                if (!val.trim()) {
+                                                    if (selectedGroup) loadServicesByGroup(selectedGroup);
+                                                    return;
+                                                }
+                                                setIsLoadingGroupServices(true);
+                                                try {
+                                                    const data = await healthCheckService.searchAvailableServices(val);
+                                                    setGroupServices(data);
+                                                } catch (err: any) {
+                                                    console.error("Failed to search services:", err);
+                                                } finally {
+                                                    setIsLoadingGroupServices(false);
+                                                }
+                                            }}
+                                            className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0f766e] font-semibold text-slate-800 dark:text-white placeholder:text-slate-400 shadow-xs"
+                                        />
+                                        {serviceSearchTerm && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setServiceSearchTerm('');
+                                                    if (selectedGroup) loadServicesByGroup(selectedGroup);
+                                                }}
+                                                className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                                            >
+                                                ✕
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="shrink-0 text-xs font-bold text-slate-500">
+                                        {serviceSearchTerm ? (
+                                            <span className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/40 rounded-lg whitespace-nowrap">
+                                                Tìm thấy: <strong>{groupServices.length}</strong>
+                                            </span>
+                                        ) : (
+                                            <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg whitespace-nowrap">
+                                                Tổng: <strong>{groupServices.length}</strong> dịch vụ
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Danh sách dịch vụ: Sử dụng Flexbox chuẩn xác 1:1 giữa Header và Rows */}
+                                <div className="flex-1 border border-slate-200 dark:border-slate-700 rounded-xl overflow-y-auto bg-white dark:bg-slate-800 shadow-xs flex flex-col">
+                                    {isLoadingGroupServices ? (
+                                        <div className="py-20 text-center text-xs text-slate-500 font-semibold flex flex-col items-center justify-center gap-2">
+                                            <div className="w-6 h-6 border-2 border-[#0f766e] border-t-transparent rounded-full animate-spin"></div>
+                                            <span>Đang tải danh sách dịch vụ...</span>
+                                        </div>
+                                    ) : groupServices.length === 0 ? (
+                                        <div className="py-20 text-center text-xs text-slate-400 font-semibold flex flex-col items-center justify-center gap-1">
+                                            <span className="text-lg">🔍</span>
+                                            <span>Không tìm thấy dịch vụ nào phù hợp</span>
+                                        </div>
+                                    ) : (
+                                        <div className="w-full flex flex-col min-w-[500px]">
+                                            {/* Header chuẩn hóa từng cột theo Flex */}
+                                            <div className="sticky top-0 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 z-10 shadow-2xs flex items-center px-3 py-2.5 text-slate-500 font-bold text-[11px] uppercase tracking-wider">
+                                                <div className="w-[40px] shrink-0 text-center">#</div>
+                                                <div className="flex-1 min-w-[200px] px-3 text-left">Tên dịch vụ kỹ thuật</div>
+                                                <div className="w-[60px] shrink-0 text-center">ĐVT</div>
+                                                <div className="w-[105px] shrink-0 text-right pr-2">Đơn giá</div>
+                                                <div className="w-[95px] shrink-0 text-center">Thao tác</div>
+                                            </div>
+
+                                            {/* Body Rows chuẩn hóa từng cột theo Flex */}
+                                            <div className="divide-y divide-slate-100 dark:divide-slate-700 flex flex-col">
+                                                {groupServices.map((gs, idx) => {
+                                                    const code = String(gs.item_id || gs.id || '').trim();
+                                                    const isQueued = pendingServices.some(p => p.code === code);
+                                                    const queuedItem = pendingServices.find(p => p.code === code);
+                                                    return (
+                                                        <div 
+                                                            key={code || idx} 
+                                                            className={`w-full flex items-center px-3 py-2.5 transition-colors cursor-pointer ${
+                                                                isQueued 
+                                                                    ? 'bg-teal-50/60 dark:bg-teal-950/30' 
+                                                                    : 'hover:bg-slate-50/80 dark:hover:bg-slate-750'
+                                                            }`}
+                                                            onDoubleClick={() => handleQueueService(gs)}
+                                                        >
+                                                            <div className="w-[40px] shrink-0 text-center text-slate-400 font-mono text-[10.5px]">
+                                                                {idx + 1}
+                                                            </div>
+                                                            <div className="flex-1 min-w-[200px] px-3">
+                                                                <div className="font-bold text-slate-800 dark:text-slate-100 text-xs leading-snug break-words">
+                                                                    {gs.name}
+                                                                </div>
+                                                                <div className="flex items-center gap-2 mt-1">
+                                                                    <span className="text-[10px] font-mono px-1.5 py-0.2 bg-slate-100 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400 rounded font-semibold">
+                                                                        {code}
+                                                                    </span>
+                                                                    {gs.group_name && (
+                                                                        <span className="text-[9.5px] px-1.5 py-0.2 bg-teal-50 dark:bg-teal-950/40 text-[#0f766e] dark:text-teal-300 font-medium rounded">
+                                                                            {gs.group_name}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div className="w-[60px] shrink-0 text-center text-slate-600 dark:text-slate-400 text-xs font-semibold whitespace-nowrap">
+                                                                {gs.unit || 'Lần'}
+                                                            </div>
+                                                            <div className="w-[105px] shrink-0 text-right pr-2 font-mono font-bold text-slate-800 dark:text-slate-200 text-xs whitespace-nowrap">
+                                                                {new Intl.NumberFormat('vi-VN').format(parseFloat(gs.price || 0))} đ
+                                                            </div>
+                                                            <div className="w-[95px] shrink-0 text-center whitespace-nowrap">
+                                                                {isQueued ? (
+                                                                    <div className="inline-flex items-center justify-center gap-1">
+                                                                        <span className="inline-block px-2 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[10px] font-extrabold rounded-lg border border-emerald-200 dark:border-emerald-800 shadow-2xs">
+                                                                            ✓ {queuedItem && queuedItem.qty > 1 ? `x${queuedItem.qty}` : 'Đã chọn'}
+                                                                        </span>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                handleUpdatePendingQty(code, 1);
+                                                                            }}
+                                                                            className="w-6 h-6 inline-flex items-center justify-center bg-teal-100 hover:bg-teal-200 text-[#0f766e] rounded-md text-xs font-black cursor-pointer shadow-xs"
+                                                                            title="Thêm +1 số lượng"
+                                                                        >
+                                                                            +
+                                                                        </button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            handleQueueService(gs);
+                                                                        }}
+                                                                        className="px-2.5 py-1.5 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-lg text-[11px] font-bold cursor-pointer active:scale-95 shadow-xs transition inline-flex items-center gap-1"
+                                                                    >
+                                                                        <span>+</span> Chọn
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Panel 3: Danh Sách Đã Chọn (Selected Services Buffer - w-[290px] shrink-0) */}
+                            <div 
+                                style={{ width: '290px', minWidth: '290px', maxWidth: '290px' }}
+                                className="w-[290px] shrink-0 p-3 overflow-y-auto flex flex-col bg-slate-50/70 dark:bg-slate-900/50"
+                            >
+                                <div className="flex justify-between items-center mb-2.5 px-1">
+                                    <h6 className="text-[11px] font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                                        <span>Dịch vụ đã chọn</span>
+                                        <span className="px-2 py-0.5 rounded-full text-[10.5px] font-black bg-[#0f766e] text-white">
+                                            {pendingServices.length}
+                                        </span>
+                                    </h6>
+                                    {pendingServices.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={handleClearAllPending}
+                                            className="text-[11px] font-bold text-red-500 hover:text-red-700 hover:underline cursor-pointer"
+                                        >
+                                            Xóa tất cả
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="flex-1 border border-slate-200 dark:border-slate-700 rounded-xl overflow-y-auto bg-white dark:bg-slate-800 shadow-xs flex flex-col p-2">
+                                    {pendingServices.length === 0 ? (
+                                        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+                                            <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-slate-700 flex items-center justify-center text-[#0f766e] dark:text-teal-400 mb-3 shadow-xs">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                                </svg>
+                                            </div>
+                                            <p className="text-xs font-extrabold text-slate-700 dark:text-slate-300">
+                                                Chưa có dịch vụ trong hàng chờ
+                                            </p>
+                                            <p className="text-[11px] text-slate-400 mt-1 max-w-[220px] leading-relaxed">
+                                                Nhấp nút <span className="font-bold text-[#0f766e]">"+ Chọn"</span> hoặc kích đúp vào dịch vụ ở bảng giữa để đưa vào đây.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2 overflow-y-auto flex-1 pr-0.5">
+                                            {pendingServices.map((p) => {
+                                                const lineTotal = p.price * p.qty;
+                                                return (
+                                                    <div 
+                                                        key={p.code} 
+                                                        className="p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-750/50 hover:border-teal-300 dark:hover:border-teal-700 transition"
+                                                    >
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="font-bold text-slate-900 dark:text-white text-xs leading-snug">
+                                                                    {p.name}
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5 mt-1">
+                                                                    <span className="text-[9.5px] font-mono text-slate-400">{p.code}</span>
+                                                                    <span className="text-[9.5px] px-1.5 py-0.2 bg-teal-50 dark:bg-teal-950/40 text-[#0f766e] dark:text-teal-300 rounded font-bold">
+                                                                        {p.type}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRemovePending(p.code)}
+                                                                className="w-5 h-5 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer font-bold shrink-0"
+                                                                title="Xóa khỏi danh sách"
+                                                            >
+                                                                ✕
+                                                            </button>
+                                                        </div>
+
+                                                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200/50 dark:border-slate-700/50">
+                                                            {/* Số lượng Stepper */}
+                                                            <div className="inline-flex items-center border border-slate-200 dark:border-slate-600 rounded-lg overflow-hidden bg-white dark:bg-slate-900 shadow-2xs">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleUpdatePendingQty(p.code, -1)}
+                                                                    className="w-6 h-6 flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 font-black text-xs cursor-pointer"
+                                                                >
+                                                                    -
+                                                                </button>
+                                                                <span className="w-8 text-center font-bold font-mono text-xs text-slate-800 dark:text-slate-200">
+                                                                    {p.qty}
+                                                                </span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleUpdatePendingQty(p.code, 1)}
+                                                                    className="w-6 h-6 flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 font-black text-xs cursor-pointer"
+                                                                >
+                                                                    +
+                                                                </button>
+                                                            </div>
+
+                                                            {/* Thành tiền */}
+                                                            <div className="text-right">
+                                                                <div className="font-mono text-xs font-black text-slate-900 dark:text-white">
+                                                                    {new Intl.NumberFormat('vi-VN').format(lineTotal)} đ
+                                                                </div>
+                                                                {p.qty > 1 && (
+                                                                    <div className="text-[9.5px] text-slate-400 font-mono">
+                                                                        ({new Intl.NumberFormat('vi-VN').format(p.price)} đ/{p.unit || 'lần'})
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Modal Footer: Hiển thị Tổng Tiền & Nút Áp Dụng */}
+                        <div className="px-6 py-3.5 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                            <div className="flex items-center gap-6">
+                                <div className="text-xs text-slate-600 dark:text-slate-400">
+                                    Đã chọn: <span className="font-black text-slate-900 dark:text-white px-2 py-0.5 bg-slate-200 dark:bg-slate-800 rounded-md">{pendingServices.length}</span> dịch vụ
+                                </div>
+                                <div className="text-xs text-slate-600 dark:text-slate-400">
+                                    Tổng chi phí: <span className="font-black text-[#0f766e] dark:text-teal-400 font-mono text-base ml-1">
+                                        {new Intl.NumberFormat('vi-VN').format(pendingServices.reduce((sum, p) => sum + (p.price * p.qty), 0))} đ
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAddServiceModalOpen(false)}
+                                    className="px-5 py-2.5 bg-slate-200/80 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition cursor-pointer"
+                                >
+                                    Đóng
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleApplySelectedServices}
+                                    disabled={isApplyingHis || pendingServices.length === 0}
+                                    className="px-7 py-2.5 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-xl text-xs font-black uppercase tracking-wider transition flex items-center gap-2 shadow-lg shadow-teal-700/25 active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isApplyingHis ? (
+                                        <>
+                                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Đang kê vào HIS...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                            </svg>
+                                            Áp dụng vào hồ sơ ({pendingServices.length})
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

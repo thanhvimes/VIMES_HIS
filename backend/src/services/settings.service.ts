@@ -29,37 +29,14 @@ class SettingsService {
     }
 
     /**
-     * Lazily ensure that branding settings exist in hms_booking_settings
+     * Lazily ensure that booking settings exist
      */
     private async ensureDefaultSettings(): Promise<void> {
         if (this.initPromise) return this.initPromise;
 
         this.initPromise = (async () => {
             try {
-                // Ensure general_system_name
-                await query(`
-                    INSERT INTO hms_booking_settings (setting_key, setting_value, setting_type, category, description, is_system)
-                    VALUES ('general_system_name', 'HỆ THỐNG QUẢN LÝ TỔNG THỂ BỆNH VIỆN', 'string', 'general', 'System name displayed in header and logins', true)
-                    ON CONFLICT (setting_key) DO NOTHING
-                `);
-                // Ensure general_logo_url
-                await query(`
-                    INSERT INTO hms_booking_settings (setting_key, setting_value, setting_type, category, description, is_system)
-                    VALUES ('general_logo_url', '', 'string', 'general', 'Hospital branding logo image URL', true)
-                    ON CONFLICT (setting_key) DO NOTHING
-                `);
-                // Ensure general_hospital_name
-                await query(`
-                    INSERT INTO hms_booking_settings (setting_key, setting_value, setting_type, category, description, is_system)
-                    VALUES ('general_hospital_name', 'BỆNH VIỆN K', 'string', 'general', 'Hospital name for display', true)
-                    ON CONFLICT (setting_key) DO NOTHING
-                `);
-                // Ensure general_parent_org
-                await query(`
-                    INSERT INTO hms_booking_settings (setting_key, setting_value, setting_type, category, description, is_system)
-                    VALUES ('general_parent_org', 'SỞ Y TẾ THÀNH PHỐ HÀ NỘI', 'string', 'general', 'Parent organization name (e.g. Sở Y tế)', true)
-                    ON CONFLICT (setting_key) DO NOTHING
-                `);
+                // Only booking-specific defaults if needed
             } catch (e) {
                 console.error('Failed to ensure default settings:', e);
             }

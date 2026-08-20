@@ -6,6 +6,7 @@ const EyeExamTab: React.FC = () => {
     const {
         formType,
         eyeExam, setEyeExam,
+        benhKhacMat, setBenhKhacMat,
         khamMatPl, setKhamMatPl,
         khongKinhMatPhai, setKhongKinhMatPhai,
         khongKinhMatTrai, setKhongKinhMatTrai,
@@ -57,8 +58,18 @@ const EyeExamTab: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">Mô tả khám kết mạc, giác mạc, bệnh khác về mắt</label>
-                        <textarea value={eyeExam} onChange={e => setEyeExam(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 h-20" />
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">
+                            Các bệnh về mắt (nếu có) <span className="text-[10px] text-slate-400 font-mono font-normal">(BENH_KHAC_MAT)</span>
+                        </label>
+                        <textarea 
+                            value={benhKhacMat || eyeExam} 
+                            onChange={e => {
+                                setBenhKhacMat(e.target.value);
+                                setEyeExam(e.target.value);
+                            }} 
+                            placeholder="Ghi rõ các bệnh về mắt nếu có..." 
+                            className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white h-20" 
+                        />
                     </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1">Phân loại chuyên khoa Mắt</label>

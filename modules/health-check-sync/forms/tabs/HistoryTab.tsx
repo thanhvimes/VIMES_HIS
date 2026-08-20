@@ -219,10 +219,10 @@ const HistoryTab: React.FC = () => {
 
     const renderBadge = () => {
         switch (historyMetadata.status) {
-            case 'ĐANG_KHÁM': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Đang khám</span>;
-            case 'ĐÃ_KHÁM': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Đã khám</span>;
-            case 'ĐÃ_DUYỆT': return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-teal-100 text-teal-800">Đã duyệt</span>;
-            default: return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Chưa khám</span>;
+            case 'ĐANG_KHÁM': return <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-800 border border-blue-200">Trạng thái: Đang khám</span>;
+            case 'ĐÃ_KHÁM': return <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-green-100 text-green-800 border border-green-200">Trạng thái: Đã khám</span>;
+            case 'ĐÃ_DUYỆT': return <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">Trạng thái: Đã duyệt</span>;
+            default: return <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-100 text-slate-600 border border-slate-200">Trạng thái: Chưa khám</span>;
         }
     };
 
@@ -644,14 +644,13 @@ const HistoryTab: React.FC = () => {
                                         </div>
                                     </div>
                                     {tsgdMacBenh === '1' && (
-                                        <div className="flex-1 max-w-xl">
-                                            <label className="block text-xs font-bold text-slate-500 mb-1">Mã bệnh/Tên bệnh gia đình mắc phải</label>
-                                            <input
-                                                type="text"
+                                        <div className="flex-1 max-w-2xl">
+                                            <ICD10MultiSelect
+                                                label="Mã bệnh/Tên bệnh gia đình mắc phải (ICD-10)"
                                                 value={tsgdMaBenh}
-                                                onChange={e => setTsgdMaBenh(e.target.value)}
-                                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white"
-                                                placeholder="Nhập mã bệnh hoặc tên bệnh gia đình (VD: A01, Q21...)"
+                                                onChange={setTsgdMaBenh}
+                                                disabled={isTabLocked}
+                                                placeholder="Tìm theo mã hoặc tên bệnh ICD-10 (VD: A01, Q21, I10...)"
                                             />
                                         </div>
                                     )}
@@ -740,15 +739,82 @@ const HistoryTab: React.FC = () => {
                     {/* Tiền sử bệnh người lái xe / người lớn (cho Mẫu 3) */}
                     {formType === '3' && (
                         <div className="space-y-6">
+                            {/* 1. Tiền sử gia đình */}
+                            <div className="p-4 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/60 rounded-xl shadow-sm space-y-3">
+                                <div className="border-b border-slate-100 dark:border-slate-700 pb-2">
+                                    <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider">
+                                        1. Tiền sử gia đình
+                                    </h4>
+                                </div>
+                                <div className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-relaxed">
+                                    Có ai trong gia đình mắc một trong các bệnh: truyền nhiễm, tim mạch, đái tháo đường, lao, hen phế quản, ung thư, động kinh, rối loạn tâm thần không?
+                                </div>
+                                <div className="flex flex-col md:flex-row md:items-center gap-4 pt-1">
+                                    <div className="flex items-center gap-6">
+                                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                            <input
+                                                type="radio"
+                                                name="m3_tsgd_mac_benh"
+                                                value="0"
+                                                checked={tsgdMacBenh !== '1'}
+                                                onChange={() => {
+                                                    setTsgdMacBenh('0');
+                                                    setTsgdMaBenh('');
+                                                }}
+                                                disabled={isTabLocked}
+                                                className="w-4 h-4 text-[#0f766e] focus:ring-[#0f766e]"
+                                            />
+                                            <span>a, Không</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                            <input
+                                                type="radio"
+                                                name="m3_tsgd_mac_benh"
+                                                value="1"
+                                                checked={tsgdMacBenh === '1'}
+                                                onChange={() => setTsgdMacBenh('1')}
+                                                disabled={isTabLocked}
+                                                className="w-4 h-4 text-[#0f766e] focus:ring-[#0f766e]"
+                                            />
+                                            <span>b, Có</span>
+                                        </label>
+                                    </div>
+                                    <div className="flex-1 max-w-2xl">
+                                        {tsgdMacBenh === '1' ? (
+                                            <ICD10MultiSelect
+                                                label="Tiền sử bệnh gia đình (Mã bệnh ICD-10)"
+                                                value={tsgdMaBenh}
+                                                onChange={setTsgdMaBenh}
+                                                disabled={isTabLocked}
+                                                placeholder="Tìm theo mã hoặc tên bệnh ICD-10 (VD: I10, E11, A15...)"
+                                            />
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-bold text-slate-500 whitespace-nowrap">Tiền sử bệnh gia đình (Mã bệnh ICD-10):</span>
+                                                <input
+                                                    type="text"
+                                                    disabled
+                                                    className="flex-1 p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-slate-100 dark:bg-slate-700 text-slate-400 opacity-60 cursor-not-allowed"
+                                                    placeholder="Chọn 'b, Có' để tìm kiếm và chọn mã bệnh ICD-10"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 2. Tiền sử bản thân (22 chỉ tiêu) */}
                             <div>
                                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 dark:border-slate-700 pb-2 mb-4 gap-2">
                                     <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider">
-                                        II.1. Tiền sử bệnh tật của người khám (22 chỉ tiêu QĐ 2062 / QĐ 1551)
+                                        2. Tiền sử bản thân (22 chỉ tiêu QĐ 2062 / QĐ 1551)
                                     </h4>
                                     <div className="flex items-center gap-2">
                                         <button
                                             type="button"
                                             onClick={() => {
+                                                setTsgdMacBenh('0');
+                                                setTsgdMaBenh('');
                                                 setTs5Nam(0);
                                                 setTsThanKinh(0);
                                                 setTsMat(0);
@@ -824,14 +890,12 @@ const HistoryTab: React.FC = () => {
                                     
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-xs font-bold text-slate-500 mb-1">22. Bệnh khác (ghi rõ mã ICD-10) (TSBT_MA_BENH_KHAC)</label>
-                                            <input
-                                                type="text"
+                                            <ICD10MultiSelect
+                                                label="22. Bệnh khác (ghi rõ mã ICD-10) (TSBT_MA_BENH_KHAC)"
                                                 value={tsbtMaBenhKhac}
-                                                onChange={e => setTsbtMaBenhKhac(e.target.value)}
+                                                onChange={setTsbtMaBenhKhac}
                                                 disabled={isLocked}
-                                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white"
-                                                placeholder="Ghi mã ICD-10, trường hợp nhiều mã phân cách bằng dấu ;"
+                                                placeholder="Tìm theo mã hoặc tên bệnh ICD-10 (VD: J45, K21...)"
                                             />
                                         </div>
                                         <div>

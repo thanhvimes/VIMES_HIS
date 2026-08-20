@@ -337,6 +337,13 @@ export interface DynamicFormContextType {
     hamDuoi: string;
     setHamDuoi: React.Dispatch<React.SetStateAction<string>>;
 
+    benhKhacMat: string;
+    setBenhKhacMat: React.Dispatch<React.SetStateAction<string>>;
+    benhKhacTaiMuiHong: string;
+    setBenhKhacTaiMuiHong: React.Dispatch<React.SetStateAction<string>>;
+    benhKhacRangHamMat: string;
+    setBenhKhacRangHamMat: React.Dispatch<React.SetStateAction<string>>;
+
     khamTheLucPl: string;
     setKhamTheLucPl: React.Dispatch<React.SetStateAction<string>>;
     noiKhoaTuanHoanPl: string;

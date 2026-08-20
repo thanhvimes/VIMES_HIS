@@ -62,16 +62,43 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
     const [doctorSignatures, setDoctorSignatures] = useState<Record<string, string>>({});
     const [referenceDataReady, setReferenceDataReady] = useState(false);
     const [signaturesReady, setSignaturesReady] = useState(false);
+    const [resolvedLocation, setResolvedLocation] = useState<{ province?: string; ward?: string }>({});
 
     useEffect(() => {
         let cancelled = false;
         Promise.allSettled([
             catalogService.getDoctors(),
-            healthCheckService.getSettings()
-        ]).then(([doctorsResult, settingsResult]) => {
+            healthCheckService.getSettings(),
+            catalogService.getProvinces()
+        ]).then(async ([doctorsResult, settingsResult, provincesResult]) => {
             if (cancelled) return;
-            setDoctors(doctorsResult.status === 'fulfilled' ? doctorsResult.value : []);
-            setSettings(settingsResult.status === 'fulfilled' ? settingsResult.value : null);
+            const docList = doctorsResult.status === 'fulfilled' ? doctorsResult.value : [];
+            const settingsData = settingsResult.status === 'fulfilled' ? settingsResult.value : null;
+            const provList = provincesResult.status === 'fulfilled' ? (provincesResult.value || []) : [];
+            setDoctors(docList);
+            setSettings(settingsData);
+
+            // Resolve province & ward names
+            const clinicalDataObj = propDoc?.clinical_data || propDoc?.clinicalData || {};
+            const maTinh = clinicalDataObj.matinh_cu_tru || propDoc?.matinh_cu_tru;
+            const maXa = clinicalDataObj.maxa_cu_tru || propDoc?.maxa_cu_tru;
+            
+            let provName = clinicalDataObj.province || clinicalDataObj.province_name || clinicalDataObj.ten_tinh || '';
+            let wardName = clinicalDataObj.ward || clinicalDataObj.ward_name || clinicalDataObj.ten_xa || '';
+
+            if (maTinh && (!provName || /^\d+$/.test(String(provName)))) {
+                const pMatch = provList.find((p: any) => String(p.id) === String(maTinh) || String(p.code) === String(maTinh));
+                if (pMatch) provName = pMatch.name;
+            }
+            if (maTinh && maXa && (!wardName || /^\d+$/.test(String(wardName)))) {
+                try {
+                    const wards = await catalogService.getWards(maTinh);
+                    const wMatch = wards.find((w: any) => String(w.id) === String(maXa) || String(w.code) === String(maXa));
+                    if (wMatch) wardName = wMatch.name;
+                } catch (e) {}
+            }
+
+            setResolvedLocation({ province: provName, ward: wardName });
             setReferenceDataReady(true);
         });
         return () => { cancelled = true; };
@@ -92,10 +119,14 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
             }
         };
 
+        addCode(conclusionObj.doctor_id);
+        addCode(conclusionObj.doctorId);
         addCode(conclusionObj.doctor_code);
         addCode(conclusionObj.doctor_username);
         addCode(conclusionObj.conclusion_doctor);
         addCode(conclusionObj.doctor);
+        addCode(conclusionObj.doctor_name);
+        addCode(getConclusionDoctorName());
 
         [clinicalDataObj.specialty_metadata, clinicalExamObj.specialty_metadata]
             .filter(Boolean)
@@ -1081,8 +1112,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
                 `}</style>
                 
                 {document.form_type === '1' ? (
-                    <PrintFormMau1
-                        document={document}
+                    <PrintFormMau1 resolvedLocation={resolvedLocation} document={document}
                         hospitalName={hospitalName}
                         logoUrl={logoUrl}
                         getReportDate={getReportDate}
@@ -1091,8 +1121,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
                         doctorSignatures={doctorSignatures}
                     />
                 ) : document.form_type === '2' ? (
-                    <PrintFormMau2
-                        document={document}
+                    <PrintFormMau2 resolvedLocation={resolvedLocation} document={document}
                         hospitalName={hospitalName}
                         logoUrl={logoUrl}
                         getReportDate={getReportDate}
@@ -1104,8 +1133,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
                         doctorSignatures={doctorSignatures}
                     />
                 ) : (
-                    <PrintFormMau3
-                        document={document}
+                    <PrintFormMau3 resolvedLocation={resolvedLocation} document={document}
                         hospitalName={hospitalName}
                         logoUrl={logoUrl}
                         getReportDate={getReportDate}

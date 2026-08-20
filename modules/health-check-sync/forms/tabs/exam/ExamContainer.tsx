@@ -59,20 +59,45 @@ const ExamContainer: React.FC = () => {
                     Chuyên khoa khám
                 </div>
                 <div className="p-2 space-y-1">
-                    {tabs.map(tab => (
-                        <button
-                            type="button"
-                            key={tab.id}
-                            onClick={() => handleTabClick(tab.id)}
-                            className={`w-full text-left px-4 py-3 rounded-md text-sm font-medium transition-colors ${
-                                activeSubTab === tab.id
-                                    ? 'bg-blue-100 text-blue-700'
-                                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                            }`}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
+                    {tabs.map(tab => {
+                        const meta = specialtyMetadata?.[tab.id];
+                        const isApproved = meta?.status === 'ĐÃ_DUYỆT' || meta?.status === 'ĐÃ_KHÁM';
+                        const isExamining = meta?.status === 'ĐANG_KHÁM';
+
+                        return (
+                            <button
+                                type="button"
+                                key={tab.id}
+                                onClick={() => handleTabClick(tab.id)}
+                                className={`w-full flex items-center justify-between px-3.5 py-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                    activeSubTab === tab.id
+                                        ? 'bg-[#0f766e] text-white shadow-sm'
+                                        : 'text-slate-700 hover:bg-slate-100'
+                                }`}
+                            >
+                                <span className="truncate pr-2">{tab.label}</span>
+                                {isApproved ? (
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold whitespace-nowrap ${
+                                        activeSubTab === tab.id ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
+                                    }`}>
+                                        Đã khám
+                                    </span>
+                                ) : isExamining ? (
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold whitespace-nowrap ${
+                                        activeSubTab === tab.id ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-800'
+                                    }`}>
+                                        Đang khám
+                                    </span>
+                                ) : (
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${
+                                        activeSubTab === tab.id ? 'bg-white/10 text-teal-100' : 'bg-slate-200 text-slate-600'
+                                    }`}>
+                                        Chưa khám
+                                    </span>
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 

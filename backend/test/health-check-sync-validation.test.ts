@@ -8,13 +8,18 @@ test('sync validation accepts a signed unsent document with XML', () => {
     assert.equal(validateDocumentBeforeSync(valid), null);
 });
 
-test('sync validation rejects unsigned document', () => {
+test('sync validation rejects unsigned document when allow_unsigned_sync is false or omitted', () => {
     assert.equal(validateDocumentBeforeSync({ ...valid, signature_status: 'Unsigned' }), 'Hồ sơ chưa ký số, không được gửi cổng');
+    assert.equal(validateDocumentBeforeSync({ ...valid, signature_status: 'Unsigned' }, { allow_unsigned_sync: false }), 'Hồ sơ chưa ký số, không được gửi cổng');
 });
 
-test('sync validation rejects missing XML or signature', () => {
+test('sync validation accepts unsigned document when allow_unsigned_sync is true', () => {
+    assert.equal(validateDocumentBeforeSync({ ...valid, signature_status: 'Unsigned', signature: '' }, { allow_unsigned_sync: true }), null);
+});
+
+test('sync validation rejects missing XML', () => {
     assert.equal(validateDocumentBeforeSync({ ...valid, xml_data: '' }), 'Hồ sơ chưa có XML dữ liệu để gửi');
-    assert.equal(validateDocumentBeforeSync({ ...valid, signature: '' }), 'Hồ sơ thiếu chữ ký số để gửi cổng');
+    assert.equal(validateDocumentBeforeSync({ ...valid, xml_data: '' }, { allow_unsigned_sync: true }), 'Hồ sơ chưa có XML dữ liệu để gửi');
 });
 
 test('sync validation rejects already successful document', () => {

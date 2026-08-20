@@ -42,16 +42,15 @@ interface ModuleCardConfig {
 }
 
 const MODULE_CARDS: ModuleCardConfig[] = [
-    { id: 'command-center', title: 'TT Điều hành (HCC)', description: 'Giám sát, chỉ huy và điều hành bệnh viện theo thời gian thực.', path: '/command-center', icon: <GlobeIcon className="w-10 h-10" />, color: 'red', permissionKey: 'hcc' },
+    // { id: 'command-center', title: 'TT Điều hành (HCC)', description: 'Giám sát, chỉ huy và điều hành bệnh viện theo thời gian thực.', path: '/command-center', icon: <GlobeIcon className="w-10 h-10" />, color: 'red', permissionKey: 'hcc' },
+    { id: 'hospital-statistics', title: 'Thống kê Bệnh viện', description: 'Báo cáo hoạt động khám chữa bệnh, công suất giường bệnh và chi phí khoa phòng.', path: '/hospital-statistics', icon: <ChartBarIcon className="w-10 h-10" />, color: 'rose', permissionKey: 'st' },
     { id: 'reception', title: 'Tiếp nhận & Điều phối', description: 'Đăng ký tại quầy, phân luồng khám bệnh và quản lý hàng đợi.', path: '/reception', icon: <UserGroupIcon className="w-10 h-10" />, color: 'teal', permissionKey: 'rm' },
     { id: 'online-booking', title: 'Đăng ký Online', description: 'Đặt lịch khám, duyệt lịch hẹn và cấu hình khung giờ tiếp nhận.', path: '/online-booking', icon: <CalendarPlusIcon className="w-10 h-10" />, color: 'sky', permissionKey: 'rol' },
     { id: 'queue-management', title: 'QMS – Gọi số', description: 'Gọi số tự động, màn hình hiển thị phòng khám và Kiosk self-service.', path: '/queue-management', icon: <TvIcon className="w-10 h-10" />, color: 'blue', permissionKey: 'qms' },
     { id: 'health-check-sync', title: 'Liên thông KSK VNeID', description: 'Đồng bộ 17 mẫu biểu khám sức khỏe lên ứng dụng VNeID theo QĐ 1551.', path: '/health-check', icon: <PaperAirplaneIcon className="w-10 h-10" />, color: 'blue', permissionKey: 'ksk' },
     { id: 'admin', title: 'Quản trị hệ thống', description: 'Cấu hình tham số, phân quyền người dùng và nhật ký hoạt động.', path: '/admin', icon: <CogIcon className="w-10 h-10" />, color: 'slate', permissionKey: 'sys' },
-    { id: 'template-studio', title: 'Thiết lập Mẫu biểu', description: 'Thiết kế mẫu Word (.docx), cấu hình vùng ký số, kiểm thử và phát hành.', path: '/documents/template-studio', icon: <DocumentTextIcon className="w-10 h-10" />, color: 'indigo', permissionKey: 'doc' },
-    //{ id: 'clinical', title: 'Khám bệnh', description: 'Khám, chẩn đoán, kê đơn thuốc và chỉ định cận lâm sàng.', path: '/consultation', icon: <HospitalIcon className="w-10 h-10" />, color: 'blue', permissionKey: 'em' },
-    //{ id: 'emr', title: 'Bệnh án Điện tử (EMR)', description: '5 phần hồ sơ BYT, 42 mẫu chuyên khoa, sinh hiệu & ký số lưu trữ WORM.', path: '/emr/workspace', icon: <DocumentTextIcon className="w-10 h-10" />, color: 'teal', permissionKey: 'em' },
-
+    //{ id: 'template-studio', title: 'Thiết lập Mẫu biểu', description: 'Thiết kế mẫu Word (.docx), cấu hình vùng ký số, kiểm thử và phát hành.', path: '/documents/template-studio', icon: <DocumentTextIcon className="w-10 h-10" />, color: 'indigo', permissionKey: 'doc' },
+    //{ id: 'emr', title: 'Bệnh án Điện tử (EMR)', description: 'Quản lý hồ sơ bệnh án, hội chẩn, ký số y khoa và trích sao bệnh án.', path: '/emr', icon: <DocumentTextIcon className="w-10 h-10" />, color: 'teal', permissionKey: 'em' },
 
     /*
        { id: 'emr', title: 'Bệnh án Điện tử (EMR)', description: '5 phần hồ sơ BYT, 42 mẫu chuyên khoa, sinh hiệu & ký số lưu trữ WORM.', path: '/emr/workspace', icon: <DocumentTextIcon className="w-10 h-10" />, color: 'teal', permissionKey: 'em' },
