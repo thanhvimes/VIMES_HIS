@@ -262,7 +262,8 @@ export const useDynamicFormState = (
     const [dentalExam, setDentalExam] = useState(initialData?.clinical_data?.clinical_exam?.dental || '');
     const [externalExam, setExternalExam] = useState(initialData?.clinical_data?.clinical_exam?.external || '');
     const [dermatologyExam, setDermatologyExam] = useState(initialData?.clinical_data?.clinical_exam?.dermatology || '');
-    const [gynExam, setGynExam] = useState(initialData?.clinical_data?.clinical_exam?.gynecology || '');
+    const initialGynVal = initialData?.clinical_data?.clinical_exam?.gynecology || initialData?.clinical_data?.clinical_exam?.kham_san_phu_khoa || initialData?.clinical_data?.clinical_exam?.kq_sinh_duc || initialData?.clinical_data?.clinical_exam?.ket_qua_kham_san_phu_khoa || '';
+    const [gynExam, setGynExam] = useState(initialGynVal);
     const [nhiKhoaLamSangKhac, setNhiKhoaLamSangKhac] = useState(initialData?.clinical_data?.extra?.nhi_khoa_lam_sang_khac || '');
     
     // Khám lâm sàng chuyên khoa chi tiết QĐ 1551
@@ -426,7 +427,7 @@ export const useDynamicFormState = (
     const [kqNgoaiKhoa, setKqNgoaiKhoa] = useState(initialData?.clinical_data?.clinical_exam?.kq_ngoai_khoa || '');
     const [kqDaLieu, setKqDaLieu] = useState(initialData?.clinical_data?.clinical_exam?.kq_da_lieu || '');
     const [kqTietNieu, setKqTietNieu] = useState(initialData?.clinical_data?.clinical_exam?.kq_tiet_nieu || '');
-    const [kqSinhDuc, setKqSinhDuc] = useState(initialData?.clinical_data?.clinical_exam?.kq_sinh_duc || '');
+    const [kqSinhDuc, setKqSinhDuc] = useState(initialGynVal);
     const [kqTaiMuiHong, setKqTaiMuiHong] = useState(initialData?.clinical_data?.clinical_exam?.kq_tai_mui_hong || '');
     const [kqCoXuongKhop, setKqCoXuongKhop] = useState(initialData?.clinical_data?.clinical_exam?.kq_co_xuong_khop || '');
     const [kqNoiTietChuyenHoa, setKqNoiTietChuyenHoa] = useState(initialData?.clinical_data?.clinical_exam?.kq_noi_tiet_chuyen_hoa || '');
@@ -569,7 +570,11 @@ export const useDynamicFormState = (
                 if (data.clinical_data?.clinical_exam?.dental) setDentalExam(data.clinical_data.clinical_exam.dental);
                 if (data.clinical_data?.clinical_exam?.external) setExternalExam(data.clinical_data.clinical_exam.external);
                 if (data.clinical_data?.clinical_exam?.dermatology) setDermatologyExam(data.clinical_data.clinical_exam.dermatology);
-                if (data.clinical_data?.clinical_exam?.gynecology) setGynExam(data.clinical_data.clinical_exam.gynecology);
+                const loadedGyn = data.clinical_data?.clinical_exam?.gynecology || data.clinical_data?.clinical_exam?.kham_san_phu_khoa || data.clinical_data?.clinical_exam?.kq_sinh_duc || data.clinical_data?.clinical_exam?.ket_qua_kham_san_phu_khoa;
+                if (loadedGyn) {
+                    setGynExam(loadedGyn);
+                    setKqSinhDuc(loadedGyn);
+                }
                 
                 // Khám mắt & tai mũi họng & RHM chi tiết
                 if (data.clinical_data?.clinical_exam?.khong_kinh_mat_phai) setKhongKinhMatPhai(data.clinical_data.clinical_exam.khong_kinh_mat_phai);
@@ -658,7 +663,10 @@ export const useDynamicFormState = (
                 if (data.clinical_data?.clinical_exam?.kq_ngoai_khoa) setKqNgoaiKhoa(data.clinical_data.clinical_exam.kq_ngoai_khoa);
                 if (data.clinical_data?.clinical_exam?.kq_da_lieu) setKqDaLieu(data.clinical_data.clinical_exam.kq_da_lieu);
                 if (data.clinical_data?.clinical_exam?.kq_tiet_nieu) setKqTietNieu(data.clinical_data.clinical_exam.kq_tiet_nieu);
-                if (data.clinical_data?.clinical_exam?.kq_sinh_duc) setKqSinhDuc(data.clinical_data.clinical_exam.kq_sinh_duc);
+                if (data.clinical_data?.clinical_exam?.kq_sinh_duc) {
+                    setKqSinhDuc(data.clinical_data.clinical_exam.kq_sinh_duc);
+                    setGynExam(data.clinical_data.clinical_exam.kq_sinh_duc);
+                }
                 if (data.clinical_data?.clinical_exam?.kq_tai_mui_hong) setKqTaiMuiHong(data.clinical_data.clinical_exam.kq_tai_mui_hong);
                 if (data.clinical_data?.clinical_exam?.kq_co_xuong_khop) setKqCoXuongKhop(data.clinical_data.clinical_exam.kq_co_xuong_khop);
                 if (data.clinical_data?.clinical_exam?.kq_noi_tiet_chuyen_hoa) setKqNoiTietChuyenHoa(data.clinical_data.clinical_exam.kq_noi_tiet_chuyen_hoa);
@@ -934,7 +942,10 @@ export const useDynamicFormState = (
             if (!entExam) setEntExam('Tai sạch, màng nhĩ hai bên bình thường.');
             if (!dentalExam) setDentalExam('Răng đều, không sâu, niêm mạc sạch.');
             if (!dermatologyExam) setDermatologyExam('Da sạch, không sẹo lồi, không nấm ngứa.');
-            if (!gynExam) setGynExam('Cơ quan sinh dục ngoài bình thường.');
+            if (!gynExam && !kqSinhDuc) {
+                setGynExam('Cơ quan sinh dục ngoài bình thường.');
+                setKqSinhDuc('Cơ quan sinh dục ngoài bình thường.');
+            }
 
             // Measurements
             if (!taiPhaiNoiThuong) setTaiPhaiNoiThuong('5');
@@ -1084,7 +1095,7 @@ export const useDynamicFormState = (
                     } else if (key === 'dermatology') {
                         hasData = !!(initialData.clinical_data?.clinical_exam?.dermatology || initialData.clinical_data?.clinical_exam?.kham_da_lieu_pl);
                     } else if (key === 'gynecology') {
-                        hasData = !!(initialData.clinical_data?.clinical_exam?.gynecology || initialData.clinical_data?.clinical_exam?.kham_san_phu_khoa_pl);
+                        hasData = !!(initialData.clinical_data?.clinical_exam?.gynecology || initialData.clinical_data?.clinical_exam?.kham_san_phu_khoa || initialData.clinical_data?.clinical_exam?.kq_sinh_duc || initialData.clinical_data?.clinical_exam?.ket_qua_kham_san_phu_khoa || initialData.clinical_data?.clinical_exam?.kham_san_phu_khoa_pl);
                     } else if (key === 'lab') {
                         const lab = initialData.lab_data || {};
                         hasData = !!(lab.blood_test?.hemoglobin || lab.blood_test?.glycemia || lab.urine_test?.protein || lab.kq_xn_ma_tuy || lab.kq_xn_nong_do_con || lab.kq_xn_khac || (lab.paraclinical_items && lab.paraclinical_items.length > 0));
@@ -1397,7 +1408,9 @@ export const useDynamicFormState = (
                     benh_khac_rang_ham_mat: benhKhacRangHamMat || dentalExam,
                     external: externalExam,
                     dermatology: dermatologyExam,
-                    gynecology: gynExam,
+                    gynecology: gynExam || kqSinhDuc,
+                    kham_san_phu_khoa: gynExam || kqSinhDuc,
+                    ket_qua_kham_san_phu_khoa: gynExam || kqSinhDuc,
                     
                     // Chi tiết chuyên khoa QĐ 1551
                     khong_kinh_mat_phai: khongKinhMatPhai,
@@ -1795,7 +1808,9 @@ export const useDynamicFormState = (
                     benh_khac_rang_ham_mat: benhKhacRangHamMat || dentalExam,
                     external: externalExam,
                     dermatology: dermatologyExam,
-                    gynecology: gynExam,
+                    gynecology: gynExam || kqSinhDuc,
+                    kham_san_phu_khoa: gynExam || kqSinhDuc,
+                    ket_qua_kham_san_phu_khoa: gynExam || kqSinhDuc,
                     
                     khong_kinh_mat_phai: khongKinhMatPhai,
                     khong_kinh_mat_trai: khongKinhMatTrai,

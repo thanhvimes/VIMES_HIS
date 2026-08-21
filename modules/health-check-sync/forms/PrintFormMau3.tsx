@@ -161,7 +161,15 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
             return !!(clinical.external || clinical.kq_ngoai_khoa || clinical.kham_ngoai_khoa || clinical.kham_ngoai_khoa_pl);
         }
         if (specKey === 'gynecology' || specKey === 'san_phu_khoa') {
-            return !!(clinical.gynecology || clinical.kham_san_phu_khoa || clinical.kham_san_phu_khoa_pl);
+            return !!(
+                clinical.gynecology ||
+                clinical.kham_san_phu_khoa ||
+                clinical.kq_sinh_duc ||
+                clinical.ket_qua_kham_san_phu_khoa ||
+                clinical.kq_kham_san_phu_khoa ||
+                clinical.san_phu_khoa ||
+                clinical.kham_san_phu_khoa_pl
+            );
         }
         if (specKey === 'dermatology' || specKey === 'da_lieu') {
             return !!(clinical.dermatology || clinical.kq_da_lieu || clinical.kham_da_lieu || clinical.kham_da_lieu_pl);
@@ -984,7 +992,7 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                                         <td className="border border-black p-1 align-top">
                                             <div>
                                                 {clinical.noi_khoa_noi_tiet || (hasSpecialtyExamined('noi_tiet') ? 'Bình thường' : '')}
-                                                {isNu && clinical.kham_san_phu_khoa ? ` | Sản phụ khoa: ${clinical.kham_san_phu_khoa}` : ''}
+                                                {isNu && (clinical.gynecology || clinical.kham_san_phu_khoa || clinical.kq_sinh_duc || clinical.ket_qua_kham_san_phu_khoa) ? ` | Sản phụ khoa: ${clinical.gynecology || clinical.kham_san_phu_khoa || clinical.kq_sinh_duc || clinical.ket_qua_kham_san_phu_khoa}` : ''}
                                             </div>
                                         </td>
                                         {renderDoctorSignCell('noi_tiet', 'endocrine')}
@@ -1067,7 +1075,15 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                                     <tr>
                                         <td className="border border-black p-1 font-bold align-top">3. Sản phụ khoa</td>
                                         <td className="border border-black p-1 align-top">
-                                            {isNu ? (clinical.gynecology || clinical.kham_san_phu_khoa || (hasSpecialtyExamined('gynecology') ? 'Bình thường' : '')) : 'Không khám'}
+                                            {isNu ? (
+                                                clinical.gynecology ||
+                                                clinical.kham_san_phu_khoa ||
+                                                clinical.kq_sinh_duc ||
+                                                clinical.ket_qua_kham_san_phu_khoa ||
+                                                clinical.kq_kham_san_phu_khoa ||
+                                                clinical.san_phu_khoa ||
+                                                (hasSpecialtyExamined('gynecology') ? 'Bình thường' : '')
+                                            ) : 'Không khám'}
                                         </td>
                                         <td className="border border-black p-1 text-center align-top font-semibold">{isNu ? formatPl(clinical.kham_san_phu_khoa_pl) : ''}</td>
                                         {isNu ? renderDoctorSignCell('gynecology', 'san_phu_khoa') : <td className="border border-black p-1 text-center align-middle h-14 min-h-[50px]"></td>}

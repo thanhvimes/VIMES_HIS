@@ -7,13 +7,13 @@ test('new QĐ 2062 child record requires DOB and funding, but not adult classifi
 });
 
 test('new QĐ 2062 school-age and adult records require health classification', () => {
-    assert.equal(validateNewHealthCheckDocument({ formType: '2', dob: '2012-01-01', examDate: '2026-08-13', fundingSource: '5' }).length, 1);
-    assert.deepEqual(validateNewHealthCheckDocument({ formType: '2', dob: '2012-01-01', examDate: '2026-08-13', fundingSource: '5', fitnessClass: '2' }), []);
-    assert.deepEqual(validateNewHealthCheckDocument({ formType: '3', dob: '2000-01-01', examDate: '2026-08-13', fundingSource: '9', fitnessClass: '1' }), []);
+    assert.equal(validateNewHealthCheckDocument({ formType: '2', dob: '2012-01-01', examDate: '2026-08-13', fundingSource: '5', isSigning: true }).length, 1);
+    assert.deepEqual(validateNewHealthCheckDocument({ formType: '2', dob: '2012-01-01', examDate: '2026-08-13', fundingSource: '5', fitnessClass: '2', isSigning: true }), []);
+    assert.deepEqual(validateNewHealthCheckDocument({ formType: '3', dob: '2000-01-01', examDate: '2026-08-13', fundingSource: '9', fitnessClass: '1', isSigning: true }), []);
 });
 
 test('new record rejects legacy form types and missing required fields', () => {
-    const errors = validateNewHealthCheckDocument({ formType: '14', dob: '', fundingSource: '' });
+    const errors = validateNewHealthCheckDocument({ formType: '14', dob: '', fundingSource: '', isSigning: true });
     assert.equal(errors.length, 4);
 });
 

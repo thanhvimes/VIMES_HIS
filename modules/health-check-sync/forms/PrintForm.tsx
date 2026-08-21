@@ -568,7 +568,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
         if (specialty === 'tam_than') return !!(clinicalExam.noi_khoa_tam_than || clinicalExam.kq_tam_than || clinicalExam.noi_khoa_tam_than_pl);
         if (specialty === 'ngoai_khoa') return !!(clinicalExam.external || clinicalExam.kq_ngoai_khoa || clinicalExam.kham_ngoai_khoa_pl);
         if (specialty === 'da_lieu') return !!(clinicalExam.dermatology || clinicalExam.kq_da_lieu || clinicalExam.kham_da_lieu_pl);
-        if (specialty === 'san_phu_khoa') return !!(clinicalExam.gynecology || clinicalExam.kham_san_phu_khoa_pl);
+        if (specialty === 'san_phu_khoa' || specialty === 'gynecology') return !!(clinicalExam.gynecology || clinicalExam.kham_san_phu_khoa || clinicalExam.kq_sinh_duc || clinicalExam.ket_qua_kham_san_phu_khoa || clinicalExam.kham_san_phu_khoa_pl);
         if (specialty === 'mat') return !!(clinicalExam.eye || clinicalExam.kham_mat_pl || clinicalExam.khong_kinh_mat_phai || clinicalExam.khong_kinh_mat_trai || clinicalExam.co_kinh_mat_phai || clinicalExam.co_kinh_mat_trai);
         if (specialty === 'tai_mui_hong') return !!(clinicalExam.ent || clinicalExam.kham_tai_mui_hong_pl || clinicalExam.tai_trai_noi_thuong || clinicalExam.tai_phai_noi_thuong);
         if (specialty === 'rang_ham_mat') return !!(clinicalExam.dental || clinicalExam.kham_rang_ham_mat_pl || clinicalExam.ham_tren || clinicalExam.ham_duoi);
@@ -1574,7 +1574,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
                             <tr>
                                 <td>
                                     <span className="font-bold">3. Sản phụ khoa: </span>
-                                    <span className="text-slate-800">{clinicalExam.gynecology || ''}</span>
+                                    <span className="text-slate-800">{clinicalExam.gynecology || clinicalExam.kham_san_phu_khoa || clinicalExam.kq_sinh_duc || clinicalExam.ket_qua_kham_san_phu_khoa || ''}</span>
                                     {clinicalExam.kham_san_phu_khoa_pl && (
                                         <span className="font-bold text-[11.5px] text-teal-800 ml-2">(PL: {formatPlText(clinicalExam.kham_san_phu_khoa_pl)})</span>
                                     )}

@@ -87,3 +87,139 @@ test('QĐ 2062 new history fields are emitted in XML1', () => {
     assert.match(xml, /<TSBT_TEN_THUOC_THAI_SAN>Insulin 10 đơn vị<\/TSBT_TEN_THUOC_THAI_SAN>/);
     assert.match(xml, /<NHI_KHOA_LAM_SANG_KHAC>Theo dõi thêm<\/NHI_KHOA_LAM_SANG_KHAC>/);
 });
+
+test('PHAN_LOAI_SK correctly reflects any selected fitness class (Loại 1 đến Loại 5 & số La Mã)', () => {
+    const testClasses = [
+        ['1', '1'],
+        ['2', '2'],
+        ['3', '3'],
+        ['4', '4'],
+        ['5', '5'],
+        ['I', '1'],
+        ['II', '2'],
+        ['III', '3'],
+        ['IV', '4'],
+        ['V', '5'],
+    ];
+
+    for (const [inputClass, expectedXml] of testClasses) {
+        const xml = generateXmlPayload(
+            '3',
+            { patient_name: 'TEST PHAN LOAI', cccd: '012345678901', dob: '1990-01-01', doc_no: 'LK-PL' },
+            {},
+            {},
+            { fitness_class: inputClass }
+        );
+        assert.match(xml, new RegExp(`<PHAN_LOAI_SK>${expectedXml}<\\/PHAN_LOAI_SK>`));
+    }
+});
+
+test('Conclusion fields (CAC_VAN_DE_SUC_KHOE, KET_LUAN_BENH, CAC_BENH_TAT_NEU_CO) correctly match user inputs', () => {
+    const xml = generateXmlPayload(
+        '3',
+        { patient_name: 'TRAN VAN B', cccd: '012345678901', dob: '1985-05-15', doc_no: 'LK-002' },
+        {},
+        {},
+        {
+            fitness_class: '3',
+            diagnosis: 'I10 - Tăng huyết áp vô căn',
+            cac_van_de_luu_y: 'Hạn chế làm việc trên cao và nơi có tiếng ồn lớn',
+            cac_benh_tat_neu_co: 'Viêm mũi dị ứng mạn tính'
+        }
+    );
+
+    assert.match(xml, /<PHAN_LOAI_SK>3<\/PHAN_LOAI_SK>/);
+    assert.match(xml, /<KET_LUAN_BENH>I10 - Tăng huyết áp vô căn<\/KET_LUAN_BENH>/);
+    assert.match(xml, /<CAC_VAN_DE_SUC_KHOE>Hạn chế làm việc trên cao và nơi có tiếng ồn lớn<\/CAC_VAN_DE_SUC_KHOE>/);
+    assert.match(xml, /<CAC_BENH_TAT_NEU_CO>Viêm mũi dị ứng mạn tính<\/CAC_BENH_TAT_NEU_CO>/);
+});
+
+test('Physical exam rating KHAM_THE_LUC_PL and vitals reflect inputs', () => {
+    const xml = generateXmlPayload(
+        '3',
+        { patient_name: 'LE VAN C', cccd: '012345678901', dob: '1995-10-10', doc_no: 'LK-003' },
+        {
+            examination: {
+                height: '172',
+                weight: '68',
+                pulse: '75',
+                blood_pressure: '120/80',
+                bmi: '23.0'
+            },
+            clinical_exam: {
+                kham_the_luc_pl: '2'
+            }
+        },
+        {},
+        { fitness_class: '2' }
+    );
+
+    assert.match(xml, /<CHIEU_CAO>172<\/CHIEU_CAO>/);
+    assert.match(xml, /<CAN_NANG>68<\/CAN_NANG>/);
+    assert.match(xml, /<CHI_SO_BMI>23.0<\/CHI_SO_BMI>/);
+    assert.match(xml, /<MACH>75<\/MACH>/);
+    assert.match(xml, /<HUYET_AP>120\/80<\/HUYET_AP>/);
+    assert.match(xml, /<KHAM_THE_LUC_PL>2<\/KHAM_THE_LUC_PL>/);
+});
+
+test('Child Under 6 clinical exam fields map properly from state synonyms', () => {
+    const xml = generateXmlPayload(
+        '1',
+        { patient_name: 'BE NGUYEN VAN EM', cccd: '001090123456', dob: '2023-01-01', doc_no: 'LK-CHILD' },
+        {
+            extra: {
+                cam_nho_tut_sau: '1',
+                vet_sau_mang_bam: '1',
+                dh_suy_ho_hap: '1',
+                nghe_tim: '1',
+                khoi_bat_thuong_bung: '1',
+                cq_sinh_duc_ngoai: '1',
+                kham_tu_chi_khop: '1',
+                kich_thuoc_dau: '1',
+                vi_tri_2_mat: '1'
+            },
+            conclusion: {
+                fitness_class: '1',
+                diagnosis: 'Bình thường'
+            }
+        },
+        {},
+        {}
+    );
+
+    assert.match(xml, /<CAM_NHO_TUT_VE_SAU>1<\/CAM_NHO_TUT_VE_SAU>/);
+    assert.match(xml, /<SAU_MANG_BAM_LO>1<\/SAU_MANG_BAM_LO>/);
+    assert.match(xml, /<SUY_HO_HAP>1<\/SUY_HO_HAP>/);
+    assert.match(xml, /<TIENG_TIM>1<\/TIENG_TIM>/);
+    assert.match(xml, /<KHOI_BAT_THUONG>1<\/KHOI_BAT_THUONG>/);
+    assert.match(xml, /<CO_QUAN_SINH_DUC_NGOAI>1<\/CO_QUAN_SINH_DUC_NGOAI>/);
+    assert.match(xml, /<TU_CHI_KHOP>1<\/TU_CHI_KHOP>/);
+    assert.match(xml, /<HINH_DANG_DAU>1<\/HINH_DANG_DAU>/);
+    assert.match(xml, /<VI_TRI_HAI_MAT>1<\/VI_TRI_HAI_MAT>/);
+});
+
+test('Paraclinical discrete lab items are automatically serialized into XML11 CHI_TIET_CLS entries', () => {
+    const xml = generateXmlPayload(
+        '3',
+        { patient_name: 'HOANG THI D', cccd: '012345678901', dob: '1988-03-03', doc_no: 'LK-LAB' },
+        {},
+        {
+            blood_test: {
+                hemoglobin: '135',
+                glycemia: '5.4'
+            },
+            urine_test: {
+                protein: 'Âm tính'
+            }
+        },
+        { fitness_class: '1' }
+    );
+
+    assert.match(xml, /<CHI_TIET_CLS>/);
+    assert.match(xml, /<MA_CHI_SO>H02<\/MA_CHI_SO>/);
+    assert.match(xml, /<GIA_TRI>\s*<!\[CDATA\[135\]\]>\s*<\/GIA_TRI>/);
+    assert.match(xml, /<MA_CHI_SO>G01<\/MA_CHI_SO>/);
+    assert.match(xml, /<GIA_TRI>\s*<!\[CDATA\[5.4\]\]>\s*<\/GIA_TRI>/);
+    assert.match(xml, /<MA_CHI_SO>PRO_U<\/MA_CHI_SO>/);
+    assert.match(xml, /<GIA_TRI>\s*<!\[CDATA\[Âm tính\]\]>\s*<\/GIA_TRI>/);
+});

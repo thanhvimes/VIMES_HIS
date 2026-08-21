@@ -328,9 +328,9 @@ class DocumentsController {
         const gender = req.body.gender;
         const docNo = req.body.docNo || req.body.doc_no;
         const formType = req.body.formType || req.body.form_type;
-        const clinicalData = req.body.clinicalData || req.body.clinical_data;
-        const labData = req.body.labData || req.body.lab_data;
-        const conclusionData = req.body.conclusionData || req.body.conclusion_data;
+        const clinicalData = req.body.clinicalData || req.body.clinical_data || {};
+        const labData = req.body.labData || req.body.lab_data || clinicalData.lab || {};
+        const conclusionData = req.body.conclusionData || req.body.conclusion_data || clinicalData.conclusion || {};
 
         if (!formType) {
             return res.status(400).json({ error: "Loại mẫu biểu formType là bắt buộc" });
@@ -486,9 +486,9 @@ class DocumentsController {
         const gender = req.body.gender;
         const docNo = req.body.docNo || req.body.doc_no;
         const formType = req.body.formType || req.body.form_type;
-        const clinicalData = req.body.clinicalData || req.body.clinical_data;
-        const labData = req.body.labData || req.body.lab_data;
-        const conclusionData = req.body.conclusionData || req.body.conclusion_data;
+        const clinicalData = req.body.clinicalData || req.body.clinical_data || {};
+        const labData = req.body.labData || req.body.lab_data || clinicalData.lab || {};
+        const conclusionData = req.body.conclusionData || req.body.conclusion_data || clinicalData.conclusion || {};
         const isSigning = !!req.body.isSigning || !!req.body.shouldSign;
 
         try {
