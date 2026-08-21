@@ -14,3 +14,9 @@
   - Luôn dùng: `CREATE INDEX IF NOT EXISTS ...` (hoặc bọc trong `DO $$ BEGIN IF NOT EXISTS ... END $$`)
   - Không chứa lệnh `DROP` nguy hiểm nếu không có chỉ định.
 - Backend sẽ tự động đọc thư mục này và quét các script mới chưa chạy để tiến hành nâng cấp tự động (có bao gồm cơ chế tự phục hồi nếu cột/bảng đã tồn tại).
+
+## Quy tắc Sử dụng Reusable UI Components
+- **Combobox / Searchable Autocomplete:**
+  - Đối với tất cả các thao tác chọn lựa dữ liệu có số lượng lớn hoặc cần tìm kiếm nhanh (như danh mục dịch vụ kỹ thuật, danh mục thuốc, khoa phòng, mã bệnh ICD-10, địa bàn hành chính, người dùng...), **BẮT BUỘC** phải tái sử dụng component chuẩn đã xây dựng tại `d:\AI\vClinic\components\ui\Combobox.tsx`.
+  - Component này hỗ trợ đầy đủ: Multi-column view, lọc bỏ dấu tiếng Việt (`removeVietnameseTones`), highlight từ khóa tìm kiếm, React Portal chống tràn khung modal/table, và điều hướng bàn phím Enter / Mũi tên.
+  - Tuyệt đối **KHÔNG** sử dụng thẻ `<select>` đơn thuần cho danh sách dài khiến người dùng phải cuộn chuột tìm kiếm, và không tự code lại logic autocomplete riêng lẻ.

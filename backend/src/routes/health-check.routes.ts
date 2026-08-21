@@ -61,6 +61,7 @@ router.post('/documents/mark-printed', healthCheckController.markBarcodePrinted.
 router.get('/his-patient/:identifier', healthCheckController.getHisPatient.bind(healthCheckController));
 router.get('/signatures', healthCheckController.getDoctorSignatures.bind(healthCheckController));
 router.post('/signatures', healthCheckController.getDoctorSignatures.bind(healthCheckController));
+router.post('/signatures/save', healthCheckController.saveDoctorSignature.bind(healthCheckController));
 
 // Contracts Endpoint
 router.get('/contracts', contractsController.getContracts.bind(contractsController));

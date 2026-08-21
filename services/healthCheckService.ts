@@ -531,5 +531,15 @@ export const healthCheckService = {
             console.error("Error fetching doctor signatures:", error);
             return {};
         }
+    },
+
+    saveDoctorSignature: async (userId: string, base64: string, desc?: string): Promise<{ success: boolean; sfd_no?: number; message?: string }> => {
+        try {
+            const res = await apiClient.post<{ success: boolean; sfd_no?: number; message?: string }>('/health-check-sync/signatures/save', { userId, base64, desc });
+            return res;
+        } catch (error: any) {
+            console.error("Error saving doctor signature:", error);
+            throw error;
+        }
     }
 };

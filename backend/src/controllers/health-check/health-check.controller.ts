@@ -76,6 +76,22 @@ class HealthCheckController {
         }
     }
 
+    // Lưu hoặc cập nhật chữ ký điện tử bác sĩ vào sys_filedir
+    async saveDoctorSignature(req: Request, res: Response) {
+        try {
+            const signatureService = require('../../services/signature.service').default;
+            const { userId, base64, desc } = req.body;
+            if (!userId || !base64) {
+                return res.status(400).json({ success: false, message: 'Thiếu userId hoặc base64 ảnh chữ ký' });
+            }
+            const result = await signatureService.saveDoctorSignature(userId, base64, desc);
+            return res.json(result);
+        } catch (error: any) {
+            console.error('Error saving doctor signature:', error);
+            return res.status(500).json({ success: false, message: error.message });
+        }
+    }
+
 }
 
 export default new HealthCheckController();
