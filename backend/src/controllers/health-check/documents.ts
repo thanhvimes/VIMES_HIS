@@ -81,9 +81,18 @@ class DocumentsController {
             console.error('❌ KSK Controller: Lỗi trong enrichDocumentsMetadata:', enrichErr);
         }
 
-        // Tự động sinh XML nếu hồ sơ chưa có xml_data hoặc xml_data cũ chưa có XML9
+        // Tự động sinh XML nếu hồ sơ chưa có xml_data hoặc xml_data cũ bị lỗi/chưa theo chuẩn mới
         for (const doc of documents) {
-            if (doc && (!doc.xml_data || !String(doc.xml_data).trim() || !doc.xml_data.includes('XML9') || !doc.xml_data.includes('TIEN_SU_BENH_TAT'))) {
+            const xmlStr = String(doc?.xml_data || '');
+            const isInvalidOrLegacyXml = !xmlStr.trim() 
+                || !xmlStr.includes('XML9') 
+                || !xmlStr.includes('TIEN_SU_BENH_TAT')
+                || xmlStr.includes('<SOLUONGHOSO>8</SOLUONGHOSO>')
+                || xmlStr.includes('<SOLUONGHOSO>7</SOLUONGHOSO>')
+                || xmlStr.includes('<LOAIHOSO>XML3</LOAIHOSO>')
+                || (xmlStr.includes('<KHAM_CAN_LAM_SANG>') && !xmlStr.includes('<DANH_SACH_CLS>'));
+
+            if (doc && isInvalidOrLegacyXml && doc.signature_status !== 'Signed') {
                 try {
                     const freshXml = generateXmlPayload(
                         doc.form_type || '3',
@@ -93,7 +102,7 @@ class DocumentsController {
                         doc.conclusion_data || {}
                     );
                     doc.xml_data = freshXml;
-                    if (doc.id && doc.signature_status !== 'Signed') {
+                    if (doc.id) {
                         query('UPDATE health_check_masters SET xml_data = $1 WHERE id = $2', [freshXml, doc.id]).catch(() => {});
                     }
                 } catch (xmlErr) {
