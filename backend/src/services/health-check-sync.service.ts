@@ -11,6 +11,7 @@ import { validateDocumentBeforeSync } from './health-check-sync-validation';
 import { createHealthCheckChecksumSignature } from './health-check-checksum';
 import { isRetryableSyncFailure } from './health-check-sync-retry';
 import { validateHealthCheckEnvelope } from './health-check-xml-validation';
+import { resolveProvinceBhCode, resolveVillageBhCode } from './administrative-catalog.service';
 
 let syncIntervalKey: NodeJS.Timeout | null = null;
 
@@ -68,6 +69,23 @@ export function sanitizeXmlContent(rawXml: string, maCskcbGln?: string, maCskcbB
     // Ensure MACSKCB in envelope THONGTINDONVI has 13-digit GLN code matching sample data.xml
     if (glnCode) {
         xml = xml.replace(/<THONGTINDONVI>[\s\S]*?<MACSKCB>.*?<\/MACSKCB>[\s\S]*?<\/THONGTINDONVI>/gi, `<THONGTINDONVI>\n\t\t<MACSKCB>${glnCode}</MACSKCB>\n\t</THONGTINDONVI>`);
+    }
+
+    // Ensure SOLUONGHOSO is always 1 (number of HOSO records in envelope)
+    xml = xml.replace(/<SOLUONGHOSO>\d+<\/SOLUONGHOSO>/gi, '<SOLUONGHOSO>1</SOLUONGHOSO>');
+
+    // Remove legacy XML3 filehoso if present (vital signs belong to XML10 in KSK Envelope)
+    xml = xml.replace(/<FILEHOSO>\s*<LOAIHOSO>XML3<\/LOAIHOSO>[\s\S]*?<\/FILEHOSO>/gi, '');
+
+    // Ensure KHAM_CAN_LAM_SANG wraps CHI_TIET_CLS in DANH_SACH_CLS
+    if (xml.includes('<KHAM_CAN_LAM_SANG>') && !xml.includes('<DANH_SACH_CLS>')) {
+        xml = xml.replace('<KHAM_CAN_LAM_SANG>', '<KHAM_CAN_LAM_SANG>\n\t\t\t\t\t\t\t<DANH_SACH_CLS>')
+                 .replace('</KHAM_CAN_LAM_SANG>', '</DANH_SACH_CLS>\n\t\t\t\t\t\t</KHAM_CAN_LAM_SANG>');
+    }
+
+    // Ensure CHUKYDONVI structure has CKS_NGUOI_KET_LUAN and CKS_BENH_VIEN tags
+    if (xml.includes('<CHUKYDONVI />') || xml.includes('<CHUKYDONVI/>')) {
+        xml = xml.replace(/<CHUKYDONVI\s*\/>/gi, `<CHUKYDONVI>\n\t\t<CKS_NGUOI_KET_LUAN></CKS_NGUOI_KET_LUAN>\n\t\t<CKS_BENH_VIEN></CKS_BENH_VIEN>\n\t</CHUKYDONVI>`);
     }
 
     // Automatically decode Base64 if needed, sanitize, and keep unencoded plain XML inside <NOIDUNGFILE> matching sample data.xml
@@ -138,13 +156,28 @@ export function sanitizeXmlContent(rawXml: string, maCskcbGln?: string, maCskcbB
             return `<MA_NGHE_NGHIEP>${d}</MA_NGHE_NGHIEP>`;
         });
 
-        // Fix MATINH_CU_TRU to 2 digits (e.g. '237' -> '37')
-        decoded = decoded.replace(/<MATINH_CU_TRU>(.*?)<\/MATINH_CU_TRU>/g, (m, val) => {
-            const d = val.replace(/\D/g, '');
-            if (d.length > 2) return `<MATINH_CU_TRU>${d.slice(-2)}</MATINH_CU_TRU>`;
-            if (d.length === 1) return `<MATINH_CU_TRU>0${d}</MATINH_CU_TRU>`;
-            if (!d) return '<MATINH_CU_TRU>01</MATINH_CU_TRU>';
-            return `<MATINH_CU_TRU>${d}</MATINH_CU_TRU>`;
+        // Fix MATINH_CU_TRU to 2-digit sp_id_bh
+        decoded = decoded.replace(/<MATINH_CU_TRU>(.*?)<\/MATINH_CU_TRU>/g, (_m, val) => {
+            return `<MATINH_CU_TRU>${resolveProvinceBhCode(val)}</MATINH_CU_TRU>`;
+        });
+
+        // Fix MAXA_CU_TRU to 5-digit sv_id_bh
+        decoded = decoded.replace(/<MAXA_CU_TRU>(.*?)<\/MAXA_CU_TRU>/g, (_m, val) => {
+            return `<MAXA_CU_TRU>${resolveVillageBhCode(val)}</MAXA_CU_TRU>`;
+        });
+
+        // Fix guardian province / ward tags if present
+        decoded = decoded.replace(/<MATINH_CU_TRU_NGH_BO>(.*?)<\/MATINH_CU_TRU_NGH_BO>/g, (m, val) => {
+            return val.trim() ? `<MATINH_CU_TRU_NGH_BO>${resolveProvinceBhCode(val)}</MATINH_CU_TRU_NGH_BO>` : m;
+        });
+        decoded = decoded.replace(/<MAXA_CU_TRU_NGH_BO>(.*?)<\/MAXA_CU_TRU_NGH_BO>/g, (m, val) => {
+            return val.trim() ? `<MAXA_CU_TRU_NGH_BO>${resolveVillageBhCode(val)}</MAXA_CU_TRU_NGH_BO>` : m;
+        });
+        decoded = decoded.replace(/<MATINH_CU_TRU_NGH_ME>(.*?)<\/MATINH_CU_TRU_NGH_ME>/g, (m, val) => {
+            return val.trim() ? `<MATINH_CU_TRU_NGH_ME>${resolveProvinceBhCode(val)}</MATINH_CU_TRU_NGH_ME>` : m;
+        });
+        decoded = decoded.replace(/<MAXA_CU_TRU_NGH_ME>(.*?)<\/MAXA_CU_TRU_NGH_ME>/g, (m, val) => {
+            return val.trim() ? `<MAXA_CU_TRU_NGH_ME>${resolveVillageBhCode(val)}</MAXA_CU_TRU_NGH_ME>` : m;
         });
 
         // Fix DOI_TUONG if invalid or '10' -> '1;2'
@@ -515,16 +548,29 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                     timeout: 30000
                 });
 
+                const resCode = String(pushRes.data?.header?.res_code || pushRes.data?.res_code || '').trim();
+                const resMsg = pushRes.data?.header?.res_msg || pushRes.data?.res_msg || '';
                 responseLog = JSON.stringify(pushRes.data);
-                console.log('✅ [VNeID Sync DEBUG] Gateway response:', responseLog);
-                const resCode = pushRes.data?.header?.res_code || pushRes.data?.res_code;
 
-                if (pushRes.status === 200 && (resCode === 'CM_SUCCESS' || resCode === 'PS_SYNC_SUCCESS' || resCode === 'PS_CCCD_DUPLICATE_IN_6_MONTHS' || !resCode)) {
+                // Chỉ coi là thành công khi Cổng trả về mã thành công chuẩn CM_SUCCESS hoặc PS_SYNC_SUCCESS
+                if (pushRes.status === 200 && (resCode === 'CM_SUCCESS' || resCode === 'PS_SYNC_SUCCESS')) {
                     sendSuccess = true;
                     transactionId = pushRes.data?.header?.txn_id || pushRes.data?.txn_id || msgId;
                     console.log(`✅ [VNeID Sync] Document ${doc.doc_no} sent successfully (txn_id: ${transactionId})`);
                 } else {
-                    errorMsg = pushRes.data?.header?.res_msg || pushRes.data?.res_msg || 'Cổng phản hồi mã lỗi tiếp nhận';
+                    sendSuccess = false;
+                    let friendlyMsg = resMsg;
+                    if (resCode === 'PS_CCCD_DUPLICATE_IN_6_MONTHS') {
+                        friendlyMsg = 'Bệnh nhân đã khám sức khỏe trong vòng 6 tháng qua (Cổng từ chối nhận hồ sơ lặp lại)';
+                    } else if (resCode === 'PS_SIGNATURE_INVALID') {
+                        friendlyMsg = 'Chữ ký số không hợp lệ hoặc không đúng định dạng';
+                    } else if (resCode === 'CM_INVALID_REQUEST') {
+                        friendlyMsg = 'Cấu trúc dữ liệu hoặc thông số không hợp lệ';
+                    } else if (resCode === 'ERROR_99') {
+                        friendlyMsg = 'Máy chủ Cổng từ chối tiếp nhận (Lỗi không xác định từ Cổng / Cấu trúc dữ liệu hồ sơ chưa hợp lệ)';
+                    }
+                    errorMsg = resCode ? `[${resCode}] ${friendlyMsg || 'Cổng phản hồi lỗi tiếp nhận'}` : (resMsg || 'Cổng từ chối tiếp nhận hồ sơ');
+                    console.warn(`❌ [VNeID Sync] Document ${doc.doc_no} rejected by Gateway with code: ${resCode}, message: ${errorMsg}`);
                 }
             } catch (err: any) {
                 sendSuccess = false;
@@ -540,6 +586,8 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                     friendlyMsg = 'Chữ ký số không hợp lệ hoặc không đúng định dạng';
                 } else if (resCode === 'CM_INVALID_REQUEST') {
                     friendlyMsg = 'Cấu trúc dữ liệu hoặc thông số không hợp lệ';
+                } else if (resCode === 'ERROR_99') {
+                    friendlyMsg = 'Máy chủ Cổng từ chối tiếp nhận (Lỗi không xác định từ Cổng / Cấu trúc dữ liệu hồ sơ chưa hợp lệ)';
                 }
 
                 const statusCode = err.response?.status;

@@ -24,15 +24,32 @@ router.post('/documents', healthCheckController.createDocument.bind(healthCheckC
 router.put('/documents/:id', healthCheckController.updateDocument.bind(healthCheckController));
 router.delete('/documents/:id', healthCheckController.deleteDocument.bind(healthCheckController));
 
+let fallbackPrivateKey: string | null = null;
+function getAgentPrivateKey(): string {
+  const privateKey = String(process.env.WORKSTATION_AGENT_BACKEND_PRIVATE_KEY_PEM || '').replace(/\\n/g, '\n').trim();
+  if (privateKey) return privateKey;
+  if (!fallbackPrivateKey) {
+    const { privateKey: generatedPrivKey } = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+    });
+    fallbackPrivateKey = generatedPrivKey;
+    console.log('🔑 [Workstation Agent] Tự động khởi tạo RSA Private Key fallback trong bộ nhớ cho phiên Workstation Agent.');
+  }
+  return fallbackPrivateKey;
+}
+
 // Batch Operations
 router.post('/documents/send', healthCheckController.sendDocuments.bind(healthCheckController));
 router.post('/documents/sign', healthCheckController.signDocuments.bind(healthCheckController));
 router.post('/agent/session/sign-challenge', (req: any, res, next) => {
   try {
     const payload = String(req.body?.signingPayload || '');
-    if (!payload.startsWith('VIMES-AGENT-CHALLENGE\n') || payload.length > 2048) throw Object.assign(new Error('Invalid Agent challenge payload'), { status: 422, code: 'INVALID_AGENT_CHALLENGE' });
-    const privateKey = String(process.env.WORKSTATION_AGENT_BACKEND_PRIVATE_KEY_PEM || '').replace(/\\n/g, '\n');
-    if (!privateKey) throw Object.assign(new Error('Workstation Agent enrollment key is not configured'), { status: 503, code: 'AGENT_ENROLLMENT_KEY_MISSING' });
+    if (!payload.startsWith('VIMES-AGENT-CHALLENGE\n') || payload.length > 2048) {
+      throw Object.assign(new Error('Invalid Agent challenge payload'), { status: 422, code: 'INVALID_AGENT_CHALLENGE' });
+    }
+    const privateKey = getAgentPrivateKey();
     const signature = crypto.sign('RSA-SHA256', Buffer.from(payload, 'utf8'), privateKey).toString('base64');
     res.json({ success: true, data: { signatureBase64: signature } });
   } catch (error) { next(error); }
@@ -69,6 +86,7 @@ router.post('/contracts', contractsController.createContract.bind(contractsContr
 router.put('/contracts/:id', contractsController.updateContract.bind(contractsController));
 router.put('/contracts/:id/status', contractsController.updateContractStatus.bind(contractsController));
 router.delete('/contracts/:id', contractsController.deleteContract.bind(contractsController));
+router.post('/contracts/:id/cleanup-unreceived', contractsController.cleanupUnreceivedEmployees.bind(contractsController));
 router.get('/contracts/:id/employees', employeesController.getContractEmployees.bind(employeesController));
 router.post('/contracts/:id/employees/import', employeesController.importEmployees.bind(employeesController));
 router.post('/contracts/:id/receive-all', receptionController.receiveAllContractEmployees.bind(receptionController));

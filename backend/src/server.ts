@@ -244,6 +244,7 @@ import scheduleService from './services/schedule.service';
 import { loadBHXHConfig } from './config/bhxh';
 import { loadHealthCheckSettings } from './config/health-check-settings';
 import { startHealthCheckSyncWorker } from './services/health-check-sync.service';
+import { initAdministrativeCatalog } from './services/administrative-catalog.service';
 
 async function applyPendingMigrations() {
     try {
@@ -292,6 +293,7 @@ async function startServer() {
         scheduleService.setupAutomatedJobs();
         loadBHXHConfig(); // Tải cấu hình BHXH vào memory
         await loadHealthCheckSettings(); // Tải cấu hình VNeID KSK vào memory
+        await initAdministrativeCatalog(); // Tải trước danh mục mã tỉnh sp_id_bh và mã xã sv_id_bh vào memory
         startHealthCheckSyncWorker(); // Khởi chạy auto sync VNeID chạy ngầm
         startKeepAlivePing(); // Khởi chạy Ping DB định kỳ
     });

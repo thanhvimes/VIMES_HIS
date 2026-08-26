@@ -43,18 +43,13 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
 
     const [user, setUser] = useState<UserSession | null>(() => {
         try {
-            const savedUser = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
+            const savedUser = authService.getStoredUserSession();
             if (!savedUser) return null;
             const parsed = JSON.parse(savedUser);
             if (!parsed?.token) {
-                sessionStorage.removeItem('currentUser');
-                sessionStorage.removeItem('isAuthenticated');
-                localStorage.removeItem('currentUser');
-                localStorage.removeItem('isAuthenticated');
+                authService.removeStoredUserSession();
                 return null;
             }
-            // Ensure this tab's sessionStorage has its own isolated copy
-            sessionStorage.setItem('currentUser', savedUser);
             return parsed;
         } catch {
             return null;

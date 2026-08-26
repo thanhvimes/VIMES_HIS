@@ -78,7 +78,7 @@ const PrintBarcodeXnForm: React.FC<PrintBarcodeXnFormProps> = ({
             for (const item of allLabels) {
                 // Replace ZPL template placeholders with real values
                 let zpl = template
-                    .replace(/{hospital}/g, hospitalName || 'PHÒNG KHÁM vCLINIC')
+                    .replace(/{hospital}/g, hospitalName || 'BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH')
                     .replace(/{patient}/g, item.patient.patientName)
                     .replace(/{age}/g, String(item.patient.age || calculateAge(item.patient.dob) || ''))
                     .replace(/{doc_no}/g, item.patient.docNo)

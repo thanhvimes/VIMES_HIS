@@ -105,30 +105,9 @@ CREATE TABLE IF NOT EXISTS health_check_settings (
     barcode_show_date BOOLEAN DEFAULT TRUE NOT NULL,
     barcode_show_sample_type BOOLEAN DEFAULT TRUE NOT NULL,
     allow_unsigned_sync BOOLEAN DEFAULT FALSE NOT NULL,
-    barcode_zpl_template_xn TEXT DEFAULT '^XA
-^CF0,26
-^FO30,30^FD{hospital}^FS
-^FO30,70^FD{patient}^FS
-^FO30,105^FD{test}^FS
-^FO30,140^FD{sample_type} - {date}^FS
-^BY2,2,40
-^FO30,175^BCN,,N,N
-^FD{code}^FS
-^FO30,225^FD{code}^FS
-^XZ',
-    barcode_zpl_template_ksk TEXT DEFAULT '^XA
-^CF0,26
-^FO30,30^FD{hospital}^FS
-^FO30,70^FD{patient}^FS
-^FO30,105^FD{form_name}^FS
-^FO30,140^FD{info}^FS
-^BY2,2,40
-^FO30,175^BCN,,N,N
-^FD{code}^FS
-^FO30,225^FD{code}^FS
-^XZ',
-    barcode_printer_name VARCHAR(100) DEFAULT 'Zebra',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    barcode_zpl_template_xn TEXT DEFAULT '',
+    barcode_zpl_template_ksk TEXT DEFAULT '',
+    barcode_printer_name VARCHAR(100) DEFAULT 'Zebra',    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 

@@ -55,11 +55,47 @@ export interface LoginResponse {
 
 const API_BASE_URL = '/api/v1/auth';
 
-// Helper to get session with sessionStorage priority (Tab-isolated)
-const getStoredUserSession = (): string | null => {
-    const session = sessionStorage.getItem('currentUser');
+const getTodayDateString = (): string => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+};
+
+// Helper to get session with sessionStorage priority (Tab-isolated) & 1-day expiry check
+export const getStoredUserSession = (): string | null => {
+    const today = getTodayDateString();
+
+    const checkValidSession = (rawStr: string | null): string | null => {
+        if (!rawStr) return null;
+        try {
+            const parsed = JSON.parse(rawStr);
+            if (!parsed?.token) return null;
+            // Phiên làm việc chỉ có giá trị trong 1 ngày (cùng ngày đăng nhập)
+            if (parsed.loginDate && parsed.loginDate !== today) {
+                console.warn(`⚠️ [authService] Phiên đăng nhập (${parsed.loginDate}) đã hết hạn sang ngày mới (${today}). Bắt buộc đăng nhập lại.`);
+                removeStoredUserSession();
+                return null;
+            }
+            // Nếu là session cũ chưa có loginDate, tự động bổ sung ngày hôm nay để không gây lỗi đột ngột
+            if (!parsed.loginDate) {
+                parsed.loginDate = today;
+                parsed.loginTimestamp = Date.now();
+                const updatedStr = JSON.stringify(parsed);
+                sessionStorage.setItem('currentUser', updatedStr);
+                localStorage.setItem('currentUser', updatedStr);
+                return updatedStr;
+            }
+            return rawStr;
+        } catch {
+            return null;
+        }
+    };
+
+    const session = checkValidSession(sessionStorage.getItem('currentUser'));
     if (session) return session;
-    const local = localStorage.getItem('currentUser');
+    const local = checkValidSession(localStorage.getItem('currentUser'));
     if (local) {
         // Cache to this tab's sessionStorage
         sessionStorage.setItem('currentUser', local);
@@ -68,12 +104,12 @@ const getStoredUserSession = (): string | null => {
     return null;
 };
 
-const setStoredUserSession = (sessionStr: string) => {
+export const setStoredUserSession = (sessionStr: string) => {
     sessionStorage.setItem('currentUser', sessionStr);
     localStorage.setItem('currentUser', sessionStr);
 };
 
-const removeStoredUserSession = () => {
+export const removeStoredUserSession = () => {
     sessionStorage.removeItem('currentUser');
     sessionStorage.removeItem('userInfo');
     sessionStorage.removeItem('isAuthenticated');
@@ -83,6 +119,10 @@ const removeStoredUserSession = () => {
 };
 
 export const authService = {
+    getStoredUserSession,
+    setStoredUserSession,
+    removeStoredUserSession,
+
     // Đăng nhập
     login: async (userId: string, password: string): Promise<LoginResponse> => {
         const res = await fetch(`${API_BASE_URL}/login`, {
@@ -98,10 +138,13 @@ export const authService = {
 
         const data = await res.json();
 
-        // Lưu token và user info vào sessionStorage (ưu tiên cho từng tab) và localStorage
+        // Lưu token và user info vào sessionStorage (ưu tiên cho từng tab) và localStorage kèm loginDate (1 ngày)
         if (data.token && data.user) {
+            const today = getTodayDateString();
             setStoredUserSession(JSON.stringify({
                 token: data.token,
+                loginDate: today,
+                loginTimestamp: Date.now(),
                 ...data.user
             }));
         }

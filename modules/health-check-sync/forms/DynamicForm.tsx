@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { healthCheckService } from '../../../services/healthCheckService';
 import { DynamicFormContext } from './DynamicFormContext';
 import { useDynamicFormState } from '../hooks/useDynamicFormState';
+import { parseDateSafe } from '../../../utils/formatters';
 import AdminTab from './tabs/AdminTab';
 import HistoryTab from './tabs/HistoryTab';
 import ChildDevelopmentTab from './tabs/ChildDevelopmentTab';
@@ -18,10 +19,11 @@ import ConclusionTab from './tabs/ConclusionTab';
 interface DynamicFormProps {
     formType: string;
     initialData?: any;
-    onSave: (formData: any) => void;
+    onSave: (formData: any, options?: any) => void;
     onCancel: () => void;
     onChangeFormType?: (type: string) => void;
     onPreview?: (formData: any) => void;
+    onReload?: () => void;
 }
 
 // Local Error Boundary Component to capture Tab rendering errors
@@ -68,7 +70,7 @@ class TabErrorBoundary extends React.Component<any, any> {
 
 import ChildForm from './mau1-child/ChildForm';
 
-const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave, onCancel, onChangeFormType, onPreview }) => {
+const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave, onCancel, onChangeFormType, onPreview, onReload }) => {
     const { fontSettings } = useTheme();
 
     if (formType === '1') {
@@ -104,6 +106,12 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
     const handleTabChange = (targetTab: string) => {
         if (targetTab === activeTab) return;
         
+        // Nếu form đang bị khóa (đã ký số hoặc ở chế độ chỉ xem), cho phép tự do chuyển tab để tra cứu dữ liệu
+        if (isLocked) {
+            setActiveTab(targetTab);
+            return;
+        }
+
         const specialtyMetadata = formState.specialtyMetadata || {};
 
         if (activeTab === 'exam') {
@@ -192,8 +200,8 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
             )}
             {/* Header */}
             <div className="bg-[#0f766e] px-5 py-3 text-white flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
-                {/* Left: Back button + Patient Info */}
-                <div className="flex items-center gap-3 flex-1 min-w-0">
+                {/* Left: Back button + Reload button + Patient Info */}
+                <div className="flex items-center gap-2.5 flex-1 min-w-0">
                     {/* Nút Back */}
                     <button
                         type="button"
@@ -206,6 +214,21 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                         </svg>
                         <span className="hidden sm:inline">Danh sách</span>
                     </button>
+
+                    {/* Nút Làm mới dữ liệu */}
+                    {onReload && (
+                        <button
+                            type="button"
+                            onClick={onReload}
+                            title="Làm mới dữ liệu từ các bàn khám khác"
+                            className="flex-shrink-0 flex items-center gap-1.5 bg-white/15 hover:bg-white/25 border border-white/20 text-white rounded-lg px-3 py-2 text-xs font-bold transition-all duration-150 cursor-pointer"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                            </svg>
+                            <span className="hidden md:inline">Làm mới</span>
+                        </button>
+                    )}
 
                     {/* Patient Info - hiển thị thẳng không có ô bo */}
                     <div className="flex-1 min-w-0 flex flex-wrap gap-x-6 gap-y-1 items-center">
@@ -240,7 +263,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                         {dob && (
                             <div className="flex items-center gap-1.5">
                                 <span className="text-[11px] font-extrabold uppercase text-teal-200 tracking-wider">Năm sinh:</span>
-                                <span className="font-bold text-white text-sm">{new Date(dob).getFullYear()}</span>
+                                <span className="font-bold text-white text-sm">{parseDateSafe(dob)?.getFullYear() || dob.slice(0, 4)}</span>
                             </div>
                         )}
                         {gender && (

@@ -1,4 +1,5 @@
 import { getHealthCheckSettings } from '../../config/health-check-settings';
+import { resolveProvinceBhCode, resolveVillageBhCode } from '../../services/administrative-catalog.service';
 
 // Helper: Tìm kiếm giá trị trường linh hoạt từ nhiều nguồn (case-insensitive & snake/camel-case)
 export function findValue(tag: string, ...sources: any[]): string {
@@ -19,8 +20,8 @@ export function findValue(tag: string, ...sources: any[]): string {
         'noicap_cccd': ['cccd_place', 'cccdplace', 'noicapcccd', 'noicap_cccd', 'card_id_place', 'cardidplace', 'card_place'],
         'nhom_mau': ['blood_group', 'bloodgroup', 'nhommau', 'nhom_mau', 'blood_type'],
         'dia_chi': ['address', 'diachi', 'dia_chi', 'hp_dtladdr', 'detail_address', 'hp_address'],
-        'matinh_cu_tru': ['matinh_cu_tru', 'matinhcutru', 'province_id', 'sp_id', 'hp_provid', 'prov_id', 'provid', 'hee_prov_code', 'hee_provid'],
-        'maxa_cu_tru': ['maxa_cu_tru', 'maxacutru', 'ward_id', 'sv_id', 'hp_villid', 'vill_id', 'villid', 'hee_vill_code', 'hee_villid'],
+        'matinh_cu_tru': ['matinh_cu_tru', 'matinhcutru', 'province_id', 'sp_id', 'hp_provid', 'prov_id', 'provid', 'hee_prov_code', 'hee_provid', 'sp_id_bh', 'matinh', 'ma_tinh'],
+        'maxa_cu_tru': ['maxa_cu_tru', 'maxacutru', 'ward_id', 'sv_id', 'hp_villid', 'vill_id', 'villid', 'hee_vill_code', 'hee_villid', 'sv_id_bh', 'maxa', 'ma_xa'],
         'dien_thoai': ['phone', 'dienthoai', 'dien_thoai', 'telephone', 'hd_telephone', 'hp_phone', 'hee_phone'],
         'nguoi_giam_ho': ['nguoi_giam_ho', 'nguoigiamho', 'guardian_name', 'guardianname', 'hee_guardian_name'],
         'so_cccd_ngh': ['so_cccd_ngh', 'socccdngh', 'guardian_cccd', 'guardiancccd', 'hee_guardian_cccd', 'cccd_nguoi_giam_ho'],
@@ -38,6 +39,11 @@ export function findValue(tag: string, ...sources: any[]): string {
         'ma_loai_kcb': ['ma_loai_kcb', 'maloaikcb', 'loai_hinh_kcb', 'loaihinhkcb'],
         'ngay_vao': ['ngay_vao', 'ngayvao', 'ngay_kham', 'ngaykham', 'created_at', 'admitdate', 'hd_admitdate'],
         
+        // Dấu hiệu sinh tồn XML3
+        'nhiet_do': ['temperature', 'nhietdo', 'nhiet_do', 'he_temperature', 'temp'],
+        'nhip_tho': ['respiration', 'nhiptho', 'nhip_tho', 'he_respiration', 'breath', 'respiratory_rate'],
+        'spo2': ['spo2', 'he_spo2'],
+
         // Khám thể lực XML10
         'chieu_cao': ['height', 'chieucao', 'chieu_cao', 'he_height'],
         'can_nang': ['weight', 'cannang', 'can_nang', 'he_weight'],
@@ -52,7 +58,7 @@ export function findValue(tag: string, ...sources: any[]): string {
         'cac_van_de_suc_khoe': ['cac_van_de_luu_y', 'cacvandeluuy', 'cac_van_de_suc_khoe', 'cacvandesuckhoe', 'cac_van_de_khac', 'luu_y'],
         'cac_benh_tat_neu_co': ['cac_benh_tat_neu_co', 'cacbenhtatneuco', 'cac_benh_tat', 'cacbenhtat', 'tinh_trang_suc_khoe_benh_tat'],
 
-        // Tiền sử & Vaccine XML1
+        // Tiền sử & Vaccine XML9
         'tsgd_mac_benh': ['tsgd_mac_benh', 'tsgdmacbenh', 'ts_gia_dinh_mac_benh', 'ts_gia_dinh'],
         'tsgd_ma_benh': ['tsgd_ma_benh', 'tsgdmabenh', 'tsgd_icd10'],
         'ts_tiep_xuc_lao': ['ts_tiep_xuc_lao', 'tstiepxuclao', 'tiep_xuc_lao'],
@@ -311,15 +317,33 @@ export type HealthCheckAgeGroup = 'UNDER_6' | 'AGE_6_TO_UNDER_18' | 'ADULT_18_PL
 /** Resolve the QĐ 2062 age group from the examination date, preserving legacy form intent when DOB is absent. */
 export function resolveHealthCheckAgeGroup(formType: string, dob?: string | Date, examDate: string | Date = new Date()): HealthCheckAgeGroup {
     if (dob) {
-        const birth = new Date(dob);
-        const exam = new Date(examDate);
-        if (!Number.isNaN(birth.getTime()) && !Number.isNaN(exam.getTime())) {
-            let age = exam.getFullYear() - birth.getFullYear();
-            const beforeBirthday = exam.getMonth() < birth.getMonth() || (exam.getMonth() === birth.getMonth() && exam.getDate() < birth.getDate());
-            if (beforeBirthday) age -= 1;
-            if (age < 6) return 'UNDER_6';
-            if (age < 18) return 'AGE_6_TO_UNDER_18';
-            return 'ADULT_18_PLUS';
+        let birthYear = 0, birthMonth = 0, birthDay = 0;
+        if (typeof dob === 'string') {
+            const matchYmd = dob.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (matchYmd) {
+                birthYear = parseInt(matchYmd[1], 10);
+                birthMonth = parseInt(matchYmd[2], 10) - 1;
+                birthDay = parseInt(matchYmd[3], 10);
+            }
+        }
+        if (!birthYear) {
+            const birth = new Date(dob);
+            if (!Number.isNaN(birth.getTime())) {
+                birthYear = birth.getFullYear();
+                birthMonth = birth.getMonth();
+                birthDay = birth.getDate();
+            }
+        }
+        if (birthYear) {
+            const exam = new Date(examDate);
+            if (!Number.isNaN(exam.getTime())) {
+                let age = exam.getFullYear() - birthYear;
+                const beforeBirthday = exam.getMonth() < birthMonth || (exam.getMonth() === birthMonth && exam.getDate() < birthDay);
+                if (beforeBirthday) age -= 1;
+                if (age < 6) return 'UNDER_6';
+                if (age < 18) return 'AGE_6_TO_UNDER_18';
+                return 'ADULT_18_PLUS';
+            }
         }
     }
     if (formType === '1' || formType === 'mau1-child' || formType === 'child') return 'UNDER_6';
@@ -327,14 +351,14 @@ export function resolveHealthCheckAgeGroup(formType: string, dob?: string | Date
     return 'ADULT_18_PLUS';
 }
 
-// Helper: Sinh XML tự động theo đặc tả mẫu data.xml (QĐ 2062/QĐ-BYT & QĐ 1551/QĐ-BYT)
 export function generateXmlPayload(formType: string, master: any, clinical: any, lab: any, conclusion: any): string {
     // Merge potential nested sub-objects to ensure full extraction
     const clinicalObj = clinical || {};
     const labObj = lab || clinicalObj.lab || {};
     const conclusionObj = conclusion || clinicalObj.conclusion || {};
+    const historyObj = master?.history_data || clinicalObj.history || clinicalObj.history_data || master?.history || {};
 
-    const src = { master, clinical: clinicalObj, lab: labObj, conclusion: conclusionObj };
+    const src = { master, clinical: clinicalObj, lab: labObj, conclusion: conclusionObj, history: historyObj };
     const settings = getHealthCheckSettings();
     const maCskcb = settings?.ma_cskcb || findValue('ma_cskcb', src) || '8934285008135';      // 13-digit GLN for THONGTINDONVI MACSKCB
     const maCskcbByt = settings?.ma_cskcb_byt || maCskcb.substring(0, 5) || '37101';  // 5-digit BYT code for MA_CSKCB in XML2
@@ -349,6 +373,16 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
 
     const formatYmd = (rawDate: any): string => {
         if (!rawDate) return '';
+        if (typeof rawDate === 'string') {
+            const trimmed = rawDate.trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+                return trimmed.replace(/-/g, '');
+            }
+            if (/^\d{1,2}[/-]\d{1,2}[/-]\d{4}$/.test(trimmed)) {
+                const parts = trimmed.split(/[/-]/);
+                return `${parts[2]}${parts[1].padStart(2, '0')}${parts[0].padStart(2, '0')}`;
+            }
+        }
         try {
             const d = new Date(rawDate);
             if (isNaN(d.getTime())) return String(rawDate).replace(/[-/:\s]/g, '').slice(0, 8);
@@ -388,11 +422,11 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
     const maLkVal = master.docNo || master.doc_no || findValue('MA_LK', src) || '';
 
     const diaChiVal = findValue('DIA_CHI', src) || findValue('hp_address', src) || findValue('address', src) || '';
-    let maTinhVal = findValue('MATINH_CU_TRU', src) || findValue('hp_provid', src) || '01';
-    if (maTinhVal.length === 1) maTinhVal = '0' + maTinhVal;
+    const rawProv = findValue('MATINH_CU_TRU', src) || findValue('hp_provid', src) || findValue('hee_provid', src) || '01';
+    const maTinhVal = resolveProvinceBhCode(rawProv);
     
-    let maXaVal = findValue('MAXA_CU_TRU', src) || findValue('hp_villid', src) || '';
-    if (!maXaVal) maXaVal = '00001';
+    const rawXa = findValue('MAXA_CU_TRU', src) || findValue('hp_villid', src) || findValue('hee_villid', src) || '';
+    const maXaVal = resolveVillageBhCode(rawXa, maTinhVal);
 
     const ngayCapCccd = formatYmd(findValue('NGAYCAP_CCCD', src)) || '';
     const noiCapCccd = findValue('NOICAP_CCCD', src) || '';
@@ -439,50 +473,6 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
 							<MA_NGHE_NGHIEP>${escapeXml(maNgheNghiep)}</MA_NGHE_NGHIEP>
 							<NOI_LAM_VIEC_HOC_TAP>${escapeXml(noiLamViec)}</NOI_LAM_VIEC_HOC_TAP>
 							<LY_DO_VV>${escapeXml(lyDoVv)}</LY_DO_VV>
-							<TSGD_MAC_BENH>${escapeXml(findValue('TSGD_MAC_BENH', src) || '0')}</TSGD_MAC_BENH>
-							<TSGD_MA_BENH>${escapeXml(findValue('TSGD_MA_BENH', src) || '')}</TSGD_MA_BENH>
-							<TS_TIEP_XUC_LAO>${escapeXml(findValue('TS_TIEP_XUC_LAO', src) || '0')}</TS_TIEP_XUC_LAO>
-							<SAN_KHOA>${escapeXml(findValue('SAN_KHOA', src) || '0')}</SAN_KHOA>
-							<SAN_KHOA_KHONG_BT>${escapeXml(findValue('SAN_KHOA_KHONG_BT', src) || '0')}</SAN_KHOA_KHONG_BT>
-							<TIEM_CHUNG_BCG>${escapeXml(findValue('TIEM_CHUNG_BCG', src) || '0')}</TIEM_CHUNG_BCG>
-							<TIEM_CHUNG_BH_HG_UV>${escapeXml(findValue('TIEM_CHUNG_BH_HG_UV', src) || '0')}</TIEM_CHUNG_BH_HG_UV>
-							<TIEM_CHUNG_SOI>${escapeXml(findValue('TIEM_CHUNG_SOI', src) || '0')}</TIEM_CHUNG_SOI>
-							<TIEM_CHUNG_BAI_LIET>${escapeXml(findValue('TIEM_CHUNG_BAI_LIET', src) || '0')}</TIEM_CHUNG_BAI_LIET>
-							<TIEM_CHUNG_VNNB_B>${escapeXml(findValue('TIEM_CHUNG_VNNB_B', src) || '0')}</TIEM_CHUNG_VNNB_B>
-							<TIEM_CHUNG_VGB>${escapeXml(findValue('TIEM_CHUNG_VGB', src) || '0')}</TIEM_CHUNG_VGB>
-							<TIEM_CHUNG_CAC_LOAI_KHAC>${escapeXml(findValue('TIEM_CHUNG_CAC_LOAI_KHAC', src) || '0')}</TIEM_CHUNG_CAC_LOAI_KHAC>
-							<TSBT_MAC_BENH>${escapeXml(findValue('TSBT_MAC_BENH', src) || (findValue('TSBT_MA_BENH', src) ? '1' : '0'))}</TSBT_MAC_BENH>
-							<TSBT_MA_BENH>${escapeXml(findValue('TSBT_MA_BENH', src) || '')}</TSBT_MA_BENH>
-							<TSBT_DANG_DIEU_TRI_BENH>${escapeXml(findValue('TSBT_DANG_DIEU_TRI_BENH', src) || '0')}</TSBT_DANG_DIEU_TRI_BENH>
-							<TSBT_BENH_TRONG_5_NAM_QUA>${escapeXml(findValue('TSBT_BENH_TRONG_5_NAM_QUA', src) || '0')}</TSBT_BENH_TRONG_5_NAM_QUA>
-							<TSBT_BENH_THAN_KINH>${escapeXml(findValue('TSBT_BENH_THAN_KINH', src) || '0')}</TSBT_BENH_THAN_KINH>
-							<TSBT_BENH_MAT>${escapeXml(findValue('TSBT_BENH_MAT', src) || '0')}</TSBT_BENH_MAT>
-							<TSBT_BENH_TAI>${escapeXml(findValue('TSBT_BENH_TAI', src) || '0')}</TSBT_BENH_TAI>
-							<TSBT_BENH_TIM>${escapeXml(findValue('TSBT_BENH_TIM', src) || '0')}</TSBT_BENH_TIM>
-							<TSBT_PHAU_THUAT_TIM>${escapeXml(findValue('TSBT_PHAU_THUAT_TIM', src) || '0')}</TSBT_PHAU_THUAT_TIM>
-							<TSBT_TANG_HUYET_AP>${escapeXml(findValue('TSBT_TANG_HUYET_AP', src) || '0')}</TSBT_TANG_HUYET_AP>
-							<TSBT_KHO_THO>${escapeXml(findValue('TSBT_KHO_THO', src) || '0')}</TSBT_KHO_THO>
-							<TSBT_BENH_PHOI>${escapeXml(findValue('TSBT_BENH_PHOI', src) || '0')}</TSBT_BENH_PHOI>
-							<TSBT_BENH_THAN>${escapeXml(findValue('TSBT_BENH_THAN', src) || '0')}</TSBT_BENH_THAN>
-							<TSBT_NGHIEN_RUOU>${escapeXml(findValue('TSBT_NGHIEN_RUOU', src) || '0')}</TSBT_NGHIEN_RUOU>
-							<TSBT_DAI_THAO_DUONG>${escapeXml(findValue('TSBT_DAI_THAO_DUONG', src) || '0')}</TSBT_DAI_THAO_DUONG>
-							<TSBT_BENH_TAM_THAN>${escapeXml(findValue('TSBT_BENH_TAM_THAN', src) || '0')}</TSBT_BENH_TAM_THAN>
-							<TSBT_MAT_Y_THUC>${escapeXml(findValue('TSBT_MAT_Y_THUC', src) || '0')}</TSBT_MAT_Y_THUC>
-							<TSBT_NGAT>${escapeXml(findValue('TSBT_NGAT', src) || '0')}</TSBT_NGAT>
-							<TSBT_BENH_TIEU_HOA>${escapeXml(findValue('TSBT_BENH_TIEU_HOA', src) || '0')}</TSBT_BENH_TIEU_HOA>
-							<TSBT_ROI_LOAN_GIAC_NGU>${escapeXml(findValue('TSBT_ROI_LOAN_GIAC_NGU', src) || '0')}</TSBT_ROI_LOAN_GIAC_NGU>
-							<TSBT_TAI_BIEN>${escapeXml(findValue('TSBT_TAI_BIEN', src) || '0')}</TSBT_TAI_BIEN>
-							<TSBT_BENH_COT_SONG>${escapeXml(findValue('TSBT_BENH_COT_SONG', src) || '0')}</TSBT_BENH_COT_SONG>
-							<TSBT_RUOU_THUONG_XUYEN>${escapeXml(findValue('TSBT_RUOU_THUONG_XUYEN', src) || '0')}</TSBT_RUOU_THUONG_XUYEN>
-							<TSBT_MA_TUY>${escapeXml(findValue('TSBT_MA_TUY', src) || '0')}</TSBT_MA_TUY>
-							<TSBT_BENH_KHAC>${escapeXml(findValue('TSBT_BENH_KHAC', src) || '0')}</TSBT_BENH_KHAC>
-							<TSBT_MA_BENH_KHAC>${escapeXml(findValue('TSBT_MA_BENH_KHAC', src) || '')}</TSBT_MA_BENH_KHAC>
-							<TSBT_THAI_SAN>${escapeXml(findValue('TSBT_THAI_SAN', src) || findValue('tsbt_thai_san', src) || '0')}</TSBT_THAI_SAN>
-							<TSBT_MA_BENH_THAI_SAN>${escapeXml(findValue('TSBT_MA_BENH_THAI_SAN', src) || findValue('tsbt_ma_benh_thai_san', src) || '')}</TSBT_MA_BENH_THAI_SAN>
-							<TSBT_TEN_THUOC_THAI_SAN>${escapeXml(findValue('TSBT_TEN_THUOC_THAI_SAN', src) || findValue('tsbt_ten_thuoc_thai_san', src) || '')}</TSBT_TEN_THUOC_THAI_SAN>
-							<TSBT_TEN_THUOC_LIEU_LUONG>${escapeXml(findValue('TSBT_TEN_THUOC_LIEU_LUONG', src) || findValue('BENH_DANG_DIEU_TRI', src) || '')}</TSBT_TEN_THUOC_LIEU_LUONG>
-							<BENH_DANG_DIEU_TRI>${escapeXml(findValue('BENH_DANG_DIEU_TRI', src) || findValue('TSBT_TEN_THUOC_LIEU_LUONG', src) || '')}</BENH_DANG_DIEU_TRI>
-							<HANG_LAI_XE>${escapeXml(findValue('HANG_LAI_XE', src) || findValue('hang_lai_xe', src) || 'B2')}</HANG_LAI_XE>
 						</THONG_TIN_HANH_CHINH>`;
 
     // Build XML2: THONG_TIN_CHUNG_VE_LAN_KHAM
@@ -499,11 +489,25 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
 							<MA_CSKCB>${escapeXml(maCskcbByt)}</MA_CSKCB>
 							<TYPE>${typeVal}</TYPE>
 							<MA_GTIN_CSKCB>${escapeXml(maGtinCskcb)}</MA_GTIN_CSKCB>
-							<DOI_TUONG>${escapeXml(findValue('DOI_TUONG', src) || '1;2')}</DOI_TUONG>
-							<NGUON_CHI_TRA>${escapeXml(findValue('NGUON_CHI_TRA', src) || '2')}</NGUON_CHI_TRA>
+							<DOI_TUONG>${escapeXml(findValue('DOI_TUONG', src) || '14')}</DOI_TUONG>
+							<NGUON_CHI_TRA>${escapeXml(findValue('NGUON_CHI_TRA', src) || '9')}</NGUON_CHI_TRA>
 							<MA_LOAI_KCB>${escapeXml(findValue('MA_LOAI_KCB', src) || '01')}</MA_LOAI_KCB>
 							<NGAY_VAO>${escapeXml(ngayVaoVal)}</NGAY_VAO>
 						</THONG_TIN_CHUNG_VE_LAN_KHAM>`;
+
+    // Build XML3: DANH_GIA_DAU_HIEU_SINH_TON (Dấu hiệu sinh tồn / Sinh hiệu)
+    const nhietDoVal = findValue('NHIET_DO', src) || '36.5';
+    const machVal = findValue('MACH', src) || '80';
+    const nhipThoVal = findValue('NHIP_THO', src) || '20';
+    const huyetApVal = findValue('HUYET_AP', src) || '120/80';
+    const spo2Val = findValue('SPO2', src) || '';
+
+    const xml3 = `<DANH_GIA_DAU_HIEU_SINH_TON>
+							<NHIET_DO>${escapeXml(nhietDoVal)}</NHIET_DO>
+							<MACH>${escapeXml(machVal)}</MACH>
+							<NHIP_THO>${escapeXml(nhipThoVal)}</NHIP_THO>
+							<HUYET_AP>${escapeXml(huyetApVal)}</HUYET_AP>${spo2Val ? `\n							<SPO2>${escapeXml(spo2Val)}</SPO2>` : ''}
+						</DANH_GIA_DAU_HIEU_SINH_TON>`;
 
     // Build XML7: KHAM_LAM_SANG (Branched by typeVal / formType)
     let xml7Content = '';
@@ -717,12 +721,58 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
     const xml7 = `<KHAM_LAM_SANG>${xml7Content}
 						</KHAM_LAM_SANG>`;
 
+    // Build XML9: TIEN_SU_BENH_TAT (Tiền sử bệnh tật & tiêm chủng)
+    const xml9 = `<TIEN_SU_BENH_TAT>
+							<TSGD_MAC_BENH>${escapeXml(findValue('TSGD_MAC_BENH', src) || '0')}</TSGD_MAC_BENH>
+							<TSGD_MA_BENH>${escapeXml(findValue('TSGD_MA_BENH', src) || '')}</TSGD_MA_BENH>
+							<TS_TIEP_XUC_LAO>${escapeXml(findValue('TS_TIEP_XUC_LAO', src) || '0')}</TS_TIEP_XUC_LAO>
+							<SAN_KHOA>${escapeXml(findValue('SAN_KHOA', src) || '0')}</SAN_KHOA>
+							<SAN_KHOA_KHONG_BT>${escapeXml(findValue('SAN_KHOA_KHONG_BT', src) || '0')}</SAN_KHOA_KHONG_BT>
+							<MA_BENH_SAN_KHOA_KHONG_BT>${escapeXml(findValue('MA_BENH_SAN_KHOA_KHONG_BT', src) || '')}</MA_BENH_SAN_KHOA_KHONG_BT>
+							<TIEM_CHUNG_BCG>${escapeXml(findValue('TIEM_CHUNG_BCG', src) || '0')}</TIEM_CHUNG_BCG>
+							<TIEM_CHUNG_BH_HG_UV>${escapeXml(findValue('TIEM_CHUNG_BH_HG_UV', src) || '0')}</TIEM_CHUNG_BH_HG_UV>
+							<TIEM_CHUNG_SOI>${escapeXml(findValue('TIEM_CHUNG_SOI', src) || '0')}</TIEM_CHUNG_SOI>
+							<TIEM_CHUNG_BAI_LIET>${escapeXml(findValue('TIEM_CHUNG_BAI_LIET', src) || '0')}</TIEM_CHUNG_BAI_LIET>
+							<TIEM_CHUNG_VNNB_B>${escapeXml(findValue('TIEM_CHUNG_VNNB_B', src) || '0')}</TIEM_CHUNG_VNNB_B>
+							<TIEM_CHUNG_VGB>${escapeXml(findValue('TIEM_CHUNG_VGB', src) || '0')}</TIEM_CHUNG_VGB>
+							<TIEM_CHUNG_CAC_LOAI_KHAC>${escapeXml(findValue('TIEM_CHUNG_CAC_LOAI_KHAC', src) || '0')}</TIEM_CHUNG_CAC_LOAI_KHAC>
+							<TSBT_MAC_BENH>${escapeXml(findValue('TSBT_MAC_BENH', src) || (findValue('TSBT_MA_BENH', src) ? '1' : '0'))}</TSBT_MAC_BENH>
+							<TSBT_MA_BENH>${escapeXml(findValue('TSBT_MA_BENH', src) || '')}</TSBT_MA_BENH>
+							<TSBT_DANG_DIEU_TRI_BENH>${escapeXml(findValue('TSBT_DANG_DIEU_TRI_BENH', src) || '0')}</TSBT_DANG_DIEU_TRI_BENH>
+							<BENH_DANG_DIEU_TRI>${escapeXml(findValue('BENH_DANG_DIEU_TRI', src) || findValue('TSBT_TEN_THUOC_LIEU_LUONG', src) || '')}</BENH_DANG_DIEU_TRI>
+							<TSBT_BENH_TRONG_5_NAM_QUA>${escapeXml(findValue('TSBT_BENH_TRONG_5_NAM_QUA', src) || '0')}</TSBT_BENH_TRONG_5_NAM_QUA>
+							<TSBT_BENH_THAN_KINH>${escapeXml(findValue('TSBT_BENH_THAN_KINH', src) || '0')}</TSBT_BENH_THAN_KINH>
+							<TSBT_BENH_MAT>${escapeXml(findValue('TSBT_BENH_MAT', src) || '0')}</TSBT_BENH_MAT>
+							<TSBT_BENH_TAI>${escapeXml(findValue('TSBT_BENH_TAI', src) || '0')}</TSBT_BENH_TAI>
+							<TSBT_BENH_TIM>${escapeXml(findValue('TSBT_BENH_TIM', src) || '0')}</TSBT_BENH_TIM>
+							<TSBT_PHAU_THUAT_TIM>${escapeXml(findValue('TSBT_PHAU_THUAT_TIM', src) || '0')}</TSBT_PHAU_THUAT_TIM>
+							<TSBT_TANG_HUYET_AP>${escapeXml(findValue('TSBT_TANG_HUYET_AP', src) || '0')}</TSBT_TANG_HUYET_AP>
+							<TSBT_KHO_THO>${escapeXml(findValue('TSBT_KHO_THO', src) || '0')}</TSBT_KHO_THO>
+							<TSBT_BENH_PHOI>${escapeXml(findValue('TSBT_BENH_PHOI', src) || '0')}</TSBT_BENH_PHOI>
+							<TSBT_BENH_THAN>${escapeXml(findValue('TSBT_BENH_THAN', src) || '0')}</TSBT_BENH_THAN>
+							<TSBT_NGHIEN_RUOU>${escapeXml(findValue('TSBT_NGHIEN_RUOU', src) || '0')}</TSBT_NGHIEN_RUOU>
+							<TSBT_DAI_THAO_DUONG>${escapeXml(findValue('TSBT_DAI_THAO_DUONG', src) || '0')}</TSBT_DAI_THAO_DUONG>
+							<TSBT_BENH_TAM_THAN>${escapeXml(findValue('TSBT_BENH_TAM_THAN', src) || '0')}</TSBT_BENH_TAM_THAN>
+							<TSBT_MAT_Y_THUC>${escapeXml(findValue('TSBT_MAT_Y_THUC', src) || '0')}</TSBT_MAT_Y_THUC>
+							<TSBT_NGAT>${escapeXml(findValue('TSBT_NGAT', src) || '0')}</TSBT_NGAT>
+							<TSBT_BENH_TIEU_HOA>${escapeXml(findValue('TSBT_BENH_TIEU_HOA', src) || '0')}</TSBT_BENH_TIEU_HOA>
+							<TSBT_ROI_LOAN_GIAC_NGU>${escapeXml(findValue('TSBT_ROI_LOAN_GIAC_NGU', src) || '0')}</TSBT_ROI_LOAN_GIAC_NGU>
+							<TSBT_TAI_BIEN>${escapeXml(findValue('TSBT_TAI_BIEN', src) || '0')}</TSBT_TAI_BIEN>
+							<TSBT_BENH_COT_SONG>${escapeXml(findValue('TSBT_BENH_COT_SONG', src) || '0')}</TSBT_BENH_COT_SONG>
+							<TSBT_RUOU_THUONG_XUYEN>${escapeXml(findValue('TSBT_RUOU_THUONG_XUYEN', src) || '0')}</TSBT_RUOU_THUONG_XUYEN>
+							<TSBT_MA_TUY>${escapeXml(findValue('TSBT_MA_TUY', src) || '0')}</TSBT_MA_TUY>
+							<TSBT_BENH_KHAC>${escapeXml(findValue('TSBT_BENH_KHAC', src) || '0')}</TSBT_BENH_KHAC>
+							<TSBT_MA_BENH_KHAC>${escapeXml(findValue('TSBT_MA_BENH_KHAC', src) || '')}</TSBT_MA_BENH_KHAC>
+							<TSBT_TEN_THUOC_LIEU_LUONG>${escapeXml(findValue('TSBT_TEN_THUOC_LIEU_LUONG', src) || findValue('BENH_DANG_DIEU_TRI', src) || '')}</TSBT_TEN_THUOC_LIEU_LUONG>
+							<TSBT_THAI_SAN>${escapeXml(findValue('TSBT_THAI_SAN', src) || findValue('tsbt_thai_san', src) || '0')}</TSBT_THAI_SAN>
+							<TSBT_MA_BENH_THAI_SAN>${escapeXml(findValue('TSBT_MA_BENH_THAI_SAN', src) || findValue('tsbt_ma_benh_thai_san', src) || '')}</TSBT_MA_BENH_THAI_SAN>
+							<TSBT_TEN_THUOC_THAI_SAN>${escapeXml(findValue('TSBT_TEN_THUOC_THAI_SAN', src) || findValue('tsbt_ten_thuoc_thai_san', src) || '')}</TSBT_TEN_THUOC_THAI_SAN>
+						</TIEN_SU_BENH_TAT>`;
+
     // Build XML10: KHAM_THE_LUC
     const chieuCaoVal = findValue('CHIEU_CAO', src) || '165';
     const canNangVal = findValue('CAN_NANG', src) || '60';
     const bmiVal = findValue('CHI_SO_BMI', src) || '22.0';
-    const machVal = findValue('MACH', src) || '80';
-    const huyetApVal = findValue('HUYET_AP', src) || '120/80';
     const khamTheLucPlVal = findValue('KHAM_THE_LUC_PL', src) || '1';
 
     const xml10 = `<KHAM_THE_LUC>
@@ -734,7 +784,7 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
 							<KHAM_THE_LUC_PL>${escapeXml(khamTheLucPlVal)}</KHAM_THE_LUC_PL>
 						</KHAM_THE_LUC>`;
 
-    // Build XML11: KHAM_CAN_LAM_SANG (Array of items with CDATA)
+    // Build XML11: KHAM_CAN_LAM_SANG (Array of CHI_TIET_CLS matching sample xml.txt exactly)
     let paraclItems = '';
     const itemsList: any[] = [];
 
@@ -758,34 +808,35 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
     }
 
     for (const item of itemsList) {
-        const svcCode = item.service_code || 'CLS01';
-        const idxCode = item.index_code || svcCode;
-        const itemVal = item.value || 'Bình thường';
-        const itemUnit = item.unit || 'Lần';
-        const itemDesc = item.description || itemVal;
-        const itemConc = item.conclusion || 'Bình thường';
-        const itemName = item.name || svcCode;
+        const svcCode = item.hfl_ma_chi_so || item.ma_chi_so || item.reg_code || item.hfl_regcode || item.service_code || 'B1100467';
+        const idxCode = item.index_code || item.service_code || svcCode;
+
+        let rawVal = item.value !== null && item.value !== undefined ? String(item.value).trim() : '';
+        let itemUnit = item.unit ? String(item.unit).trim() : '';
+
+        // Tách số và đơn vị đo nếu rawVal có dạng "4.1 mmol/L", "140 g/L"
+        const valUnitMatch = rawVal.match(/^([\d.,><=+-]+)\s+([a-zA-Z%µ/^\d*]+.*)$/);
+        if (valUnitMatch) {
+            rawVal = valUnitMatch[1].trim();
+            if (!itemUnit || itemUnit.toLowerCase() === 'lần' || itemUnit.toLowerCase() === 'gói') {
+                itemUnit = valUnitMatch[2].trim();
+            }
+        }
+
+        if (!itemUnit) itemUnit = 'Lần';
+
+        const itemDesc = item.description !== null && item.description !== undefined ? String(item.description).trim() : '';
+        const itemConc = item.conclusion !== null && item.conclusion !== undefined ? String(item.conclusion).trim() : '';
 
         paraclItems += `
-								<CHI_TIET_CLS>
-									<MA_DICH_VU>${escapeXml(svcCode)}</MA_DICH_VU>
-									<MA_CHI_SO>${escapeXml(idxCode)}</MA_CHI_SO>
-									<TEN_CHI_SO>
-										<![CDATA[${itemName}]]>
-									</TEN_CHI_SO>
-									<GIA_TRI>
-										<![CDATA[${itemVal}]]>
-									</GIA_TRI>
-									<DON_VI_DO>
-										<![CDATA[${itemUnit}]]>
-									</DON_VI_DO>
-									<MO_TA>
-										<![CDATA[${itemDesc}]]>
-									</MO_TA>
-									<KET_LUAN>
-										<![CDATA[${itemConc}]]>
-									</KET_LUAN>
-								</CHI_TIET_CLS>`;
+							<CHI_TIET_CLS>
+								<MA_DICH_VU>${escapeXml(svcCode)}</MA_DICH_VU>
+								<MA_CHI_SO>${escapeXml(idxCode)}</MA_CHI_SO>
+								<GIA_TRI>${escapeXml(rawVal)}</GIA_TRI>
+								<DON_VI_DO>${escapeXml(itemUnit)}</DON_VI_DO>
+								<MO_TA>${escapeXml(itemDesc)}</MO_TA>
+								<KET_LUAN>${escapeXml(itemConc)}</KET_LUAN>
+							</CHI_TIET_CLS>`;
     }
 
     const xml11 = `<KHAM_CAN_LAM_SANG>
@@ -800,7 +851,7 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
     }
     if (!phanLoaiSkVal) phanLoaiSkVal = '1';
 
-    const ketLuanBenhVal = findValue('KET_LUAN_BENH', src) || findValue('diagnosis', src) || 'Z00.0';
+    const ketLuanBenhVal = findValue('KET_LUAN_BENH', src) || findValue('diagnosis', src) || 'Bình thường';
     const cacVanDeVal = findValue('CAC_VAN_DE_SUC_KHOE', src) || '';
     const cacBenhTatVal = findValue('CAC_BENH_TAT_NEU_CO', src) || '';
 
@@ -811,7 +862,7 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
 							<CAC_BENH_TAT_NEU_CO>${escapeXml(cacBenhTatVal)}</CAC_BENH_TAT_NEU_CO>
 						</KET_LUAN>`;
 
-    // Packaging into Envelope KHAMSUCKHOE matching sample data.xml exactly
+    // Packaging into Envelope KHAMSUCKHOE matching sample xml.txt / data.xml exactly
     const todayYmd = formatYmd(new Date());
     const envelope = `<?xml version="1.0" encoding="utf-8"?>
 <KHAMSUCKHOE
@@ -822,7 +873,7 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
 	</THONGTINDONVI>
 	<THONGTINHOSO>
 		<NGAYLAP>${todayYmd}</NGAYLAP>
-		<SOLUONGHOSO>__FILE_COUNT__</SOLUONGHOSO>
+		<SOLUONGHOSO>1</SOLUONGHOSO>
 		<DANHSACHHOSO>
 			<HOSO>
 				<FILEHOSO>
@@ -841,6 +892,12 @@ ${xml2}
 					<LOAIHOSO>XML7</LOAIHOSO>
 					<NOIDUNGFILE>
 ${xml7}
+					</NOIDUNGFILE>
+				</FILEHOSO>
+				<FILEHOSO>
+					<LOAIHOSO>XML9</LOAIHOSO>
+					<NOIDUNGFILE>
+${xml9}
 					</NOIDUNGFILE>
 				</FILEHOSO>
 				<FILEHOSO>
@@ -870,6 +927,5 @@ ${xml12}
 	</CHUKYDONVI>
 </KHAMSUCKHOE>`;
 
-    const envelopeFileCount = (envelope.match(/<FILEHOSO>/g) || []).length;
-    return envelope.replace('__FILE_COUNT__', String(envelopeFileCount));
+    return envelope;
 }

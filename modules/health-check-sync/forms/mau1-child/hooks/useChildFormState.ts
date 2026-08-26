@@ -4,6 +4,7 @@ import { useCatalogs } from '../../../../../contexts/CatalogContext';
 import { catalogService, CatalogItem } from '../../../../../services/catalogService';
 import { healthCheckService } from '../../../../../services/healthCheckService';
 import { validateNewFormAge } from '../../../utils/healthCheckAge';
+import { formatDateForInput, parseDateSafe } from '../../../../../utils/formatters';
 import { toast } from 'sonner';
 
 const DEFAULT_CHILD_CARE_NOTE = 'Theo dõi và hướng dẫn chăm sóc trẻ định kỳ theo độ tuổi.';
@@ -68,13 +69,13 @@ export const useChildFormState = ({
     const [patientId, setPatientId] = useState(initialData?.patient_id || `P${Math.floor(1000 + Math.random() * 9000)}`);
     const [patientName, setPatientName] = useState(initialData?.patient_name || '');
     const [cccd, setCccd] = useState(initialData?.cccd || '');
-    const [dob, setDob] = useState(initialData?.dob ? new Date(initialData.dob).toISOString().split('T')[0] : '');
+    const [dob, setDob] = useState(initialData?.dob ? formatDateForInput(initialData.dob) : '');
     const [gender, setGender] = useState(initialData?.gender || '');
     const [docNo, setDocNo] = useState(initialData?.doc_no || Date.now().toString());
     const [address, setAddress] = useState(initialData?.clinical_data?.address || '');
     const [phone, setPhone] = useState(initialData?.clinical_data?.phone || '');
     const [ethnic, setEthnic] = useState(initialData?.clinical_data?.ethnic || '01');
-    const [cccdDate, setCccdDate] = useState(initialData?.clinical_data?.cccd_date || '');
+    const [cccdDate, setCccdDate] = useState(initialData?.clinical_data?.cccd_date ? formatDateForInput(initialData.clinical_data.cccd_date) : '');
     const [cccdPlace, setCccdPlace] = useState(initialData?.clinical_data?.cccd_place || '');
     const [bloodGroup, setBloodGroup] = useState(initialData?.clinical_data?.blood_group || '');
     const [targetGroup, setTargetGroup] = useState(initialData?.clinical_data?.target_group || '');
@@ -290,7 +291,7 @@ export const useChildFormState = ({
             if (data) {
                 if (data.patient_name || data.patientName) setPatientName((data.patient_name || data.patientName).toUpperCase());
                 if (data.cccd) setCccd(data.cccd);
-                if (data.dob) setDob(new Date(data.dob).toISOString().split('T')[0]);
+                if (data.dob) setDob(formatDateForInput(data.dob));
                 if (data.gender) setGender(data.gender);
                 if (data.clinical_data?.phone || data.phone) setPhone(data.clinical_data?.phone || data.phone);
                 if (data.clinical_data?.address || data.address) setAddress(data.clinical_data?.address || data.address);
@@ -315,8 +316,8 @@ export const useChildFormState = ({
                 // Tự động chuyển mẫu biểu nếu độ tuổi không thuộc Mẫu 1
                 let targetForm = data.form_type;
                 if (!targetForm && data.dob) {
-                    const bDate = new Date(data.dob);
-                    if (!isNaN(bDate.getTime())) {
+                    const bDate = parseDateSafe(data.dob);
+                    if (bDate && !isNaN(bDate.getTime())) {
                         const today = new Date();
                         let age = today.getFullYear() - bDate.getFullYear();
                         if (today.getMonth() < bDate.getMonth() || (today.getMonth() === bDate.getMonth() && today.getDate() < bDate.getDate())) {

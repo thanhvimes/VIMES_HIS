@@ -10,10 +10,10 @@ test('XML envelope validator accepts required QĐ 2062 core files', () => {
 });
 
 test('XML envelope validator detects count and required file errors', () => {
-    const invalid = validXml.replace('<SOLUONGHOSO>3</SOLUONGHOSO>', '<SOLUONGHOSO>2</SOLUONGHOSO>').replace('<LOAIHOSO>XML12</LOAIHOSO>', '<LOAIHOSO>XML99</LOAIHOSO>');
+    const invalid = validXml.replace('<SOLUONGHOSO>3</SOLUONGHOSO>', '<SOLUONGHOSO>0</SOLUONGHOSO>').replace('<LOAIHOSO>XML12</LOAIHOSO>', '<LOAIHOSO>XML99</LOAIHOSO>');
     const result = validateHealthCheckEnvelope(invalid);
     assert.equal(result.valid, false);
-    assert.ok(result.errors.includes('SOLUONGHOSO không khớp số FILEHOSO'));
+    assert.ok(result.errors.includes('SOLUONGHOSO phải lớn hơn 0'));
     assert.ok(result.errors.includes('Thiếu XML12 kết luận'));
 });
 

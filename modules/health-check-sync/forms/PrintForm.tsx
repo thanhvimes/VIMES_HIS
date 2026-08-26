@@ -13,6 +13,7 @@ import { healthCheckService } from '../../../services/healthCheckService';
 import { PrintFormMau1 } from './PrintFormMau1';
 import { PrintFormMau2 } from './PrintFormMau2';
 import { PrintFormMau3 } from './PrintFormMau3';
+import { formatDate, calculateAge } from '../../../utils/formatters';
 
 const COMMON_ICD10 = [
     { code: 'A09', name: 'Tiêu chảy và viêm dạ dày ruột' },
@@ -476,18 +477,8 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
     // Helper functions for data display
     const getAge = (dobString: any) => {
         if (!dobString) return '...';
-        try {
-            const birthDate = new Date(dobString);
-            const today = new Date();
-            let age = today.getFullYear() - birthDate.getFullYear();
-            const m = today.getMonth() - birthDate.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-                age--;
-            }
-            return age;
-        } catch {
-            return '...';
-        }
+        const age = calculateAge(dobString);
+        return age > 0 ? age : '...';
     };
 
     const getReportDate = () => {
@@ -816,7 +807,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
                                 </svg>
                                 <span>SIGNED DIGITALLY</span>
                             </div>
-                            By: {hospitalName || 'Phòng khám đa khoa vClinic'}<br/>
+                            By: {hospitalName || 'BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH'}<br/>
                             Time: {document.updated_at ? new Date(document.updated_at).toLocaleString('vi-VN') : '2026-06-03'}
                         </div>
                     ) : (
@@ -1185,7 +1176,7 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
                                     <span className="font-bold">3. Sinh ngày: </span>
-                                    <span>{document.dob ? new Date(document.dob).toLocaleDateString('vi-VN') : '.../.../....'}</span>
+                                    <span>{document.dob ? formatDate(document.dob) : '.../.../....'}</span>
                                 </div>
                                 <div>
                                     <span className="font-bold">Tuổi: </span>

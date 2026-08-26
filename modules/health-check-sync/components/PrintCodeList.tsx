@@ -7,7 +7,7 @@ import {
     EyeIcon,
     RefreshIcon
 } from '../../../components/Icons';
-import { formatDateTime } from '../../../utils/formatters';
+import { formatDateTime, formatDate } from '../../../utils/formatters';
 import { Code128Barcode } from '../forms/PrintBarcodeForm';
 
 interface PrintCodeListProps {
@@ -107,7 +107,7 @@ const PrintCodeList: React.FC<PrintCodeListProps> = ({
                                     <td className="p-4">
                                         <div className="font-bold text-slate-900 dark:text-white text-[13px]">{doc.patient_name}</div>
                                         <div className="text-[11px] text-slate-500 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 font-mono mt-0.5">
-                                            <span>NS: {doc.dob ? new Date(doc.dob).toLocaleDateString('vi-VN') : 'N/A'}</span>
+                                            <span>NS: {doc.dob ? formatDate(doc.dob) : 'N/A'}</span>
                                             {doc.cccd && (
                                                 <>
                                                     <span className="text-slate-300">|</span>

@@ -7,6 +7,7 @@ import { useSystemStore } from '../../../stores/useSystemStore';
 import { HealthCheckSettings } from '../models/HealthCheckSettings';
 import { printZplViaWorkstationAgent } from '../services/workstationAgentPrintClient';
 import { toast } from 'sonner';
+import { parseDateSafe } from '../../../utils/formatters';
 
 interface PrintBarcodeFormProps {
     documents: any[];
@@ -228,7 +229,8 @@ const PrintBarcodeForm: React.FC<PrintBarcodeFormProps> = ({
             for (const doc of documents) {
                 // Replace ZPL template place holders with real values
                 const genderStr = doc.gender || 'Nam';
-                const ageStr = doc.dob ? `NS: ${new Date(doc.dob).getFullYear()}` : 'N/A';
+                const birthYear = doc.dob ? parseDateSafe(doc.dob)?.getFullYear() : null;
+                const ageStr = birthYear ? `NS: ${birthYear}` : 'N/A';
                 const infoStr = `${ageStr} - ${genderStr}`;
 
                 let zpl = template
@@ -483,7 +485,7 @@ const PrintBarcodeForm: React.FC<PrintBarcodeFormProps> = ({
                                 <div key={doc.id || idx} className="a4-decal-item flex flex-col justify-between text-black">
                                     {showHospital && (
                                         <div className="text-[8px] font-extrabold uppercase border-b border-slate-300 pb-0.5 tracking-tight truncate">
-                                            {hospitalName || 'PHÒNG KHÁM vCLINIC'}
+                                            {hospitalName || 'BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH'}
                                         </div>
                                     )}
                                     <div className="my-1 text-center">
@@ -494,7 +496,7 @@ const PrintBarcodeForm: React.FC<PrintBarcodeFormProps> = ({
                                         <div className="text-[7.5px] font-semibold text-slate-700 flex justify-between">
                                             <span>
                                                 {showDate 
-                                                    ? `NS: ${doc.dob ? new Date(doc.dob).getFullYear() : 'N/A'} - ${doc.gender}` 
+                                                    ? `NS: ${doc.dob ? (parseDateSafe(doc.dob)?.getFullYear() || 'N/A') : 'N/A'} - ${doc.gender}` 
                                                     : doc.gender
                                                 }
                                             </span>
@@ -521,7 +523,7 @@ const PrintBarcodeForm: React.FC<PrintBarcodeFormProps> = ({
                             >
                                 {showHospital && (
                                     <div className="text-[8.5px] font-extrabold uppercase border-b border-black pb-0.5 tracking-tight text-center truncate">
-                                        {hospitalName || 'PHÒNG KHÁM vCLINIC'}
+                                        {hospitalName || 'BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH'}
                                     </div>
                                 )}
                                 <div className="my-1.5 text-center flex-1 flex items-center justify-center">
@@ -532,7 +534,7 @@ const PrintBarcodeForm: React.FC<PrintBarcodeFormProps> = ({
                                     <div className="text-[8px] font-bold text-slate-800 flex justify-between">
                                         <span>
                                             {showDate 
-                                                ? `NS: ${doc.dob ? new Date(doc.dob).getFullYear() : 'N/A'} - ${doc.gender}` 
+                                                ? `NS: ${doc.dob ? (parseDateSafe(doc.dob)?.getFullYear() || 'N/A') : 'N/A'} - ${doc.gender}` 
                                                 : doc.gender
                                             }
                                         </span>

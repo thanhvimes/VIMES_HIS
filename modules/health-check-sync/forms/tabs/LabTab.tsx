@@ -642,18 +642,19 @@ const LabTab: React.FC = () => {
                         <table className="w-full text-left border-collapse text-xs">
                             <thead>
                                 <tr className="border-b border-slate-250 dark:border-slate-750 text-[10px] font-extrabold text-slate-500 uppercase">
-                                    <th className={`py-2.5 px-3 ${labSubTab === 'XN' ? 'w-[35%]' : 'w-[30%]'}`}>Tên dịch vụ/chỉ số</th>
-                                    <th className={`py-2.5 px-3 ${labSubTab === 'XN' ? 'w-[25%]' : 'w-[20%]'}`}>Kết quả</th>
-                                    {labSubTab === 'XN' && <th className="py-2.5 px-3 w-[15%]">Đơn vị</th>}
-                                    {labSubTab !== 'XN' && <th className="py-2.5 px-3 w-[25%]">Mô tả chi tiết</th>}
-                                    <th className={`py-2.5 px-3 ${labSubTab === 'XN' ? 'w-[25%]' : 'w-[15%]'}`}>Kết luận</th>
-                                    {labSubTab !== 'XN' && <th className="py-2.5 px-3 w-[10%] text-center">Thao tác</th>}
+                                    <th className="py-2.5 px-3 w-[10%]">Số phiếu</th>
+                                    <th className={`py-2.5 px-3 ${labSubTab === 'XN' ? 'w-[32%]' : 'w-[25%]'}`}>Tên dịch vụ/chỉ số</th>
+                                    <th className={`py-2.5 px-3 ${labSubTab === 'XN' ? 'w-[23%]' : 'w-[18%]'}`}>Kết quả</th>
+                                    {labSubTab === 'XN' && <th className="py-2.5 px-3 w-[13%]">Đơn vị</th>}
+                                    {labSubTab !== 'XN' && <th className="py-2.5 px-3 w-[22%]">Mô tả chi tiết</th>}
+                                    <th className={`py-2.5 px-3 ${labSubTab === 'XN' ? 'w-[22%]' : 'w-[14%]'}`}>Kết luận</th>
+                                    {labSubTab !== 'XN' && <th className="py-2.5 px-3 w-[8%] text-center">Thao tác</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100/60 dark:divide-slate-800/40">
                                 {paraclinicalItems.filter(item => item.type === labSubTab).length === 0 ? (
                                     <tr>
-                                        <td colSpan={labSubTab === 'XN' ? 4 : 5} className="py-6 text-center text-slate-400 dark:text-slate-500 italic">
+                                        <td colSpan={labSubTab === 'XN' ? 5 : 6} className="py-6 text-center text-slate-400 dark:text-slate-500 italic">
                                             Chưa có dịch vụ nào được chỉ định cho nhóm này.
                                         </td>
                                     </tr>
@@ -721,7 +722,7 @@ const LabTab: React.FC = () => {
                                             <React.Fragment key={g.name}>
                                                 {/* Nhóm Xét Nghiệm Header Row */}
                                                 <tr className="bg-slate-100 dark:bg-slate-800 border-y border-slate-200 dark:border-slate-700">
-                                                    <td colSpan={labSubTab === 'XN' ? 4 : 5} className="py-2.5 px-3 font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider text-[10px]">
+                                                    <td colSpan={labSubTab === 'XN' ? 5 : 6} className="py-2.5 px-3 font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider text-[10px]">
                                                         {g.name === 'Chưa phân nhóm' ? 'Chưa phân nhóm (Dịch vụ tự thêm)' : g.name}
                                                     </td>
                                                 </tr>
@@ -739,7 +740,7 @@ const LabTab: React.FC = () => {
                                                         lastParentCode = currentParentCode;
                                                         elements.push(
                                                             <tr key={`parent-${currentParentCode}`} className="bg-teal-50/40 dark:bg-teal-950/20 text-teal-800 dark:text-teal-300 font-bold border-y border-teal-100/30 dark:border-teal-900/20">
-                                                                <td colSpan={labSubTab === 'XN' ? 4 : 5} className="py-2 px-3 text-[11px] font-bold">
+                                                                <td colSpan={labSubTab === 'XN' ? 5 : 6} className="py-2 px-3 text-[11px] font-bold">
                                                                     <span className="mr-1.5 text-teal-600 dark:text-teal-400">📂</span> {currentParentName}
                                                                 </td>
                                                             </tr>
@@ -751,6 +752,9 @@ const LabTab: React.FC = () => {
                                                         lastParentCode = currentParentCode; // Ensure child items don't trigger header
                                                         elements.push(
                                                             <tr key={item.originalIndex} className="bg-teal-50/20 dark:bg-teal-950/15 font-bold border-y border-teal-100/20 dark:border-teal-900/10 hover:bg-teal-50/40">
+                                                                <td className="py-2.5 px-3 font-mono text-[11px] text-slate-500 font-bold">
+                                                                    {item.order_id ? `#${item.order_id}` : ''}
+                                                                </td>
                                                                 <td className="py-2.5 px-3">
                                                                     <div className="flex items-center text-teal-900 dark:text-teal-300 font-extrabold text-[12px]">
                                                                         <span className="mr-1.5 text-teal-600 dark:text-teal-400">📂</span> {item.service_name}
@@ -768,6 +772,15 @@ const LabTab: React.FC = () => {
 
                                                     elements.push(
                                                         <tr key={item.originalIndex} className="hover:bg-slate-50/50 dark:hover:bg-slate-855/40">
+                                                            <td className="py-2 px-3 font-mono text-[11px] font-bold text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                                                                {item.order_id ? (
+                                                                    <span className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-[#0f766e] dark:text-teal-400">
+                                                                        #{item.order_id}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-slate-300 dark:text-slate-600">-</span>
+                                                                )}
+                                                            </td>
                                                             <td className="py-2 px-1.5">
                                                                 <div className="flex items-center">
                                                                     {hasParent && (

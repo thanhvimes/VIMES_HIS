@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { query } from '../../config/database';
 import { generateXmlPayload } from './xml-generator';
 import { hisIntegrationController } from './his-integration';
+import { formatYmdString } from '../../services/health-check-merge.service';
 
 export class ReceptionController {
     // Lấy danh sách phòng khám/phòng tiếp đón để chọn phòng đo sinh hiệu
@@ -156,7 +157,7 @@ export class ReceptionController {
         // 1. Lấy thông tin nhân viên
         const empRes = await query(`
             SELECT e.*, c.hec_description as hec_name, c.hec_company_id, w.hwp_name as company_name,
-                   c.hec_type as contract_exam_type, c.hec_object as contract_room_id,
+                   c.hec_type as contract_exam_type, c.hec_object as contract_object,
                    c.hec_form_type as contract_form_type
             FROM hms_exm_employee e
             JOIN hms_exm_contract c ON c.hec_contract_id = e.hee_contract_id
@@ -245,8 +246,11 @@ export class ReceptionController {
 
         // 3. Nếu đã có số hồ sơ (hee_docno), kiểm tra xem hồ sơ đó còn hoạt động trên HIS không
         if (emp.hee_docno) {
-            const checkDoc = await query(`SELECT hd_docno FROM hms_doc WHERE hd_docno = $1`, [emp.hee_docno]);
+            const checkDoc = await query(`SELECT hd_docno, hd_object FROM hms_doc WHERE hd_docno = $1`, [emp.hee_docno]);
             if (checkDoc.rows.length > 0) {
+                if (!checkDoc.rows[0].hd_object || checkDoc.rows[0].hd_object === '0' || checkDoc.rows[0].hd_object === 0) {
+                    await query(`UPDATE hms_doc SET hd_object = '7' WHERE hd_docno = $1`, [emp.hee_docno]);
+                }
                 const servicesRes = await query(`
                     SELECT f.hfe_desc as name, f.hfe_unit as unit, f.hfe_quantity as quantity, f.hfe_unitprice as price
                     FROM hms_fee f
@@ -272,7 +276,7 @@ export class ReceptionController {
         const formattedDate = `${year}-${month}-${day} ${hour}:${minute}`;
 
         // Lấy mã phòng khám và loại phí khám từ cấu hình hợp đồng/gói khám
-        const activeRoomId = emp.contract_room_id ? parseInt(String(emp.contract_room_id), 10) : (roomId ? parseInt(String(roomId), 10) : 1);
+        const activeRoomId = roomId ? parseInt(String(roomId), 10) : 1;
         const examType = emp.contract_exam_type || 'E01';
 
         console.log('🚀 Gọi hms_exm_registration_exam:', {
@@ -304,6 +308,13 @@ export class ReceptionController {
         }
 
         const newDocNo = parseInt(String(registerRes.rows[0].doc_no), 10);
+
+        // 4.1. Đảm bảo đối tượng bệnh nhân trên HIS (hms_doc.hd_object) luôn là 'Dịch vụ' (mã '7')
+        await query(`
+            UPDATE hms_doc
+            SET hd_object = '7'
+            WHERE hd_docno = $1 AND (hd_object IS NULL OR hd_object::varchar = '0' OR trim(hd_object::varchar) = '')
+        `, [newDocNo]);
 
         // 5. Lấy patientNo và kiểm tra trạng thái từ hms_exm_employee sau khi chạy stored procedure
         const updatedEmpRes = await query(`
@@ -358,8 +369,7 @@ export class ReceptionController {
             const genderVal = (emp.hee_sex || '').toLowerCase();
             const gender = (genderVal === 'm' || genderVal.includes('nam') || genderVal === '1') ? 'Nam' : 'Nữ';
             const cccd = emp.hee_cardid || '';
-            const dob = parseDateSafely(emp.hee_birthdate);
-            const dobStr = dob ? dob.toISOString().split('T')[0] : '1990-01-01';
+            const dobStr = formatYmdString(emp.hee_birthdate) || '1990-01-01';
             
             const formType = emp.contract_form_type || '2'; // Sử dụng mẫu cấu hình sẵn trên hợp đồng, mặc định '2'
             const docNo = String(newDocNo);
@@ -429,7 +439,7 @@ export class ReceptionController {
                             created_by = COALESCE(created_by, $13),
                             created_by_name = COALESCE(created_by_name, $14)
                         WHERE id = $12
-                    `, [String(newPatientNo), patientName, cccd, dob, gender,
+                    `, [String(newPatientNo), patientName, cccd, dobStr, gender,
                         docNo, formType, xmlData, String(employeeId), emp.hee_contract_id, String(newDocNo), masterId,
                         currentUser, currentUserName]);
 
@@ -447,7 +457,7 @@ export class ReceptionController {
                         created_by, created_by_name
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'HIS', NOW(), NOW(), $12, $13)
                     RETURNING id
-                `, [String(newPatientNo), patientName, cccd, dob, gender,
+                `, [String(newPatientNo), patientName, cccd, dobStr, gender,
                     docNo, formType, xmlData, String(employeeId), emp.hee_contract_id, String(newDocNo),
                     currentUser, currentUserName]);
 
@@ -506,6 +516,9 @@ export class ReceptionController {
             return res.json({
                 success: true,
                 message: result.alreadyReceived ? 'Nhân viên này đã được tiếp nhận trước đó!' : 'Tiếp nhận nhân viên thành công!',
+                docNo: result.docNo,
+                patientNo: result.patientNo,
+                services: result.services,
                 data: {
                     docNo: result.docNo,
                     patientNo: result.patientNo,
@@ -645,7 +658,7 @@ export class ReceptionController {
                     `, [provCode, `%${provCode}%`]);
                     if (provRes.rows.length > 0) {
                         provNum = parseInt(provRes.rows[0].sp_id, 10);
-                        provCode = String(provRes.rows[0].sp_id).padStart(2, '0');
+                        provCode = String(provRes.rows[0].sp_id);
                     }
                 } catch {}
             }
@@ -659,7 +672,7 @@ export class ReceptionController {
                     `, [villCode, `%${villCode}%`]);
                     if (villRes.rows.length > 0) {
                         villNum = parseInt(villRes.rows[0].sv_id, 10);
-                        villCode = String(villRes.rows[0].sv_id).padStart(5, '0');
+                        villCode = String(villRes.rows[0].sv_id);
                     }
                 } catch {}
             }
@@ -777,7 +790,7 @@ export class ReceptionController {
                         `, [
                             fullName,
                             cardId || '',
-                            dob ? new Date(dob) : null,
+                            formatYmdString(dob),
                             (gender === 'F' || gender === 'Nữ' || gender === '2') ? 'Nữ' : 'Nam',
                             mId
                         ]);

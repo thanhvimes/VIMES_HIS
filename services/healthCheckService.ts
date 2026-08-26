@@ -42,6 +42,7 @@ export const healthCheckService = {
         signatureStatus?: string;
         formType?: string;
         contractId?: string;
+        examStatus?: string;
         limit?: number | string;
         page?: number;
     }): Promise<HealthCheckDocument[]> => {
@@ -56,6 +57,7 @@ export const healthCheckService = {
                 if (filters.signatureStatus) params.append('signatureStatus', filters.signatureStatus);
                 if (filters.formType) params.append('formType', filters.formType);
                 if (filters.contractId) params.append('contractId', filters.contractId);
+                if (filters.examStatus) params.append('examStatus', filters.examStatus);
                 if (filters.limit) params.append('limit', String(filters.limit));
                 if (filters.page) params.append('page', String(filters.page));
             }
@@ -63,6 +65,46 @@ export const healthCheckService = {
             return await apiClient.get<HealthCheckDocument[]>(`/health-check-sync/documents${queryStr}`);
         } catch (error) {
             console.error("Failed to fetch health check documents:", error);
+            throw error;
+        }
+    },
+
+    getDocumentsWithCount: async (filters?: { 
+        startDate?: string; 
+        endDate?: string; 
+        barcodePrinted?: string;
+        searchTerm?: string;
+        status?: string;
+        signatureStatus?: string;
+        formType?: string;
+        contractId?: string;
+        examStatus?: string;
+        limit?: number | string;
+        page?: number;
+    }): Promise<{ documents: HealthCheckDocument[]; totalCount: number }> => {
+        try {
+            const params: Record<string, any> = {};
+            if (filters) {
+                if (filters.startDate) params.startDate = filters.startDate;
+                if (filters.endDate) params.endDate = filters.endDate;
+                if (filters.barcodePrinted) params.barcodePrinted = filters.barcodePrinted;
+                if (filters.searchTerm) params.searchTerm = filters.searchTerm;
+                if (filters.status) params.status = filters.status;
+                if (filters.signatureStatus) params.signatureStatus = filters.signatureStatus;
+                if (filters.formType) params.formType = filters.formType;
+                if (filters.contractId) params.contractId = filters.contractId;
+                if (filters.examStatus) params.examStatus = filters.examStatus;
+                if (filters.limit) params.limit = filters.limit;
+                if (filters.page) params.page = filters.page;
+            }
+            const res = await apiClient.getWithMeta<HealthCheckDocument[]>('/health-check-sync/documents', params);
+            const totalCount = parseInt(res.headers.get('X-Total-Count') || '0', 10);
+            return {
+                documents: res.data || [],
+                totalCount: isNaN(totalCount) ? (res.data?.length || 0) : totalCount
+            };
+        } catch (error) {
+            console.error("Failed to fetch health check documents with count:", error);
             throw error;
         }
     },
@@ -227,6 +269,15 @@ export const healthCheckService = {
             return await apiClient.delete<{ success: boolean; message?: string }>(`/health-check-sync/contracts/${id}`);
         } catch (error) {
             console.error("Error deleting health check contract:", error);
+            throw error;
+        }
+    },
+
+    cleanupUnreceivedEmployees: async (id: string | number): Promise<{ success: boolean; message: string; deletedCount?: number }> => {
+        try {
+            return await apiClient.post<{ success: boolean; message: string; deletedCount?: number }>(`/health-check-sync/contracts/${id}/cleanup-unreceived`, {});
+        } catch (error) {
+            console.error("Error cleaning up unreceived contract employees:", error);
             throw error;
         }
     },

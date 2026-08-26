@@ -5,6 +5,7 @@ import { useCatalogs } from '../../../contexts/CatalogContext';
 import { catalogService, CatalogItem } from '../../../services/catalogService';
 import { healthCheckService } from '../../../services/healthCheckService';
 import { validateNewFormAge } from '../utils/healthCheckAge';
+import { formatDateForInput, parseDateSafe } from '../../../utils/formatters';
 
 export const useDynamicFormState = (
     formType: string,
@@ -28,15 +29,15 @@ export const useDynamicFormState = (
     const [patientName, setPatientName] = useState(initialData?.patient_name || '');
     const [cccd, setCccd] = useState(initialData?.cccd || '');
     const [noCccd, setNoCccd] = useState(initialData?.clinical_data?.no_cccd || false);
-    const [dob, setDobState] = useState(initialData?.dob ? new Date(initialData.dob).toISOString().split('T')[0] : '');
+    const [dob, setDobState] = useState(initialData?.dob ? formatDateForInput(initialData.dob) : '');
 
     // Tự động chuyển đổi mẫu biểu khi ngày sinh thay đổi
     const setDob: React.Dispatch<React.SetStateAction<string>> = (valOrFn) => {
         setDobState(prev => {
             const nextVal = typeof valOrFn === 'function' ? (valOrFn as any)(prev) : valOrFn;
             if (nextVal && onChangeFormType) {
-                const bDate = new Date(nextVal);
-                if (!isNaN(bDate.getTime())) {
+                const bDate = parseDateSafe(nextVal);
+                if (bDate && !isNaN(bDate.getTime())) {
                     const today = new Date();
                     let age = today.getFullYear() - bDate.getFullYear();
                     if (today.getMonth() < bDate.getMonth() || (today.getMonth() === bDate.getMonth() && today.getDate() < bDate.getDate())) {
@@ -61,7 +62,7 @@ export const useDynamicFormState = (
     const [address, setAddress] = useState(initialData?.clinical_data?.address || '');
     const [phone, setPhone] = useState(initialData?.clinical_data?.phone || '');
     const [ethnic, setEthnic] = useState(initialData?.clinical_data?.ethnic || '01');
-    const [cccdDate, setCccdDate] = useState(initialData?.clinical_data?.cccd_date || '');
+    const [cccdDate, setCccdDate] = useState(initialData?.clinical_data?.cccd_date ? formatDateForInput(initialData.clinical_data.cccd_date) : '');
     const [cccdPlace, setCccdPlace] = useState(initialData?.clinical_data?.cccd_place || '');
     const [bloodGroup, setBloodGroup] = useState(initialData?.clinical_data?.blood_group || '');
     const [targetGroup, setTargetGroup] = useState(initialData?.clinical_data?.target_group || '');
@@ -73,7 +74,7 @@ export const useDynamicFormState = (
     const [maXaCuTru, setMaXaCuTru] = useState(initialData?.clinical_data?.maxa_cu_tru || '');
     const [lyDoVv, setLyDoVv] = useState(initialData?.clinical_data?.ly_do_vv || 'Khám sức khỏe định kỳ');
     const [loaiHinhKcb, setLoaiHinhKcb] = useState(initialData?.clinical_data?.loai_hinh_kcb || '01');
-    const [ngayVao, setNgayVao] = useState(initialData?.clinical_data?.ngay_vao || new Date().toISOString().split('T')[0]);
+    const [ngayVao, setNgayVao] = useState(initialData?.clinical_data?.ngay_vao ? formatDateForInput(initialData.clinical_data.ngay_vao) : formatDateForInput(new Date()));
 
     // Form-specific extra administrative fields
     const [guardianName, setGuardianName] = useState(initialData?.clinical_data?.extra?.nguoi_giam_ho || '');
@@ -527,11 +528,12 @@ export const useDynamicFormState = (
                     setDocNo(data.doc_no);
                 }
                 if (data.cccd) setCccd(data.cccd);
-                if (data.dob) setDob(new Date(data.dob).toISOString().split('T')[0]);
+                if (data.dob) setDob(formatDateForInput(data.dob));
                 if (data.gender) setGender(data.gender);
                 if (data.clinical_data?.address) setAddress(data.clinical_data.address);
                 if (data.clinical_data?.phone) setPhone(data.clinical_data.phone);
                 if (data.clinical_data?.ethnic) setEthnic(data.clinical_data.ethnic);
+                if (data.clinical_data?.cccd_date) setCccdDate(formatDateForInput(data.clinical_data.cccd_date));
                 if (data.clinical_data?.blood_group) setBloodGroup(data.clinical_data.blood_group);
                 if (data.clinical_data?.target_group) setTargetGroup(data.clinical_data.target_group);
                 if (data.clinical_data?.ma_gtin_cskcb) setMaGtinCskcb(data.clinical_data.ma_gtin_cskcb);
@@ -540,7 +542,7 @@ export const useDynamicFormState = (
                 if (data.clinical_data?.ly_do_vv) setLyDoVv(data.clinical_data.ly_do_vv);
                 if (data.clinical_data?.ngay_vao || data.clinical_data?.extra?.ngay_kham) {
                     const rawDate = data.clinical_data.ngay_vao || data.clinical_data.extra?.ngay_kham;
-                    setNgayVao(rawDate.includes('T') ? new Date(rawDate).toISOString().split('T')[0] : rawDate);
+                    setNgayVao(formatDateForInput(rawDate));
                 }
                 if (data.clinical_data?.extra?.gio_kham || data.clinical_data?.gio_kham) {
                     setGioKham(String(data.clinical_data.extra?.gio_kham || data.clinical_data?.gio_kham));
@@ -764,8 +766,8 @@ export const useDynamicFormState = (
                 // Tự động nhận diện và chuyển đổi Mẫu biểu áp dụng theo độ tuổi
                 let targetForm = data.form_type;
                 if (!targetForm && data.dob) {
-                    const bDate = new Date(data.dob);
-                    if (!isNaN(bDate.getTime())) {
+                    const bDate = parseDateSafe(data.dob);
+                    if (bDate && !isNaN(bDate.getTime())) {
                         const today = new Date();
                         let age = today.getFullYear() - bDate.getFullYear();
                         if (today.getMonth() < bDate.getMonth() || (today.getMonth() === bDate.getMonth() && today.getDate() < bDate.getDate())) {
@@ -819,46 +821,47 @@ export const useDynamicFormState = (
                 const lab = data.lab_data;
 
                 // Cập nhật các trường cận lâm sàng cốt lõi
-                if (lab.blood_test?.hemoglobin) setHemoglobin(lab.blood_test.hemoglobin);
-                if (lab.blood_test?.glycemia) setGlycemia(lab.blood_test.glycemia);
-                if (lab.urine_test?.protein) setProtein(lab.urine_test.protein);
-                if (lab.kq_xn_ma_tuy) setKqXnMaiTuy(lab.kq_xn_ma_tuy);
-                if (lab.kq_xn_nong_do_con) setKqXnNongDoCon(lab.kq_xn_nong_do_con);
-                if (lab.kq_xn_khac) setKqXnKhac(lab.kq_xn_khac);
+                if (lab.blood_test?.hemoglobin !== undefined) setHemoglobin(lab.blood_test.hemoglobin || '');
+                if (lab.blood_test?.glycemia !== undefined) setGlycemia(lab.blood_test.glycemia || '');
+                if (lab.urine_test?.protein !== undefined) setProtein(lab.urine_test.protein || '');
+                if (lab.kq_xn_ma_tuy !== undefined) setKqXnMaiTuy(lab.kq_xn_ma_tuy || '');
+                if (lab.kq_xn_nong_do_con !== undefined) setKqXnNongDoCon(lab.kq_xn_nong_do_con || '');
+                if (lab.kq_xn_khac !== undefined) setKqXnKhac(lab.kq_xn_khac || '');
 
-                if (lab.blood_test?.chi_so_hc) setChiSoHc(lab.blood_test.chi_so_hc);
-                if (lab.blood_test?.chi_so_bach_cau) setChiSoBachCau(lab.blood_test.chi_so_bach_cau);
-                if (lab.blood_test?.chi_so_tieu_cau) setChiSoTieuCau(lab.blood_test.chi_so_tieu_cau);
-                if (lab.blood_test?.cong_thuc_bc) setCongThucBc(lab.blood_test.cong_thuc_bc);
-                if (lab.blood_test?.thoi_gian_howell) setThoiGianHowell(lab.blood_test.thoi_gian_howell);
+                if (lab.blood_test?.chi_so_hc !== undefined) setChiSoHc(lab.blood_test.chi_so_hc || '');
+                if (lab.blood_test?.chi_so_bach_cau !== undefined) setChiSoBachCau(lab.blood_test.chi_so_bach_cau || '');
+                if (lab.blood_test?.chi_so_tieu_cau !== undefined) setChiSoTieuCau(lab.blood_test.chi_so_tieu_cau || '');
+                if (lab.blood_test?.cong_thuc_bc !== undefined) setCongThucBc(lab.blood_test.cong_thuc_bc || '');
+                if (lab.blood_test?.thoi_gian_howell !== undefined) setThoiGianHowell(lab.blood_test.thoi_gian_howell || '');
 
-                if (lab.blood_test?.cholesterol) setCholesterol(lab.blood_test.cholesterol);
-                if (lab.blood_test?.triglycerid) setTriglycerid(lab.blood_test.triglycerid);
-                if (lab.blood_test?.hdl) setHdl(lab.blood_test.hdl);
-                if (lab.blood_test?.ldl) setLdl(lab.blood_test.ldl);
-                if (lab.blood_test?.rpr) setRpr(lab.blood_test.rpr);
-                if (lab.blood_test?.tpha) setTpha(lab.blood_test.tpha);
-                if (lab.blood_test?.hbsag) setHbsag(lab.blood_test.hbsag);
-                if (lab.blood_test?.hbeag) setHbeag(lab.blood_test.hbeag);
-                if (lab.blood_test?.hcvab) setHcvab(lab.blood_test.hcvab);
-                if (lab.blood_test?.havab) setHavab(lab.blood_test.havab);
-                if (lab.blood_test?.hiv) setHiv(lab.blood_test.hiv);
+                if (lab.blood_test?.cholesterol !== undefined) setCholesterol(lab.blood_test.cholesterol || '');
+                if (lab.blood_test?.triglycerid !== undefined) setTriglycerid(lab.blood_test.triglycerid || '');
+                if (lab.blood_test?.hdl !== undefined) setHdl(lab.blood_test.hdl || '');
+                if (lab.blood_test?.ldl !== undefined) setLdl(lab.blood_test.ldl || '');
+                if (lab.blood_test?.rpr !== undefined) setRpr(lab.blood_test.rpr || '');
+                if (lab.blood_test?.tpha !== undefined) setTpha(lab.blood_test.tpha || '');
+                if (lab.blood_test?.hbsag !== undefined) setHbsag(lab.blood_test.hbsag || '');
+                if (lab.blood_test?.hbeag !== undefined) setHbeag(lab.blood_test.hbeag || '');
+                if (lab.blood_test?.hcvab !== undefined) setHcvab(lab.blood_test.hcvab || '');
+                if (lab.blood_test?.havab !== undefined) setHavab(lab.blood_test.havab || '');
+                if (lab.blood_test?.hiv !== undefined) setHiv(lab.blood_test.hiv || '');
 
-                if (lab.xn_khac) setXnKhac(lab.xn_khac);
-                if (lab.nong_do_con_mau) setNongDoConMau(lab.nong_do_con_mau);
-                if (lab.nuoc_tieu_test_nhanh?.ma_tuy) setNuocTieuMaTuy(lab.nuoc_tieu_test_nhanh.ma_tuy);
-                if (lab.nuoc_tieu_test_nhanh?.amphetamine) setNuocTieuAmphetamine(lab.nuoc_tieu_test_nhanh.amphetamine);
-                if (lab.nuoc_tieu_test_nhanh?.duong) setNuocTieuDuong(lab.nuoc_tieu_test_nhanh.duong);
-                if (lab.nuoc_tieu_test_nhanh?.protein) setNuocTieuProtein(lab.nuoc_tieu_test_nhanh.protein);
-                if (lab.nuoc_tieu_test_nhanh?.khac) setNuocTieuKhac(lab.nuoc_tieu_test_nhanh.khac);
+                if (lab.xn_khac !== undefined) setXnKhac(lab.xn_khac || '');
+                if (lab.nong_do_con_mau !== undefined) setNongDoConMau(lab.nong_do_con_mau || '');
+                if (lab.nuoc_tieu_test_nhanh?.ma_tuy !== undefined) setNuocTieuMaTuy(lab.nuoc_tieu_test_nhanh.ma_tuy || '');
+                if (lab.nuoc_tieu_test_nhanh?.amphetamine !== undefined) setNuocTieuAmphetamine(lab.nuoc_tieu_test_nhanh.amphetamine || '');
+                if (lab.nuoc_tieu_test_nhanh?.duong !== undefined) setNuocTieuDuong(lab.nuoc_tieu_test_nhanh.duong || '');
+                if (lab.nuoc_tieu_test_nhanh?.protein !== undefined) setNuocTieuProtein(lab.nuoc_tieu_test_nhanh.protein || '');
+                if (lab.nuoc_tieu_test_nhanh?.khac !== undefined) setNuocTieuKhac(lab.nuoc_tieu_test_nhanh.khac || '');
 
-                if (lab.imaging?.ket_qua) setKetQuaChanDoanHinhAnh(lab.imaging.ket_qua);
-                if (lab.ecg?.ket_qua) setKetQuaDienTim(lab.ecg.ket_qua);
-                if (lab.spiro?.ket_qua) setChucNangHoHap(lab.spiro.ket_qua);
-                if (lab.us?.ket_qua) setKetQuaSieuAmBung(lab.us.ket_qua);
+                if (lab.imaging?.ket_qua !== undefined) setKetQuaChanDoanHinhAnh(lab.imaging.ket_qua || '');
+                if (lab.ecg?.ket_qua !== undefined) setKetQuaDienTim(lab.ecg.ket_qua || '');
+                if (lab.spiro?.ket_qua !== undefined) setChucNangHoHap(lab.spiro.ket_qua || '');
+                if (lab.us?.ket_qua !== undefined) setKetQuaSieuAmBung(lab.us.ket_qua || '');
 
-                if (lab.paraclinical_items) {
+                if (Array.isArray(lab.paraclinical_items)) {
                     setParaclinicalItems(lab.paraclinical_items);
+                    syncGridToCoreFields(lab.paraclinical_items);
                 }
 
                 setHisSyncMessage({ type: 'success', text: "Đồng bộ thành công chỉ định và kết quả cận lâm sàng mới nhất từ HIS!" });

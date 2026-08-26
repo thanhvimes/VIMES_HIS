@@ -152,21 +152,37 @@ export class OrderController {
             // 5. Tự động đồng bộ toàn bộ Cận lâm sàng từ HIS sang Hồ sơ Khám sức khỏe
             const freshLabData = await hisIntegrationController.fetchStructuredParaclinicalData(numericDocNo);
 
-            // Cập nhật vào bảng health_check_documents
+            // Cập nhật vào bảng health_check_details
             await query(`
-                UPDATE health_check_documents 
-                SET json_data = jsonb_set(
-                    COALESCE(json_data, '{}'::jsonb), 
-                    '{lab_data}', 
-                    $1::jsonb
-                ),
-                updated_at = NOW()
-                WHERE doc_no = $2 OR patient_id = $3
+                UPDATE health_check_details d
+                SET lab_data = $1, updated_at = NOW()
+                FROM health_check_masters m
+                WHERE d.master_id = m.id
+                  AND (m.his_doc_no = $2 OR m.doc_no = $3 OR m.patient_id = $4)
             `, [
                 JSON.stringify(freshLabData),
                 String(numericDocNo),
+                String(docNo),
                 patientId || String(patientNo)
             ]);
+
+            // Cập nhật vào bảng health_check_documents (nếu có để tương thích)
+            try {
+                await query(`
+                    UPDATE health_check_documents 
+                    SET json_data = jsonb_set(
+                        COALESCE(json_data, '{}'::jsonb), 
+                        '{lab_data}', 
+                        $1::jsonb
+                    ),
+                    updated_at = NOW()
+                    WHERE doc_no = $2 OR patient_id = $3
+                `, [
+                    JSON.stringify(freshLabData),
+                    String(numericDocNo),
+                    patientId || String(patientNo)
+                ]);
+            } catch (ignoreErr) {}
 
             return res.json({
                 success: true,
@@ -219,22 +235,35 @@ export class OrderController {
                 }
             });
 
-            // Đồng bộ lại kết quả vào health_check_documents
+            // Đồng bộ lại kết quả vào health_check_details
             const freshLabData = await hisIntegrationController.fetchStructuredParaclinicalData(numericDocNo);
 
             await query(`
-                UPDATE health_check_documents 
-                SET json_data = jsonb_set(
-                    COALESCE(json_data, '{}'::jsonb), 
-                    '{lab_data}', 
-                    $1::jsonb
-                ),
-                updated_at = NOW()
-                WHERE doc_no = $2
+                UPDATE health_check_details d
+                SET lab_data = $1, updated_at = NOW()
+                FROM health_check_masters m
+                WHERE d.master_id = m.id
+                  AND (m.his_doc_no = $2 OR m.doc_no = $2)
             `, [
                 JSON.stringify(freshLabData),
                 String(numericDocNo)
             ]);
+
+            try {
+                await query(`
+                    UPDATE health_check_documents 
+                    SET json_data = jsonb_set(
+                        COALESCE(json_data, '{}'::jsonb), 
+                        '{lab_data}', 
+                        $1::jsonb
+                    ),
+                    updated_at = NOW()
+                    WHERE doc_no = $2
+                `, [
+                    JSON.stringify(freshLabData),
+                    String(numericDocNo)
+                ]);
+            } catch (ignoreErr) {}
 
             return res.json({
                 success: true,

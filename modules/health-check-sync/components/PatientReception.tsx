@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import JsBarcode from 'jsbarcode';
+import Barcode from 'react-barcode';
 import { healthCheckService } from '../../../services/healthCheckService';
 import { SearchIcon, UserGroupIcon, RefreshIcon, CheckCircleIcon, PrinterIcon } from '../../../components/Icons';
 import { toast } from 'sonner';
@@ -8,6 +9,7 @@ import { printZplViaWorkstationAgent } from '../services/workstationAgentPrintCl
 import Combobox from '../../../components/ui/Combobox';
 import { useCatalogs } from '../../../contexts/CatalogContext';
 import { CatalogItem } from '../../../services/catalogService';
+import { formatDateForInput, formatDate } from '../../../utils/formatters';
 
 interface EmployeeSearchResult {
     id: number;
@@ -279,7 +281,7 @@ const PatientReception: React.FC = () => {
             surname: selectedEmployee.surname || '',
             midname: selectedEmployee.midname || '',
             firstname: selectedEmployee.firstname || '',
-            dob: selectedEmployee.dob || '',
+            dob: selectedEmployee.dob ? formatDateForInput(selectedEmployee.dob) : '',
             gender: selectedEmployee.gender || 'M',
             cardId: selectedEmployee.card_id || '',
             phone: selectedEmployee.phone || '',
@@ -370,26 +372,31 @@ const PatientReception: React.FC = () => {
             toast.dismiss(toastId);
             if (res.success) {
                 toast.success(res.message || "Tiếp nhận nhân viên thành công!");
+                const docNo = res.docNo || (res as any).data?.docNo;
+                const patientNo = res.patientNo || (res as any).data?.patientNo;
+                const services = res.services || (res as any).data?.services || [];
+
                 setReceptionInfo({
-                    docNo: res.docNo,
-                    patientNo: res.patientNo,
-                    services: res.services
+                    docNo: docNo,
+                    patientNo: patientNo,
+                    services: services
                 });
 
-                setSelectedEmployee(prev => prev ? { ...prev, doc_no: res.docNo, status: 'R' } : null);
+                const updatedEmp = { ...selectedEmployee, doc_no: docNo, status: 'R' };
+                setSelectedEmployee(updatedEmp);
                 setSearchResults(prevList => 
                     prevList.map(item => 
                         item.id === selectedEmployee.id 
-                            ? { ...item, doc_no: res.docNo, status: 'R' } 
+                            ? { ...item, doc_no: docNo, status: 'R' } 
                             : item
                     )
                 );
                 
                 setTimeout(() => {
                     setPreviewData({
-                        emp: selectedEmployee,
-                        docNo: res.docNo,
-                        services: res.services
+                        emp: updatedEmp,
+                        docNo: docNo,
+                        services: services
                     });
                     setIsPreviewOpen(true);
                     
@@ -416,81 +423,93 @@ const PatientReception: React.FC = () => {
         }
     };
 
-    const DEFAULT_RECEPTION_TEMPLATE = `<div class="header">
-    <div class="hospital-name">BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH</div>
-    <div class="title">PHIẾU TIẾP ĐÓN</div>
-</div>
-
-<div class="divider"></div>
-
-<table class="info-table">
-    <tr>
-        <td class="info-label">Số hồ sơ:</td>
-        <td class="info-value" style="font-weight: bold; font-size: 15px;">{{docNo}}</td>
-    </tr>
-    <tr>
-        <td class="info-label">Họ tên:</td>
-        <td class="info-value" style="font-weight: bold; font-size: 15px;">{{name}}</td>
-    </tr>
-    <tr>
-        <td class="info-label">Năm sinh:</td>
-        <td class="info-value">{{dob}}</td>
-    </tr>
-    <tr>
-        <td class="info-label">CCCD:</td>
-        <td class="info-value">{{cardId}}</td>
-    </tr>
-    <tr>
-        <td class="info-label">Địa chỉ:</td>
-        <td class="info-value">{{address}}</td>
-    </tr>
-</table>
-
-<div class="divider"></div>
-
-<div class="barcode-section">
-    <div class="barcode-container">
-        <svg id="barcode"></svg>
+    const DEFAULT_RECEPTION_TEMPLATE = `<div class="receipt-card">
+    <div class="header">
+        <div class="hospital-name">BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH</div>
+        <div class="sub-header">KHOA KHÁM BỆNH - KHÁM SỨC KHỎE</div>
+        <div class="title">PHIẾU TIẾP ĐÓN</div>
     </div>
-    <div class="barcode-time">In: {{dateStr}}</div>
-</div>
 
-<div class="divider"></div>
+    <div class="divider"></div>
 
-<table class="vitals-table">
-    <tr>
-        <td class="vitals-label">Cân nặng:</td>
-        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
-        <td class="vitals-unit">kg</td>
-    </tr>
-    <tr>
-        <td class="vitals-label">Chiều cao:</td>
-        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
-        <td class="vitals-unit">cm</td>
-    </tr>
-    <tr>
-        <td class="vitals-label">Mạch:</td>
-        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
-        <td class="vitals-unit">lần/phút</td>
-    </tr>
-    <tr>
-        <td class="vitals-label">Huyết áp:</td>
-        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
-        <td class="vitals-unit">mmHg</td>
-    </tr>
-    <tr>
-        <td class="vitals-label">Mắt phải:</td>
-        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
-        <td class="vitals-unit"></td>
-    </tr>
-    <tr>
-        <td class="vitals-label">Mắt trái:</td>
-        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
-        <td class="vitals-unit"></td>
-    </tr>
-</table>
+    <table class="info-table">
+        <tr>
+            <td class="info-label">Số hồ sơ:</td>
+            <td class="info-value"><span class="doc-badge">{{docNo}}</span></td>
+        </tr>
+        <tr>
+            <td class="info-label">Họ và tên:</td>
+            <td class="info-value name-value">{{name}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">Ngày sinh:</td>
+            <td class="info-value">{{dob}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">Giới tính:</td>
+            <td class="info-value">{{gender}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">Số CCCD:</td>
+            <td class="info-value font-mono">{{cardId}}</td>
+        </tr>
+        
+    </table>
 
-<div class="divider" style="margin-top: 15px;"></div>`;
+    <div class="divider"></div>
+
+    <div class="vitals-section">
+        <div class="vitals-title">THÔNG TIN SINH HIỆU</div>
+        <table class="vitals-table">
+            <tr>
+                <td class="vitals-label">Mạch:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit">lần/phút</td>
+            </tr>
+            <tr>
+                <td class="vitals-label">Nhiệt độ:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit">°C</td>
+            </tr>
+            <tr>
+                <td class="vitals-label">Huyết áp:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit">mmHg</td>
+            </tr>
+            <tr>
+                <td class="vitals-label">Chiều cao:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit">cm</td>
+            </tr>
+            <tr>
+                <td class="vitals-label">Cân nặng:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit">kg</td>
+            </tr>
+            <tr>
+                <td class="vitals-label">Mắt phải:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit"></td>
+            </tr>
+            <tr>
+                <td class="vitals-label">Mắt trái:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit"></td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="barcode-section">
+        <div class="barcode-container">
+            <svg id="barcode"></svg>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="footer-note">Quý khách vui lòng giữ phiếu trong suốt quá trình khám!</div>
+</div>`;
 
     const printReceptionSlip = async (emp: EmployeeSearchResult, docNo: string, servicesList: any[]) => {
         const dateStr = new Date().toLocaleDateString('vi-VN', {
@@ -502,13 +521,22 @@ const PatientReception: React.FC = () => {
             year: 'numeric'
         });
 
-        const templateRaw = settings?.reception_slip_template || DEFAULT_RECEPTION_TEMPLATE;
+        const genderStr = emp.gender === 'F' || emp.gender === 'Nữ' ? 'Nữ' : (emp.gender === 'M' || emp.gender === 'Nam' ? 'Nam' : emp.gender || '');
+
+        const isOldTemplate = !settings?.reception_slip_template || 
+                              settings.reception_slip_template.includes('contract-value') ||
+                              !settings.reception_slip_template.includes('vitals-table') || 
+                              !settings.reception_slip_template.includes('{{gender}}');
+                              
+        const templateRaw = isOldTemplate ? DEFAULT_RECEPTION_TEMPLATE : settings.reception_slip_template;
         const templateBody = templateRaw
             .replace(/\{\{docNo\}\}/g, docNo)
             .replace(/\{\{name\}\}/g, emp.name.toUpperCase())
             .replace(/\{\{dob\}\}/g, emp.dob ? emp.dob.split('-').reverse().join('/') : '')
-            .replace(/\{\{cardId\}\}/g, emp.card_id || '')
-            .replace(/\{\{address\}\}/g, emp.address || '')
+            .replace(/\{\{gender\}\}/g, genderStr)
+            .replace(/\{\{cardId\}\}/g, emp.card_id || '---')
+            .replace(/\{\{address\}\}/g, emp.address || 'Chưa có')
+            .replace(/\{\{contractName\}\}/g, emp.contract_name || 'Khám sức khỏe')
             .replace(/\{\{dateStr\}\}/g, dateStr);
 
         // 1. In qua Vimes.PrintAgent nếu đã cấu hình máy in
@@ -602,18 +630,18 @@ const PatientReception: React.FC = () => {
                 <meta charset="utf-8" />
                 <style>
                     @page {
-                        size: auto;
+                        size: 80mm auto;
                         margin: 0mm;
                     }
                     body {
-                        font-family: 'Arial', sans-serif;
+                        font-family: 'Segoe UI', Tahoma, -apple-system, Roboto, Helvetica, Arial, sans-serif;
                         color: #000;
                         margin: 0 auto;
-                        padding: 8mm 4mm 4mm 4mm;
-                        width: 80mm;
+                        padding: 6mm 4mm 4mm 4mm;
+                        width: 78mm;
                         box-sizing: border-box;
-                        line-height: 1.4;
-                        font-size: 14px;
+                        line-height: 1.35;
+                        font-size: 13px;
                     }
                     .no-print {
                         text-align: center;
@@ -624,95 +652,136 @@ const PatientReception: React.FC = () => {
                         color: white;
                         padding: 8px 16px;
                         border: none;
-                        border-radius: 4px;
+                        border-radius: 6px;
                         cursor: pointer;
                         font-weight: bold;
                         font-size: 13px;
                     }
                     .header {
                         text-align: center;
-                        margin-bottom: 10px;
+                        margin-bottom: 6px;
                     }
                     .hospital-name {
                         font-weight: bold;
-                        font-size: 15px;
+                        font-size: 13.5px;
                         text-transform: uppercase;
-                        line-height: 1.3;
+                        line-height: 1.25;
+                    }
+                    .sub-header {
+                        font-size: 11px;
+                        font-weight: 600;
+                        text-transform: uppercase;
+                        margin-top: 2px;
+                        color: #333;
                     }
                     .title {
-                        font-size: 18px;
-                        font-weight: bold;
-                        margin: 8px 0;
+                        font-size: 17px;
+                        font-weight: 900;
+                        margin: 6px 0 2px 0;
                         text-transform: uppercase;
                         letter-spacing: 0.5px;
                     }
                     .divider {
-                        border-top: 1px dashed #000;
-                        margin: 8px 0;
+                        border-top: 1.5px dashed #000;
+                        margin: 6px 0;
                     }
                     .info-table {
                         width: 100%;
                         border-collapse: collapse;
-                        margin: 8px 0;
+                        margin: 4px 0;
                     }
                     .info-table td {
-                        padding: 4px 0;
+                        padding: 3px 0;
                         vertical-align: top;
                     }
                     .info-label {
                         font-weight: bold;
-                        width: 85px;
+                        width: 80px;
                         white-space: nowrap;
                     }
                     .info-value {
-                        padding-left: 8px;
+                        padding-left: 6px;
+                    }
+                    .name-value {
+                        font-weight: 900;
+                        font-size: 14px;
+                        text-transform: uppercase;
+                    }
+                    .doc-badge {
+                        font-weight: 900;
+                        font-size: 15px;
+                        font-family: 'Courier New', Courier, monospace;
+                    }
+                    .font-mono {
+                        font-family: 'Courier New', Courier, monospace;
+                        font-weight: 600;
                     }
                     .barcode-section {
                         text-align: center;
-                        margin: 12px 0;
+                        margin: 8px 0;
                     }
                     .barcode-container {
                         display: flex;
                         justify-content: center;
                         margin-bottom: 2px;
                     }
+                    .barcode-container svg {
+                        max-width: 100%;
+                        height: auto;
+                    }
                     .barcode-time {
-                        font-size: 12px;
+                        font-size: 11px;
                         margin-top: 2px;
+                        color: #222;
+                    }
+                    .section-title {
+                        font-size: 11.5px;
+                        font-weight: 800;
+                        text-transform: uppercase;
+                        margin: 4px 0 2px 0;
+                        text-align: center;
+                        letter-spacing: 0.3px;
                     }
                     .vitals-table {
                         width: 100%;
                         border-collapse: collapse;
-                        margin-top: 10px;
+                        margin-top: 4px;
                     }
                     .vitals-table td {
-                        padding: 8px 0;
+                        padding: 5px 0;
                         vertical-align: bottom;
                     }
                     .vitals-label {
-                        font-weight: bold;
-                        width: 90px;
+                        font-weight: 600;
+                        width: 85px;
                         white-space: nowrap;
                     }
                     .vitals-dots-cell {
                         position: relative;
                     }
                     .vitals-dots-border {
-                        border-bottom: 1px dotted #000;
-                        height: 18px;
+                        border-bottom: 1.5px dotted #000;
+                        height: 16px;
                         width: 100%;
                     }
                     .vitals-unit {
-                        width: 70px;
+                        width: 55px;
                         text-align: right;
-                        padding-left: 5px;
+                        padding-left: 4px;
+                        font-weight: 500;
+                    }
+                    .footer-note {
+                        font-size: 10.5px;
+                        text-align: center;
+                        font-style: italic;
+                        margin-top: 4px;
                     }
                     @media print {
                         .no-print {
                             display: none;
                         }
                         body {
-                            padding: 2mm;
+                            padding: 2mm 1mm 1mm 1mm;
                         }
                     }
                 </style>
@@ -1078,7 +1147,7 @@ const PatientReception: React.FC = () => {
 
             {isPreviewOpen && previewData && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-900 rounded-[2rem] max-w-sm w-full shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden transform scale-100 transition-all duration-300 animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
+                    <div className="bg-white dark:bg-slate-900 rounded-[2rem] max-w-sm w-full shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden transform scale-100 transition-all duration-300 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
                         {/* Header */}
                         <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
                             <span className="text-xs font-extrabold text-[#0f766e] dark:text-teal-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -1093,44 +1162,129 @@ const PatientReception: React.FC = () => {
                         </div>
 
                         {/* Paper Body */}
-                        <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-slate-100 dark:bg-slate-950 flex justify-center">
-                            <div className="bg-white dark:bg-slate-900 text-slate-850 dark:text-slate-200 p-5 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 w-full max-w-[280px] font-mono text-xs flex flex-col gap-3">
-                                <div className="text-center font-bold">
-                                    <div className="text-[10px] text-slate-450 dark:text-slate-500 uppercase tracking-tight">BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH</div>
-                                    <div className="text-sm font-black mt-1 text-slate-800 dark:text-white uppercase tracking-wider">PHIẾU TIẾP ĐÓN</div>
-                                </div>
-
-                                <div className="border-t border-dashed border-slate-300 dark:border-slate-700 my-1"></div>
-
-                                <div className="space-y-1.5 text-[11px]">
-                                    <div className="flex justify-between"><span className="text-slate-450">Số hồ sơ:</span><strong className="text-slate-800 dark:text-white font-bold">{previewData.docNo}</strong></div>
-                                    <div className="flex justify-between"><span className="text-slate-450">Họ tên:</span><strong className="text-slate-800 dark:text-white uppercase font-bold">{previewData.emp.name}</strong></div>
-                                    <div className="flex justify-between"><span className="text-slate-450">Năm sinh:</span><span>{previewData.emp.dob ? previewData.emp.dob.split('-').reverse().join('/') : ''}</span></div>
-                                    <div className="flex justify-between"><span className="text-slate-450">CCCD:</span><span>{previewData.emp.card_id || previewData.emp.cardId || ''}</span></div>
-                                    <div className="flex justify-between"><span className="text-slate-450">Địa chỉ:</span><span className="truncate max-w-[150px]" title={previewData.emp.address}>{previewData.emp.address || 'Chưa có'}</span></div>
-                                </div>
-
-                                <div className="border-t border-dashed border-slate-300 dark:border-slate-700 my-1"></div>
-
-                                {/* Mock Barcode */}
-                                <div className="flex flex-col items-center justify-center py-2 border border-dashed border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900/50">
-                                    <div className="h-10 w-44 bg-gradient-to-r from-slate-800 via-slate-500 to-slate-900 flex items-center justify-center text-[10px] tracking-[6px] font-mono text-white opacity-90 rounded">
-                                        ||||||||||||||||
+                        <div className="p-5 overflow-y-auto custom-scrollbar flex-1 bg-slate-100/80 dark:bg-slate-950 flex justify-center">
+                            <div className="bg-white dark:bg-slate-900 text-slate-850 dark:text-slate-200 p-5 rounded-2xl shadow-lg border border-slate-200/80 dark:border-slate-800 w-full max-w-[300px] flex flex-col gap-3 font-sans text-xs">
+                                {/* Hospital & Title */}
+                                <div className="text-center">
+                                    <div className="text-[10.5px] font-bold text-slate-600 dark:text-slate-350 uppercase tracking-tight leading-tight">
+                                        {settings?.facility_name || 'BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH'}
                                     </div>
-                                    <span className="text-[10px] font-bold mt-1 text-slate-650 tracking-[1.5px]">{previewData.docNo}</span>
+                                    <div className="text-[9.5px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">
+                                        KHOA KHÁM BỆNH - KSK
+                                    </div>
+                                    <div className="text-base font-black mt-1 text-[#0f766e] dark:text-teal-400 uppercase tracking-wider">
+                                        PHIẾU TIẾP ĐÓN
+                                    </div>
                                 </div>
 
-                                <div className="border-t border-dashed border-slate-300 dark:border-slate-700 my-1"></div>
+                                <div className="border-t border-dashed border-slate-300 dark:border-slate-700"></div>
 
-                                {/* Vital Signs placeholders */}
-                                <table className="w-full text-[11px] space-y-1">
-                                    <tbody>
-                                        <tr><td className="font-bold text-slate-450">Cân nặng:</td><td className="border-b border-dotted border-slate-300 dark:border-slate-700"></td><td className="text-right pl-2 text-slate-500">kg</td></tr>
-                                        <tr><td className="font-bold text-slate-450">Chiều cao:</td><td className="border-b border-dotted border-slate-300 dark:border-slate-700"></td><td className="text-right pl-2 text-slate-500">cm</td></tr>
-                                        <tr><td className="font-bold text-slate-450">Mạch:</td><td className="border-b border-dotted border-slate-300 dark:border-slate-700"></td><td className="text-right pl-2 text-slate-500">lần/phút</td></tr>
-                                        <tr><td className="font-bold text-slate-450">Huyết áp:</td><td className="border-b border-dotted border-slate-300 dark:border-slate-700"></td><td className="text-right pl-2 text-slate-500">mmHg</td></tr>
-                                    </tbody>
-                                </table>
+                                {/* Patient Info */}
+                                <div className="space-y-1.5 text-xs">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-slate-500 font-medium">Số hồ sơ:</span>
+                                        <span className="bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 font-black text-sm px-2.5 py-0.5 rounded-lg border border-teal-200 dark:border-teal-800 tracking-wider font-mono">
+                                            {previewData.docNo}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-2 pt-0.5">
+                                        <span className="text-slate-500 font-medium whitespace-nowrap">Họ và tên:</span>
+                                        <strong className="text-slate-900 dark:text-white uppercase font-extrabold text-[12.5px] text-right">
+                                            {previewData.emp.name}
+                                        </strong>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-500 font-medium">Ngày sinh:</span>
+                                        <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                            {previewData.emp.dob ? previewData.emp.dob.split('-').reverse().join('/') : ''}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-500 font-medium">Giới tính:</span>
+                                        <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                            {previewData.emp.gender === 'F' || previewData.emp.gender === 'Nữ' ? 'Nữ' : (previewData.emp.gender === 'M' || previewData.emp.gender === 'Nam' ? 'Nam' : previewData.emp.gender || '---')}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-500 font-medium">Số CCCD:</span>
+                                        <span className="font-mono font-semibold text-slate-700 dark:text-slate-300">
+                                            {previewData.emp.card_id || previewData.emp.cardId || '---'}
+                                        </span>
+                                    </div>
+                                    
+                                </div>
+
+                                <div className="border-t border-dashed border-slate-300 dark:border-slate-700"></div>
+
+                                {/* Vitals Section */}
+                                <div className="space-y-1 text-xs">
+                                    <div className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider text-center mb-1">
+                                        THÔNG TIN SINH HIỆU
+                                    </div>
+                                    <div className="space-y-1.5 font-medium">
+                                        <div className="flex items-center justify-between text-[11px]">
+                                            <span className="text-slate-600 dark:text-slate-400">Mạch:</span>
+                                            <div className="flex-1 border-b border-dotted border-slate-400 mx-2 h-3"></div>
+                                            <span className="text-slate-500 font-normal">lần/phút</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-[11px]">
+                                            <span className="text-slate-600 dark:text-slate-400">Nhiệt độ:</span>
+                                            <div className="flex-1 border-b border-dotted border-slate-400 mx-2 h-3"></div>
+                                            <span className="text-slate-500 font-normal">°C</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-[11px]">
+                                            <span className="text-slate-600 dark:text-slate-400">Huyết áp:</span>
+                                            <div className="flex-1 border-b border-dotted border-slate-400 mx-2 h-3"></div>
+                                            <span className="text-slate-500 font-normal">mmHg</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-[11px]">
+                                            <span className="text-slate-600 dark:text-slate-400">Chiều cao:</span>
+                                            <div className="flex-1 border-b border-dotted border-slate-400 mx-2 h-3"></div>
+                                            <span className="text-slate-500 font-normal">cm</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-[11px]">
+                                            <span className="text-slate-600 dark:text-slate-400">Cân nặng:</span>
+                                            <div className="flex-1 border-b border-dotted border-slate-400 mx-2 h-3"></div>
+                                            <span className="text-slate-500 font-normal">kg</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-[11px]">
+                                            <span className="text-slate-600 dark:text-slate-400">Mắt phải:</span>
+                                            <div className="flex-1 border-b border-dotted border-slate-400 mx-2 h-3"></div>
+                                            <span className="text-slate-500 font-normal"></span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-[11px]">
+                                            <span className="text-slate-600 dark:text-slate-400">Mắt trái:</span>
+                                            <div className="flex-1 border-b border-dotted border-slate-400 mx-2 h-3"></div>
+                                            <span className="text-slate-500 font-normal"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="border-t border-dashed border-slate-300 dark:border-slate-700"></div>
+
+                                {/* Real Barcode Render */}
+                                <div className="flex flex-col items-center justify-center p-2.5 bg-white rounded-xl border border-slate-200/90 shadow-sm">
+                                    {previewData.docNo ? (
+                                        <Barcode 
+                                            value={String(previewData.docNo)} 
+                                            format="CODE128"
+                                            width={1.6} 
+                                            height={44} 
+                                            fontSize={12} 
+                                            font="monospace"
+                                            margin={0}
+                                            displayValue={true}
+                                            lineColor="#000"
+                                        />
+                                    ) : (
+                                        <span className="text-slate-400 text-xs italic py-2">Chưa có số hồ sơ</span>
+                                    )}
+                                </div>
+
+                                <div className="border-t border-dashed border-slate-300 dark:border-slate-700"></div>
+                                <div className="text-[10px] text-center text-slate-400 italic">
+                                    Vui lòng giữ phiếu trong suốt quá trình khám!
+                                </div>
                             </div>
                         </div>
 
@@ -1147,7 +1301,7 @@ const PatientReception: React.FC = () => {
                                     setIsPreviewOpen(false);
                                     printReceptionSlip(previewData.emp, previewData.docNo, previewData.services);
                                 }}
-                                className="px-4 py-2 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-xl text-xs font-bold shadow-md shadow-teal-500/10 transition cursor-pointer flex items-center gap-1.5"
+                                className="px-4 py-2 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-xl text-xs font-bold shadow-md shadow-teal-500/10 transition cursor-pointer flex items-center gap-1.5 active:scale-95"
                             >
                                 <PrinterIcon className="w-3.5 h-3.5" />
                                 Thực hiện in

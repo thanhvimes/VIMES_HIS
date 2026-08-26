@@ -1,5 +1,6 @@
 import React from 'react';
 import { VIMES_LOGO_BASE64 } from '../../../config/vimesLogoBase64';
+import { formatDate, parseDateSafe } from '../../../utils/formatters';
 
 interface PrintFormMau3Props {
     resolvedLocation?: { province?: string; ward?: string };
@@ -274,20 +275,49 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
             if (metadata?.signature) return metadata.signature;
         }
 
-        const doctorName = resolveSpecialtyDoctorName(specKey);
-        if (!doctorName || !doctorSignatures) return null;
+        if (!doctorSignatures) return null;
 
         const normalizedSignatures = new Map(
             Object.entries(doctorSignatures).map(([key, value]) => [normalizeSignatureKey(key), value])
         );
 
-        const candidates: any[] = [doctorName];
+        // 1. Ưu tiên tra cứu trực tiếp theo doctorUsername, doctorCode, doctorId từ metadata chuyên khoa
+        for (const k of checkKeys) {
+            const metadata = clinical.specialty_metadata?.[k] || (clinical.clinical_exam && clinical.clinical_exam.specialty_metadata?.[k]);
+            if (metadata) {
+                const directCandidates = [metadata.doctorUsername, metadata.doctorCode, metadata.doctorId].filter(Boolean);
+                for (const cand of directCandidates) {
+                    const norm = normalizeSignatureKey(cand);
+                    if (norm && normalizedSignatures.has(norm)) {
+                        return normalizedSignatures.get(norm) || null;
+                    }
+                }
+                if (metadata.doctorId && Array.isArray(doctors)) {
+                    const found = doctors.find((d: any) => [d.id, d.code, d.username, d.hee_employee_id]
+                        .some(val => String(val || '').trim().toUpperCase() === String(metadata.doctorId).trim().toUpperCase()));
+                    if (found) {
+                        for (const cand of [found.username, found.code, found.id, found.hee_employee_id]) {
+                            const norm = normalizeSignatureKey(cand);
+                            if (norm && normalizedSignatures.has(norm)) {
+                                return normalizedSignatures.get(norm) || null;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        const doctorName = resolveSpecialtyDoctorName(specKey);
+        if (!doctorName) return null;
+
+        const candidates: any[] = [];
         if (Array.isArray(doctors)) {
             const foundDoc = doctors.find((d: any) => d.name === doctorName || d.fullname === doctorName || d.hee_fullname === doctorName);
             if (foundDoc) {
-                candidates.push(foundDoc.code, foundDoc.username, foundDoc.id, foundDoc.hee_employee_id, foundDoc.name);
+                candidates.push(foundDoc.username, foundDoc.code, foundDoc.id, foundDoc.hee_employee_id);
             }
         }
+        candidates.push(doctorName);
 
         for (const candidate of candidates) {
             const normalized = normalizeSignatureKey(candidate);
@@ -336,8 +366,9 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
     const isNu = document.gender === 'Nữ' || document.gender === '2' || document.gender === '0';
     const isSigned = document.signature_status === 'Signed' || document.signatureStatus === 'Signed';
 
-    const dobStr = document.dob ? new Date(document.dob).toLocaleDateString('vi-VN') : '';
-    const birthYear = document.dob ? new Date(document.dob).getFullYear() : 0;
+    const dobStr = document.dob ? formatDate(document.dob) : '';
+    const birthDate = document.dob ? parseDateSafe(document.dob) : null;
+    const birthYear = birthDate ? birthDate.getFullYear() : 0;
     const currentYear = new Date().getFullYear();
     const age = birthYear > 0 ? currentYear - birthYear : '';
 

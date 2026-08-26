@@ -1,6 +1,3 @@
-// ==================== DOCUMENT LIST COMPONENT ====================
-// File: modules/health-check-sync/components/DocumentList.tsx
-
 import React from 'react';
 import { 
     CheckCircleIcon, 
@@ -14,7 +11,8 @@ import {
     DocumentTextIcon,
     PaperAirplaneIcon
 } from '../../../components/Icons';
-import { formatDateTime } from '../../../utils/formatters';
+import { formatDateTime, formatDate } from '../../../utils/formatters';
+import { toast } from 'sonner';
 
 interface DocumentListProps {
     documents: any[];
@@ -29,6 +27,11 @@ interface DocumentListProps {
     getFormName: (type: string) => string;
     getFormColor: (type: string) => string;
     onSeed?: () => void;
+    pageSize?: number | string;
+    setPageSize?: (size: number | string) => void;
+    currentPage?: number;
+    setCurrentPage?: (page: number) => void;
+    totalCount?: number;
 }
 
 const DocumentList: React.FC<DocumentListProps> = ({
@@ -43,8 +46,30 @@ const DocumentList: React.FC<DocumentListProps> = ({
     onSend,
     getFormName,
     getFormColor,
-    onSeed
+    pageSize,
+    setPageSize,
+    currentPage = 1,
+    setCurrentPage,
+    totalCount
 }) => {
+    const totalRecords = totalCount !== undefined ? totalCount : documents.length;
+    const numericPageSize = typeof pageSize === 'number' ? pageSize : 100;
+    const isAll = pageSize === 'all';
+    const totalPages = isAll ? 1 : Math.max(1, Math.ceil(totalRecords / numericPageSize));
+
+    // Calculate page numbers to display
+    const pageNumbers = React.useMemo(() => {
+        if (totalPages <= 7) {
+            return Array.from({ length: totalPages }, (_, i) => i + 1);
+        }
+        if (currentPage <= 4) {
+            return [1, 2, 3, 4, 5, '...', totalPages];
+        }
+        if (currentPage >= totalPages - 3) {
+            return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+        }
+        return [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
+    }, [totalPages, currentPage]);
 
     const getStatusBadge = (status: string) => {
         switch(status) {
@@ -135,7 +160,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                     <td className="p-4">
                                         <div className="font-bold text-slate-900 dark:text-white text-[13px]">{doc.patient_name}</div>
                                         <div className="text-[11px] text-slate-500 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 font-mono mt-0.5">
-                                            <span>NS: {doc.dob ? new Date(doc.dob).toLocaleDateString('vi-VN') : 'N/A'}</span>
+                                            <span>NS: {doc.dob ? formatDate(doc.dob) : 'N/A'}</span>
                                             {doc.cccd && (
                                                 <>
                                                     <span className="text-slate-300">|</span>
@@ -250,14 +275,30 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                                 </button>
 
                                                 {/* Gửi */}
-                                                <button 
-                                                    onClick={() => onSend && onSend(doc)}
-                                                    className="flex flex-col items-center justify-center w-11 h-11 bg-[#0f766e] hover:bg-[#0d9488] text-white transition focus:outline-none cursor-pointer"
-                                                    title="Gửi liên thông cổng"
-                                                >
-                                                    <PaperAirplaneIcon className="w-4 h-4 text-white -rotate-45"/>
-                                                    <span className="text-[8px] font-extrabold uppercase mt-0.5 tracking-wider">Gửi</span>
-                                                </button>
+                                                {(() => {
+                                                    const isDone = doc.status === 'ĐÃ_KẾT_LUẬN' || doc.conclusion_data?.fitness_class || doc.conclusion_data?.ket_luan_loai_suc_khoe || doc.conclusion_data?.diagnosis;
+                                                    return (
+                                                        <button 
+                                                            onClick={() => {
+                                                                if (!isDone) {
+                                                                    toast.warning(`Hồ sơ bệnh nhân ${doc.patient_name} chưa có kết luận khám. Bấm "Gửi" chỉ cho phép khi ở trạng thái "Đã kết luận"!`);
+                                                                    return;
+                                                                }
+                                                                onSend && onSend(doc);
+                                                            }}
+                                                            disabled={!isDone}
+                                                            className={`flex flex-col items-center justify-center w-11 h-11 transition focus:outline-none ${
+                                                                isDone 
+                                                                    ? 'bg-[#0f766e] hover:bg-[#0d9488] text-white cursor-pointer' 
+                                                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600 cursor-not-allowed opacity-60'
+                                                            }`}
+                                                            title={isDone ? "Gửi liên thông cổng VNeID" : "Chỉ gửi được khi hồ sơ ở trạng thái Đã kết luận"}
+                                                        >
+                                                            <PaperAirplaneIcon className={`w-4 h-4 -rotate-45 ${isDone ? 'text-white' : 'text-slate-400 dark:text-slate-600'}`}/>
+                                                            <span className="text-[8px] font-extrabold uppercase mt-0.5 tracking-wider">Gửi</span>
+                                                        </button>
+                                                    );
+                                                })()}
                                             </div>
                                         </div>
                                     </td>
@@ -268,8 +309,94 @@ const DocumentList: React.FC<DocumentListProps> = ({
                 </table>
             </div>
             
-            <div className="p-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs text-slate-500 flex justify-between items-center">
-                <span>Hiển thị {documents.length} kết quả</span>
+            {/* Pagination & Summary Footer */}
+            <div className="p-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs text-slate-600 dark:text-slate-400 flex flex-wrap justify-between items-center gap-3">
+                <div className="flex items-center gap-4 flex-wrap">
+                    <span className="font-semibold">
+                        Hiển thị <strong className="text-slate-800 dark:text-slate-200">{documents.length}</strong> / Tổng số <strong className="text-slate-800 dark:text-slate-200">{totalRecords}</strong> hồ sơ
+                    </span>
+
+                    {pageSize !== undefined && setPageSize && (
+                        <div className="flex items-center gap-1.5 font-medium">
+                            <span>Số dòng/trang:</span>
+                            <select
+                                value={pageSize}
+                                onChange={(e) => {
+                                    const val = e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10);
+                                    setPageSize(val);
+                                    if (setCurrentPage) setCurrentPage(1);
+                                }}
+                                className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
+                            >
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                                <option value={200}>200</option>
+                                <option value={500}>500</option>
+                                <option value="all">Tất cả</option>
+                            </select>
+                        </div>
+                    )}
+                </div>
+
+                {currentPage !== undefined && setCurrentPage && totalPages > 1 && (
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => setCurrentPage(1)}
+                            disabled={currentPage <= 1}
+                            className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 font-bold transition text-xs cursor-pointer"
+                            title="Trang đầu"
+                        >
+                            «
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                            disabled={currentPage <= 1}
+                            className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 font-bold transition text-xs cursor-pointer"
+                            title="Trang trước"
+                        >
+                            ‹ Trước
+                        </button>
+
+                        {/* Page Numbers */}
+                        <div className="flex items-center gap-1">
+                            {pageNumbers.map((p, idx) => (
+                                p === '...' ? (
+                                    <span key={`dots-${idx}`} className="px-1.5 py-1 text-slate-400 font-bold">...</span>
+                                ) : (
+                                    <button
+                                        key={`p-${p}`}
+                                        onClick={() => setCurrentPage(Number(p))}
+                                        className={`min-w-[28px] h-7 px-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                                            currentPage === p
+                                                ? 'bg-[#0f766e] text-white shadow-sm'
+                                                : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                                        }`}
+                                    >
+                                        {p}
+                                    </button>
+                                )
+                            ))}
+                        </div>
+
+                        <button
+                            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                            disabled={currentPage >= totalPages}
+                            className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 font-bold transition text-xs cursor-pointer"
+                            title="Trang sau"
+                        >
+                            Sau ›
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(totalPages)}
+                            disabled={currentPage >= totalPages}
+                            className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 font-bold transition text-xs cursor-pointer"
+                            title="Trang cuối"
+                        >
+                            »
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );

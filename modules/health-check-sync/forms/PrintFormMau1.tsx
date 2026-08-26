@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatDate } from '../../../utils/formatters';
 
 interface PrintFormMau1Props {
     resolvedLocation?: { province?: string; ward?: string };
@@ -39,6 +40,8 @@ export const PrintFormMau1: React.FC<PrintFormMau1Props> = ({
         const candidates = [
             conclusion.doctor_code,
             conclusion.doctor_username,
+            conclusion.doctor_id,
+            conclusion.doctorId,
             conclusion.conclusion_doctor,
             conclusion.doctor,
             getConclusionDoctorName()
@@ -130,7 +133,7 @@ export const PrintFormMau1: React.FC<PrintFormMau1Props> = ({
                     <div>1. Họ và tên (In hoa): <strong className="uppercase font-bold text-[13.5px]">{document.patient_name}</strong></div>
                     <div>2. Mã định danh (CCCD): <strong>{document.cccd || '................................'}</strong></div>
 
-                    <div>3. Ngày sinh: <strong>{document.dob ? new Date(document.dob).toLocaleDateString('vi-VN') : '.../.../....'}</strong></div>
+                    <div>3. Ngày sinh: <strong>{document.dob ? formatDate(document.dob) : '.../.../....'}</strong></div>
                     <div className="flex items-center">
                         <span className="mr-2">4. Giới:</span>
                         {renderCheckbox(isChildNam, 'Nam')}
@@ -673,7 +676,7 @@ export const PrintFormMau1: React.FC<PrintFormMau1Props> = ({
                                             </svg>
                                             <span>SIGNED DIGITALLY</span>
                                         </div>
-                                        By: {hospitalName || 'Phòng khám đa khoa vClinic'}<br/>
+                                        By: {hospitalName || 'BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH'}<br/>
                                         Time: {document.updated_at ? new Date(document.updated_at).toLocaleString('vi-VN') : '2026-06-03'}
                                     </div>
                                 );

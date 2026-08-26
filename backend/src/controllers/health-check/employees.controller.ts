@@ -69,7 +69,7 @@ export class EmployeesController {
                 const provRes = await query(`SELECT sp_id, sp_name FROM sys_prov`);
                 for (const row of provRes.rows) {
                     const idNum = parseInt(String(row.sp_id), 10);
-                    const codeStr = String(row.sp_id).padStart(2, '0');
+                    const codeStr = String(row.sp_id);
                     provMapById.set(String(row.sp_id).trim(), { id: idNum, code: codeStr });
                     provMapByName.set(String(row.sp_name).toLowerCase().trim(), { id: idNum, code: codeStr });
                 }
@@ -162,6 +162,7 @@ export class EmployeesController {
                                 provCode = cached.code;
                             } else {
                                 provNum = parseInt(provCode, 10) || null;
+                                provCode = provNum ? String(provNum) : '';
                             }
                         }
 

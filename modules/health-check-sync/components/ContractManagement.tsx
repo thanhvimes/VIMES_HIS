@@ -1047,13 +1047,42 @@ const ContractManagement: React.FC = () => {
                 }
             } catch (err: any) {
                 toast.dismiss();
-                toast.error("Lỗi đọc file: " + err.message);
+                toast.error(err.message || "Lỗi import file Excel");
             }
         };
         reader.readAsArrayBuffer(file);
-        e.target.value = '';
     };
 
+    const handleCleanupTrash = () => {
+        if (!selectedContract) return;
+        const unreceivedEmps = employees.filter(e => !e.doc_no || e.doc_no === '0');
+        if (unreceivedEmps.length === 0) {
+            toast.info("Không có bệnh nhân chưa tiếp nhận nào trong hợp đồng này.");
+            return;
+        }
+
+        showConfirm(
+            "Xác nhận xóa dữ liệu rác",
+            `Bạn có chắc chắn muốn xóa toàn bộ ${unreceivedEmps.length} bệnh nhân chưa tiếp nhận (chưa có số hồ sơ) trong hợp đồng "${selectedContract.name}" không? Thao tác này sẽ không ảnh hưởng đến các bệnh nhân đã tiếp nhận.`,
+            async () => {
+                try {
+                    toast.loading("Đang xóa dữ liệu rác...");
+                    const res = await healthCheckService.cleanupUnreceivedEmployees(selectedContract.id);
+                    toast.dismiss();
+                    if (res.success) {
+                        toast.success(res.message || "Đã xóa dữ liệu rác thành công!");
+                        await loadEmployees(selectedContract.id);
+                        await loadContracts();
+                    } else {
+                        toast.error(res.message || "Xóa dữ liệu rác thất bại!");
+                    }
+                } catch (err: any) {
+                    toast.dismiss();
+                    toast.error(err.message || "Lỗi hệ thống khi xóa dữ liệu rác");
+                }
+            }
+        );
+    };
 
     return (
         <div className="flex flex-col gap-6 h-[calc(100vh-140px)] animate-in fade-in duration-200">
@@ -1343,6 +1372,18 @@ const ContractManagement: React.FC = () => {
                                             <PlusIcon className="w-3.5 h-3.5" />
                                             Thêm nhân viên
                                         </button>
+
+                                        {/* Clean Trash Button */}
+                                        {employees.some(e => !e.doc_no || e.doc_no === '0') && (
+                                            <button
+                                                onClick={handleCleanupTrash}
+                                                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:hover:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1.5 active:scale-95 whitespace-nowrap cursor-pointer"
+                                                title="Xóa toàn bộ các bệnh nhân chưa tiếp nhận (chưa có số hồ sơ) trong hợp đồng này"
+                                            >
+                                                <TrashIcon className="w-3.5 h-3.5 text-rose-600" />
+                                                <span>Xóa dữ liệu rác ({employees.filter(e => !e.doc_no || e.doc_no === '0').length})</span>
+                                            </button>
+                                        )}
 
                                         {/* Bulk Reception Button */}
                                         <button

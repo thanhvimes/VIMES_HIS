@@ -217,9 +217,50 @@ test('Paraclinical discrete lab items are automatically serialized into XML11 CH
 
     assert.match(xml, /<CHI_TIET_CLS>/);
     assert.match(xml, /<MA_CHI_SO>H02<\/MA_CHI_SO>/);
-    assert.match(xml, /<GIA_TRI>\s*<!\[CDATA\[135\]\]>\s*<\/GIA_TRI>/);
+    assert.match(xml, /<GIA_TRI>135<\/GIA_TRI>/);
     assert.match(xml, /<MA_CHI_SO>G01<\/MA_CHI_SO>/);
-    assert.match(xml, /<GIA_TRI>\s*<!\[CDATA\[5.4\]\]>\s*<\/GIA_TRI>/);
+    assert.match(xml, /<GIA_TRI>5.4<\/GIA_TRI>/);
     assert.match(xml, /<MA_CHI_SO>PRO_U<\/MA_CHI_SO>/);
-    assert.match(xml, /<GIA_TRI>\s*<!\[CDATA\[Âm tính\]\]>\s*<\/GIA_TRI>/);
+    assert.match(xml, /<GIA_TRI>Âm tính<\/GIA_TRI>/);
+});
+
+test('QĐ 2062 generates XML9 file with TIEN_SU_BENH_TAT and valid Envelope', () => {
+    const xml = generateXmlPayload(
+        '3',
+        { patient_name: 'TRAN VAN B', cccd: '038076080237', dob: '1996-10-08', gender: '2', doc_no: '26402784' },
+        {
+            funding_source: '1',
+            extra: {
+                tsgd_mac_benh: '1',
+                tsgd_ma_benh: 'I10',
+                ts_tiep_xuc_lao: '0',
+                ts_mac_benh: 1,
+                tsbt_ma_benh: 'K29',
+                ts_tang_huyet_ap: 1,
+                ts_dai_thao_duong: 1,
+                ts_benh_tim_mach: 1,
+                ts_su_dung_ruou: 0,
+                tsbt_ma_benh_khac: 'Viêm dạ dày mạn',
+                tsbt_ten_thuoc_lieu_luong: 'Omeprazol 20mg'
+            }
+        },
+        {},
+        { fitness_class: '1' }
+    );
+
+    assert.match(xml, /<LOAIHOSO>XML9<\/LOAIHOSO>/);
+    assert.match(xml, /<TIEN_SU_BENH_TAT>/);
+    assert.match(xml, /<TSGD_MAC_BENH>1<\/TSGD_MAC_BENH>/);
+    assert.match(xml, /<TSGD_MA_BENH>I10<\/TSGD_MA_BENH>/);
+    assert.match(xml, /<TSBT_MAC_BENH>1<\/TSBT_MAC_BENH>/);
+    assert.match(xml, /<TSBT_MA_BENH>K29<\/TSBT_MA_BENH>/);
+    assert.match(xml, /<TSBT_TANG_HUYET_AP>1<\/TSBT_TANG_HUYET_AP>/);
+    assert.match(xml, /<TSBT_DAI_THAO_DUONG>1<\/TSBT_DAI_THAO_DUONG>/);
+    assert.match(xml, /<TSBT_BENH_TIM>1<\/TSBT_BENH_TIM>/);
+    assert.match(xml, /<TSBT_MA_BENH_KHAC>Viêm dạ dày mạn<\/TSBT_MA_BENH_KHAC>/);
+    assert.match(xml, /<TSBT_TEN_THUOC_LIEU_LUONG>Omeprazol 20mg<\/TSBT_TEN_THUOC_LIEU_LUONG>/);
+    assert.match(xml, /<\/TIEN_SU_BENH_TAT>/);
+
+    const validation = validateHealthCheckEnvelope(xml);
+    assert.equal(validation.valid, true, validation.errors.join('; '));
 });

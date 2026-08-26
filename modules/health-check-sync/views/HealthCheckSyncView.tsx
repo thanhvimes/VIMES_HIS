@@ -103,6 +103,7 @@ const getLocalDateString = () => {
 const HealthCheckSyncView: React.FC = () => {
     const { fontSettings } = useTheme();
     const { user } = useSession();
+    const { hospitalName, parentOrg, fetchBrandingSettings, brandingLoaded } = useSystemStore();
     const isAdmin = user?.role === 'admin';
     const [documents, setDocuments] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -136,6 +137,7 @@ const HealthCheckSyncView: React.FC = () => {
     const [endDate, setEndDate] = useState<string>(getLocalDateString());
     const [pageSize, setPageSize] = useState<number | string>(100);
     const [currentPage, setCurrentPage] = useState<number>(1);
+    const [totalCount, setTotalCount] = useState<number>(0);
     // Selection
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [activeXmlDoc, setActiveXmlDoc] = useState<any | null>(null);
@@ -177,12 +179,15 @@ const HealthCheckSyncView: React.FC = () => {
 
     useEffect(() => {
         loadSettings();
+        if (!brandingLoaded) {
+            fetchBrandingSettings();
+        }
         try {
             useSystemStore.getState().resetMenuConfig('health-check');
         } catch (error) {
             console.error("Failed to reset menu config:", error);
         }
-    }, []);
+    }, [brandingLoaded, fetchBrandingSettings]);
 
     const loadContracts = async () => {
         setIsContractsLoading(true);
@@ -319,7 +324,7 @@ const HealthCheckSyncView: React.FC = () => {
     const loadData = async () => {
         setIsLoading(true);
         try {
-            const data = await healthCheckService.getDocumentsList({
+            const { documents: data, totalCount: total } = await healthCheckService.getDocumentsWithCount({
                 startDate,
                 endDate,
                 searchTerm,
@@ -327,10 +332,12 @@ const HealthCheckSyncView: React.FC = () => {
                 signatureStatus: signFilter,
                 formType: formFilter,
                 contractId: contractFilter,
+                examStatus: examFilter,
                 limit: pageSize,
                 page: currentPage
             });
             setDocuments(data);
+            setTotalCount(total);
         } catch (error) {
             console.error("Failed to load health check documents", error);
         } finally {
@@ -343,7 +350,7 @@ const HealthCheckSyncView: React.FC = () => {
         if (stepParam !== 'sync' && !stepParam.startsWith('settings')) {
             loadData();
         }
-    }, [startDate, endDate, searchTerm, sendFilter, signFilter, formFilter, contractFilter, pageSize, currentPage, stepParam]);
+    }, [startDate, endDate, searchTerm, sendFilter, signFilter, formFilter, contractFilter, examFilter, pageSize, currentPage, stepParam]);
 
 
 
@@ -414,10 +421,13 @@ const HealthCheckSyncView: React.FC = () => {
             } else {
                 // Keep the editing form open and update the local activeDocument so the tabs and states remain intact
                 if (docId) {
-                    const latestDocs = await healthCheckService.getDocumentsList({});
-                    const updatedDoc = latestDocs.find((d: any) => d.id === docId);
-                    if (updatedDoc) {
-                        setActiveDocument(updatedDoc);
+                    try {
+                        const updatedDoc = await healthCheckService.getDocument(docId.toString());
+                        if (updatedDoc) {
+                            setActiveDocument(updatedDoc);
+                        }
+                    } catch (fetchErr) {
+                        console.warn('⚠️ Failed to re-fetch merged document:', fetchErr);
                     }
                 }
             }
@@ -469,6 +479,16 @@ const HealthCheckSyncView: React.FC = () => {
             return;
         }
 
+        // Kiểm tra điều kiện chỉ cho phép gửi khi ĐÃ KẾT LUẬN
+        const uncompletedDocs = documents.filter(d => 
+            selectedIds.has(d.id.toString()) && 
+            !(d.status === 'ĐÃ_KẾT_LUẬN' || d.conclusion_data?.fitness_class || d.conclusion_data?.ket_luan_loai_suc_khoe || d.conclusion_data?.diagnosis)
+        );
+        if (uncompletedDocs.length > 0) {
+            toast.warning(`Có ${uncompletedDocs.length} hồ sơ chưa có kết luận khám. Bấm "Gửi" chỉ cho phép khi hồ sơ ở trạng thái "Đã kết luận"!`);
+            return;
+        }
+
         if (!allowUnsignedSync) {
             const unsignedDocs = documents.filter(d => selectedIds.has(d.id.toString()) && d.signature_status === 'Unsigned');
             if (unsignedDocs.length > 0) {
@@ -501,6 +521,12 @@ const HealthCheckSyncView: React.FC = () => {
     };
 
     const handleSendSingleDocument = async (doc: any) => {
+        const isDone = doc.status === 'ĐÃ_KẾT_LUẬN' || doc.conclusion_data?.fitness_class || doc.conclusion_data?.ket_luan_loai_suc_khoe || doc.conclusion_data?.diagnosis;
+        if (!isDone) {
+            toast.warning(`Hồ sơ bệnh nhân ${doc.patient_name} chưa có kết luận khám. Bấm "Gửi" chỉ cho phép khi ở trạng thái "Đã kết luận"!`);
+            return;
+        }
+
         if (!allowUnsignedSync && doc.signature_status === 'Unsigned') {
             toast.warning(`Hồ sơ bệnh nhân ${doc.patient_name} chưa được ký số. Bạn phải thực hiện ký số trước khi gửi cổng y tế.`);
             return;
@@ -599,6 +625,7 @@ const HealthCheckSyncView: React.FC = () => {
                 signatureStatus: signFilter,
                 formType: formFilter,
                 contractId: contractFilter,
+                examStatus: examFilter,
                 limit: 'all'
             });
 
@@ -610,13 +637,14 @@ const HealthCheckSyncView: React.FC = () => {
             // 1. Define Headers
             const headerRow = [
                 'STT',
-                'Mã đợt khám',
+                'Số hồ sơ',
                 'Mã bệnh nhân',
                 'Họ và tên',
                 'Số CCCD',
                 'Ngày sinh',
                 'Giới tính',
                 'Loại mẫu biểu',
+                'Trạng thái khám',
                 'Trạng thái ký số',
                 'Loại ký số',
                 'Trạng thái gửi cổng',
@@ -635,6 +663,9 @@ const HealthCheckSyncView: React.FC = () => {
                 else if (status === 'Pending') sendStatusText = 'Đang gửi';
                 else if (status === 'Error') sendStatusText = 'Thất bại';
 
+                const isDone = doc.conclusion_data?.fitness_class || doc.conclusion_data?.ket_luan_loai_suc_khoe || doc.conclusion_data?.diagnosis;
+                const examStatusText = isDone ? 'Đã kết luận' : 'Đang khám';
+
                 return [
                     idx + 1,
                     doc.doc_no || doc.docNo || '',
@@ -644,6 +675,7 @@ const HealthCheckSyncView: React.FC = () => {
                     doc.dob ? formatDate(doc.dob) : '',
                     doc.gender || 'Nam',
                     getFormName(doc.form_type || doc.formType),
+                    examStatusText,
                     sigStatusText,
                     doc.signature_type || doc.signatureType || '',
                     sendStatusText,
@@ -668,8 +700,12 @@ const HealthCheckSyncView: React.FC = () => {
                 dateSubtitle = 'Khoảng thời gian: Tất cả';
             }
 
+            const unitTitle = (hospitalName || useSystemStore.getState().hospitalName || 'BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH').toUpperCase();
+            const parentOrgTitle = (parentOrg || useSystemStore.getState().parentOrg || '').toUpperCase();
+
             const aoaData = [
-                ['HỆ THỐNG QUẢN LÝ PHÒNG KHÁM VCLINIC'],
+                ...(parentOrgTitle ? [[parentOrgTitle]] : []),
+                [unitTitle],
                 ['DANH SÁCH LIÊN THÔNG KHÁM SỨC KHỎE (VNeID)'],
                 [dateSubtitle],
                 [''],
@@ -683,13 +719,14 @@ const HealthCheckSyncView: React.FC = () => {
             // Define column widths in characters
             const colWidths = [
                 { wch: 6 },   // STT
-                { wch: 20 },  // Mã đợt khám
+                { wch: 20 },  // Số hồ sơ
                 { wch: 15 },  // Mã bệnh nhân
                 { wch: 25 },  // Họ và tên
                 { wch: 18 },  // Số CCCD
                 { wch: 14 },  // Ngày sinh
                 { wch: 10 },  // Giới tính
                 { wch: 30 },  // Loại mẫu biểu
+                { wch: 16 },  // Trạng thái khám
                 { wch: 18 },  // Trạng thái ký số
                 { wch: 12 },  // Loại ký số
                 { wch: 20 },  // Trạng thái gửi cổng
@@ -766,8 +803,12 @@ const HealthCheckSyncView: React.FC = () => {
             ];
         });
 
+        const unitTitle = (hospitalName || useSystemStore.getState().hospitalName || 'BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH').toUpperCase();
+        const parentOrgTitle = (parentOrg || useSystemStore.getState().parentOrg || '').toUpperCase();
+
         const aoaData = [
-            ['HỆ THỐNG QUẢN LÝ PHÒNG KHÁM VCLINIC'],
+            ...(parentOrgTitle ? [[parentOrgTitle]] : []),
+            [unitTitle],
             ['DANH SÁCH ĐỒNG BỘ DỮ LIỆU KHÁM SỨC KHỎE'],
             [dateSubtitle],
             [''],
@@ -1229,12 +1270,31 @@ const HealthCheckSyncView: React.FC = () => {
                                     selectedIds={selectedIds}
                                     onToggleSelect={handleToggleSelect}
                                     onSelectAll={handleSelectAll}
-                                    onEdit={(doc) => {
-                                        setActiveDocument(doc);
-                                        setViewMode('EDIT');
+                                    onEdit={async (doc) => {
+                                        setIsLoading(true);
+                                        try {
+                                            const fullDoc = await healthCheckService.getDocument(doc.id);
+                                            setActiveDocument(fullDoc || doc);
+                                            setViewMode('EDIT');
+                                        } catch (err) {
+                                            console.error("Failed to fetch latest document:", err);
+                                            setActiveDocument(doc);
+                                            setViewMode('EDIT');
+                                        } finally {
+                                            setIsLoading(false);
+                                        }
                                     }}
                                     onDelete={handleDeleteDoc}
-                                    onViewXml={(doc) => setActiveXmlDoc(doc)}
+                                    onViewXml={async (doc) => {
+                                         if (!doc.xml_data || !String(doc.xml_data).trim()) {
+                                             try {
+                                                 const fullDoc = await healthCheckService.getDocument(doc.id);
+                                                 setActiveXmlDoc(fullDoc || doc);
+                                                 return;
+                                             } catch {}
+                                         }
+                                         setActiveXmlDoc(doc);
+                                     }}
                                     onPrint={(doc) => {
                                         setActiveDocument(doc);
                                         setPrevViewMode('LIST');
@@ -1243,6 +1303,11 @@ const HealthCheckSyncView: React.FC = () => {
                                     onSend={handleSendSingleDocument}
                                     getFormName={getFormName}
                                     getFormColor={getFormColor}
+                                    pageSize={pageSize}
+                                    setPageSize={setPageSize}
+                                    currentPage={currentPage}
+                                    setCurrentPage={setCurrentPage}
+                                    totalCount={totalCount}
                                 />
                             )}
 
@@ -1289,11 +1354,27 @@ const HealthCheckSyncView: React.FC = () => {
             ) : (
                 <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                     <DynamicForm
-                        key={`${activeDocument?.id || 'new'}-${activeDocument?.signature_status || 'Unsigned'}`}
+                        key={`${activeDocument?.id || 'new'}-${activeDocument?.signature_status || 'Unsigned'}-${activeDocument?.updated_at || ''}`}
                         formType={viewMode === 'EDIT' ? activeDocument?.form_type : createFormType}
                         initialData={viewMode === 'EDIT' ? activeDocument : undefined}
                         onSave={handleSaveDocument}
                         onCancel={handleCancelForm}
+                        onReload={async () => {
+                            if (activeDocument?.id) {
+                                setIsLoading(true);
+                                try {
+                                    const refreshed = await healthCheckService.getDocument(activeDocument.id);
+                                    if (refreshed) {
+                                        setActiveDocument(refreshed);
+                                        toast.success("Đã làm mới dữ liệu từ server thành công!");
+                                    }
+                                } catch (err: any) {
+                                    toast.error("Lỗi làm mới: " + err.message);
+                                } finally {
+                                    setIsLoading(false);
+                                }
+                            }
+                        }}
                         onPreview={(formData) => {
                             setActiveDocument(formData);
                             setPrevViewMode(viewMode);

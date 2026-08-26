@@ -1,11 +1,14 @@
 // ==================== DATABASE CONNECTION ====================
 // File: backend/src/config/database.ts
 
-import { Pool, PoolClient, QueryResult } from 'pg';
+import { Pool, PoolClient, QueryResult, types } from 'pg';
 import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
 import SecurityUtils from '../utils/security';
+
+// Cấu hình pg trả về kiểu DATE (OID 1082) dạng chuỗi 'YYYY-MM-DD' nguyên bản, tránh lệch múi giờ UTC
+types.setTypeParser(1082, (val: string) => val);
 
 // Load .env robustly from multiple fallback locations
 const envPath = fs.existsSync(path.join(__dirname, '../../.env'))
@@ -51,8 +54,8 @@ export const pool = new Pool({
 
 // Event Handlers for Connection
 pool.on('connect', (client: PoolClient) => {
-    client.query('SET search_path TO public, oracle').catch((err: any) => {
-        console.error('⚠️ Failed to set search_path to public:', err.message);
+    client.query("SET search_path TO public, oracle; SET timezone TO 'Asia/Ho_Chi_Minh'").catch((err: any) => {
+        console.error('⚠️ Failed to set search_path or timezone:', err.message);
     });
     console.log('✅ TS Database: Connected successfully');
 });

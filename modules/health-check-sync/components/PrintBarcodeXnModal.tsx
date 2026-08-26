@@ -9,6 +9,7 @@ import { Code128Barcode } from '../forms/PrintBarcodeForm';
 import { catalogService } from '../../../services/catalogService';
 import Combobox from '../../../components/ui/Combobox';
 import { useSession } from '../../../contexts/SessionContext';
+import { formatDate } from '../../../utils/formatters';
 
 // ========== TYPES ==========
 
@@ -442,7 +443,7 @@ const PrintBarcodeXnModal: React.FC<PrintBarcodeXnModalProps> = ({
                                             </div>
                                             {patient.dob && (
                                                 <div className="text-[10px] text-slate-400 mt-0.5">
-                                                    NS: {new Date(patient.dob).toLocaleDateString('vi-VN')} · {patient.gender}
+                                                    NS: {formatDate(patient.dob)} · {patient.gender}
                                                 </div>
                                             )}
                                         </button>
@@ -465,7 +466,7 @@ const PrintBarcodeXnModal: React.FC<PrintBarcodeXnModalProps> = ({
                                         </div>
                                         <div className="text-[11px] text-slate-500 mt-0.5 font-mono">
                                             Hồ sơ: {selectedPatient.docNo}
-                                            {selectedPatient.dob && ` · NS: ${new Date(selectedPatient.dob).toLocaleDateString('vi-VN')}`}
+                                            {selectedPatient.dob && ` · NS: ${formatDate(selectedPatient.dob)}`}
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">

@@ -140,6 +140,54 @@ class ApiClient {
     return this.request<T>(endpoint, { ...options, method: 'GET', params });
   }
 
+  public async getWithMeta<T>(endpoint: string, params?: RequestOptions['params'], options?: RequestOptions): Promise<{ data: T; headers: Headers }> {
+    const { headers, skipAuthRedirect, responseType = 'json', ...restOptions } = options || {};
+
+    let url = `${this.baseUrl}${endpoint}`;
+    if (params) {
+      const queryParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value));
+        }
+      });
+      const queryString = queryParams.toString();
+      if (queryString) {
+        url += `${url.includes('?') ? '&' : '?'}${queryString}`;
+      }
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
+
+    const token = this.getAuthToken();
+    const requestHeaders: Record<string, string> = {
+      ...(token && { Authorization: `Bearer ${token}` }),
+      ...(headers as Record<string, string>),
+    };
+
+    try {
+      const response = await fetch(url, {
+        ...restOptions,
+        method: 'GET',
+        headers: requestHeaders,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        throw new Error(errorBody.message || errorBody.error || `HTTP Error ${response.status}`);
+      }
+
+      const data = await response.json();
+      return { data, headers: response.headers };
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      throw error;
+    }
+  }
+
   public post<T>(endpoint: string, body: any, options?: RequestOptions): Promise<T> {
     return this.request<T>(endpoint, {
       ...options,

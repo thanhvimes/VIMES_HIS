@@ -8,17 +8,27 @@
 
 /**
  * Chuyển đổi input bất kỳ thành đối tượng Date hợp lệ
- * Hỗ trợ fix lỗi Safari với định dạng 'dd/mm/yyyy'
+ * Hỗ trợ fix lỗi timezone với 'yyyy-mm-dd' và 'dd/mm/yyyy'
  */
-const parseDateSafe = (input: string | Date | undefined | null): Date | null => {
+export const parseDateSafe = (input: string | Date | undefined | null): Date | null => {
     if (!input) return null;
-    if (input instanceof Date) return input;
+    if (input instanceof Date) return isNaN(input.getTime()) ? null : input;
 
-    // Fix cho Safari: Nếu chuỗi là dd/mm/yyyy, convert thủ công
-    if (typeof input === 'string' && /^\d{1,2}\/\d{1,2}\/\d{4}/.test(input)) {
-        const parts = input.split('/');
-        // parts[0] = day, parts[1] = month, parts[2] = year
-        return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+    if (typeof input === 'string') {
+        const trimmed = input.trim();
+        if (!trimmed) return null;
+
+        // 1. dd/mm/yyyy hoặc dd-mm-yyyy
+        if (/^\d{1,2}[/-]\d{1,2}[/-]\d{4}/.test(trimmed)) {
+            const parts = trimmed.split(/[/-]/);
+            return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+        }
+
+        // 2. yyyy-mm-dd hoặc yyyy/mm/dd (chỉ ngày: tạo Date theo local timezone để không bị lệch ngày theo UTC)
+        if (/^\d{4}[/-]\d{1,2}[/-]\d{1,2}$/.test(trimmed)) {
+            const parts = trimmed.split(/[/-]/);
+            return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        }
     }
     
     const date = new Date(input);
@@ -29,6 +39,17 @@ const parseDateSafe = (input: string | Date | undefined | null): Date | null => 
  * Định dạng ngày: dd/mm/yyyy (Ví dụ: 25/11/2023)
  */
 export const formatDate = (dateInput: string | Date | undefined | null): string => {
+    if (!dateInput) return '---';
+    if (typeof dateInput === 'string') {
+        const trimmed = dateInput.trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+            const [y, m, d] = trimmed.split('-');
+            return `${d}/${m}/${y}`;
+        }
+        if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmed)) {
+            return trimmed;
+        }
+    }
     const date = parseDateSafe(dateInput);
     if (!date) return '---';
 
@@ -71,9 +92,18 @@ export const calculateAge = (dob: string | Date | undefined): number => {
 };
 
 /**
- * Chuẩn hóa input date cho thẻ <input type="date"> (yyyy-mm-dd)
+ * Chuẩn hóa input date cho thẻ <input type="date"> hoặc form state (yyyy-mm-dd)
  */
 export const formatDateForInput = (dateInput: string | Date | undefined | null): string => {
+    if (!dateInput) return '';
+    if (typeof dateInput === 'string') {
+        const trimmed = dateInput.trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+        if (/^\d{1,2}[/-]\d{1,2}[/-]\d{4}$/.test(trimmed)) {
+            const parts = trimmed.split(/[/-]/);
+            return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+    }
     const date = parseDateSafe(dateInput);
     if (!date) return '';
     

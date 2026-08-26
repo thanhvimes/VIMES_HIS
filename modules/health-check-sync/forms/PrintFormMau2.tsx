@@ -1,5 +1,6 @@
 import React from 'react';
 import { VIMES_LOGO_BASE64 } from '../../../config/vimesLogoBase64';
+import { formatDate, parseDateSafe } from '../../../utils/formatters';
 
 interface PrintFormMau2Props {
     resolvedLocation?: { province?: string; ward?: string };
@@ -200,12 +201,24 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
 
     const getBirthDateDetails = (dobString: any) => {
         if (!dobString) return { day: '...', month: '...', year: '...' };
+        if (typeof dobString === 'string') {
+            const trimmed = dobString.trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+                const [y, m, d] = trimmed.split('-');
+                return { day: d, month: m, year: y };
+            }
+            if (/^\d{1,2}[/-]\d{1,2}[/-]\d{4}$/.test(trimmed)) {
+                const [d, m, y] = trimmed.split(/[/-]/);
+                return { day: d.padStart(2, '0'), month: m.padStart(2, '0'), year: y };
+            }
+        }
         try {
-            const birthDate = new Date(dobString);
+            const birthDate = parseDateSafe(dobString);
+            if (!birthDate) return { day: '...', month: '...', year: '...' };
             return {
                 day: String(birthDate.getDate()).padStart(2, '0'),
                 month: String(birthDate.getMonth() + 1).padStart(2, '0'),
-                year: birthDate.getFullYear()
+                year: String(birthDate.getFullYear())
             };
         } catch {
             return { day: '...', month: '...', year: '...' };
@@ -342,7 +355,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
         let docCode = (docMeta?.doctorCode || docMeta?.doctorUsername || matchedDoctor?.code
             || matchedDoctor?.username || matchedDoctor?.hee_employee_id || docMeta?.doctorId || '').toString().trim().toUpperCase();
 
-        const sigImg = resolveDoctorSignature(
+        const sigImg = docMeta?.signature || resolveDoctorSignature(
             docCode,
             docMeta?.doctorCode,
             docMeta?.doctorUsername,
@@ -425,8 +438,8 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
     const reportDate = getReportDate();
     const formatDateSafe = (value: any, fallback = '.../.../....') => {
         if (!value) return fallback;
-        const date = new Date(value);
-        return Number.isNaN(date.getTime()) ? fallback : date.toLocaleDateString('vi-VN');
+        const res = formatDate(value);
+        return res === '---' ? fallback : res;
     };
 
     // Checkboxes for obstetrics

@@ -184,7 +184,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                                 textShadow: '0 2px 20px rgba(0,0,0,0.2)',
                             }}
                         >
-                            {hospitalName || 'PHÒNG KHÁM ĐA KHOA vCLINIC'}
+                            {hospitalName || 'BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH'}
                         </h1>
 
                         {/* VIMES HIS label */}
@@ -276,7 +276,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     </div>
                     <div>
                         <p className="text-sm font-black text-slate-800 leading-snug max-w-[200px]">
-                            {hospitalName || 'PHÒNG KHÁM vCLINIC'}
+                            {hospitalName || 'BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH'}
                         </p>
                         <p className="text-[9px] font-black tracking-widest uppercase mt-0.5" style={{ color: '#006D77' }}>
                             VIMES HIS

@@ -47,81 +47,93 @@ export class ContractsController {
                     use_qz_tray: false,
                     vneid_private_key: '',
                     vneid_public_key: '',
-                    reception_slip_template: `<div class="header">
-    <div class="hospital-name">BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH</div>
-    <div class="title">PHIẾU TIẾP ĐÓN</div>
-</div>
-
-<div class="divider"></div>
-
-<table class="info-table">
-    <tr>
-        <td class="info-label">Số hồ sơ:</td>
-        <td class="info-value" style="font-weight: bold; font-size: 15px;">{{docNo}}</td>
-    </tr>
-    <tr>
-        <td class="info-label">Họ tên:</td>
-        <td class="info-value" style="font-weight: bold; font-size: 15px;">{{name}}</td>
-    </tr>
-    <tr>
-        <td class="info-label">Năm sinh:</td>
-        <td class="info-value">{{dob}}</td>
-    </tr>
-    <tr>
-        <td class="info-label">CCCD:</td>
-        <td class="info-value">{{cardId}}</td>
-    </tr>
-    <tr>
-        <td class="info-label">Địa chỉ:</td>
-        <td class="info-value">{{address}}</td>
-    </tr>
-</table>
-
-<div class="divider"></div>
-
-<div class="barcode-section">
-    <div class="barcode-container">
-        <svg id="barcode"></svg>
+                    reception_slip_template: `<div class="receipt-card">
+    <div class="header">
+        <div class="hospital-name">BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH</div>
+        <div class="sub-header">KHOA KHÁM BỆNH - KHÁM SỨC KHỎE</div>
+        <div class="title">PHIẾU TIẾP ĐÓN</div>
     </div>
-    <div class="barcode-time">In: {{dateStr}}</div>
-</div>
 
-<div class="divider"></div>
+    <div class="divider"></div>
 
-<table class="vitals-table">
-    <tr>
-        <td class="vitals-label">Cân nặng:</td>
-        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
-        <td class="vitals-unit">kg</td>
-    </tr>
-    <tr>
-        <td class="vitals-label">Chiều cao:</td>
-        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
-        <td class="vitals-unit">cm</td>
-    </tr>
-    <tr>
-        <td class="vitals-label">Mạch:</td>
-        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
-        <td class="vitals-unit">lần/phút</td>
-    </tr>
-    <tr>
-        <td class="vitals-label">Huyết áp:</td>
-        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
-        <td class="vitals-unit">mmHg</td>
-    </tr>
-    <tr>
-        <td class="vitals-label">Mắt phải:</td>
-        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
-        <td class="vitals-unit"></td>
-    </tr>
-    <tr>
-        <td class="vitals-label">Mắt trái:</td>
-        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
-        <td class="vitals-unit"></td>
-    </tr>
-</table>
+    <table class="info-table">
+        <tr>
+            <td class="info-label">Số hồ sơ:</td>
+            <td class="info-value"><span class="doc-badge">{{docNo}}</span></td>
+        </tr>
+        <tr>
+            <td class="info-label">Họ và tên:</td>
+            <td class="info-value name-value">{{name}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">Ngày sinh:</td>
+            <td class="info-value">{{dob}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">Giới tính:</td>
+            <td class="info-value">{{gender}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">Số CCCD:</td>
+            <td class="info-value font-mono">{{cardId}}</td>
+        </tr>
+        
+    </table>
 
-<div class="divider" style="margin-top: 15px;"></div>`
+    <div class="divider"></div>
+
+    <div class="vitals-section">
+        <div class="vitals-title">THÔNG TIN SINH HIỆU</div>
+        <table class="vitals-table">
+            <tr>
+                <td class="vitals-label">Mạch:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit">lần/phút</td>
+            </tr>
+            <tr>
+                <td class="vitals-label">Nhiệt độ:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit">°C</td>
+            </tr>
+            <tr>
+                <td class="vitals-label">Huyết áp:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit">mmHg</td>
+            </tr>
+            <tr>
+                <td class="vitals-label">Chiều cao:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit">cm</td>
+            </tr>
+            <tr>
+                <td class="vitals-label">Cân nặng:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit">kg</td>
+            </tr>
+            <tr>
+                <td class="vitals-label">Mắt phải:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit"></td>
+            </tr>
+            <tr>
+                <td class="vitals-label">Mắt trái:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit"></td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="barcode-section">
+        <div class="barcode-container">
+            <svg id="barcode"></svg>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="footer-note">Quý khách vui lòng giữ phiếu trong suốt quá trình khám!</div>
+</div>`
                 });
             }
 
@@ -506,7 +518,7 @@ export class ContractsController {
                 contract_date ? new Date(contract_date) : new Date(),
                 exam_date ? new Date(exam_date) : null,
                 type || 'DV',
-                object ? parseInt(String(object), 10) : null,
+                object ? parseInt(String(object), 10) : 7,
                 form_type || '2'
             ]);
             return res.json({ success: true, id: result.rows[0].id });
@@ -546,7 +558,7 @@ export class ContractsController {
                 contract_date ? new Date(contract_date) : new Date(),
                 exam_date ? new Date(exam_date) : null,
                 type || 'DV',
-                object ? parseInt(String(object), 10) : null,
+                object ? parseInt(String(object), 10) : 7,
                 form_type || '2',
                 contractId
             ]);
@@ -725,6 +737,83 @@ export class ContractsController {
             return res.json({ success: true });
         } catch (error: any) {
             console.error('❌ KSK Controller: Lỗi deleteContractService:', error);
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // Xóa dữ liệu rác (Xóa tất cả bệnh nhân chưa tiếp nhận / chưa có số hồ sơ trong hợp đồng)
+    async cleanupUnreceivedEmployees(req: Request, res: Response) {
+        const { id } = req.params;
+        const contractId = parseInt(id as string, 10);
+        
+        if (isNaN(contractId)) {
+            return res.status(400).json({ success: false, message: 'Mã hợp đồng không hợp lệ' });
+        }
+
+        try {
+            // Kiểm tra trạng thái gói khám
+            const contractRes = await query('SELECT hec_status, COALESCE(NULLIF(TRIM(hec_description), \'\'), hec_no) as name FROM hms_exm_contract WHERE hec_contract_id = $1', [contractId]);
+            if (contractRes.rows.length === 0) {
+                return res.status(404).json({ success: false, message: 'Không tìm thấy hợp đồng' });
+            }
+            if (contractRes.rows[0].hec_status === 'A') {
+                return res.status(400).json({ success: false, message: 'Gói khám đã được duyệt chốt, không thể xóa bệnh nhân!' });
+            }
+
+            // 1. Đếm số lượng nhân viên chưa tiếp nhận
+            const countRes = await query(`
+                SELECT COUNT(*) as count 
+                FROM hms_exm_employee 
+                WHERE hee_contract_id = $1 
+                  AND (hee_docno IS NULL OR hee_docno = 0)
+                  AND hee_isactive = 'Y'
+            `, [contractId]);
+            const unreceivedCount = parseInt(countRes.rows[0]?.count || '0', 10);
+
+            if (unreceivedCount === 0) {
+                return res.json({ 
+                    success: true, 
+                    message: 'Không có bệnh nhân chưa tiếp nhận nào trong hợp đồng này.',
+                    deletedCount: 0 
+                });
+            }
+
+            // 2. Dọn dẹp các bản ghi master rác chưa có doc_no trong health_check_masters / details
+            await query(`
+                DELETE FROM health_check_details 
+                WHERE master_id IN (
+                    SELECT id FROM health_check_masters 
+                    WHERE his_contract_id::text = $1::text
+                      AND (doc_no IS NULL OR TRIM(doc_no) = '' OR doc_no = '0' OR his_doc_no IS NULL OR TRIM(his_doc_no) = '' OR his_doc_no = '0')
+                      AND (signature_status IS NULL OR signature_status <> 'Signed') 
+                      AND (send_status IS NULL OR send_status <> 'Success')
+                )
+            `, [contractId]);
+
+            await query(`
+                DELETE FROM health_check_masters 
+                WHERE his_contract_id::text = $1::text
+                  AND (doc_no IS NULL OR TRIM(doc_no) = '' OR doc_no = '0' OR his_doc_no IS NULL OR TRIM(his_doc_no) = '' OR his_doc_no = '0')
+                  AND (signature_status IS NULL OR signature_status <> 'Signed') 
+                  AND (send_status IS NULL OR send_status <> 'Success')
+            `, [contractId]);
+
+            // 3. Vô hiệu hóa (xóa mềm) các nhân viên chưa tiếp nhận trong hms_exm_employee
+            const updateRes = await query(`
+                UPDATE hms_exm_employee 
+                SET hee_isactive = 'N' 
+                WHERE hee_contract_id = $1 
+                  AND (hee_docno IS NULL OR hee_docno = 0)
+                  AND hee_isactive = 'Y'
+            `, [contractId]);
+
+            return res.json({ 
+                success: true, 
+                message: `Đã xóa thành công ${updateRes.rowCount || unreceivedCount} bệnh nhân chưa tiếp nhận trong hợp đồng!`,
+                deletedCount: updateRes.rowCount || unreceivedCount
+            });
+        } catch (error: any) {
+            console.error('❌ KSK Controller: Lỗi cleanupUnreceivedEmployees:', error);
             return res.status(500).json({ error: error.message });
         }
     }

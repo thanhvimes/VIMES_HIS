@@ -59,81 +59,93 @@ export class HealthCheckSettings implements SettingsData {
     hsm_password?: string = '';
     hsm_client_id?: string = '';
     hsm_client_secret?: string = '';
-    reception_slip_template: string = `<div class="header">
-    <div class="hospital-name">BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH</div>
-    <div class="title">PHIẾU TIẾP ĐÓN</div>
-</div>
-
-<div class="divider"></div>
-
-<table class="info-table">
-    <tr>
-        <td class="info-label">Số hồ sơ:</td>
-        <td class="info-value" style="font-weight: bold; font-size: 15px;">{{docNo}}</td>
-    </tr>
-    <tr>
-        <td class="info-label">Họ tên:</td>
-        <td class="info-value" style="font-weight: bold; font-size: 15px;">{{name}}</td>
-    </tr>
-    <tr>
-        <td class="info-label">Năm sinh:</td>
-        <td class="info-value">{{dob}}</td>
-    </tr>
-    <tr>
-        <td class="info-label">CCCD:</td>
-        <td class="info-value">{{cardId}}</td>
-    </tr>
-    <tr>
-        <td class="info-label">Địa chỉ:</td>
-        <td class="info-value">{{address}}</td>
-    </tr>
-</table>
-
-<div class="divider"></div>
-
-<div class="barcode-section">
-    <div class="barcode-container">
-        <svg id="barcode"></svg>
+    reception_slip_template: string = `<div class="receipt-card">
+    <div class="header">
+        <div class="hospital-name">BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH</div>
+        <div class="sub-header">KHOA KHÁM BỆNH - KHÁM SỨC KHỎE</div>
+        <div class="title">PHIẾU TIẾP ĐÓN</div>
     </div>
-    <div class="barcode-time">In: {{dateStr}}</div>
-</div>
 
-<div class="divider"></div>
+    <div class="divider"></div>
 
-<table class="vitals-table">
-    <tr>
-        <td class="vitals-label">Cân nặng:</td>
-        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
-        <td class="vitals-unit">kg</td>
-    </tr>
-    <tr>
-        <td class="vitals-label">Chiều cao:</td>
-        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
-        <td class="vitals-unit">cm</td>
-    </tr>
-    <tr>
-        <td class="vitals-label">Mạch:</td>
-        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
-        <td class="vitals-unit">lần/phút</td>
-    </tr>
-    <tr>
-        <td class="vitals-label">Huyết áp:</td>
-        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
-        <td class="vitals-unit">mmHg</td>
-    </tr>
-    <tr>
-        <td class="vitals-label">Mắt phải:</td>
-        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
-        <td class="vitals-unit"></td>
-    </tr>
-    <tr>
-        <td class="vitals-label">Mắt trái:</td>
-        <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
-        <td class="vitals-unit"></td>
-    </tr>
-</table>
+    <table class="info-table">
+        <tr>
+            <td class="info-label">Số hồ sơ:</td>
+            <td class="info-value"><span class="doc-badge">{{docNo}}</span></td>
+        </tr>
+        <tr>
+            <td class="info-label">Họ và tên:</td>
+            <td class="info-value name-value">{{name}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">Ngày sinh:</td>
+            <td class="info-value">{{dob}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">Giới tính:</td>
+            <td class="info-value">{{gender}}</td>
+        </tr>
+        <tr>
+            <td class="info-label">Số CCCD:</td>
+            <td class="info-value font-mono">{{cardId}}</td>
+        </tr>
+        
+    </table>
 
-<div class="divider" style="margin-top: 15px;"></div>`;
+    <div class="divider"></div>
+
+    <div class="vitals-section">
+        <div class="vitals-title">THÔNG TIN SINH HIỆU</div>
+        <table class="vitals-table">
+            <tr>
+                <td class="vitals-label">Mạch:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit">lần/phút</td>
+            </tr>
+            <tr>
+                <td class="vitals-label">Nhiệt độ:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit">°C</td>
+            </tr>
+            <tr>
+                <td class="vitals-label">Huyết áp:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit">mmHg</td>
+            </tr>
+            <tr>
+                <td class="vitals-label">Chiều cao:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit">cm</td>
+            </tr>
+            <tr>
+                <td class="vitals-label">Cân nặng:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit">kg</td>
+            </tr>
+            <tr>
+                <td class="vitals-label">Mắt phải:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit"></td>
+            </tr>
+            <tr>
+                <td class="vitals-label">Mắt trái:</td>
+                <td class="vitals-dots-cell"><div class="vitals-dots-border"></div></td>
+                <td class="vitals-unit"></td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="barcode-section">
+        <div class="barcode-container">
+            <svg id="barcode"></svg>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="footer-note">Quý khách vui lòng giữ phiếu trong suốt quá trình khám!</div>
+</div>`;
 
     constructor(data?: Partial<SettingsData>) {
         if (data) {

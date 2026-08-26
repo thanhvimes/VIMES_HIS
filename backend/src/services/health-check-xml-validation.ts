@@ -21,7 +21,7 @@ export function validateHealthCheckEnvelope(xml: string): XmlEnvelopeValidationR
 
     const countMatch = xml.match(/<SOLUONGHOSO>\s*(\d+)\s*<\/SOLUONGHOSO>/);
     if (!countMatch) errors.push('Thiếu SOLUONGHOSO');
-    else if (Number(countMatch[1]) !== files.length) errors.push('SOLUONGHOSO không khớp số FILEHOSO');
+    else if (Number(countMatch[1]) <= 0) errors.push('SOLUONGHOSO phải lớn hơn 0');
     if (!/<LOAIHOSO>\s*XML1\s*<\/LOAIHOSO>/.test(xml)) errors.push('Thiếu XML1 thông tin hành chính');
     if (!/<LOAIHOSO>\s*XML2\s*<\/LOAIHOSO>/.test(xml)) errors.push('Thiếu XML2 thông tin lần khám');
     if (!/<LOAIHOSO>\s*XML12\s*<\/LOAIHOSO>/.test(xml)) errors.push('Thiếu XML12 kết luận');

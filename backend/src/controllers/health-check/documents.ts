@@ -3,6 +3,8 @@ import { query, transaction } from '../../config/database';
 import { getHealthCheckSettings } from '../../config/health-check-settings';
 import { generateXmlPayload } from './xml-generator';
 import { validateNewHealthCheckDocument } from '../../services/health-check-new-document-validation';
+import { mergeClinicalData, mergeLabData, mergeConclusionData, formatYmdString } from '../../services/health-check-merge.service';
+import { hisIntegrationController } from './his-integration';
 
 class DocumentsController {
     
@@ -14,8 +16,9 @@ class DocumentsController {
         for (const doc of documents) {
             if (doc && doc.lab_data && doc.lab_data.paraclinical_items && Array.isArray(doc.lab_data.paraclinical_items)) {
                 for (const item of doc.lab_data.paraclinical_items) {
-                    if (item && item.service_code) {
-                        serviceCodesSet.add(String(item.service_code).trim());
+                    const code = item?.service_code || item?.code;
+                    if (code) {
+                        serviceCodesSet.add(String(code).trim());
                     }
                 }
             }
@@ -27,6 +30,11 @@ class DocumentsController {
         try {
             const feeMetadataRes = await query(`
                 SELECT TRIM(f.hfl_feeid) AS service_code, 
+                       TRIM(COALESCE(p.hfl_regcode, f.hfl_regcode, f.hfl_feeid)) AS reg_code,
+                       TRIM(COALESCE(f.hfl_ma_chi_so, p.hfl_ma_chi_so, p.hfl_regcode, f.hfl_regcode, f.hfl_feeid)) AS ma_chi_so,
+                       TRIM(COALESCE(f.hfl_ma_chi_so, p.hfl_ma_chi_so, '')) AS hfl_ma_chi_so,
+                       f.hfl_name AS service_name,
+                       f.hfl_unit AS unit,
                        f.hfl_line AS line_no, 
                        TRIM(f.hfl_subitem) AS subitem,
                        p.hfl_name AS parent_name,
@@ -46,9 +54,19 @@ class DocumentsController {
                 if (doc && doc.lab_data && doc.lab_data.paraclinical_items && Array.isArray(doc.lab_data.paraclinical_items)) {
                     for (const item of doc.lab_data.paraclinical_items) {
                         if (item) {
-                            const code = String(item.service_code || '').trim();
+                            const code = String(item.service_code || item.code || '').trim();
                             const meta = metadataMap.get(code);
                             if (meta) {
+                                item.reg_code = meta.reg_code || item.reg_code || item.service_code;
+                                item.ma_chi_so = meta.ma_chi_so || item.ma_chi_so || meta.reg_code || item.service_code;
+                                item.hfl_ma_chi_so = meta.hfl_ma_chi_so || meta.ma_chi_so || item.hfl_ma_chi_so;
+                                item.service_name = item.service_name || meta.service_name || '';
+                                item.index_name = item.index_name || meta.service_name || item.service_name || '';
+                                if (!item.unit || item.unit.toLowerCase() === 'lần') {
+                                    if (meta.unit && meta.unit.toLowerCase() !== 'lần') {
+                                        item.unit = meta.unit;
+                                    }
+                                }
                                 item.line_no = meta.line_no;
                                 item.subitem = meta.subitem;
                                 item.parent_name = meta.parent_name || '';
@@ -61,6 +79,27 @@ class DocumentsController {
             }
         } catch (enrichErr) {
             console.error('❌ KSK Controller: Lỗi trong enrichDocumentsMetadata:', enrichErr);
+        }
+
+        // Tự động sinh XML nếu hồ sơ chưa có xml_data hoặc xml_data cũ chưa có XML9
+        for (const doc of documents) {
+            if (doc && (!doc.xml_data || !String(doc.xml_data).trim() || !doc.xml_data.includes('XML9') || !doc.xml_data.includes('TIEN_SU_BENH_TAT'))) {
+                try {
+                    const freshXml = generateXmlPayload(
+                        doc.form_type || '3',
+                        doc,
+                        doc.clinical_data || {},
+                        doc.lab_data || {},
+                        doc.conclusion_data || {}
+                    );
+                    doc.xml_data = freshXml;
+                    if (doc.id && doc.signature_status !== 'Signed') {
+                        query('UPDATE health_check_masters SET xml_data = $1 WHERE id = $2', [freshXml, doc.id]).catch(() => {});
+                    }
+                } catch (xmlErr) {
+                    console.warn('⚠️ [enrichDocumentsMetadata] Cannot generate fallback XML for doc:', doc.id, xmlErr);
+                }
+            }
         }
     }
 
@@ -191,7 +230,20 @@ class DocumentsController {
     // 1. Lấy danh sách hồ sơ (kèm phân trang, lọc nâng cao)
     async getDocuments(req: Request, res: Response) {
         try {
-            const { searchTerm, status, signatureStatus, formType, startDate, endDate, barcodePrinted, contractId, limit, page } = req.query;
+            const { 
+                status, 
+                signatureStatus, 
+                searchTerm, 
+                formType, 
+                limit, 
+                page, 
+                startDate, 
+                endDate, 
+                barcodePrinted, 
+                contractId,
+                examStatus
+            } = req.query;
+
             let sql = `
                 SELECT m.*, 
                        COALESCE(m.created_by_name, u.su_name, m.created_by, 'Nhân viên tiếp đón') AS created_by_name,
@@ -256,6 +308,14 @@ class DocumentsController {
                     sql += ` AND m.his_contract_id = $${paramIndex}`;
                     params.push(parsedContractId);
                     paramIndex++;
+                }
+            }
+
+            if (examStatus && examStatus !== 'All') {
+                if (examStatus === 'Done') {
+                    sql += ` AND ((d.conclusion_data->>'fitness_class' IS NOT NULL AND TRIM(d.conclusion_data->>'fitness_class') <> '') OR (d.conclusion_data->>'ket_luan_loai_suc_khoe' IS NOT NULL AND TRIM(d.conclusion_data->>'ket_luan_loai_suc_khoe') <> '') OR (d.conclusion_data->>'diagnosis' IS NOT NULL AND TRIM(d.conclusion_data->>'diagnosis') <> ''))`;
+                } else if (examStatus === 'InProgress') {
+                    sql += ` AND ((d.conclusion_data->>'fitness_class' IS NULL OR TRIM(d.conclusion_data->>'fitness_class') = '') AND (d.conclusion_data->>'ket_luan_loai_suc_khoe' IS NULL OR TRIM(d.conclusion_data->>'ket_luan_loai_suc_khoe') = '') AND (d.conclusion_data->>'diagnosis' IS NULL OR TRIM(d.conclusion_data->>'diagnosis') = ''))`;
                 }
             }
 
@@ -361,6 +421,8 @@ class DocumentsController {
         }
 
         try {
+            await this.enrichDocumentsMetadata([{ lab_data: labData }]);
+
             const xmlData = generateXmlPayload(
                 formType, 
                 { patientName, cccd, dob, gender, docNo }, 
@@ -379,7 +441,7 @@ class DocumentsController {
             const result = await transaction(async (client) => {
                 // Check if doc_no already exists in health_check_masters
                 const existingRes = await client.query(
-                    'SELECT id, signature_status, send_status FROM health_check_masters WHERE doc_no = $1',
+                    'SELECT id, signature_status, send_status FROM health_check_masters WHERE doc_no = $1 FOR UPDATE',
                     [docNo]
                 );
 
@@ -392,6 +454,41 @@ class DocumentsController {
                     }
                     masterId = existingRes.rows[0].id;
                     
+                    // Fetch existing details with lock to perform deep merge
+                    const detailRes = await client.query(
+                        'SELECT clinical_data, lab_data, conclusion_data FROM health_check_details WHERE master_id = $1 FOR UPDATE',
+                        [masterId]
+                    );
+
+                    let finalClinicalData = clinicalData || {};
+                    let finalLabData = labData || {};
+                    let finalConclusionData = conclusionData || {};
+
+                    if (detailRes.rows.length > 0) {
+                        const existingDetail = detailRes.rows[0];
+                        const existingClinical = typeof existingDetail.clinical_data === 'string'
+                            ? JSON.parse(existingDetail.clinical_data)
+                            : (existingDetail.clinical_data || {});
+                        const existingLab = typeof existingDetail.lab_data === 'string'
+                            ? JSON.parse(existingDetail.lab_data)
+                            : (existingDetail.lab_data || {});
+                        const existingConclusion = typeof existingDetail.conclusion_data === 'string'
+                            ? JSON.parse(existingDetail.conclusion_data)
+                            : (existingDetail.conclusion_data || {});
+
+                        finalClinicalData = mergeClinicalData(existingClinical, clinicalData || {});
+                        finalLabData = mergeLabData(existingLab, labData || {});
+                        finalConclusionData = mergeConclusionData(existingConclusion, conclusionData || {});
+                    }
+
+                    const xmlData = generateXmlPayload(
+                        formType, 
+                        { patientName, cccd, dob, gender, docNo }, 
+                        finalClinicalData, 
+                        finalLabData, 
+                        finalConclusionData
+                    );
+
                     // UPDATE existing master
                     const masterSql = `
                         UPDATE health_check_masters 
@@ -405,7 +502,7 @@ class DocumentsController {
                     `;
                     await client.query(masterSql, [
                         patientId || null, patientName || '', cccd || '', 
-                        dob ? new Date(dob) : null, gender || 'Nam', 
+                        formatYmdString(dob), gender || 'Nam', 
                         xmlData, masterId, currentUserId, currentUserName
                     ]);
 
@@ -415,9 +512,9 @@ class DocumentsController {
                         SET clinical_data = $1, lab_data = $2, conclusion_data = $3, updated_at = NOW()
                         WHERE master_id = $4
                     `, [
-                        JSON.stringify(clinicalData || {}), 
-                        JSON.stringify(labData || {}), 
-                        JSON.stringify(conclusionData || {}),
+                        JSON.stringify(finalClinicalData), 
+                        JSON.stringify(finalLabData), 
+                        JSON.stringify(finalConclusionData),
                         masterId
                     ]);
 
@@ -427,12 +524,34 @@ class DocumentsController {
                             VALUES ($1, $2, $3, $4)
                         `, [
                             masterId,
-                            JSON.stringify(clinicalData || {}),
-                            JSON.stringify(labData || {}),
-                            JSON.stringify(conclusionData || {})
+                            JSON.stringify(finalClinicalData),
+                            JSON.stringify(finalLabData),
+                            JSON.stringify(finalConclusionData)
                         ]);
                     }
+
+                    if (hisDocNo) {
+                        if (finalLabData?.paraclinical_items) {
+                            await this.pushbackTestAndPacsResults(client, hisDocNo, finalLabData.paraclinical_items, finalClinicalData);
+                        }
+                        await hisIntegrationController.pushbackClinicalAndConclusion(
+                            client,
+                            hisDocNo,
+                            finalClinicalData,
+                            finalConclusionData,
+                            currentUserId,
+                            currentUserName
+                        );
+                    }
                 } else {
+                    const xmlData = generateXmlPayload(
+                        formType, 
+                        { patientName, cccd, dob, gender, docNo }, 
+                        clinicalData, 
+                        labData, 
+                        conclusionData
+                    );
+
                     // INSERT new master
                     const masterSql = `
                         INSERT INTO health_check_masters (
@@ -442,7 +561,7 @@ class DocumentsController {
                     `;
                     const masterRes = await client.query(masterSql, [
                         patientId || null, patientName || '', cccd || '', 
-                        dob ? new Date(dob) : null, gender || 'Nam', 
+                        formatYmdString(dob), gender || 'Nam', 
                         docNo || Date.now().toString(), formType, xmlData,
                         currentUserId, currentUserName
                     ]);
@@ -459,11 +578,20 @@ class DocumentsController {
                         JSON.stringify(labData || {}), 
                         JSON.stringify(conclusionData || {})
                     ]);
-                }
 
-                // 2. ĐẨY NGƯỢC DỮ LIỆU VỀ CÁC BẢNG GỐC CỦA HIS (Chỉ những chỉ số có kết quả và khi hpc_status, hpcl_status thuộc nhóm O hoặc S)
-                if (hisDocNo && labData?.paraclinical_items) {
-                    await this.pushbackTestAndPacsResults(client, hisDocNo, labData.paraclinical_items, clinicalData);
+                    if (hisDocNo) {
+                        if (labData?.paraclinical_items) {
+                            await this.pushbackTestAndPacsResults(client, hisDocNo, labData.paraclinical_items, clinicalData);
+                        }
+                        await hisIntegrationController.pushbackClinicalAndConclusion(
+                            client,
+                            hisDocNo,
+                            clinicalData,
+                            conclusionData,
+                            currentUserId,
+                            currentUserName
+                        );
+                    }
                 }
 
                 return masterId;
@@ -514,14 +642,6 @@ class DocumentsController {
                 return res.status(423).json({ error: 'Hồ sơ đã ký số. Phải hủy ký số trước khi chỉnh sửa.' });
             }
 
-            const xmlData = generateXmlPayload(
-                formType, 
-                { patientName, cccd, dob, gender, docNo }, 
-                clinicalData, 
-                labData, 
-                conclusionData
-            );
-
             // Lấy số tiếp nhận gốc của HIS từ mã số hồ sơ KSK (ví dụ: KSK-2026-12345 -> 12345)
             const hisDocNoStr = docNo ? docNo.split('-').pop() : '';
             let hisDocNo = hisDocNoStr ? parseInt(hisDocNoStr, 10) : null;
@@ -529,7 +649,56 @@ class DocumentsController {
                 hisDocNo = null;
             }
 
+            const currentUserId = (req as any).userId || 'admin';
+            let currentUserName = (req as any).userName || '';
+            if (!currentUserName && currentUserId) {
+                try {
+                    const uRes = await query(`SELECT su_name FROM sys_user WHERE su_userid = $1`, [currentUserId]);
+                    if (uRes.rows.length > 0 && uRes.rows[0].su_name) {
+                        currentUserName = uRes.rows[0].su_name;
+                    }
+                } catch {}
+            }
+
             await transaction(async (client) => {
+                // 1. Fetch current detail row with lock to perform Deep Merge
+                const detailRes = await client.query(
+                    'SELECT clinical_data, lab_data, conclusion_data FROM health_check_details WHERE master_id = $1 FOR UPDATE',
+                    [parseInt(id, 10)]
+                );
+
+                let finalClinicalData = clinicalData || {};
+                let finalLabData = labData || {};
+                let finalConclusionData = conclusionData || {};
+
+                if (detailRes.rows.length > 0) {
+                    const existingDetail = detailRes.rows[0];
+                    const existingClinical = typeof existingDetail.clinical_data === 'string'
+                        ? JSON.parse(existingDetail.clinical_data)
+                        : (existingDetail.clinical_data || {});
+                    const existingLab = typeof existingDetail.lab_data === 'string'
+                        ? JSON.parse(existingDetail.lab_data)
+                        : (existingDetail.lab_data || {});
+                    const existingConclusion = typeof existingDetail.conclusion_data === 'string'
+                        ? JSON.parse(existingDetail.conclusion_data)
+                        : (existingDetail.conclusion_data || {});
+
+                    finalClinicalData = mergeClinicalData(existingClinical, clinicalData || {});
+                    finalLabData = mergeLabData(existingLab, labData || {});
+                    finalConclusionData = mergeConclusionData(existingConclusion, conclusionData || {});
+                }
+
+                // 2. Generate XML on merged data
+                await this.enrichDocumentsMetadata([{ lab_data: finalLabData }]);
+
+                const xmlData = generateXmlPayload(
+                    formType, 
+                    { patientName, cccd, dob, gender, docNo }, 
+                    finalClinicalData, 
+                    finalLabData, 
+                    finalConclusionData
+                );
+
                 const masterSql = `
                     UPDATE health_check_masters 
                     SET patient_id = $1, patient_name = $2, cccd = $3, dob = $4, 
@@ -539,8 +708,8 @@ class DocumentsController {
                     WHERE id = $9
                 `;
                 await client.query(masterSql, [
-                    patientId, patientName, cccd, dob ? new Date(dob) : null, 
-                    gender, docNo, formType, xmlData, parseInt(id)
+                    patientId, patientName, cccd, formatYmdString(dob), 
+                    gender, docNo, formType, xmlData, parseInt(id, 10)
                 ]);
 
                 const detailSql = `
@@ -548,16 +717,38 @@ class DocumentsController {
                     SET clinical_data = $1, lab_data = $2, conclusion_data = $3, updated_at = NOW()
                     WHERE master_id = $4
                 `;
-                await client.query(detailSql, [
-                    JSON.stringify(clinicalData || {}), 
-                    JSON.stringify(labData || {}), 
-                    JSON.stringify(conclusionData || {}),
-                    parseInt(id)
+                const updateRes = await client.query(detailSql, [
+                    JSON.stringify(finalClinicalData), 
+                    JSON.stringify(finalLabData), 
+                    JSON.stringify(finalConclusionData),
+                    parseInt(id, 10)
                 ]);
 
-                // 2. ĐẨY NGƯỢC DỮ LIỆU VỀ CÁC BẢNG GỐC CỦA HIS (Chỉ những chỉ số có kết quả và khi hpc_status, hpcl_status thuộc nhóm O hoặc S)
-                if (hisDocNo && labData?.paraclinical_items) {
-                    await this.pushbackTestAndPacsResults(client, hisDocNo, labData.paraclinical_items, clinicalData);
+                if (updateRes.rowCount === 0) {
+                    await client.query(`
+                        INSERT INTO health_check_details (master_id, clinical_data, lab_data, conclusion_data)
+                        VALUES ($1, $2, $3, $4)
+                    `, [
+                        parseInt(id, 10),
+                        JSON.stringify(finalClinicalData),
+                        JSON.stringify(finalLabData),
+                        JSON.stringify(finalConclusionData)
+                    ]);
+                }
+
+                // 3. ĐẨY NGƯỢC DỮ LIỆU VỀ CÁC BẢNG GỐC CỦA HIS (LÂM SÀNG, SINH HIỆU, KẾT LUẬN, CLS)
+                if (hisDocNo) {
+                    if (finalLabData?.paraclinical_items) {
+                        await this.pushbackTestAndPacsResults(client, hisDocNo, finalLabData.paraclinical_items, finalClinicalData);
+                    }
+                    await hisIntegrationController.pushbackClinicalAndConclusion(
+                        client,
+                        hisDocNo,
+                        finalClinicalData,
+                        finalConclusionData,
+                        currentUserId,
+                        currentUserName
+                    );
                 }
             });
 
