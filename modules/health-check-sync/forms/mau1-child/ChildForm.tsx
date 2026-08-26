@@ -7,6 +7,14 @@ import ChildDevelopmentTab from './tabs/ChildDevelopmentTab';
 import ChildClinicalTab from './tabs/ChildClinicalTab';
 import ChildLabTab from './tabs/ChildLabTab';
 import ChildConclusionTab from './tabs/ChildConclusionTab';
+import { 
+    User, 
+    Activity, 
+    Stethoscope, 
+    FlaskConical, 
+    ClipboardCheck, 
+    Baby 
+} from 'lucide-react';
 import ConfirmationModal from '../../../../components/ui/ConfirmationModal';
 
 interface ChildFormProps {
@@ -165,128 +173,123 @@ const ChildForm: React.FC<ChildFormProps> = ({
                 {/* Tab Navigation Specific to Child Form */}
                 {(() => {
                     const specMeta = state.specialtyMetadata || {};
-                    const getTabStatus = (key: string) => {
+                    const getTabBadge = (key: string) => {
                         if (key === 'exam') {
                             const childExamKeys = ['child_general', 'child_head_neck', 'child_eye', 'child_ear', 'child_nose_throat', 'child_mouth_dental', 'child_respiratory', 'child_cardiovascular', 'child_abdomen_genital', 'child_musculoskeletal_neuro'];
                             const total = childExamKeys.length;
                             const doneCount = childExamKeys.filter(k => specMeta[k]?.status === 'ĐÃ_DUYỆT' || specMeta[k]?.status === 'ĐÃ_KHÁM').length;
                             const isExamining = childExamKeys.some(k => specMeta[k]?.status === 'ĐANG_KHÁM');
-                            if (isExamining) return { text: 'Đang khám', color: 'bg-blue-100 text-blue-800' };
-                            if (doneCount === total) return { text: 'Đã khám', color: 'bg-emerald-100 text-emerald-800' };
-                            if (doneCount > 0) return { text: `${doneCount}/${total} đã khám`, color: 'bg-teal-100 text-teal-800' };
-                            return { text: 'Chưa khám', color: 'bg-slate-200 text-slate-600' };
+                            
+                            if (isExamining) {
+                                return {
+                                    text: 'Đang khám',
+                                    className: 'bg-blue-600/15 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700 font-bold',
+                                    dotClass: 'bg-blue-600 animate-ping'
+                                };
+                            }
+                            if (doneCount === total) {
+                                return {
+                                    text: 'Đã khám',
+                                    className: 'bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 font-bold',
+                                    dotClass: 'bg-emerald-600'
+                                };
+                            }
+                            if (doneCount > 0) {
+                                return {
+                                    text: `${doneCount}/${total} đã khám`,
+                                    className: 'bg-amber-600/15 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 font-bold',
+                                    dotClass: 'bg-amber-600'
+                                };
+                            }
+                            return {
+                                text: 'Chưa khám',
+                                className: 'bg-slate-200/80 text-slate-600 dark:bg-slate-700 dark:text-slate-300 font-medium',
+                                dotClass: 'bg-slate-400'
+                            };
                         }
                         const st = specMeta[key]?.status;
                         if (st === 'ĐÃ_DUYỆT' || st === 'ĐÃ_KHÁM' || st === 'ĐÃ_KẾT_LUẬN') {
-                            return { text: 'Đã khám', color: 'bg-emerald-100 text-emerald-800' };
+                            return {
+                                text: 'Đã khám',
+                                className: 'bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 font-bold',
+                                dotClass: 'bg-emerald-600'
+                            };
                         }
                         if (st === 'ĐANG_KHÁM') {
-                            return { text: 'Đang khám', color: 'bg-blue-100 text-blue-800' };
+                            return {
+                                text: 'Đang khám',
+                                className: 'bg-blue-600/15 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700 font-bold',
+                                dotClass: 'bg-blue-600 animate-ping'
+                            };
                         }
-                        return { text: 'Chưa khám', color: 'bg-slate-200 text-slate-600' };
+                        return {
+                            text: 'Chưa khám',
+                            className: 'bg-slate-200/80 text-slate-600 dark:bg-slate-700 dark:text-slate-300 font-medium',
+                            dotClass: 'bg-slate-400'
+                        };
                     };
 
+                    const tabItems: Array<{ id: 'admin' | 'history' | 'childDev' | 'exam' | 'lab' | 'conclusion'; label: string; step: number; icon: any }> = [
+                        { id: 'admin', label: 'Thông tin hành chính', step: 1, icon: User },
+                        { id: 'history', label: 'Tiền sử & Khám thể lực', step: 2, icon: Activity },
+                        { id: 'childDev', label: 'Dinh dưỡng & Phát triển', step: 3, icon: Baby },
+                        { id: 'exam', label: 'Khám lâm sàng', step: 4, icon: Stethoscope },
+                        { id: 'lab', label: 'Cận lâm sàng', step: 5, icon: FlaskConical },
+                        { id: 'conclusion', label: 'Kết luận & Ký số', step: 6, icon: ClipboardCheck },
+                    ];
+
                     return (
-                        <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-4 overflow-x-auto whitespace-nowrap scrollbar-none flex-nowrap gap-1">
-                            <button
-                                type="button"
-                                onClick={() => handleTabChange('admin')}
-                                className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all duration-200 flex items-center gap-2 flex-shrink-0 cursor-pointer ${
-                                    activeTab === 'admin'
-                                        ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400 bg-white dark:bg-slate-800 shadow-sm'
-                                        : 'border-transparent text-slate-600 hover:text-slate-900'
-                                }`}
-                            >
-                                <span>Thông tin hành chính</span>
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${getTabStatus('admin').color}`}>
-                                    {getTabStatus('admin').text}
-                                </span>
-                            </button>
-                            <button
-                                type="button"
-                                disabled={!patientName}
-                                onClick={() => handleTabChange('history')}
-                                className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all duration-200 flex items-center gap-2 flex-shrink-0 cursor-pointer ${
-                                    !patientName
-                                        ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent'
-                                        : activeTab === 'history'
-                                        ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400 bg-white dark:bg-slate-800 shadow-sm'
-                                        : 'border-transparent text-slate-600 hover:text-slate-900'
-                                }`}
-                            >
-                                <span>Tiền sử &amp; Khám thể lực</span>
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${getTabStatus('history').color}`}>
-                                    {getTabStatus('history').text}
-                                </span>
-                            </button>
-                            <button
-                                type="button"
-                                disabled={!patientName}
-                                onClick={() => handleTabChange('childDev')}
-                                className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all duration-200 flex items-center gap-2 flex-shrink-0 cursor-pointer ${
-                                    !patientName
-                                        ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent'
-                                        : activeTab === 'childDev'
-                                        ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400 bg-white dark:bg-slate-800 shadow-sm'
-                                        : 'border-transparent text-slate-600 hover:text-slate-900'
-                                }`}
-                            >
-                                <span>Dinh dưỡng &amp; Phát triển</span>
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${getTabStatus('childDev').color}`}>
-                                    {getTabStatus('childDev').text}
-                                </span>
-                            </button>
-                            <button
-                                type="button"
-                                disabled={!patientName}
-                                onClick={() => handleTabChange('exam')}
-                                className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all duration-200 flex items-center gap-2 flex-shrink-0 cursor-pointer ${
-                                    !patientName
-                                        ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent'
-                                        : activeTab === 'exam'
-                                        ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400 bg-white dark:bg-slate-800 shadow-sm'
-                                        : 'border-transparent text-slate-600 hover:text-slate-900'
-                                }`}
-                            >
-                                <span>Khám lâm sàng</span>
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${getTabStatus('exam').color}`}>
-                                    {getTabStatus('exam').text}
-                                </span>
-                            </button>
-                            <button
-                                type="button"
-                                disabled={!patientName}
-                                onClick={() => handleTabChange('lab')}
-                                className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all duration-200 flex items-center gap-2 flex-shrink-0 cursor-pointer ${
-                                    !patientName
-                                        ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent'
-                                        : activeTab === 'lab'
-                                        ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400 bg-white dark:bg-slate-800 shadow-sm'
-                                        : 'border-transparent text-slate-600 hover:text-slate-900'
-                                }`}
-                            >
-                                <span>Cận lâm sàng</span>
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${getTabStatus('lab').color}`}>
-                                    {getTabStatus('lab').text}
-                                </span>
-                            </button>
-                            <button
-                                type="button"
-                                disabled={!patientName}
-                                onClick={() => handleTabChange('conclusion')}
-                                className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all duration-200 flex items-center gap-2 flex-shrink-0 cursor-pointer ${
-                                    !patientName
-                                        ? 'opacity-50 cursor-not-allowed text-slate-400 border-transparent'
-                                        : activeTab === 'conclusion'
-                                        ? 'border-[#0f766e] text-[#0f766e] dark:text-emerald-400 bg-white dark:bg-slate-800 shadow-sm'
-                                        : 'border-transparent text-slate-600 hover:text-slate-900'
-                                }`}
-                            >
-                                <span>Kết luận</span>
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${getTabStatus('conclusion').color}`}>
-                                    {getTabStatus('conclusion').text}
-                                </span>
-                            </button>
+                        <div className="bg-slate-100/90 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-2 select-none">
+                            <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-none pb-0.5">
+                                {tabItems.map((tab) => {
+                                    const isActive = activeTab === tab.id;
+                                    const badge = getTabBadge(tab.id);
+                                    const isDisabled = !patientName && tab.id !== 'admin';
+                                    const IconComponent = tab.icon;
+
+                                    return (
+                                        <button
+                                            key={tab.id}
+                                            type="button"
+                                            disabled={isDisabled}
+                                            onClick={() => handleTabChange(tab.id)}
+                                            title={isDisabled ? 'Vui lòng tìm kiếm/nhập thông tin hành chính bệnh nhân trước' : ''}
+                                            className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs transition-all duration-200 cursor-pointer flex-shrink-0 border ${
+                                                isDisabled
+                                                    ? 'opacity-40 cursor-not-allowed text-slate-400 border-transparent bg-transparent'
+                                                    : isActive
+                                                        ? 'bg-white dark:bg-slate-800 text-teal-900 dark:text-teal-200 shadow-sm border-slate-300 dark:border-slate-600 ring-2 ring-teal-600/20 font-bold'
+                                                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/80 dark:hover:bg-slate-800/60 border-transparent hover:border-slate-200 font-semibold'
+                                            }`}
+                                        >
+                                            {/* Step Icon Badge */}
+                                            <span className={`flex items-center justify-center w-6 h-6 rounded-lg text-xs font-bold transition-transform group-hover:scale-105 ${
+                                                isActive
+                                                    ? 'bg-gradient-to-br from-teal-600 to-teal-700 text-white shadow-xs'
+                                                    : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                                            }`}>
+                                                <IconComponent className="w-3.5 h-3.5" />
+                                            </span>
+
+                                            {/* Tab Title */}
+                                            <span className={`text-xs tracking-tight ${isActive ? 'text-teal-950 dark:text-teal-100 font-bold' : ''}`}>
+                                                {tab.label}
+                                            </span>
+
+                                            {/* Status Chip */}
+                                            <span className={`inline-flex items-center gap-1.5 text-[10.5px] px-2 py-0.5 rounded-full transition-all ${badge.className}`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full ${badge.dotClass}`} />
+                                                <span>{badge.text}</span>
+                                            </span>
+
+                                            {/* Active Bottom Indicator Accent */}
+                                            {isActive && (
+                                                <span className="absolute -bottom-[2px] left-3 right-3 h-[3px] bg-teal-600 rounded-full" />
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
                     );
                 })()}
