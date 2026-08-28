@@ -36,13 +36,9 @@ const ChildConclusionTab: React.FC = () => {
             setSpecialtyMetadata(prev => ({ ...prev, conclusion: payload }));
         } else if (action === 'DUYỆT') {
             payload.status = 'ĐÃ_DUYỆT';
-            setSpecialtyMetadata(prev => {
-                const updated = { ...prev, conclusion: payload };
-                setTimeout(() => {
-                    handleSubmit();
-                }, 100);
-                return updated;
-            });
+            const updatedMetadata = { ...safeMetadata, conclusion: payload };
+            setSpecialtyMetadata(updatedMetadata);
+            handleSubmit({ overrideMetadata: updatedMetadata });
         } else if (action === 'MỞ_KHÓA') {
             payload.status = 'ĐANG_KHÁM';
             setSpecialtyMetadata(prev => ({ ...prev, conclusion: payload }));

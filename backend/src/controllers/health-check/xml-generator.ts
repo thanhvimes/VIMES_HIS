@@ -71,7 +71,8 @@ export function findValue(tag: string, ...sources: any[]): string {
         'tiem_chung_bai_liet': ['tiem_chung_bai_liet', 'tiemchungbailiet'],
         'tiem_chung_vnnb_b': ['tiem_chung_vnnb_b', 'tiemchungvnnbb'],
         'tiem_chung_vgb': ['tiem_chung_vgb', 'tiemchungvgb', 'tiem_chung_vgb_mui1', 'tiemchungvgbmui1'],
-        'tiem_chung_cac_loai_khac': ['tiem_chung_cac_loai_khac', 'tiemchungcacloaikhac', 'tiem_chung_vac_xin_khac', 'tiemchungvacxinkhac'],
+        'tiem_chung_cac_loai_khac': ['tiem_chung_cac_loai_khac', 'tiemchungcacloaikhac'],
+        'tiem_chung_vac_xin_khac': ['tiem_chung_vac_xin_khac', 'tiemchungvacxinkhac', 'tiemChungVacXinKhac', 'tiem_chung_vac_xin_khac_da_tiem'],
         'tsbt_mac_benh': ['tsbt_mac_benh', 'tsbtmacbenh', 'ts_mac_benh', 'tsmacbenh', 'ts_ban_than'],
         'tsbt_ma_benh': ['tsbt_ma_benh', 'tsbtmabenh', 'tsbt_icd10'],
         'tsbt_dang_dieu_tri_benh': ['tsbt_dang_dieu_tri_benh', 'tsbtdangdieutribenh', 'co_dang_dieu_tri_benh'],
@@ -736,6 +737,7 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
 							<TIEM_CHUNG_VNNB_B>${escapeXml(findValue('TIEM_CHUNG_VNNB_B', src) || '0')}</TIEM_CHUNG_VNNB_B>
 							<TIEM_CHUNG_VGB>${escapeXml(findValue('TIEM_CHUNG_VGB', src) || '0')}</TIEM_CHUNG_VGB>
 							<TIEM_CHUNG_CAC_LOAI_KHAC>${escapeXml(findValue('TIEM_CHUNG_CAC_LOAI_KHAC', src) || '0')}</TIEM_CHUNG_CAC_LOAI_KHAC>
+							<TIEM_CHUNG_VAC_XIN_KHAC>${escapeXml(findValue('TIEM_CHUNG_VAC_XIN_KHAC', src) || '')}</TIEM_CHUNG_VAC_XIN_KHAC>
 							<TSBT_MAC_BENH>${escapeXml(findValue('TSBT_MAC_BENH', src) || (findValue('TSBT_MA_BENH', src) ? '1' : '0'))}</TSBT_MAC_BENH>
 							<TSBT_MA_BENH>${escapeXml(findValue('TSBT_MA_BENH', src) || '')}</TSBT_MA_BENH>
 							<TSBT_DANG_DIEU_TRI_BENH>${escapeXml(findValue('TSBT_DANG_DIEU_TRI_BENH', src) || '0')}</TSBT_DANG_DIEU_TRI_BENH>

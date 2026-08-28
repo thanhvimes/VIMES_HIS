@@ -76,6 +76,7 @@ router.post('/documents/:id/unlock', healthCheckController.unlockDocument.bind(h
 router.post('/documents/seed-from-his', healthCheckController.seedFromHis.bind(healthCheckController));
 router.post('/documents/mark-printed', healthCheckController.markBarcodePrinted.bind(healthCheckController));
 router.get('/his-patient/:identifier', healthCheckController.getHisPatient.bind(healthCheckController));
+router.post('/batch-sync-his', healthCheckController.batchSyncHis.bind(healthCheckController));
 router.get('/signatures', healthCheckController.getDoctorSignatures.bind(healthCheckController));
 router.post('/signatures', healthCheckController.getDoctorSignatures.bind(healthCheckController));
 router.post('/signatures/save', healthCheckController.saveDoctorSignature.bind(healthCheckController));

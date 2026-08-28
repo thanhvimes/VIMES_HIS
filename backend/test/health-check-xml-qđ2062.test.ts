@@ -71,7 +71,9 @@ test('QĐ 2062 new history fields are emitted in XML1', () => {
                 tsbt_thai_san: '1',
                 tsbt_ma_benh_thai_san: 'O24',
                 tsbt_ten_thuoc_thai_san: 'Insulin 10 đơn vị',
-                nhi_khoa_lam_sang_khac: 'Theo dõi thêm'
+                nhi_khoa_lam_sang_khac: 'Theo dõi thêm',
+                tiem_chung_cac_loai_khac: '1',
+                tiem_chung_vac_xin_khac: 'Thủy đậu, Phế cầu, HPV'
             }
         },
         {},
@@ -79,6 +81,8 @@ test('QĐ 2062 new history fields are emitted in XML1', () => {
     );
 
     assert.match(xml, /<NGUON_CHI_TRA>5<\/NGUON_CHI_TRA>/);
+    assert.match(xml, /<TIEM_CHUNG_CAC_LOAI_KHAC>1<\/TIEM_CHUNG_CAC_LOAI_KHAC>/);
+    assert.match(xml, /<TIEM_CHUNG_VAC_XIN_KHAC>Thủy đậu, Phế cầu, HPV<\/TIEM_CHUNG_VAC_XIN_KHAC>/);
     assert.match(xml, /<TSBT_NGHIEN_RUOU>1<\/TSBT_NGHIEN_RUOU>/);
     assert.match(xml, /<TSBT_MA_BENH_KHAC>I10;E11<\/TSBT_MA_BENH_KHAC>/);
     assert.match(xml, /<TSBT_MAC_BENH>1<\/TSBT_MAC_BENH>/);

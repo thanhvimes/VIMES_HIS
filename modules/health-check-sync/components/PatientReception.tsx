@@ -10,6 +10,7 @@ import Combobox from '../../../components/ui/Combobox';
 import { useCatalogs } from '../../../contexts/CatalogContext';
 import { CatalogItem } from '../../../services/catalogService';
 import { formatDateForInput, formatDate } from '../../../utils/formatters';
+import { useSystemStore } from '../../../stores/useSystemStore';
 
 interface EmployeeSearchResult {
     id: number;
@@ -35,6 +36,7 @@ interface ClinicRoom {
 }
 
 const PatientReception: React.FC = () => {
+    const { hospitalName, parentOrg } = useSystemStore();
     const [settings, setSettings] = useState<any>(null);
 
     useEffect(() => {
@@ -425,7 +427,7 @@ const PatientReception: React.FC = () => {
 
     const DEFAULT_RECEPTION_TEMPLATE = `<div class="receipt-card">
     <div class="header">
-        <div class="hospital-name">BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH</div>
+        <div class="hospital-name">{{hospital}}</div>
         <div class="sub-header">KHOA KHÁM BỆNH - KHÁM SỨC KHỎE</div>
         <div class="title">PHIẾU TIẾP ĐÓN</div>
     </div>
@@ -529,6 +531,9 @@ const PatientReception: React.FC = () => {
                               !settings.reception_slip_template.includes('{{gender}}');
                               
         const templateRaw = isOldTemplate ? DEFAULT_RECEPTION_TEMPLATE : settings.reception_slip_template;
+        const currentHospital = (hospitalName || useSystemStore.getState().hospitalName || settings?.company_name || 'BỆNH VIỆN ĐA KHOA').toUpperCase();
+        const currentParentOrg = (parentOrg || useSystemStore.getState().parentOrg || 'SỞ Y TẾ').toUpperCase();
+
         const templateBody = templateRaw
             .replace(/\{\{docNo\}\}/g, docNo)
             .replace(/\{\{name\}\}/g, emp.name.toUpperCase())
@@ -536,8 +541,16 @@ const PatientReception: React.FC = () => {
             .replace(/\{\{gender\}\}/g, genderStr)
             .replace(/\{\{cardId\}\}/g, emp.card_id || '---')
             .replace(/\{\{address\}\}/g, emp.address || 'Chưa có')
+            .replace(/\{\{phone\}\}/g, emp.phone || '---')
             .replace(/\{\{contractName\}\}/g, emp.contract_name || 'Khám sức khỏe')
-            .replace(/\{\{dateStr\}\}/g, dateStr);
+            .replace(/\{\{dateStr\}\}/g, dateStr)
+            .replace(/\{\{hospital\}\}/g, currentHospital)
+            .replace(/\{\{hospitalName\}\}/g, currentHospital)
+            .replace(/\{\{facility_name\}\}/g, currentHospital)
+            .replace(/\{\{parentOrg\}\}/g, currentParentOrg)
+            .replace(/BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH/gi, currentHospital)
+            .replace(/BỆNH VIỆN ĐK TỈNH NINH BÌNH/gi, currentHospital)
+            .replace(/Bệnh viện đa khoa tỉnh Ninh Bình/gi, currentHospital);
 
         // 1. In qua Vimes.PrintAgent nếu đã cấu hình máy in
         if (settings?.barcode_printer_name) {
@@ -1167,7 +1180,7 @@ const PatientReception: React.FC = () => {
                                 {/* Hospital & Title */}
                                 <div className="text-center">
                                     <div className="text-[10.5px] font-bold text-slate-600 dark:text-slate-350 uppercase tracking-tight leading-tight">
-                                        {settings?.facility_name || 'BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH'}
+                                        {(hospitalName || useSystemStore.getState().hospitalName || settings?.company_name || 'BỆNH VIỆN ĐA KHOA').toUpperCase()}
                                     </div>
                                     <div className="text-[9.5px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">
                                         KHOA KHÁM BỆNH - KSK

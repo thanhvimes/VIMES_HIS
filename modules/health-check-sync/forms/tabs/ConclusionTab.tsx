@@ -88,44 +88,45 @@ const ConclusionTab: React.FC = () => {
             payload.doctorId = user?.userId || '';
             payload.doctorName = user?.name || '';
             
-            setSpecialtyMetadata(prev => ({
-                ...prev,
+            const updated = {
+                ...safeMetadata,
                 conclusion: payload
-            }));
+            };
+            setSpecialtyMetadata(updated);
             if (setConclusionDoctorId) {
                 setConclusionDoctorId(user?.userId || '');
             }
         } else if (action === 'DUYỆT') {
             payload.status = 'ĐÃ_DUYỆT';
             
-            setSpecialtyMetadata(prev => {
-                const updated = {
-                    ...prev,
-                    conclusion: payload
-                };
-                setTimeout(() => {
-                    handleSubmit();
-                }, 100);
-                return updated;
-            });
+            const updated = {
+                ...safeMetadata,
+                conclusion: payload
+            };
+            setSpecialtyMetadata(updated);
+            if (handleSubmit) {
+                (handleSubmit as any)({ overrideMetadata: updated });
+            }
         } else if (action === 'MỞ_KHÓA') {
             payload.status = 'ĐANG_KHÁM';
             
-            setSpecialtyMetadata(prev => ({
-                ...prev,
+            const updated = {
+                ...safeMetadata,
                 conclusion: payload
-            }));
+            };
+            setSpecialtyMetadata(updated);
         } else if (action === 'THOÁT') {
             payload.status = 'CHUA_KHAM';
             
-            setSpecialtyMetadata(prev => ({
-                ...prev,
+            const updated = {
+                ...safeMetadata,
                 conclusion: payload
-            }));
+            };
+            setSpecialtyMetadata(updated);
         }
     };
 
-    const isTabLocked = isLocked || (conclusionMetadata.status !== 'ĐANG_KHÁM' && conclusionMetadata.status !== 'ĐÃ_KẾT_LUẬN' && conclusionMetadata.status !== 'ĐÃ_KHÁM');
+    const isTabLocked = isLocked || conclusionMetadata.status === 'ĐÃ_DUYỆT';
 
     const renderBadge = () => {
         switch (conclusionMetadata.status) {

@@ -17,9 +17,11 @@ export const ReceptionSlipTab: React.FC<ReceptionSlipTabProps> = ({
         <section className="space-y-4 animate-in fade-in duration-200">
             <p className="text-xs text-slate-500 dark:text-slate-400">
                 Chỉnh sửa thiết kế mẫu in nhiệt phiếu tiếp đón (khổ 80mm). Hỗ trợ các từ khóa thay thế:
+                <code className="mx-1 px-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-pink-500">{"{{hospital}}"}</code> (Tên CSKB),
                 <code className="mx-1 px-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-pink-500">{"{{docNo}}"}</code> (Số hồ sơ),
                 <code className="mx-1 px-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-pink-500">{"{{name}}"}</code> (Họ tên),
                 <code className="mx-1 px-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-pink-500">{"{{dob}}"}</code> (Năm sinh),
+                <code className="mx-1 px-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-pink-500">{"{{gender}}"}</code> (Giới tính),
                 <code className="mx-1 px-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-pink-500">{"{{cardId}}"}</code> (CCCD),
                 <code className="mx-1 px-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-pink-500">{"{{address}}"}</code> (Địa chỉ),
                 <code className="mx-1 px-1 bg-slate-100 dark:bg-slate-800 rounded font-mono text-pink-500">{"{{dateStr}}"}</code> (Ngày in).

@@ -181,16 +181,37 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                     </td>
                                     <td className="p-4">
                                         {(() => {
-                                            const isDone = doc.conclusion_data?.fitness_class || doc.conclusion_data?.ket_luan_loai_suc_khoe || doc.conclusion_data?.diagnosis;
-                                            return isDone ? (
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                                                    Đã kết luận
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                                                    Đang khám
-                                                </span>
+                                            const specMeta = doc.clinical_data?.specialty_metadata || {};
+                                            const isConcluded = specMeta.conclusion?.status === 'ĐÃ_DUYỆT'
+                                                || specMeta.conclusion?.status === 'ĐÃ_KHÁM'
+                                                || doc.signature_status === 'Signed'
+                                                || (doc.conclusion_data?.doctor_id && (doc.conclusion_data?.diagnosis || doc.conclusion_data?.fitness_class));
+
+                                            const isExamining = !isConcluded && (
+                                                Object.values(specMeta).some((s: any) => s?.status === 'ĐANG_KHÁM' || s?.status === 'ĐÃ_KHÁM' || s?.status === 'ĐÃ_DUYỆT')
+                                                || !!doc.clinical_data?.examination?.height
+                                                || !!doc.clinical_data?.examination?.weight
                                             );
+
+                                            if (isConcluded) {
+                                                return (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                                                        Đã kết luận
+                                                    </span>
+                                                );
+                                            } else if (isExamining) {
+                                                return (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                                        Đang khám
+                                                    </span>
+                                                );
+                                            } else {
+                                                return (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                                                        Chưa khám
+                                                    </span>
+                                                );
+                                            }
                                         })()}
                                     </td>
                                     <td className="p-4">

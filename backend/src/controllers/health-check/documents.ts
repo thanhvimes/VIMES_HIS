@@ -12,6 +12,21 @@ class DocumentsController {
     private async enrichDocumentsMetadata(documents: any[]) {
         if (!Array.isArray(documents) || documents.length === 0) return;
         
+        // Luôn đảm bảo các trường JSON (clinical_data, lab_data, conclusion_data) là object trước khi xử lý và trả về API
+        for (const doc of documents) {
+            if (doc) {
+                if (typeof doc.clinical_data === 'string') {
+                    try { doc.clinical_data = JSON.parse(doc.clinical_data); } catch { doc.clinical_data = {}; }
+                }
+                if (typeof doc.lab_data === 'string') {
+                    try { doc.lab_data = JSON.parse(doc.lab_data); } catch { doc.lab_data = {}; }
+                }
+                if (typeof doc.conclusion_data === 'string') {
+                    try { doc.conclusion_data = JSON.parse(doc.conclusion_data); } catch { doc.conclusion_data = {}; }
+                }
+            }
+        }
+
         const serviceCodesSet = new Set<string>();
         for (const doc of documents) {
             if (doc && doc.lab_data && doc.lab_data.paraclinical_items && Array.isArray(doc.lab_data.paraclinical_items)) {
@@ -371,7 +386,7 @@ class DocumentsController {
             const sql = `
                 SELECT m.*, d.clinical_data, d.lab_data, d.conclusion_data 
                 FROM health_check_masters m
-                JOIN health_check_details d ON m.id = d.master_id
+                LEFT JOIN health_check_details d ON m.id = d.master_id
                 WHERE m.id = $1
             `;
             const result = await query(sql, [parseInt(id)]);
@@ -628,6 +643,11 @@ class DocumentsController {
         const conclusionData = req.body.conclusionData || req.body.conclusion_data || clinicalData.conclusion || {};
         const isSigning = !!req.body.isSigning || !!req.body.shouldSign;
 
+        const numId = parseInt(id, 10);
+        if (isNaN(numId) || numId <= 0) {
+            return res.status(400).json({ error: `Mã hồ sơ ID không hợp lệ: ${id}` });
+        }
+
         try {
             const updateDocumentErrors = validateNewHealthCheckDocument({
                 formType,
@@ -642,7 +662,7 @@ class DocumentsController {
             }
 
             // Check if document has already been successfully synced to VNeID
-            const masterCheck = await query(`SELECT send_status, signature_status FROM health_check_masters WHERE id = $1`, [parseInt(id, 10)]);
+            const masterCheck = await query(`SELECT send_status, signature_status FROM health_check_masters WHERE id = $1`, [numId]);
             if (masterCheck.rows.length > 0 && masterCheck.rows[0].send_status === 'Success') {
                 return res.status(400).json({ error: "Hồ sơ đã gửi liên thông VNeID thành công, không thể chỉnh sửa!" });
             }
@@ -673,7 +693,7 @@ class DocumentsController {
                 // 1. Fetch current detail row with lock to perform Deep Merge
                 const detailRes = await client.query(
                     'SELECT clinical_data, lab_data, conclusion_data FROM health_check_details WHERE master_id = $1 FOR UPDATE',
-                    [parseInt(id, 10)]
+                    [numId]
                 );
 
                 let finalClinicalData = clinicalData || {};
@@ -718,7 +738,7 @@ class DocumentsController {
                 `;
                 await client.query(masterSql, [
                     patientId, patientName, cccd, formatYmdString(dob), 
-                    gender, docNo, formType, xmlData, parseInt(id, 10)
+                    gender, docNo, formType, xmlData, numId
                 ]);
 
                 const detailSql = `
@@ -730,7 +750,7 @@ class DocumentsController {
                     JSON.stringify(finalClinicalData), 
                     JSON.stringify(finalLabData), 
                     JSON.stringify(finalConclusionData),
-                    parseInt(id, 10)
+                    numId
                 ]);
 
                 if (updateRes.rowCount === 0) {
@@ -738,7 +758,7 @@ class DocumentsController {
                         INSERT INTO health_check_details (master_id, clinical_data, lab_data, conclusion_data)
                         VALUES ($1, $2, $3, $4)
                     `, [
-                        parseInt(id, 10),
+                        numId,
                         JSON.stringify(finalClinicalData),
                         JSON.stringify(finalLabData),
                         JSON.stringify(finalConclusionData)

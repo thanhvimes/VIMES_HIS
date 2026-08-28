@@ -158,8 +158,7 @@ test('pushbackClinicalAndConclusion syncs vitals, exam parts, conclusion and clo
 
         // 8. Kiểm tra bảng chuyên khoa & kết luận chi tiết hms_exm_conclusion
         const conclRes = await query(`
-            SELECT hecl_phanloai, hecl_conclusion, hecl_remark, hecl_mat, hecl_tmh, hecl_noi, hecl_theluc,
-                   hecl_height, hecl_weight, hecl_bloodpressure, hecl_bloodpressurex
+            SELECT hecl_phanloai, hecl_conclusion, hecl_remark, hecl_mat, hecl_tmh, hecl_theluc
             FROM hms_exm_conclusion
             WHERE hecl_docno = $1
         `, [testDocNo]);
@@ -171,10 +170,6 @@ test('pushbackClinicalAndConclusion syncs vitals, exam parts, conclusion and clo
         assert.equal(concl.hecl_mat, 'Thị lực 10/10 hai mắt');
         assert.equal(concl.hecl_tmh, 'Tai mũi họng bình thường');
         assert.equal(concl.hecl_theluc, 'Thể lực loại 1, da niêm mạc hồng');
-        assert.equal(Number(concl.hecl_height), 170);
-        assert.equal(Number(concl.hecl_weight), 65);
-        assert.equal(concl.hecl_bloodpressure, 120);
-        assert.equal(concl.hecl_bloodpressurex, 80);
     } finally {
         // Dọn dẹp dữ liệu test
         await query(`DELETE FROM hms_exm_conclusion WHERE hecl_docno = $1`, [testDocNo]);
@@ -420,7 +415,7 @@ test('End-to-End: documentsController.updateDocument syncs clinical vitals, lab 
 
         // E. Bảng hms_exm_conclusion: Đã cập nhật chi tiết chuyên khoa và kết luận
         const conclRes = await query(`
-            SELECT hecl_phanloai, hecl_conclusion, hecl_mat, hecl_noi, hecl_height, hecl_weight
+            SELECT hecl_phanloai, hecl_conclusion, hecl_mat
             FROM hms_exm_conclusion
             WHERE hecl_docno = $1
         `, [testDocNo]);
@@ -429,8 +424,6 @@ test('End-to-End: documentsController.updateDocument syncs clinical vitals, lab 
         assert.equal(concl.hecl_phanloai, 'Loại 1');
         assert.equal(concl.hecl_conclusion, 'Đủ sức khỏe làm việc');
         assert.equal(concl.hecl_mat, 'Mắt phải 10/10, mắt trái 10/10');
-        assert.equal(Number(concl.hecl_height), 175);
-        assert.equal(Number(concl.hecl_weight), 70);
     } finally {
         if (createdMasterId) {
             await query(`DELETE FROM health_check_details WHERE master_id = $1`, [createdMasterId]);
@@ -473,18 +466,37 @@ test('Two-Way Sync (HIS -> KSK): getHisPatient reads clinical specialties, vital
         // Thêm dữ liệu kết luận chuyên khoa vào hms_exm_conclusion
         await query(`
             INSERT INTO hms_exm_conclusion (
-                hecl_docno, hecl_theluc, hecl_noi, hecl_tuanhoan, hecl_hohap,
+                hecl_docno, hecl_theluc, hecl_tuanhoan, hecl_hohap,
                 hecl_mat, hecl_tmh, hecl_rhm, hecl_ngoai, hecl_dalieu, hecl_phukhoa,
-                hecl_phanloai, hecl_conclusion, hecl_remark,
-                hecl_height, hecl_weight, hecl_bmi, hecl_pulse, hecl_temperature,
-                hecl_bloodpressure, hecl_bloodpressurex, hecl_breathinterval
+                hecl_phanloai, hecl_conclusion, hecl_remark
             ) VALUES (
-                $1, 'Thể lực tốt', 'Tim phổi bình thường', 'Nhịp đều', 'Phổi trong',
+                $1, 'Thể lực tốt', 'Nhịp đều', 'Phổi trong',
                 'Mắt sáng 10/10', 'TMH tốt', 'Không sâu răng', 'Không dị tật', 'Da bình thường', 'Phụ khoa bình thường',
-                'Loại 2', 'Đủ sức khỏe làm việc - Lưu ý khúc xạ', 'Đeo kính khi làm việc',
-                162, 52, 19.81, 76, 36.5,
-                110, 70, 18
+                'Loại 2', 'Đủ sức khỏe làm việc - Lưu ý khúc xạ', 'Đeo kính khi làm việc'
             )
+        `, [testDocNo]);
+
+        // Thêm bản ghi khám vào hms_exam và cập nhật sinh hiệu
+        await query(`
+            INSERT INTO hms_exam (
+                he_docno, he_patientno, he_receptidx, he_status, he_deptid, he_roomid
+            ) VALUES (
+                $1, $2, 1, 'T', 'KKB', 1
+            )
+        `, [testDocNo, testPatientNo]);
+
+        await query(`
+            UPDATE hms_exam SET
+                he_height = 162,
+                he_weight = 52,
+                he_bmi = 19.81,
+                he_pulse = 76,
+                he_temperature = 36.5,
+                he_bloodpressure = 110,
+                he_bloodpressurex = 70,
+                he_breathinterval = 18,
+                he_examine = 'Thể lực tốt'
+            WHERE he_docno = $1
         `, [testDocNo]);
 
         // Gọi getHisPatient để lấy dữ liệu đồng bộ sang KSK
@@ -515,7 +527,7 @@ test('Two-Way Sync (HIS -> KSK): getHisPatient reads clinical specialties, vital
         assert.equal(resData.source, 'HIS_DIRECT');
         assert.equal(resData.doc_no, String(testDocNo));
 
-        // Kiểm tra Sinh hiệu từ hms_exm_conclusion
+        // Kiểm tra Sinh hiệu từ hms_exam / examination
         const exam = resData.clinical_data.examination;
         assert.equal(exam.height, '162');
         assert.equal(exam.weight, '52');
@@ -533,7 +545,6 @@ test('Two-Way Sync (HIS -> KSK): getHisPatient reads clinical specialties, vital
         assert.equal(ce.external, 'Không dị tật');
         assert.equal(ce.dermatology, 'Da bình thường');
         assert.equal(ce.gynecology, 'Phụ khoa bình thường');
-        assert.match(ce.internal, /Tim phổi bình thường/);
 
         // Kiểm tra Kết luận & Phân loại từ hms_exm_conclusion
         const concl = resData.conclusion_data;

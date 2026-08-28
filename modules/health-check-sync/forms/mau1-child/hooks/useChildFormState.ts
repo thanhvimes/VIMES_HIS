@@ -65,21 +65,35 @@ export const useChildFormState = ({
         }).catch(err => console.error("Failed to load settings in ChildForm:", err));
     }, [initialData]);
 
+    useEffect(() => {
+        if (!initialData) return;
+        setIsLocked(initialData.signature_status === 'Signed' || initialData.is_locked || false);
+        const clin = typeof initialData.clinical_data === 'string'
+            ? (() => { try { return JSON.parse(initialData.clinical_data); } catch { return {}; } })()
+            : (initialData.clinical_data || {});
+        if (clin?.specialty_metadata) {
+            setSpecialtyMetadata(prev => ({
+                ...prev,
+                ...clin.specialty_metadata
+            }));
+        }
+    }, [initialData?.signature_status, initialData?.updated_at]);
+
     // 1. Administrative & Lookup State
     const [patientId, setPatientId] = useState(initialData?.patient_id || `P${Math.floor(1000 + Math.random() * 9000)}`);
-    const [patientName, setPatientName] = useState(initialData?.patient_name || '');
-    const [cccd, setCccd] = useState(initialData?.cccd || '');
-    const [dob, setDob] = useState(initialData?.dob ? formatDateForInput(initialData.dob) : '');
-    const [gender, setGender] = useState(initialData?.gender || '');
+    const [patientName, setPatientName] = useState(initialData?.patient_name || initialData?.ho_ten || '');
+    const [cccd, setCccd] = useState(initialData?.cccd || initialData?.so_cccd || '');
+    const [dob, setDob] = useState(initialData?.dob ? formatDateForInput(initialData.dob) : (initialData?.ngay_sinh ? formatDateForInput(initialData.ngay_sinh) : ''));
+    const [gender, setGender] = useState(initialData?.gender || (initialData?.gioi_tinh === '1' || initialData?.gioi_tinh === 1 ? 'Nam' : initialData?.gioi_tinh === '2' || initialData?.gioi_tinh === 2 || initialData?.gioi_tinh === '0' || initialData?.gioi_tinh === 0 ? 'Nữ' : ''));
     const [docNo, setDocNo] = useState(initialData?.doc_no || Date.now().toString());
-    const [address, setAddress] = useState(initialData?.clinical_data?.address || '');
-    const [phone, setPhone] = useState(initialData?.clinical_data?.phone || '');
-    const [ethnic, setEthnic] = useState(initialData?.clinical_data?.ethnic || '01');
+    const [address, setAddress] = useState(initialData?.clinical_data?.address || initialData?.address || initialData?.clinical_data?.patient_address || '');
+    const [phone, setPhone] = useState(initialData?.clinical_data?.phone || initialData?.phone || '');
+    const [ethnic, setEthnic] = useState(initialData?.clinical_data?.ethnic || initialData?.ethnic || initialData?.clinical_data?.nation || '01');
     const [cccdDate, setCccdDate] = useState(initialData?.clinical_data?.cccd_date ? formatDateForInput(initialData.clinical_data.cccd_date) : '');
     const [cccdPlace, setCccdPlace] = useState(initialData?.clinical_data?.cccd_place || '');
-    const [bloodGroup, setBloodGroup] = useState(initialData?.clinical_data?.blood_group || '');
-    const [targetGroup, setTargetGroup] = useState(initialData?.clinical_data?.target_group || '');
-    const [fundingSource, setFundingSource] = useState(initialData?.clinical_data?.funding_source || '');
+    const [bloodGroup, setBloodGroup] = useState(initialData?.clinical_data?.blood_group || initialData?.blood_group || '');
+    const [targetGroup, setTargetGroup] = useState(initialData?.clinical_data?.target_group || initialData?.target_group || initialData?.clinical_data?.doi_tuong || '10');
+    const [fundingSource, setFundingSource] = useState(initialData?.clinical_data?.funding_source || initialData?.funding_source || initialData?.clinical_data?.nguon_chi_tra || initialData?.nguon_chi_tra || '9');
     const [maGtinCskcb, setMaGtinCskcb] = useState(initialData?.clinical_data?.ma_gtin_cskcb || '');
     const [maTinhCuTru, setMaTinhCuTru] = useState(initialData?.clinical_data?.matinh_cu_tru || '');
     const [maXaCuTru, setMaXaCuTru] = useState(initialData?.clinical_data?.maxa_cu_tru || '');
@@ -87,13 +101,27 @@ export const useChildFormState = ({
     const [loaiHinhKcb, setLoaiHinhKcb] = useState(initialData?.clinical_data?.loai_hinh_kcb || '01');
 
     // Child-specific admin extra fields
-    const [guardianName, setGuardianName] = useState(initialData?.clinical_data?.extra?.nguoi_giam_ho || '');
-    const [guardianCccd, setGuardianCccd] = useState(initialData?.clinical_data?.extra?.so_cccd_ngh || '');
-    const [escortName, setEscortName] = useState(initialData?.clinical_data?.extra?.ho_ten_nguoi_di_cung || '');
-    const [escortCccd, setEscortCccd] = useState(initialData?.clinical_data?.extra?.so_cccd_nguoi_di_cung || '');
-    const [escortRelation, setEscortRelation] = useState(initialData?.clinical_data?.extra?.moi_quan_he_voi_tre || '');
-    const [conThuMay, setConThuMay] = useState(initialData?.clinical_data?.extra?.con_thu_may || '');
-    const [tongSoCon, setTongSoCon] = useState(initialData?.clinical_data?.extra?.tong_so_con || '');
+    const [guardianName, setGuardianName] = useState(
+        initialData?.clinical_data?.extra?.nguoi_giam_ho ||
+        initialData?.nguoi_giam_ho ||
+        initialData?.guardian_name ||
+        initialData?.clinical_data?.nguoi_giam_ho ||
+        initialData?.clinical_data?.guardian_name ||
+        ''
+    );
+    const [guardianCccd, setGuardianCccd] = useState(
+        initialData?.clinical_data?.extra?.so_cccd_ngh ||
+        initialData?.so_cccd_ngh ||
+        initialData?.guardian_cccd ||
+        initialData?.clinical_data?.so_cccd_ngh ||
+        initialData?.clinical_data?.guardian_cccd ||
+        ''
+    );
+    const [escortName, setEscortName] = useState(initialData?.clinical_data?.extra?.ho_ten_nguoi_di_cung || initialData?.ho_ten_nguoi_di_cung || '');
+    const [escortCccd, setEscortCccd] = useState(initialData?.clinical_data?.extra?.so_cccd_nguoi_di_cung || initialData?.so_cccd_nguoi_di_cung || '');
+    const [escortRelation, setEscortRelation] = useState(initialData?.clinical_data?.extra?.moi_quan_he_voi_tre || initialData?.moi_quan_he_voi_tre || 'Bố/Mẹ');
+    const [conThuMay, setConThuMay] = useState(initialData?.clinical_data?.extra?.con_thu_may || '1');
+    const [tongSoCon, setTongSoCon] = useState(initialData?.clinical_data?.extra?.tong_so_con || '1');
     const [maTinhCuTruNghMe, setMaTinhCuTruNghMe] = useState(initialData?.clinical_data?.extra?.matinh_cu_tru_nghme || '');
     const [maXaCuTruNghMe, setMaXaCuTruNghMe] = useState(initialData?.clinical_data?.extra?.maxa_cu_tru_nghme || '');
 
@@ -117,8 +145,14 @@ export const useChildFormState = ({
     const [birthWeight, setBirthWeight] = useState(initialData?.clinical_data?.extra?.can_nang_luc_sinh || '');
 
     // Medical history texts
+    const [tsbtMacBenh, setTsbtMacBenh] = useState<string>(initialData?.clinical_data?.extra?.tsbt_mac_benh !== undefined ? String(initialData.clinical_data.extra.tsbt_mac_benh) : (initialData?.clinical_data?.extra?.ts_ban_than || initialData?.clinical_data?.extra?.tsbt_ma_benh ? '1' : '0'));
+    const [tsbtMaBenh, setTsbtMaBenh] = useState(initialData?.clinical_data?.extra?.tsbt_ma_benh || '');
     const [tsBanThan, setTsBanThan] = useState(initialData?.clinical_data?.extra?.ts_ban_than || '');
+    
+    const [tsgdMacBenh, setTsgdMacBenh] = useState<string>(initialData?.clinical_data?.extra?.tsgd_mac_benh !== undefined ? String(initialData.clinical_data.extra.tsgd_mac_benh) : (initialData?.clinical_data?.extra?.ts_gia_dinh || initialData?.clinical_data?.extra?.tsgd_ma_benh ? '1' : '0'));
+    const [tsgdMaBenh, setTsgdMaBenh] = useState(initialData?.clinical_data?.extra?.tsgd_ma_benh || '');
     const [tsGiaDinh, setTsGiaDinh] = useState(initialData?.clinical_data?.extra?.ts_gia_dinh || '');
+    
     const [tsbtNghienRuou, setTsbtNghienRuou] = useState(initialData?.clinical_data?.extra?.tsbt_nghien_ruou || '');
     const [tsbtMaBenhKhac, setTsbtMaBenhKhac] = useState(initialData?.clinical_data?.extra?.tsbt_ma_benh_khac || '');
     const [tsTiepXucLao, setTsTiepXucLao] = useState(initialData?.clinical_data?.extra?.ts_tiep_xuc_lao || '0');
@@ -343,8 +377,207 @@ export const useChildFormState = ({
         }
     };
 
-    const buildPayload = () => {
+    // Synchronize states when initialData changes or refreshes
+    useEffect(() => {
+        if (!initialData) return;
+
+        if (initialData.patient_id) setPatientId(initialData.patient_id);
+        if (initialData.patient_name || initialData.ho_ten) setPatientName(initialData.patient_name || initialData.ho_ten);
+        if (initialData.cccd || initialData.so_cccd) setCccd(initialData.cccd || initialData.so_cccd);
+        if (initialData.dob || initialData.ngay_sinh) setDob(formatDateForInput(initialData.dob || initialData.ngay_sinh));
+        if (initialData.gender || initialData.gioi_tinh) {
+            setGender(initialData.gender || (initialData.gioi_tinh === '1' || initialData.gioi_tinh === 1 ? 'Nam' : 'Nữ'));
+        }
+        if (initialData.doc_no) setDocNo(initialData.doc_no);
+        setIsLocked(initialData.signature_status === 'Signed' || initialData.is_locked || false);
+
+        const clinical = typeof initialData.clinical_data === 'string'
+            ? JSON.parse(initialData.clinical_data)
+            : (initialData.clinical_data || initialData.clinicalData || {});
+        const extra = clinical.extra || {};
+        const exam = clinical.examination || {};
+        const clinExam = clinical.clinical_exam || {};
+        const rawLab = typeof initialData.lab_data === 'string'
+            ? JSON.parse(initialData.lab_data)
+            : (initialData.lab_data || initialData.labData || clinical.lab || {});
+        const rawConcl = typeof initialData.conclusion_data === 'string'
+            ? JSON.parse(initialData.conclusion_data)
+            : (initialData.conclusion_data || initialData.conclusionData || clinical.conclusion || {});
+
+        if (clinical.address || initialData.address) setAddress(clinical.address || initialData.address);
+        if (clinical.phone || initialData.phone) setPhone(clinical.phone || initialData.phone);
+        if (clinical.ethnic) setEthnic(clinical.ethnic);
+        if (clinical.cccd_date) setCccdDate(formatDateForInput(clinical.cccd_date));
+        if (clinical.cccd_place) setCccdPlace(clinical.cccd_place);
+        if (clinical.blood_group) setBloodGroup(clinical.blood_group);
+        if (clinical.target_group) setTargetGroup(clinical.target_group);
+        if (clinical.funding_source) setFundingSource(clinical.funding_source);
+        if (clinical.ma_gtin_cskcb) setMaGtinCskcb(clinical.ma_gtin_cskcb);
+        if (clinical.matinh_cu_tru) setMaTinhCuTru(String(clinical.matinh_cu_tru));
+        if (clinical.maxa_cu_tru) setMaXaCuTru(String(clinical.maxa_cu_tru));
+        if (clinical.ly_do_vv) setLyDoVv(clinical.ly_do_vv);
+        if (clinical.loai_hinh_kcb) setLoaiHinhKcb(clinical.loai_hinh_kcb);
+
+        const loadedSpecMeta = clinical.specialty_metadata || clinExam.specialty_metadata || initialData.specialty_metadata;
+        if (loadedSpecMeta) {
+            setSpecialtyMetadata(prev => ({
+                ...prev,
+                ...loadedSpecMeta
+            }));
+        }
+
+        // Child specific admin
+        if (extra.nguoi_giam_ho) setGuardianName(extra.nguoi_giam_ho);
+        if (extra.so_cccd_ngh) setGuardianCccd(extra.so_cccd_ngh);
+        if (extra.ho_ten_nguoi_di_cung) setEscortName(extra.ho_ten_nguoi_di_cung);
+        if (extra.so_cccd_nguoi_di_cung) setEscortCccd(extra.so_cccd_nguoi_di_cung);
+        if (extra.moi_quan_he_voi_tre) setEscortRelation(extra.moi_quan_he_voi_tre);
+        if (extra.con_thu_may) setConThuMay(String(extra.con_thu_may));
+        if (extra.tong_so_con) setTongSoCon(String(extra.tong_so_con));
+        if (extra.matinh_cu_tru_nghme) setMaTinhCuTruNghMe(String(extra.matinh_cu_tru_nghme));
+        if (extra.maxa_cu_tru_nghme) setMaXaCuTruNghMe(String(extra.maxa_cu_tru_nghme));
+
+        // Vitals
+        if (exam.height) setHeight(String(exam.height));
+        if (exam.weight) setWeight(String(exam.weight));
+        if (exam.pulse) setPulse(String(exam.pulse));
+        if (exam.blood_pressure || exam.bp) setBp(String(exam.blood_pressure || exam.bp));
+        if (clinical.nhiet_do || exam.temperature || extra.nhiet_do) setNhietDo(String(clinical.nhiet_do || exam.temperature || extra.nhiet_do));
+        if (clinical.nhip_tho || exam.breathing_rate || extra.nhip_tho) setNhipTho(String(clinical.nhip_tho || exam.breathing_rate || extra.nhip_tho));
+        if (extra.gio_kham) setGioKham(extra.gio_kham);
+        if (extra.dg_dhst_nhiet_do) setDgDhstNhietDo(extra.dg_dhst_nhiet_do);
+        if (extra.dg_dhst_mach) setDgDhstMach(extra.dg_dhst_mach);
+        if (extra.dg_dhst_nhip_tho) setDgDhstNhipTho(extra.dg_dhst_nhip_tho);
+        if (extra.vong_ddau || extra.vong_dau) setVongDau(extra.vong_ddau || extra.vong_dau);
+        if (extra.vong_nguc) setVongNguc(extra.vong_nguc);
+        if (extra.sinh_non) setSinhNon(extra.sinh_non);
+        if (extra.tuan_thai_khi_sinh || extra.tuan_thai) setTuanThai(extra.tuan_thai_khi_sinh || extra.tuan_thai);
+        if (extra.can_nang_luc_sinh) setBirthWeight(extra.can_nang_luc_sinh);
+
+        // History
+        if (extra.tsbt_mac_benh !== undefined) {
+            setTsbtMacBenh(String(extra.tsbt_mac_benh));
+        } else if (extra.ts_ban_than || extra.tsbt_ma_benh) {
+            setTsbtMacBenh('1');
+        }
+        if (extra.tsbt_ma_benh) setTsbtMaBenh(extra.tsbt_ma_benh);
+        if (extra.ts_ban_than) setTsBanThan(extra.ts_ban_than);
+
+        if (extra.tsgd_mac_benh !== undefined) {
+            setTsgdMacBenh(String(extra.tsgd_mac_benh));
+        } else if (extra.ts_gia_dinh || extra.tsgd_ma_benh) {
+            setTsgdMacBenh('1');
+        }
+        if (extra.tsgd_ma_benh) setTsgdMaBenh(extra.tsgd_ma_benh);
+        if (extra.ts_gia_dinh) setTsGiaDinh(extra.ts_gia_dinh);
+
+        if (extra.tsbt_nghien_ruou !== undefined) setTsbtNghienRuou(extra.tsbt_nghien_ruou);
+        if (extra.tsbt_ma_benh_khac) setTsbtMaBenhKhac(extra.tsbt_ma_benh_khac);
+        if (extra.ts_tiep_xuc_lao !== undefined) setTsTiepXucLao(String(extra.ts_tiep_xuc_lao));
+
+        // Nutrition & development
+        if (extra.chieu_dai_tuoi_sd) setChieuDaiTuoiSd(extra.chieu_dai_tuoi_sd);
+        if (extra.can_nang_tuoi_sd) setCanNangTuoiSd(extra.can_nang_tuoi_sd);
+        if (extra.dg_vong_dau) setDgVongDau(extra.dg_vong_dau);
+        if (extra.chu_vi_vong_canh_tay) setChuViVongCanhTay(extra.chu_vi_vong_canh_tay);
+        if (extra.phu_dinh_duong !== undefined) setPhuDinhDuong(extra.phu_dinh_duong);
+        if (extra.thieu_mau !== undefined) setThieuMau(extra.thieu_mau);
+        if (extra.coi_xuong !== undefined) setCoiXuong(extra.coi_xuong);
+        if (extra.suy_dinh_duong !== undefined) setSuyDinhDuong(extra.suy_dinh_duong);
+        if (extra.thua_can_beo_phi !== undefined) setThuaCanBeoPhi(extra.thua_can_beo_phi);
+        if (extra.pt_tinh_than_binh_thuong !== undefined) setPtTinhThanBinhThuong(extra.pt_tinh_than_binh_thuong);
+        if (extra.pt_van_dong_binh_thuong !== undefined) setPtVanDongBinhThuong(extra.pt_van_dong_binh_thuong);
+        if (extra.nguy_co_tu_ky !== undefined) setNguyCoTuKy(extra.nguy_co_tu_ky);
+        if (extra.tiem_chung_lao !== undefined) setTiemChungLao(extra.tiem_chung_lao);
+        if (extra.tiem_chung_vgb_mui1 !== undefined) setTiemChungVgbMui1(extra.tiem_chung_vgb_mui1);
+        if (extra.tiem_chung_day_du !== undefined) setTiemChungDayDu(extra.tiem_chung_day_du);
+
+        // Khám lâm sàng chuyên khoa chi tiết (Mẫu 1)
+        if (clinExam.lam_sang_quan_sat || extra.lam_sang_quan_sat) setLamSangQuanSat(clinExam.lam_sang_quan_sat || extra.lam_sang_quan_sat || '');
+        if (clinExam.mau_sac_da || extra.mau_sac_da) setMauSacDa(clinExam.mau_sac_da || extra.mau_sac_da || '1');
+        if (clinExam.long_ban_tay || extra.long_ban_tay) setLongBanTay(clinExam.long_ban_tay || extra.long_ban_tay || '1');
+        if (clinExam.thop || extra.thop) setThop(clinExam.thop || extra.thop || '1');
+        if (clinExam.kich_thuoc_dau || extra.kich_thuoc_dau) setKichThuocDau(clinExam.kich_thuoc_dau || extra.kich_thuoc_dau || '1');
+        if (clinExam.van_dong_co || extra.van_dong_co) setVanDongCo(clinExam.van_dong_co || extra.van_dong_co || '1');
+        if (clinExam.khoi_bat_thuong_dau_co || extra.khoi_bat_thuong_dau_co) setKhoiBatThuongDauCo(clinExam.khoi_bat_thuong_dau_co || extra.khoi_bat_thuong_dau_co || '0');
+        if (clinExam.vi_tri_2_mat || extra.vi_tri_2_mat) setViTri2Mat(clinExam.vi_tri_2_mat || extra.vi_tri_2_mat || '1');
+        if (clinExam.mi_mat_ket_mac || extra.mi_mat_ket_mac) setMiMatKetMac(clinExam.mi_mat_ket_mac || extra.mi_mat_ket_mac || '1');
+        if (clinExam.lac_mat || extra.lac_mat) setLacMat(clinExam.lac_mat || extra.lac_mat || '0');
+        if (clinExam.dong_tu || extra.dong_tu) setDongTu(clinExam.dong_tu || extra.dong_tu || '1');
+        if (clinExam.tai_mang_nhi || extra.tai_mang_nhi) setTaiMangNhi(clinExam.tai_mang_nhi || extra.tai_mang_nhi || '1');
+        if (clinExam.dap_ung_am_thanh || extra.dap_ung_am_thanh) setDapUngAmThanh(clinExam.dap_ung_am_thanh || extra.dap_ung_am_thanh || '1');
+        if (clinExam.khoi_sung_sau_tai || extra.khoi_sung_sau_tai) setKhoiSungSauTai(clinExam.khoi_sung_sau_tai || extra.khoi_sung_sau_tai || '0');
+        if (clinExam.chay_mu_nuoc_tai || extra.chay_mu_nuoc_tai) setChayMuNuocTai(clinExam.chay_mu_nuoc_tai || extra.chay_mu_nuoc_tai || '0');
+        if (clinExam.hinh_dang_mui || extra.hinh_dang_mui) setHinhDangMui(clinExam.hinh_dang_mui || extra.hinh_dang_mui || '1');
+        if (clinExam.chay_nuoc_mui || extra.chay_nuoc_mui) setChayNuocMui(clinExam.chay_nuoc_mui || extra.chay_nuoc_mui || '0');
+        if (clinExam.nghet_mui || extra.nghet_mui) setNghetMui(clinExam.nghet_mui || extra.nghet_mui || '0');
+        if (clinExam.hong || extra.hong) setHong(clinExam.hong || extra.hong || '1');
+        if (clinExam.hinh_dang_mieng || extra.hinh_dang_mieng) setHinhDangMieng(clinExam.hinh_dang_mieng || extra.hinh_dang_mieng || '1');
+        if (clinExam.rang_sua_so_sinh || extra.rang_sua_so_sinh) setRangSuaSoSinh(clinExam.rang_sua_so_sinh || extra.rang_sua_so_sinh || '0');
+        if (clinExam.hinh_dang_luoi || extra.hinh_dang_luoi) setHinhDangLuoi(clinExam.hinh_dang_luoi || extra.hinh_dang_luoi || '1');
+        if (clinExam.dinh_thang_luoi || extra.dinh_thang_luoi) setDinhThangLuoi(clinExam.dinh_thang_luoi || extra.dinh_thang_luoi || '0');
+        if (clinExam.nam_mieng || extra.nam_mieng) setNamMieng(clinExam.nam_mieng || extra.nam_mieng || '0');
+        if (clinExam.cam_nho_tut_sau || extra.cam_nho_tut_sau) setCamNhoTutSau(clinExam.cam_nho_tut_sau || extra.cam_nho_tut_sau || '0');
+        if (clinExam.vet_sau_mang_bam || extra.vet_sau_mang_bam) setVetSauMangBam(clinExam.vet_sau_mang_bam || extra.vet_sau_mang_bam || '0');
+        if (clinExam.nhip_tho_khong_deu || extra.nhip_tho_khong_deu) setNhipThoKhongDeu(clinExam.nhip_tho_khong_deu || extra.nhip_tho_khong_deu || '0');
+        if (clinExam.tho_rut_lom_long_nguc || extra.tho_rut_lom_long_nguc) setThoRutLomLongNguc(clinExam.tho_rut_lom_long_nguc || extra.tho_rut_lom_long_nguc || '0');
+        if (clinExam.tieng_tho_bat_thuong || extra.tieng_tho_bat_thuong) setTiengThoBatThuong(clinExam.tieng_tho_bat_thuong || extra.tieng_tho_bat_thuong || '0');
+        if (clinExam.dh_suy_ho_hap || extra.dh_suy_ho_hap) setDhSuyHoHap(clinExam.dh_suy_ho_hap || extra.dh_suy_ho_hap || '0');
+        if (clinExam.nghe_phoi || extra.nghe_phoi) setNghePhoi(clinExam.nghe_phoi || extra.nghe_phoi || '1');
+        if (clinExam.vi_tri_mom_tim || extra.vi_tri_mom_tim) setViTriMomTim(clinExam.vi_tri_mom_tim || extra.vi_tri_mom_tim || '1');
+        if (clinExam.mach_ngoai_vi || extra.mach_ngoai_vi) setMachNgoaiVi(clinExam.mach_ngoai_vi || extra.mach_ngoai_vi || '1');
+        if (clinExam.nghe_tim || extra.nghe_tim) setNgheTim(clinExam.nghe_tim || extra.nghe_tim || '1');
+        if (clinExam.hinh_dang_bung_ron || extra.hinh_dang_bung_ron) setHinhDangBungRon(clinExam.hinh_dang_bung_ron || extra.hinh_dang_bung_ron || '1');
+        if (clinExam.gan_lach_to || extra.gan_lach_to) setGanLachTo(clinExam.gan_lach_to || extra.gan_lach_to || '0');
+        if (clinExam.khoi_bat_thuong_bung || extra.khoi_bat_thuong_bung) setKhoiBatThuongBung(clinExam.khoi_bat_thuong_bung || extra.khoi_bat_thuong_bung || '0');
+        if (clinExam.lo_hau_mon || extra.lo_hau_mon) setLoHauMon(clinExam.lo_hau_mon || extra.lo_hau_mon || '1');
+        if (clinExam.cq_sinh_duc_ngoai || extra.cq_sinh_duc_ngoai) setCqSinhDucNgoai(clinExam.cq_sinh_duc_ngoai || extra.cq_sinh_duc_ngoai || '1');
+        if (clinExam.van_dong_khong_doi_xung || extra.van_dong_khong_doi_xung) setVanDongKhongDoiXung(clinExam.van_dong_khong_doi_xung || extra.van_dong_khong_doi_xung || '0');
+        if (clinExam.phan_xa_bu || extra.phan_xa_bu) setPhanXaBu(clinExam.phan_xa_bu || extra.phan_xa_bu || '1');
+        if (clinExam.phan_xa_nam || extra.phan_xa_nam) setPhanXaNam(clinExam.phan_xa_nam || extra.phan_xa_nam || '1');
+        if (clinExam.phan_xa_moro || extra.phan_xa_moro) setphanXaMoro(clinExam.phan_xa_moro || extra.phan_xa_moro || '1');
+        if (clinExam.truong_luc_co || extra.truong_luc_co) setTruongLucCo(clinExam.truong_luc_co || extra.truong_luc_co || '1');
+        if (clinExam.khopHang || clinExam.khop_hang || extra.khop_hang) setKhopHang(clinExam.khopHang || clinExam.khop_hang || extra.khop_hang || '1');
+        if (clinExam.phan_xa_co || extra.phan_xa_co) setPhanXaCo(clinExam.phan_xa_co || extra.phan_xa_co || '1');
+        if (clinExam.kiem_tra_lung_cot_song || extra.kiem_tra_lung_cot_song) setKiemTraLungCotSong(clinExam.kiem_tra_lung_cot_song || extra.kiem_tra_lung_cot_song || '1');
+        if (clinExam.kham_tu_chi_khop || extra.kham_tu_chi_khop) setKhamTuChiKhop(clinExam.kham_tu_chi_khop || extra.kham_tu_chi_khop || '1');
+        if (clinExam.quan_sat_dang_di || extra.quan_sat_dang_di) setQuanSatDangDi(clinExam.quan_sat_dang_di || extra.quan_sat_dang_di || '1');
+
+        // Lab
+        const blood = rawLab.blood_test || rawLab.bloodTest || rawLab || {};
+        if (blood.hemoglobin) { setHemoglobin(blood.hemoglobin); setBloodTestEnabled(true); }
+        if (blood.glycemia) { setGlycemia(blood.glycemia); setBloodTestEnabled(true); }
+        if (blood.chi_so_hc) { setChiSoHc(blood.chi_so_hc); setBloodTestEnabled(true); }
+        if (blood.chi_so_bach_cau) { setChiSoBachCau(blood.chi_so_bach_cau); setBloodTestEnabled(true); }
+        if (blood.chi_so_tieu_cau) { setChiSoTieuCau(blood.chi_so_tieu_cau); setBloodTestEnabled(true); }
+        if (blood.ure) { setUre(blood.ure); setBloodTestEnabled(true); }
+        if (blood.creatinin) { setCreatinin(blood.creatinin); setBloodTestEnabled(true); }
+        if (blood.asat_ast) { setAsatAst(blood.asat_ast); setBloodTestEnabled(true); }
+        if (blood.alat_alt) { setAlatAlt(blood.alat_alt); setBloodTestEnabled(true); }
+        if (blood.nuoc_tieu_khac) { setNuocTieuKhac(blood.nuoc_tieu_khac); setBloodTestEnabled(true); }
+
+        const urine = rawLab.urine_test || rawLab.urineTest || rawLab || {};
+        if (urine.duong_nuoc_tieu || urine.protein_nuoc_tieu) {
+            if (urine.duong_nuoc_tieu) setDuongNuocTieu(urine.duong_nuoc_tieu);
+            if (urine.protein_nuoc_tieu) setProteinNuocTieu(urine.protein_nuoc_tieu);
+            setUrineTestEnabled(true);
+        }
+
+        if (rawLab.other_result || rawLab.otherResult) {
+            setOtherLabResult(rawLab.other_result || rawLab.otherResult);
+            setOtherLabTestEnabled(true);
+        }
+
+        // Conclusion
+        if (rawConcl.fitness_class) setFitnessClass(rawConcl.fitness_class);
+        if (rawConcl.diagnosis) setDiagnosis(rawConcl.diagnosis);
+        if (rawConcl.cac_van_de_luu_y) setCacVanDeLuuY(rawConcl.cac_van_de_luu_y);
+    }, [initialData]);
+
+    const buildPayload = (overrideMetadata?: any) => {
+        const activeMetadata = overrideMetadata || specialtyMetadata;
         return {
+            id: initialData?.id || initialData?._id,
             patient_id: patientId,
             patient_name: patientName,
             cccd: cccd,
@@ -367,7 +600,7 @@ export const useChildFormState = ({
                 maxa_cu_tru: maXaCuTru,
                 ly_do_vv: lyDoVv,
                 loai_hinh_kcb: loaiHinhKcb,
-                specialty_metadata: specialtyMetadata,
+                specialty_metadata: activeMetadata,
                 examination: {
                     height,
                     weight,
@@ -395,7 +628,11 @@ export const useChildFormState = ({
                     sinh_non: sinhNon,
                     tuan_thai_khi_sinh: tuanThai,
                     can_nang_luc_sinh: birthWeight,
+                    tsbt_mac_benh: tsbtMacBenh,
+                    tsbt_ma_benh: tsbtMaBenh,
                     ts_ban_than: tsBanThan,
+                    tsgd_mac_benh: tsgdMacBenh,
+                    tsgd_ma_benh: tsgdMaBenh,
                     ts_gia_dinh: tsGiaDinh,
                     tsbt_nghien_ruou: tsbtNghienRuou,
                     tsbt_ma_benh_khac: tsbtMaBenhKhac,
@@ -415,8 +652,9 @@ export const useChildFormState = ({
                     nguy_co_tu_ky: nguyCoTuKy,
                     tiem_chung_lao: tiemChungLao,
                     tiem_chung_vgb_mui1: tiemChungVgbMui1,
-                    tiem_chung_day_du: tiemChungDayDu,
-
+                    tiem_chung_day_du: tiemChungDayDu
+                },
+                clinical_exam: {
                     lam_sang_quan_sat: lamSangQuanSat,
                     mau_sac_da: mauSacDa,
                     long_ban_tay: longBanTay,
@@ -466,8 +704,10 @@ export const useChildFormState = ({
                     kiem_tra_lung_cot_song: kiemTraLungCotSong,
                     kham_tu_chi_khop: khamTuChiKhop,
                     quan_sat_dang_di: quanSatDangDi
-                },
-                lab: {
+                }
+            },
+            lab_data: {
+                blood_test: {
                     hemoglobin: bloodTestEnabled ? hemoglobin : '',
                     glycemia: bloodTestEnabled ? glycemia : '',
                     chi_so_hc: bloodTestEnabled ? chiSoHc : '',
@@ -477,28 +717,38 @@ export const useChildFormState = ({
                     creatinin: bloodTestEnabled ? creatinin : '',
                     asat_ast: bloodTestEnabled ? asatAst : '',
                     alat_alt: bloodTestEnabled ? alatAlt : '',
-                    nuoc_tieu_khac: bloodTestEnabled ? nuocTieuKhac : '',
-                    duong_nuoc_tieu: urineTestEnabled ? duongNuocTieu : '',
-                    protein_nuoc_tieu: urineTestEnabled ? proteinNuocTieu : '',
-                    other_result: otherLabTestEnabled ? otherLabResult : ''
+                    nuoc_tieu_khac: bloodTestEnabled ? nuocTieuKhac : ''
                 },
-                conclusion: {
-                    fitness_class: fitnessClass,
-                    diagnosis: diagnosis,
-                    cac_van_de_luu_y: cacVanDeLuuY
-                }
+                urine_test: {
+                    duong_nuoc_tieu: urineTestEnabled ? duongNuocTieu : '',
+                    protein_nuoc_tieu: urineTestEnabled ? proteinNuocTieu : ''
+                },
+                other_result: otherLabTestEnabled ? otherLabResult : '',
+                paraclinical_items: initialData?.lab_data?.paraclinical_items || []
+            },
+            conclusion_data: {
+                fitness_class: fitnessClass,
+                diagnosis: diagnosis,
+                cac_van_de_luu_y: cacVanDeLuuY
             }
         };
     };
 
     const handleSubmit = async (options?: any) => {
         const newErrors: Record<string, string> = {};
-        if (!patientName) newErrors.patientName = 'Vui lòng nhập họ và tên trẻ';
-        if (!dob) newErrors.dob = 'Vui lòng chọn ngày sinh';
+        if (!patientName?.trim()) newErrors.patientName = 'Vui lòng nhập họ và tên trẻ';
+        if (!dob) newErrors.dob = 'Vui lòng chọn ngày sinh của trẻ';
         if (!gender) newErrors.gender = 'Vui lòng chọn giới tính';
         if (!fundingSource) newErrors.fundingSource = 'Vui lòng chọn nguồn chi trả theo QĐ 2062';
-        if (!guardianName.trim()) newErrors.guardianName = 'Trẻ dưới 6 tuổi phải có họ tên người giám hộ';
-        if (!/^\d{12}$/.test(String(guardianCccd).trim())) newErrors.guardianCccd = 'CCCD người giám hộ phải gồm chính xác 12 chữ số';
+        
+        if (!guardianName?.trim()) {
+            newErrors.guardianName = 'Trẻ dưới 6 tuổi bắt buộc nhập Họ tên người giám hộ (Mục 16)';
+        }
+        if (!guardianCccd?.trim()) {
+            newErrors.guardianCccd = 'Trẻ dưới 6 tuổi bắt buộc nhập Số định danh/CCCD người giám hộ (Mục 15)';
+        } else if (!/^\d{9,12}$/.test(String(guardianCccd).trim())) {
+            newErrors.guardianCccd = 'Số định danh/CCCD người giám hộ phải gồm 9 hoặc 12 chữ số';
+        }
 
         const isOverallClassThreeOrBelow = ['3', '4', '5', 'III', 'IV', 'V'].includes(fitnessClass);
         const normalizedNotes = (cacVanDeLuuY || '').trim().toLocaleLowerCase('vi-VN');
@@ -512,7 +762,9 @@ export const useChildFormState = ({
         setErrors(newErrors);
 
         if (Object.keys(newErrors).length > 0) {
-            toast.error('Vui lòng kiểm tra lại các trường thông tin bắt buộc còn thiếu');
+            const firstKey = Object.keys(newErrors)[0];
+            const firstMsg = newErrors[firstKey];
+            toast.error(`Chưa đủ thông tin bắt buộc: ${firstMsg}`);
             if (newErrors.diagnosis) {
                 setActiveTab('conclusion');
             } else {
@@ -521,7 +773,7 @@ export const useChildFormState = ({
             return;
         }
 
-        const payload = buildPayload();
+        const payload = buildPayload(options?.overrideMetadata);
         try {
             await onSave(payload, options);
         } catch (err: any) {
@@ -633,8 +885,16 @@ export const useChildFormState = ({
         setDgDhstNhipTho,
         tsBanThan,
         setTsBanThan,
+        tsbtMacBenh,
+        setTsbtMacBenh,
+        tsbtMaBenh,
+        setTsbtMaBenh,
         tsGiaDinh,
         setTsGiaDinh,
+        tsgdMacBenh,
+        setTsgdMacBenh,
+        tsgdMaBenh,
+        setTsgdMaBenh,
         tsbtNghienRuou,
         setTsbtNghienRuou,
         tsbtMaBenhKhac,

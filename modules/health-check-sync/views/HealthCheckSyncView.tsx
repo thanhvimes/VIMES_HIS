@@ -35,6 +35,7 @@ import SyncDataList from '../components/SyncDataList';
 import ContractManagement from '../components/ContractManagement';
 import PatientReception from '../components/PatientReception';
 import SampleTracking from '../components/SampleTracking';
+import { HisBatchImportModal } from '../components/HisBatchImportModal';
 
 interface ErrorBoundaryProps {
     children: React.ReactNode;
@@ -158,6 +159,7 @@ const HealthCheckSyncView: React.FC = () => {
     const [activeBarcodeDocs, setActiveBarcodeDocs] = useState<any[]>([]);
     const [isPrintXnModalOpen, setIsPrintXnModalOpen] = useState(false);
     const [xnPrintPayload, setXnPrintPayload] = useState<PrintXnPayload[]>([]);
+    const [isBatchImportModalOpen, setIsBatchImportModalOpen] = useState(false);
 
     const loadSettings = async () => {
         try {
@@ -357,7 +359,7 @@ const HealthCheckSyncView: React.FC = () => {
     const handleSaveDocument = async (payload: any, options?: { shouldSign?: boolean; shouldUnlock?: boolean; signatureType?: 'USB' | 'HSM' }) => {
         setIsLoading(true);
         try {
-            let docId = activeDocument?.id;
+            let docId = activeDocument?.id || payload?.id;
             if (options?.shouldUnlock) {
                 if (!docId) throw new Error('Không tìm thấy hồ sơ cần mở khóa.');
                 const reason = window.prompt('Nhập lý do hủy chữ ký/mở khóa hồ sơ:', 'Điều chỉnh hồ sơ theo yêu cầu nghiệp vụ');
@@ -373,14 +375,15 @@ const HealthCheckSyncView: React.FC = () => {
                 return;
             }
 
-            if (viewMode === 'CREATE') {
+            if (viewMode === 'CREATE' || !docId) {
                 const res = await healthCheckService.createDocument(payload);
                 docId = res.id;
+                setViewMode('EDIT');
                 if (!options?.shouldSign) {
                     toast.success("Tạo hồ sơ KSK thành công!");
                 }
-            } else if (viewMode === 'EDIT' && activeDocument) {
-                await healthCheckService.updateDocument(activeDocument.id, payload);
+            } else if ((viewMode === 'EDIT' || docId) && docId) {
+                await healthCheckService.updateDocument(docId.toString(), payload);
                 if (!options?.shouldSign && !options?.shouldUnlock) {
                     toast.success("Cập nhật hồ sơ KSK thành công!");
                 }
@@ -1192,6 +1195,17 @@ const HealthCheckSyncView: React.FC = () => {
 
                                     {stepParam !== 'print-code' && stepParam !== 'sync' && (
                                         <button 
+                                            onClick={() => setIsBatchImportModalOpen(true)}
+                                            className="px-4 py-2 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-lg font-bold flex items-center gap-1.5 transition-all text-xs active:scale-95 cursor-pointer shadow-sm"
+                                            title="Import danh sách số hồ sơ từ Excel để tự động đồng bộ từ HIS"
+                                        >
+                                            <CloudUploadIcon className="w-4 h-4"/>
+                                            Import từ HIS (Excel)
+                                        </button>
+                                    )}
+
+                                    {stepParam !== 'print-code' && stepParam !== 'sync' && (
+                                        <button 
                                             onClick={handleSendDocuments}
                                             disabled={selectedIds.size === 0 || isLoading || isSending || isSigning}
                                             className="px-4 py-2 bg-[#55b1a3] hover:bg-[#43a294] text-white rounded-lg font-bold flex items-center gap-2 disabled:opacity-50 transition-all active:scale-95 text-xs cursor-pointer shadow-sm"
@@ -1354,7 +1368,7 @@ const HealthCheckSyncView: React.FC = () => {
             ) : (
                 <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                     <DynamicForm
-                        key={`${activeDocument?.id || 'new'}-${activeDocument?.signature_status || 'Unsigned'}-${activeDocument?.updated_at || ''}`}
+                        key={`${activeDocument?.id || 'new'}-${viewMode === 'EDIT' ? activeDocument?.form_type : createFormType}`}
                         formType={viewMode === 'EDIT' ? activeDocument?.form_type : createFormType}
                         initialData={viewMode === 'EDIT' ? activeDocument : undefined}
                         onSave={handleSaveDocument}
@@ -1421,6 +1435,14 @@ const HealthCheckSyncView: React.FC = () => {
                     }}
                 />
             )}
+            {/* HIS Batch Import Modal */}
+            <HisBatchImportModal
+                isOpen={isBatchImportModalOpen}
+                onClose={() => setIsBatchImportModalOpen(false)}
+                onSuccess={() => {
+                    loadData();
+                }}
+            />
         </div>
     );
 };

@@ -1108,6 +1108,9 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
                         logoUrl={logoUrl}
                         getReportDate={getReportDate}
                         getConclusionDoctorName={getConclusionDoctorName}
+                        doctors={doctors}
+                        icd10Names={icd10Names}
+                        COMMON_ICD10={COMMON_ICD10}
                         maCskcb={settings?.ma_cskcb || settings?.ma_gtin_cskcb}
                         doctorSignatures={doctorSignatures}
                     />

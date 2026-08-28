@@ -16,130 +16,30 @@ interface PrintFormMau2Props {
     doctorSignatures?: Record<string, string>;
 }
 
-const STATIC_LABELS = {
-    hospitalTitle: "VIMES HIS",
-    nationalTitle: "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM",
-    nationalSubtitle: "Độc lập - Tự do - Hạnh phúc",
-    formTitle: "GIẤY KHÁM SỨC KHỎE",
-    photoLabel: "Ảnh (4 x 6 cm)",
-    photoSub: "(đóng dấu giáp lai hoặc scan ảnh)",
-    lblHoTen: "1. Họ và tên (viết chữ in hoa):",
-    lblGioiTinh: "2. Giới tính:",
-    lblNgaySinh: "3. Sinh Ngày",
-    lblThang: "tháng",
-    lblNam: "năm",
-    lblTuoi: "Tuổi:",
-    lblTuoiSuffix: "tuổi",
-    lblDanToc: "4. Dân tộc:",
-    lblDoiTuongUuTien: "5. Đối tượng ưu tiên:",
-    lblNguonChiTra: "6. Nguồn chi trả:",
-    lblNhomMau: "7. Nhóm máu:",
-    lblCccd: "8. Số CMND/CCCD/Hộ chiếu/Định danh CD:",
-    lblCapNgay: "9. Cấp ngày",
-    lblNoiCap: "Tại",
-    lblLoaiHinhKcb: "Loại hình khám bệnh, chữa bệnh:",
-    lblHoTenGiamHo: "10. Họ và tên Bố/Mẹ hoặc người giám hộ:",
-    lblCccdGiamHo: "Số định danh của Bố/Mẹ hoặc người giám hộ:",
-    lblChỏO: "11. Chỗ ở hiện tại:",
-    lblSdt: "Số điện thoại liên hệ:",
-    cccdNote: "* Lưu ý: Trường hợp đối tượng KSK có CCCD gắn chip hoặc có số định danh công dân đã thực hiện kết nối với với CSDLQG về dân cư, phần HÀNH CHÍNH nêu trên chỉ cần ghi các mục (1) Họ và tên, (3) Ngày tháng Số định danh công dân.",
-    lblMaCskcb: "Mã CSKCB:",
-    lblNgayKham: "Ngày khám:",
-    lblGioKham: "Giờ khám:",
-    lblLyDo: "Lý do khám sức khỏe",
-    titleTienSu: "TIỀN SỬ BỆNH TẬT",
-    lblTsgiaDinh: "1. Tiền sử gia đình",
-    tsgdDetail: "Có ai trong gia đình mắc các bệnh bẩm sinh hoặc bệnh truyền nhiễm không:",
-    lblKhong: "Không",
-    lblCo: "Có",
-    lblTsgdGhiRo: "Nếu \"có\", đề nghị ghi cụ thể tên bệnh:",
-    lblTsBanThan: "2. Tiền sử bản thân",
-    lblSanKhoa: "a) Sản khoa:",
-    lblBinhThuong: "Bình thường.",
-    lblKhongBinhThuong: "Không bình thường:",
-    lblThieuThang: "Đẻ thiếu tháng",
-    lblThuaCan: "Đẻ thừa cân",
-    lblCanThiep: "Đẻ có can thiệp",
-    lblNgat: "Đẻ ngạt",
-    lblMeBenh: "Mẹ bị bệnh trong thời kỳ mang thai",
-    lblSanKhoaGhiRo: "(Nếu có cần ghi rõ tên bệnh):",
-    lblTiemChung: "b) Tiêm chủng:",
-    colSTT: "STT",
-    colLoaiVacXin: "Loại vắc xin",
-    colCo: "Có",
-    colKhong: "Không",
-    colKhongNho: "Không nhớ rõ",
-    lblTsBenhTat: "c) Tiền sử bệnh/tật: (Các bệnh bẩm sinh và mãn tính)",
-    lblTsBenhTatGhiRo: "Nếu \"có\": ghi cụ thể tên bệnh:",
-    lblDangDieuTri: "d) Hiện tại có đang điều trị bệnh gì không?",
-    lblDangDieuTriGhiRo: "Nếu có, ghi rõ tên bệnh và liệt kê các thuốc đang dùng:",
-    lblCamDoan: "Tôi xin cam đoan những điều khai trên đây hoàn toàn đúng với sự thật theo sự hiểu biết của tôi.",
-    lblNguoiDeNghi: "NGƯỜI ĐỀ NGHỊ KHÁM SỨC KHỎE",
-    lblNguoiDeNghiSub: "(Hoặc cha/mẹ hoặc người giám hộ)",
-    lblKyGhiRo: "(Ký và ghi rõ họ, tên)",
-    titleTheLuc: "I. KHÁM THỂ LỰC",
-    lblChieuCao: "- Chiều cao:",
-    lblCanNang: "- Cân nặng:",
-    lblBmi: "- Chỉ số BMI:",
-    lblMach: "- Mạch:",
-    lblHuyetAp: "- Huyết áp:",
-    lblPhanLoaiTheLuc: "Phân loại thể lực:",
-    lblLoaiI: "Loại I (Rất khỏe)",
-    lblLoaiII: "Loại II (Khỏe)",
-    lblLoaiIII: "Loại III (Trung bình)",
-    lblLoaiIV: "Loại IV (Yếu)",
-    lblLoaiV: "Loại V (Rất yếu)",
-    titleLamSang: "II. KHÁM LÂM SÀNG",
-    colNoidungKham: "Nội dung khám",
-    colChuKyBs: "Họ tên và chữ ký của Bác sỹ chuyên khoa",
-    colChuKyBsCns: "Họ tên, chữ ký của Bác sỹ",
-    lblNhiKhoa: "1. Nhi khoa",
-    lblTuanHoan: "a) Tuần hoàn",
-    lblHoHap: "b) Hô hấp",
-    lblTieuHoa: "c) Tiêu hóa",
-    lblThanTietNieu: "d) Thận-Tiết niệu, Sinh dục",
-    lblThanKinh: "đ) Thần kinh:",
-    lblTamThan: "e) Tâm thần",
-    lblLamSangKhac: "g) Khám lâm sàng khác",
-    lblMat: "2. Mắt:",
-    lblThiLucKhongKinh: "Không kính: Mắt phải:",
-    lblThiLucCoKinh: "Có kính: Mắt phải:",
-    lblMatMatTrai: "Mắt trái:",
-    lblBenhMat: "Các bệnh về mắt (nếu có):",
-    lblTaiMuiHong: "3. Tai - Mũi - Họng",
-    lblThinhLuc: "Kết quả khám thính lực:",
-    lblTaiTrai: "Tai trái: Nói thường:",
-    lblTaiPhai: "Tai phải: Nói thường:",
-    lblNoiTham: "Nói thầm:",
-    lblBenhTmh: "Các bệnh về tai mũi họng (nếu có):",
-    lblRangHamMat: "4. Răng - Hàm - Mặt",
-    lblKqKham: "Kết quả khám:",
-    lblHamTren: "Hàm trên:",
-    lblHamDưới: "Hàm dưới:",
-    lblBenhRhm: "Các bệnh về răng hàm mặt (nếu có):",
-    titleCanLamSang: "III. KHÁM CẬN LÂM SÀNG",
-    lblXnMau: "Xét nghiệm máu:",
-    lblTongPhanTichMau: "Tổng phân tích tế bào máu ngoại vi:",
-    lblDuongMau: "Đường máu:",
-    lblUre: "Urê:",
-    lblCreatinine: "Creatinin:",
-    lblAsat: "ASAT:",
-    lblAlat: "ALAT:",
-    lblXnNuocTieu: "Xét nghiệm nước tiểu:",
-    lblTongPhanTichNuocTieu: "Tổng phân tích nước tiểu:",
-    lblKhac: "Khác:",
-    lblCda: "Chẩn đoán hình ảnh:",
-    lblXqNguc: "XQ tim phổi thẳng:",
-    lblClsKhac: "Cận lâm sàng khác:",
-    lblKetQua: "Kết quả:",
-    lblChiTiet: "Chi tiết:",
-    lblDanhGia: "Đánh giá:",
-    lblKetLuan: "Kết luận:",
-    titleKetLuan: "IV. KẾT LUẬN CHUNG:",
-    lblSkNormal: "Sức khỏe bình thường",
-    lblSkLuuY: "Hoặc các vấn đề sức khỏe cần lưu ý:",
-    lblNguoiKetLuan: "NGƯỜI KẾT LUẬN",
-    lblKyGhiRoDongDau: "(Ký, ghi rõ họ tên và đóng dấu)"
+const TARGET_GROUP_MAP: Record<string, string> = {
+    '1': 'Người cao tuổi',
+    '2': 'Người khuyết tật',
+    '3': 'Người thuộc hộ nghèo, cận nghèo',
+    '4': 'Người có công',
+    '5': 'Người mắc bệnh mạn tính',
+    '6': 'Người sống tại vùng đồng bào DTTS & miền núi',
+    '7': 'Người sống tại vùng ĐK KTXH đặc biệt khó khăn',
+    '8': 'Người sống tại xã đảo',
+    '9': 'Người sống tại đặc khu',
+    '10': 'Trẻ em trong cơ sở giáo dục mầm non',
+    '11': 'Học sinh trong các cơ sở giáo dục phổ thông',
+    '12': 'Sinh viên',
+    '13': 'Người lao động',
+    '14': 'Các đối tượng khác'
+};
+
+const FUNDING_SOURCE_MAP: Record<string, string> = {
+    '1': 'Ngân sách Trung ương',
+    '2': 'Ngân sách Địa phương',
+    '3': 'Quỹ Bảo hiểm y tế',
+    '4': 'Người sử dụng lao động',
+    '5': 'Xã hội hóa',
+    '9': 'Khác'
 };
 
 export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
@@ -148,11 +48,11 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
     logoUrl,
     getReportDate,
     getConclusionDoctorName,
-    doctors,
-    icd10Names,
-    COMMON_ICD10,
+    doctors = [],
+    icd10Names = {},
+    COMMON_ICD10 = [],
     maCskcb,
-    doctorSignatures,
+    doctorSignatures = {},
     resolvedLocation
 }) => {
     const normalizeObject = (obj: any): any => {
@@ -169,31 +69,33 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
         return obj;
     };
 
-    const docNormalized = normalizeObject(document);
+    const docNormalized = normalizeObject(document) || {};
     const hospitalNameNormalized = normalizeObject(hospitalName);
-    const L = normalizeObject(STATIC_LABELS);
 
-    const clinical = docNormalized.clinical_data || docNormalized.clinicalData || {};
-    const clinicalExam = { ...(clinical.examination || {}), ...clinical, ...(clinical.clinical_exam || {}), ...(clinical.clinicalExam || {}) };
-    const extra = clinical.extra || {};
+    const rawClinical = docNormalized.clinical_data || docNormalized.clinicalData || {};
+    const clinicalExam = rawClinical.clinical_exam || rawClinical.clinicalExam || {};
+    const examination = rawClinical.examination || {};
+    const extra = rawClinical.extra || {};
+    const clinical = { ...examination, ...rawClinical, ...clinicalExam };
     const lab = docNormalized.lab_data || docNormalized.labData || {};
     const conclusion = docNormalized.conclusion_data || docNormalized.conclusionData || {};
-    const paraclinicalItems = lab.paraclinical_items || lab.paraclinicalItems || [];
+    const paraclinicalItems: any[] = lab.paraclinical_items || lab.paraclinicalItems || [];
 
-    const isNam = docNormalized.gender === 'Nam' || docNormalized.gender === '1';
-    const isNu = docNormalized.gender === 'Nữ' || docNormalized.gender === '2' || docNormalized.gender === '0';
+    const isNam = docNormalized.gender === 'Nam' || docNormalized.gender === '1' || docNormalized.gender === 1;
+    const isNu = docNormalized.gender === 'Nữ' || docNormalized.gender === '2' || docNormalized.gender === '0' || docNormalized.gender === 2 || docNormalized.gender === 0;
 
     const getAge = (dobString: any) => {
         if (!dobString) return '...';
         try {
-            const birthDate = new Date(dobString);
+            const birthDate = parseDateSafe(dobString);
+            if (!birthDate || isNaN(birthDate.getTime())) return '...';
             const today = new Date();
             let age = today.getFullYear() - birthDate.getFullYear();
             const m = today.getMonth() - birthDate.getMonth();
             if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
                 age--;
             }
-            return age;
+            return age > 0 ? age : 0;
         } catch {
             return '...';
         }
@@ -225,9 +127,11 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
         }
     };
 
-    const formatIcd10String = (codeStr: string) => {
+    const formatIcd10String = (codeStr: any) => {
         if (!codeStr) return '';
-        const codes = codeStr.split(',').map(s => s.trim()).filter(Boolean);
+        const raw = String(codeStr).trim();
+        if (!raw) return '';
+        const codes = raw.split(/[,;\+]/).map(s => s.trim()).filter(Boolean);
         const formatted = codes.map(code => {
             const upper = code.toUpperCase();
             const localMatch = COMMON_ICD10.find(item => item.code.toUpperCase() === upper);
@@ -243,55 +147,25 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
         return formatted.join(', ');
     };
 
-    const hasSpecialtyData = (specialty: string) => {
-        if (specialty === 'tuan_hoan') return !!(clinicalExam.nhi_tuan_hoan || clinicalExam.internal || clinicalExam.tuan_hoan);
-        if (specialty === 'ho_hap') return !!(clinicalExam.nhi_ho_hap || clinicalExam.internal || clinicalExam.ho_hap);
-        if (specialty === 'tieu_hoa') return !!(clinicalExam.nhi_tieu_hoa || clinicalExam.internal || clinicalExam.tieu_hoa);
-        if (specialty === 'than_tiet_nieu') return !!(clinicalExam.nhi_tiet_nieu || clinicalExam.internal || clinicalExam.than_tiet_nieu);
-        if (specialty === 'than_kinh') return !!(clinicalExam.nhi_than_kinh || clinicalExam.internal || clinicalExam.than_kinh);
-        if (specialty === 'tam_than') return !!(clinicalExam.nhi_tam_than || clinicalExam.internal || clinicalExam.tam_than);
-        if (specialty === 'lam_sang_khac') return !!(clinicalExam.nhi_khac || clinicalExam.internal || clinicalExam.ngoai_khoa);
-        if (specialty === 'mat') return !!(clinicalExam.eye || clinicalExam.kham_mat_pl || clinicalExam.khong_kinh_mat_phai || clinicalExam.khong_kinh_mat_trai);
-        if (specialty === 'tai_mui_hong') return !!(clinicalExam.ent || clinicalExam.kham_tai_mui_hong_pl || clinicalExam.tai_trai_noi_thuong || clinicalExam.tai_phai_noi_thuong);
-        if (specialty === 'rang_ham_mat') return !!(clinicalExam.dental || clinicalExam.kham_rang_ham_mat_pl || clinicalExam.ham_tren || clinicalExam.ham_duoi);
-        return false;
+    const formatPl = (plValue: any) => {
+        if (!plValue) return '';
+        const plStr = String(plValue).trim();
+        if (plStr === '1') return 'Loại I';
+        if (plStr === '2') return 'Loại II';
+        if (plStr === '3') return 'Loại III';
+        if (plStr === '4') return 'Loại IV';
+        if (plStr === '5') return 'Loại V';
+        return plStr.startsWith('Loại') ? plStr : `Loại ${plStr}`;
     };
 
-    const getDoctor = (specialty: string) => {
-        const hasData = hasSpecialtyData(specialty);
-        if (!hasData) return '';
-
-        const metadataMap: Record<string, string> = {
-            tuan_hoan: 'internal',
-            ho_hap: 'internal',
-            tieu_hoa: 'internal',
-            than_tiet_nieu: 'internal',
-            than_kinh: 'internal',
-            tam_than: 'internal',
-            lam_sang_khac: 'internal',
-            mat: 'eye',
-            tai_mui_hong: 'ent',
-            rang_ham_mat: 'dental',
-            ngoai_khoa: 'surgery',
-            da_lieu: 'dermatology',
-            san_phu_khoa: 'obgyn',
-            noi_tiet: 'internal',
-            co_xuong_khop: 'internal'
-        };
-        
-        const metaKey = metadataMap[specialty];
-        const docMeta = clinical.specialty_metadata?.[metaKey] || clinicalExam.specialty_metadata?.[metaKey];
-        if (docMeta?.doctorId) {
-            const found = doctors.find(d => [d.id, d.hee_employee_id, d.code, d.username]
-                .some(value => String(value || '').trim().toUpperCase() === String(docMeta.doctorId).trim().toUpperCase()));
-            if (found) return found.name || found.hee_fullname;
-        }
-
-        if (metaKey && clinicalExam.specialty_metadata?.[metaKey]?.doctorName) {
-            return clinicalExam.specialty_metadata[metaKey].doctorName;
-        }
-        return '';
-    };
+    const renderCheckbox = (checked: boolean, label: string) => (
+        <span className="inline-flex items-center gap-1 mr-3 text-[11px] whitespace-nowrap">
+            <span className="inline-block w-3.5 h-3.5 border border-black text-[9px] leading-none font-sans font-bold text-center flex items-center justify-center shrink-0" style={{ transform: 'translateY(-0.5px)' }}>
+                {checked ? 'x' : ''}
+            </span>
+            <span>{label}</span>
+        </span>
+    );
 
     const normalizeSignatureKey = (value: any) => String(value || '')
         .trim()
@@ -320,39 +194,89 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
         return null;
     };
 
+    const hasSpecialtyData = (specialty: string) => {
+        if (specialty === 'tuan_hoan') return !!(clinicalExam.nhi_tuan_hoan || clinicalExam.internal || clinicalExam.tuan_hoan || clinical.tuan_hoan || clinical.circulatory);
+        if (specialty === 'ho_hap') return !!(clinicalExam.nhi_ho_hap || clinicalExam.internal || clinicalExam.ho_hap || clinical.ho_hap || clinical.respiratory);
+        if (specialty === 'tieu_hoa') return !!(clinicalExam.nhi_tieu_hoa || clinicalExam.internal || clinicalExam.tieu_hoa || clinical.tieu_hoa || clinical.digestive);
+        if (specialty === 'than_tiet_nieu') return !!(clinicalExam.nhi_tiet_nieu || clinicalExam.nhi_sinh_duc || clinicalExam.internal || clinicalExam.than_tiet_nieu || clinical.than_tiet_nieu || clinical.urinary);
+        if (specialty === 'than_kinh') return !!(clinicalExam.nhi_than_kinh || clinicalExam.internal || clinicalExam.than_kinh || clinical.than_kinh || clinical.neurology);
+        if (specialty === 'tam_than') return !!(clinicalExam.nhi_tam_than || clinicalExam.internal || clinicalExam.tam_than || clinical.tam_than || clinical.psychiatry);
+        if (specialty === 'lam_sang_khac') return !!(clinicalExam.nhi_khoa_lam_sang_khac || clinicalExam.nhi_khac || clinicalExam.internal || clinicalExam.ngoai_khoa || extra.nhi_khoa_lam_sang_khac);
+        if (specialty === 'mat') return !!(clinicalExam.eye || clinicalExam.kham_mat_pl || clinicalExam.khong_kinh_mat_phai || clinicalExam.khong_kinh_mat_trai || clinical.mat);
+        if (specialty === 'tai_mui_hong') return !!(clinicalExam.ent || clinicalExam.kham_tai_mui_hong_pl || clinicalExam.tai_trai_noi_thuong || clinicalExam.tai_phai_noi_thuong || clinical.tai_mui_hong);
+        if (specialty === 'rang_ham_mat') return !!(clinicalExam.dental || clinicalExam.kham_rang_ham_mat_pl || clinicalExam.ham_tren || clinicalExam.ham_duoi || clinical.rang_ham_mat);
+        if (specialty === 'lab') return paraclinicalItems.length > 0 || !!lab.blood_test || !!lab.urine_test;
+        if (specialty === 'imaging') return paraclinicalItems.some((x: any) => String(x.service_name || '').toLowerCase().includes('x-quang') || String(x.service_name || '').toLowerCase().includes('siêu âm')) || !!lab.imaging;
+        return false;
+    };
+
+    const getDoctor = (specialty: string) => {
+        const metadataMap: Record<string, string[]> = {
+            tuan_hoan: ['circulatory', 'tuan_hoan', 'internal'],
+            ho_hap: ['respiratory', 'ho_hap', 'internal'],
+            tieu_hoa: ['digestive', 'tieu_hoa', 'internal'],
+            than_tiet_nieu: ['urinary', 'than_tiet_nieu', 'internal'],
+            than_kinh: ['neurology', 'than_kinh', 'internal'],
+            tam_than: ['psychiatry', 'tam_than', 'internal'],
+            lam_sang_khac: ['surgery', 'ngoai_khoa', 'internal'],
+            mat: ['eye', 'mat'],
+            tai_mui_hong: ['ent', 'tai_mui_hong'],
+            rang_ham_mat: ['dental', 'rang_ham_mat'],
+            lab: ['lab', 'xet_nghiem'],
+            imaging: ['imaging', 'cdha']
+        };
+
+        const checkKeys = metadataMap[specialty] || [specialty, 'internal'];
+        for (const k of checkKeys) {
+            const meta = clinical.specialty_metadata?.[k] || clinicalExam.specialty_metadata?.[k];
+            if (meta?.doctorName) return meta.doctorName;
+            if (meta?.doctorId && Array.isArray(doctors)) {
+                const doc = doctors.find(d => [d.id, d.hee_employee_id, d.code, d.username]
+                    .some(value => String(value || '').trim().toUpperCase() === String(meta.doctorId).trim().toUpperCase()));
+                if (doc) return doc.name || doc.fullname || doc.hee_fullname;
+            }
+        }
+
+        if (hasSpecialtyData(specialty)) {
+            return getConclusionDoctorName();
+        }
+        return '';
+    };
+
     const renderDoctorCell = (specialty: string) => {
         const docName = getDoctor(specialty);
         if (!docName) return null;
 
-        const metadataMap: Record<string, string> = {
-            tuan_hoan: 'internal',
-            ho_hap: 'internal',
-            tieu_hoa: 'internal',
-            than_tiet_nieu: 'internal',
-            than_kinh: 'internal',
-            tam_than: 'internal',
-            lam_sang_khac: 'internal',
-            mat: 'eye',
-            tai_mui_hong: 'ent',
-            rang_ham_mat: 'dental',
-            ngoai_khoa: 'surgery',
-            da_lieu: 'dermatology',
-            san_phu_khoa: 'obgyn',
-            noi_tiet: 'internal',
-            co_xuong_khop: 'internal',
-            lab: 'lab',
-            imaging: 'imaging'
+        const metadataMap: Record<string, string[]> = {
+            tuan_hoan: ['circulatory', 'tuan_hoan', 'internal'],
+            ho_hap: ['respiratory', 'ho_hap', 'internal'],
+            tieu_hoa: ['digestive', 'tieu_hoa', 'internal'],
+            than_tiet_nieu: ['urinary', 'than_tiet_nieu', 'internal'],
+            than_kinh: ['neurology', 'than_kinh', 'internal'],
+            tam_than: ['psychiatry', 'tam_than', 'internal'],
+            lam_sang_khac: ['surgery', 'ngoai_khoa', 'internal'],
+            ngoai_khoa: ['surgery', 'ngoai_khoa', 'external'],
+            da_lieu: ['dermatology', 'da_lieu'],
+            mat: ['eye', 'mat'],
+            tai_mui_hong: ['ent', 'tai_mui_hong'],
+            rang_ham_mat: ['dental', 'rang_ham_mat'],
+            lab: ['lab', 'xet_nghiem'],
+            imaging: ['imaging', 'cdha']
         };
-        
-        const metaKey = metadataMap[specialty];
-        const docMeta = clinical.specialty_metadata?.[metaKey] || clinicalExam.specialty_metadata?.[metaKey];
+
+        const checkKeys = metadataMap[specialty] || [specialty, 'internal'];
+        let docMeta: any = null;
+        for (const k of checkKeys) {
+            const m = clinical.specialty_metadata?.[k] || clinicalExam.specialty_metadata?.[k];
+            if (m) { docMeta = m; break; }
+        }
 
         const doctorByMetadata = findDoctorByIdentifier(docMeta?.doctorCode)
             || findDoctorByIdentifier(docMeta?.doctorUsername)
             || findDoctorByIdentifier(docMeta?.doctorId);
-        const doctorByName = doctors.find(d => (d.name || d.hee_fullname) === docName);
+        const doctorByName = doctors.find(d => (d.name || d.fullname || d.hee_fullname) === docName);
         const matchedDoctor = doctorByMetadata || doctorByName;
-        let docCode = (docMeta?.doctorCode || docMeta?.doctorUsername || matchedDoctor?.code
+        const docCode = (docMeta?.doctorCode || docMeta?.doctorUsername || matchedDoctor?.code
             || matchedDoctor?.username || matchedDoctor?.hee_employee_id || docMeta?.doctorId || '').toString().trim().toUpperCase();
 
         const sigImg = docMeta?.signature || resolveDoctorSignature(
@@ -371,27 +295,29 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
         const displayName = docName.startsWith('BS.') ? docName : `BS. ${docName}`;
 
         return (
-            <div className="flex items-center justify-center gap-2 py-1 min-h-[44px]">
+            <div className="flex flex-col items-center justify-center py-1 min-h-[40px]">
                 {sigImg && (
                     <img 
                         src={sigImg} 
                         alt="Chữ ký" 
-                        className="h-10 max-w-[100px] object-contain shrink-0" 
+                        className="h-8 max-w-[90px] object-contain shrink-0 mb-0.5" 
                     />
                 )}
-                <span className="font-bold text-[12px] text-slate-800 leading-tight">{displayName}</span>
+                <span className="font-bold text-[11.5px] text-slate-900 leading-tight text-center">{displayName}</span>
             </div>
         );
     };
 
     const getPl = (specialty: string) => {
-        if (specialty === 'tuan_hoan') return clinicalExam.nhi_tuan_hoan_pl || clinicalExam.tuanHoanPl || clinical.tuan_hoan_pl || '';
-        if (specialty === 'ho_hap') return clinicalExam.nhi_ho_hap_pl || clinicalExam.hoHapPl || clinical.ho_hap_pl || '';
-        if (specialty === 'tieu_hoa') return clinicalExam.nhi_tieu_hoa_pl || clinicalExam.tieuHoaPl || clinical.tieu_hoa_pl || '';
-        if (specialty === 'than_tiet_nieu') return clinicalExam.nhi_tiet_nieu_pl || clinicalExam.thanTietNieuPl || clinical.than_tiet_nieu_pl || '';
-        if (specialty === 'than_kinh') return clinicalExam.nhi_than_kinh_pl || clinicalExam.thanKinhPl || clinical.than_kinh_pl || '';
-        if (specialty === 'tam_than') return clinicalExam.nhi_tam_than_pl || clinicalExam.tamThanPl || clinical.tam_than_pl || '';
+        if (specialty === 'tuan_hoan') return clinicalExam.nhi_tuan_hoan_pl || clinicalExam.tuanHoanPl || clinicalExam.noi_khoa_tuan_hoan_pl || clinical.tuan_hoan_pl || '';
+        if (specialty === 'ho_hap') return clinicalExam.nhi_ho_hap_pl || clinicalExam.hoHapPl || clinicalExam.noi_khoa_ho_hap_pl || clinical.ho_hap_pl || '';
+        if (specialty === 'tieu_hoa') return clinicalExam.nhi_tieu_hoa_pl || clinicalExam.tieuHoaPl || clinicalExam.noi_khoa_tieu_hoa_pl || clinical.tieu_hoa_pl || '';
+        if (specialty === 'than_tiet_nieu') return clinicalExam.nhi_tiet_nieu_pl || clinicalExam.thanTietNieuPl || clinicalExam.noi_khoa_than_tietnieu_pl || clinical.than_tiet_nieu_pl || '';
+        if (specialty === 'than_kinh') return clinicalExam.nhi_than_kinh_pl || clinicalExam.thanKinhPl || clinicalExam.noi_khoa_than_kinh_pl || clinical.than_kinh_pl || '';
+        if (specialty === 'tam_than') return clinicalExam.nhi_tam_than_pl || clinicalExam.tamThanPl || clinicalExam.noi_khoa_tam_than_pl || clinical.tam_than_pl || '';
         if (specialty === 'lam_sang_khac') return clinicalExam.nhi_khac_pl || clinicalExam.surgeryPl || clinical.ngoai_khoa_pl || '';
+        if (specialty === 'ngoai_khoa') return clinicalExam.kham_ngoai_khoa_pl || clinicalExam.surgeryPl || clinical.ngoai_khoa_pl || '';
+        if (specialty === 'da_lieu') return clinicalExam.kham_da_lieu_pl || clinicalExam.dermatologyPl || clinical.da_lieu_pl || '';
         if (specialty === 'mat') return clinicalExam.kham_mat_pl || clinicalExam.eyePl || clinical.kham_mat_pl || '';
         if (specialty === 'tai_mui_hong') return clinicalExam.kham_tai_mui_hong_pl || clinicalExam.entPl || clinical.kham_tai_mui_hong_pl || '';
         if (specialty === 'rang_ham_mat') return clinicalExam.kham_rang_ham_mat_pl || clinicalExam.dentalPl || clinical.kham_rang_ham_mat_pl || '';
@@ -400,29 +326,36 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
 
     const renderPl = (specialty: string) => {
         const pl = getPl(specialty);
+        if (!pl) return null;
         return (
-            <div className="pl-4 text-[12px] mt-0.5 text-gray-500 font-normal">
-                Phân loại: {pl || ''}
+            <div className="pl-3 text-[11px] mt-0.5 text-gray-700 font-normal">
+                Phân loại: <strong className="text-black">{formatPl(pl)}</strong>
             </div>
         );
     };
 
+    // Administrative fields
     const cccdDate = clinical.cccd_date || clinical.ngaycap_cccd || extra.cccd_date || extra.ngaycap_cccd || docNormalized.cccd_date || '';
     const cccdPlace = clinical.cccd_place || clinical.noicap_cccd || extra.cccd_place || extra.noicap_cccd || docNormalized.cccd_place || '';
 
+    const priorityGroupText = TARGET_GROUP_MAP[clinical.target_group || clinical.doi_tuong || clinical.priority_group || extra.target_group] 
+        || clinical.target_group || clinical.priority_group || 'Học sinh';
+    const fundingSourceText = FUNDING_SOURCE_MAP[clinical.funding_source || clinical.nguon_kinh_phi || clinical.nguon_chi_tra || clinical.payment_source || extra.funding_source] 
+        || clinical.funding_source || clinical.payment_source || 'Ngân sách địa phương';
+
     // Extracted measurements
-    const examHeight = clinical.examination?.height || extra.height || '';
-    const examWeight = clinical.examination?.weight || extra.weight || '';
-    const examBmi = clinical.examination?.bmi || extra.bmi || '';
-    const examPulse = clinical.examination?.pulse || extra.pulse || '';
+    const examHeight = clinical.examination?.height || extra.height || clinical.height || '';
+    const examWeight = clinical.examination?.weight || extra.weight || clinical.weight || '';
+    const examBmi = clinical.examination?.bmi || extra.bmi || clinical.bmi || '';
+    const examPulse = clinical.examination?.pulse || extra.pulse || clinical.pulse || '';
     const examBp = clinical.examination?.blood_pressure || extra.bp || extra.huyet_ap || clinical.huyet_ap || clinical.blood_pressure || clinical.bp || '';
-    const physicalPl = clinical.examination?.kham_the_luc_pl || extra.kham_the_luc_pl || '';
+    const physicalPl = clinical.examination?.kham_the_luc_pl || extra.kham_the_luc_pl || clinical.kham_the_luc_pl || '';
 
     const findParaclinicalValue = (keywords: string[]) => {
         const item = paraclinicalItems.find((x: any) => 
-            keywords.some(kw => x.service_name?.toLowerCase().includes(kw.toLowerCase()))
+            keywords.some(kw => (x.service_name || x.hfe_desc || x.test_name || '').toLowerCase().includes(kw.toLowerCase()))
         );
-        return item?.value || '...';
+        return item?.value || item?.result || item?.conclusion || '...';
     };
 
     const bloodSugar = findParaclinicalValue(['đường máu', 'glucose', 'glycemia']);
@@ -430,9 +363,8 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
     const creatinineVal = findParaclinicalValue(['creatinine', 'creatinin']);
     const asatVal = findParaclinicalValue(['ast', 'asat', 'got']);
     const alatVal = findParaclinicalValue(['alt', 'alat', 'gpt']);
-
-    const urineTest = findParaclinicalValue(['nước tiểu', 'urine', 'protein']);
-    const xqResult = findParaclinicalValue(['x-quang ngực', 'xq ngực', 'xq tim phổi', 'chụp x-quang', 'xq']);
+    const urineTest = findParaclinicalValue(['nước tiểu', 'urine', 'protein', '10 thông số']);
+    const xqResult = findParaclinicalValue(['x-quang ngực', 'xq ngực', 'xq tim phổi', 'chụp x-quang', 'xq', 'xquang']);
 
     const dobDetails = getBirthDateDetails(docNormalized.dob);
     const reportDate = getReportDate();
@@ -443,21 +375,26 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
     };
 
     // Checkboxes for obstetrics
-    const sanKhoaNormal = extra.san_khoa === '1' || extra.san_khoa === 1;
-    const sanKhoaAbnormal = extra.san_khoa === '0' || extra.san_khoa === 0 || extra.san_khoa_khong_bt;
-    const sk1 = extra.san_khoa_khong_bt === '1' || extra.san_khoa_khong_bt === 1;
-    const sk2 = extra.san_khoa_khong_bt === '2' || extra.san_khoa_khong_bt === 2;
-    const sk3 = extra.san_khoa_khong_bt === '3' || extra.san_khoa_khong_bt === 3;
-    const sk4 = extra.san_khoa_khong_bt === '4' || extra.san_khoa_khong_bt === 4;
-    const sk5 = extra.san_khoa_khong_bt === '5' || extra.san_khoa_khong_bt === 5;
+    const rawSanKhoa = extra.san_khoa ?? extra.tsbt_thai_san ?? clinical.san_khoa;
+    const rawSanKhoaKhongBt = extra.san_khoa_khong_bt ?? extra.tinh_chat_kinh_nguyet ?? extra.sanKhoaKhongBt;
+    const sanKhoaMaBenh = extra.ma_benh_san_khoa_khong_bt || extra.maBenhSanKhoaKhongBt || extra.tsbt_ma_benh_thai_san || '';
+
+    const isExplicitlyAbnormal = String(rawSanKhoa) === '0' || (rawSanKhoaKhongBt && String(rawSanKhoaKhongBt) !== '0') || !!sanKhoaMaBenh;
+    const sanKhoaNormal = !isExplicitlyAbnormal;
+    const sanKhoaAbnormal = isExplicitlyAbnormal;
+    const sk1 = String(rawSanKhoaKhongBt) === '1';
+    const sk2 = String(rawSanKhoaKhongBt) === '2';
+    const sk3 = String(rawSanKhoaKhongBt) === '3';
+    const sk4 = String(rawSanKhoaKhongBt) === '4';
+    const sk5 = String(rawSanKhoaKhongBt) === '5';
 
     // Checkboxes for vaccinations
     const getVaccineStatus = (val: any) => {
-        const strVal = String(val || '');
+        const strVal = String(val ?? '').trim();
         return {
             co: strVal === '1',
             khong: strVal === '0',
-            khongNho: strVal === '2'
+            khongNho: strVal === '99' || strVal === '2'
         };
     };
 
@@ -467,624 +404,717 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
     const vacBaiLiet = getVaccineStatus(extra.tiem_chung_bai_liet);
     const vacVnnbB = getVaccineStatus(extra.tiem_chung_vnnb_b);
     const vacVgb = getVaccineStatus(extra.tiem_chung_vgb);
+    const vacKhac = getVaccineStatus(extra.tiem_chung_cac_loai_khac);
+    const tenVacXinKhac = extra.tiem_chung_vac_xin_khac || extra.tiemChungVacXinKhac || extra.TIEM_CHUNG_VAC_XIN_KHAC || '';
+
+    // Tiền sử gia đình
+    const tsgdMacBenh = extra.tsgd_mac_benh === '1' || extra.tsgd_mac_benh === 1 || !!extra.tsgd_ma_benh;
+    const tsgdMaBenh = extra.tsgd_ma_benh || extra.tsgdMaBenh || '';
+
+    // Tiền sử bản thân (bẩm sinh / mãn tính)
+    const tsbtMacBenh = extra.tsbt_mac_benh === '1' || extra.ts_mac_benh === 1 || extra.ts_mac_benh === '1' || extra.ts_benh_tat === '1' || !!extra.tsbt_ma_benh;
+    const tsbtMaBenh = extra.tsbt_ma_benh || extra.tsbt_ma_benh_khac || extra.ts_benh_tat_chi_tiet || extra.ts_benh_tat_ma_benh || '';
+
+    // Đang điều trị bệnh gì không
+    const isDangDieuTri = extra.tsbt_dang_dieu_tri_benh === '1' || extra.dang_dieu_tri === '1' || !!extra.benh_dang_dieu_tri || !!extra.ten_thuoc;
+    const chiTietDieuTri = extra.benh_dang_dieu_tri || extra.ten_thuoc || extra.tenThuoc || extra.chi_tiet_dieu_tri || '';
 
     return (
         <div className="font-serif text-black leading-tight select-text">
             <style>{`
+                @page {
+                    size: A4 portrait;
+                    margin: 0;
+                }
                 .a4-page {
-                    font-size: 12.5px;
+                    width: 210mm !important;
+                    height: 297mm !important;
+                    max-height: 297mm !important;
+                    padding: 8mm 12mm 6mm 14mm !important;
+                    margin: 0 auto !important;
+                    box-sizing: border-box !important;
+                    page-break-after: always !important;
+                    break-after: page !important;
+                    page-break-inside: avoid !important;
+                    break-inside: avoid !important;
+                    overflow: hidden !important;
+                    display: flex !important;
+                    flex-direction: column !important;
+                    justify-content: space-between !important;
+                    background: white !important;
                     font-family: "Times New Roman", Times, serif !important;
                     letter-spacing: normal !important;
-                    line-height: 1.25 !important;
                 }
                 .a4-page * {
                     font-family: "Times New Roman", Times, serif !important;
-                    letter-spacing: normal !important;
+                    color: #000000 !important;
+                }
+                .a4-table {
+                    border-collapse: collapse !important;
+                    width: 100% !important;
                 }
                 .a4-table th, .a4-table td {
+                    border: 1px solid #000000 !important;
                     padding: 2px 4px !important;
-                    font-size: 12px !important;
+                    font-size: 11px !important;
                     line-height: 1.2 !important;
+                    vertical-align: middle !important;
                 }
                 .a4-table th {
-                    font-weight: bold;
-                    background-color: #f3f4f6;
-                }
-                .line-underline {
-                    border-bottom: 1px dotted black;
-                    display: inline-block;
-                    min-width: 100px;
-                }
-                /*
-                 * Page 3 used to keep the clinical table at its intrinsic height.
-                 * Because the A4 wrapper is a justify-between column, that left a
-                 * very large empty band above the footer.  Give the table the
-                 * remaining printable height so its rows are distributed evenly.
-                 */
-                .mau2-clinical-table {
-                    height: 245mm;
-                    table-layout: fixed;
-                }
-                .mau2-clinical-table tbody tr:not(.font-bold) td {
-                    vertical-align: middle;
-                }
-                /* Use the printable A4 height instead of leaving all spare space
-                   as one large blank band at the bottom of pages 1 and 2. */
-                .mau2-page-one > .mau2-page-main,
-                .mau2-page-two > .mau2-page-main {
-                    height: 262mm;
-                    min-height: 0;
-                }
-                .mau2-page-one > .mau2-page-main {
-                    display: flex;
-                    flex-direction: column;
-                }
-                .mau2-page-one-history {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    padding-bottom: 2mm;
-                }
-                .mau2-page-one-history > .mau2-history-content {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: space-evenly;
-                }
-                .mau2-page-two > .mau2-page-main {
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: space-between;
-                }
-                .mau2-page-two > .mau2-page-main > .mau2-page-two-block {
-                    margin-top: 0 !important;
+                    font-weight: bold !important;
+                    background-color: #f3f4f6 !important;
+                    text-align: center !important;
                 }
             `}</style>
 
-            {/* ==================== PAGE 1 ==================== */}
-            <div className="a4-page mau2-page-one flex flex-col justify-between">
-                <div className="mau2-page-main">
+            {/* ==================== TRANG 1: TỰ KHAI HÀNH CHÍNH & TOÀN BỘ TIỀN SỬ + BỆNH NHÂN KÝ ==================== */}
+            <div className="a4-page">
+                <div className="flex flex-col justify-start space-y-1">
+                    {/* Header: Quốc hiệu & Tên Cơ sở */}
                     <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-3 w-[50%]">
-                            {logoUrl && <img src={logoUrl} alt="Logo" className="h-10 w-auto object-contain shrink-0" />}
+                        <div className="flex items-center gap-2 w-[50%]">
+                            {logoUrl && <img src={logoUrl} alt="Logo" className="h-8 w-auto object-contain shrink-0" />}
                             <div>
-                                <strong className="text-[12px] uppercase block">{hospitalName || 'BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH'}</strong>
-                                <span className="text-[11px] block mt-0.5">Số: ....../GKSK-.........</span>
+                                <strong className="text-[11px] uppercase block font-bold">{hospitalNameNormalized || 'BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH'}</strong>
+                                <span className="text-[10px] block mt-0.5">Số: {docNormalized.doc_no || '....../GKSK-.........'}</span>
                             </div>
                         </div>
                         <div className="text-center w-[48%]">
-                            <strong className="text-[12px] uppercase block">{L.nationalTitle}</strong>
-                            <strong className="text-[11px] block mt-0.5">{L.nationalSubtitle}</strong>
-                            <div className="border-t border-black w-24 mx-auto mt-1"></div>
+                            <strong className="text-[11px] uppercase block font-bold">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong>
+                            <strong className="text-[10px] block mt-0.5 font-bold">Độc lập - Tự do - Hạnh phúc</strong>
+                            <div className="border-t border-black w-24 mx-auto mt-0.5"></div>
                         </div>
                     </div>
 
-                    <div className="text-center my-4">
-                        <h2 className="text-[18px] font-bold uppercase tracking-wide">{L.formTitle}</h2>
+                    {/* Tiêu đề chính */}
+                    <div className="text-center my-0.5">
+                        <h1 className="text-[14.5px] font-bold uppercase tracking-wide">GIẤY KHÁM SỨC KHỎE</h1>
+                        <div className="text-[10.5px] italic text-slate-700 font-medium">(Dùng cho người từ đủ 06 tuổi đến dưới 18 tuổi)</div>
                     </div>
 
-                    <div className="flex gap-4 mt-2">
-                        <div className="w-[120px] h-[160px] border border-black flex flex-col justify-center items-center text-center p-2 text-[11px] shrink-0">
-                            <div>{L.photoLabel}</div>
-                            <div className="text-[9px] mt-2 italic text-gray-500">{L.photoSub}</div>
-                        </div>
+                    {/* I. THÔNG TIN HÀNH CHÍNH */}
+                    <div className="border-t border-black pt-0.5">
+                        <div className="flex gap-3 items-start">
+                            {/* Khung ảnh 4x6 */}
+                            <div className="w-[95px] h-[120px] border border-black flex flex-col justify-center items-center text-center p-1 text-[10px] shrink-0">
+                                <div>Ảnh (4 x 6 cm)</div>
+                                <div className="text-[7.5px] mt-0.5 italic text-gray-500 leading-tight">(Đóng dấu giáp lai hoặc scan ảnh)</div>
+                            </div>
 
-                        <div className="flex-grow space-y-1.5 text-[13px]">
-                            <div>
-                                <span className="font-bold">{L.lblHoTen}</span> <span className="uppercase font-bold text-[13.5px]">{docNormalized.patient_name}</span>
-                            </div>
-                            <div className="flex items-center gap-6">
-                                <span><span className="font-bold">{L.lblGioiTinh}</span></span>
-                                <span className="flex items-center gap-1">{isNam ? '☑' : '☐'} Nam</span>
-                                <span className="flex items-center gap-1">{isNu ? '☑' : '☐'} Nữ</span>
-                            </div>
-                            <div>
-                                <span className="font-bold">{L.lblNgaySinh}</span> <span>{dobDetails.day}</span> {L.lblThang} <span>{dobDetails.month}</span> {L.lblNam} <span>{dobDetails.year}</span> <span className="ml-4 font-bold">({L.lblTuoi} {getAge(docNormalized.dob)} {L.lblTuoiSuffix})</span>
-                            </div>
-                            <div>
-                                <span className="font-bold">{L.lblDanToc}</span> <span>{clinical.nation || 'Kinh'}</span>
-                            </div>
-                            <div>
-                                <span className="font-bold">{L.lblDoiTuongUuTien}</span> <span>{clinical.priority_group || '...'}</span>
-                            </div>
-                            <div>
-                                <span className="font-bold">{L.lblNguonChiTra}</span> <span>{clinical.payment_source || 'Ngân sách địa phương'}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="mt-3 space-y-1.5 text-[13px]">
-                        <div>
-                            <span className="font-bold">{L.lblNhomMau}</span> <span>{clinical.blood_group || '...'}</span>
-                        </div>
-                        <div>
-                            <span className="font-bold">{L.lblCccd}</span> <span>{docNormalized.cccd || '................................'}</span>
-                        </div>
-                        <div>
-                            <span className="font-bold">{L.lblCapNgay}</span> <span>{formatDateSafe(cccdDate)}</span> <span className="ml-4 font-bold">{L.lblNoiCap}</span> <span>{cccdPlace || '................................'}</span>
-                        </div>
-                        <div>
-                            <span className="font-bold">{L.lblLoaiHinhKcb}</span> <span>{clinical.exam_type || '...'}</span>
-                        </div>
-                        <div>
-                            <span className="font-bold">{L.lblHoTenGiamHo}</span> <span>{extra.nguoi_giam_ho || '...'}</span>
-                        </div>
-                        <div>
-                            <span className="font-bold">{L.lblCccdGiamHo}</span> <span>{extra.so_cccd_ngh || '...'}</span>
-                        </div>
-                        <div>
-                            <span className="font-bold">{L.lblChỏO}</span> {(() => {
-    const rawDetail = String(clinical.address || docNormalized.address || clinical.patient_address || '').trim();
-    const provName = String(clinical.province || clinical.province_name || clinical.ten_tinh || extra.ten_tinh || extra.province || resolvedLocation?.province || '').trim();
-    const wardName = String(clinical.ward || clinical.ward_name || clinical.ten_xa || extra.ten_xa || extra.ward || resolvedLocation?.ward || '').trim();
-    const distName = String(clinical.district || clinical.district_name || clinical.ten_huyen || extra.ten_huyen || '').trim();
-
-    const parts = [];
-    if (rawDetail) parts.push(rawDetail);
-    if (wardName && !rawDetail.toLowerCase().includes(wardName.toLowerCase())) parts.push(wardName);
-    if (distName && !rawDetail.toLowerCase().includes(distName.toLowerCase()) && !wardName.toLowerCase().includes(distName.toLowerCase())) parts.push(distName);
-    if (provName && !rawDetail.toLowerCase().includes(provName.toLowerCase())) parts.push(provName);
-
-    const fullAddr = parts.length > 0 ? parts.join(', ') : '...';
-    return <span className="font-semibold">{fullAddr}</span>;
-})()}
-                        </div>
-                        <div>
-                            <span className="font-bold">{L.lblSdt}</span> <span>{clinical.phone || '...'}</span>
-                        </div>
-                        <div className="text-[11px] italic leading-snug">
-                            {L.cccdNote}
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 pt-1">
-                            <div><span className="font-bold">{L.lblMaCskcb}</span> <span className="font-semibold">{maCskcb || docNormalized.ma_cskcb || '8934285008135'}</span></div>
-                            <div><span className="font-bold">{L.lblNgayKham}</span> <span>{formatDateSafe(docNormalized.ngay_vao, '11/07/2026')}</span> <span className="font-bold ml-2">{L.lblGioKham}</span> <span>...</span></div>
-                        </div>
-                        <div>
-                            <span className="font-bold">{L.lblLyDo}:</span> <span className="font-semibold">{clinical.ly_do_vv || 'Khám sức khỏe định kỳ'}</span>
-                        </div>
-                    </div>
-
-                    {/* Continue into the unused lower half of page 1. */}
-                    <div className="mau2-page-one-history mt-5 border-t border-black pt-2">
-                        <h2 className="font-bold text-[14px] uppercase tracking-wide border-b border-black pb-0.5 mb-2">{L.titleTienSu}</h2>
-                        <div className="mau2-history-content text-[12.5px] space-y-2 leading-snug">
-                            <div>
-                                <span className="font-bold">{L.lblTiemSuGiaDinh}</span>
-                                <div className="pl-4 mt-0.5">
-                                    {L.tsgdDetail}
-                                    <div className="flex gap-8 mt-1">
-                                        <span>{extra.tsgd_mac_benh !== '1' ? '☑' : '☐'} a) {L.lblKhong}</span>
-                                        <span>{extra.tsgd_mac_benh === '1' ? '☑' : '☐'} b) {L.lblCo}; {L.lblTsgdGhiRo} <strong>{extra.tsgd_ma_benh || '...'}</strong></span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div>
-                                <span className="font-bold">{L.lblTsBanThan}</span>
-                                <div className="pl-4 mt-1">
-                                    <span className="font-bold">{L.lblSanKhoa}</span>
-                                    <div className="flex gap-8 mt-0.5">
-                                        <span>{sanKhoaNormal ? '☑' : '☐'} {L.lblBinhThuong}</span>
-                                        <span>{sanKhoaAbnormal ? '☑' : '☐'} {L.lblKhongBinhThuong}</span>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 mt-1 pl-4 text-[12px] text-gray-700">
-                                        <span>{sk1 ? '☑' : '☐'} {L.lblThieuThang}</span>
-                                        <span>{sk2 ? '☑' : '☐'} {L.lblThuaCan}</span>
-                                        <span>{sk3 ? '☑' : '☐'} {L.lblCanThiep}</span>
-                                        <span>{sk4 ? '☑' : '☐'} {L.lblNgat}</span>
-                                        <span className="col-span-2">{sk5 ? '☑' : '☐'} {L.lblMeBenh}</span>
-                                    </div>
-                                    <div className="pl-4 mt-0.5 text-[12px]">{L.lblSanKhoaGhiRo} <strong>{extra.ma_benh_san_khoa_khong_bt || '...'}</strong></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div className="text-right text-[11px] text-gray-500 font-sans">Trang 1/4</div>
-            </div>
-
-            {/* ==================== PAGE 2 ==================== */}
-            <div className="a4-page mau2-page-two flex flex-col justify-between">
-                <div className="mau2-page-main">
-                    <h2 className="font-bold text-[14px] uppercase tracking-wide border-b border-black pb-0.5 mb-2">{L.titleTienSu} (tiếp theo)</h2>
-                    
-                    <div className="text-[13px] space-y-3">
-                        <div className="hidden">
-                            <span className="font-bold">{L.lblTiemSuGiaDinh}</span>
-                            <div className="pl-4 leading-normal mt-0.5">
-                                {L.tsgdDetail}
-                                <div className="flex gap-8 mt-1">
-                                    <span className="flex items-center gap-1">{extra.tsgd_mac_benh !== '1' ? '☑' : '☐'} a) {L.lblKhong}</span>
-                                    <span className="flex items-center gap-1">{extra.tsgd_mac_benh === '1' ? '☑' : '☐'} b) {L.lblCo}; {L.lblTsgdGhiRo} <span className="font-bold">{extra.tsgd_ma_benh || '...'}</span></span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <span className="font-bold hidden">{L.lblTsBanThan}</span>
-                            <div className="pl-4 mt-1 space-y-2">
-                                <div className="hidden">
-                                    <span className="font-bold">{L.lblSanKhoa}</span>
-                                    <div className="flex gap-8 mt-0.5">
-                                        <span className="flex items-center gap-1">{sanKhoaNormal ? '☑' : '☐'} {L.lblBinhThuong}</span>
-                                        <span className="flex items-center gap-1">{sanKhoaAbnormal ? '☑' : '☐'} {L.lblKhongBinhThuong}</span>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2 mt-1 pl-4 text-[12.5px] text-gray-700">
-                                        <span className="flex items-center gap-1">{sk1 ? '☑' : '☐'} {L.lblThieuThang}</span>
-                                        <span className="flex items-center gap-1">{sk2 ? '☑' : '☐'} {L.lblThuaCan}</span>
-                                        <span className="flex items-center gap-1">{sk3 ? '☑' : '☐'} {L.lblCanThiep}</span>
-                                        <span className="flex items-center gap-1">{sk4 ? '☑' : '☐'} {L.lblNgat}</span>
-                                        <span className="flex items-center gap-1 col-span-2">{sk5 ? '☑' : '☐'} {L.lblMeBenh}</span>
-                                    </div>
-                                    <div className="pl-4 mt-1 text-[12.5px]">
-                                        {L.lblSanKhoaGhiRo} <span className="font-semibold">{extra.ma_benh_san_khoa_khong_bt || '...'}</span>
-                                    </div>
-                                </div>
-
+                            {/* Cột thông tin hành chính bên cạnh ảnh */}
+                            <div className="flex-grow space-y-0.5 text-[11.5px] leading-tight">
                                 <div>
-                                    <span className="font-bold">{L.lblTiemChung}</span>
-                                    <table className="a4-table w-full mt-1">
-                                        <thead>
-                                            <tr className="font-bold text-center bg-gray-50">
-                                                <th className="w-[10%]">{L.colSTT}</th>
-                                                <th className="w-[45%]">{L.colLoaiVacXin}</th>
-                                                <th className="w-[15%]">{L.colCo}</th>
-                                                <th className="w-[15%]">{L.colKhong}</th>
-                                                <th className="w-[15%]">{L.colKhongNho}</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td className="text-center">1</td>
-                                                <td>BCG</td>
-                                                <td className="text-center font-bold">{vacBcg.co ? 'x' : ''}</td>
-                                                <td className="text-center font-bold">{vacBcg.khong ? 'x' : ''}</td>
-                                                <td className="text-center font-bold">{vacBcg.khongNho ? 'x' : ''}</td>
-                                            </tr>
-                                            <tr>
-                                                <td className="text-center">2</td>
-                                                <td>Bạch hầu-Ho gà-Uốn ván</td>
-                                                <td className="text-center font-bold">{vacBhHgUv.co ? 'x' : ''}</td>
-                                                <td className="text-center font-bold">{vacBhHgUv.khong ? 'x' : ''}</td>
-                                                <td className="text-center font-bold">{vacBhHgUv.khongNho ? 'x' : ''}</td>
-                                            </tr>
-                                            <tr>
-                                                <td className="text-center">3</td>
-                                                <td>Sởi</td>
-                                                <td className="text-center font-bold">{vacSoi.co ? 'x' : ''}</td>
-                                                <td className="text-center font-bold">{vacSoi.khong ? 'x' : ''}</td>
-                                                <td className="text-center font-bold">{vacSoi.khongNho ? 'x' : ''}</td>
-                                            </tr>
-                                            <tr>
-                                                <td className="text-center">4</td>
-                                                <td>Bại liệt</td>
-                                                <td className="text-center font-bold">{vacBaiLiet.co ? 'x' : ''}</td>
-                                                <td className="text-center font-bold">{vacBaiLiet.khong ? 'x' : ''}</td>
-                                                <td className="text-center font-bold">{vacBaiLiet.khongNho ? 'x' : ''}</td>
-                                            </tr>
-                                            <tr>
-                                                <td className="text-center">5</td>
-                                                <td>Viêm não NB</td>
-                                                <td className="text-center font-bold">{vacVnnbB.co ? 'x' : ''}</td>
-                                                <td className="text-center font-bold">{vacVnnbB.khong ? 'x' : ''}</td>
-                                                <td className="text-center font-bold">{vacVnnbB.khongNho ? 'x' : ''}</td>
-                                            </tr>
-                                            <tr>
-                                                <td className="text-center">6</td>
-                                                <td>Viêm gan B</td>
-                                                <td className="text-center font-bold">{vacVgb.co ? 'x' : ''}</td>
-                                                <td className="text-center font-bold">{vacVgb.khong ? 'x' : ''}</td>
-                                                <td className="text-center font-bold">{vacVgb.khongNho ? 'x' : ''}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                                    <span className="font-bold">1. Họ và tên: </span>
+                                    <strong className="uppercase font-bold text-[12px]">{docNormalized.patient_name || '................................'}</strong>
                                 </div>
-
+                                <div className="flex items-center gap-3">
+                                    <span className="font-bold">2. Giới tính: </span>
+                                    {renderCheckbox(isNam, 'Nam')}
+                                    {renderCheckbox(isNu, 'Nữ')}
+                                </div>
                                 <div>
-                                    <span className="font-bold">{L.lblTsBenhTat}</span>
-                                    <div className="flex gap-8 mt-0.5">
-                                        <span className="flex items-center gap-1">{extra.ts_benh_tat !== '1' ? '☑' : '☐'} {L.lblKhong}</span>
-                                        <span className="flex items-center gap-1">{extra.ts_benh_tat === '1' ? '☑' : '☐'} {L.lblCo}</span>
-                                    </div>
-                                    <div className="mt-1">
-                                        {L.lblTsBenhTatGhiRo} <span className="font-bold">{extra.ts_benh_tat_chi_tiet || extra.ts_benh_tat_ma_benh || '...'}</span>
-                                    </div>
+                                    <span className="font-bold">3. Ngày sinh: </span>
+                                    <span>{dobDetails.day}</span>/<span>{dobDetails.month}</span>/<span>{dobDetails.year}</span>
+                                    <span className="ml-3 font-bold">Tuổi: </span><span>{getAge(docNormalized.dob)} tuổi</span>
                                 </div>
-
                                 <div>
-                                    <span className="font-bold">{L.lblDangDieuTri}</span>
-                                    <div className="flex gap-8 mt-0.5">
-                                        <span className="flex items-center gap-1">{extra.dang_dieu_tri !== '1' ? '☑' : '☐'} {L.lblKhong}</span>
-                                        <span className="flex items-center gap-1">{extra.dang_dieu_tri === '1' ? '☑' : '☐'} {L.lblCo}</span>
-                                    </div>
-                                    <div className="mt-1">
-                                        {L.lblDangDieuTriGhiRo} <span className="font-bold">{extra.chi_tiet_dieu_tri || '...'}</span>
-                                    </div>
+                                    <span className="font-bold">4. Dân tộc: </span>
+                                    <span>{clinical.nation || clinical.ethnic || 'Kinh'}</span>
+                                    <span className="ml-3 font-bold">5. Nhóm máu: </span>
+                                    <span>{clinical.blood_group || '...'}</span>
+                                </div>
+                                <div>
+                                    <span className="font-bold">6. Số định danh/CCCD: </span>
+                                    <span className="font-semibold">{docNormalized.cccd || '................................'}</span>
+                                </div>
+                                <div>
+                                    <span className="font-bold">Cấp ngày: </span><span>{formatDateSafe(cccdDate)}</span>
+                                    <span className="ml-2 font-bold">Tại: </span><span>{cccdPlace || '................................'}</span>
+                                </div>
+                                <div>
+                                    <span className="font-bold">7. Đối tượng ưu tiên: </span>
+                                    <span>{priorityGroupText}</span>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div className="mau2-page-two-block text-[13px] mt-4 italic pl-4">
-                        {L.lblCamDoan}
-                    </div>
-
-                    <div className="mau2-page-two-block flex justify-end mt-4 px-6 text-[13px]">
-                        <div className="text-center w-72">
-                            <span className="italic block mb-0.5">Ngày {getReportDate().day} tháng {getReportDate().month} năm {getReportDate().year}</span>
-                            <strong className="block font-bold uppercase">{L.lblNguoiDeNghi}</strong>
-                            <span className="italic text-[11px] block">{L.lblNguoiDeNghiSub}</span>
-                            <span className="italic text-[10px] block">{L.lblKyGhiRo}</span>
-                            <div className="h-14"></div>
-                            <span className="font-bold text-[14px] mt-1 block">{docNormalized.patient_name}</span>
-                        </div>
-                    </div>
-
-                    <div className="mau2-page-two-block mt-4 border-t border-black pt-2">
-                        <h2 className="font-bold text-[14px] uppercase tracking-wide mb-2">{L.titleTheLuc}</h2>
-                        <div className="grid grid-cols-2 gap-y-1.5 gap-x-4 text-[13.5px]">
-                            <div>
-                                <span className="font-bold">{L.lblChieuCao}</span> {examHeight || '.......'} cm; <span className="font-bold ml-2">{L.lblCanNang}</span> {examWeight || '.......'} Kg;
-                            </div>
-                            <div>
-                                <span className="font-bold">{L.lblBmi}</span> {examBmi || '.......'}
-                            </div>
-                            <div>
-                                <span className="font-bold">{L.lblMach}</span> {examPulse || '.......'} lần/phút;
-                            </div>
-                            <div>
-                                <span className="font-bold">{L.lblHuyetAp}</span> {examBp || '.......'} mmHg
-                            </div>
-                            <div className="col-span-2">
-                                <span className="font-bold">{L.lblPhanLoaiTheLuc}</span>
-                                <div className="flex gap-4 mt-1 pl-4">
-                                    <span className="flex items-center gap-1">{physicalPl === '1' ? '☑' : '☐'} {L.lblLoaiI}</span>
-                                    <span className="flex items-center gap-1">{physicalPl === '2' ? '☑' : '☐'} {L.lblLoaiII}</span>
-                                    <span className="flex items-center gap-1">{physicalPl === '3' ? '☑' : '☐'} {L.lblLoaiIII}</span>
-                                    <span className="flex items-center gap-1">{physicalPl === '4' ? '☑' : '☐'} {L.lblLoaiIV}</span>
-                                    <span className="flex items-center gap-1">{physicalPl === '5' ? '☑' : '☐'} {L.lblLoaiV}</span>
+                        {/* Các dòng hành chính dưới ảnh */}
+                        <div className="mt-1 space-y-0.5 text-[11.5px] leading-tight">
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <span className="font-bold">8. Họ tên Bố/Mẹ/Giám hộ: </span>
+                                    <span>{extra.nguoi_giam_ho || '...'}</span>
+                                </div>
+                                <div>
+                                    <span className="font-bold">Số định danh: </span>
+                                    <span>{extra.so_cccd_ngh || '...'}</span>
                                 </div>
                             </div>
+                            <div>
+                                <span className="font-bold">9. Chỗ ở hiện tại: </span>
+                                <span>{(() => {
+                                    const rawDetail = String(clinical.address || docNormalized.address || clinical.patient_address || '').trim();
+                                    const provName = String(clinical.province || clinical.province_name || clinical.ten_tinh || extra.ten_tinh || extra.province || resolvedLocation?.province || '').trim();
+                                    const wardName = String(clinical.ward || clinical.ward_name || clinical.ten_xa || extra.ten_xa || extra.ward || resolvedLocation?.ward || '').trim();
+                                    const distName = String(clinical.district || clinical.district_name || clinical.ten_huyen || extra.ten_huyen || '').trim();
+                                    const parts = [];
+                                    if (rawDetail) parts.push(rawDetail);
+                                    if (wardName && !rawDetail.toLowerCase().includes(wardName.toLowerCase())) parts.push(wardName);
+                                    if (distName && !rawDetail.toLowerCase().includes(distName.toLowerCase()) && !wardName.toLowerCase().includes(distName.toLowerCase())) parts.push(distName);
+                                    if (provName && !rawDetail.toLowerCase().includes(provName.toLowerCase())) parts.push(provName);
+                                    return parts.length > 0 ? parts.join(', ') : '...';
+                                })()}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <span className="font-bold">10. Số điện thoại: </span>
+                                    <span>{clinical.phone || '...'}</span>
+                                </div>
+                                <div>
+                                    <span className="font-bold">11. Nguồn chi trả: </span>
+                                    <span>{fundingSourceText}</span>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <span className="font-bold">Mã CSKCB: </span>
+                                    <span className="font-semibold">{maCskcb || docNormalized.ma_cskcb || '8934285008135'}</span>
+                                </div>
+                                <div>
+                                    <span className="font-bold">Ngày khám: </span>
+                                    <span>{formatDateSafe(docNormalized.ngay_vao, '.../.../....')}</span>
+                                </div>
+                            </div>
+                            <div>
+                                <span className="font-bold">12. Lý do khám sức khỏe: </span>
+                                <span className="font-semibold">{clinical.ly_do_vv || 'Khám sức khỏe định kỳ'}</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div className="text-right text-[11px] text-gray-500 font-sans">Trang 2/4</div>
-            </div>
 
-            {/* ==================== PAGE 3 ==================== */}
-            <div className="a4-page flex flex-col justify-between">
-                <div>
-                    <h2 className="font-bold text-[14px] uppercase tracking-wide border-b border-black pb-0.5 mb-2">{L.titleLamSang}</h2>
-                    <table className="a4-table mau2-clinical-table w-full">
-                        <thead>
-                            <tr className="font-bold bg-gray-50 text-center">
-                                <th className="w-[70%]">{L.colNoidungKham}</th>
-                                <th className="w-[30%]">{L.colChuKyBs}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr className="font-bold">
-                                <td colSpan={2} className="bg-gray-100/50">{L.lblNhiKhoa}</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <span className="font-bold">{L.lblTuanHoan}</span> <span className="text-slate-800">{clinicalExam.nhi_tuan_hoan || clinicalExam.tuan_hoan || clinicalExam.internal || 'Bình thường'}</span>
-                                    {renderPl('tuan_hoan')}
-                                </td>
-                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('tuan_hoan')}</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <span className="font-bold">{L.lblHoHap}</span> <span className="text-slate-800">{clinicalExam.nhi_ho_hap || clinicalExam.ho_hap || clinicalExam.internal || 'Bình thường'}</span>
-                                    {renderPl('ho_hap')}
-                                </td>
-                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('ho_hap')}</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <span className="font-bold">{L.lblTieuHoa}</span> <span className="text-slate-800">{clinicalExam.nhi_tieu_hoa || clinicalExam.tieu_hoa || clinicalExam.internal || 'Bình thường'}</span>
-                                    {renderPl('tieu_hoa')}
-                                </td>
-                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('tieu_hoa')}</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <span className="font-bold">{L.lblThanTietNieu}</span> <span className="text-slate-800">{clinicalExam.nhi_tiet_nieu || clinicalExam.nhi_sinh_duc || clinicalExam.than_tiet_nieu || clinicalExam.internal || 'Bình thường'}</span>
-                                    {renderPl('than_tiet_nieu')}
-                                </td>
-                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('than_tiet_nieu')}</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <span className="font-bold">{L.lblThanKinh}</span> <span className="text-slate-800">{clinicalExam.nhi_than_kinh || clinicalExam.than_kinh || clinicalExam.internal || 'Bình thường'}</span>
-                                    {renderPl('than_kinh')}
-                                </td>
-                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('than_kinh')}</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <span className="font-bold">{L.lblTamThan}</span> <span className="text-slate-800">{clinicalExam.nhi_tam_than || clinicalExam.tam_than || clinicalExam.internal || 'Bình thường'}</span>
-                                    {renderPl('tam_than')}
-                                </td>
-                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('tam_than')}</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <span className="font-bold">{L.lblLamSangKhac}</span> <span className="text-slate-800">{clinicalExam.nhi_khoa_lam_sang_khac || clinicalExam.nhi_khac || clinicalExam.lam_sang_khac || 'Bình thường'}</span>
-                                    {renderPl('lam_sang_khac')}
-                                </td>
-                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('lam_sang_khac')}</td>
-                            </tr>
-                            <tr className="font-bold">
-                                <td colSpan={2} className="bg-gray-100/50">{L.lblMat}</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div className="pl-4 text-[12.5px] space-y-1">
-                                        <div>
-                                            {L.lblThiLucKhongKinh} <span className="font-bold">{clinicalExam.khong_kinh_mat_phai || '...'}</span>, {L.lblMatMatTrai} <span className="font-bold">{clinicalExam.khong_kinh_mat_trai || '...'}</span>
-                                        </div>
-                                        <div>
-                                            {L.lblThiLucCoKinh} <span className="font-bold">{clinicalExam.co_kinh_mat_phai || '...'}</span>, {L.lblMatMatTrai} <span className="font-bold">{clinicalExam.co_kinh_mat_trai || '...'}</span>
-                                        </div>
-                                        <div>
-                                            {L.lblBenhMat} <span>{clinicalExam.benh_ve_mat || '...'}</span>
-                                        </div>
-                                    </div>
-                                    {renderPl('mat')}
-                                </td>
-                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('mat')}</td>
-                            </tr>
-                            <tr className="font-bold">
-                                <td colSpan={2} className="bg-gray-100/50">{L.lblTaiMuiHong}</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div className="pl-4 text-[12.5px] space-y-1">
-                                        <div>{L.lblThinhLuc}</div>
-                                        <div className="grid grid-cols-2 gap-1 pl-2">
-                                            <div>{L.lblTaiTrai} <span className="font-bold">{clinicalExam.tai_trai_noi_thuong || '...'}</span> m, {L.lblNoiTham} <span className="font-bold">{clinicalExam.tai_trai_noi_tham || '...'}</span> m</div>
-                                            <div>{L.lblTaiPhai} <span className="font-bold">{clinicalExam.tai_phai_noi_thuong || '...'}</span> m, {L.lblNoiTham} <span className="font-bold">{clinicalExam.tai_phai_noi_tham || '...'}</span> m</div>
-                                        </div>
-                                        <div>{L.lblBenhTmh} <span>{clinicalExam.benh_tai_mui_hong || '...'}</span></div>
-                                    </div>
-                                    {renderPl('tai_mui_hong')}
-                                </td>
-                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('tai_mui_hong')}</td>
-                            </tr>
-                            <tr className="font-bold">
-                                <td colSpan={2} className="bg-gray-100/50">{L.lblRangHamMat}</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div className="pl-4 text-[12.5px] space-y-0.5">
-                                        <div>{L.lblKqKham} {L.lblHamTren} <span className="font-semibold">{clinicalExam.ham_tren || 'BT'}</span>, {L.lblHamDưới} <span className="font-semibold">{clinicalExam.ham_duoi || 'BT'}</span></div>
-                                        <div>{L.lblBenhRhm} <span>{clinicalExam.benh_rang_ham_mat || 'ko có'}</span></div>
-                                    </div>
-                                    {renderPl('rang_ham_mat')}
-                                </td>
-                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('rang_ham_mat')}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div className="text-right text-[11px] text-gray-500 font-sans">Trang 3/4</div>
-            </div>
-
-            {/* ==================== PAGE 4 ==================== */}
-            <div className="a4-page flex flex-col justify-between">
-                <div>
-                    <h2 className="font-bold text-[14px] uppercase tracking-wide border-b border-black pb-0.5 mb-2">{L.titleCanLamSang}</h2>
-                    <table className="a4-table w-full">
-                        <thead>
-                            <tr className="font-bold bg-gray-50 text-center">
-                                <th className="w-[70%]">{L.colNoidungKham}</th>
-                                <th className="w-[30%]">{L.colChuKyBsCns}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>
-                                    <span className="font-bold">{L.lblXnMau}</span>
-                                    <div className="pl-4 text-[12.5px] grid grid-cols-2 gap-y-1 gap-x-2 mt-1">
-                                        <div>{L.lblTongPhanTichMau} <span>...</span></div>
-                                        <div>{L.lblDuongMau} <span className="font-semibold">{bloodSugar} mmol/L</span></div>
-                                        <div>{L.lblUre} <span className="font-semibold">{ureaVal} mmol/L</span></div>
-                                        <div>{L.lblCreatinine} <span className="font-semibold">{creatinineVal} µmol/L</span></div>
-                                        <div>{L.lblAsat} <span className="font-semibold">{asatVal} U/L</span></div>
-                                        <div>{L.lblAlat} <span className="font-semibold">{alatVal} U/L</span></div>
-                                    </div>
-                                </td>
-                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('lab') || renderDoctorCell('tuan_hoan')}</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <span className="font-bold">{L.lblXnNuocTieu}</span>
-                                    <div className="pl-4 text-[12.5px] mt-1">
-                                        {L.lblTongPhanTichNuocTieu} <span className="font-semibold">{urineTest}</span>
-                                    </div>
-                                </td>
-                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('lab') || renderDoctorCell('tuan_hoan')}</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <span className="font-bold">{L.lblCda}</span>
-                                    <div className="pl-4 text-[12.5px] mt-1">
-                                        {L.lblXqNguc} <span className="font-semibold">{xqResult}</span>
-                                    </div>
-                                </td>
-                                <td className="text-center font-bold text-slate-700">{renderDoctorCell('imaging') || renderDoctorCell('tuan_hoan')}</td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <span className="font-bold">{L.lblClsKhac}</span>
-                                    <div className="pl-4 text-[12.5px] mt-1">
-                                        {L.lblChiTiet} <span>{extra.cls_khac || 'Không'}</span>
-                                    </div>
-                                </td>
-                                <td className="text-center font-bold text-slate-700"></td>
-                            </tr>
-                            <tr>
-                                <td className="py-2">
-                                    <span className="font-bold">{L.lblDanhGia}</span> <span className="font-semibold">{conclusion.danh_gia || 'Bình thường'}</span>
-                                </td>
-                                <td></td>
-                            </tr>
-                            <tr>
-                                <td className="py-2">
-                                    <span className="font-bold">{L.lblKetLuan}</span> <span className="font-semibold">{conclusion.diagnosis ? formatIcd10String(conclusion.diagnosis) : 'Bình thường'}</span>
-                                </td>
-                                <td></td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <div className="mt-6 border-t border-black pt-2">
-                        <h2 className="font-bold text-[14px] uppercase tracking-wide mb-3">{L.titleKetLuan}</h2>
+                    {/* TIỀN SỬ BỆNH TẬT */}
+                    <div className="border-t border-black pt-0.5">
+                        <h2 className="font-bold text-[12px] uppercase tracking-wide border-b border-black pb-0.5 mb-0.5">TIỀN SỬ BỆNH TẬT</h2>
                         
-                        <div className="text-[13.5px] space-y-3 leading-relaxed">
-                            <div className="flex gap-4 items-center">
-                                <span className="flex items-center gap-1.5">{(conclusion.is_normal === '1' || conclusion.is_normal === 1 || !conclusion.diagnosis) ? '☑' : '☐'} {L.lblSkNormal}</span>
-                                <span className="flex items-center gap-1.5">{(conclusion.is_normal === '0' || conclusion.is_normal === 0 || conclusion.diagnosis) ? '☑' : '☐'} {L.lblSkLuuY}</span>
+                        {/* 1. Tiền sử gia đình & 2.a Sản khoa */}
+                        <div className="text-[11px] space-y-0.5 leading-tight">
+                            <div>
+                                <strong className="font-bold">1. Tiền sử gia đình: </strong>
+                                Có ai mắc bệnh bẩm sinh/truyền nhiễm không? 
+                                <span className="ml-2">{renderCheckbox(!tsgdMacBenh, 'Không')}</span>
+                                <span>{renderCheckbox(tsgdMacBenh, 'Có')}</span>
+                                {tsgdMacBenh && <span className="ml-1 font-bold">({formatIcd10String(tsgdMaBenh)})</span>}
+                            </div>
+
+                            <div>
+                                <strong className="font-bold">2. Tiền sử bản thân: </strong>
+                                <span className="font-bold">a) Sản khoa (lúc sinh): </span>
+                                <span className="ml-2">{renderCheckbox(sanKhoaNormal, 'Bình thường')}</span>
+                                <span>{renderCheckbox(sanKhoaAbnormal, 'Không bình thường')}</span>
+                                {sanKhoaAbnormal && (
+                                    <span className="inline-flex gap-2 pl-1 text-[10.5px]">
+                                        {renderCheckbox(sk1, 'Đẻ thiếu tháng')}
+                                        {renderCheckbox(sk2, 'Đẻ thừa cân')}
+                                        {renderCheckbox(sk3, 'Có can thiệp')}
+                                        {renderCheckbox(sk4, 'Đẻ ngạt')}
+                                        {renderCheckbox(sk5, 'Mẹ mắc bệnh')}
+                                        {sanKhoaMaBenh && <strong className="text-black">({formatIcd10String(sanKhoaMaBenh)})</strong>}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* 2.b Bảng tiêm chủng */}
+                            <div className="pt-0.5">
+                                <strong className="font-bold block mb-0.5">b) Tiêm chủng:</strong>
+                                <table className="a4-table">
+                                    <thead>
+                                        <tr>
+                                            <th className="w-[6%]">STT</th>
+                                            <th className="w-[49%]">Loại vắc xin</th>
+                                            <th className="w-[15%]">Có</th>
+                                            <th className="w-[15%]">Không</th>
+                                            <th className="w-[15%]">Không nhớ rõ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td className="text-center">1</td>
+                                            <td>BCG (Lao)</td>
+                                            <td className="text-center font-bold">{vacBcg.co ? 'x' : ''}</td>
+                                            <td className="text-center font-bold">{vacBcg.khong ? 'x' : ''}</td>
+                                            <td className="text-center font-bold">{vacBcg.khongNho ? 'x' : ''}</td>
+                                        </tr>
+                                        <tr>
+                                            <td className="text-center">2</td>
+                                            <td>Bạch hầu - Ho gà - Uốn ván (DPT)</td>
+                                            <td className="text-center font-bold">{vacBhHgUv.co ? 'x' : ''}</td>
+                                            <td className="text-center font-bold">{vacBhHgUv.khong ? 'x' : ''}</td>
+                                            <td className="text-center font-bold">{vacBhHgUv.khongNho ? 'x' : ''}</td>
+                                        </tr>
+                                        <tr>
+                                            <td className="text-center">3</td>
+                                            <td>Sởi</td>
+                                            <td className="text-center font-bold">{vacSoi.co ? 'x' : ''}</td>
+                                            <td className="text-center font-bold">{vacSoi.khong ? 'x' : ''}</td>
+                                            <td className="text-center font-bold">{vacSoi.khongNho ? 'x' : ''}</td>
+                                        </tr>
+                                        <tr>
+                                            <td className="text-center">4</td>
+                                            <td>Bại liệt (OPV/IPV)</td>
+                                            <td className="text-center font-bold">{vacBaiLiet.co ? 'x' : ''}</td>
+                                            <td className="text-center font-bold">{vacBaiLiet.khong ? 'x' : ''}</td>
+                                            <td className="text-center font-bold">{vacBaiLiet.khongNho ? 'x' : ''}</td>
+                                        </tr>
+                                        <tr>
+                                            <td className="text-center">5</td>
+                                            <td>Viêm não Nhật Bản B</td>
+                                            <td className="text-center font-bold">{vacVnnbB.co ? 'x' : ''}</td>
+                                            <td className="text-center font-bold">{vacVnnbB.khong ? 'x' : ''}</td>
+                                            <td className="text-center font-bold">{vacVnnbB.khongNho ? 'x' : ''}</td>
+                                        </tr>
+                                        <tr>
+                                            <td className="text-center">6</td>
+                                            <td>Viêm gan B</td>
+                                            <td className="text-center font-bold">{vacVgb.co ? 'x' : ''}</td>
+                                            <td className="text-center font-bold">{vacVgb.khong ? 'x' : ''}</td>
+                                            <td className="text-center font-bold">{vacVgb.khongNho ? 'x' : ''}</td>
+                                        </tr>
+                                        <tr>
+                                            <td className="text-center">7</td>
+                                            <td>Vắc xin khác: <strong className="text-black">{tenVacXinKhac || ''}</strong></td>
+                                            <td className="text-center font-bold">{vacKhac.co || tenVacXinKhac ? 'x' : ''}</td>
+                                            <td className="text-center font-bold">{vacKhac.khong ? 'x' : ''}</td>
+                                            <td className="text-center font-bold">{vacKhac.khongNho ? 'x' : ''}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* 2.c & 2.d */}
+                            <div className="pt-0.5">
+                                <div>
+                                    <strong className="font-bold">c) Tiền sử bệnh/tật bẩm sinh, mãn tính: </strong>
+                                    <span className="ml-2">{renderCheckbox(!tsbtMacBenh, 'Không')}</span>
+                                    <span>{renderCheckbox(tsbtMacBenh, 'Có')}</span>
+                                    {tsbtMacBenh && <span className="ml-1 font-bold">({formatIcd10String(tsbtMaBenh)})</span>}
+                                </div>
+                                <div>
+                                    <strong className="font-bold">d) Hiện tại có đang điều trị bệnh gì không: </strong>
+                                    <span className="ml-2">{renderCheckbox(!isDangDieuTri, 'Không')}</span>
+                                    <span>{renderCheckbox(isDangDieuTri, 'Có')}</span>
+                                    {isDangDieuTri && <span className="ml-1 font-bold">({chiTietDieuTri})</span>}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* LỜI CAM ĐOAN & CHỮ KÝ BỆNH NHÂN */}
+                    <div className="pt-1">
+                        <div className="text-[10.5px] italic mb-0.5">
+                            Tôi xin cam đoan những điều khai trên đây hoàn toàn đúng với sự thật theo sự hiểu biết của tôi.
+                        </div>
+
+                        <div className="flex justify-end mt-1 px-4 text-[11px]">
+                            <div className="text-center w-64">
+                                <span className="italic block text-[11px]">Ngày {reportDate.day} tháng {reportDate.month} năm {reportDate.year}</span>
+                                <strong className="block font-bold uppercase text-[11.5px] tracking-wide mt-0.5">NGƯỜI ĐỀ NGHỊ KHÁM SỨC KHỎE</strong>
+                                <span className="italic text-[10px] text-slate-600 block mb-1">(Hoặc cha/mẹ/người giám hộ ký, ghi rõ họ tên)</span>
+                                <div className="h-16"></div>
+                                <strong className="font-bold text-[12.5px] block uppercase tracking-wide">{docNormalized.patient_name}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer Page 1 */}
+                <div className="text-right text-[10px] text-gray-500 font-sans border-t border-gray-300 pt-0.5">Trang 1/3</div>
+            </div>
+
+            {/* ==================== TRANG 2: BÁC SĨ KHÁM THỂ LỰC (I) & KHÁM LÂM SÀNG (II) ==================== */}
+            <div className="a4-page">
+                <div className="flex flex-col justify-start space-y-2">
+                    {/* I. KHÁM THỂ LỰC */}
+                    <div>
+                        <h2 className="font-bold text-[13px] uppercase tracking-wide border-b border-black pb-0.5 mb-1.5">I. KHÁM THỂ LỰC</h2>
+                        <div className="grid grid-cols-2 gap-y-1 gap-x-4 text-[12.5px] border border-black p-2 bg-gray-50/40 rounded-xs">
+                            <div>
+                                <span className="font-bold">- Chiều cao: </span> <span>{examHeight || '.......'} cm</span>; 
+                                <span className="font-bold ml-3">- Cân nặng: </span> <span>{examWeight || '.......'} kg</span>
+                            </div>
+                            <div>
+                                <span className="font-bold">- Chỉ số BMI: </span> <span>{examBmi || '.......'}</span>
+                            </div>
+                            <div>
+                                <span className="font-bold">- Mạch: </span> <span>{examPulse || '.......'} lần/phút</span>
+                            </div>
+                            <div>
+                                <span className="font-bold">- Huyết áp: </span> <span>{examBp || '.......'} mmHg</span>
+                            </div>
+                            <div className="col-span-2 pt-1 border-t border-gray-300 mt-1">
+                                <span className="font-bold">Phân loại thể lực: </span>
+                                <div className="flex gap-4 mt-0.5 pl-2 flex-wrap">
+                                    {renderCheckbox(physicalPl === '1', 'Loại I (Rất khỏe)')}
+                                    {renderCheckbox(physicalPl === '2', 'Loại II (Khỏe)')}
+                                    {renderCheckbox(physicalPl === '3', 'Loại III (Trung bình)')}
+                                    {renderCheckbox(physicalPl === '4', 'Loại IV (Yếu)')}
+                                    {renderCheckbox(physicalPl === '5', 'Loại V (Rất yếu)')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* II. KHÁM LÂM SÀNG */}
+                    <div>
+                        <h2 className="font-bold text-[13px] uppercase tracking-wide border-b border-black pb-0.5 mb-1.5">II. KHÁM LÂM SÀNG</h2>
+                        <table className="a4-table">
+                            <thead>
+                                <tr>
+                                    <th className="w-[70%]">Nội dung khám</th>
+                                    <th className="w-[30%]">Họ tên, chữ ký của Bác sĩ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr className="font-bold">
+                                    <td colSpan={2} className="bg-gray-100/70 py-1">1. Nhi khoa</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span className="font-bold">a) Tuần hoàn: </span>
+                                        <span>{clinicalExam.nhi_tuan_hoan || clinicalExam.tuan_hoan || clinicalExam.tim_mach || clinicalExam.kq_tim_mach || clinicalExam.noi_khoa_tuan_hoan || clinicalExam.internal || 'Bình thường'}</span>
+                                        {renderPl('tuan_hoan')}
+                                    </td>
+                                    <td className="text-center">{renderDoctorCell('tuan_hoan')}</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span className="font-bold">b) Hô hấp: </span>
+                                        <span>{clinicalExam.nhi_ho_hap || clinicalExam.ho_hap || clinicalExam.kq_ho_hap || clinicalExam.noi_khoa_ho_hap || clinicalExam.internal || 'Bình thường'}</span>
+                                        {renderPl('ho_hap')}
+                                    </td>
+                                    <td className="text-center">{renderDoctorCell('ho_hap')}</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span className="font-bold">c) Tiêu hóa: </span>
+                                        <span>{clinicalExam.nhi_tieu_hoa || clinicalExam.tieu_hoa || clinicalExam.kq_tieu_hoa || clinicalExam.noi_khoa_tieu_hoa || clinicalExam.internal || 'Bình thường'}</span>
+                                        {renderPl('tieu_hoa')}
+                                    </td>
+                                    <td className="text-center">{renderDoctorCell('tieu_hoa')}</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span className="font-bold">d) Thận - Tiết niệu, Sinh dục: </span>
+                                        <span>{clinicalExam.nhi_tiet_nieu || clinicalExam.nhi_sinh_duc || clinicalExam.than_tiet_nieu || clinicalExam.kq_tiet_nieu || clinicalExam.kq_sinh_duc || clinicalExam.tiet_nieu_sinh_duc || clinicalExam.noi_khoa_than_tn_sd || clinicalExam.internal || 'Bình thường'}</span>
+                                        {renderPl('than_tiet_nieu')}
+                                    </td>
+                                    <td className="text-center">{renderDoctorCell('than_tiet_nieu')}</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span className="font-bold">đ) Thần kinh: </span>
+                                        <span>{clinicalExam.nhi_than_kinh || clinicalExam.than_kinh || clinicalExam.kq_than_kinh || clinicalExam.noi_khoa_than_kinh || clinicalExam.internal || 'Bình thường'}</span>
+                                        {renderPl('than_kinh')}
+                                    </td>
+                                    <td className="text-center">{renderDoctorCell('than_kinh')}</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span className="font-bold">e) Tâm thần: </span>
+                                        <span>{clinicalExam.nhi_tam_than || clinicalExam.tam_than || clinicalExam.kq_tam_than || clinicalExam.noi_khoa_tam_than || clinicalExam.internal || 'Bình thường'}</span>
+                                        {renderPl('tam_than')}
+                                    </td>
+                                    <td className="text-center">{renderDoctorCell('tam_than')}</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span className="font-bold">g) Khám lâm sàng khác: </span>
+                                        <span>{clinicalExam.nhi_khoa_lam_sang_khac || clinicalExam.nhi_khac || clinicalExam.lam_sang_khac || extra.nhi_khoa_lam_sang_khac || 'Bình thường'}</span>
+                                        {renderPl('lam_sang_khac')}
+                                    </td>
+                                    <td className="text-center">{renderDoctorCell('lam_sang_khac')}</td>
+                                </tr>
+
+                                <tr className="font-bold">
+                                    <td colSpan={2} className="bg-gray-100/70 py-1">2. Ngoại khoa, Da liễu</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span className="font-bold">- Ngoại khoa: </span>
+                                        <span>{clinicalExam.external || clinicalExam.kq_ngoai_khoa || clinicalExam.kham_ngoai_khoa || clinicalExam.ngoai_khoa || 'Bình thường'}</span>
+                                        {renderPl('ngoai_khoa')}
+                                    </td>
+                                    <td className="text-center">{renderDoctorCell('ngoai_khoa')}</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span className="font-bold">- Da liễu: </span>
+                                        <span>{clinicalExam.dermatology || clinicalExam.kq_da_lieu || clinicalExam.kham_da_lieu || clinicalExam.da_lieu || 'Bình thường'}</span>
+                                        {renderPl('da_lieu')}
+                                    </td>
+                                    <td className="text-center">{renderDoctorCell('da_lieu')}</td>
+                                </tr>
+
+                                <tr className="font-bold">
+                                    <td colSpan={2} className="bg-gray-100/70 py-1">3. Mắt</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div className="space-y-0.5 pl-1">
+                                            <div>
+                                                <span className="font-semibold">Thị lực không kính: </span>
+                                                Mắt phải: <strong>{clinicalExam.khong_kinh_mat_phai || '10/10'}</strong>, Mắt trái: <strong>{clinicalExam.khong_kinh_mat_trai || '10/10'}</strong>
+                                            </div>
+                                            <div>
+                                                <span className="font-semibold">Thị lực có kính: </span>
+                                                Mắt phải: <strong>{clinicalExam.co_kinh_mat_phai || '...'}</strong>, Mắt trái: <strong>{clinicalExam.co_kinh_mat_trai || '...'}</strong>
+                                            </div>
+                                            <div>
+                                                <span className="font-semibold">Các bệnh về mắt: </span>
+                                                <span>{clinicalExam.benh_ve_mat || clinicalExam.eye || 'Không'}</span>
+                                            </div>
+                                        </div>
+                                        {renderPl('mat')}
+                                    </td>
+                                    <td className="text-center">{renderDoctorCell('mat')}</td>
+                                </tr>
+
+                                <tr className="font-bold">
+                                    <td colSpan={2} className="bg-gray-100/70 py-1">4. Tai - Mũi - Họng</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div className="space-y-0.5 pl-1">
+                                            <div className="grid grid-cols-2 gap-1">
+                                                <div>Tai trái: Nói thường <strong>{clinicalExam.tai_trai_noi_thuong || '5'}</strong>m, Nói thầm <strong>{clinicalExam.tai_trai_noi_tham || '0.5'}</strong>m</div>
+                                                <div>Tai phải: Nói thường <strong>{clinicalExam.tai_phai_noi_thuong || '5'}</strong>m, Nói thầm <strong>{clinicalExam.tai_phai_noi_tham || '0.5'}</strong>m</div>
+                                            </div>
+                                            <div>
+                                                <span className="font-semibold">Các bệnh về tai mũi họng: </span>
+                                                <span>{clinicalExam.benh_tai_mui_hong || clinicalExam.ent || 'Không'}</span>
+                                            </div>
+                                        </div>
+                                        {renderPl('tai_mui_hong')}
+                                    </td>
+                                    <td className="text-center">{renderDoctorCell('tai_mui_hong')}</td>
+                                </tr>
+
+                                <tr className="font-bold">
+                                    <td colSpan={2} className="bg-gray-100/70 py-1">5. Răng - Hàm - Mặt</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div className="space-y-0.5 pl-1">
+                                            <div>
+                                                Hàm trên: <span className="font-semibold">{clinicalExam.ham_tren || 'Bình thường'}</span>; 
+                                                Hàm dưới: <span className="font-semibold">{clinicalExam.ham_duoi || 'Bình thường'}</span>
+                                            </div>
+                                            <div>
+                                                <span className="font-semibold">Các bệnh về răng hàm mặt: </span>
+                                                <span>{clinicalExam.benh_rang_ham_mat || clinicalExam.dental || 'Không'}</span>
+                                            </div>
+                                        </div>
+                                        {renderPl('rang_ham_mat')}
+                                    </td>
+                                    <td className="text-center">{renderDoctorCell('rang_ham_mat')}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Footer Page 2 */}
+                <div className="text-right text-[10px] text-gray-500 font-sans border-t border-gray-300 pt-0.5">Trang 2/3</div>
+            </div>
+
+            {/* ==================== TRANG 3: CẬN LÂM SÀNG (III) & KẾT LUẬN CHUNG (IV) ==================== */}
+            <div className="a4-page">
+                <div className="flex flex-col justify-start space-y-2">
+                    {/* III. KHÁM CẬN LÂM SÀNG */}
+                    <div>
+                        <h2 className="font-bold text-[13px] uppercase tracking-wide border-b border-black pb-0.5 mb-1.5">III. KHÁM CẬN LÂM SÀNG</h2>
+                        <table className="a4-table">
+                            <thead>
+                                <tr>
+                                    <th className="w-[70%]">Nội dung khám</th>
+                                    <th className="w-[30%]">Họ tên, chữ ký của Bác sĩ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {(() => {
+                                    const validCls = (paraclinicalItems || []).filter((item: any) => {
+                                        const val = String(item.value || item.conclusion || item.description || item.result || item.service_name || '').trim();
+                                        return val !== '' && val !== 'undefined' && val !== 'null' && val !== '...';
+                                    });
+
+                                    const bloodTests: any[] = [];
+                                    if (lab.blood_test?.glycemia || lab.blood_test?.glucose) bloodTests.push(`- Glucose: ${lab.blood_test?.glycemia || lab.blood_test?.glucose} mmol/L`);
+                                    if (lab.blood_test?.urea || lab.urea) bloodTests.push(`- Urê: ${lab.blood_test?.urea || lab.urea} mmol/L`);
+                                    if (lab.blood_test?.creatinine || lab.creatinine) bloodTests.push(`- Creatinin: ${lab.blood_test?.creatinine || lab.creatinine} µmol/L`);
+                                    if (lab.blood_test?.ast || lab.blood_test?.asat) bloodTests.push(`- ASAT (GOT): ${lab.blood_test?.ast || lab.blood_test?.asat} U/L`);
+                                    if (lab.blood_test?.alt || lab.blood_test?.alat) bloodTests.push(`- ALAT (GPT): ${lab.blood_test?.alt || lab.blood_test?.alat} U/L`);
+
+                                    const urineTests: any[] = [];
+                                    if (lab.urine_test?.protein || lab.protein) urineTests.push(`- Tổng phân tích nước tiểu (Protein: ${lab.urine_test?.protein || lab.protein} g/L)`);
+
+                                    const imagingTests: any[] = [];
+                                    if (lab.imaging?.ket_qua || lab.x_quang || lab.xq) imagingTests.push(`- X-quang: ${lab.imaging?.ket_qua || lab.x_quang || lab.xq}`);
+                                    if (lab.us?.ket_qua || lab.sieu_am) imagingTests.push(`- Siêu âm: ${lab.us?.ket_qua || lab.sieu_am}`);
+
+                                    const hasAnyCls = validCls.length > 0 || bloodTests.length > 0 || urineTests.length > 0 || imagingTests.length > 0 || !!extra.cls_khac;
+
+                                    if (!hasAnyCls) {
+                                        return (
+                                            <tr>
+                                                <td className="py-2 text-center text-slate-500 italic">
+                                                    Không có chỉ định hoặc chưa có kết quả cận lâm sàng
+                                                </td>
+                                                <td className="text-center">{renderDoctorCell('lab')}</td>
+                                            </tr>
+                                        );
+                                    }
+
+                                    return (
+                                        <>
+                                            {/* 1. Nếu có kết quả dạng bảng linh hoạt từ HIS / Chỉ định thực tế */}
+                                            {validCls.length > 0 ? (
+                                                <tr>
+                                                    <td>
+                                                        <div className="space-y-1 text-[11.5px]">
+                                                            {validCls.map((item: any, idx: number) => (
+                                                                <div key={idx} className="flex justify-between border-b border-gray-100 last:border-0 pb-0.5">
+                                                                    <span>- <strong>{item.service_name || item.name}</strong>: {item.value || item.conclusion || item.result} {item.unit ? `(${item.unit})` : ''}</span>
+                                                                    {item.reference_range && <span className="text-gray-500 text-[10.5px]">[{item.reference_range}]</span>}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </td>
+                                                    <td className="text-center">{renderDoctorCell('lab')}</td>
+                                                </tr>
+                                            ) : (
+                                                <>
+                                                    {bloodTests.length > 0 && (
+                                                        <tr>
+                                                            <td>
+                                                                <strong className="font-bold block">1. Xét nghiệm máu:</strong>
+                                                                <div className="pl-2 text-[11.5px] grid grid-cols-2 gap-y-0.5 gap-x-2 mt-0.5">
+                                                                    {bloodTests.map((t, idx) => <div key={idx}>{t}</div>)}
+                                                                </div>
+                                                            </td>
+                                                            <td className="text-center">{renderDoctorCell('lab')}</td>
+                                                        </tr>
+                                                    )}
+                                                    {urineTests.length > 0 && (
+                                                        <tr>
+                                                            <td>
+                                                                <strong className="font-bold block">2. Xét nghiệm nước tiểu:</strong>
+                                                                <div className="pl-2 text-[11.5px] mt-0.5">
+                                                                    {urineTests.map((t, idx) => <div key={idx}>{t}</div>)}
+                                                                </div>
+                                                            </td>
+                                                            <td className="text-center">{renderDoctorCell('lab')}</td>
+                                                        </tr>
+                                                    )}
+                                                    {imagingTests.length > 0 && (
+                                                        <tr>
+                                                            <td>
+                                                                <strong className="font-bold block">3. Chẩn đoán hình ảnh:</strong>
+                                                                <div className="pl-2 text-[11.5px] mt-0.5">
+                                                                    {imagingTests.map((t, idx) => <div key={idx}>{t}</div>)}
+                                                                </div>
+                                                            </td>
+                                                            <td className="text-center">{renderDoctorCell('imaging')}</td>
+                                                        </tr>
+                                                    )}
+                                                    {extra.cls_khac && (
+                                                        <tr>
+                                                            <td>
+                                                                <strong className="font-bold block">4. Cận lâm sàng khác:</strong>
+                                                                <div className="pl-2 text-[11.5px] mt-0.5">
+                                                                    - Chi tiết: <span>{extra.cls_khac}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="text-center"></td>
+                                                        </tr>
+                                                    )}
+                                                </>
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                                <tr>
+                                    <td className="py-1">
+                                        <strong className="font-bold">Đánh giá cận lâm sàng: </strong>
+                                        <span className="font-semibold">{conclusion.danh_gia || lab.danh_gia_cls || 'Bình thường'}</span>
+                                    </td>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <td className="py-1">
+                                        <strong className="font-bold">Kết luận cận lâm sàng: </strong>
+                                        <span className="font-semibold">{conclusion.diagnosis ? formatIcd10String(conclusion.diagnosis) : (lab.ket_luan_cls || 'Bình thường')}</span>
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* IV. KẾT LUẬN CHUNG */}
+                    <div className="border-t border-black pt-2 mt-1">
+                        <h2 className="font-bold text-[13px] uppercase tracking-wide mb-1.5">IV. KẾT LUẬN CHUNG</h2>
+                        
+                        <div className="text-[12.5px] space-y-1.5 leading-relaxed">
+                            <div className="flex gap-6 items-center">
+                                {renderCheckbox((conclusion.is_normal === '1' || conclusion.is_normal === 1 || !conclusion.diagnosis), 'Sức khỏe bình thường')}
+                                {renderCheckbox((conclusion.is_normal === '0' || conclusion.is_normal === 0 || !!conclusion.diagnosis), 'Các vấn đề sức khỏe cần lưu ý / Bệnh tật')}
                             </div>
                             
-                            {(conclusion.is_normal === '0' || conclusion.is_normal === 0 || conclusion.diagnosis) && (
-                                <div className="pl-6 font-bold text-slate-800">
-                                    {conclusion.diagnosis ? formatIcd10String(conclusion.diagnosis) : '...'}
+                            {(conclusion.is_normal === '0' || conclusion.is_normal === 0 || !!conclusion.diagnosis) && (
+                                <div className="pl-3 font-bold text-slate-900 mt-0.5">
+                                    Chẩn đoán: {conclusion.diagnosis ? formatIcd10String(conclusion.diagnosis) : '...'}
+                                </div>
+                            )}
+
+                            {conclusion.cac_van_de_luu_y && (
+                                <div className="pl-3 text-[12px] italic text-slate-700">
+                                    Lưu ý: {conclusion.cac_van_de_luu_y}
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    <div className="flex justify-end mt-8 px-6 text-[13px]">
-                        <div className="text-center w-80 flex flex-col items-center">
-                            <span className="italic block mb-0.5">Ngày {reportDate.day} tháng {reportDate.month} năm {reportDate.year}</span>
-                            <strong className="block font-bold uppercase tracking-wider mb-2">{L.lblNguoiKetLuan}</strong>
-                            <span className="italic text-[11px] block mb-4">{L.lblKyGhiRoDongDau}</span>
+                    {/* Chữ ký Người kết luận */}
+                    <div className="flex justify-end mt-4 px-6 text-[12.5px]">
+                        <div className="text-center w-72 flex flex-col items-center">
+                            <span className="italic block mb-0.5 text-[11.5px]">Ngày {reportDate.day} tháng {reportDate.month} năm {reportDate.year}</span>
+                            <strong className="block font-bold uppercase tracking-wider text-[12px]">NGƯỜI KẾT LUẬN</strong>
+                            <span className="italic text-[10px] block mb-2">(Ký, ghi rõ họ tên và đóng dấu)</span>
                             
                             {(() => {
                                 if (docNormalized.signature_status === 'Signed') {
                                     return (
-                                        <div className="my-2 p-2 border border-green-600 rounded bg-green-50/50 text-[11px] font-bold text-green-700 leading-tight text-left w-full shadow-sm max-w-[240px] font-sans">
-                                            <div className="flex items-center gap-1 mb-1 text-green-800">
+                                        <div className="my-1 p-1.5 border border-green-600 rounded bg-green-50/60 text-[10px] font-bold text-green-800 leading-tight text-left w-full shadow-xs max-w-[210px] font-sans">
+                                            <div className="flex items-center gap-1 mb-0.5 text-green-900">
                                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                                                 </svg>
-                                                <span>SIGNED DIGITALLY</span>
+                                                <span>ĐÃ KÝ SỐ ĐIỆN TỬ</span>
                                             </div>
-                                            By: {hospitalNameNormalized || 'Bệnh viện đa khoa tỉnh Ninh Bình'}<br/>
-                                            Time: {docNormalized.updated_at ? new Date(docNormalized.updated_at).toLocaleString('vi-VN') : '2026-06-03'}
+                                            Đơn vị: {hospitalNameNormalized || 'Bệnh viện đa khoa tỉnh Ninh Bình'}<br/>
+                                            Ngày ký: {docNormalized.updated_at ? new Date(docNormalized.updated_at).toLocaleString('vi-VN') : `${reportDate.day}/${reportDate.month}/${reportDate.year}`}
                                         </div>
                                     );
                                 }
-
-                                return <div className="h-16"></div>;
+                                return <div className="h-12"></div>;
                             })()}
                             
-                            <span className="font-bold text-[14px] mt-2 block">{getConclusionDoctorName()}</span>
+                            <strong className="font-bold text-[13px] mt-1 block">{getConclusionDoctorName()}</strong>
                         </div>
                     </div>
                 </div>
-                <div className="text-right text-[11px] text-gray-500 font-sans">Trang 4/4</div>
+
+                {/* Footer Page 3 */}
+                <div className="text-right text-[10px] text-gray-500 font-sans border-t border-gray-300 pt-0.5">Trang 3/3</div>
             </div>
         </div>
     );

@@ -913,14 +913,16 @@ async getHisPatient(req: Request, res: Response) {
                     }
                 }
 
-                // Bổ sung thông tin địa chỉ từ hms_doc nếu hồ sơ KSK chưa có
-                if ((!clinicalData.address || !clinicalData.matinh_cu_tru) && docNoVal) {
+                // Bổ sung thông tin địa chỉ & nghề nghiệp từ hms_doc nếu hồ sơ KSK chưa có
+                if ((!clinicalData.address || !clinicalData.matinh_cu_tru || !clinicalData.ma_nghe_nghiep || !clinicalData.occupation) && docNoVal) {
                     try {
                         const addrRes = await query(`
                             SELECT 
                                 COALESCE(NULLIF(TRIM(d.hd_dtladdr), ''), NULLIF(TRIM(p.hp_dtladdr), ''), hms_getaddress(COALESCE(d.hd_provid, p.hp_provid, 0), COALESCE(d.hd_distid, p.hp_distid, 0), COALESCE(d.hd_villid, p.hp_villid, 0)), '') as address,
                                 COALESCE(d.hd_provid, p.hp_provid, 0)::text as matinh_cu_tru,
-                                COALESCE(d.hd_villid, p.hp_villid, 0)::text as maxa_cu_tru
+                                COALESCE(d.hd_villid, p.hp_villid, 0)::text as maxa_cu_tru,
+                                p.hp_occupation::text as occupation,
+                                COALESCE(p.hp_workplace, '') as workplace
                             FROM hms_doc d
                             JOIN hms_patient p ON d.hd_patientno = p.hp_patientno
                             WHERE d.hd_docno = $1
@@ -931,6 +933,14 @@ async getHisPatient(req: Request, res: Response) {
                             if (!clinicalData.address && a.address) clinicalData.address = a.address;
                             if (!clinicalData.matinh_cu_tru && a.matinh_cu_tru && a.matinh_cu_tru !== '0') clinicalData.matinh_cu_tru = a.matinh_cu_tru;
                             if (!clinicalData.maxa_cu_tru && a.maxa_cu_tru && a.maxa_cu_tru !== '0') clinicalData.maxa_cu_tru = a.maxa_cu_tru;
+                            if (!clinicalData.ma_nghe_nghiep && !clinicalData.occupation && a.occupation) {
+                                clinicalData.ma_nghe_nghiep = String(a.occupation).trim();
+                                clinicalData.occupation = String(a.occupation).trim();
+                            }
+                            if (!clinicalData.noi_cong_tac_hien_tai && !clinicalData.workplace && a.workplace) {
+                                clinicalData.noi_cong_tac_hien_tai = a.workplace;
+                                clinicalData.workplace = a.workplace;
+                            }
                         }
                     } catch (addrErr) {
                         console.error('⚠️ [getHisPatient] Lỗi tra cứu address từ hms_doc:', addrErr);
@@ -981,6 +991,8 @@ async getHisPatient(req: Request, res: Response) {
                             COALESCE(d.hd_provid, p.hp_provid, 0)::text as matinh_cu_tru,
                             COALESCE(d.hd_villid, p.hp_villid, 0)::text as maxa_cu_tru,
                             p.hp_ethnic as ethnic,
+                            p.hp_occupation::text as occupation,
+                            COALESCE(p.hp_workplace, '') as workplace,
                             to_char(d.hd_admitdate, 'YYYY-MM-DD') as ngay_vao,
                             c.hc_cardno as insurance_card
                         FROM hms_doc d
@@ -1013,6 +1025,8 @@ async getHisPatient(req: Request, res: Response) {
                             COALESCE(d.hd_provid, p.hp_provid, 0)::text as matinh_cu_tru,
                             COALESCE(d.hd_villid, p.hp_villid, 0)::text as maxa_cu_tru,
                             p.hp_ethnic as ethnic,
+                            p.hp_occupation::text as occupation,
+                            COALESCE(p.hp_workplace, '') as workplace,
                             to_char(d.hd_admitdate, 'YYYY-MM-DD') as ngay_vao,
                             c.hc_cardno as insurance_card
                         FROM hms_patient p
@@ -1045,6 +1059,8 @@ async getHisPatient(req: Request, res: Response) {
                             COALESCE(d.hd_provid, p.hp_provid, 0)::text as matinh_cu_tru,
                             COALESCE(d.hd_villid, p.hp_villid, 0)::text as maxa_cu_tru,
                             p.hp_ethnic as ethnic,
+                            p.hp_occupation::text as occupation,
+                            COALESCE(p.hp_workplace, '') as workplace,
                             to_char(d.hd_admitdate, 'YYYY-MM-DD') as ngay_vao,
                             c.hc_cardno as insurance_card
                         FROM hms_doc d
@@ -1107,12 +1123,10 @@ async getHisPatient(req: Request, res: Response) {
                         try {
                             const conclRes = await query(`
                                 SELECT 
-                                    hecl_docno, hecl_theluc, hecl_noi, hecl_tuanhoan, hecl_hohap, hecl_tieuhoa,
+                                    hecl_docno, hecl_theluc, hecl_tuanhoan, hecl_hohap, hecl_tieuhoa,
                                     hecl_thantietnieu, hecl_noitiet, hecl_coxuongkhop, hecl_thankinh, hecl_tamthan,
                                     hecl_ngoai, hecl_dalieu, hecl_mat, hecl_tmh, hecl_rhm, hecl_phukhoa,
-                                    hecl_phanloai, hecl_conclusion, hecl_remark,
-                                    hecl_temperature, hecl_pulse, hecl_bloodpressure, hecl_bloodpressurex,
-                                    hecl_breathinterval, hecl_weight, hecl_height, hecl_bmi
+                                    hecl_phanloai, hecl_conclusion, hecl_remark
                                 FROM hms_exm_conclusion
                                 WHERE hecl_docno = $1
                                 LIMIT 1
@@ -1184,17 +1198,13 @@ async getHisPatient(req: Request, res: Response) {
 
                     // Format Huyết áp
                     let bpStr = '';
-                    if (conclRow?.hecl_bloodpressure && conclRow?.hecl_bloodpressurex) {
-                        bpStr = `${conclRow.hecl_bloodpressure}/${conclRow.hecl_bloodpressurex}`;
-                    } else if (examRow?.he_bloodpressure && examRow?.he_bloodpressurex) {
+                    if (examRow?.he_bloodpressure && examRow?.he_bloodpressurex) {
                         bpStr = `${examRow.he_bloodpressure}/${examRow.he_bloodpressurex}`;
-                    } else if (conclRow?.hecl_bloodpressure) {
-                        bpStr = String(conclRow.hecl_bloodpressure);
                     } else if (examRow?.he_bloodpressure) {
                         bpStr = String(examRow.he_bloodpressure);
                     }
 
-                    const internalText = conclRow?.hecl_noi || [conclRow?.hecl_tuanhoan, conclRow?.hecl_hohap, conclRow?.hecl_tieuhoa, conclRow?.hecl_thantietnieu, conclRow?.hecl_noitiet, conclRow?.hecl_coxuongkhop, examRow?.he_examine, examRow?.he_parts].filter(Boolean).map((s: string) => s.trim()).join('\n');
+                    const internalText = [conclRow?.hecl_tuanhoan, conclRow?.hecl_hohap, conclRow?.hecl_tieuhoa, conclRow?.hecl_thantietnieu, conclRow?.hecl_noitiet, conclRow?.hecl_coxuongkhop, examRow?.he_examine, examRow?.he_parts].filter(Boolean).map((s: string) => s.trim()).join('\n');
 
                     // Phân loại sức khỏe từ conclusion table
                     let resolvedFitnessClass = '1';
@@ -1222,21 +1232,26 @@ async getHisPatient(req: Request, res: Response) {
                             matinh_cu_tru: (hisRow.matinh_cu_tru && hisRow.matinh_cu_tru !== '0') ? String(hisRow.matinh_cu_tru) : '',
                             maxa_cu_tru: (hisRow.maxa_cu_tru && hisRow.maxa_cu_tru !== '0') ? String(hisRow.maxa_cu_tru) : '',
                             ethnic: hisRow.ethnic || 'Kinh',
+                            ma_nghe_nghiep: hisRow.occupation ? String(hisRow.occupation).trim() : '',
+                            occupation: hisRow.occupation ? String(hisRow.occupation).trim() : '',
+                            noi_cong_tac_hien_tai: hisRow.workplace || '',
+                            noi_cong_tac: hisRow.workplace || '',
+                            workplace: hisRow.workplace || '',
                             ngay_vao: examRow?.exam_date || hisRow.ngay_vao || '',
                             gio_kham: examRow?.exam_time || '',
                             insurance_card: hisRow.insurance_card || '',
                             examination: {
-                                height: conclRow?.hecl_height ? String(conclRow.hecl_height) : (examRow?.he_height ? String(examRow.he_height) : ''),
-                                weight: conclRow?.hecl_weight ? String(conclRow.hecl_weight) : (examRow?.he_weight ? String(examRow.he_weight) : ''),
-                                pulse: conclRow?.hecl_pulse ? String(conclRow.hecl_pulse) : (examRow?.he_pulse ? String(examRow.he_pulse) : ''),
+                                height: examRow?.he_height ? String(examRow.he_height) : '',
+                                weight: examRow?.he_weight ? String(examRow.he_weight) : '',
+                                pulse: examRow?.he_pulse ? String(examRow.he_pulse) : '',
                                 blood_pressure: bpStr,
                                 bp: bpStr,
-                                temperature: conclRow?.hecl_temperature ? String(conclRow.hecl_temperature) : (examRow?.he_temperature ? String(examRow.he_temperature) : ''),
-                                nhiet_do: conclRow?.hecl_temperature ? String(conclRow.hecl_temperature) : (examRow?.he_temperature ? String(examRow.he_temperature) : ''),
-                                breathing_rate: conclRow?.hecl_breathinterval ? String(conclRow.hecl_breathinterval) : (examRow?.he_breathinterval ? String(examRow.he_breathinterval) : ''),
-                                nhip_tho: conclRow?.hecl_breathinterval ? String(conclRow.hecl_breathinterval) : (examRow?.he_breathinterval ? String(examRow.he_breathinterval) : ''),
-                                bmi: conclRow?.hecl_bmi ? Number(conclRow.hecl_bmi).toFixed(2) : (examRow?.he_bmi ? Number(examRow.he_bmi).toFixed(2) : ''),
-                                physical_summary: conclRow?.hecl_theluc || ''
+                                temperature: examRow?.he_temperature ? String(examRow.he_temperature) : '',
+                                nhiet_do: examRow?.he_temperature ? String(examRow.he_temperature) : '',
+                                breathing_rate: examRow?.he_breathinterval ? String(examRow.he_breathinterval) : '',
+                                nhip_tho: examRow?.he_breathinterval ? String(examRow.he_breathinterval) : '',
+                                bmi: examRow?.he_bmi ? Number(examRow.he_bmi).toFixed(2) : '',
+                                physical_summary: conclRow?.hecl_theluc || examRow?.he_examine || ''
                             },
                             clinical_exam: {
                                 internal: internalText || '',
@@ -1263,6 +1278,11 @@ async getHisPatient(req: Request, res: Response) {
                             extra: {
                                 gio_kham: examRow?.exam_time || '',
                                 ngay_kham: examRow?.exam_date || hisRow.ngay_vao || '',
+                                ma_nghe_nghiep: hisRow.occupation ? String(hisRow.occupation).trim() : '',
+                                occupation: hisRow.occupation ? String(hisRow.occupation).trim() : '',
+                                noi_cong_tac_hien_tai: hisRow.workplace || '',
+                                noi_cong_tac: hisRow.workplace || '',
+                                workplace: hisRow.workplace || '',
                                 tsgd_mac_benh: histRow?.hdh_family ? '1' : '0',
                                 tsgd_ma_benh: histRow?.hdh_family ? String(histRow.hdh_family).trim() : '',
                                 ts_mac_benh: histRow?.hdh_owner ? '1' : '0',
@@ -1515,36 +1535,26 @@ async getHisPatient(req: Request, res: Response) {
                 await client.query(`
                     UPDATE hms_exm_conclusion SET
                         hecl_theluc = COALESCE(NULLIF($1, ''), hecl_theluc),
-                        hecl_noi = COALESCE(NULLIF($2, ''), hecl_noi),
-                        hecl_tuanhoan = COALESCE(NULLIF($3, ''), hecl_tuanhoan),
-                        hecl_hohap = COALESCE(NULLIF($4, ''), hecl_hohap),
-                        hecl_tieuhoa = COALESCE(NULLIF($5, ''), hecl_tieuhoa),
-                        hecl_thantietnieu = COALESCE(NULLIF($6, ''), hecl_thantietnieu),
-                        hecl_noitiet = COALESCE(NULLIF($7, ''), hecl_noitiet),
-                        hecl_coxuongkhop = COALESCE(NULLIF($8, ''), hecl_coxuongkhop),
-                        hecl_thankinh = COALESCE(NULLIF($9, ''), hecl_thankinh),
-                        hecl_tamthan = COALESCE(NULLIF($10, ''), hecl_tamthan),
-                        hecl_ngoai = COALESCE(NULLIF($11, ''), hecl_ngoai),
-                        hecl_dalieu = COALESCE(NULLIF($12, ''), hecl_dalieu),
-                        hecl_mat = COALESCE(NULLIF($13, ''), hecl_mat),
-                        hecl_tmh = COALESCE(NULLIF($14, ''), hecl_tmh),
-                        hecl_rhm = COALESCE(NULLIF($15, ''), hecl_rhm),
-                        hecl_phukhoa = COALESCE(NULLIF($16, ''), hecl_phukhoa),
-                        hecl_phanloai = COALESCE(NULLIF($17, ''), hecl_phanloai),
-                        hecl_conclusion = COALESCE(NULLIF($18, ''), hecl_conclusion),
-                        hecl_remark = COALESCE(NULLIF($19, ''), hecl_remark),
-                        hecl_temperature = COALESCE($20, hecl_temperature),
-                        hecl_pulse = COALESCE($21, hecl_pulse),
-                        hecl_bloodpressure = COALESCE($22, hecl_bloodpressure),
-                        hecl_bloodpressurex = COALESCE($23, hecl_bloodpressurex),
-                        hecl_breathinterval = COALESCE($24, hecl_breathinterval),
-                        hecl_weight = COALESCE($25, hecl_weight),
-                        hecl_height = COALESCE($26, hecl_height),
-                        hecl_bmi = COALESCE($27, hecl_bmi)
-                    WHERE hecl_docno = $28
+                        hecl_tuanhoan = COALESCE(NULLIF($2, ''), hecl_tuanhoan),
+                        hecl_hohap = COALESCE(NULLIF($3, ''), hecl_hohap),
+                        hecl_tieuhoa = COALESCE(NULLIF($4, ''), hecl_tieuhoa),
+                        hecl_thantietnieu = COALESCE(NULLIF($5, ''), hecl_thantietnieu),
+                        hecl_noitiet = COALESCE(NULLIF($6, ''), hecl_noitiet),
+                        hecl_coxuongkhop = COALESCE(NULLIF($7, ''), hecl_coxuongkhop),
+                        hecl_thankinh = COALESCE(NULLIF($8, ''), hecl_thankinh),
+                        hecl_tamthan = COALESCE(NULLIF($9, ''), hecl_tamthan),
+                        hecl_ngoai = COALESCE(NULLIF($10, ''), hecl_ngoai),
+                        hecl_dalieu = COALESCE(NULLIF($11, ''), hecl_dalieu),
+                        hecl_mat = COALESCE(NULLIF($12, ''), hecl_mat),
+                        hecl_tmh = COALESCE(NULLIF($13, ''), hecl_tmh),
+                        hecl_rhm = COALESCE(NULLIF($14, ''), hecl_rhm),
+                        hecl_phukhoa = COALESCE(NULLIF($15, ''), hecl_phukhoa),
+                        hecl_phanloai = COALESCE(NULLIF($16, ''), hecl_phanloai),
+                        hecl_conclusion = COALESCE(NULLIF($17, ''), hecl_conclusion),
+                        hecl_remark = COALESCE(NULLIF($18, ''), hecl_remark)
+                    WHERE hecl_docno = $19
                 `, [
                     examineGeneral,
-                    ce.internal || '',
                     ce.circulatory || ce.tuanhoan || ce.noi_khoa_tuan_hoan || '',
                     ce.respiratory || ce.hohap || ce.noi_khoa_ho_hap || '',
                     ce.digestive || ce.tieuhoa || ce.noi_khoa_tieu_hoa || '',
@@ -1562,33 +1572,22 @@ async getHisPatient(req: Request, res: Response) {
                     fitnessClassText,
                     diagnosis,
                     remarkAdvise,
-                    temperature,
-                    pulse,
-                    bpSystolic,
-                    bpDiastolic,
-                    breathingRate,
-                    weight,
-                    height,
-                    bmi,
                     hisDocNo
                 ]);
             } else {
                 await client.query(`
                     INSERT INTO hms_exm_conclusion (
-                        hecl_docno, hecl_theluc, hecl_noi, hecl_tuanhoan, hecl_hohap, hecl_tieuhoa,
+                        hecl_docno, hecl_theluc, hecl_tuanhoan, hecl_hohap, hecl_tieuhoa,
                         hecl_thantietnieu, hecl_noitiet, hecl_coxuongkhop, hecl_thankinh, hecl_tamthan,
                         hecl_ngoai, hecl_dalieu, hecl_mat, hecl_tmh, hecl_rhm, hecl_phukhoa,
-                        hecl_phanloai, hecl_conclusion, hecl_remark,
-                        hecl_temperature, hecl_pulse, hecl_bloodpressure, hecl_bloodpressurex,
-                        hecl_breathinterval, hecl_weight, hecl_height, hecl_bmi
+                        hecl_phanloai, hecl_conclusion, hecl_remark
                     ) VALUES (
                         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-                        $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28
+                        $18, $19
                     )
                 `, [
                     hisDocNo,
                     examineGeneral,
-                    ce.internal || '',
                     ce.circulatory || ce.tuanhoan || ce.noi_khoa_tuan_hoan || '',
                     ce.respiratory || ce.hohap || ce.noi_khoa_ho_hap || '',
                     ce.digestive || ce.tieuhoa || ce.noi_khoa_tieu_hoa || '',
@@ -1605,15 +1604,7 @@ async getHisPatient(req: Request, res: Response) {
                     ce.gynecology || ce.phukhoa || '',
                     fitnessClassText,
                     diagnosis,
-                    remarkAdvise,
-                    temperature,
-                    pulse,
-                    bpSystolic,
-                    bpDiastolic,
-                    breathingRate,
-                    weight,
-                    height,
-                    bmi
+                    remarkAdvise
                 ]);
             }
 

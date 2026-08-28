@@ -177,8 +177,20 @@ export class ReceptionController {
             emp.hee_status = 'O';
         }
 
-        // 2. Nếu bệnh nhân chưa có mã bệnh nhân (hee_patientno) trên HIS, tiến hành kiểm tra trùng CCCD trước khi tạo mới
-        if (!emp.hee_patientno || parseInt(String(emp.hee_patientno), 10) <= 0) {
+        // 2. Kiểm tra xem bệnh nhân đã tồn tại thực sự trong bảng hms_patient của HIS chưa
+        let validPatientExists = false;
+        if (emp.hee_patientno && parseInt(String(emp.hee_patientno), 10) > 0) {
+            const checkPatientRes = await query(`
+                SELECT hp_patientno 
+                FROM hms_patient 
+                WHERE hp_patientno = $1
+            `, [parseInt(String(emp.hee_patientno), 10)]);
+            if (checkPatientRes.rows.length > 0) {
+                validPatientExists = true;
+            }
+        }
+
+        if (!validPatientExists) {
             let existingPatientNo: number | null = null;
             if (emp.hee_cardid && emp.hee_cardid.trim()) {
                 const checkSinRes = await query(`
@@ -201,7 +213,7 @@ export class ReceptionController {
                 `, [existingPatientNo, employeeId]);
                 emp.hee_patientno = existingPatientNo;
             } else {
-                console.log('🔍 [Tiếp đón KSK] Bệnh nhân chưa có mã và không trùng CCCD, tiến hành sinh mã mới...');
+                console.log('🔍 [Tiếp đón KSK] Bệnh nhân chưa có mã hợp lệ trong hms_patient và không trùng CCCD, tiến hành sinh mã mới...');
                 const patientNoRes = await query(`SELECT hms_getnextpatientno() AS patient_no`);
                 if (patientNoRes.rows.length === 0 || !patientNoRes.rows[0].patient_no) {
                     throw new Error('Không thể sinh mã bệnh nhân mới từ hàm hms_getnextpatientno() trên HIS.');
@@ -211,14 +223,15 @@ export class ReceptionController {
                 console.log(`🚀 Sinh mã bệnh nhân mới thành công: ${newPatientNo}, thực hiện chèn hms_patient...`);
                 await query(`
                     INSERT INTO hms_patient (
-                        hp_patientno, hp_patientid,
+                        hp_patientno, hp_patientid, hp_sin,
                         hp_surname, hp_midname, hp_firstname,
                         hp_birthdate, hp_sex, hp_ethnic,
                         hp_provid, hp_distid, hp_villid,
                         hp_dtladdr, hp_createdby, hp_createddate
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP)
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, CURRENT_TIMESTAMP)
                 `, [
                     newPatientNo,
+                    emp.hee_cardid || '',
                     emp.hee_cardid || '',
                     emp.hee_surname || '',
                     emp.hee_midname || '',
@@ -618,7 +631,8 @@ export class ReceptionController {
     async updateEmployee(req: Request, res: Response) {
         try {
             const employeeId = parseInt(String(req.params.id), 10);
-            const {
+            let {
+                name,
                 surname,
                 midname,
                 firstname,
@@ -640,6 +654,16 @@ export class ReceptionController {
             if (!employeeId) {
                 return res.status(400).json({ error: 'Thiếu mã nhân viên' });
             }
+
+            // Nếu truyền trường name mà thiếu surname/firstname thì tự động phân tách họ tên
+            if (name && (!surname && !firstname)) {
+                const nameParts = String(name).trim().split(/\s+/);
+                firstname = nameParts.length > 0 ? nameParts.pop() || '' : '';
+                surname = nameParts.length > 0 ? nameParts.shift() || '' : '';
+                midname = nameParts.join(' ');
+            }
+
+            const normSex = (gender === 'F' || gender === 'Nữ' || gender === '2' || gender === 'female') ? 'F' : 'M';
 
             console.log('🔄 [updateEmployee] Cập nhật nhân viên:', { employeeId, surname, midname, firstname, cardId, provId, villId });
 
@@ -705,7 +729,7 @@ export class ReceptionController {
                 midname || '',
                 firstname || '',
                 dob || null,
-                gender || 'M',
+                normSex,
                 cardId || '',
                 phone || '',
                 address || '',
@@ -742,21 +766,19 @@ export class ReceptionController {
                                 hp_birthdate = $4,
                                 hp_sex = $5,
                                 hp_sin = $6,
-                                hp_telephone = $7,
-                                hp_dtladdr = $8,
-                                hp_provid = $9,
-                                hp_distid = $10,
-                                hp_villid = $11,
-                                hp_ethnic = $12
-                            WHERE hp_patientno = $13
+                                hp_dtladdr = $7,
+                                hp_provid = $8,
+                                hp_distid = $9,
+                                hp_villid = $10,
+                                hp_ethnic = $11
+                            WHERE hp_patientno = $12
                         `, [
                             surname || '',
                             midname || '',
                             firstname || '',
                             dob || null,
-                            gender || 'M',
+                            normSex,
                             cardId || '',
-                            phone || '',
                             address || '',
                             provNum,
                             distId ? parseInt(String(distId), 10) : null,
@@ -766,6 +788,19 @@ export class ReceptionController {
                         ]);
                     } catch (pErr) {
                         console.warn('⚠️ [updateEmployee] Không thể đồng bộ hms_patient:', pErr);
+                    }
+                }
+
+                // Đồng bộ số điện thoại sang hms_doc nếu đã có đợt khám
+                if (docNo) {
+                    try {
+                        await query(`
+                            UPDATE hms_doc
+                            SET hd_telephone = $1
+                            WHERE hd_docno = $2
+                        `, [phone || '', parseInt(docNo, 10)]);
+                    } catch (dErr) {
+                        console.warn('⚠️ [updateEmployee] Không thể đồng bộ hd_telephone trong hms_doc:', dErr);
                     }
                 }
 

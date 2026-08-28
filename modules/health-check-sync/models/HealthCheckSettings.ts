@@ -61,7 +61,7 @@ export class HealthCheckSettings implements SettingsData {
     hsm_client_secret?: string = '';
     reception_slip_template: string = `<div class="receipt-card">
     <div class="header">
-        <div class="hospital-name">BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH</div>
+        <div class="hospital-name">{{hospital}}</div>
         <div class="sub-header">KHOA KHÁM BỆNH - KHÁM SỨC KHỎE</div>
         <div class="title">PHIẾU TIẾP ĐÓN</div>
     </div>

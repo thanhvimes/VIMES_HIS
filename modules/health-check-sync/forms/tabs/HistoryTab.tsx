@@ -145,6 +145,10 @@ const HistoryTab: React.FC = () => {
         setDgDhstNhipTho,
         pulse,
         setPulse,
+        bp,
+        setBp,
+        khamTheLucPl,
+        setKhamTheLucPl,
         height,
         setHeight,
         weight,
@@ -387,8 +391,96 @@ const HistoryTab: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* ĐÁNH GIÁ DẤU HIỆU SINH TỒN & THỂ LỰC (Chỉ hiển thị cho Trẻ em / Mẫu 1 & 2 Nhi khoa) */}
-                    {((isChild || formType === '2') && formType !== '1' && formType !== '3') && (
+                    {/* ĐÁNH GIÁ THỂ LỰC & DẤU HIỆU SINH TỒN (Chuẩn QĐ 1551 cho Mẫu 2 - Người từ 06 đến dưới 18 tuổi) */}
+                    {formType === '2' && (
+                    <div className="p-4 bg-slate-50/50 dark:bg-slate-800/20 border border-slate-200 dark:border-slate-700/60 rounded-xl space-y-4 shadow-sm">
+                        <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700/50 pb-2 flex items-center justify-between">
+                            <span>IV. Khám thể lực (Chuẩn QĐ 1551 mục 30-35)</span>
+                            <span className="text-[10px] normal-case text-slate-500 font-semibold">* Chiều cao, Cân nặng, BMI, Mạch, Huyết áp, Phân loại</span>
+                        </h4>
+                        
+                        {/* Chiều cao, Cân nặng, BMI */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-slate-100 dark:border-slate-700/30 pb-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">30. Chiều cao (cm) (CHIEU_CAO)</label>
+                                <input
+                                    type="text"
+                                    value={height}
+                                    onChange={e => setHeight(e.target.value)}
+                                    disabled={isLocked}
+                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
+                                    placeholder="Nhập chiều cao (cm)"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">31. Cân nặng (kg) (CAN_NANG)</label>
+                                <input
+                                    type="text"
+                                    value={weight}
+                                    onChange={e => setWeight(e.target.value)}
+                                    disabled={isLocked}
+                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
+                                    placeholder="Nhập cân nặng (kg)"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">32. Chỉ số BMI (CHI_SO_BMI)</label>
+                                <input
+                                    type="text"
+                                    value={bmi}
+                                    disabled
+                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-100 dark:bg-slate-700/40 text-slate-500 dark:text-slate-300 font-bold"
+                                    placeholder="Tự động tính..."
+                                />
+                            </div>
+                        </div>
+
+                        {/* Mạch, Huyết áp, Phân loại thể lực */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">33. Mạch (lần/phút) (MACH)</label>
+                                <input
+                                    type="text"
+                                    value={pulse}
+                                    onChange={e => setPulse(e.target.value)}
+                                    disabled={isLocked}
+                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
+                                    placeholder="Nhập mạch (lần/phút)"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">34. Huyết áp (mmHg) (HUYET_AP)</label>
+                                <input
+                                    type="text"
+                                    value={bp}
+                                    onChange={e => setBp(e.target.value)}
+                                    disabled={isLocked}
+                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
+                                    placeholder="VD: 110/70"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">35. Phân loại thể lực (KHAM_THE_LUC_PL)</label>
+                                <select
+                                    value={khamTheLucPl}
+                                    onChange={e => setKhamTheLucPl(e.target.value)}
+                                    disabled={isLocked}
+                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold text-[#0f766e] dark:text-teal-400"
+                                >
+                                    <option value="">-- Chọn phân loại --</option>
+                                    <option value="1">Loại I (Rất khỏe)</option>
+                                    <option value="2">Loại II (Khỏe)</option>
+                                    <option value="3">Loại III (Trung bình)</option>
+                                    <option value="4">Loại IV (Yếu)</option>
+                                    <option value="5">Loại V (Rất yếu)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    )}
+
+                    {/* ĐÁNH GIÁ DẤU HIỆU SINH TỒN (Chỉ hiển thị cho Trẻ nhỏ specialized ngoài Mẫu 1, 2, 3) */}
+                    {(isChild && formType !== '1' && formType !== '2' && formType !== '3') && (
                     <div className="p-4 bg-slate-50/50 dark:bg-slate-800/20 border border-slate-200 dark:border-slate-700/60 rounded-xl space-y-4 shadow-sm">
                         <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700/50 pb-2">Đánh giá dấu hiệu sinh tồn &amp; Thể lực</h4>
                         
@@ -450,7 +542,7 @@ const HistoryTab: React.FC = () => {
                                             <button
                                                 key={opt.value}
                                                 type="button"
-                                                disabled={isTabLocked}
+                                                disabled={isLocked}
                                                 onClick={() => setDgDhstNhietDo(opt.value)}
                                                 className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
                                                     dgDhstNhietDo === opt.value
@@ -487,7 +579,7 @@ const HistoryTab: React.FC = () => {
                                             <button
                                                 key={opt.value}
                                                 type="button"
-                                                disabled={isTabLocked}
+                                                disabled={isLocked}
                                                 onClick={() => setDgDhstMach(opt.value)}
                                                 className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
                                                     dgDhstMach === opt.value
@@ -525,7 +617,7 @@ const HistoryTab: React.FC = () => {
                                             <button
                                                 key={opt.value}
                                                 type="button"
-                                                disabled={isTabLocked}
+                                                disabled={isLocked}
                                                 onClick={() => setDgDhstNhipTho(opt.value)}
                                                 className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
                                                     dgDhstNhipTho === opt.value

@@ -49,7 +49,7 @@ export class ContractsController {
                     vneid_public_key: '',
                     reception_slip_template: `<div class="receipt-card">
     <div class="header">
-        <div class="hospital-name">BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH</div>
+        <div class="hospital-name">{{hospital}}</div>
         <div class="sub-header">KHOA KHÁM BỆNH - KHÁM SỨC KHỎE</div>
         <div class="title">PHIẾU TIẾP ĐÓN</div>
     </div>

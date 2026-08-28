@@ -1,0 +1,76 @@
+================================================================================
+BÁO CÁO TỔNG HỢP NỘI DUNG CHỈNH SỬA & NÂNG CẤP HỆ THỐNG
+Thời gian: 13/08/2026 - 27/08/2026
+Phân hệ trọng tâm: Khám Sức Khỏe (KSK), Liên Thông VNeID/BHYT & Tích Hợp HIS Core
+================================================================================
+
+1. ĐỒNG BỘ DỮ LIỆU HIS CORE <-> PHÂN HỆ KSK (13/08 - 15/08/2026)
+--------------------------------------------------------------------------------
+- KSK-HIS-001: Chuẩn hóa tiền sử dạng text gõ tay từ HIS sang mã ICD-10 XML.
+- KSK-HIS-002: Bổ sung đồng bộ địa chỉ hành chính (Tỉnh/Huyện/Xã) sang KSK và XML.
+- KSK-HIS-003: Lấy đầy đủ mô tả chi tiết, kết luận X-quang/siêu âm từ PACS.
+- KSK-HIS-004: Đồng bộ các chỉ số sinh hiệu (mạch, huyết áp, cân nặng, chiều cao, BMI) thời gian thực từ hms_exam.
+- KSK-HIS-005: Chuẩn hóa đối tượng viện phí, mặc định gán hd_object = 7 (Dịch vụ) khi tiếp đón KSK.
+- KSK-HIS-006: Chuẩn hóa toàn bộ thời gian khám/tiếp nhận về múi giờ GMT+7 (Asia/Bangkok).
+- KSK-HIS-007: Tách biệt rule kiểm tra CLS giữa Mẫu 1 (Trẻ em), Mẫu 2 (Học sinh), Mẫu 3 (Người lớn) và Giấy lái xe.
+- KSK-HIS-008: Lấy kết luận chẩn đoán HIS làm gợi ý ban đầu, cho phép bác sĩ KSK chỉnh sửa trước khi ký số.
+- KSK-HIS-009: Bổ sung tính năng hủy/mở khóa ký số có kiểm soát quyền và ghi Audit Log.
+- KSK-HIS-010: Kiểm tra hồ sơ miễn giảm cũ còn hiệu lực trước khi tạo đợt khám mới.
+
+2. NÂNG CẤP THEO YÊU CẦU ĐỢT 17/08 & 18/08/2026
+--------------------------------------------------------------------------------
+- Tách luồng "Lưu hồ sơ" (lưu nháp không chặn kết luận) và "Khóa & Ký số" (bắt buộc kết luận).
+- Xóa bỏ triệt để giá trị mặc định ("Bình thường", "10/10") ở các chuyên khoa chưa khám để chống khai khống bệnh án.
+- Bổ sung nút và Modal "+ Thêm dịch vụ từ danh mục" tại tab Cận lâm sàng.
+- Sửa lỗi vỡ font/mờ nhạt trên Windows 7: Ép font Times New Roman và màu chữ đen thuần (#000000).
+- Khôi phục và in đầy đủ tiền sử Bệnh khác (kèm mã ICD-10), thuốc đang điều trị, thuốc thai sản.
+- Mẫu 2: Mở mục 26-28 (tiền sử sản khoa lúc sinh) cho cả Nam và Nữ theo đúng QĐ 1551; bổ sung trường "Khám lâm sàng khác" (NHI_KHOA_LAM_SANG_KHAC).
+- In nhãn Barcode Xét nghiệm: Kết nối nút "In Code" trực tiếp tới Modal in tem barcode.
+- Hoàn thiện module Thiết lập Biểu mẫu (Template Studio) & dịch vụ ký số PAdES / XMLDSig.
+
+3. HOÀN THIỆN YÊU CẦU 9 TRANG THEO QĐ 1551 & QĐ 2062 (19/08/2026)
+--------------------------------------------------------------------------------
+- Trang 1: Sắp xếp lại chỉ tiêu tiền sử Mẫu 3 (mục 11 Nghiện rượu bia tách độc lập; mục 22 Bệnh khác; mục 23 Thai sản).
+- Trang 2: Ẩn khối tiền sử sản phụ khoa người lớn (II.3) khi mở Mẫu 3.
+- Trang 3: Bổ sung trường "Tình trạng sức khỏe; mắc các bệnh, tật (nếu có)" (CAC_BENH_TAT_NEU_CO - Mục 121 QĐ 2062).
+- Trang 4: Sửa lỗi Import Excel bị cắt mất số 0 ở đầu mã Tỉnh/Xã (lưu dạng VARCHAR chuẩn).
+- Trang 5: Xóa bỏ dữ liệu CDATA fake fallback của Cận lâm sàng trong XML generator.
+- Trang 6: Phân biệt chính xác tiêu đề bản in Mẫu 3 giữa KSK Người lớn định kỳ và Giấy KSK Lái xe.
+- Trang 7-9: Mẫu 2 bổ sung mục 36-39 (thuốc đang dùng, bệnh đang điều trị), chuẩn hóa tiền sử sản khoa 26-28 và khám lâm sàng khác.
+
+4. NÂNG CẤP IN ẤN, TIẾP ĐÓN TẤT CẢ & IMPORT EXCEL (20/08/2026)
+--------------------------------------------------------------------------------
+- In ấn phân trang động (Dynamic Pagination): Tự động gộp gọn 3 trang nếu ít dịch vụ CLS (<= 3), hoặc chia nhiều trang thông minh nếu nhiều chỉ định; đánh số trang chuẩn (Trang X/N).
+- Hiển thị đầy đủ huyết áp kèm đơn vị mmHg trên bản in thể lực.
+- Chức năng "Tiếp đón tất cả" (Bulk Reception): Bổ sung nút tiếp đón hàng loạt toàn bộ nhân viên trong gói khám, tự động sinh số hồ sơ KSK (doc_no) và nạp dịch vụ vào hms_fee.
+- Tối ưu Import Excel: Tự động chuẩn hóa độ dài CCCD (12 số), SĐT (10 số), ngày cấp; loại bỏ N+1 query và bọc Transaction Batch Insert giúp xử lý hàng nghìn hồ sơ trong vài trăm mili-giây.
+
+5. SỬA LỖI XUẤT XML LIÊN THÔNG VNeID / BHYT (21/08/2026)
+--------------------------------------------------------------------------------
+- Sửa lỗi Phân loại sức khỏe luôn ra Loại 1 (ánh xạ đúng fitness_class, hỗ trợ số La Mã I-V -> 1-5).
+- Sửa lỗi CAC_VAN_DE_SUC_KHOE và KET_LUAN_BENH bị fallback cố định.
+- Khắc phục 10 trường lâm sàng Trẻ em dưới 6 tuổi (Mẫu 1) bị về 0 trong XML.
+- Sửa điều kiện kiểm tra độ dài mã xã (MAXA_CU_TRU) không bị ép về 00001.
+- Khử dấu tiếng Việt khi kiểm tra trạng thái duyệt chuyên khoa (DA_KHAM, DA_DUYET).
+- Xây dựng bộ test suite tự động cho XML liên thông (Pass 100%).
+
+6. XỬ LÝ LỖI NGÀY SINH & BẢO VỆ DỮ LIỆU ĐA BÀN KHÁM (22/08/2026)
+--------------------------------------------------------------------------------
+- Khắc phục triệt để lỗi lùi 1 ngày sinh do lệch múi giờ UTC: Cấu hình PostgreSQL Type Parser OID 1082 trả về chuỗi YYYY-MM-DD nguyên bản và xây dựng bộ format date chuẩn địa phương.
+- Cơ chế Deep-Merge & Khóa bản ghi (FOR UPDATE): Chống ghi đè/mất dữ liệu khi nhiều bàn khám (Nội, Mắt, TMH, RHM, CLS...) cùng mở một hồ sơ và duyệt ở các thời điểm khác nhau.
+- Tự động tái tạo XML VNeID hoàn chỉnh sau mỗi lần hợp nhất dữ liệu đa bàn khám.
+
+7. KHẮC PHỤC LỖI CỔNG, ĐẨY DỮ LIỆU 2 CHIỀU & NÂNG CẤP UI/UX (24/08 - 26/08/2026)
+--------------------------------------------------------------------------------
+- Khắc phục lỗi Gateway ERROR_99: Chuẩn hóa cấu trúc XML Envelope (<SOLUONGHOSO>, <DANH_SACH_HOSO>, <NOIDUNGFILE> Base64 UTF-8) và thẻ cha XML11 <DANH_SACH_CLS>.
+- Ánh xạ mã dịch vụ CLS chuẩn XML11: Lấy từ trường hfl_ma_chi_so trong hms_fee_list.
+- Tự động sinh lại (auto-regenerate) XML hợp lệ khi truy vấn các hồ sơ cũ.
+- Đẩy ngược kết quả KSK về HIS Core (pushbackClinicalAndConclusion): Tự động đẩy sinh hiệu, lâm sàng, kết luận chẩn đoán về hms_exam, hms_disease_hist, cập nhật trạng thái đóng đợt khám (he_status='T', hd_status='T', hee_status='T').
+- Nâng cấp Giao diện Điều hướng Khám (UI/UX): Thiết kế hệ thống Tab chính và Sub-tabs chuyên khoa dạng thẻ High-Contrast, bổ sung badge trạng thái rõ nét (Chưa khám / Đang khám / Đã duyệt) và nút "Duyệt chuyên khoa" riêng biệt cho từng bàn khám.
+
+================================================================================
+KẾT QUẢ HIỆN TẠI:
+- Frontend & Backend Typecheck: 0 Errors (Exit code 0).
+- Hệ thống hoạt động an toàn, đồng bộ 2 chiều trơn tru giữa HIS Core và Module KSK.
+- Bản in và file XML liên thông đạt chuẩn 100% theo QĐ 1551/QĐ-BYT & QĐ 2062/QĐ-BYT.
+================================================================================

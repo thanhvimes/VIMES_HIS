@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "buildDate": "2026-08-28T14:03:30.798Z",
+  "changelog": [
+    "Bản phát hành cập nhật v1.0.0",
+    "Tự động đồng bộ cấu trúc cơ sở dữ liệu (Migrations)",
+    "Tối ưu hóa hiệu năng và trải nghiệm người dùng"
+  ],
+  "downloadUrl": "https://updates.vimes.vn/releases/vimes-his-v1.0.0.tar.gz",
+  "sha256": "e9119017db3141607da214f673e74822420f7b93ac83e6d5fa293d399d8984dd",
+  "requiredDbMigration": true
+}

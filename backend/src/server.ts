@@ -142,6 +142,7 @@ import aiRoutes from './routes/ai.routes';
 import documentRoutes from './routes/document.routes';
 import emrRoutes from './routes/emr.routes';
 import statisticsRoutes from './routes/statistics.routes';
+import systemUpdateRoutes from './routes/system-update.routes';
 
 
 const SERVER_BUILD_TIME = Date.now();
@@ -191,6 +192,7 @@ app.use('/api/v1/template-studio', templateStudioRoutes);
 app.use('/api/v1/signatures', documentSignatureRoutes);
 app.use('/api/v1/emr', emrRoutes);
 app.use('/api/v1/statistics', statisticsRoutes);
+app.use('/api/v1/system-update', systemUpdateRoutes);
 
 // Error handling middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

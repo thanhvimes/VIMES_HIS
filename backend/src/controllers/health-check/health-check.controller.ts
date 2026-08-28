@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { documentsController } from './documents';
 import { hisIntegrationController } from './his-integration';
+import { batchSyncController } from './batch-sync.controller';
 
 class HealthCheckController {
     // 1. Lấy danh sách hồ sơ (kèm phân trang, lọc nâng cao)
@@ -50,6 +51,11 @@ class HealthCheckController {
     // 9. Lấy dữ liệu bệnh nhân từ HIS để đồng bộ KSK
     async getHisPatient(req: Request, res: Response) {
         return hisIntegrationController.getHisPatient(req, res);
+    }
+
+    // 10. Đồng bộ hàng loạt từ HIS qua danh sách số hồ sơ (từ Excel)
+    async batchSyncHis(req: Request, res: Response) {
+        return batchSyncController.batchSyncHis(req, res);
     }
 
     // Đánh dấu đã in barcode

@@ -50,22 +50,18 @@ const SpecialtyCard: React.FC<SpecialtyCardProps> = ({ specialtyKey, title, chil
         }
         
         if (setSpecialtyMetadata) {
-            setSpecialtyMetadata(prev => {
-                const updated = {
-                    ...prev,
-                    [specialtyKey]: payload
-                };
-                if (action === 'DUYỆT' && handleSubmit) {
-                    setTimeout(() => {
-                        handleSubmit();
-                    }, 100);
-                }
-                return updated;
-            });
+            const updated = {
+                ...safeMetadata,
+                [specialtyKey]: payload
+            };
+            setSpecialtyMetadata(updated);
+            if (action === 'DUYỆT' && handleSubmit) {
+                (handleSubmit as any)({ overrideMetadata: updated });
+            }
         }
     };
 
-    const isLocked = parentIsLocked || (metadata?.status !== 'ĐANG_KHÁM' && metadata?.status !== 'ĐÃ_KHÁM');
+    const isLocked = parentIsLocked || metadata?.status === 'ĐÃ_DUYỆT';
 
     const renderBadge = () => {
         switch (metadata?.status) {

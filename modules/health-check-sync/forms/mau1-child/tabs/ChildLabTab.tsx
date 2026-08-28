@@ -50,13 +50,9 @@ const ChildLabTab: React.FC = () => {
             setSpecialtyMetadata(prev => ({ ...prev, lab: payload }));
         } else if (action === 'DUYỆT') {
             payload.status = 'ĐÃ_DUYỆT';
-            setSpecialtyMetadata(prev => {
-                const updated = { ...prev, lab: payload };
-                setTimeout(() => {
-                    handleSubmit();
-                }, 100);
-                return updated;
-            });
+            const updatedMetadata = { ...safeMetadata, lab: payload };
+            setSpecialtyMetadata(updatedMetadata);
+            handleSubmit({ overrideMetadata: updatedMetadata });
         } else if (action === 'MỞ_KHÓA') {
             payload.status = 'ĐANG_KHÁM';
             setSpecialtyMetadata(prev => ({ ...prev, lab: payload }));

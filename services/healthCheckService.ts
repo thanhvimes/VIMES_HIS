@@ -222,6 +222,18 @@ export const healthCheckService = {
         }
     },
 
+    batchSyncHis: async (docNos: (number | string)[], overwrite: boolean = true): Promise<any> => {
+        try {
+            return await apiClient.post<any>('/health-check-sync/batch-sync-his', {
+                docNos,
+                overwrite
+            });
+        } catch (error) {
+            console.error("Error batch syncing HIS documents:", error);
+            throw error;
+        }
+    },
+
     getContracts: async (filters?: { startDate?: string; endDate?: string }): Promise<any[]> => {
         try {
             const params = new URLSearchParams();

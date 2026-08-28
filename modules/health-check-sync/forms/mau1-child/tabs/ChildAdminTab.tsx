@@ -101,17 +101,9 @@ const ChildAdminTab: React.FC = () => {
             }));
         } else if (action === 'DUYỆT') {
             payload.status = 'ĐÃ_DUYỆT';
-            
-            setSpecialtyMetadata(prev => {
-                const updated = {
-                    ...prev,
-                    admin: payload
-                };
-                setTimeout(() => {
-                    handleSubmit();
-                }, 100);
-                return updated;
-            });
+            const updatedMetadata = { ...safeMetadata, admin: payload };
+            setSpecialtyMetadata(updatedMetadata);
+            handleSubmit({ overrideMetadata: updatedMetadata });
         } else if (action === 'MỞ_KHÓA') {
             payload.status = 'ĐANG_KHÁM';
             
@@ -464,14 +456,16 @@ const ChildAdminTab: React.FC = () => {
                                 {errors.phone && <span className="text-red-500 text-[11px] font-semibold mt-1 block">{errors.phone}</span>}
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">15. Số định danh người giám hộ</label>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">
+                                    15. Số định danh người giám hộ <span className="text-red-500">*</span>
+                                </label>
                                 <input
                                     type="text"
                                     value={guardianCccd}
                                     onChange={e => setGuardianCccd(e.target.value.replace(/\D/g, '').slice(0, 12))}
                                     maxLength={12}
-                                    className={`w-full h-[38px] px-3 border rounded-lg text-sm bg-slate-50 dark:bg-slate-700 font-mono font-bold ${errors.guardianCccd ? 'border-red-500 bg-red-50 text-red-700 dark:text-red-300' : 'border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white'}`}
-                                    placeholder="Số định danh 12 chữ số"
+                                    className={`w-full h-[38px] px-3 border rounded-lg text-sm bg-slate-50 dark:bg-slate-700 font-mono font-bold ${errors.guardianCccd ? 'border-red-500 bg-red-50 text-red-700 dark:text-red-300 ring-1 ring-red-500' : 'border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white'}`}
+                                    placeholder="Số định danh 9 hoặc 12 chữ số"
                                 />
                                 {errors.guardianCccd && <span className="text-red-500 text-[11px] font-semibold mt-1 block">{errors.guardianCccd}</span>}
                             </div>
@@ -479,14 +473,17 @@ const ChildAdminTab: React.FC = () => {
 
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">16. Họ tên người giám hộ</label>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">
+                                    16. Họ tên người giám hộ <span className="text-red-500">*</span>
+                                </label>
                                 <input
                                     type="text"
                                     value={guardianName}
                                     onChange={e => setGuardianName(e.target.value)}
-                                    className="w-full h-[38px] px-3 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white"
+                                    className={`w-full h-[38px] px-3 border rounded-lg text-sm bg-slate-50 dark:bg-slate-700 font-bold ${errors.guardianName ? 'border-red-500 bg-red-50 text-red-700 dark:text-red-300 ring-1 ring-red-500' : 'border-slate-300 dark:border-slate-600 text-slate-800 dark:text-white'}`}
                                     placeholder="Họ tên người giám hộ"
                                 />
+                                {errors.guardianName && <span className="text-red-500 text-[11px] font-semibold mt-1 block">{errors.guardianName}</span>}
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">17. Con thứ mấy</label>

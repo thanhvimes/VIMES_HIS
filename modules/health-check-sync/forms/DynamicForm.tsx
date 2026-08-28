@@ -293,9 +293,19 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                             <select
                                 value={formType}
                                 onChange={e => {
-                                    if (window.confirm("Thay đổi mẫu biểu áp dụng có thể thay đổi cấu trúc và làm mất các trường dữ liệu đặc thù. Bạn có chắc chắn muốn thay đổi?")) {
-                                        onChangeFormType(e.target.value);
-                                    }
+                                    const nextVal = e.target.value;
+                                    if (nextVal === formType) return;
+                                    setConfirmConfig({
+                                        isOpen: true,
+                                        title: "Chuyển đổi mẫu biểu áp dụng",
+                                        message: "Thay đổi mẫu biểu áp dụng có thể thay đổi cấu trúc và các trường dữ liệu đặc thù theo độ tuổi. Bạn có chắc chắn muốn chuyển đổi sang mẫu biểu này?",
+                                        severity: "warning",
+                                        confirmText: "Chuyển đổi",
+                                        cancelText: "Hủy bỏ",
+                                        onConfirm: () => {
+                                            onChangeFormType(nextVal);
+                                        }
+                                    });
                                 }}
                                 disabled={isLocked}
                                 className="bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-lg px-3 py-1.5 text-sm font-bold focus:ring-2 focus:ring-white focus:outline-none cursor-pointer w-full lg:w-[280px] disabled:opacity-55 disabled:cursor-not-allowed"
