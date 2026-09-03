@@ -501,16 +501,48 @@ const HealthCheckSyncView: React.FC = () => {
         }
 
         setIsSending(true);
-        const toastId = toast.loading(`Đang đồng bộ liên thông ${selectedIds.size} hồ sơ lên VNeID...`);
+        const idsToSend = Array.from(selectedIds) as string[];
+        const toastId = toast.loading(`Bắt đầu đồng bộ liên thông ${idsToSend.length} hồ sơ lên VNeID...`);
+        let failedCount = 0;
+        let successCount = 0;
+        const failedIds: string[] = [];
+
         try {
-            const idsToSend = Array.from(selectedIds) as string[];
-            const failedIds = await healthCheckService.sendDocumentsToPortal(idsToSend);
+            for (let i = 0; i < idsToSend.length; i++) {
+                const docId = idsToSend[i];
+                const docObj = documents.find(d => d.id.toString() === docId);
+                const patientDesc = docObj?.patient_name ? ` (BN: ${docObj.patient_name})` : '';
+
+                toast.loading(`[${i + 1}/${idsToSend.length}] Đang gửi hồ sơ ${docObj?.doc_no || docId}${patientDesc}...`, { id: toastId });
+
+                try {
+                    const resultFailed = await healthCheckService.sendDocumentsToPortal([docId]);
+                    if (resultFailed && resultFailed.length > 0) {
+                        failedCount++;
+                        failedIds.push(docId);
+                    } else {
+                        successCount++;
+                    }
+                } catch (sendErr: any) {
+                    console.error(`Lỗi gửi hồ sơ ID ${docId}:`, sendErr);
+                    failedCount++;
+                    failedIds.push(docId);
+                }
+
+                // Dừng nhẹ 500ms giữa các hồ sơ để tránh nghẽn Gateway
+                if (i < idsToSend.length - 1) {
+                    await new Promise(r => setTimeout(r, 500));
+                }
+            }
+
             await loadData();
             
-            if (failedIds.length > 0) {
-                toast.error(`Đồng bộ hoàn tất với ${failedIds.length} lỗi. Vui lòng kiểm tra lại.`, { id: toastId });
+            if (failedCount > 0 && successCount > 0) {
+                toast.warning(`Đã hoàn tất: ${successCount} thành công, ${failedCount} lỗi. Vui lòng xem cột trạng thái để kiểm tra chi tiết.`, { id: toastId });
+            } else if (failedCount > 0 && successCount === 0) {
+                toast.error(`Đồng bộ thất bại toàn bộ ${failedCount} hồ sơ. Vui lòng xem log chi tiết.`, { id: toastId });
             } else {
-                toast.success(`Liên thông thành công ${idsToSend.length} hồ sơ khám sức khỏe lên cổng VNeID!`, { id: toastId });
+                toast.success(`Liên thông thành công toàn bộ ${successCount} hồ sơ khám sức khỏe lên cổng VNeID!`, { id: toastId });
                 setSearchParams({ step: 'manage' }); // Redirect to manage
             }
             

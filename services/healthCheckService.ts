@@ -154,7 +154,7 @@ export const healthCheckService = {
 
     sendDocumentsToPortal: async (docIds: string[]): Promise<string[]> => {
         try {
-            return await apiClient.post<string[]>('/health-check-sync/documents/send', { docIds });
+            return await apiClient.post<string[]>('/health-check-sync/documents/send', { docIds }, { timeout: 120000 });
         } catch (error) {
             console.error("Error sending health check documents:", error);
             throw error;

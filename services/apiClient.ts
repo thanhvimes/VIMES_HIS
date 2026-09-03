@@ -27,6 +27,7 @@ interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
   skipAuthRedirect?: boolean;
   responseType?: 'json' | 'blob' | 'text';
+  timeout?: number;
 }
 
 class ApiClient {
@@ -51,7 +52,7 @@ class ApiClient {
   }
 
   private async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-    const { params, headers, skipAuthRedirect, responseType = 'json', ...restOptions } = options;
+    const { params, headers, skipAuthRedirect, responseType = 'json', timeout: customTimeout, ...restOptions } = options;
 
     let url = `${this.baseUrl}${endpoint}`;
     if (params) {
@@ -78,7 +79,8 @@ class ApiClient {
     };
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
+    const effectiveTimeout = customTimeout ?? TIMEOUT;
+    const timeoutId = setTimeout(() => controller.abort(), effectiveTimeout);
 
     try {
       console.log(`[API Request] ${options.method || 'GET'} ${url}`);

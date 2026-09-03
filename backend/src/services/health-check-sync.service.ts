@@ -6,12 +6,20 @@ import { getHealthCheckSettings, loadHealthCheckSettings } from '../config/healt
 
 import axios from 'axios';
 import crypto from 'crypto';
+import https from 'https';
 import { buildHealthCheckSyncPayload } from './health-check-sync-payload';
 import { validateDocumentBeforeSync } from './health-check-sync-validation';
 import { createHealthCheckChecksumSignature } from './health-check-checksum';
 import { isRetryableSyncFailure } from './health-check-sync-retry';
 import { validateHealthCheckEnvelope } from './health-check-xml-validation';
 import { resolveProvinceBhCode, resolveVillageBhCode } from './administrative-catalog.service';
+
+const syncHttpsAgent = new https.Agent({
+    keepAlive: true,
+    maxSockets: 5,
+    timeout: 90000,
+    keepAliveMsecs: 15000
+});
 
 let syncIntervalKey: NodeJS.Timeout | null = null;
 
@@ -540,21 +548,44 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                     console.log(`🔍 [VNeID Sync DEBUG] Decoded XML First 1000 Chars:\n${decodedXml.substring(0, 1000)}`);
                 } catch (e) {}
 
-                const pushRes: any = await axios.post(finalPushUrl, payload, {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                        'service-type': '100'
-                    },
-                    timeout: 30000
-                });
+                let pushRes: any = null;
+                let attempt = 0;
+                const maxAttempts = 2;
 
-                const resCode = String(pushRes.data?.header?.res_code || pushRes.data?.res_code || '').trim();
-                const resMsg = pushRes.data?.header?.res_msg || pushRes.data?.res_msg || '';
-                responseLog = JSON.stringify(pushRes.data);
+                while (attempt < maxAttempts) {
+                    attempt++;
+                    try {
+                        pushRes = await axios.post(finalPushUrl, payload, {
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`,
+                                'service-type': '100'
+                            },
+                            httpsAgent: syncHttpsAgent,
+                            timeout: 90000
+                        } as any);
+                        break;
+                    } catch (reqErr: any) {
+                        const isNetworkOrTimeout = reqErr.code === 'ECONNABORTED' 
+                            || reqErr.code === 'ETIMEDOUT' 
+                            || reqErr.code === 'ECONNRESET'
+                            || (reqErr.message && reqErr.message.includes('timeout'));
+
+                        if (isNetworkOrTimeout && attempt < maxAttempts) {
+                            console.warn(`⚠️ [VNeID Sync] Cổng phản hồi quá hạn (Lần ${attempt}). Đang tự động thử lại sau 2 giây cho hồ sơ ${doc.doc_no}...`);
+                            await new Promise(r => setTimeout(r, 2000));
+                            continue;
+                        }
+                        throw reqErr;
+                    }
+                }
+
+                const resCode = String(pushRes?.data?.header?.res_code || pushRes?.data?.res_code || '').trim();
+                const resMsg = pushRes?.data?.header?.res_msg || pushRes?.data?.res_msg || '';
+                responseLog = JSON.stringify(pushRes?.data || {});
 
                 // Chỉ coi là thành công khi Cổng trả về mã thành công chuẩn CM_SUCCESS hoặc PS_SYNC_SUCCESS
-                if (pushRes.status === 200 && (resCode === 'CM_SUCCESS' || resCode === 'PS_SYNC_SUCCESS')) {
+                if (pushRes?.status === 200 && (resCode === 'CM_SUCCESS' || resCode === 'PS_SYNC_SUCCESS')) {
                     sendSuccess = true;
                     transactionId = pushRes.data?.header?.txn_id || pushRes.data?.txn_id || msgId;
                     console.log(`✅ [VNeID Sync] Document ${doc.doc_no} sent successfully (txn_id: ${transactionId})`);
@@ -578,10 +609,12 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                 const resData = err.response?.data;
                 const headerObj = resData?.header || resData;
                 const resCode = headerObj?.res_code || '';
-                const resMsg = headerObj?.res_msg || (typeof resData === 'string' ? resData : err.message);
+                let resMsg = headerObj?.res_msg || (typeof resData === 'string' ? resData : err.message);
 
                 let friendlyMsg = resMsg;
-                if (resCode === 'PS_CCCD_DUPLICATE_IN_6_MONTHS') {
+                if (err.message && err.message.includes('timeout')) {
+                    friendlyMsg = 'Cổng tiếp nhận phản hồi quá lâu (>90s). Hệ thống đã lưu trạng thái để gửi lại.';
+                } else if (resCode === 'PS_CCCD_DUPLICATE_IN_6_MONTHS') {
                     friendlyMsg = 'Bệnh nhân đã khám sức khỏe trong vòng 6 tháng qua (Cổng từ chối nhận hồ sơ lặp lại)';
                 } else if (resCode === 'PS_SIGNATURE_INVALID') {
                     friendlyMsg = 'Chữ ký số không hợp lệ hoặc không đúng định dạng';
@@ -622,6 +655,9 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                 `, [errorMsg.slice(0, 500), responseLog, doc.id]);
                 failedIds.push(docId);
             }
+
+            // Dừng 600ms giữa các hồ sơ để cổng không bị quá tải / chặn rate limit
+            await new Promise(r => setTimeout(r, 600));
         }
     } catch (error: any) {
         console.error('❌ [VNeID Portal] sendDocumentsToVNeID unexpected error:', error);

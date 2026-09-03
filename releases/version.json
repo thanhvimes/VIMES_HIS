@@ -1,6 +1,6 @@
 {
   "version": "1.1.0",
-  "buildDate": "2026-09-03T08:52:27.754Z",
+  "buildDate": "2026-09-03T09:37:35.058Z",
   "changelog": [
     "Bản phát hành cập nhật v1.1.0 - Phân hệ Khám Sức Khỏe & Tích hợp HIS Core",
     "Đồng bộ dữ liệu 2 chiều HIS Core <-> KSK VNeID & Gateway XML theo QĐ 1551/QĐ-BYT và QĐ 2062/QĐ-BYT",
@@ -12,6 +12,6 @@
     "Tự động đồng bộ cấu trúc cơ sở dữ liệu (Migrations an toàn 076)"
   ],
   "downloadUrl": "https://github.com/thanhvimes/VIMES_HIS/releases/download/v1.1.0/vimes-his-v1.1.0.tar.gz",
-  "sha256": "dd8b14aedfb0d85def5c175864a7ea7b69d4fefda3d60f0ece2042a9e418f01f",
+  "sha256": "c078b0db792fb64d82310c18226ea39924b3f2f9518cc6e917194c19ee2bf322",
   "requiredDbMigration": true
 }
