@@ -59,6 +59,11 @@ interface Employee {
     card_id_date?: string;
     card_id_place?: string;
     ethnic?: string | number;
+    occupation?: string | number;
+    occupation_name?: string;
+    ma_nghe_nghiep?: string | number;
+    target_group?: string;
+    doi_tuong_ksk?: string;
     prov_id?: string | number;
     vill_id?: string | number;
     address?: string;
@@ -473,7 +478,7 @@ const ContractManagement: React.FC = () => {
             contract_date: new Date().toISOString().split('T')[0],
             exam_date: new Date().toISOString().split('T')[0],
             type: '',
-            object: '',
+            object: '3',
             form_type: '2'
         });
         setIsFormOpen(true);
@@ -679,21 +684,88 @@ const ContractManagement: React.FC = () => {
         }
     };
 
-    const handleDeleteEmployeeClick = async (employee: Employee) => {
-        if (employee.doc_no) {
-            toast.warning("Không thể xóa nhân viên đã được tiếp đón khám!");
+    const [isImportHisModalOpen, setIsImportHisModalOpen] = useState(false);
+    const [importHisDocsText, setImportHisDocsText] = useState('');
+    const [importHisAutoSync, setImportHisAutoSync] = useState(true);
+    const [isImportingHisDocs, setIsImportingHisDocs] = useState(false);
+
+    const handleImportHisDocsSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedContract) return;
+
+        const docNos = importHisDocsText
+            .split(/[\s,;\n\r]+/)
+            .map(s => s.trim())
+            .filter(s => /^\d+$/.test(s));
+
+        if (docNos.length === 0) {
+            toast.error("Vui lòng nhập ít nhất một số hồ sơ HIS hợp lệ (chữ số)!");
             return;
         }
+
+        setIsImportingHisDocs(true);
+        const toastId = toast.loading(`Đang kiểm tra và nhập ${docNos.length} hồ sơ từ HIS vào gói khám...`);
+        try {
+            const res = await healthCheckService.importHisDocsToContract(selectedContract.id, docNos, importHisAutoSync);
+            toast.dismiss(toastId);
+            if (res.success) {
+                toast.success(res.message || `Đã nhập thành công ${res.importedCount} hồ sơ!`);
+                setIsImportHisModalOpen(false);
+                setImportHisDocsText('');
+                await loadEmployees(selectedContract.id);
+                await loadContracts();
+            } else {
+                toast.error(res.message || "Nhập hồ sơ từ HIS thất bại!");
+            }
+        } catch (err: any) {
+            toast.dismiss(toastId);
+            toast.error(err.response?.data?.message || err.message || "Lỗi hệ thống");
+        } finally {
+            setIsImportingHisDocs(false);
+        }
+    };
+
+    const handleCancelReceptionEmployee = async (employee: Employee) => {
+        if (!employee.doc_no) return;
         showConfirm(
-            "Xác nhận xóa nhân viên",
-            `Bạn có chắc chắn muốn xóa nhân viên ${employee.name} (${employee.code}) khỏi gói khám này?`,
+            "Hủy tiếp nhận bệnh nhân",
+            `Bạn có chắc chắn muốn HỦY TIẾP NHẬN cho bệnh nhân "${employee.name}" (Số hồ sơ: ${employee.doc_no})?\n\nToàn bộ chỉ định cận lâm sàng và hồ sơ HIS liên quan sẽ bị xóa!`,
             async () => {
                 try {
-                    toast.loading("Đang xóa nhân viên...");
+                    toast.loading("Đang hủy tiếp nhận...");
+                    const res = await healthCheckService.cancelReception({
+                        employeeId: parseInt(employee.id, 10),
+                        docNo: parseInt(employee.doc_no, 10)
+                    });
+                    toast.dismiss();
+                    if (res.success) {
+                        toast.success(res.message || "Hủy tiếp nhận thành công!");
+                        if (selectedContract) {
+                            loadEmployees(selectedContract.id);
+                            loadContracts();
+                        }
+                    } else {
+                        toast.error(res.message || "Hủy tiếp nhận thất bại!");
+                    }
+                } catch (err: any) {
+                    toast.dismiss();
+                    toast.error(err.response?.data?.message || err.message || "Lỗi hệ thống");
+                }
+            }
+        );
+    };
+
+    const handleDeleteEmployeeClick = async (employee: Employee) => {
+        showConfirm(
+            "Xác nhận xóa nhân viên",
+            `Bạn có chắc chắn muốn xóa nhân viên ${employee.name} (${employee.code || employee.id}) khỏi gói khám này?`,
+            async () => {
+                try {
+                    toast.loading("Đang kiểm tra và xóa nhân viên...");
                     const res = await healthCheckService.deleteEmployee(employee.id);
                     toast.dismiss();
                     if (res.success) {
-                        toast.success("Xóa nhân viên thành công!");
+                        toast.success(res.message || "Xóa nhân viên thành công!");
                         if (selectedContract) {
                             loadEmployees(selectedContract.id);
                             loadContracts();
@@ -703,7 +775,35 @@ const ContractManagement: React.FC = () => {
                     }
                 } catch (err: any) {
                     toast.dismiss();
-                    toast.error(err.message || "Lỗi hệ thống");
+                    const errData = err.response?.data;
+                    if (errData?.isReceived) {
+                        // Nhân viên đã tiếp đón -> hỏi người dùng có muốn force hủy tiếp nhận và xóa luôn không
+                        showConfirm(
+                            "Hủy tiếp nhận & Xóa nhân viên",
+                            `Nhân viên ${employee.name} đã được tiếp đón (Số hồ sơ: ${errData.docNo || employee.doc_no}). Bạn có muốn HỦY TIẾP NHẬN và XÓA nhân viên này khỏi gói khám?`,
+                            async () => {
+                                try {
+                                    toast.loading("Đang hủy tiếp nhận và xóa nhân viên...");
+                                    const forceRes = await healthCheckService.deleteEmployee(employee.id, true);
+                                    toast.dismiss();
+                                    if (forceRes.success) {
+                                        toast.success(forceRes.message || "Hủy tiếp nhận và xóa thành công!");
+                                        if (selectedContract) {
+                                            loadEmployees(selectedContract.id);
+                                            loadContracts();
+                                        }
+                                    } else {
+                                        toast.error(forceRes.message || "Xóa thất bại!");
+                                    }
+                                } catch (forceErr: any) {
+                                    toast.dismiss();
+                                    toast.error(forceErr.response?.data?.message || forceErr.message || "Lỗi hệ thống");
+                                }
+                            }
+                        );
+                    } else {
+                        toast.error(errData?.message || errData?.error || err.message || "Lỗi hệ thống");
+                    }
                 }
             }
         );
@@ -750,6 +850,8 @@ const ContractManagement: React.FC = () => {
             'GIOI_TINH',
             'NGAY_SINH',
             'MA_DAN_TOC',
+            'MA_NGHE_NGHIEP',
+            'MA_DOI_TUONG_KSK',
             'SO_CCCD',
             'NGAYCAP_CCCD',
             'NOICAP_CCCD',
@@ -771,6 +873,8 @@ const ContractManagement: React.FC = () => {
                 'Nam',
                 '15/05/1990',
                 '1',
+                '1471',
+                '14',
                 '037095000123',
                 '20/10/2021',
                 'Cục C06',
@@ -781,14 +885,16 @@ const ContractManagement: React.FC = () => {
                 '00001',
                 '0912345678',
                 'Phòng Kỹ thuật',
-                'Kỹ sư',
+                'Lái xe / Kỹ sư',
                 'Khám sức khỏe định kỳ'
             ],
             [
                 'NV002',
                 'Phạm Minh Thư',
                 'Nữ',
-                '22/08/1995',
+                '22/08/1955',
+                '1',
+                '1539',
                 '1',
                 '038096000234',
                 '15/12/2022',
@@ -799,9 +905,9 @@ const ContractManagement: React.FC = () => {
                 '01',
                 '00003',
                 '0987654321',
-                'Phòng Kế toán',
-                'Kế toán viên',
-                'Khám sức khỏe định kỳ'
+                'Hội Người cao tuổi',
+                'Hội viên',
+                'Khám sức khỏe người cao tuổi'
             ]
         ];
 
@@ -813,6 +919,8 @@ const ContractManagement: React.FC = () => {
             { wch: 10 }, // GIOI_TINH
             { wch: 14 }, // NGAY_SINH
             { wch: 12 }, // MA_DAN_TOC
+            { wch: 18 }, // MA_NGHE_NGHIEP
+            { wch: 20 }, // MA_DOI_TUONG_KSK
             { wch: 16 }, // SO_CCCD
             { wch: 14 }, // NGAYCAP_CCCD
             { wch: 16 }, // NOICAP_CCCD
@@ -828,7 +936,44 @@ const ContractManagement: React.FC = () => {
         ];
 
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'mau_import_nhan_vien_ksk');
+        XLSX.utils.book_append_sheet(wb, ws, 'Danh_Sach_Nhan_Vien');
+
+        // Sheet hướng dẫn và danh mục mã chuẩn
+        const guideData = [
+            ['HƯỚNG DẪN ĐIỀN FILE EXCEL DANH SÁCH KHÁM SỨC KHỎE'],
+            [''],
+            ['1. Cột bắt buộc (*):', 'HO_TEN (Họ và tên nhân viên/người khám)'],
+            ['2. Cột MA_NGHE_NGHIEP:', 'Nhập mã nghề nghiệp theo danh mục (Ví dụ: 1539 - Không có nghề nghiệp cụ thể, 1471 - Lái xe, 824 - Lực lượng công an, 990 - Y tế...). Nếu để trống, hệ thống tự động gán mặc định là 1539.'],
+            ['3. Cột MA_DOI_TUONG_KSK:', 'Nhập mã hoặc tên nhóm đối tượng KSK (Ví dụ: 1 - Người cao tuổi, 2 - Người khuyết tật, 14 - Người lao động không chính thức...). Nếu để trống, hệ thống tự động gán mặc định là 14.'],
+            ['4. Cột GIOI_TINH:', 'Nhập "Nam" hoặc "Nữ" (hoặc M/F)'],
+            ['5. Cột NGAY_SINH & NGAYCAP_CCCD:', 'Định dạng ngày/tháng/năm: DD/MM/YYYY (ví dụ: 15/05/1990)'],
+            ['6. Cột SO_CCCD:', '12 chữ số căn cước công dân hoặc CMND 9 số'],
+            ['7. Cột MATINH_CU_TRU & MAXA_CU_TRU:', 'Mã tỉnh/thành phố và mã xã/phường cư trú chuẩn theo danh mục hành chính'],
+            ['8. Cột DIEN_THOAI:', 'Số điện thoại liên hệ (10 chữ số)'],
+            [''],
+            ['DANH MỤC MÃ ĐỐI TƯỢNG KHÁM SỨC KHỎE QUY CHUẨN (BỘ Y TẾ)'],
+            ['Mã', 'Tên Đối Tượng KSK'],
+            ['1', '1 - Người cao tuổi'],
+            ['2', '2 - Người khuyết tật'],
+            ['3', '3 - Người thuộc hộ nghèo, cận nghèo'],
+            ['4', '4 - Người có công'],
+            ['5', '5 - Người mắc bệnh mạn tính'],
+            ['6', '6 - Người sống tại vùng đồng bào dân tộc thiểu số và miền núi'],
+            ['7', '7 - Người sống tại vùng có điều kiện kinh tế - xã hội đặc biệt khó khăn'],
+            ['8', '8 - Người sống tại xã đảo'],
+            ['9', '9 - Người sống tại đặc khu'],
+            ['10', '10 - Trẻ em trong cơ sở giáo dục mầm non'],
+            ['11', '11 - Học sinh trong các cơ sở giáo dục phổ thông'],
+            ['12', '12 - Sinh viên'],
+            ['13', '13 - Người lao động'],
+            ['14', '14 - Người lao động không chính thức (Mặc định)'],
+            ['15', '15 - Người chưa có Bảo hiểm y tế'],
+            ['16', '16 - Các đối tượng khác']
+        ];
+        const wsGuide = XLSX.utils.aoa_to_sheet(guideData);
+        wsGuide['!cols'] = [{ wch: 25 }, { wch: 95 }];
+        XLSX.utils.book_append_sheet(wb, wsGuide, 'Huong_Dan_Va_Danh_Muc');
+
         XLSX.writeFile(wb, 'mau_import_nhan_vien_ksk.xlsx');
         toast.success("Đã tải file Excel mẫu thành công!");
     };
@@ -918,6 +1063,8 @@ const ContractManagement: React.FC = () => {
                 const guardianNameIdx = findHeaderIdx(['nguoigiamho', 'giamho', 'guardianname']);
                 const guardianCccdIdx = findHeaderIdx(['socccdngh', 'cccdngh', 'guardiancccd', 'cccdgiamho']);
                 const ethnicIdx = findHeaderIdx(['madantoc', 'dantoc', 'ethnic']);
+                const occIdx = findHeaderIdx(['manghenghiep', 'nghenghiep', 'nghe', 'occupation', 'job', 'chucdanh', 'nghenghiepchucvu']);
+                const tgIdx = findHeaderIdx(['madoituongksk', 'doituongksk', 'madoituong', 'doituong', 'targetgroup', 'target_group']);
                 const maKhIdx = findHeaderIdx(['makh', 'manhanvien', 'manv', 'code']);
 
                 const addrIdx = findHeaderIdx(['diachi', 'noio', 'address', 'choo', 'thuongtru']);
@@ -953,6 +1100,8 @@ const ContractManagement: React.FC = () => {
                     let birthDate = dobIdx !== -1 ? formatExcelDate(row[dobIdx]) : '';
                     let cardIdDate = cardDateIdx !== -1 ? formatExcelDate(row[cardDateIdx]) : '';
                     let cardIdPlace = cardPlaceIdx !== -1 ? cleanField(row[cardPlaceIdx]).slice(0, 100) : '';
+                    let rawOcc = occIdx !== -1 ? cleanField(row[occIdx]) : '';
+                    let rawTg = tgIdx !== -1 ? cleanField(row[tgIdx]) : '';
 
                     parsedEmployees.push({
                         code: maKh,
@@ -975,7 +1124,11 @@ const ContractManagement: React.FC = () => {
                         cardid_place: cardIdPlace,
                         guardian_name: guardianNameIdx !== -1 ? cleanField(row[guardianNameIdx]).slice(0, 100) : '',
                         guardian_cccd: guardianCccd,
-                        ethnic: ethnicIdx !== -1 ? cleanField(row[ethnicIdx]) : ''
+                        ethnic: ethnicIdx !== -1 ? cleanField(row[ethnicIdx]) : '',
+                        occupation: rawOcc,
+                        ma_nghe_nghiep: rawOcc,
+                        target_group: rawTg,
+                        doi_tuong_ksk: rawTg
                     });
                 }
 
@@ -1364,6 +1517,16 @@ const ContractManagement: React.FC = () => {
                                             </label>
                                         </div>
 
+                                        {/* Nhập HS từ HIS Button */}
+                                        <button
+                                            onClick={() => setIsImportHisModalOpen(true)}
+                                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1.5 active:scale-95 cursor-pointer whitespace-nowrap"
+                                            title="Nhập số hồ sơ bệnh nhân từ HIS vào gói khám này"
+                                        >
+                                            <CloudUploadIcon className="w-3.5 h-3.5" />
+                                            Nhập HS từ HIS
+                                        </button>
+
                                         {/* Add Employee Button */}
                                         <button
                                             onClick={handleAddNewEmployeeClick}
@@ -1502,7 +1665,16 @@ const ContractManagement: React.FC = () => {
                                                 </td>
                                                 {selectedContract?.status !== 'A' && (
                                                     <td className="p-3 text-center">
-                                                        <div className="flex justify-center gap-2">
+                                                        <div className="flex justify-center items-center gap-1.5">
+                                                            {e.doc_no && e.doc_no !== '0' && (
+                                                                <button
+                                                                    onClick={() => handleCancelReceptionEmployee(e)}
+                                                                    className="p-1.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/30 dark:hover:bg-amber-900/40 rounded-lg text-amber-700 dark:text-amber-300 transition cursor-pointer"
+                                                                    title="Hủy tiếp nhận (Xóa HS và CLS trên HIS)"
+                                                                >
+                                                                    <RefreshIcon className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            )}
                                                             <button
                                                                 onClick={() => handleEditEmployeeClick(e)}
                                                                 className="p-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-lg text-slate-600 dark:text-slate-200 transition cursor-pointer"
@@ -2199,6 +2371,82 @@ const ContractManagement: React.FC = () => {
                                     className="px-5 py-2.5 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition shadow-md shadow-teal-500/10 cursor-pointer"
                                 >
                                     Lưu lại
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Nhập HS từ HIS vào gói khám */}
+            {isImportHisModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-900 rounded-[2rem] max-w-lg w-full shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden transform scale-100 transition-all duration-300 animate-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/60 flex items-center gap-3 bg-slate-50/50 dark:bg-slate-900/50">
+                            <div className="h-10 w-10 rounded-full flex items-center justify-center bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400">
+                                <CloudUploadIcon className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h5 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                                    Nhập hồ sơ từ HIS vào gói khám
+                                </h5>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                    Gói khám: <strong className="text-slate-700 dark:text-slate-300">{selectedContract?.name}</strong>
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Form Body */}
+                        <form onSubmit={handleImportHisDocsSubmit}>
+                            <div className="p-6 flex flex-col gap-4">
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                                        Danh sách số hồ sơ HIS *
+                                    </label>
+                                    <textarea
+                                        required
+                                        rows={6}
+                                        value={importHisDocsText}
+                                        onChange={(e) => setImportHisDocsText(e.target.value)}
+                                        placeholder="Nhập hoặc dán các số hồ sơ HIS (phân tách bởi dấu phẩy, dấu cách hoặc xuống dòng).&#10;Ví dụ:&#10;26036157, 26065238, 26062077"
+                                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono text-sm resize-none"
+                                    />
+                                    <span className="text-[11px] text-slate-400">
+                                        Hệ thống sẽ tự động tra cứu họ tên, ngày sinh, CCCD, phân loại đối tượng KSK và kết quả khám từ HIS.
+                                    </span>
+                                </div>
+
+                                <div className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700">
+                                    <input
+                                        type="checkbox"
+                                        id="autoSyncKsk"
+                                        checked={importHisAutoSync}
+                                        onChange={(e) => setImportHisAutoSync(e.target.checked)}
+                                        className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                                    />
+                                    <label htmlFor="autoSyncKsk" className="text-xs font-bold text-slate-700 dark:text-slate-300 select-none cursor-pointer">
+                                        Tự động đồng bộ và sinh hồ sơ KSK VNeID ngay sau khi nhập
+                                    </label>
+                                </div>
+                            </div>
+
+                            {/* Footer Buttons */}
+                            <div className="px-6 py-4 bg-slate-50/30 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsImportHisModalOpen(false)}
+                                    className="px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 rounded-xl text-xs font-extrabold uppercase tracking-wider transition cursor-pointer"
+                                >
+                                    Đóng
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isImportingHisDocs}
+                                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition shadow-md shadow-blue-500/10 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                                >
+                                    {isImportingHisDocs ? <RefreshIcon className="w-4 h-4 animate-spin" /> : <CloudUploadIcon className="w-4 h-4" />}
+                                    Thực hiện nhập
                                 </button>
                             </div>
                         </form>

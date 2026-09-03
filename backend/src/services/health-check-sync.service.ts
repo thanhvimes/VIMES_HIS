@@ -215,8 +215,8 @@ export function sanitizeXmlContent(rawXml: string, maCskcbGln?: string, maCskcbB
 							<TSGD_MAC_BENH>0</TSGD_MAC_BENH>
 							<TSGD_MA_BENH></TSGD_MA_BENH>
 							<TS_TIEP_XUC_LAO>0</TS_TIEP_XUC_LAO>
-							<SAN_KHOA>0</SAN_KHOA>
-							<SAN_KHOA_KHONG_BT>0</SAN_KHOA_KHONG_BT>
+							<SAN_KHOA>1</SAN_KHOA>
+							<SAN_KHOA_KHONG_BT></SAN_KHOA_KHONG_BT>
 							<TIEM_CHUNG_BCG>0</TIEM_CHUNG_BCG>
 							<TIEM_CHUNG_BH_HG_UV>0</TIEM_CHUNG_BH_HG_UV>
 							<TIEM_CHUNG_SOI>0</TIEM_CHUNG_SOI>

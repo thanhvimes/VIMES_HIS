@@ -55,7 +55,7 @@ class SystemUpdateController {
     }
 
     private getUpdateServerUrl(): string {
-        return process.env.UPDATE_SERVER_URL || 'https://updates.vimes.vn/version.json';
+        return process.env.UPDATE_SERVER_URL || 'https://raw.githubusercontent.com/thanhvimes/VIMES_HIS/main/releases/version.json';
     }
 
     private compareVersions(v1: string, v2: string): number {

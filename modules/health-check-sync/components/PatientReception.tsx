@@ -180,21 +180,25 @@ const PatientReception: React.FC = () => {
                 const data = await healthCheckService.getReceptionRooms();
                 setRooms(data);
                 if (data.length > 0) {
-                    const vitalRoom = data.find(r => 
+                    const kskRoom = data.find(r => 
+                        r.name.toLowerCase().includes('khám sức khỏe số 1') || 
+                        r.name.toLowerCase().includes('ksk số 1') ||
+                        r.name.toLowerCase().includes('khám sức khỏe') ||
+                        r.name.toLowerCase().includes('ksk') ||
                         r.name.toLowerCase().includes('sinh hiệu') || 
                         r.name.toLowerCase().includes('thể lực') ||
                         r.name.toLowerCase().includes('tiếp nhận')
                     );
-                    setSelectedRoomId(vitalRoom ? vitalRoom.id : data[0].id);
+                    setSelectedRoomId(kskRoom ? kskRoom.id : data[0].id);
                 }
             } catch (err) {
                 console.error("Failed to load rooms:", err);
                 setRooms([
-                    { id: '1', name: 'Phòng tiếp đón chung' },
-                    { id: '2', name: 'Phòng khám Thể lực & Đo sinh hiệu' },
-                    { id: '3', name: 'Phòng khám Nội khoa' }
+                    { id: '22', name: 'Phòng Khám Sức Khỏe Số 1' },
+                    { id: '23', name: 'Phòng Khám Sức Khỏe Số 2' },
+                    { id: '1', name: 'Phòng tiếp đón chung' }
                 ]);
-                setSelectedRoomId('2');
+                setSelectedRoomId('22');
             } finally {
                 setIsLoadingRooms(false);
             }
@@ -211,7 +215,7 @@ const PatientReception: React.FC = () => {
         const loadContracts = async () => {
             try {
                 const data = await healthCheckService.getContracts({ startDate, endDate });
-                setContracts(data.filter((c: any) => c.status === 'O'));
+                setContracts(data.filter((c: any) => c.status !== 'D'));
             } catch (err) {
                 console.error("Failed to load contracts:", err);
             }
@@ -422,6 +426,35 @@ const PatientReception: React.FC = () => {
             toast.error(error.message || "Lỗi tiếp nhận hệ thống");
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const [isCancellingReception, setIsCancellingReception] = useState(false);
+
+    const handleCancelReception = async () => {
+        if (!selectedEmployee) return;
+        const docNoVal = receptionInfo?.docNo || selectedEmployee.doc_no;
+        const confirmMsg = `Bạn có chắc chắn muốn HỦY TIẾP NHẬN cho bệnh nhân "${selectedEmployee.name}" (Số hồ sơ: ${docNoVal || selectedEmployee.id})?\n\nToàn bộ chỉ định cận lâm sàng và hồ sơ HIS liên quan sẽ bị xóa!`;
+        if (!window.confirm(confirmMsg)) return;
+
+        setIsCancellingReception(true);
+        try {
+            const res = await healthCheckService.cancelReception({
+                employeeId: selectedEmployee.id,
+                docNo: docNoVal ? parseInt(String(docNoVal), 10) : undefined
+            });
+            if (res.success) {
+                toast.success(res.message || "Hủy tiếp nhận thành công!");
+                setReceptionInfo(null);
+                setSelectedEmployee(prev => prev ? { ...prev, status: 'W', doc_no: undefined } : null);
+                setSearchResults(prev => prev.map(item => item.id === selectedEmployee.id ? { ...item, status: 'W', doc_no: undefined } : item));
+            } else {
+                toast.error(res.message || "Không thể hủy tiếp nhận");
+            }
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || err.response?.data?.error || err.message || "Lỗi hủy tiếp nhận");
+        } finally {
+            setIsCancellingReception(false);
         }
     };
 
@@ -1119,6 +1152,14 @@ const PatientReception: React.FC = () => {
                                                 <span className="text-[10px] text-emerald-600 dark:text-emerald-400">Hồ sơ đã được lưu, cận lâm sàng đã chuyển sang chỉ định lâm sàng.</span>
                                             </div>
                                         </div>
+                                        <button
+                                            onClick={handleCancelReception}
+                                            disabled={isCancellingReception}
+                                            className="px-4 py-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 rounded-2xl text-xs font-black uppercase tracking-wider transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                                        >
+                                            {isCancellingReception ? <RefreshIcon className="w-4 h-4 animate-spin" /> : null}
+                                            Hủy tiếp nhận
+                                        </button>
                                         <button
                                             onClick={handleReprintSlip}
                                             className="px-5 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition flex items-center gap-2 cursor-pointer shadow-md shadow-teal-500/10"

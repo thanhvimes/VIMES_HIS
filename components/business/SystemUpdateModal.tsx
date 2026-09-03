@@ -7,7 +7,9 @@ import {
     X, 
     Sparkles, 
     Terminal, 
-    Cpu
+    Cpu,
+    UploadCloud,
+    Package
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'sonner';
@@ -44,7 +46,8 @@ interface UpdateHistoryItem {
 }
 
 const SystemUpdateModal: React.FC<SystemUpdateModalProps> = ({ isOpen, onClose }) => {
-    const [activeTab, setActiveTab] = useState<'ota' | 'history'>('ota');
+    const [activeTab, setActiveTab] = useState<'ota' | 'offline' | 'history'>('ota');
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [isChecking, setIsChecking] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
     const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null);
@@ -57,6 +60,21 @@ const SystemUpdateModal: React.FC<SystemUpdateModalProps> = ({ isOpen, onClose }
     const [countdown, setCountdown] = useState<number | null>(null);
 
     const API_BASE = '/api/v1/system-update';
+
+    const getAuthHeaders = () => {
+        try {
+            const userSession = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
+            if (userSession) {
+                const parsed = JSON.parse(userSession);
+                if (parsed?.token) {
+                    return { Authorization: `Bearer ${parsed.token}` };
+                }
+            }
+        } catch {
+            // ignore
+        }
+        return {};
+    };
 
     useEffect(() => {
         if (isOpen) {
@@ -81,7 +99,7 @@ const SystemUpdateModal: React.FC<SystemUpdateModalProps> = ({ isOpen, onClose }
 
     const fetchSystemInfo = async () => {
         try {
-            const res = await axios.get(`${API_BASE}/info`);
+            const res = await axios.get(`${API_BASE}/info`, { headers: getAuthHeaders() });
             if (res.data?.success) {
                 setSystemInfo(res.data);
             }
@@ -93,7 +111,7 @@ const SystemUpdateModal: React.FC<SystemUpdateModalProps> = ({ isOpen, onClose }
     const checkForUpdates = async () => {
         setIsChecking(true);
         try {
-            const res = await axios.get(`${API_BASE}/check`);
+            const res = await axios.get(`${API_BASE}/check`, { headers: getAuthHeaders() });
             setUpdateInfo(res.data);
             if (res.data?.hasUpdate) {
                 toast.info(`Đã có phiên bản mới: v${res.data.latestVersion}!`);
@@ -108,7 +126,7 @@ const SystemUpdateModal: React.FC<SystemUpdateModalProps> = ({ isOpen, onClose }
     const fetchHistory = async () => {
         setIsLoadingHistory(true);
         try {
-            const res = await axios.get(`${API_BASE}/history`);
+            const res = await axios.get(`${API_BASE}/history`, { headers: getAuthHeaders() });
             if (res.data?.success) {
                 setHistoryList(res.data.history || []);
             }
@@ -134,7 +152,7 @@ const SystemUpdateModal: React.FC<SystemUpdateModalProps> = ({ isOpen, onClose }
                 version: updateInfo.latestVersion,
                 sha256: updateInfo.sha256,
                 changelog: updateInfo.changelog
-            });
+            }, { headers: getAuthHeaders() });
 
             if (res.data?.success) {
                 setProgressLogs(prev => [
@@ -145,6 +163,52 @@ const SystemUpdateModal: React.FC<SystemUpdateModalProps> = ({ isOpen, onClose }
                     `🎉 [${new Date().toLocaleTimeString()}] CẬP NHẬT HOÀN TẤT THÀNH CÔNG! Đang khởi động lại dịch vụ...`
                 ]);
                 toast.success('Cập nhật hệ thống thành công!');
+                setCountdown(5);
+            } else {
+                throw new Error(res.data?.message || 'Cập nhật thất bại');
+            }
+        } catch (err: any) {
+            const errMsg = err.response?.data?.message || err.message;
+            setProgressLogs(prev => [
+                ...prev,
+                `❌ [${new Date().toLocaleTimeString()}] LỖI: ${errMsg}`
+            ]);
+            toast.error(`Cập nhật thất bại: ${errMsg}`);
+            setIsUpdating(false);
+        }
+    };
+
+    const handleUploadOfflinePackage = async () => {
+        if (!selectedFile) {
+            toast.warning('Vui lòng chọn tệp tin phát hành (.tar.gz)!');
+            return;
+        }
+
+        setIsUpdating(true);
+        setProgressLogs([
+            `📦 [${new Date().toLocaleTimeString()}] Đang tải lên tệp tin: ${selectedFile.name}...`,
+            `⏳ [${new Date().toLocaleTimeString()}] Máy chủ đang tiếp nhận và sao lưu phiên bản cũ...`
+        ]);
+
+        const formData = new FormData();
+        formData.append('package', selectedFile);
+
+        try {
+            const res = await axios.post(`${API_BASE}/upload-package`, formData, {
+                headers: {
+                    ...getAuthHeaders(),
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+
+            if (res.data?.success) {
+                setProgressLogs(prev => [
+                    ...prev,
+                    `📂 [${new Date().toLocaleTimeString()}] Giải nén mã nguồn mới thành công.`,
+                    `🗄️ [${new Date().toLocaleTimeString()}] Đồng bộ Database Migrations hoàn tất.`,
+                    `🎉 [${new Date().toLocaleTimeString()}] CẬP NHẬT HOÀN TẤT THÀNH CÔNG! Đang khởi động lại dịch vụ...`
+                ]);
+                toast.success('Nâng cấp hệ thống thành công!');
                 setCountdown(5);
             } else {
                 throw new Error(res.data?.message || 'Cập nhật thất bại');
@@ -230,6 +294,18 @@ const SystemUpdateModal: React.FC<SystemUpdateModalProps> = ({ isOpen, onClose }
                         {updateInfo?.hasUpdate && (
                             <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
                         )}
+                    </button>
+
+                    <button
+                        onClick={() => setActiveTab('offline')}
+                        className={`py-3 px-4 text-xs font-bold border-b-2 flex items-center gap-2 transition-all cursor-pointer ${
+                            activeTab === 'offline'
+                                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                        }`}
+                    >
+                        <UploadCloud className="w-4 h-4" />
+                        Tải lên gói cập nhật (.tar.gz)
                     </button>
 
                     <button
@@ -326,7 +402,74 @@ const SystemUpdateModal: React.FC<SystemUpdateModalProps> = ({ isOpen, onClose }
                         </div>
                     )}
 
-                    {/* TAB 2: UPDATE HISTORY */}
+                    {/* TAB 2: OFFLINE PACKAGE UPLOAD */}
+                    {activeTab === 'offline' && (
+                        <div className="space-y-4">
+                            <div className="p-6 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/30 text-center space-y-3">
+                                <div className="w-12 h-12 mx-auto rounded-2xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                                    <Package className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm">
+                                        Nâng cấp máy chủ từ tệp tin đóng gói (.tar.gz)
+                                    </h4>
+                                    <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
+                                        Chọn tệp tin phát hành từ máy tính của bạn (ví dụ: <code className="text-blue-600 font-mono font-bold">vimes-his-v1.1.0.tar.gz</code>). Máy chủ sẽ tự động giải nén, đồng bộ CSDL và khởi động lại trong 5 giây!
+                                    </p>
+                                </div>
+
+                                <input
+                                    type="file"
+                                    id="offlinePackageInput"
+                                    accept=".tar.gz,.zip,.tgz"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                        if (e.target.files && e.target.files[0]) {
+                                            setSelectedFile(e.target.files[0]);
+                                        }
+                                    }}
+                                />
+
+                                <div className="pt-2 flex flex-col items-center gap-3">
+                                    <label
+                                        htmlFor="offlinePackageInput"
+                                        className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 shadow-sm transition-all cursor-pointer flex items-center gap-2"
+                                    >
+                                        <UploadCloud className="w-4 h-4 text-blue-600" />
+                                        {selectedFile ? 'Chọn tệp tin khác' : 'Chọn tệp tin từ máy tính'}
+                                    </label>
+
+                                    {selectedFile && (
+                                        <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-xl text-xs flex items-center gap-3 max-w-md w-full justify-between">
+                                            <div className="flex items-center gap-2 truncate">
+                                                <Package className="w-4 h-4 text-blue-600 shrink-0" />
+                                                <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">{selectedFile.name}</span>
+                                                <span className="text-slate-400 text-[10px]">({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)</span>
+                                            </div>
+                                            <button
+                                                onClick={() => setSelectedFile(null)}
+                                                className="text-slate-400 hover:text-rose-500 p-1 cursor-pointer"
+                                            >
+                                                <X className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {selectedFile && !isUpdating && countdown === null && (
+                                        <button
+                                            onClick={handleUploadOfflinePackage}
+                                            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-600/30 flex items-center gap-2 transition-all active:scale-95 cursor-pointer mt-2"
+                                        >
+                                            <UploadCloud className="w-4 h-4" />
+                                            Cài đặt bản nâng cấp này lên máy chủ
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TAB 3: UPDATE HISTORY */}
                     {activeTab === 'history' && (
                         <div className="space-y-3">
                             {isLoadingHistory ? (

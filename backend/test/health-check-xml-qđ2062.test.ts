@@ -268,3 +268,58 @@ test('QĐ 2062 generates XML9 file with TIEN_SU_BENH_TAT and valid Envelope', ()
     const validation = validateHealthCheckEnvelope(xml);
     assert.equal(validation.valid, true, validation.errors.join('; '));
 });
+
+test('SAN_KHOA and SAN_KHOA_KHONG_BT normalize invalid 0 to empty and set SAN_KHOA=1 for normal minors', () => {
+    const xml = generateXmlPayload(
+        '2',
+        {
+            patientName: 'MAI THI THANH NHAN',
+            dob: '2014-05-10',
+            gender: 'Nữ',
+            docNo: 'KSK-2026-26040227'
+        },
+        {
+            examination: {},
+            clinical_exam: {},
+            extra: {
+                san_khoa: '0',
+                san_khoa_khong_bt: '0' // Previously saved invalid 0 from legacy form
+            }
+        },
+        {},
+        { fitness_class: '1' }
+    );
+
+    // Must NOT contain <SAN_KHOA_KHONG_BT>0</SAN_KHOA_KHONG_BT> which portal rejects
+    assert.doesNotMatch(xml, /<SAN_KHOA_KHONG_BT>0<\/SAN_KHOA_KHONG_BT>/);
+    assert.match(xml, /<SAN_KHOA>1<\/SAN_KHOA>/);
+    assert.match(xml, /<SAN_KHOA_KHONG_BT><\/SAN_KHOA_KHONG_BT>/);
+});
+
+test('SAN_KHOA and SAN_KHOA_KHONG_BT properly emit codes 1-5 when abnormal', () => {
+    const xml = generateXmlPayload(
+        '2',
+        {
+            patientName: 'NGUYEN GIA BAO',
+            dob: '2015-08-20',
+            gender: 'Nam',
+            docNo: 'KSK-2026-26040228'
+        },
+        {
+            examination: {},
+            clinical_exam: {},
+            extra: {
+                san_khoa: '0',
+                san_khoa_khong_bt: '3', // Can thiệp lúc sinh
+                ma_benh_san_khoa_khong_bt: 'P07.1'
+            }
+        },
+        {},
+        { fitness_class: '1' }
+    );
+
+    assert.match(xml, /<SAN_KHOA>0<\/SAN_KHOA>/);
+    assert.match(xml, /<SAN_KHOA_KHONG_BT>3<\/SAN_KHOA_KHONG_BT>/);
+    assert.match(xml, /<MA_BENH_SAN_KHOA_KHONG_BT>P07\.1<\/MA_BENH_SAN_KHOA_KHONG_BT>/);
+});
+

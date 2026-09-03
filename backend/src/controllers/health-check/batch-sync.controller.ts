@@ -3,6 +3,7 @@ import { query, transaction } from '../../config/database';
 import { generateXmlPayload } from './xml-generator';
 import { hisIntegrationController } from './his-integration';
 import { mergeClinicalData, mergeLabData, mergeConclusionData, formatYmdString } from '../../services/health-check-merge.service';
+import { sanitizeHisDate, calculateAge, evaluateFitnessClass, buildSpecialtyMetadata } from '../../services/health-check-classifier.service';
 
 export interface SyncDocResult {
     docNo: number | string;
@@ -47,8 +48,12 @@ class BatchSyncController {
                     COALESCE(d.hd_villid, p.hp_villid, 0)::text as maxa_cu_tru,
                     p.hp_ethnic as ethnic,
                     p.hp_occupation::text as occupation,
+                    p.hp_nationality as nationality,
                     COALESCE(p.hp_workplace, '') as workplace,
                     to_char(d.hd_admitdate, 'YYYY-MM-DD') as ngay_vao,
+                    d.hd_result,
+                    d.hd_conclusion,
+                    d.hd_icd,
                     c.hc_cardno as insurance_card
                 FROM hms_doc d
                 JOIN hms_patient p ON d.hd_patientno = p.hp_patientno
@@ -170,19 +175,12 @@ class BatchSyncController {
             }
 
             // 6. Tự động xác định loại biểu mẫu theo tuổi (Mẫu 1: < 6 tuổi, Mẫu 2: 6-18 tuổi, Mẫu 3: >= 18 tuổi)
+            const patientAge = calculateAge(hisRow.dob);
             let resolvedFormType = '3';
-            if (hisRow.dob) {
-                const bDate = new Date(hisRow.dob);
-                if (!isNaN(bDate.getTime())) {
-                    const today = new Date();
-                    let age = today.getFullYear() - bDate.getFullYear();
-                    if (today.getMonth() < bDate.getMonth() || (today.getMonth() === bDate.getMonth() && today.getDate() < bDate.getDate())) {
-                        age--;
-                    }
-                    if (age < 6) resolvedFormType = '1';
-                    else if (age < 18) resolvedFormType = '2';
-                    else resolvedFormType = '3';
-                }
+            if (patientAge !== null) {
+                if (patientAge < 6) resolvedFormType = '1';
+                else if (patientAge < 18) resolvedFormType = '2';
+                else resolvedFormType = '3';
             }
 
             // 7. Format Huyết áp & Dữ liệu thể lực
@@ -193,25 +191,55 @@ class BatchSyncController {
                 bpStr = String(examRow.he_bloodpressure);
             }
 
-            const internalText = [conclRow?.hecl_tuanhoan, conclRow?.hecl_hohap, conclRow?.hecl_tieuhoa, conclRow?.hecl_thantietnieu, conclRow?.hecl_noitiet, conclRow?.hecl_coxuongkhop, examRow?.he_examine, examRow?.he_parts].filter(Boolean).map((s: string) => s.trim()).join('\n');
+            // 8. Tự động đánh giá Phân loại sức khỏe & Chẩn đoán theo chuẩn Bộ Y tế & quy định đợt khám
+            const evalResult = evaluateFitnessClass({
+                dob: hisRow.dob,
+                gender: hisRow.gender,
+                bloodPressure: bpStr,
+                bmi: examRow?.he_bmi ? Number(examRow.he_bmi) : null,
+                height: examRow?.he_height ? Number(examRow.he_height) : null,
+                weight: examRow?.he_weight ? Number(examRow.he_weight) : null,
+                icd10: examRow?.he_icd10 || hisRow.hd_icd || '',
+                diagnostic: examRow?.he_diagnostic || hisRow.hd_conclusion || '',
+                hisResult: hisRow.hd_result,
+                hisConclusion: hisRow.hd_conclusion,
+                hisExmPhanLoai: conclRow?.hecl_phanloai,
+                hisExmConclusion: conclRow?.hecl_conclusion,
+                hisExmRemark: conclRow?.hecl_remark,
+                hisDoctorId: examRow?.he_doctor,
+                hisDoctorName: examRow?.doctor_name,
+                personalHistory: histRow?.hdh_owner
+            });
 
-            let resolvedFitnessClass = '1';
-            if (conclRow?.hecl_phanloai) {
-                const m = String(conclRow.hecl_phanloai).match(/\d+/);
-                if (m) resolvedFitnessClass = m[0];
+            // 9. Đóng gói Clinical Data
+            const cleanCccdDate = sanitizeHisDate(hisRow.cccd_date);
+            const occCode = hisRow.occupation ? String(hisRow.occupation).trim() : '1539';
+            
+            // Mã đối tượng KSK quy định: >= 60 tuổi là Người cao tuổi (Mã 1), < 60 tuổi là Cận nghèo, nghèo (Mã 3)
+            const targetGroupVal = (patientAge !== null && patientAge >= 60) ? '1' : '3';
+
+            let resolvedNationality = '000';
+            if (hisRow.nationality) {
+                const natStr = String(hisRow.nationality).trim().toUpperCase();
+                if (natStr === '000' || natStr === 'VN' || natStr === 'VNM' || natStr === 'VIE' || natStr === '190') {
+                    resolvedNationality = '000';
+                } else {
+                    resolvedNationality = natStr;
+                }
             }
 
-            // 8. Đóng gói Clinical Data
             const clinicalData: any = {
                 phone: hisRow.phone || '',
                 address: hisRow.address || '',
-                cccd_date: hisRow.cccd_date || '',
+                cccd_date: cleanCccdDate,
                 cccd_place: hisRow.cccd_place || '',
                 matinh_cu_tru: (hisRow.matinh_cu_tru && hisRow.matinh_cu_tru !== '0') ? String(hisRow.matinh_cu_tru) : '',
                 maxa_cu_tru: (hisRow.maxa_cu_tru && hisRow.maxa_cu_tru !== '0') ? String(hisRow.maxa_cu_tru) : '',
-                ethnic: hisRow.ethnic || 'Kinh',
-                ma_nghe_nghiep: hisRow.occupation ? String(hisRow.occupation).trim() : '',
-                occupation: hisRow.occupation ? String(hisRow.occupation).trim() : '',
+                ethnic: hisRow.ethnic ? String(hisRow.ethnic) : '1',
+                quoc_tich: resolvedNationality,
+                target_group: targetGroupVal,
+                ma_nghe_nghiep: occCode,
+                occupation: occCode,
                 noi_cong_tac_hien_tai: hisRow.workplace || '',
                 noi_cong_tac: hisRow.workplace || '',
                 workplace: hisRow.workplace || '',
@@ -224,15 +252,15 @@ class BatchSyncController {
                     pulse: examRow?.he_pulse ? String(examRow.he_pulse) : '',
                     blood_pressure: bpStr,
                     bp: bpStr,
-                    temperature: examRow?.he_temperature ? String(examRow.he_temperature) : '',
-                    nhiet_do: examRow?.he_temperature ? String(examRow.he_temperature) : '',
-                    breathing_rate: examRow?.he_breathinterval ? String(examRow.he_breathinterval) : '',
-                    nhip_tho: examRow?.he_breathinterval ? String(examRow.he_breathinterval) : '',
+                    temperature: (examRow?.he_temperature && Number(examRow.he_temperature) > 0) ? String(examRow.he_temperature) : '',
+                    nhiet_do: (examRow?.he_temperature && Number(examRow.he_temperature) > 0) ? String(examRow.he_temperature) : '',
+                    breathing_rate: (examRow?.he_breathinterval && Number(examRow.he_breathinterval) > 0) ? String(examRow.he_breathinterval) : '',
+                    nhip_tho: (examRow?.he_breathinterval && Number(examRow.he_breathinterval) > 0) ? String(examRow.he_breathinterval) : '',
                     bmi: examRow?.he_bmi ? Number(examRow.he_bmi).toFixed(2) : '',
                     physical_summary: conclRow?.hecl_theluc || ''
                 },
                 clinical_exam: {
-                    internal: internalText || '',
+                    internal: [conclRow?.hecl_tuanhoan, conclRow?.hecl_hohap, conclRow?.hecl_tieuhoa, conclRow?.hecl_thantietnieu].filter(Boolean).join('\n'),
                     eye: conclRow?.hecl_mat || '',
                     ent: conclRow?.hecl_tmh || '',
                     dental: conclRow?.hecl_rhm || '',
@@ -241,14 +269,14 @@ class BatchSyncController {
                     gynecology: conclRow?.hecl_phukhoa || '',
                     neurology: conclRow?.hecl_thankinh || '',
                     psychiatry: conclRow?.hecl_tamthan || '',
-                    noi_khoa_tuan_hoan: conclRow?.hecl_tuanhoan || (examRow?.he_parts ? String(examRow.he_parts).trim() : ''),
-                    noi_khoa_ho_hap: conclRow?.hecl_hohap || (examRow?.he_parts ? String(examRow.he_parts).trim() : ''),
+                    noi_khoa_tuan_hoan: conclRow?.hecl_tuanhoan || '',
+                    noi_khoa_ho_hap: conclRow?.hecl_hohap || '',
                     noi_khoa_tieu_hoa: conclRow?.hecl_tieuhoa || '',
                     noi_khoa_than_tietnieu_pl: conclRow?.hecl_thantietnieu || '',
                     noi_khoa_than_kinh: conclRow?.hecl_thankinh || '',
                     noi_khoa_tam_than: conclRow?.hecl_tamthan || '',
-                    nhi_tuan_hoan: conclRow?.hecl_tuanhoan || (examRow?.he_parts ? String(examRow.he_parts).trim() : ''),
-                    nhi_ho_hap: conclRow?.hecl_hohap || (examRow?.he_parts ? String(examRow.he_parts).trim() : ''),
+                    nhi_tuan_hoan: conclRow?.hecl_tuanhoan || '',
+                    nhi_ho_hap: conclRow?.hecl_hohap || '',
                     nhi_tieu_hoa: conclRow?.hecl_tieuhoa || '',
                     nhi_than_kinh: conclRow?.hecl_thankinh || '',
                     nhi_tam_than: conclRow?.hecl_tamthan || ''
@@ -256,11 +284,14 @@ class BatchSyncController {
                 extra: {
                     gio_kham: examRow?.exam_time || '',
                     ngay_kham: examRow?.exam_date || hisRow.ngay_vao || '',
-                    ma_nghe_nghiep: hisRow.occupation ? String(hisRow.occupation).trim() : '',
-                    occupation: hisRow.occupation ? String(hisRow.occupation).trim() : '',
+                    ma_nghe_nghiep: occCode,
+                    occupation: occCode,
+                    quoc_tich: resolvedNationality,
+                    target_group: targetGroupVal,
                     noi_cong_tac_hien_tai: hisRow.workplace || '',
                     noi_cong_tac: hisRow.workplace || '',
                     workplace: hisRow.workplace || '',
+                    cccd_date: cleanCccdDate,
                     tsgd_mac_benh: histRow?.hdh_family ? '1' : '0',
                     tsgd_ma_benh: histRow?.hdh_family ? String(histRow.hdh_family).trim() : '',
                     ts_mac_benh: histRow?.hdh_owner ? '1' : '0',
@@ -269,7 +300,7 @@ class BatchSyncController {
                     benh_dang_dieu_tri: (histRow?.hdh_owner || examRow?.he_medical) ? String(histRow?.hdh_owner || examRow?.he_medical).trim() : '',
                     di_ung_thuoc: histRow?.hdh_drugallergy ? String(histRow.hdh_drugallergy).trim() : '',
                     qua_trinh_benh_ly: examRow?.he_medical ? String(examRow.he_medical).trim() : '',
-                    cac_benh_tat_neu_co: (histRow?.hdh_owner || examRow?.he_diagnostic) ? String(histRow?.hdh_owner || examRow?.he_diagnostic).trim() : '',
+                    cac_benh_tat_neu_co: evalResult.cacBenhTatNeuCo,
                     nhiet_do: conclRow?.hecl_temperature ? String(conclRow.hecl_temperature) : (examRow?.he_temperature ? String(examRow.he_temperature) : ''),
                     nhip_tho: conclRow?.hecl_breathinterval ? String(conclRow.hecl_breathinterval) : (examRow?.he_breathinterval ? String(examRow.he_breathinterval) : ''),
                     bmi: conclRow?.hecl_bmi ? Number(conclRow.hecl_bmi).toFixed(2) : (examRow?.he_bmi ? Number(examRow.he_bmi).toFixed(2) : ''),
@@ -277,17 +308,34 @@ class BatchSyncController {
                 }
             };
 
-            // 9. Đóng gói Conclusion Data
+            // 10. Đóng gói Conclusion Data
             const conclusionData: any = {
-                fitness_class: resolvedFitnessClass,
-                diagnosis: conclRow?.hecl_conclusion || (examRow?.he_diagnostic ? String(examRow.he_diagnostic).trim() : (examRow?.he_icd10 || '')),
-                doctor_id: examRow?.he_doctor || '',
-                doctor_name: examRow?.doctor_name || '',
-                cac_van_de_luu_y: conclRow?.hecl_remark || (examRow?.he_medical ? String(examRow.he_medical).trim() : ''),
-                cac_benh_tat_neu_co: (histRow?.hdh_owner || examRow?.he_diagnostic) ? String(histRow?.hdh_owner || examRow?.he_diagnostic).trim() : ''
+                fitness_class: evalResult.fitnessClass,
+                fitness_class_name: evalResult.fitnessClassName,
+                diagnosis: evalResult.diagnosis,
+                doctor_id: evalResult.doctorId || examRow?.he_doctor || '',
+                doctor_name: evalResult.doctorName || examRow?.doctor_name || '',
+                cac_van_de_luu_y: evalResult.cacVanDeLuuY,
+                cac_benh_tat_neu_co: evalResult.cacBenhTatNeuCo
             };
 
-            // 10. Sinh XML Payload chuẩn 1551/2062
+            // 11. Xây dựng Specialty Metadata đồng bộ
+            const specialtyMetadata = buildSpecialtyMetadata({
+                clinicalData,
+                labData,
+                conclusionData,
+                examDoctorId: examRow?.he_doctor,
+                examDoctorName: examRow?.doctor_name,
+                conclDoctorId: evalResult.doctorId,
+                conclDoctorName: evalResult.doctorName,
+                hasExam: !!examRow,
+                hasConclusion: !!(conclRow || hisRow.hd_conclusion || examRow?.he_diagnostic)
+            });
+
+            clinicalData.specialty_metadata = specialtyMetadata;
+            clinicalData.clinical_exam.specialty_metadata = specialtyMetadata;
+
+            // 12. Sinh XML Payload chuẩn 1551/2062
             const xmlData = generateXmlPayload(
                 resolvedFormType,
                 { patientName, cccd: hisRow.cccd, dob: hisRow.dob, gender: hisRow.gender, docNo: kskDocNo },
@@ -296,7 +344,7 @@ class BatchSyncController {
                 conclusionData
             );
 
-            // 11. Ghi vào CSDL (UPSERT Transaction)
+            // 13. Ghi vào CSDL (UPSERT Transaction)
             const syncAction = await transaction(async (client) => {
                 const existingRes = await client.query(
                     `SELECT id, signature_status, send_status 

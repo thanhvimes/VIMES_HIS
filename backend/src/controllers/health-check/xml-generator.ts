@@ -723,13 +723,32 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
 						</KHAM_LAM_SANG>`;
 
     // Build XML9: TIEN_SU_BENH_TAT (Tiền sử bệnh tật & tiêm chủng)
+    let sanKhoaKhongBtVal = String(findValue('SAN_KHOA_KHONG_BT', src) || '').trim();
+    if (!['1', '2', '3', '4', '5'].includes(sanKhoaKhongBtVal)) {
+        sanKhoaKhongBtVal = '';
+    }
+    let maBenhSanKhoaVal = String(findValue('MA_BENH_SAN_KHOA_KHONG_BT', src) || '').trim();
+    let sanKhoaVal = String(findValue('SAN_KHOA', src) || '').trim();
+
+    if (sanKhoaKhongBtVal || maBenhSanKhoaVal) {
+        sanKhoaVal = '0';
+    } else if (sanKhoaVal === '0' && !sanKhoaKhongBtVal && !maBenhSanKhoaVal) {
+        // Dữ liệu cũ lưu 0 do lỗi form, nhưng không có bất thường nào -> chuẩn hóa về Bình thường (1)
+        sanKhoaVal = '1';
+        sanKhoaKhongBtVal = '';
+    } else if (sanKhoaVal !== '0') {
+        sanKhoaVal = '1';
+        sanKhoaKhongBtVal = '';
+        maBenhSanKhoaVal = '';
+    }
+
     const xml9 = `<TIEN_SU_BENH_TAT>
 							<TSGD_MAC_BENH>${escapeXml(findValue('TSGD_MAC_BENH', src) || '0')}</TSGD_MAC_BENH>
 							<TSGD_MA_BENH>${escapeXml(findValue('TSGD_MA_BENH', src) || '')}</TSGD_MA_BENH>
 							<TS_TIEP_XUC_LAO>${escapeXml(findValue('TS_TIEP_XUC_LAO', src) || '0')}</TS_TIEP_XUC_LAO>
-							<SAN_KHOA>${escapeXml(findValue('SAN_KHOA', src) || '0')}</SAN_KHOA>
-							<SAN_KHOA_KHONG_BT>${escapeXml(findValue('SAN_KHOA_KHONG_BT', src) || '0')}</SAN_KHOA_KHONG_BT>
-							<MA_BENH_SAN_KHOA_KHONG_BT>${escapeXml(findValue('MA_BENH_SAN_KHOA_KHONG_BT', src) || '')}</MA_BENH_SAN_KHOA_KHONG_BT>
+							<SAN_KHOA>${escapeXml(sanKhoaVal)}</SAN_KHOA>
+							<SAN_KHOA_KHONG_BT>${escapeXml(sanKhoaKhongBtVal)}</SAN_KHOA_KHONG_BT>
+							<MA_BENH_SAN_KHOA_KHONG_BT>${escapeXml(maBenhSanKhoaVal)}</MA_BENH_SAN_KHOA_KHONG_BT>
 							<TIEM_CHUNG_BCG>${escapeXml(findValue('TIEM_CHUNG_BCG', src) || '0')}</TIEM_CHUNG_BCG>
 							<TIEM_CHUNG_BH_HG_UV>${escapeXml(findValue('TIEM_CHUNG_BH_HG_UV', src) || '0')}</TIEM_CHUNG_BH_HG_UV>
 							<TIEM_CHUNG_SOI>${escapeXml(findValue('TIEM_CHUNG_SOI', src) || '0')}</TIEM_CHUNG_SOI>

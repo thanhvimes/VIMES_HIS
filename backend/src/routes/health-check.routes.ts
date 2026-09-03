@@ -88,6 +88,7 @@ router.put('/contracts/:id', contractsController.updateContract.bind(contractsCo
 router.put('/contracts/:id/status', contractsController.updateContractStatus.bind(contractsController));
 router.delete('/contracts/:id', contractsController.deleteContract.bind(contractsController));
 router.post('/contracts/:id/cleanup-unreceived', contractsController.cleanupUnreceivedEmployees.bind(contractsController));
+router.post('/contracts/:id/import-his-docs', contractsController.importHisDocsToContract.bind(contractsController));
 router.get('/contracts/:id/employees', employeesController.getContractEmployees.bind(employeesController));
 router.post('/contracts/:id/employees/import', employeesController.importEmployees.bind(employeesController));
 router.post('/contracts/:id/receive-all', receptionController.receiveAllContractEmployees.bind(receptionController));
@@ -114,6 +115,7 @@ router.post('/settings/test-connection', contractsController.testConnection.bind
 // Reception & CCCD search endpoints
 router.get('/reception/search', receptionController.searchEmployeeByCard.bind(receptionController));
 router.post('/reception/receive', receptionController.receiveContractEmployee.bind(receptionController));
+router.post('/reception/cancel', receptionController.cancelReception.bind(receptionController));
 router.get('/reception/rooms', receptionController.getReceptionRooms.bind(receptionController));
 router.get('/reception/exam-fees', receptionController.getExamFees.bind(receptionController));
 router.put('/reception/employee/:id', receptionController.updateEmployee.bind(receptionController));

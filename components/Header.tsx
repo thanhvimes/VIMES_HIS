@@ -11,8 +11,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Tooltip from './ui/Tooltip';
 import UserProfileModal from './business/UserProfileModal';
 import ReAuthModal from './business/ReAuthModal';
-import SystemUpdateModal from './business/SystemUpdateModal';
-import { Sparkles } from 'lucide-react';
+
 
 interface HeaderProps {
     pageTitle?: string;
@@ -80,7 +79,7 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
     const [isNotifOpen, setNotifOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isReAuthOpen, setIsReAuthOpen] = useState(false);
-    const [isUpdateOpen, setIsUpdateOpen] = useState(false);
+
 
     const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotification();
     const { user } = useSession();
@@ -182,17 +181,7 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
             </div>
 
             <div className="flex items-center space-x-2 sm:space-x-4">
-                {/* OTA Update Quick Button */}
-                <Tooltip content="Trung tâm Cập nhật Hệ thống (OTA)">
-                    <button 
-                        onClick={() => setIsUpdateOpen(true)}
-                        className="px-2.5 py-1 text-[11px] font-extrabold rounded-full bg-white/15 hover:bg-white/25 text-white border border-white/20 flex items-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer"
-                    >
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span className="hidden sm:inline">Cập nhật</span>
-                        <Sparkles className="w-3.5 h-3.5 text-cyan-200" />
-                    </button>
-                </Tooltip>
+
 
                 {hasSupport && (
                     <Tooltip content={isListening ? "Đang ghi âm (Nhấn để tắt)" : "Nhập liệu giọng nói (Nhấn để bật)"}>
@@ -247,9 +236,7 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
                     {isDropdownOpen && (
                         <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-2xl ring-1 ring-black/5 z-50 overflow-hidden animate-fade-in-up">
                             <div className="p-1">
-                                <button onClick={() => { setIsUpdateOpen(true); setDropdownOpen(false); }} className="w-full flex items-center px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
-                                    <Sparkles className="w-4 h-4 mr-3 text-blue-500" /> Cập nhật hệ thống (OTA)
-                                </button>
+
                                 <button onClick={handleOpenProfileRequested} className="w-full flex items-center px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
                                     <UserGroupIcon className="w-4 h-4 mr-3 text-slate-400" /> Tài khoản
                                 </button>
@@ -263,7 +250,7 @@ const Header: React.FC<HeaderProps> = ({ pageTitle, onToggleSidebar, onLogout, s
             </div>
             <UserProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
             <ReAuthModal isOpen={isReAuthOpen} onClose={() => setIsReAuthOpen(false)} onSuccess={handleReAuthSuccess} />
-            <SystemUpdateModal isOpen={isUpdateOpen} onClose={() => setIsUpdateOpen(false)} />
+
         </header>
     );
 };

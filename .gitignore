@@ -40,6 +40,7 @@ lerna-debug.log*
 backend/debug_*.ts
 backend/inspect_*.js
 backend/inspect_*.ts
+backend/test_*.ts
 
 # Local Scratch, Temporary & Archives
 scratch/
@@ -48,6 +49,9 @@ archive/
 backend/archive/
 staging-evidence/
 release/
+backups/
+temp_update/
+temp_uploads/
 *.tmp
 *.dump
 *.bak

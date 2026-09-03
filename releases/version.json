@@ -1,12 +1,17 @@
 {
-  "version": "1.0.0",
-  "buildDate": "2026-08-28T14:03:30.798Z",
+  "version": "1.1.0",
+  "buildDate": "2026-09-03T08:52:27.754Z",
   "changelog": [
-    "Bản phát hành cập nhật v1.0.0",
-    "Tự động đồng bộ cấu trúc cơ sở dữ liệu (Migrations)",
-    "Tối ưu hóa hiệu năng và trải nghiệm người dùng"
+    "Bản phát hành cập nhật v1.1.0 - Phân hệ Khám Sức Khỏe & Tích hợp HIS Core",
+    "Đồng bộ dữ liệu 2 chiều HIS Core <-> KSK VNeID & Gateway XML theo QĐ 1551/QĐ-BYT và QĐ 2062/QĐ-BYT",
+    "Nâng cấp Giao diện Điều hướng Khám (High-Contrast cards, step badges, sub-tabs chuyên khoa)",
+    "Bổ sung tính năng Tiếp đón tất cả (Bulk Reception), Nhập hồ sơ HIS vào gói khám & Hủy tiếp nhận an toàn",
+    "Cơ chế Deep-Merge & Khóa bản ghi chống ghi đè dữ liệu đa bàn khám đồng thời",
+    "Tự động chuẩn hóa quốc tịch (mã 000 - Việt Nam) và đối tượng KSK theo nhóm tuổi",
+    "Hoàn thiện in ấn mã vạch xét nghiệm (Barcode XN), phân trang động và mẫu biểu ký số",
+    "Tự động đồng bộ cấu trúc cơ sở dữ liệu (Migrations an toàn 076)"
   ],
-  "downloadUrl": "https://updates.vimes.vn/releases/vimes-his-v1.0.0.tar.gz",
-  "sha256": "e9119017db3141607da214f673e74822420f7b93ac83e6d5fa293d399d8984dd",
+  "downloadUrl": "https://github.com/thanhvimes/VIMES_HIS/releases/download/v1.1.0/vimes-his-v1.1.0.tar.gz",
+  "sha256": "dd8b14aedfb0d85def5c175864a7ea7b69d4fefda3d60f0ece2042a9e418f01f",
   "requiredDbMigration": true
 }

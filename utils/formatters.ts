@@ -12,27 +12,35 @@
  */
 export const parseDateSafe = (input: string | Date | undefined | null): Date | null => {
     if (!input) return null;
-    if (input instanceof Date) return isNaN(input.getTime()) ? null : input;
+    if (input instanceof Date) {
+        if (isNaN(input.getTime()) || input.getFullYear() <= 1920) return null;
+        return input;
+    }
 
     if (typeof input === 'string') {
         const trimmed = input.trim();
-        if (!trimmed) return null;
+        if (!trimmed || trimmed.startsWith('1752') || trimmed.startsWith('0001') || trimmed.startsWith('1900') || trimmed.startsWith('0000')) return null;
 
         // 1. dd/mm/yyyy hoặc dd-mm-yyyy
         if (/^\d{1,2}[/-]\d{1,2}[/-]\d{4}/.test(trimmed)) {
             const parts = trimmed.split(/[/-]/);
-            return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+            const y = parseInt(parts[2], 10);
+            if (y <= 1920) return null;
+            return new Date(y, parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
         }
 
         // 2. yyyy-mm-dd hoặc yyyy/mm/dd (chỉ ngày: tạo Date theo local timezone để không bị lệch ngày theo UTC)
         if (/^\d{4}[/-]\d{1,2}[/-]\d{1,2}$/.test(trimmed)) {
             const parts = trimmed.split(/[/-]/);
-            return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+            const y = parseInt(parts[0], 10);
+            if (y <= 1920) return null;
+            return new Date(y, parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
         }
     }
     
     const date = new Date(input);
-    return isNaN(date.getTime()) ? null : date;
+    if (isNaN(date.getTime()) || date.getFullYear() <= 1920) return null;
+    return date;
 };
 
 /**
@@ -42,11 +50,15 @@ export const formatDate = (dateInput: string | Date | undefined | null): string 
     if (!dateInput) return '---';
     if (typeof dateInput === 'string') {
         const trimmed = dateInput.trim();
+        if (!trimmed || trimmed.startsWith('1752') || trimmed.startsWith('0001') || trimmed.startsWith('1900') || trimmed.startsWith('0000')) return '---';
         if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
             const [y, m, d] = trimmed.split('-');
+            if (parseInt(y, 10) <= 1920) return '---';
             return `${d}/${m}/${y}`;
         }
         if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmed)) {
+            const parts = trimmed.split('/');
+            if (parseInt(parts[2], 10) <= 1920) return '---';
             return trimmed;
         }
     }
@@ -98,9 +110,15 @@ export const formatDateForInput = (dateInput: string | Date | undefined | null):
     if (!dateInput) return '';
     if (typeof dateInput === 'string') {
         const trimmed = dateInput.trim();
-        if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+        if (!trimmed || trimmed.startsWith('1752') || trimmed.startsWith('0001') || trimmed.startsWith('1900') || trimmed.startsWith('0000')) return '';
+        if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+            const parts = trimmed.split('-');
+            if (parseInt(parts[0], 10) <= 1920) return '';
+            return trimmed;
+        }
         if (/^\d{1,2}[/-]\d{1,2}[/-]\d{4}$/.test(trimmed)) {
             const parts = trimmed.split(/[/-]/);
+            if (parseInt(parts[2], 10) <= 1920) return '';
             return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
         }
     }

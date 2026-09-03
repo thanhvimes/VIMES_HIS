@@ -116,7 +116,16 @@ class ReceptionCatalogController {
 
     async getNations(req: Request, res: Response) {
         try {
-            const result = await query(`SELECT hq_idx as id, hq_idx as code, hq_name as name from hms_quoctich ORDER BY hq_idx, id`);
+            const result = await query(`
+                SELECT 
+                    COALESCE(NULLIF(TRIM(hq_id), ''), hq_idx::text) as id, 
+                    COALESCE(NULLIF(TRIM(hq_id), ''), hq_idx::text) as code, 
+                    hq_name as name, 
+                    hq_idx, 
+                    hq_id
+                FROM hms_quoctich 
+                ORDER BY (CASE WHEN hq_id = '000' OR hq_name ILIKE '%Việt Nam%' THEN 0 ELSE 1 END), hq_idx
+            `);
             return res.json(result.rows);
         } catch (error: any) {
             return res.status(500).json({ error: error.message });

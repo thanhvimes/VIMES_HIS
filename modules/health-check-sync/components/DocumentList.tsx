@@ -181,22 +181,38 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                     </td>
                                     <td className="p-4">
                                         {(() => {
-                                            const specMeta = doc.clinical_data?.specialty_metadata || {};
-                                            const isConcluded = specMeta.conclusion?.status === 'ĐÃ_DUYỆT'
+                                            const specMeta = doc.clinical_data?.specialty_metadata || doc.clinical_data?.clinical_exam?.specialty_metadata || {};
+                                            const isConcluded = specMeta.conclusion?.status === 'ĐÃ_KẾT_LUẬN'
+                                                || specMeta.conclusion?.status === 'ĐÃ_DUYỆT'
                                                 || specMeta.conclusion?.status === 'ĐÃ_KHÁM'
                                                 || doc.signature_status === 'Signed'
-                                                || (doc.conclusion_data?.doctor_id && (doc.conclusion_data?.diagnosis || doc.conclusion_data?.fitness_class));
+                                                || !!(doc.conclusion_data?.fitness_class || doc.conclusion_data?.ket_luan_loai_suc_khoe || doc.conclusion_data?.diagnosis);
 
-                                            const isExamining = !isConcluded && (
-                                                Object.values(specMeta).some((s: any) => s?.status === 'ĐANG_KHÁM' || s?.status === 'ĐÃ_KHÁM' || s?.status === 'ĐÃ_DUYỆT')
+                                            const isExamined = !isConcluded && (
+                                                specMeta.examination?.status === 'ĐÃ_KHÁM'
+                                                || Object.values(specMeta).some((s: any) => s?.status === 'ĐÃ_KHÁM' || s?.status === 'ĐÃ_DUYỆT')
                                                 || !!doc.clinical_data?.examination?.height
                                                 || !!doc.clinical_data?.examination?.weight
+                                                || !!doc.clinical_data?.examination?.pulse
+                                                || !!doc.clinical_data?.examination?.bp
+                                                || !!doc.clinical_data?.examination?.blood_pressure
+                                                || (doc.lab_data?.paraclinical_items && doc.lab_data.paraclinical_items.length > 0)
+                                            );
+
+                                            const isExamining = !isConcluded && !isExamined && (
+                                                Object.values(specMeta).some((s: any) => s?.status === 'ĐANG_KHÁM')
                                             );
 
                                             if (isConcluded) {
                                                 return (
                                                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                                                         Đã kết luận
+                                                    </span>
+                                                );
+                                            } else if (isExamined) {
+                                                return (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                                        Đã khám
                                                     </span>
                                                 );
                                             } else if (isExamining) {

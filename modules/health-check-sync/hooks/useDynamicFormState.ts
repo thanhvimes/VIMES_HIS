@@ -111,14 +111,23 @@ export const useDynamicFormState = (
         initialData?.clinical_data?.extra?.TIEM_CHUNG_VAC_XIN_KHAC || ''
     );
 
-    // Tiền sử thai sản (QĐ 2062)
-    const [tsbtThaiSan, setTsbtThaiSan] = useState(initialData?.clinical_data?.extra?.tsbt_thai_san || '0');
-    const [tsbtMaBenhThaiSan, setTsbtMaBenhThaiSan] = useState(initialData?.clinical_data?.extra?.tsbt_ma_benh_thai_san || '');
+    // Tiền sử thai sản (QĐ 2062) / Tiền sử sản khoa lúc sinh (Mẫu 2 - QĐ 1551)
+    const [tsbtThaiSan, setTsbtThaiSan] = useState(() => {
+        const extra = initialData?.clinical_data?.extra;
+        if (extra?.san_khoa !== undefined) return String(extra.san_khoa);
+        if (extra?.tsbt_thai_san !== undefined) return String(extra.tsbt_thai_san);
+        return formType === '2' || formType === 'mau2-minor' || formType === 'minor' ? '1' : '0';
+    });
+    const [tsbtMaBenhThaiSan, setTsbtMaBenhThaiSan] = useState(initialData?.clinical_data?.extra?.tsbt_ma_benh_thai_san || initialData?.clinical_data?.extra?.ma_benh_san_khoa_khong_bt || '');
     const [tsbtTenThuocThaiSan, setTsbtTenThuocThaiSan] = useState(initialData?.clinical_data?.extra?.tsbt_ten_thuoc_thai_san || '');
 
-    // Tiền sử sản phụ khoa (nữ)
+    // Tiền sử sản phụ khoa (nữ) / Bất thường sản khoa lúc sinh (Mẫu 2)
     const [coKinhNguyetNamBaoNhieuTuoi, setCoKinhNguyetNamBaoNhieuTuoi] = useState(initialData?.clinical_data?.extra?.co_kinh_nguyet_nam_bao_nhieu_tuoi || '');
-    const [tinhChatKinhNguyet, setTinhChatKinhNguyet] = useState(initialData?.clinical_data?.extra?.tinh_chat_kinh_nguyet || '');
+    const [tinhChatKinhNguyet, setTinhChatKinhNguyet] = useState(() => {
+        const extra = initialData?.clinical_data?.extra;
+        const val = extra?.san_khoa_khong_bt ?? extra?.tinh_chat_kinh_nguyet ?? '';
+        return String(val) === '0' ? '' : String(val);
+    });
     const [chuKyKinh, setChuKyKinh] = useState(initialData?.clinical_data?.extra?.chu_ky_kinh || '');
     const [luongKinh, setLuongKinh] = useState(initialData?.clinical_data?.extra?.luong_kinh || '');
     const [dauBungKinh, setDauBungKinh] = useState(initialData?.clinical_data?.extra?.dau_bung_kinh || '');
@@ -392,11 +401,16 @@ export const useDynamicFormState = (
 
     // Occupational & other extra states
     const [maCskcb, setMaCskcb] = useState(initialData?.clinical_data?.extra?.ma_cskcb || '');
-    const [quocTich, setQuocTich] = useState(
-        initialData?.clinical_data?.clinical_exam?.quoc_tich ||
-        initialData?.clinical_data?.extra?.quoc_tich ||
-        'VNM'
-    );
+    const [quocTich, setQuocTich] = useState(() => {
+        const raw = initialData?.clinical_data?.clinical_exam?.quoc_tich ||
+            initialData?.clinical_data?.extra?.quoc_tich ||
+            initialData?.clinical_data?.quoc_tich ||
+            initialData?.nationality;
+        if (!raw) return '000';
+        const str = String(raw).trim().toUpperCase();
+        if (str === 'VN' || str === 'VNM' || str === 'VIE' || str === '000' || str === '190') return '000';
+        return str;
+    });
     const [conThuMay, setConThuMay] = useState(initialData?.clinical_data?.extra?.con_thu_may || '');
     const [tongSoCon, setTongSoCon] = useState(initialData?.clinical_data?.extra?.tong_so_con || '');
     const [maTinhCuTruNghMe, setMaTinhCuTruNghMe] = useState(initialData?.clinical_data?.extra?.matinh_cu_tru_nghme || '');
@@ -548,8 +562,8 @@ export const useDynamicFormState = (
         if (clinical.address || initialData.address) setAddress(clinical.address || initialData.address);
         if (clinical.phone || initialData.phone) setPhone(clinical.phone || initialData.phone);
         if (clinical.ethnic) setEthnic(clinical.ethnic);
-        if (clinical.cccd_date) setCccdDate(formatDateForInput(clinical.cccd_date));
-        if (clinical.cccd_place) setCccdPlace(clinical.cccd_place);
+        if (clinical.cccd_date || extra.cccd_date) setCccdDate(formatDateForInput(clinical.cccd_date || extra.cccd_date));
+        if (clinical.cccd_place || extra.cccd_place) setCccdPlace(clinical.cccd_place || extra.cccd_place);
         if (clinical.blood_group) setBloodGroup(clinical.blood_group);
         if (clinical.target_group) setTargetGroup(clinical.target_group);
         if (clinical.funding_source) setFundingSource(clinical.funding_source);
@@ -562,9 +576,9 @@ export const useDynamicFormState = (
             setNgayVao(formatDateForInput(clinical.ngay_vao || extra.ngay_kham));
         }
 
-        const loadedOccupation = clinical.ma_nghe_nghiep || clinical.occupation || extra.ma_nghe_nghiep || initialData.occupation;
-        if (loadedOccupation) setMaNgheNghiep(String(loadedOccupation));
-        const loadedWorkplace = clinical.noi_cong_tac_hien_tai || clinical.noi_cong_tac || clinical.workplace || extra.noi_cong_tac_hien_tai || extra.noi_cong_tac || initialData.workplace;
+        const loadedOccupation = extra.ma_nghe_nghiep || clinical.ma_nghe_nghiep || clinical.occupation || initialData.occupation;
+        if (loadedOccupation) setMaNgheNghiep(String(loadedOccupation).trim());
+        const loadedWorkplace = extra.noi_cong_tac_hien_tai || extra.noi_cong_tac || clinical.noi_cong_tac_hien_tai || clinical.noi_cong_tac || clinical.workplace || initialData.workplace;
         if (loadedWorkplace) setNoiCongTacHienTai(String(loadedWorkplace));
 
         if (extra.nguoi_giam_ho) setGuardianName(extra.nguoi_giam_ho);
@@ -622,11 +636,20 @@ export const useDynamicFormState = (
         if (extra.tiem_chung_vac_xin_khac || extra.tiemChungVacXinKhac || extra.TIEM_CHUNG_VAC_XIN_KHAC) {
             setTiemChungVacXinKhac(extra.tiem_chung_vac_xin_khac || extra.tiemChungVacXinKhac || extra.TIEM_CHUNG_VAC_XIN_KHAC);
         }
-        if (extra.tsbt_thai_san !== undefined) setTsbtThaiSan(String(extra.tsbt_thai_san));
+        if (extra.san_khoa !== undefined) {
+            setTsbtThaiSan(String(extra.san_khoa));
+        } else if (extra.tsbt_thai_san !== undefined) {
+            setTsbtThaiSan(String(extra.tsbt_thai_san));
+        } else if (formType === '2' || formType === 'mau2-minor' || formType === 'minor') {
+            setTsbtThaiSan('1');
+        }
         if (extra.tsbt_ma_benh_thai_san || extra.ma_benh_san_khoa_khong_bt) setTsbtMaBenhThaiSan(extra.tsbt_ma_benh_thai_san || extra.ma_benh_san_khoa_khong_bt);
         if (extra.tsbt_ten_thuoc_thai_san) setTsbtTenThuocThaiSan(extra.tsbt_ten_thuoc_thai_san);
         if (extra.co_kinh_nguyet_nam_bao_nhieu_tuoi) setCoKinhNguyetNamBaoNhieuTuoi(extra.co_kinh_nguyet_nam_bao_nhieu_tuoi);
-        if (extra.tinh_chat_kinh_nguyet) setTinhChatKinhNguyet(extra.tinh_chat_kinh_nguyet);
+        const rawSkKhongBt = extra.san_khoa_khong_bt ?? extra.tinh_chat_kinh_nguyet;
+        if (rawSkKhongBt !== undefined) {
+            setTinhChatKinhNguyet(String(rawSkKhongBt) === '0' ? '' : String(rawSkKhongBt));
+        }
         if (extra.chu_ky_kinh) setChuKyKinh(extra.chu_ky_kinh);
         if (extra.luong_kinh) setLuongKinh(extra.luong_kinh);
         if (extra.dau_bung_kinh) setDauBungKinh(extra.dau_bung_kinh);
@@ -857,17 +880,41 @@ export const useDynamicFormState = (
                 if (data.clinical_data?.address) setAddress(data.clinical_data.address);
                 if (data.clinical_data?.phone) setPhone(data.clinical_data.phone);
                 if (data.clinical_data?.ethnic) setEthnic(data.clinical_data.ethnic);
-                const loadedOccupation = data.clinical_data?.ma_nghe_nghiep || data.clinical_data?.occupation || data.clinical_data?.extra?.ma_nghe_nghiep || data.occupation;
+                const loadedOccupation = data.clinical_data?.extra?.ma_nghe_nghiep || data.clinical_data?.ma_nghe_nghiep || data.clinical_data?.occupation || data.occupation;
                 if (loadedOccupation) {
-                    setMaNgheNghiep(String(loadedOccupation));
+                    setMaNgheNghiep(String(loadedOccupation).trim());
                 }
-                const loadedWorkplace = data.clinical_data?.noi_cong_tac_hien_tai || data.clinical_data?.noi_cong_tac || data.clinical_data?.workplace || data.clinical_data?.extra?.noi_cong_tac_hien_tai || data.workplace;
+                const loadedWorkplace = data.clinical_data?.extra?.noi_cong_tac_hien_tai || data.clinical_data?.extra?.noi_cong_tac || data.clinical_data?.noi_cong_tac_hien_tai || data.clinical_data?.noi_cong_tac || data.clinical_data?.workplace || data.workplace;
                 if (loadedWorkplace) {
                     setNoiCongTacHienTai(String(loadedWorkplace));
                 }
-                if (data.clinical_data?.cccd_date) setCccdDate(formatDateForInput(data.clinical_data.cccd_date));
+                if (data.clinical_data?.cccd_date || data.clinical_data?.extra?.cccd_date || data.cccd_date) {
+                    setCccdDate(formatDateForInput(data.clinical_data?.cccd_date || data.clinical_data?.extra?.cccd_date || data.cccd_date));
+                }
                 if (data.clinical_data?.blood_group) setBloodGroup(data.clinical_data.blood_group);
-                if (data.clinical_data?.target_group) setTargetGroup(data.clinical_data.target_group);
+                
+                const loadedNat = data.clinical_data?.quoc_tich || data.clinical_data?.clinical_exam?.quoc_tich || data.clinical_data?.extra?.quoc_tich || data.nationality;
+                if (loadedNat) {
+                    const natStr = String(loadedNat).trim().toUpperCase();
+                    if (natStr === 'VN' || natStr === 'VNM' || natStr === 'VIE' || natStr === '000' || natStr === '190') setQuocTich('000');
+                    else setQuocTich(natStr);
+                } else {
+                    setQuocTich('000');
+                }
+
+                const loadedTg = data.clinical_data?.target_group || data.clinical_data?.extra?.target_group;
+                if (loadedTg) {
+                    setTargetGroup(String(loadedTg));
+                } else if (data.dob) {
+                    const bDate = new Date(data.dob);
+                    if (!isNaN(bDate.getTime())) {
+                        const today = new Date();
+                        let a = today.getFullYear() - bDate.getFullYear();
+                        if (today.getMonth() < bDate.getMonth() || (today.getMonth() === bDate.getMonth() && today.getDate() < bDate.getDate())) a--;
+                        setTargetGroup(a >= 60 ? '1' : '3');
+                    }
+                }
+                
                 if (data.clinical_data?.ma_gtin_cskcb) setMaGtinCskcb(data.clinical_data.ma_gtin_cskcb);
                 if (data.clinical_data?.matinh_cu_tru) setMaTinhCuTru(data.clinical_data.matinh_cu_tru);
                 if (data.clinical_data?.maxa_cu_tru) setMaXaCuTru(data.clinical_data.maxa_cu_tru);
@@ -1061,7 +1108,11 @@ export const useDynamicFormState = (
                 if (data.lab_data?.us?.ket_qua) setKetQuaSieuAmBung(data.lab_data.us.ket_qua);
 
                 if (data.lab_data?.paraclinical_items) setParaclinicalItems(data.lab_data.paraclinical_items);
-                if (data.clinical_data?.clinical_exam?.specialty_metadata) setSpecialtyMetadata(data.clinical_data.clinical_exam.specialty_metadata);
+                if (data.clinical_data?.specialty_metadata) {
+                    setSpecialtyMetadata(data.clinical_data.specialty_metadata);
+                } else if (data.clinical_data?.clinical_exam?.specialty_metadata) {
+                    setSpecialtyMetadata(data.clinical_data.clinical_exam.specialty_metadata);
+                }
                 
                 // Đổ kết luận
                 if (data.conclusion_data?.fitness_class) setFitnessClass(data.conclusion_data.fitness_class);
@@ -1085,7 +1136,8 @@ export const useDynamicFormState = (
                 if (data.clinical_data?.extra?.benh_dang_dieu_tri) setBenhDangDieuTri(data.clinical_data.extra.benh_dang_dieu_tri);
                 if (data.clinical_data?.extra?.tsbt_dang_dieu_tri_benh) setTsbtDangDieuTriBenh(data.clinical_data.extra.tsbt_dang_dieu_tri_benh);
                 if (data.clinical_data?.extra?.nhi_khoa_lam_sang_khac) setNhiKhoaLamSangKhac(data.clinical_data.extra.nhi_khoa_lam_sang_khac);
-                if (data.conclusion_data?.doctor_id) setConclusionDoctorId(data.conclusion_data.doctor_id);
+                const loadedConclDocId = data.conclusion_data?.doctor_id || data.clinical_data?.extra?.concl_doctor_id || data.clinical_data?.specialty_metadata?.conclusion?.doctorId;
+                if (loadedConclDocId) setConclusionDoctorId(loadedConclDocId);
                 if (data.conclusion_data?.du_tieu_chuan_dk_ptgt_duong_sat) setDuTieuChuanDkPtgtDuongSat(data.conclusion_data.du_tieu_chuan_dk_ptgt_duong_sat);
                 if (data.conclusion_data?.kha_nang_chiu_song) setKhaNangChiuSong(data.conclusion_data.kha_nang_chiu_song);
                 if (data.conclusion_data?.han_che) setHanChe(data.conclusion_data.han_che);
@@ -1097,9 +1149,9 @@ export const useDynamicFormState = (
                 
                 const initOccupation = data.clinical_data?.extra?.ma_nghe_nghiep || data.clinical_data?.ma_nghe_nghiep || data.clinical_data?.occupation || data.occupation;
                 if (initOccupation) {
-                    setMaNgheNghiep(String(initOccupation));
+                    setMaNgheNghiep(String(initOccupation).trim());
                 }
-                const initWorkplace = data.clinical_data?.extra?.noi_cong_tac_hien_tai || data.clinical_data?.noi_cong_tac_hien_tai || data.clinical_data?.noi_cong_tac || data.clinical_data?.workplace || data.workplace;
+                const initWorkplace = data.clinical_data?.extra?.noi_cong_tac_hien_tai || data.clinical_data?.extra?.noi_cong_tac || data.clinical_data?.noi_cong_tac_hien_tai || data.clinical_data?.noi_cong_tac || data.clinical_data?.workplace || data.workplace;
                 if (initWorkplace) {
                     setNoiCongTacHienTai(String(initWorkplace));
                 }
@@ -1891,9 +1943,15 @@ export const useDynamicFormState = (
                     benh_dang_dieu_tri: benhDangDieuTri || tenThuoc,
                     tsbt_ma_benh_khac: tsbtMaBenhKhac,
                     tsbt_thai_san: tsbtThaiSan,
-                    san_khoa: tsbtThaiSan !== undefined && tsbtThaiSan !== '' ? tsbtThaiSan : '1',
-                    san_khoa_khong_bt: tinhChatKinhNguyet || (tsbtThaiSan === '0' ? '1' : '0'),
-                    ma_benh_san_khoa_khong_bt: tsbtMaBenhThaiSan || '',
+                    san_khoa: (formType === '2' || formType === 'mau2-minor' || formType === 'minor')
+                        ? (tsbtThaiSan === '0' ? '0' : '1')
+                        : (tsbtThaiSan !== undefined && tsbtThaiSan !== '' ? tsbtThaiSan : '1'),
+                    san_khoa_khong_bt: (formType === '2' || formType === 'mau2-minor' || formType === 'minor')
+                        ? (tsbtThaiSan === '0' && ['1', '2', '3', '4', '5'].includes(tinhChatKinhNguyet) ? tinhChatKinhNguyet : '')
+                        : (tinhChatKinhNguyet || ''),
+                    ma_benh_san_khoa_khong_bt: (formType === '2' || formType === 'mau2-minor' || formType === 'minor')
+                        ? (tsbtThaiSan === '0' ? (tsbtMaBenhThaiSan || '') : '')
+                        : (tsbtMaBenhThaiSan || ''),
                     tsbt_ma_benh_thai_san: tsbtMaBenhThaiSan,
                     tsbt_ten_thuoc_thai_san: tsbtTenThuocThaiSan,
                     nhi_khoa_lam_sang_khac: nhiKhoaLamSangKhac || nhiKhac,
@@ -2292,9 +2350,15 @@ export const useDynamicFormState = (
                     benh_dang_dieu_tri: benhDangDieuTri || tenThuoc,
                     tsbt_ma_benh_khac: tsbtMaBenhKhac,
                     tsbt_thai_san: tsbtThaiSan,
-                    san_khoa: tsbtThaiSan !== undefined && tsbtThaiSan !== '' ? tsbtThaiSan : '1',
-                    san_khoa_khong_bt: tinhChatKinhNguyet || (tsbtThaiSan === '0' ? '1' : '0'),
-                    ma_benh_san_khoa_khong_bt: tsbtMaBenhThaiSan || '',
+                    san_khoa: (formType === '2' || formType === 'mau2-minor' || formType === 'minor')
+                        ? (tsbtThaiSan === '0' ? '0' : '1')
+                        : (tsbtThaiSan !== undefined && tsbtThaiSan !== '' ? tsbtThaiSan : '1'),
+                    san_khoa_khong_bt: (formType === '2' || formType === 'mau2-minor' || formType === 'minor')
+                        ? (tsbtThaiSan === '0' && ['1', '2', '3', '4', '5'].includes(tinhChatKinhNguyet) ? tinhChatKinhNguyet : '')
+                        : (tinhChatKinhNguyet || ''),
+                    ma_benh_san_khoa_khong_bt: (formType === '2' || formType === 'mau2-minor' || formType === 'minor')
+                        ? (tsbtThaiSan === '0' ? (tsbtMaBenhThaiSan || '') : '')
+                        : (tsbtMaBenhThaiSan || ''),
                     tsbt_ma_benh_thai_san: tsbtMaBenhThaiSan,
                     tsbt_ten_thuoc_thai_san: tsbtTenThuocThaiSan,
                     nhi_khoa_lam_sang_khac: nhiKhoaLamSangKhac || nhiKhac,

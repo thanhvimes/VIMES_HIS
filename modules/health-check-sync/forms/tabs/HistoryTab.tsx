@@ -1238,11 +1238,11 @@ const HistoryTab: React.FC = () => {
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1">26. Tiền sử sản khoa lúc sinh (SAN_KHOA)</label>
                             <select
-                                value={tsbtThaiSan !== undefined && tsbtThaiSan !== '' ? tsbtThaiSan : '1'}
+                                value={tsbtThaiSan === '0' ? '0' : '1'}
                                 onChange={e => {
                                     setTsbtThaiSan(e.target.value);
                                     if (e.target.value === '1') {
-                                        setTinhChatKinhNguyet('0');
+                                        setTinhChatKinhNguyet('');
                                         setTsbtMaBenhThaiSan('');
                                     }
                                 }}
@@ -1256,14 +1256,14 @@ const HistoryTab: React.FC = () => {
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1">27. Bất thường sản khoa lúc sinh (SAN_KHOA_KHONG_BT)</label>
                             <select
-                                value={tinhChatKinhNguyet || (tsbtThaiSan === '0' ? '1' : '0')}
+                                value={tsbtThaiSan === '0' ? (tinhChatKinhNguyet && tinhChatKinhNguyet !== '0' ? tinhChatKinhNguyet : '') : ''}
                                 onChange={e => {
                                     setTinhChatKinhNguyet(e.target.value);
                                 }}
-                                disabled={isLocked || tsbtThaiSan === '1'}
+                                disabled={isLocked || tsbtThaiSan !== '0'}
                                 className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white"
                             >
-                                <option value="0">0 - Không có bất thường</option>
+                                <option value="">{tsbtThaiSan === '0' ? '-- Chọn bất thường sản khoa lúc sinh (1-5) --' : 'Không có bất thường (Bình thường)'}</option>
                                 <option value="1">1 - Đẻ thiếu tháng (&lt; 37 tuần)</option>
                                 <option value="2">2 - Đẻ thừa cân (&gt; 4000g)</option>
                                 <option value="3">3 - Đẻ có can thiệp (giác hút/mổ)</option>
@@ -1272,7 +1272,7 @@ const HistoryTab: React.FC = () => {
                             </select>
                         </div>
                     </div>
-                    {(tsbtThaiSan === '0' || (tinhChatKinhNguyet && tinhChatKinhNguyet !== '0')) && (
+                    {tsbtThaiSan === '0' && (
                         <div className="pt-2 border-t border-purple-100 dark:border-purple-900/30">
                             <ICD10MultiSelect
                                 label="28. Tên bệnh gây ra sản khoa không bình thường (Mã ICD-10) (MA_BENH_SAN_KHOA_KHONG_BT)"

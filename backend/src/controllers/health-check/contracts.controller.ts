@@ -3,6 +3,8 @@ import { query } from '../../config/database';
 import SecurityUtils from '../../utils/security';
 import { loadHealthCheckSettings } from '../../config/health-check-settings';
 import { restartHealthCheckSyncWorker } from '../../services/health-check-sync.service';
+import { calculateAge } from '../../services/health-check-classifier.service';
+import { batchSyncController } from './batch-sync.controller';
 import axios from 'axios';
 
 export class ContractsController {
@@ -464,8 +466,12 @@ export class ContractsController {
                     to_char(c.hec_date, 'YYYY-MM-DD') as contract_date,
                     to_char(c.hec_examdate, 'YYYY-MM-DD') as exam_date,
                     c.hec_type as type,
-                    c.hec_object as object,
+                    COALESCE(c.hec_object, 3) as object,
                     c.hec_form_type as form_type,
+                    COALESCE(c.hec_def_roomid, 22) as def_roomid,
+                    COALESCE(c.hec_def_roomid, 22) as room_id,
+                    c.hec_def_examtype as def_examtype,
+                    (SELECT hrl_name FROM hms_roomlist r WHERE r.hrl_id = COALESCE(c.hec_def_roomid, 22) LIMIT 1) as room_name,
                     COALESCE(c.hec_status, 'O') as status,
                     (SELECT COUNT(*) FROM hms_exm_employee e WHERE e.hee_contract_id = c.hec_contract_id AND e.hee_isactive='Y') as employee_count,
                     (SELECT COUNT(*) FROM health_check_masters m 
@@ -499,15 +505,17 @@ export class ContractsController {
 
     // Tạo mới hợp đồng
     async createContract(req: Request, res: Response) {
-        const { code, company_id, description, contract_date, exam_date, type, object, form_type } = req.body;
+        const { code, company_id, description, contract_date, exam_date, type, object, form_type, def_roomid, room_id, def_examtype } = req.body;
         try {
             const idRes = await query(`SELECT COALESCE(MAX(hec_contract_id), 0) + 1 as next_id FROM hms_exm_contract`);
             const nextId = idRes.rows[0].next_id;
 
+            const targetRoomId = (def_roomid !== undefined && def_roomid !== null) ? parseInt(String(def_roomid), 10) : (room_id ? parseInt(String(room_id), 10) : 22);
+
             const insertSql = `
                 INSERT INTO hms_exm_contract (
-                    hec_contract_id, hec_no, hec_company_id, hec_description, hec_date, hec_examdate, hec_type, hec_object, hec_form_type, hec_status
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'O')
+                    hec_contract_id, hec_no, hec_company_id, hec_description, hec_date, hec_examdate, hec_type, hec_object, hec_form_type, hec_def_roomid, hec_def_examtype, hec_status
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'O')
                 RETURNING hec_contract_id as id
             `;
             const result = await query(insertSql, [
@@ -518,8 +526,10 @@ export class ContractsController {
                 contract_date ? new Date(contract_date) : new Date(),
                 exam_date ? new Date(exam_date) : null,
                 type || 'DV',
-                object ? parseInt(String(object), 10) : 7,
-                form_type || '2'
+                object ? parseInt(String(object), 10) : 3, // Mặc định đối tượng 3: Miễn giảm
+                form_type || '2',
+                targetRoomId,
+                def_examtype || 'E01'
             ]);
             return res.json({ success: true, id: result.rows[0].id });
         } catch (error: any) {
@@ -532,12 +542,14 @@ export class ContractsController {
     async updateContract(req: Request, res: Response) {
         const { id } = req.params;
         const contractId = parseInt(id as string, 10);
-        const { code, company_id, description, contract_date, exam_date, type, object, form_type } = req.body;
+        const { code, company_id, description, contract_date, exam_date, type, object, form_type, def_roomid, room_id, def_examtype } = req.body;
         try {
             const checkStatus = await query('SELECT hec_status FROM hms_exm_contract WHERE hec_contract_id = $1', [contractId]);
             if (checkStatus.rows.length > 0 && checkStatus.rows[0].hec_status === 'A') {
                 return res.status(400).json({ success: false, message: 'Gói khám đã được duyệt chốt, không thể thay đổi thông tin!' });
             }
+
+            const targetRoomId = (def_roomid !== undefined && def_roomid !== null) ? parseInt(String(def_roomid), 10) : (room_id ? parseInt(String(room_id), 10) : 22);
 
             const updateSql = `
                 UPDATE hms_exm_contract
@@ -548,8 +560,10 @@ export class ContractsController {
                     hec_examdate = $5,
                     hec_type = $6,
                     hec_object = $7,
-                    hec_form_type = $8
-                WHERE hec_contract_id = $9
+                    hec_form_type = $8,
+                    hec_def_roomid = $9,
+                    hec_def_examtype = $10
+                WHERE hec_contract_id = $11
             `;
             await query(updateSql, [
                 code,
@@ -558,8 +572,10 @@ export class ContractsController {
                 contract_date ? new Date(contract_date) : new Date(),
                 exam_date ? new Date(exam_date) : null,
                 type || 'DV',
-                object ? parseInt(String(object), 10) : 7,
+                object ? parseInt(String(object), 10) : 3, // Mặc định đối tượng 3: Miễn giảm
                 form_type || '2',
+                targetRoomId,
+                def_examtype || 'E01',
                 contractId
             ]);
             return res.json({ success: true });
@@ -814,6 +830,152 @@ export class ContractsController {
             });
         } catch (error: any) {
             console.error('❌ KSK Controller: Lỗi cleanupUnreceivedEmployees:', error);
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // Nhập hồ sơ từ HIS vào gói khám (Import HIS Docs to Contract)
+    async importHisDocsToContract(req: Request, res: Response) {
+        const { id } = req.params;
+        const contractId = parseInt(id as string, 10);
+        const { docNos, autoSyncKsk = true } = req.body;
+
+        if (isNaN(contractId)) {
+            return res.status(400).json({ success: false, message: 'Mã hợp đồng không hợp lệ' });
+        }
+
+        if (!Array.isArray(docNos) || docNos.length === 0) {
+            return res.status(400).json({ success: false, message: 'Danh sách số hồ sơ rỗng!' });
+        }
+
+        try {
+            // Kiểm tra trạng thái gói khám
+            const contractRes = await query('SELECT hec_status, hec_no FROM hms_exm_contract WHERE hec_contract_id = $1', [contractId]);
+            if (contractRes.rows.length === 0) {
+                return res.status(404).json({ success: false, message: 'Không tìm thấy hợp đồng' });
+            }
+            if (contractRes.rows[0].hec_status === 'A') {
+                return res.status(400).json({ success: false, message: 'Gói khám đã được duyệt chốt, không thể thêm hồ sơ!' });
+            }
+
+            const currentUser = (req as any).user?.username || (req as any).userId || 'admin';
+            const results: any[] = [];
+            let importedCount = 0;
+
+            for (const rawDoc of docNos) {
+                const docNo = parseInt(String(rawDoc).trim(), 10);
+                if (isNaN(docNo) || docNo <= 0) continue;
+
+                // 1. Kiểm tra xem hồ sơ có tồn tại trong hms_doc & hms_patient không
+                const docRes = await query(`
+                    SELECT 
+                        d.hd_docno, d.hd_patientno, d.hd_admitdate,
+                        p.hp_surname, p.hp_midname, p.hp_firstname,
+                        to_char(p.hp_birthdate, 'YYYY-MM-DD') as birthdate,
+                        p.hp_sex, p.hp_sin, to_char(p.hp_ngaycap, 'YYYY-MM-DD') as ngaycap, p.hp_noicap,
+                        p.hp_provid, p.hp_distid, p.hp_villid, p.hp_dtladdr,
+                        p.hp_ethnic, p.hp_occupation, p.hp_workplace,
+                        d.hd_telephone
+                    FROM hms_doc d
+                    JOIN hms_patient p ON d.hd_patientno = p.hp_patientno
+                    WHERE d.hd_docno = $1
+                `, [docNo]);
+
+                if (docRes.rows.length === 0) {
+                    results.push({ docNo, status: 'error', message: 'Không tìm thấy số hồ sơ này trên hệ thống HIS' });
+                    continue;
+                }
+
+                const docData = docRes.rows[0];
+
+                // 2. Kiểm tra xem đã có trong nhân viên của gói này chưa
+                const existEmp = await query(`
+                    SELECT hee_employee_id, hee_isactive, hee_docno 
+                    FROM hms_exm_employee 
+                    WHERE hee_contract_id = $1 AND hee_docno = $2
+                `, [contractId, docNo]);
+
+                let employeeId = 0;
+
+                if (existEmp.rows.length > 0) {
+                    const row = existEmp.rows[0];
+                    if (row.hee_isactive === 'N') {
+                        // Kích hoạt lại
+                        await query(`UPDATE hms_exm_employee SET hee_isactive = 'Y' WHERE hee_employee_id = $1`, [row.hee_employee_id]);
+                    }
+                    employeeId = row.hee_employee_id;
+                    results.push({ docNo, status: 'exists', message: 'Hồ sơ đã có trong danh sách nhân viên của gói' });
+                } else {
+                    // Lấy mã lớn nhất hiện tại
+                    const maxIdRes = await query('SELECT COALESCE(MAX(hee_employee_id), 0) as max_id FROM hms_exm_employee');
+                    employeeId = parseInt(maxIdRes.rows[0]?.max_id || '0', 10) + 1;
+
+                    // Tính toán target_group theo tuổi
+                    const age = calculateAge(docData.birthdate);
+                    const targetGroup = (age !== null && age >= 60) ? '1' : '3';
+                    const occNum = docData.hp_occupation ? parseInt(String(docData.hp_occupation), 10) : 1539;
+
+                    await query(`
+                        INSERT INTO hms_exm_employee (
+                            hee_employee_id, hee_contract_id, hee_id,
+                            hee_surname, hee_midname, hee_firstname,
+                            hee_birthdate, hee_sex, hee_docno, hee_phone,
+                            hee_status, hee_isactive, hee_address,
+                            hee_provid, hee_distid, hee_villid,
+                            hee_cardid, hee_cardid_date, hee_cardid_place,
+                            hee_ethnic, hee_occupation, hee_target_group,
+                            hee_createdby, hee_createddate
+                        ) VALUES (
+                            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                            'T', 'Y', $11, $12, $13, $14, $15, $16, $17,
+                            $18, $19, $20, $21, NOW()
+                        )
+                    `, [
+                        employeeId,
+                        contractId,
+                        String(docData.hd_patientno || docNo),
+                        docData.hp_surname || '',
+                        docData.hp_midname || '',
+                        docData.hp_firstname || '',
+                        docData.birthdate,
+                        (docData.hp_sex === 'F' || docData.hp_sex === 'Nữ' || docData.hp_sex === '2') ? 'F' : 'M',
+                        docNo,
+                        docData.hd_telephone || '',
+                        docData.hp_dtladdr || '',
+                        docData.hp_provid || null,
+                        docData.hp_distid || null,
+                        docData.hp_villid || null,
+                        docData.hp_sin || '',
+                        docData.ngaycap || null,
+                        docData.hp_noicap || '',
+                        docData.hp_ethnic || 1,
+                        occNum,
+                        targetGroup,
+                        currentUser
+                    ]);
+
+                    importedCount++;
+                    results.push({ docNo, status: 'success', message: 'Nhập vào gói khám thành công' });
+                }
+
+                // 3. Tự động đồng bộ sang KSK VNeID nếu autoSyncKsk = true
+                if (autoSyncKsk) {
+                    try {
+                        await batchSyncController.syncSingleDocFromHis(docNo, currentUser, 'Admin', true);
+                    } catch (syncErr: any) {
+                        console.warn(`⚠️ [importHisDocsToContract] Lỗi tự động sync sang KSK cho hồ sơ ${docNo}:`, syncErr.message);
+                    }
+                }
+            }
+
+            return res.json({
+                success: true,
+                message: `Đã nhập thành công ${importedCount}/${docNos.length} hồ sơ vào gói khám!`,
+                importedCount,
+                results
+            });
+        } catch (error: any) {
+            console.error('❌ KSK Controller: Lỗi importHisDocsToContract:', error);
             return res.status(500).json({ error: error.message });
         }
     }

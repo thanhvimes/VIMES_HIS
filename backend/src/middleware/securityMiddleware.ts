@@ -5,6 +5,7 @@ const publicRoutes = [
     // Health & System
     ['GET', /^\/api\/health$/],
     ['GET', /^\/api\/v1\/version$/],
+    ['GET', /^\/api\/(v1\/)?system-update\/(info|check|history)$/],
     ['GET', /^\/api\/tts$/],
 
     // Auth & Logout

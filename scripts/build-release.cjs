@@ -41,12 +41,7 @@ async function main() {
 
     // 2. Build Backend
     console.log('\n📦 [2/4] Đang biên dịch Backend (TypeScript Build)...');
-    try {
-        execSync('npx tsc', { cwd: path.join(backendDir, 'src'), stdio: 'inherit' });
-    } catch (e) {
-        // Fallback to backend root
-        execSync('npx tsc', { cwd: backendDir, stdio: 'inherit' });
-    }
+    execSync('npx tsc', { cwd: backendDir, stdio: 'inherit' });
     console.log('✅ Backend build hoàn tất.');
 
     // 3. Đóng gói vào file .tar.gz
@@ -106,11 +101,16 @@ async function main() {
         version: version,
         buildDate: new Date().toISOString(),
         changelog: [
-            `Bản phát hành cập nhật v${version}`,
-            'Tự động đồng bộ cấu trúc cơ sở dữ liệu (Migrations)',
-            'Tối ưu hóa hiệu năng và trải nghiệm người dùng'
+            `Bản phát hành cập nhật v${version} - Phân hệ Khám Sức Khỏe & Tích hợp HIS Core`,
+            'Đồng bộ dữ liệu 2 chiều HIS Core <-> KSK VNeID & Gateway XML theo QĐ 1551/QĐ-BYT và QĐ 2062/QĐ-BYT',
+            'Nâng cấp Giao diện Điều hướng Khám (High-Contrast cards, step badges, sub-tabs chuyên khoa)',
+            'Bổ sung tính năng Tiếp đón tất cả (Bulk Reception), Nhập hồ sơ HIS vào gói khám & Hủy tiếp nhận an toàn',
+            'Cơ chế Deep-Merge & Khóa bản ghi chống ghi đè dữ liệu đa bàn khám đồng thời',
+            'Tự động chuẩn hóa quốc tịch (mã 000 - Việt Nam) và đối tượng KSK theo nhóm tuổi',
+            'Hoàn thiện in ấn mã vạch xét nghiệm (Barcode XN), phân trang động và mẫu biểu ký số',
+            'Tự động đồng bộ cấu trúc cơ sở dữ liệu (Migrations an toàn 076)'
         ],
-        downloadUrl: `https://updates.vimes.vn/releases/${releaseArchiveName}`,
+        downloadUrl: process.env.RELEASE_DOWNLOAD_URL || `https://github.com/thanhvimes/VIMES_HIS/releases/download/v${version}/${releaseArchiveName}`,
         sha256: sha256,
         requiredDbMigration: true
     };

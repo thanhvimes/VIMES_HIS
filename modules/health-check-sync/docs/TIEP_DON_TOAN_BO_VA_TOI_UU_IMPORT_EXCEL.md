@@ -29,23 +29,25 @@ Tài liệu này chi tiết kế hoạch thực hiện 2 yêu cầu mới trong 
   2. `HO_TEN`: Họ và tên (Bắt buộc)
   3. `GIOI_TINH`: Giới tính ('Nam' / 'Nữ')
   4. `NGAY_SINH`: Ngày tháng năm sinh (`DD/MM/YYYY`)
-  5. `MA_DAN_TOC`: Mã dân tộc
-  6. `SO_CCCD`: Số CCCD / CMND (Tự động lọc số và cắt 12 số)
-  7. `NGAYCAP_CCCD`: Ngày cấp CCCD (`DD/MM/YYYY`) -> Lưu vào `hee_cardid_date`
-  8. `NOICAP_CCCD`: Nơi cấp CCCD -> Lưu vào `hee_cardid_place`
-  9. `NGUOI_GIAM_HO`: Họ tên người giám hộ (nếu có)
-  10. `SO_CCCD_NGH`: Số CCCD người giám hộ (Tự động lọc số và cắt 12 số)
-  11. `DIA_CHI`: Nơi ở / Địa chỉ chi tiết
-  12. `MATINH_CU_TRU`: Mã hoặc tên Tỉnh/Thành phố
-  13. `MAXA_CU_TRU`: Mã hoặc tên Xã/Phường
-  14. `DIEN_THOAI`: Số điện thoại liên hệ (Tự chuẩn hóa `84...` -> `0...`, thêm `0` nếu thiếu, cắt 10 số)
-  15. `BOPHAN`: Bộ phận / Phòng ban / Đơn vị
-  16. `CHUCVU`: Chức vụ / Vị trí
-  17. `GHICHU`: Ghi chú
+  5. `MA_DAN_TOC`: Mã dân tộc (ví dụ: `1` cho Kinh)
+  6. `MA_NGHE_NGHIEP`: Mã nghề nghiệp (theo danh mục `sys_occupation`, ví dụ `1471`, `824`, mặc định `1539`)
+  7. `MA_DOI_TUONG_KSK`: Mã nhóm đối tượng KSK (từ `1` đến `16` quy chuẩn Bộ Y tế, ví dụ `1` - Người cao tuổi, mặc định `14` - Lao động không chính thức)
+  8. `SO_CCCD`: Số CMND / CCCD (12 hoặc 9 số)
+  9. `NGAYCAP_CCCD`: Ngày cấp CCCD (`DD/MM/YYYY`)
+  10. `NOICAP_CCCD`: Nơi cấp CCCD
+  11. `NGUOI_GIAM_HO`: Họ tên người giám hộ (dành cho trẻ em / mẫu 1)
+  12. `SO_CCCD_NGH`: CCCD người giám hộ
+  13. `DIA_CHI`: Địa chỉ chi tiết (Thôn/Xóm/Số nhà)
+  14. `MATINH_CU_TRU`: Mã hoặc tên Tỉnh/Thành phố
+  15. `MAXA_CU_TRU`: Mã hoặc tên Xã/Phường
+  16. `DIEN_THOAI`: Số điện thoại liên hệ (Tự chuẩn hóa `84...` -> `0...`, thêm `0` nếu thiếu, cắt 10 số)
+  17. `BOPHAN`: Bộ phận / Phòng ban / Đơn vị
+  18. `CHUCVU`: Chức vụ / Vị trí
+  19. `GHICHU`: Ghi chú
 
 - **Tính năng "Tải file mẫu":**
   - Đã thêm nút **`Tải file mẫu`** (với biểu tượng Download) ngay trên thanh công cụ của danh sách nhân viên bên cạnh nút `Import Excel`.
-  - Khi bấm, hệ thống tự động kết xuất và tải xuống máy người dùng tệp `mau_import_nhan_vien_ksk.xlsx` có đầy đủ 17 cột tiêu đề chuẩn và 2 dòng dữ liệu mẫu trực quan.
+  - Khi bấm, hệ thống tự động kết xuất và tải xuống máy người dùng tệp `mau_import_nhan_vien_ksk.xlsx` có đầy đủ 19 cột tiêu đề chuẩn, 2 dòng dữ liệu mẫu trực quan và Sheet hướng dẫn + danh mục 16 nhóm đối tượng KSK quy chuẩn.
 
 ---
 

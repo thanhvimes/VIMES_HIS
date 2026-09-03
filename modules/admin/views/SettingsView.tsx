@@ -12,6 +12,7 @@ import {
 } from '../../../components/Icons';
 import { OrganizationInfo } from '../../../types/common';
 import { ICON_MAP } from '../../../components/icon-map';
+import SystemUpdateTab from '../components/SystemUpdateTab';
 
 const fontOptions = [
     { label: 'Nhỏ (Compact)', value: 'text-xs' },
@@ -43,7 +44,7 @@ const SettingsView: React.FC = () => {
     // Using Zustand Store
     const { menuConfig, updateMenuConfig, resetMenuConfig } = useSystemStore();
 
-    const [activeTab, setActiveTab] = useState<'hospital' | 'menu'>('hospital');
+    const [activeTab, setActiveTab] = useState<'hospital' | 'menu' | 'update'>('hospital');
     const [hospitalForm, setHospitalForm] = useState<OrganizationInfo>(orgInfo);
     const [isLoadingCompany, setIsLoadingCompany] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
@@ -249,6 +250,13 @@ const SettingsView: React.FC = () => {
                     className={`pb-2 px-4 text-sm font-bold transition-colors border-b-2 ${activeTab === 'menu' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                 >
                     Quản lý Menu
+                </button>
+                <button
+                    onClick={() => setActiveTab('update')}
+                    className={`pb-2 px-4 text-sm font-bold transition-colors border-b-2 flex items-center gap-2 ${activeTab === 'update' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                >
+                    <span>Nâng cấp & Cập nhật Hệ thống</span>
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 </button>
             </div>
 
@@ -504,6 +512,11 @@ const SettingsView: React.FC = () => {
                         )}
                     </div>
                 </div>
+            )}
+
+            {/* TAB: SYSTEM UPDATE */}
+            {activeTab === 'update' && (
+                <SystemUpdateTab />
             )}
 
             {/* Menu Edit Modal */}

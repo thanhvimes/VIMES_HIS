@@ -506,9 +506,27 @@ export const healthCheckService = {
         }
     },
 
-    deleteEmployee: async (id: string | number): Promise<{ success: boolean; message: string }> => {
+    cancelReception: async (payload: { employeeId?: number; docNo?: number }): Promise<{ success: boolean; message: string }> => {
         try {
-            return await apiClient.delete<{ success: boolean; message: string }>(`/health-check-sync/employees/${id}`);
+            return await apiClient.post<{ success: boolean; message: string }>('/health-check-sync/reception/cancel', payload);
+        } catch (error: any) {
+            console.error("Error cancelling reception:", error);
+            throw error;
+        }
+    },
+
+    importHisDocsToContract: async (contractId: number, docNos: (number | string)[], autoSyncKsk: boolean = true): Promise<any> => {
+        try {
+            return await apiClient.post<any>(`/health-check-sync/contracts/${contractId}/import-his-docs`, { docNos, autoSyncKsk });
+        } catch (error: any) {
+            console.error("Error importing HIS docs to contract:", error);
+            throw error;
+        }
+    },
+
+    deleteEmployee: async (id: string | number, force: boolean = false): Promise<{ success: boolean; message: string }> => {
+        try {
+            return await apiClient.delete<{ success: boolean; message: string }>(`/health-check-sync/employees/${id}${force ? '?force=true' : ''}`);
         } catch (error) {
             console.error("Error deleting employee:", error);
             throw error;

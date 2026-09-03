@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 
 const ExamContainer: React.FC = () => {
-    const { formType, specialtyMetadata } = useDynamicFormContext();
+    const { formType, specialtyMetadata, height, weight, pulse, bp } = useDynamicFormContext();
     const showPhysical = formType !== '2';
     const [activeSubTab, setActiveSubTab] = useState(showPhysical ? 'physical' : 'internal');
 
@@ -75,8 +75,9 @@ const ExamContainer: React.FC = () => {
                 </div>
                 <div className="p-2 space-y-1 overflow-y-auto flex-1 custom-scrollbar">
                     {tabs.map(tab => {
-                        const meta = specialtyMetadata?.[tab.id];
-                        const isApproved = meta?.status === 'ĐÃ_DUYỆT' || meta?.status === 'ĐÃ_KHÁM';
+                        const meta = specialtyMetadata?.[tab.id] || (tab.id === 'physical' ? specialtyMetadata?.['examination'] : undefined);
+                        const hasPhysicalVitals = tab.id === 'physical' && !!(height || weight || bp || pulse);
+                        const isApproved = meta?.status === 'ĐÃ_DUYỆT' || meta?.status === 'ĐÃ_KHÁM' || hasPhysicalVitals;
                         const isExamining = meta?.status === 'ĐANG_KHÁM';
                         const isActive = activeSubTab === tab.id;
                         const IconComp = tab.icon;

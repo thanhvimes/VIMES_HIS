@@ -379,7 +379,8 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
     const rawSanKhoaKhongBt = extra.san_khoa_khong_bt ?? extra.tinh_chat_kinh_nguyet ?? extra.sanKhoaKhongBt;
     const sanKhoaMaBenh = extra.ma_benh_san_khoa_khong_bt || extra.maBenhSanKhoaKhongBt || extra.tsbt_ma_benh_thai_san || '';
 
-    const isExplicitlyAbnormal = String(rawSanKhoa) === '0' || (rawSanKhoaKhongBt && String(rawSanKhoaKhongBt) !== '0') || !!sanKhoaMaBenh;
+    const hasValidAbnormality = ['1', '2', '3', '4', '5'].includes(String(rawSanKhoaKhongBt)) || !!sanKhoaMaBenh;
+    const isExplicitlyAbnormal = hasValidAbnormality;
     const sanKhoaNormal = !isExplicitlyAbnormal;
     const sanKhoaAbnormal = isExplicitlyAbnormal;
     const sk1 = String(rawSanKhoaKhongBt) === '1';

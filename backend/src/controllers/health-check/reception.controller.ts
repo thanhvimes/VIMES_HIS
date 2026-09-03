@@ -3,6 +3,7 @@ import { query } from '../../config/database';
 import { generateXmlPayload } from './xml-generator';
 import { hisIntegrationController } from './his-integration';
 import { formatYmdString } from '../../services/health-check-merge.service';
+import { evaluateFitnessClass, calculateAge, buildSpecialtyMetadata, sanitizeHisDate } from '../../services/health-check-classifier.service';
 
 export class ReceptionController {
     // Lấy danh sách phòng khám/phòng tiếp đón để chọn phòng đo sinh hiệu
@@ -13,8 +14,15 @@ export class ReceptionController {
             const result = await query(`
                 SELECT hrl_id::text as id, hrl_name as name 
                 FROM hms_roomlist 
-                WHERE hrl_active = 'Y' AND hrl_deptid::text = $1::text
-                ORDER BY hrl_name ASC
+                WHERE hrl_active = 'Y' AND (hrl_deptid::text = $1::text OR hrl_deptid::text = 'KB')
+                ORDER BY 
+                    CASE 
+                        WHEN hrl_name ILIKE '%khám sức khỏe số 1%' OR hrl_name ILIKE '%ksk số 1%' THEN 1
+                        WHEN hrl_name ILIKE '%khám sức khỏe%' OR hrl_name ILIKE '%ksk%' THEN 2
+                        WHEN hrl_name ILIKE '%cấp cứu%' THEN 99
+                        ELSE 10 
+                    END,
+                    hrl_id ASC
             `, [activeDeptId]);
 
             let rooms = result.rows;
@@ -24,7 +32,14 @@ export class ReceptionController {
                     SELECT hrl_id::text as id, hrl_name as name 
                     FROM hms_roomlist 
                     WHERE hrl_active = 'Y'
-                    ORDER BY hrl_name ASC
+                    ORDER BY 
+                        CASE 
+                            WHEN hrl_name ILIKE '%khám sức khỏe số 1%' OR hrl_name ILIKE '%ksk số 1%' THEN 1
+                            WHEN hrl_name ILIKE '%khám sức khỏe%' OR hrl_name ILIKE '%ksk%' THEN 2
+                            WHEN hrl_name ILIKE '%cấp cứu%' THEN 99
+                            ELSE 10 
+                        END,
+                        hrl_id ASC
                 `);
                 rooms = fallbackRes.rows;
             }
@@ -106,15 +121,20 @@ export class ReceptionController {
                     e.hee_cardid_place as card_id_place,
                     e.hee_guardian_name as guardian_name,
                     e.hee_guardian_cccd as guardian_cccd,
+                    e.hee_occupation::text as occupation,
+                    e.hee_occupation as ma_nghe_nghiep,
+                    COALESCE(occ.ss_desc, '') as occupation_name,
+                    COALESCE(e.hee_target_group, '14') as target_group,
+                    COALESCE(e.hee_target_group, '14') as doi_tuong_ksk,
                     p.sp_name as prov_name,
                     v.sv_name as vill_name
                 FROM hms_exm_employee e
                 JOIN hms_exm_contract c ON c.hec_contract_id = e.hee_contract_id
-                LEFT JOIN hms_workplace w ON w.hwp_idx = c.hec_company_id::int
+                LEFT JOIN hms_workplace w ON w.hwp_idx::text = NULLIF(TRIM(c.hec_company_id), '')
                 LEFT JOIN sys_prov p ON p.sp_id::text = e.hee_provid::text
                 LEFT JOIN sys_vill v ON v.sv_id::text = e.hee_villid::text
+                LEFT JOIN sys_sel occ ON trim(occ.ss_id) = 'sys_occupation' AND trim(occ.ss_code) = trim(e.hee_occupation::text)
                 WHERE e.hee_isactive = 'Y'
-                  AND COALESCE(c.hec_status, 'O') = 'O'
             `;
 
             const params: any[] = [];
@@ -157,11 +177,12 @@ export class ReceptionController {
         // 1. Lấy thông tin nhân viên
         const empRes = await query(`
             SELECT e.*, c.hec_description as hec_name, c.hec_company_id, w.hwp_name as company_name,
-                   c.hec_type as contract_exam_type, c.hec_object as contract_object,
-                   c.hec_form_type as contract_form_type
+                   c.hec_type as contract_exam_type, COALESCE(c.hec_object, 3) as contract_object,
+                   c.hec_form_type as contract_form_type, c.hec_def_roomid as contract_def_roomid,
+                   c.hec_def_examtype as contract_def_examtype
             FROM hms_exm_employee e
             JOIN hms_exm_contract c ON c.hec_contract_id = e.hee_contract_id
-            LEFT JOIN hms_workplace w ON w.hwp_idx = c.hec_company_id::int
+            LEFT JOIN hms_workplace w ON w.hwp_idx::text = NULLIF(TRIM(c.hec_company_id), '')
             WHERE e.hee_employee_id = $1 AND e.hee_isactive = 'Y'
         `, [employeeId]);
 
@@ -170,6 +191,7 @@ export class ReceptionController {
         }
 
         let emp = empRes.rows[0];
+        const targetObject = emp.contract_object ? parseInt(String(emp.contract_object), 10) : 3;
 
         // Nếu trạng thái nhân viên là 'A' (chưa tiếp nhận ở DB cũ), chuyển thành 'O' để thỏa mãn stored procedure HIS
         if (emp.hee_status === 'A') {
@@ -220,6 +242,12 @@ export class ReceptionController {
                 }
                 const newPatientNo = parseInt(String(patientNoRes.rows[0].patient_no), 10);
 
+                const occNum = emp.hee_occupation ? parseInt(String(emp.hee_occupation), 10) : 1539;
+                const cleanCccdDate = sanitizeHisDate(emp.hee_cardid_date);
+                const cccdDateObj = cleanCccdDate ? new Date(cleanCccdDate) : null;
+                const validCccdDate = (cccdDateObj && !isNaN(cccdDateObj.getTime())) ? cccdDateObj : null;
+                const workplaceStr = emp.company_name || emp.hec_name || emp.hee_dept || '';
+
                 console.log(`🚀 Sinh mã bệnh nhân mới thành công: ${newPatientNo}, thực hiện chèn hms_patient...`);
                 await query(`
                     INSERT INTO hms_patient (
@@ -227,8 +255,9 @@ export class ReceptionController {
                         hp_surname, hp_midname, hp_firstname,
                         hp_birthdate, hp_sex, hp_ethnic,
                         hp_provid, hp_distid, hp_villid,
-                        hp_dtladdr, hp_createdby, hp_createddate
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, CURRENT_TIMESTAMP)
+                        hp_dtladdr, hp_createdby, hp_createddate,
+                        hp_occupation, hp_workplace, hp_noicap, hp_ngaycap
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, CURRENT_TIMESTAMP, $15, $16, $17, $18)
                 `, [
                     newPatientNo,
                     emp.hee_cardid || '',
@@ -243,7 +272,11 @@ export class ReceptionController {
                     emp.hee_distid || null,
                     emp.hee_villid || null,
                     emp.hee_address || '',
-                    currentUser
+                    currentUser,
+                    occNum,
+                    workplaceStr.slice(0, 250),
+                    (emp.hee_cardid_place || '').slice(0, 250),
+                    validCccdDate
                 ]);
 
                 console.log(`🚀 Cập nhật mã bệnh nhân vào danh sách nhân viên khám...`);
@@ -262,7 +295,7 @@ export class ReceptionController {
             const checkDoc = await query(`SELECT hd_docno, hd_object FROM hms_doc WHERE hd_docno = $1`, [emp.hee_docno]);
             if (checkDoc.rows.length > 0) {
                 if (!checkDoc.rows[0].hd_object || checkDoc.rows[0].hd_object === '0' || checkDoc.rows[0].hd_object === 0) {
-                    await query(`UPDATE hms_doc SET hd_object = '7' WHERE hd_docno = $1`, [emp.hee_docno]);
+                    await query(`UPDATE hms_doc SET hd_object = $1 WHERE hd_docno = $2`, [targetObject, emp.hee_docno]);
                 }
                 const servicesRes = await query(`
                     SELECT f.hfe_desc as name, f.hfe_unit as unit, f.hfe_quantity as quantity, f.hfe_unitprice as price
@@ -288,9 +321,21 @@ export class ReceptionController {
         const minute = String(d.getMinutes()).padStart(2, '0');
         const formattedDate = `${year}-${month}-${day} ${hour}:${minute}`;
 
-        // Lấy mã phòng khám và loại phí khám từ cấu hình hợp đồng/gói khám
-        const activeRoomId = roomId ? parseInt(String(roomId), 10) : 1;
-        const examType = emp.contract_exam_type || 'E01';
+        // Lấy mã phòng khám và loại phí khám từ cấu hình hợp đồng/gói khám (Ưu tiên: roomId truyền lên -> hec_def_roomid -> Phòng KSK 22)
+        let activeRoomId = roomId ? parseInt(String(roomId), 10) : undefined;
+        if (!activeRoomId || isNaN(activeRoomId) || activeRoomId <= 0) {
+            if (emp.contract_def_roomid && parseInt(String(emp.contract_def_roomid), 10) > 0) {
+                activeRoomId = parseInt(String(emp.contract_def_roomid), 10);
+            } else {
+                const defaultRoomRes = await query(`
+                    SELECT hrl_id FROM hms_roomlist 
+                    WHERE hrl_active = 'Y' AND (hrl_name ILIKE '%khám sức khỏe%' OR hrl_name ILIKE '%ksk%')
+                    ORDER BY hrl_id ASC LIMIT 1
+                `);
+                activeRoomId = defaultRoomRes.rows[0]?.hrl_id ? parseInt(String(defaultRoomRes.rows[0].hrl_id), 10) : 22;
+            }
+        }
+        const examType = emp.contract_def_examtype || emp.contract_exam_type || 'E01';
 
         console.log('🚀 Gọi hms_exm_registration_exam:', {
             employeeId,
@@ -322,12 +367,12 @@ export class ReceptionController {
 
         const newDocNo = parseInt(String(registerRes.rows[0].doc_no), 10);
 
-        // 4.1. Đảm bảo đối tượng bệnh nhân trên HIS (hms_doc.hd_object) luôn là 'Dịch vụ' (mã '7')
+        // 4.1. Đảm bảo đối tượng bệnh nhân trên HIS (hms_doc.hd_object) đúng theo hợp đồng (mặc định '3' - Miễn giảm)
         await query(`
             UPDATE hms_doc
-            SET hd_object = '7'
-            WHERE hd_docno = $1 AND (hd_object IS NULL OR hd_object::varchar = '0' OR trim(hd_object::varchar) = '')
-        `, [newDocNo]);
+            SET hd_object = $1
+            WHERE hd_docno = $2 AND (hd_object IS NULL OR hd_object::varchar = '0' OR trim(hd_object::varchar) = '')
+        `, [targetObject, newDocNo]);
 
         // 5. Lấy patientNo và kiểm tra trạng thái từ hms_exm_employee sau khi chạy stored procedure
         const updatedEmpRes = await query(`
@@ -384,8 +429,23 @@ export class ReceptionController {
             const cccd = emp.hee_cardid || '';
             const dobStr = formatYmdString(emp.hee_birthdate) || '1990-01-01';
             
-            const formType = emp.contract_form_type || '2'; // Sử dụng mẫu cấu hình sẵn trên hợp đồng, mặc định '2'
+            let formType = emp.contract_form_type;
+            if (!formType) {
+                const age = calculateAge(dobStr);
+                if (age !== null) {
+                    if (age < 6) formType = '1';
+                    else if (age < 18) formType = '2';
+                    else formType = '3';
+                } else {
+                    formType = '3';
+                }
+            }
             const docNo = String(newDocNo);
+
+            const occCode = emp.hee_occupation ? String(emp.hee_occupation).trim() : '';
+            const cleanCccdDate = sanitizeHisDate(emp.hee_cardid_date);
+            const workplaceStr = emp.company_name || emp.hec_name || emp.hee_dept || '';
+            const targetGroupStr = String(emp.hee_target_group || '').trim() || '14';
 
             const clinicalData: any = {
                 address: emp.hee_address || '',
@@ -394,17 +454,34 @@ export class ReceptionController {
                 matinh_cu_tru: emp.hee_prov_code || (emp.hee_provid !== null && emp.hee_provid !== undefined ? String(emp.hee_provid) : ''),
                 mahuyen_cu_tru: emp.hee_distid !== null && emp.hee_distid !== undefined ? String(emp.hee_distid) : '',
                 maxa_cu_tru: emp.hee_vill_code || (emp.hee_villid !== null && emp.hee_villid !== undefined ? String(emp.hee_villid) : ''),
-                cccd_date: emp.hee_cardid_date || '',
+                cccd_date: cleanCccdDate,
                 cccd_place: emp.hee_cardid_place || '',
                 nguoi_giam_ho: emp.hee_guardian_name || '',
                 so_cccd_ngh: emp.hee_guardian_cccd || '',
-                blood_group: '', target_group: '14', funding_source: '9',
+                ma_nghe_nghiep: occCode,
+                occupation: occCode,
+                noi_cong_tac_hien_tai: workplaceStr,
+                noi_cong_tac: workplaceStr,
+                workplace: workplaceStr,
+                blood_group: '',
+                target_group: targetGroupStr,
+                doi_tuong: targetGroupStr,
+                funding_source: '9',
                 examination: { height: '', weight: '', bmi: '', blood_pressure: '', pulse: '' },
                 clinical_exam: {
                     internal: '', eye: '', ent: '', dental: '', external: '',
                     gynecology: ''
                 },
-                extra: {}
+                extra: {
+                    ma_nghe_nghiep: occCode,
+                    occupation: occCode,
+                    noi_cong_tac_hien_tai: workplaceStr,
+                    noi_cong_tac: workplaceStr,
+                    workplace: workplaceStr,
+                    cccd_date: cleanCccdDate,
+                    target_group: targetGroupStr,
+                    doi_tuong: targetGroupStr
+                }
             };
 
             // Tự động tải chỉ định cận lâm sàng từ HIS ngay lúc tiếp nhận
@@ -428,10 +505,43 @@ export class ReceptionController {
                 paraclinical_items: liveParaclinical?.paraclinical_items || []
             };
 
+            // Đánh giá phân loại sức khỏe mặc định theo độ tuổi & thể lực
+            const evalResult = evaluateFitnessClass({
+                dob: dobStr,
+                gender: gender,
+                height: emp.hee_height ? Number(emp.hee_height) : null,
+                weight: emp.hee_weight ? Number(emp.hee_weight) : null,
+                formType: formType
+            });
+
+            const conclusionData: any = {
+                fitness_class: evalResult.fitnessClass,
+                diagnosis: evalResult.diagnosis,
+                doctor_id: evalResult.doctorId,
+                doctor_name: evalResult.doctorName,
+                cac_van_de_luu_y: evalResult.cacVanDeLuuY,
+                cac_benh_tat_neu_co: evalResult.cacBenhTatNeuCo,
+                ket_luan_loai_suc_khoe: evalResult.fitnessClass
+            };
+
+            const specMetadata = buildSpecialtyMetadata({
+                clinicalData,
+                labData,
+                conclusionData,
+                doctorId: evalResult.doctorId,
+                doctorName: evalResult.doctorName,
+                hasExam: false,
+                hasConclusion: true
+            });
+            clinicalData.specialty_metadata = specMetadata;
+            if (clinicalData.clinical_exam) {
+                clinicalData.clinical_exam.specialty_metadata = specMetadata;
+            }
+
             const xmlData = generateXmlPayload(
                 formType,
                 { patientName, cccd, dob: dobStr, gender, docNo },
-                clinicalData, labData, null
+                clinicalData, labData, conclusionData
             );
 
             // Kiểm tra xem đã có hồ sơ nào liên kết với nhân viên/số bệnh án này chưa
@@ -458,9 +568,9 @@ export class ReceptionController {
 
                     await query(`
                         UPDATE health_check_details SET
-                            clinical_data = $1, lab_data = $2, updated_at = NOW()
-                        WHERE master_id = $3
-                    `, [JSON.stringify(clinicalData), JSON.stringify(labData), masterId]);
+                            clinical_data = $1, lab_data = $2, conclusion_data = COALESCE(conclusion_data, $3), updated_at = NOW()
+                        WHERE master_id = $4
+                    `, [JSON.stringify(clinicalData), JSON.stringify(labData), JSON.stringify(conclusionData), masterId]);
                 }
             } else {
                 const insertMasterRes = await query(`
@@ -478,9 +588,9 @@ export class ReceptionController {
 
                 await query(`
                     INSERT INTO health_check_details (
-                        master_id, clinical_data, lab_data, created_at, updated_at
-                    ) VALUES ($1, $2, $3, NOW(), NOW())
-                `, [masterId, JSON.stringify(clinicalData), JSON.stringify(labData)]);
+                        master_id, clinical_data, lab_data, conclusion_data, created_at, updated_at
+                    ) VALUES ($1, $2, $3, $4, NOW(), NOW())
+                `, [masterId, JSON.stringify(clinicalData), JSON.stringify(labData), JSON.stringify(conclusionData)]);
             }
         } catch (syncErr: any) {
             console.error('⚠️ [Tiếp đón KSK] Lỗi khi tạo/đồng bộ hồ sơ KSK sang health_check_masters:', syncErr);
@@ -862,6 +972,125 @@ export class ReceptionController {
             return res.json({ success: true, message: 'Cập nhật thông tin thành công!' });
         } catch (error: any) {
             console.error('❌ KSK Controller: Lỗi updateEmployee:', error);
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // Hủy tiếp nhận hồ sơ khám (Chức năng tương tự "Hủy hồ sơ khám" trên HIS)
+    async cancelReception(req: Request, res: Response) {
+        try {
+            const { employeeId, docNo } = req.body;
+            const currentUser = (req as any).user?.username || (req as any).userId || 'admin';
+
+            let empId = employeeId ? parseInt(String(employeeId), 10) : 0;
+            let docNoVal = docNo ? parseInt(String(docNo), 10) : 0;
+
+            if (!empId && !docNoVal) {
+                return res.status(400).json({ error: 'Vui lòng cung cấp employeeId hoặc docNo cần hủy tiếp nhận.' });
+            }
+
+            if (!empId && docNoVal > 0) {
+                const empRes = await query(`SELECT hee_employee_id FROM hms_exm_employee WHERE hee_docno = $1 LIMIT 1`, [docNoVal]);
+                if (empRes.rows.length > 0) {
+                    empId = empRes.rows[0].hee_employee_id;
+                }
+            }
+
+            if (empId > 0 && !docNoVal) {
+                const empRes = await query(`SELECT hee_docno FROM hms_exm_employee WHERE hee_employee_id = $1 LIMIT 1`, [empId]);
+                if (empRes.rows.length > 0 && empRes.rows[0].hee_docno) {
+                    docNoVal = parseInt(String(empRes.rows[0].hee_docno), 10);
+                }
+            }
+
+            console.log(`🚀 [cancelReception] Đang thực hiện hủy tiếp nhận: Employee ID = ${empId}, Doc No = ${docNoVal} (User: ${currentUser})...`);
+
+            // 1. Nếu có số hồ sơ, kiểm tra xem Bác sĩ đã kết luận/khám chưa hoặc CLS đã có kết quả chưa
+            if (docNoVal > 0) {
+                const examCheck = await query(`
+                    SELECT count(*) as count 
+                    FROM hms_exam 
+                    WHERE he_docno = $1 AND he_status = 'T'
+                `, [docNoVal]);
+                if (parseInt(examCheck.rows[0].count, 10) > 0) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        message: `Không thể hủy: Hồ sơ ${docNoVal} đã được Bác sĩ khám và hoàn tất kết luận!` 
+                    });
+                }
+
+                const labCheck = await query(`
+                    SELECT count(*) as count 
+                    FROM hms_testorderline 
+                    WHERE hpcl_docno = $1 AND COALESCE(NULLIF(TRIM(hpcl_result), ''), '') <> ''
+                `, [docNoVal]);
+                if (parseInt(labCheck.rows[0].count, 10) > 0) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        message: `Không thể hủy: Hồ sơ ${docNoVal} đã có kết quả Xét nghiệm được trả về từ Khoa LIMS!` 
+                    });
+                }
+            }
+
+            // 2. Gọi procedure hms_exm_registration_cancel nếu có empId
+            if (empId > 0) {
+                try {
+                    const cancelProcRes = await query(
+                        `SELECT hms_exm_registration_cancel($1::integer, $2::varchar) as res`,
+                        [empId, currentUser]
+                    );
+                    const resJson = cancelProcRes.rows[0]?.res;
+                    if (resJson && typeof resJson === 'object' && resJson.success === false) {
+                        return res.status(400).json({ success: false, message: resJson.message });
+                    }
+                } catch (procErr: any) {
+                    console.warn(`⚠️ [cancelReception] Stored proc hms_exm_registration_cancel thông báo:`, procErr.message);
+                }
+            }
+
+            // 3. Xóa triệt để các bảng HIS liên quan (phòng trường hợp procedure chưa dọn hết)
+            if (docNoVal > 0) {
+                await query(`DELETE FROM hms_testorderline WHERE hpcl_docno = $1`, [docNoVal]);
+                await query(`DELETE FROM hms_testorder WHERE hpc_docno = $1`, [docNoVal]);
+                await query(`DELETE FROM hms_pacsorderline WHERE hpcl_docno = $1`, [docNoVal]);
+                await query(`DELETE FROM hms_pacsorder WHERE hpc_docno = $1`, [docNoVal]);
+                await query(`DELETE FROM hms_fee WHERE hfe_docno = $1`, [docNoVal]);
+                await query(`DELETE FROM hms_exam WHERE he_docno = $1`, [docNoVal]);
+                await query(`DELETE FROM hms_exm_conclusion WHERE hecl_docno = $1`, [docNoVal]);
+                await query(`DELETE FROM hms_doc WHERE hd_docno = $1`, [docNoVal]);
+
+                // Xóa master & details trên KSK VNeID
+                const masterRes = await query(`
+                    SELECT id FROM health_check_masters 
+                    WHERE his_doc_no = $1::text OR doc_no LIKE $2
+                `, [docNoVal, `%${docNoVal}%`]);
+
+                if (masterRes.rows.length > 0) {
+                    const masterIds = masterRes.rows.map(r => r.id);
+                    await query(`DELETE FROM health_check_details WHERE master_id = ANY($1::int[])`, [masterIds]);
+                    await query(`DELETE FROM health_check_masters WHERE id = ANY($1::int[])`, [masterIds]);
+                }
+            }
+
+            // 4. Khôi phục trạng thái nhân viên về Chờ tiếp nhận
+            if (empId > 0) {
+                await query(`
+                    UPDATE hms_exm_employee 
+                    SET hee_docno = NULL, hee_status = 'O', hee_payment = 'O', hee_updateddate = NOW(), hee_updatedby = $1 
+                    WHERE hee_employee_id = $2
+                `, [currentUser, empId]);
+            }
+
+            console.log(`✅ [cancelReception] Đã hủy tiếp nhận thành công cho Employee ID = ${empId}, Doc No = ${docNoVal}.`);
+
+            return res.json({ 
+                success: true, 
+                message: 'Hủy tiếp nhận thành công! Hồ sơ và toàn bộ chỉ định CLS đã được xóa sạch.',
+                employeeId: empId,
+                docNo: docNoVal
+            });
+        } catch (error: any) {
+            console.error('❌ KSK Controller: Lỗi cancelReception:', error);
             return res.status(500).json({ error: error.message });
         }
     }
