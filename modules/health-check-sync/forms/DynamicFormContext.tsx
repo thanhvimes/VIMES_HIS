@@ -6,8 +6,8 @@ export interface DynamicFormContextType {
     initialData: any;
     isChild: boolean;
     isStudent: boolean;
-    activeTab: 'admin' | 'history' | 'exam' | 'lab' | 'conclusion';
-    setActiveTab: React.Dispatch<React.SetStateAction<'admin' | 'history' | 'exam' | 'lab' | 'conclusion'>>;
+    activeTab: 'admin' | 'history' | 'exam' | 'lab' | 'conclusion' | 'fee';
+    setActiveTab: React.Dispatch<React.SetStateAction<'admin' | 'history' | 'exam' | 'lab' | 'conclusion' | 'fee'>>;
 
     // State for HIS Sync
     hisSearchQuery: string;

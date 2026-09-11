@@ -14,6 +14,11 @@ class HealthCheckController {
         return documentsController.getDocumentById(req, res);
     }
 
+    // 2.1 Lấy chi tiết chi phí và đơn giá bảo hiểm của hồ sơ
+    async getDocumentFees(req: Request, res: Response) {
+        return documentsController.getDocumentFees(req, res);
+    }
+
     // 3. Tạo mới hồ sơ khám sức khỏe (Master-Detail)
     async createDocument(req: Request, res: Response) {
         return documentsController.createDocument(req, res);

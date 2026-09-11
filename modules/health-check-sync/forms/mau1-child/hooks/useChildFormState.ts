@@ -23,7 +23,7 @@ export const useChildFormState = ({
     const { user } = useSession();
     const { provinces, ethnicities, occupations, nations, getWards } = useCatalogs();
 
-    const [activeTab, setActiveTab] = useState<'admin' | 'history' | 'childDev' | 'exam' | 'lab' | 'conclusion'>('admin');
+    const [activeTab, setActiveTab] = useState<'admin' | 'history' | 'childDev' | 'exam' | 'lab' | 'conclusion' | 'fee'>('admin');
     
     // State for HIS Sync
     const [hisSearchQuery, setHisSearchQuery] = useState('');
@@ -782,7 +782,7 @@ export const useChildFormState = ({
         }
     };
 
-    const handleTabChange = (tabId: 'admin' | 'history' | 'childDev' | 'exam' | 'lab' | 'conclusion') => {
+    const handleTabChange = (tabId: 'admin' | 'history' | 'childDev' | 'exam' | 'lab' | 'conclusion' | 'fee') => {
         if (!patientName && tabId !== 'admin') {
             toast.warning('Vui lòng nhập tên trẻ trước khi chuyển sang các tab khác');
             return;

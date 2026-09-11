@@ -3,7 +3,7 @@ import { query } from '../../config/database';
 import { generateXmlPayload } from './xml-generator';
 import { hisIntegrationController } from './his-integration';
 import { formatYmdString } from '../../services/health-check-merge.service';
-import { evaluateFitnessClass, calculateAge, buildSpecialtyMetadata, sanitizeHisDate } from '../../services/health-check-classifier.service';
+import { evaluateFitnessClass, calculateAge, buildSpecialtyMetadata, sanitizeHisDate, parseFitnessClassFromText } from '../../services/health-check-classifier.service';
 
 export class ReceptionController {
     // Lấy danh sách phòng khám/phòng tiếp đón để chọn phòng đo sinh hiệu
@@ -236,11 +236,34 @@ export class ReceptionController {
                 emp.hee_patientno = existingPatientNo;
             } else {
                 console.log('🔍 [Tiếp đón KSK] Bệnh nhân chưa có mã hợp lệ trong hms_patient và không trùng CCCD, tiến hành sinh mã mới...');
-                const patientNoRes = await query(`SELECT hms_getnextpatientno() AS patient_no`);
-                if (patientNoRes.rows.length === 0 || !patientNoRes.rows[0].patient_no) {
-                    throw new Error('Không thể sinh mã bệnh nhân mới từ hàm hms_getnextpatientno() trên HIS.');
+                let newPatientNo = 0;
+                try {
+                    const patientNoRes = await query(`SELECT hms_getnextpatientno() AS patient_no`);
+                    if (patientNoRes.rows.length > 0 && patientNoRes.rows[0].patient_no) {
+                        newPatientNo = parseInt(String(patientNoRes.rows[0].patient_no), 10);
+                    }
+                } catch {}
+
+                if (!newPatientNo || isNaN(newPatientNo)) {
+                    try {
+                        const seqRes = await query(`SELECT nextval('hms_patient_hp_patientno_seq') AS patient_no`);
+                        newPatientNo = parseInt(String(seqRes.rows[0].patient_no), 10);
+                    } catch {}
                 }
-                const newPatientNo = parseInt(String(patientNoRes.rows[0].patient_no), 10);
+
+                // Bảo vệ chống lệch sequence: đảm bảo newPatientNo luôn lớn hơn MAX(hp_patientno) hiện tại
+                const maxPatientRes = await query(`SELECT COALESCE(MAX(hp_patientno), 0) AS max_no FROM hms_patient`);
+                const currentMax = parseInt(String(maxPatientRes.rows[0].max_no), 10);
+                if (newPatientNo <= currentMax) {
+                    newPatientNo = currentMax + 1;
+                    try {
+                        await query(`SELECT setval('hms_patient_hp_patientno_seq', $1, true)`, [newPatientNo]);
+                    } catch {}
+                }
+
+                if (!newPatientNo || isNaN(newPatientNo)) {
+                    throw new Error('Không thể sinh mã bệnh nhân mới từ hàm hms_getnextpatientno() hoặc sequence trên HIS.');
+                }
 
                 const occNum = emp.hee_occupation ? parseInt(String(emp.hee_occupation), 10) : 1539;
                 const cleanCccdDate = sanitizeHisDate(emp.hee_cardid_date);
@@ -447,6 +470,32 @@ export class ReceptionController {
             const workplaceStr = emp.company_name || emp.hec_name || emp.hee_dept || '';
             const targetGroupStr = String(emp.hee_target_group || '').trim() || '14';
 
+            // Đọc dữ liệu lâm sàng & kết luận đã import từ Excel (nếu có)
+            const importedClinical = typeof emp.hee_clinical_data === 'string'
+                ? (() => { try { return JSON.parse(emp.hee_clinical_data); } catch { return {}; } })()
+                : (emp.hee_clinical_data || {});
+            const importedExam = importedClinical.examination || {};
+            const importedClinExam = importedClinical.clinical_exam || {};
+            const importedConclusion = typeof emp.hee_conclusion_data === 'string'
+                ? (() => { try { return JSON.parse(emp.hee_conclusion_data); } catch { return {}; } })()
+                : (emp.hee_conclusion_data || {});
+
+            const heightVal = emp.hee_height ? String(emp.hee_height) : (importedExam.height || '');
+            const weightVal = emp.hee_weight ? String(emp.hee_weight) : (importedExam.weight || '');
+            const bpVal = emp.hee_bloodpressure || importedExam.blood_pressure || '';
+            const pulseVal = emp.hee_pulse ? String(emp.hee_pulse) : (importedExam.pulse || '');
+            const tempVal = emp.hee_temperature ? String(emp.hee_temperature) : (importedExam.temperature || '');
+            const respVal = emp.hee_respiration ? String(emp.hee_respiration) : (importedExam.breathing_rate || '');
+
+            let bmiVal = importedExam.bmi || '';
+            if (!bmiVal && heightVal && weightVal) {
+                const hNum = parseFloat(heightVal) / 100;
+                const wNum = parseFloat(weightVal);
+                if (hNum > 0 && wNum > 0) {
+                    bmiVal = (wNum / Math.pow(hNum, 2)).toFixed(2);
+                }
+            }
+
             const clinicalData: any = {
                 address: emp.hee_address || '',
                 phone: emp.hee_phone || '',
@@ -467,10 +516,72 @@ export class ReceptionController {
                 target_group: targetGroupStr,
                 doi_tuong: targetGroupStr,
                 funding_source: '9',
-                examination: { height: '', weight: '', bmi: '', blood_pressure: '', pulse: '' },
+                examination: { 
+                    height: heightVal, 
+                    weight: weightVal, 
+                    bmi: bmiVal, 
+                    blood_pressure: bpVal, 
+                    pulse: pulseVal,
+                    temperature: tempVal,
+                    breathing_rate: respVal,
+                    physical_summary: importedExam.physical_summary || '',
+                    kham_the_luc_pl: (importedExam.physical_summary || importedExam.kham_the_luc_pl) ? '1' : ''
+                },
                 clinical_exam: {
-                    internal: '', eye: '', ent: '', dental: '', external: '',
-                    gynecology: ''
+                    internal: importedClinExam.internal || '', 
+                    kq_tim_mach: importedClinExam.kq_tim_mach || importedClinExam.circulatory || importedClinExam.internal || '',
+                    kq_ho_hap: importedClinExam.kq_ho_hap || importedClinExam.respiratory || (importedClinExam.internal ? 'Bình thường' : ''),
+                    noi_khoa_tieu_hoa: importedClinExam.noi_khoa_tieu_hoa || importedClinExam.digestive || (importedClinExam.internal ? 'Bình thường' : ''),
+                    kq_tiet_nieu: importedClinExam.kq_tiet_nieu || importedClinExam.urinary || (importedClinExam.internal ? 'Bình thường' : ''),
+                    kq_noi_tiet: importedClinExam.kq_noi_tiet || importedClinExam.endocrine || (importedClinExam.internal ? 'Bình thường' : ''),
+                    kq_co_xuong_khop: importedClinExam.kq_co_xuong_khop || importedClinExam.musculoskeletal || (importedClinExam.internal ? 'Bình thường' : ''),
+                    kq_than_kinh: importedClinExam.kq_than_kinh || importedClinExam.neurology || (importedClinExam.internal ? 'Bình thường' : ''),
+                    kq_tam_than: importedClinExam.kq_tam_than || importedClinExam.psychiatry || (importedClinExam.internal ? 'Bình thường' : ''),
+                    noi_khoa_tuan_hoan_pl: importedClinExam.noi_khoa_tuan_hoan_pl || (importedClinExam.internal ? '1' : ''),
+                    noi_khoa_ho_hap_pl: importedClinExam.noi_khoa_ho_hap_pl || (importedClinExam.internal ? '1' : ''),
+                    noi_khoa_tieu_hoa_pl: importedClinExam.noi_khoa_tieu_hoa_pl || (importedClinExam.internal ? '1' : ''),
+
+                    eye: importedClinExam.eye || (emp.hee_righteye ? String(emp.hee_righteye) : ''), 
+                    benh_khac_mat: importedClinExam.benh_khac_mat || importedClinExam.eye || (emp.hee_righteye ? String(emp.hee_righteye) : ''),
+                    kham_mat_pl: importedClinExam.kham_mat_pl || ((importedClinExam.eye || emp.hee_righteye) ? '1' : ''),
+
+                    ent: importedClinExam.ent || '', 
+                    benh_tai_mui_hong: importedClinExam.benh_tai_mui_hong || importedClinExam.ent || '',
+                    kq_tai_mui_hong: importedClinExam.kq_tai_mui_hong || importedClinExam.ent || '',
+                    kham_tai_mui_hong_pl: importedClinExam.kham_tai_mui_hong_pl || (importedClinExam.ent ? '1' : ''),
+                    tai_phai_noi_thuong: importedClinExam.tai_phai_noi_thuong || (importedClinExam.ent ? '5m' : ''),
+                    tai_trai_noi_thuong: importedClinExam.tai_trai_noi_thuong || (importedClinExam.ent ? '5m' : ''),
+                    tai_phai_noi_tham: importedClinExam.tai_phai_noi_tham || (importedClinExam.ent ? '0.5m' : ''),
+                    tai_trai_noi_tham: importedClinExam.tai_trai_noi_tham || (importedClinExam.ent ? '0.5m' : ''),
+
+                    dental: importedClinExam.dental || '', 
+                    benh_rang_ham_mat: importedClinExam.benh_rang_ham_mat || importedClinExam.dental || '',
+                    ham_tren: importedClinExam.ham_tren || (importedClinExam.dental ? importedClinExam.dental : ''),
+                    ham_duoi: importedClinExam.ham_duoi || (importedClinExam.dental ? importedClinExam.dental : ''),
+                    kham_rang_ham_mat_pl: importedClinExam.kham_rang_ham_mat_pl || (importedClinExam.dental ? '1' : ''),
+
+                    external: importedClinExam.external || '',
+                    kq_ngoai_khoa: importedClinExam.kq_ngoai_khoa || importedClinExam.external || '',
+                    kham_ngoai_khoa_pl: importedClinExam.kham_ngoai_khoa_pl || (importedClinExam.external ? '1' : ''),
+
+                    dermatology: importedClinExam.dermatology || '',
+                    kq_da_lieu: importedClinExam.kq_da_lieu || importedClinExam.dermatology || '',
+                    kham_da_lieu_pl: importedClinExam.kham_da_lieu_pl || (importedClinExam.dermatology ? '1' : ''),
+
+                    gynecology: importedClinExam.gynecology || '',
+                    kham_san_phu_khoa: importedClinExam.kham_san_phu_khoa || importedClinExam.gynecology || '',
+                    kq_sinh_duc: importedClinExam.kq_sinh_duc || importedClinExam.gynecology || '',
+                    kham_san_phu_khoa_pl: importedClinExam.kham_san_phu_khoa_pl || (importedClinExam.gynecology ? '1' : ''),
+
+                    circulatory: importedClinExam.circulatory || (importedClinExam.internal ? importedClinExam.internal : ''),
+                    respiratory: importedClinExam.respiratory || '',
+                    digestive: importedClinExam.digestive || '',
+                    urinary: importedClinExam.urinary || '',
+                    endocrine: importedClinExam.endocrine || '',
+                    musculoskeletal: importedClinExam.musculoskeletal || '',
+                    neurology: importedClinExam.neurology || '',
+                    psychiatry: importedClinExam.psychiatry || '',
+                    ...importedClinExam
                 },
                 extra: {
                     ma_nghe_nghiep: occCode,
@@ -505,33 +616,49 @@ export class ReceptionController {
                 paraclinical_items: liveParaclinical?.paraclinical_items || []
             };
 
-            // Đánh giá phân loại sức khỏe mặc định theo độ tuổi & thể lực
-            const evalResult = evaluateFitnessClass({
-                dob: dobStr,
-                gender: gender,
-                height: emp.hee_height ? Number(emp.hee_height) : null,
-                weight: emp.hee_weight ? Number(emp.hee_weight) : null,
-                formType: formType
-            });
+            // Đánh giá phân loại sức khỏe: CHỈ ghi nhận khi trong file Excel hoặc nhân viên thực sự có nhập kết luận
+            const rawFitness = emp.hee_conclusion || importedConclusion.fitness_class || importedConclusion.ket_luan_loai_suc_khoe;
+            const parsedFitness = parseFitnessClassFromText(rawFitness);
+            const rawDiag = emp.hee_comment || importedConclusion.diagnosis || importedConclusion.ket_luan;
+            const diagStr = rawDiag ? String(rawDiag).trim() : '';
+            const remarkFinal = importedConclusion.cac_van_de_luu_y || '';
 
-            const conclusionData: any = {
-                fitness_class: evalResult.fitnessClass,
-                diagnosis: evalResult.diagnosis,
-                doctor_id: evalResult.doctorId,
-                doctor_name: evalResult.doctorName,
-                cac_van_de_luu_y: evalResult.cacVanDeLuuY,
-                cac_benh_tat_neu_co: evalResult.cacBenhTatNeuCo,
-                ket_luan_loai_suc_khoe: evalResult.fitnessClass
-            };
+            const hasExplicitConclusion = !!(parsedFitness || diagStr);
+
+            let conclusionData: any = {};
+            if (hasExplicitConclusion) {
+                const fitnessClassFinal = parsedFitness || '1';
+                const diagnosisFinal = diagStr || (fitnessClassFinal === '1' || fitnessClassFinal === '2' ? 'Đủ sức khỏe làm việc' : 'Khám sức khỏe định kỳ');
+                conclusionData = {
+                    fitness_class: fitnessClassFinal,
+                    diagnosis: diagnosisFinal,
+                    doctor_id: importedConclusion.doctor_id || currentUser || 'admin',
+                    doctor_name: importedConclusion.doctor_name || currentUserName || 'Bác sĩ Kết luận',
+                    cac_van_de_luu_y: remarkFinal,
+                    cac_benh_tat_neu_co: importedConclusion.cac_benh_tat_neu_co || '',
+                    ket_luan_loai_suc_khoe: fitnessClassFinal
+                };
+            }
+
+            const hasInternalNow = !!(
+                importedClinExam.internal || importedClinExam.kq_tim_mach || importedClinExam.circulatory ||
+                importedClinExam.kq_ho_hap || importedClinExam.respiratory || importedClinExam.noi_khoa_tieu_hoa ||
+                importedClinExam.digestive || importedClinExam.kq_tiet_nieu || importedClinExam.urinary
+            );
+            const hasExamNow = !!(
+                heightVal || weightVal || bpVal || pulseVal ||
+                hasInternalNow || importedClinExam.external || importedClinExam.ent || 
+                importedClinExam.dental || importedClinExam.eye || importedClinExam.dermatology || importedClinExam.gynecology
+            );
 
             const specMetadata = buildSpecialtyMetadata({
                 clinicalData,
                 labData,
                 conclusionData,
-                doctorId: evalResult.doctorId,
-                doctorName: evalResult.doctorName,
-                hasExam: false,
-                hasConclusion: true
+                doctorId: conclusionData.doctor_id || currentUser || 'admin',
+                doctorName: conclusionData.doctor_name || currentUserName || 'Bác sĩ Kết luận',
+                hasExam: hasExamNow,
+                hasConclusion: hasExplicitConclusion
             });
             clinicalData.specialty_metadata = specMetadata;
             if (clinicalData.clinical_exam) {
@@ -591,6 +718,26 @@ export class ReceptionController {
                         master_id, clinical_data, lab_data, conclusion_data, created_at, updated_at
                     ) VALUES ($1, $2, $3, $4, NOW(), NOW())
                 `, [masterId, JSON.stringify(clinicalData), JSON.stringify(labData), JSON.stringify(conclusionData)]);
+            }
+
+            // Tự động đồng bộ kết quả khám lâm sàng & kết luận sang HIS Core CHỈ khi thực sự có kết luận từ Excel
+            if (hasExplicitConclusion) {
+                try {
+                    const clientWrapper = {
+                        query: (sqlText: string, params?: any[]) => query(sqlText, params)
+                    };
+                    await hisIntegrationController.pushbackClinicalAndConclusion(
+                        clientWrapper,
+                        newDocNo,
+                        clinicalData,
+                        conclusionData,
+                        currentUser,
+                        currentUserName
+                    );
+                    console.log(`✅ [receiveContractEmployee] Tự động đồng bộ kết quả khám lâm sàng & kết luận sang HIS Core cho docNo #${newDocNo}`);
+                } catch (pushErr: any) {
+                    console.warn(`⚠️ [receiveContractEmployee] Lỗi khi pushback sang HIS Core:`, pushErr.message);
+                }
             }
         } catch (syncErr: any) {
             console.error('⚠️ [Tiếp đón KSK] Lỗi khi tạo/đồng bộ hồ sơ KSK sang health_check_masters:', syncErr);

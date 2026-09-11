@@ -21,7 +21,8 @@ import {
     CloudUploadIcon,
     DownloadIcon,
     LockIcon,
-    ShieldCheckIcon
+    ShieldCheckIcon,
+    SparklesIcon
 } from '../../../components/Icons';
 import { toast } from 'sonner';
 import { formatDate } from '../../../utils/formatters';
@@ -56,6 +57,7 @@ interface Employee {
     note: string;
     status: string;
     sync_status: string;
+    has_cls_result?: boolean;
     card_id_date?: string;
     card_id_place?: string;
     ethnic?: string | number;
@@ -67,6 +69,17 @@ interface Employee {
     prov_id?: string | number;
     vill_id?: string | number;
     address?: string;
+    height?: number;
+    weight?: number;
+    blood_pressure?: string;
+    pulse?: number;
+    temperature?: number;
+    respiration?: number;
+    conclusion?: string;
+    comment?: string;
+    has_clinical_data?: boolean;
+    clinical_data?: any;
+    conclusion_data?: any;
 }
 
 const getLocalDateString = () => {
@@ -92,6 +105,9 @@ const ContractManagement: React.FC = () => {
     const [isLoadingContracts, setIsLoadingContracts] = useState(false);
     const [isLoadingEmployees, setIsLoadingEmployees] = useState(false);
     const [isReceivingAll, setIsReceivingAll] = useState(false);
+    const [isSyncingCls, setIsSyncingCls] = useState(false);
+    const [isSyncClsModalOpen, setIsSyncClsModalOpen] = useState(false);
+    const [syncClsMode, setSyncClsMode] = useState<'missing_only' | 'all_new'>('missing_only');
     const [searchTerm, setSearchTerm] = useState('');
     const [startDate, setStartDate] = useState(getLocalDateString());
     const [endDate, setEndDate] = useState(getLocalDateString());
@@ -863,7 +879,27 @@ const ContractManagement: React.FC = () => {
             'DIEN_THOAI',
             'BOPHAN',
             'CHUCVU',
-            'GHICHU'
+            'GHICHU',
+            // --- CÁC CỘT THỂ LỰC & SINH HIỆU (TÙY CHỌN) ---
+            'CHIEU_CAO',
+            'CAN_NANG',
+            'HUYET_AP',
+            'MACH',
+            'NHIET_DO',
+            'NHIP_THO',
+            'THE_LUC',
+            // --- CÁC CỘT CHUYÊN KHOA LÂM SÀNG (TÙY CHỌN) ---
+            'NOI_KHOA',
+            'NGOAI_KHOA',
+            'DA_LIEU',
+            'SAN_PHU_KHOA',
+            'MAT',
+            'TAI_MUI_HONG',
+            'RANG_HAM_MAT',
+            // --- CỘT PHÂN LOẠI & KẾT LUẬN (TÙY CHỌN) ---
+            'PHAN_LOAI_SK',
+            'KET_LUAN',
+            'BENH_TAT_LUU_Y'
         ];
 
         const sampleRows = [
@@ -886,7 +922,24 @@ const ContractManagement: React.FC = () => {
                 '0912345678',
                 'Phòng Kỹ thuật',
                 'Lái xe / Kỹ sư',
-                'Khám sức khỏe định kỳ'
+                'Khám sức khỏe định kỳ',
+                170,
+                68,
+                '120/80',
+                75,
+                36.5,
+                18,
+                'Thể lực tốt',
+                'Tim đều, phổi trong',
+                'Bình thường',
+                'Bình thường',
+                '',
+                'Mắt phải 10/10, Mắt trái 10/10',
+                'Tai mũi họng bình thường',
+                'Không sâu răng, không viêm lợi',
+                'Loại 1',
+                'Đủ sức khỏe làm việc',
+                ''
             ],
             [
                 'NV002',
@@ -907,7 +960,24 @@ const ContractManagement: React.FC = () => {
                 '0987654321',
                 'Hội Người cao tuổi',
                 'Hội viên',
-                'Khám sức khỏe người cao tuổi'
+                'Khám sức khỏe người cao tuổi',
+                156,
+                52,
+                '125/80',
+                78,
+                36.6,
+                19,
+                'Thể lực trung bình',
+                'Tăng huyết áp độ 1 kiểm soát tốt',
+                'Bình thường',
+                'Da lão hóa theo tuổi',
+                'Khám phụ khoa bình thường',
+                'Lão thị hai mắt',
+                'Thính lực giảm nhẹ',
+                'Mất răng R36 đã phục hình',
+                'Loại 3',
+                'Đủ sức khỏe',
+                'Theo dõi huyết áp định kỳ'
             ]
         ];
 
@@ -932,7 +1002,24 @@ const ContractManagement: React.FC = () => {
             { wch: 14 }, // DIEN_THOAI
             { wch: 18 }, // BOPHAN
             { wch: 18 }, // CHUCVU
-            { wch: 25 }  // GHICHU
+            { wch: 25 }, // GHICHU
+            { wch: 12 }, // CHIEU_CAO
+            { wch: 12 }, // CAN_NANG
+            { wch: 14 }, // HUYET_AP
+            { wch: 10 }, // MACH
+            { wch: 12 }, // NHIET_DO
+            { wch: 12 }, // NHIP_THO
+            { wch: 18 }, // THE_LUC
+            { wch: 25 }, // NOI_KHOA
+            { wch: 25 }, // NGOAI_KHOA
+            { wch: 20 }, // DA_LIEU
+            { wch: 25 }, // SAN_PHU_KHOA
+            { wch: 25 }, // MAT
+            { wch: 25 }, // TAI_MUI_HONG
+            { wch: 25 }, // RANG_HAM_MAT
+            { wch: 16 }, // PHAN_LOAI_SK
+            { wch: 25 }, // KET_LUAN
+            { wch: 25 }  // BENH_TAT_LUU_Y
         ];
 
         const wb = XLSX.utils.book_new();
@@ -950,6 +1037,12 @@ const ContractManagement: React.FC = () => {
             ['6. Cột SO_CCCD:', '12 chữ số căn cước công dân hoặc CMND 9 số'],
             ['7. Cột MATINH_CU_TRU & MAXA_CU_TRU:', 'Mã tỉnh/thành phố và mã xã/phường cư trú chuẩn theo danh mục hành chính'],
             ['8. Cột DIEN_THOAI:', 'Số điện thoại liên hệ (10 chữ số)'],
+            [''],
+            ['--- CÁC CỘT KẾT QUẢ KHÁM (TÙY CHỌN - ĐIỀN NẾU MUỐN IMPORT KẾT QUẢ CÓ SẴN) ---'],
+            ['9. Thể lực & Sinh hiệu:', 'CHIEU_CAO (cm), CAN_NANG (kg), HUYET_AP (mmHg, vd: 120/80), MACH (lần/phút), NHIET_DO (°C), NHIP_THO (lần/phút), THE_LUC (vd: Thể lực tốt).'],
+            ['10. Chuyên khoa lâm sàng:', 'NOI_KHOA, NGOAI_KHOA, DA_LIEU, SAN_PHU_KHOA (khám phụ khoa nếu là nữ), MAT (thị lực/bệnh mắt), TAI_MUI_HONG, RANG_HAM_MAT.'],
+            ['11. Phân loại & Kết luận:', 'PHAN_LOAI_SK (Loại 1/2/3/4/5 hoặc 1, 2, 3, 4, 5 hoặc Loại I, II, III), KET_LUAN (vd: Đủ sức khỏe làm việc), BENH_TAT_LUU_Y (lời dặn bác sĩ).'],
+            ['* Lưu ý:', 'Các cột kết quả khám là không bắt buộc. Nếu để trống, bác sĩ sẽ khám và nhập trên giao diện HIS sau. Nếu có dữ liệu, hệ thống tự động lưu vào KSK và đẩy thẳng vào HIS Core khi tiếp đón.'],
             [''],
             ['DANH MỤC MÃ ĐỐI TƯỢNG KHÁM SỨC KHỎE QUY CHUẨN (BỘ Y TẾ)'],
             ['Mã', 'Tên Đối Tượng KSK'],
@@ -1008,6 +1101,13 @@ const ContractManagement: React.FC = () => {
                               .toLowerCase();
                 };
 
+                const parseNum = (val: any): number | null => {
+                    if (val === undefined || val === null || val === '') return null;
+                    const s = String(val).replace(',', '.').trim();
+                    const n = parseFloat(s);
+                    return isNaN(n) ? null : n;
+                };
+
                 const formatExcelDate = (val: any): string => {
                     if (val === undefined || val === null || val === '') return '';
                     if (typeof val === 'number') {
@@ -1052,30 +1152,69 @@ const ContractManagement: React.FC = () => {
 
                 const rawHeaders = data[0].map(h => removeAccents(String(h || '')));
                 const compactHeaders = rawHeaders.map(h => h.replace(/\s+/g, ''));
-                const findHeaderIdx = (patterns: string[]) => compactHeaders.findIndex(h => patterns.some(p => h.includes(p)));
+                
+                // Thuật toán tìm tiêu đề cột chính xác tuyệt đối, chống xung đột chuỗi con nguy hiểm
+                const findHeaderIdx = (exactPatterns: string[], fallbackSubstrings: string[] = []) => {
+                    // 1. Ưu tiên so khớp chính xác 100%
+                    const exactIdx = compactHeaders.findIndex(h => exactPatterns.includes(h));
+                    if (exactIdx !== -1) return exactIdx;
+                    
+                    // 2. Thử so khớp tiền tố (prefix) với từ khóa có nghĩa dài >= 4 ký tự
+                    const prefixIdx = compactHeaders.findIndex(h => exactPatterns.some(p => p.length >= 4 && h.startsWith(p)));
+                    if (prefixIdx !== -1) return prefixIdx;
+                    
+                    // 3. Thử từ khóa phụ trợ an toàn (độ dài >= 4 ký tự để tránh nhầm lẫn)
+                    if (fallbackSubstrings.length > 0) {
+                        return compactHeaders.findIndex(h => fallbackSubstrings.some(fb => fb.length >= 4 && h.includes(fb)));
+                    }
+                    return -1;
+                };
 
-                const nameIdx = findHeaderIdx(['hoten', 'ten', 'ho', 'fullname', 'name']);
-                const dobIdx = findHeaderIdx(['ngaysinh', 'dob', 'birth', 'sinh']);
-                const sexIdx = findHeaderIdx(['gioitinh', 'gioi', 'sex', 'gender']);
-                const docIdx = findHeaderIdx(['socccd', 'cccd', 'socmnd', 'cmnd', 'hoso', 'card', 'doc']);
-                const cardDateIdx = findHeaderIdx(['ngaycapcccd', 'ngaycap', 'cardiddate', 'issuedate', 'dateofissue']);
-                const cardPlaceIdx = findHeaderIdx(['noicapcccd', 'noicap', 'cardidplace', 'placeofissue']);
-                const guardianNameIdx = findHeaderIdx(['nguoigiamho', 'giamho', 'guardianname']);
-                const guardianCccdIdx = findHeaderIdx(['socccdngh', 'cccdngh', 'guardiancccd', 'cccdgiamho']);
-                const ethnicIdx = findHeaderIdx(['madantoc', 'dantoc', 'ethnic']);
-                const occIdx = findHeaderIdx(['manghenghiep', 'nghenghiep', 'nghe', 'occupation', 'job', 'chucdanh', 'nghenghiepchucvu']);
+                const nameIdx = findHeaderIdx(['hoten', 'ten', 'fullname', 'name', 'hovaten'], ['hovaten']);
+                const dobIdx = findHeaderIdx(['ngaysinh', 'dob', 'dateofbirth', 'birthdate', 'sinhngay'], ['ngaysinh']);
+                const sexIdx = findHeaderIdx(['gioitinh', 'gioi', 'sex', 'gender', 'namnu']);
+                const docIdx = findHeaderIdx(['socccd', 'cccd', 'socmnd', 'cmnd', 'cancuoc', 'cmndcccd', 'soid']);
+                const cardDateIdx = findHeaderIdx(['ngaycapcccd', 'ngaycap', 'cardiddate', 'issuedate', 'dateofissue', 'ngaycapcmnd']);
+                const cardPlaceIdx = findHeaderIdx(['noicapcccd', 'noicap', 'cardidplace', 'placeofissue', 'noicapcmnd']);
+                const guardianNameIdx = findHeaderIdx(['nguoigiamho', 'giamho', 'guardianname', 'hotennguoigiamho']);
+                const guardianCccdIdx = findHeaderIdx(['socccdngh', 'cccdngh', 'guardiancccd', 'cccdgiamho', 'socccdnguoigiamho']);
+                const ethnicIdx = findHeaderIdx(['madantoc', 'dantoc', 'ethnic', 'ethnicity']);
+                const occIdx = findHeaderIdx(['manghenghiep', 'nghenghiep', 'occupation', 'job', 'chucdanh', 'nghenghiepchucvu']);
                 const tgIdx = findHeaderIdx(['madoituongksk', 'doituongksk', 'madoituong', 'doituong', 'targetgroup', 'target_group']);
-                const maKhIdx = findHeaderIdx(['makh', 'manhanvien', 'manv', 'code']);
+                const maKhIdx = findHeaderIdx(['makh', 'manhanvien', 'manv', 'code', 'empcode', 'employeecode']);
 
-                const addrIdx = findHeaderIdx(['diachi', 'noio', 'address', 'choo', 'thuongtru']);
-                const provIdx = compactHeaders.findIndex(h => (h.includes('matinh') || h.includes('tinh') || h.includes('prov') || h.includes('thanhpho')) && !h.includes('gioi'));
-                const distIdx = compactHeaders.findIndex(h => (h.includes('mahuyen') || h.includes('huyen') || h.includes('dist') || h.includes('quan')) && !h.includes('chuyen'));
-                const wardIdx = compactHeaders.findIndex(h => h.includes('maxa') || h.includes('xa') || h.includes('ward') || h.includes('vill') || h.includes('phuong'));
-                const phoneIdx = findHeaderIdx(['dienthoai', 'sdt', 'phone', 'thoai']);
-                const deptIdx = findHeaderIdx(['bophan', 'phongban', 'dept', 'khoa', 'donvi']);
-                const posIdx = findHeaderIdx(['chucvu', 'vitri', 'position', 'chuc']);
+                const addrIdx = findHeaderIdx(['diachi', 'noio', 'address', 'choo', 'thuongtru', 'diachithuongtru'], ['diachi']);
+                const provIdx = findHeaderIdx(['matinhcutru', 'matinh', 'tinh', 'province', 'prov', 'thanhpho', 'tinhthanh']);
+                const distIdx = findHeaderIdx(['mahuyencutru', 'mahuyen', 'huyen', 'quan', 'district', 'quanhuyen']);
+                const wardIdx = findHeaderIdx(['maxacutru', 'maxa', 'xa', 'phuong', 'ward', 'vill', 'xaphuong']);
+                const phoneIdx = findHeaderIdx(['dienthoai', 'sdt', 'phone', 'telephone', 'sodienthoai', 'mobile']);
+                const deptIdx = findHeaderIdx(['bophan', 'phongban', 'dept', 'khoaphong', 'department']);
+                const posIdx = findHeaderIdx(['chucvu', 'vitri', 'position']);
                 const ownerIdx = findHeaderIdx(['banthan', 'owner']);
-                const noteIdx = findHeaderIdx(['ghichu', 'note', 'ghi']);
+                const noteIdx = findHeaderIdx(['ghichu', 'note', 'ghichukhac']);
+
+                // Thể lực & sinh hiệu
+                const heightIdx = findHeaderIdx(['chieucao', 'height', 'cao']);
+                const weightIdx = findHeaderIdx(['cannang', 'weight', 'nang']);
+                const bpIdx = findHeaderIdx(['huyetap', 'bloodpressure', 'ha', 'bp', 'huyetapmmhg']);
+                const pulseIdx = findHeaderIdx(['mach', 'pulse', 'nhipmach', 'nhiptim']);
+                const tempIdx = findHeaderIdx(['nhietdo', 'temperature', 'thannhiet', 'temp']);
+                const respIdx = findHeaderIdx(['nhiptho', 'respiration', 'breathingrate', 'resp']);
+                const theLucIdx = findHeaderIdx(['theluc', 'thetrang', 'physical', 'toantrang', 'khamtheluc', 'thelucsuckhoe']);
+
+                // Khám lâm sàng chuyên khoa (TUYỆT ĐỐI không dùng chuỗi con 2-3 ký tự như 'ent', 'noi', 'mat', 'da', 'tho')
+                const noiKhoaIdx = findHeaderIdx(['noikhoa', 'khamnoikhoa', 'internal', 'noikhoatongquat', 'chuyenkhoanoikhoa'], ['noikhoa']);
+                const ngoaiKhoaIdx = findHeaderIdx(['ngoaikhoa', 'khamngoaikhoa', 'surgery', 'ngoaitongquat', 'external', 'chuyenkhoangoaikhoa'], ['ngoaikhoa']);
+                const daLieuIdx = findHeaderIdx(['dalieu', 'khamdalieu', 'dermatology', 'chuyenkhoadalieu'], ['dalieu']);
+                const phuKhoaIdx = findHeaderIdx(['sanphukhoa', 'khamsanphukhoa', 'phukhoa', 'khamphukhoa', 'gynecology', 'obgyn'], ['phukhoa', 'sanphukhoa']);
+                const matIdx = findHeaderIdx(['mat', 'khammat', 'chuyenkhoamat', 'eye', 'nhankhoa', 'khamnhankhoa', 'thiluc'], ['chuyenkhoamat', 'khammat']);
+                const tmhIdx = findHeaderIdx(['taimuihong', 'khamtaimuihong', 'chuyenkhoataimuihong', 'chuyenkhoatmh', 'tmh', 'ent'], ['taimuihong']);
+                const rhmIdx = findHeaderIdx(['ranghammat', 'khamranghammat', 'chuyenkhoaranghammat', 'chuyenkhoarhm', 'rhm', 'dental'], ['ranghammat']);
+
+                // Phân loại & kết luận
+                const phanLoaiIdx = findHeaderIdx(['phanloaisk', 'phanloai', 'loaisuckhoe', 'xeploai', 'xeploaisk', 'fitnessclass', 'phanloaisuckhoe']);
+                const ketLuanIdx = findHeaderIdx(['ketluan', 'conclusion', 'ketluansuckhoe', 'danhgia', 'ketluanchung']);
+                const ghiChuBslxIdx = findHeaderIdx(['benhtatluuy', 'cacvanbeluuy', 'cacvanlyuy', 'luuy', 'benhtat', 'remark', 'comment', 'ghichubs', 'ghichubacsi', 'loidancuabacsi', 'loidan']);
 
                 if (nameIdx === -1) {
                     toast.error("Không tìm thấy cột 'Họ và tên' trong file!");
@@ -1088,6 +1227,7 @@ const ContractManagement: React.FC = () => {
                     return s === 'undefined' || s === 'null' ? '' : s;
                 };
 
+                let clinicalCountInFile = 0;
                 const parsedEmployees = [];
                 for (let i = 1; i < data.length; i++) {
                     const row = data[i];
@@ -1102,6 +1242,30 @@ const ContractManagement: React.FC = () => {
                     let cardIdPlace = cardPlaceIdx !== -1 ? cleanField(row[cardPlaceIdx]).slice(0, 100) : '';
                     let rawOcc = occIdx !== -1 ? cleanField(row[occIdx]) : '';
                     let rawTg = tgIdx !== -1 ? cleanField(row[tgIdx]) : '';
+
+                    const hVal = heightIdx !== -1 ? parseNum(row[heightIdx]) : null;
+                    const wVal = weightIdx !== -1 ? parseNum(row[weightIdx]) : null;
+                    const bpVal = bpIdx !== -1 ? cleanField(row[bpIdx]).slice(0, 20) : '';
+                    const pulseVal = pulseIdx !== -1 ? parseNum(row[pulseIdx]) : null;
+                    const tempVal = tempIdx !== -1 ? parseNum(row[tempIdx]) : null;
+                    const respVal = respIdx !== -1 ? parseNum(row[respIdx]) : null;
+                    const theLucVal = theLucIdx !== -1 ? cleanField(row[theLucIdx]).slice(0, 254) : '';
+
+                    const noiVal = noiKhoaIdx !== -1 ? cleanField(row[noiKhoaIdx]).slice(0, 254) : '';
+                    const ngoaiVal = ngoaiKhoaIdx !== -1 ? cleanField(row[ngoaiKhoaIdx]).slice(0, 254) : '';
+                    const daLieuVal = daLieuIdx !== -1 ? cleanField(row[daLieuIdx]).slice(0, 254) : '';
+                    const phuKhoaVal = phuKhoaIdx !== -1 ? cleanField(row[phuKhoaIdx]).slice(0, 254) : '';
+                    const matVal = matIdx !== -1 ? cleanField(row[matIdx]).slice(0, 100) : '';
+                    const tmhVal = tmhIdx !== -1 ? cleanField(row[tmhIdx]).slice(0, 254) : '';
+                    const rhmVal = rhmIdx !== -1 ? cleanField(row[rhmIdx]).slice(0, 254) : '';
+
+                    const phanLoaiVal = phanLoaiIdx !== -1 ? cleanField(row[phanLoaiIdx]) : '';
+                    const ketLuanVal = ketLuanIdx !== -1 ? cleanField(row[ketLuanIdx]).slice(0, 254) : '';
+                    const benhTatVal = ghiChuBslxIdx !== -1 ? cleanField(row[ghiChuBslxIdx]).slice(0, 254) : '';
+
+                    if (hVal || wVal || bpVal || pulseVal || tempVal || respVal || theLucVal || noiVal || ngoaiVal || daLieuVal || phuKhoaVal || matVal || tmhVal || rhmVal || phanLoaiVal || ketLuanVal) {
+                        clinicalCountInFile++;
+                    }
 
                     parsedEmployees.push({
                         code: maKh,
@@ -1128,7 +1292,27 @@ const ContractManagement: React.FC = () => {
                         occupation: rawOcc,
                         ma_nghe_nghiep: rawOcc,
                         target_group: rawTg,
-                        doi_tuong_ksk: rawTg
+                        doi_tuong_ksk: rawTg,
+                        // Thể lực & sinh hiệu
+                        height: hVal,
+                        weight: wVal,
+                        blood_pressure: bpVal,
+                        pulse: pulseVal,
+                        temperature: tempVal,
+                        respiration: respVal,
+                        the_luc: theLucVal,
+                        // Chuyên khoa lâm sàng
+                        noi_khoa: noiVal,
+                        ngoai_khoa: ngoaiVal,
+                        da_lieu: daLieuVal,
+                        san_phu_khoa: phuKhoaVal,
+                        mat: matVal,
+                        tai_mui_hong: tmhVal,
+                        rang_ham_mat: rhmVal,
+                        // Phân loại & kết luận
+                        phan_loai_sk: phanLoaiVal,
+                        ket_luan: ketLuanVal,
+                        benh_tat_luu_y: benhTatVal
                     });
                 }
 
@@ -1192,7 +1376,9 @@ const ContractManagement: React.FC = () => {
                 toast.dismiss();
                 
                 if (res.success) {
-                    toast.success(`Import thành công ${res.count} nhân viên!`);
+                    toast.success(
+                        `Import thành công ${res.count} nhân viên${clinicalCountInFile > 0 ? ` (kèm ${clinicalCountInFile} hồ sơ có KQ khám lâm sàng)` : ''}!`
+                    );
                     loadContracts();
                     loadEmployees(selectedContract.id);
                 } else {
@@ -1235,6 +1421,40 @@ const ContractManagement: React.FC = () => {
                 }
             }
         );
+    };
+
+    const handleExecuteSyncCls = async () => {
+        if (!selectedContract) return;
+        const receivedCount = employees.filter(e => !!e.doc_no && e.doc_no !== '0').length;
+        if (receivedCount === 0) {
+            toast.info("Không có bệnh nhân nào đã tiếp nhận trong hợp đồng này.");
+            return;
+        }
+
+        try {
+            setIsSyncingCls(true);
+            toast.loading("Đang đồng bộ kết quả CLS từ HIS sang KSK...");
+            const res = await healthCheckService.syncContractParaclinicalResults(selectedContract.id, { mode: syncClsMode });
+            toast.dismiss();
+
+            if (res.success) {
+                if (res.stats?.updatedCount === 0 && res.stats?.skippedNoHisResults > 0) {
+                    toast.warning(res.message || "Không có kết quả CLS mới nào trên HIS để đồng bộ!");
+                } else {
+                    toast.success(res.message || "Đã đồng bộ kết quả CLS thành công!");
+                }
+                setIsSyncClsModalOpen(false);
+                await loadEmployees(selectedContract.id);
+                await loadContracts();
+            } else {
+                toast.error(res.message || "Đồng bộ kết quả CLS thất bại!");
+            }
+        } catch (err: any) {
+            toast.dismiss();
+            toast.error(err.message || "Lỗi hệ thống khi đồng bộ kết quả CLS từ HIS");
+        } finally {
+            setIsSyncingCls(false);
+        }
     };
 
     return (
@@ -1419,6 +1639,10 @@ const ContractManagement: React.FC = () => {
                                         <span>Mã HĐ: <strong className="text-slate-600 dark:text-slate-300">{selectedContract.code || '---'}</strong></span>
                                         <span>•</span>
                                         <span>Tổng: <strong className="text-slate-600 dark:text-slate-300">{employees.length}</strong> NV</span>
+                                        <span>•</span>
+                                        <span>Đã tiếp đón: <strong className="text-teal-600 dark:text-teal-400">{employees.filter(e => !!e.doc_no && e.doc_no !== '0').length}</strong></span>
+                                        <span>•</span>
+                                        <span>Có KQ CLS: <strong className="text-emerald-600 dark:text-emerald-400">{employees.filter(e => !!e.has_cls_result).length}</strong></span>
                                     </div>
                                 )}
                             </div>
@@ -1536,6 +1760,27 @@ const ContractManagement: React.FC = () => {
                                             Thêm nhân viên
                                         </button>
 
+                                        {/* Đồng bộ kết quả CLS Button */}
+                                        <button
+                                            onClick={() => setIsSyncClsModalOpen(true)}
+                                            disabled={isSyncingCls || !employees.some(e => !!e.doc_no && e.doc_no !== '0')}
+                                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1.5 active:scale-95 whitespace-nowrap cursor-pointer ${
+                                                employees.some(e => !!e.doc_no && e.doc_no !== '0')
+                                                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-indigo-500/20'
+                                                    : 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed opacity-60'
+                                            }`}
+                                            title="Đồng bộ tất cả kết quả Xét nghiệm (LIS), Chẩn đoán hình ảnh & Siêu âm (PACS) từ HIS sang hồ sơ KSK"
+                                        >
+                                            {isSyncingCls ? (
+                                                <RefreshIcon className="w-3.5 h-3.5 animate-spin" />
+                                            ) : (
+                                                <SparklesIcon className="w-3.5 h-3.5 text-amber-300" />
+                                            )}
+                                            <span>
+                                                {isSyncingCls ? 'Đang đồng bộ CLS...' : 'Đồng bộ kết quả CLS'}
+                                            </span>
+                                        </button>
+
                                         {/* Clean Trash Button */}
                                         {employees.some(e => !e.doc_no || e.doc_no === '0') && (
                                             <button
@@ -1615,6 +1860,8 @@ const ContractManagement: React.FC = () => {
                                             <th className="p-3 w-16 text-center">Giới</th>
                                             <th className="p-3 w-32 font-mono">Số CCCD</th>
                                             <th className="p-3 w-32 font-mono">Số hồ sơ</th>
+                                            <th className="p-3 w-28 text-center">Kết quả CLS</th>
+                                            <th className="p-3 w-28 text-center">Khám lâm sàng</th>
                                             <th className="p-3 w-28 text-center">SĐT</th>
                                             <th className="p-3 w-32 text-center">VNeID Sync</th>
                                             {selectedContract?.status !== 'A' && (
@@ -1641,6 +1888,38 @@ const ContractManagement: React.FC = () => {
                                                         <span className="font-bold text-teal-600 dark:text-teal-400">{e.doc_no}</span>
                                                     ) : (
                                                         <span className="text-slate-400 italic text-[11px]">Chưa tiếp đón</span>
+                                                    )}
+                                                </td>
+                                                <td className="p-3 text-center">
+                                                    {e.doc_no && e.doc_no !== '0' ? (
+                                                        e.has_cls_result ? (
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 font-bold text-[10px] border border-emerald-200/60">
+                                                                <CheckCircleIcon className="w-3 h-3 text-emerald-600" />
+                                                                Đã có KQ
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 font-bold text-[10px] border border-amber-200/60">
+                                                                <AlertCircleIcon className="w-3 h-3 text-amber-600" />
+                                                                Chưa có KQ
+                                                            </span>
+                                                        )
+                                                    ) : (
+                                                        <span className="text-slate-300 dark:text-slate-600 font-mono text-xs">-</span>
+                                                    )}
+                                                </td>
+                                                <td className="p-3 text-center">
+                                                    {e.has_clinical_data ? (
+                                                        <span 
+                                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 font-bold text-[10px] border border-blue-200/60 cursor-help"
+                                                            title={`Thể lực: ${e.height ? e.height + ' cm' : '-'} / ${e.weight ? e.weight + ' kg' : '-'} | HA: ${e.blood_pressure || '-'}\nKết luận: ${e.conclusion || '-'}${e.comment ? `\nLưu ý: ${e.comment}` : ''}`}
+                                                        >
+                                                            <CheckCircleIcon className="w-3 h-3 text-blue-600" />
+                                                            Đã có KQ
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-50 dark:bg-slate-900 text-slate-400 font-bold text-[10px] border border-slate-200/50">
+                                                            Chưa có
+                                                        </span>
                                                     )}
                                                 </td>
                                                 <td className="p-3 text-center text-xs font-mono text-slate-600 dark:text-slate-300">{e.phone || '---'}</td>
@@ -2450,6 +2729,135 @@ const ContractManagement: React.FC = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Đồng bộ kết quả CLS từ HIS sang KSK */}
+            {isSyncClsModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-900 rounded-[2rem] max-w-lg w-full shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden transform scale-100 transition-all duration-300 animate-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/60 flex items-center gap-3 bg-gradient-to-r from-indigo-50/60 to-purple-50/40 dark:from-indigo-950/30 dark:to-purple-950/20">
+                            <div className="h-10 w-10 rounded-full flex items-center justify-center bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+                                <SparklesIcon className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h5 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                                    Đồng bộ kết quả Cận lâm sàng từ HIS
+                                </h5>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                    Gói khám: <strong className="text-slate-700 dark:text-slate-300">{selectedContract?.name}</strong>
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-6 flex flex-col gap-4">
+                            {/* Summary Cards */}
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700 text-center">
+                                    <div className="text-[10px] font-bold text-slate-400 uppercase">Đã tiếp đón</div>
+                                    <div className="text-lg font-black text-slate-800 dark:text-white mt-0.5">
+                                        {employees.filter(e => !!e.doc_no && e.doc_no !== '0').length}
+                                    </div>
+                                </div>
+                                <div className="p-3 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 text-center">
+                                    <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">Đã có KQ KSK</div>
+                                    <div className="text-lg font-black text-emerald-700 dark:text-emerald-300 mt-0.5">
+                                        {employees.filter(e => !!e.has_cls_result).length}
+                                    </div>
+                                </div>
+                                <div className="p-3 bg-amber-50/50 dark:bg-amber-950/20 rounded-xl border border-amber-200/60 dark:border-amber-800/40 text-center">
+                                    <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase">Chưa có KQ KSK</div>
+                                    <div className="text-lg font-black text-amber-700 dark:text-amber-300 mt-0.5">
+                                        {employees.filter(e => !!e.doc_no && e.doc_no !== '0' && !e.has_cls_result).length}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                                Hệ thống sẽ tự động quét kết quả Xét nghiệm (LIS), Chẩn đoán hình ảnh và Siêu âm (PACS) đã hoàn thành trên hệ thống HIS Core, tự động nạp vào hồ sơ KSK và cập nhật lại XML liên thông chuẩn QĐ 2062.
+                            </p>
+
+                            {/* Mode Selection */}
+                            <div className="flex flex-col gap-2">
+                                <label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                                    Tùy chọn đồng bộ:
+                                </label>
+                                
+                                <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition ${
+                                    syncClsMode === 'missing_only' 
+                                        ? 'bg-indigo-50/60 dark:bg-indigo-950/20 border-indigo-300 dark:border-indigo-700 ring-1 ring-indigo-500/30' 
+                                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                                }`}>
+                                    <input
+                                        type="radio"
+                                        name="syncClsMode"
+                                        value="missing_only"
+                                        checked={syncClsMode === 'missing_only'}
+                                        onChange={() => setSyncClsMode('missing_only')}
+                                        className="mt-0.5 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                    />
+                                    <div className="flex flex-col">
+                                        <span className="text-xs font-bold text-slate-800 dark:text-white">
+                                            Chỉ đồng bộ hồ sơ chưa có kết quả hoặc có chỉ số mới từ HIS (Khuyến nghị)
+                                        </span>
+                                        <span className="text-[11px] text-slate-400 mt-0.5">
+                                            Bỏ qua các hồ sơ đã có đủ kết quả CLS trong KSK, chỉ nạp cho hồ sơ đang thiếu hoặc có thêm chỉ số mới từ HIS.
+                                        </span>
+                                    </div>
+                                </label>
+
+                                <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition ${
+                                    syncClsMode === 'all_new' 
+                                        ? 'bg-indigo-50/60 dark:bg-indigo-950/20 border-indigo-300 dark:border-indigo-700 ring-1 ring-indigo-500/30' 
+                                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                                }`}>
+                                    <input
+                                        type="radio"
+                                        name="syncClsMode"
+                                        value="all_new"
+                                        checked={syncClsMode === 'all_new'}
+                                        onChange={() => setSyncClsMode('all_new')}
+                                        className="mt-0.5 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                    />
+                                    <div className="flex flex-col">
+                                        <span className="text-xs font-bold text-slate-800 dark:text-white">
+                                            Cập nhật lại toàn bộ kết quả CLS mới nhất từ HIS
+                                        </span>
+                                        <span className="text-[11px] text-slate-400 mt-0.5">
+                                            Rà soát và làm mới toàn bộ kết quả xét nghiệm và hình ảnh từ HIS (vẫn bảo toàn các kết quả bác sĩ đã chỉnh sửa tay).
+                                        </span>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-200 dark:border-amber-900/40 text-[11px] text-amber-700 dark:text-amber-300">
+                                <strong>Lưu ý:</strong> Các hồ sơ đã ký số hoặc đã gửi liên thông VNeID thành công sẽ tự động được bảo vệ và không bị thay đổi.
+                            </div>
+                        </div>
+
+                        {/* Footer Buttons */}
+                        <div className="px-6 py-4 bg-slate-50/30 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setIsSyncClsModalOpen(false)}
+                                disabled={isSyncingCls}
+                                className="px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 rounded-xl text-xs font-extrabold uppercase tracking-wider transition cursor-pointer"
+                            >
+                                Đóng
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleExecuteSyncCls}
+                                disabled={isSyncingCls}
+                                className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition shadow-md shadow-indigo-500/20 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                            >
+                                {isSyncingCls ? <RefreshIcon className="w-4 h-4 animate-spin" /> : <SparklesIcon className="w-4 h-4" />}
+                                {isSyncingCls ? 'Đang đồng bộ...' : 'Bắt đầu đồng bộ'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

@@ -45,6 +45,12 @@ const DEFAULT_SETTINGS: SettingsData = {
     vneid_private_key: '',
     vneid_public_key: '',
     signature_type: 'HSM',
+    sync_target_mode: 'BYT_ONLY',
+    syt_url: 'https://api-hssk.hanoi.gov.vn',
+    syt_username: '',
+    syt_password: '',
+    syt_receiver_id: 'VTS',
+    syt_enabled: false,
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -84,6 +90,15 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
     const [vneidPrivateKey, setVneidPrivateKey] = useState('');
     const [vneidPublicKey, setVneidPublicKey] = useState('');
     const [signatureType, setSignatureType] = useState<'USB' | 'HSM'>('HSM');
+
+    // ── SYT Gateway Settings ──────────────────────────────────────────────────
+    const [syncTargetMode, setSyncTargetMode] = useState<'BYT_ONLY' | 'BOTH' | 'SYT_ONLY'>('BYT_ONLY');
+    const [sytUrl, setSytUrl] = useState('https://api-hssk.hanoi.gov.vn');
+    const [sytUsername, setSytUsername] = useState('');
+    const [sytPassword, setSytPassword] = useState('');
+    const [showSytPassword, setShowSytPassword] = useState(false);
+    const [sytReceiverId, setSytReceiverId] = useState('VTS');
+    const [isTestingSyt, setIsTestingSyt] = useState(false);
     
     // HSM Settings
     const [hsmUrl, setHsmUrl] = useState('http://vimes.xyz:8091');
@@ -156,6 +171,11 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                 setHsmPassword(settings.hsm_password || '');
                 setHsmClientId(settings.hsm_client_id || '');
                 setHsmClientSecret(settings.hsm_client_secret || '');
+                setSyncTargetMode(settings.sync_target_mode || 'BYT_ONLY');
+                setSytUrl(settings.syt_url || 'https://api-hssk.hanoi.gov.vn');
+                setSytUsername(settings.syt_username || '');
+                setSytPassword(settings.syt_password || '');
+                setSytReceiverId(settings.syt_receiver_id || 'VTS');
             } catch (error) {
                 console.error('Failed to load settings:', error);
                 toast.error('Không thể tải cấu hình. Vui lòng thử lại.');
@@ -199,6 +219,12 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
             hsm_password: hsmPassword,
             hsm_client_id: hsmClientId,
             hsm_client_secret: hsmClientSecret,
+            sync_target_mode: syncTargetMode,
+            syt_url: sytUrl,
+            syt_username: sytUsername,
+            syt_password: sytPassword,
+            syt_receiver_id: sytReceiverId,
+            syt_enabled: syncTargetMode !== 'BYT_ONLY',
         });
 
         const validation = settings.validate();
@@ -272,12 +298,38 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
             setHsmPassword(settings.hsm_password || '');
             setHsmClientId(settings.hsm_client_id || '');
             setHsmClientSecret(settings.hsm_client_secret || '');
+            setSyncTargetMode(settings.sync_target_mode || 'BYT_ONLY');
+            setSytUrl(settings.syt_url || 'https://api-hssk.hanoi.gov.vn');
+            setSytUsername(settings.syt_username || '');
+            setSytPassword(settings.syt_password || '');
+            setSytReceiverId(settings.syt_receiver_id || 'VTS');
             toast.success('Đã tải lại cấu hình mới nhất từ cơ sở dữ liệu!');
         } catch (error) {
             console.error('Failed to load settings:', error);
             toast.error('Không thể tải cấu hình từ server backend.');
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleTestSytConnection = async () => {
+        setIsTestingSyt(true);
+        try {
+            const res = await healthCheckService.testSytConnection({
+                syt_url: sytUrl,
+                syt_username: sytUsername,
+                syt_password: sytPassword,
+                syt_receiver_id: sytReceiverId
+            });
+            if (res.success) {
+                toast.success(res.message || 'Kết nối Cổng Sở Y tế Hà Nội thành công!');
+            } else {
+                toast.error(res.message || 'Kết nối Cổng Sở Y tế thất bại!');
+            }
+        } catch (error: any) {
+            toast.error('Kết nối Cổng Sở Y tế thất bại: ' + error.message);
+        } finally {
+            setIsTestingSyt(false);
         }
     };
 
@@ -363,6 +415,8 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
             {/* Tab content renders */}
             {activeSubTab === 'VNEID' ? (
                 <GeneralConfigTab
+                    syncTargetMode={syncTargetMode}
+                    setSyncTargetMode={setSyncTargetMode}
                     vneidUrl={vneidUrl}
                     setVneidUrl={setVneidUrl}
                     vneidUsername={vneidUsername}
@@ -371,6 +425,18 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                     setVneidPassword={setVneidPassword}
                     showPassword={showPassword}
                     setShowPassword={setShowPassword}
+                    sytUrl={sytUrl}
+                    setSytUrl={setSytUrl}
+                    sytUsername={sytUsername}
+                    setSytUsername={setSytUsername}
+                    sytPassword={sytPassword}
+                    setSytPassword={setSytPassword}
+                    showSytPassword={showSytPassword}
+                    setShowSytPassword={setShowSytPassword}
+                    sytReceiverId={sytReceiverId}
+                    setSytReceiverId={setSytReceiverId}
+                    isTestingSyt={isTestingSyt}
+                    onTestSytConnection={handleTestSytConnection}
                     vneidPrivateKey={vneidPrivateKey}
                     setVneidPrivateKey={setVneidPrivateKey}
                     vneidPublicKey={vneidPublicKey}

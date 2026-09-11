@@ -44,12 +44,12 @@ export const pool = new Pool({
     host: process.env.DB_HOST,
     database: process.env.DB_NAME,
     port: parseInt(process.env.DB_PORT || '5432', 10),
-    max: 5,
+    max: parseInt(process.env.DB_POOL_MAX || '20', 10),
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000, // Tăng lên 10s để cho phép mạng có thời gian phục hồi và kết nối lại
     keepAlive: true, // Bật TCP Keep-Alive để phát hiện sớm các kết nối bị treo
     keepAliveInitialDelayMillis: 10000, // Gửi gói tin thăm dò TCP sau 10s idle
-    query_timeout: 15000, // Ép hủy các truy vấn bị kẹt sau 15s để giải phóng pool
+    query_timeout: parseInt(process.env.DB_QUERY_TIMEOUT || '30000', 10), // Cho phép query chạy tối đa 30s trước khi hủy kết nối bị kẹt
 });
 
 // Event Handlers for Connection
@@ -112,7 +112,7 @@ export const queryWithContext = async (
     params: any[] | undefined, 
     context: { userId: string | number, ip?: string, module?: string }
 ): Promise<QueryResult> => {
-    const maxRetries = 5;
+    const maxRetries = 3;
     let attempt = 0;
     while (true) {
         const client = await pool.connect();
@@ -142,7 +142,11 @@ export const queryWithContext = async (
                 await new Promise(resolve => setTimeout(resolve, retryDelay));
                 continue;
             }
-            console.error('Database context query error:', error);
+            console.error('Database context query error:', {
+                message: error.message,
+                code: error.code,
+                querySnippet: text ? text.substring(0, 100) : ''
+            });
             throw error;
         }
     }
@@ -152,7 +156,7 @@ export const queryWithContext = async (
  * Standard query for general use
  */
 export const query = async (text: string, params?: any[]): Promise<QueryResult> => {
-    const maxRetries = 5;
+    const maxRetries = 3;
     let attempt = 0;
     while (true) {
         const start = Date.now();
@@ -171,7 +175,11 @@ export const query = async (text: string, params?: any[]): Promise<QueryResult> 
                 await new Promise(resolve => setTimeout(resolve, retryDelay));
                 continue;
             }
-            console.error('Database query error:', error);
+            console.error('Database query error:', {
+                message: error.message,
+                code: error.code,
+                querySnippet: text ? text.substring(0, 100) : ''
+            });
             throw error;
         }
     }
@@ -197,7 +205,7 @@ export const hmsQuery = async (req: any, text: string, params?: any[]): Promise<
  * @returns Result of the callback function.
  */
 export const transaction = async <T>(callback: (client: PoolClient) => Promise<T>): Promise<T> => {
-    const maxRetries = 5;
+    const maxRetries = 3;
     let attempt = 0;
     while (true) {
         const client = await pool.connect();
@@ -222,6 +230,10 @@ export const transaction = async <T>(callback: (client: PoolClient) => Promise<T
                 await new Promise(resolve => setTimeout(resolve, retryDelay));
                 continue;
             }
+            console.error('Database transaction error:', {
+                message: error.message,
+                code: error.code
+            });
             throw error;
         }
     }

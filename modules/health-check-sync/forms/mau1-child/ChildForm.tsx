@@ -13,8 +13,10 @@ import {
     Stethoscope, 
     FlaskConical, 
     ClipboardCheck, 
-    Baby 
+    Baby,
+    Receipt
 } from 'lucide-react';
+import FeeTab from '../tabs/FeeTab';
 import ConfirmationModal from '../../../../components/ui/ConfirmationModal';
 
 interface ChildFormProps {
@@ -191,59 +193,61 @@ const ChildForm: React.FC<ChildFormProps> = ({
                             if (isExamining) {
                                 return {
                                     text: 'Đang khám',
-                                    className: 'bg-blue-600/15 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700 font-bold',
-                                    dotClass: 'bg-blue-600 animate-ping'
+                                    status: 'examining',
+                                    isPing: true
                                 };
                             }
                             if (doneCount === total) {
                                 return {
                                     text: 'Đã khám',
-                                    className: 'bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 font-bold',
-                                    dotClass: 'bg-emerald-600'
+                                    status: 'done',
+                                    dotClass: 'bg-emerald-500 ring-2 ring-emerald-500/25 shadow-xs shadow-emerald-500/50'
                                 };
                             }
                             if (doneCount > 0) {
                                 return {
                                     text: `${doneCount}/${total} đã khám`,
-                                    className: 'bg-amber-600/15 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 font-bold',
-                                    dotClass: 'bg-amber-600'
+                                    status: 'partial',
+                                    fraction: `${doneCount}/${total}`,
+                                    badgeClass: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
                                 };
                             }
                             return {
                                 text: 'Chưa khám',
-                                className: 'bg-slate-200/80 text-slate-600 dark:bg-slate-700 dark:text-slate-300 font-medium',
-                                dotClass: 'bg-slate-400'
+                                status: 'todo',
+                                dotClass: 'bg-slate-300 dark:bg-slate-600'
                             };
                         }
                         const st = specMeta[key]?.status;
                         if (st === 'ĐÃ_DUYỆT' || st === 'ĐÃ_KHÁM' || st === 'ĐÃ_KẾT_LUẬN') {
                             return {
                                 text: 'Đã khám',
-                                className: 'bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 font-bold',
-                                dotClass: 'bg-emerald-600'
+                                status: 'done',
+                                dotClass: 'bg-emerald-500 ring-2 ring-emerald-500/25 shadow-xs shadow-emerald-500/50'
                             };
                         }
                         if (st === 'ĐANG_KHÁM') {
                             return {
                                 text: 'Đang khám',
-                                className: 'bg-blue-600/15 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700 font-bold',
-                                dotClass: 'bg-blue-600 animate-ping'
+                                status: 'examining',
+                                isPing: true
                             };
                         }
                         return {
                             text: 'Chưa khám',
-                            className: 'bg-slate-200/80 text-slate-600 dark:bg-slate-700 dark:text-slate-300 font-medium',
-                            dotClass: 'bg-slate-400'
+                            status: 'todo',
+                            dotClass: 'bg-slate-300 dark:bg-slate-600'
                         };
                     };
 
-                    const tabItems: Array<{ id: 'admin' | 'history' | 'childDev' | 'exam' | 'lab' | 'conclusion'; label: string; step: number; icon: any }> = [
+                    const tabItems: Array<{ id: 'admin' | 'history' | 'childDev' | 'exam' | 'lab' | 'conclusion' | 'fee'; label: string; step: number; icon: any }> = [
                         { id: 'admin', label: 'Thông tin hành chính', step: 1, icon: User },
                         { id: 'history', label: 'Tiền sử & Khám thể lực', step: 2, icon: Activity },
                         { id: 'childDev', label: 'Dinh dưỡng & Phát triển', step: 3, icon: Baby },
                         { id: 'exam', label: 'Khám lâm sàng', step: 4, icon: Stethoscope },
                         { id: 'lab', label: 'Cận lâm sàng', step: 5, icon: FlaskConical },
                         { id: 'conclusion', label: 'Kết luận & Ký số', step: 6, icon: ClipboardCheck },
+                        { id: 'fee', label: 'Chi phí', step: 7, icon: Receipt },
                     ];
 
                     return (
@@ -261,8 +265,8 @@ const ChildForm: React.FC<ChildFormProps> = ({
                                             type="button"
                                             disabled={isDisabled}
                                             onClick={() => handleTabChange(tab.id)}
-                                            title={isDisabled ? 'Vui lòng tìm kiếm/nhập thông tin hành chính bệnh nhân trước' : ''}
-                                            className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs transition-all duration-200 cursor-pointer flex-shrink-0 border ${
+                                            title={isDisabled ? 'Vui lòng tìm kiếm/nhập thông tin hành chính bệnh nhân trước' : (badge ? `${tab.label}: ${badge.text}` : tab.label)}
+                                            className={`group relative flex items-center gap-2 px-3 py-2 rounded-xl text-xs transition-all duration-200 cursor-pointer flex-shrink-0 border ${
                                                 isDisabled
                                                     ? 'opacity-40 cursor-not-allowed text-slate-400 border-transparent bg-transparent'
                                                     : isActive
@@ -284,11 +288,29 @@ const ChildForm: React.FC<ChildFormProps> = ({
                                                 {tab.label}
                                             </span>
 
-                                            {/* Status Chip */}
-                                            <span className={`inline-flex items-center gap-1.5 text-[10.5px] px-2 py-0.5 rounded-full transition-all ${badge.className}`}>
-                                                <span className={`w-1.5 h-1.5 rounded-full ${badge.dotClass}`} />
-                                                <span>{badge.text}</span>
-                                            </span>
+                                            {/* Status Indicator (Compact: colored dot without text to save width) */}
+                                            {badge && (
+                                                <span 
+                                                    title={badge.text}
+                                                    className="flex items-center justify-center flex-shrink-0 ml-0.5"
+                                                >
+                                                    {badge.status === 'partial' && badge.fraction ? (
+                                                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full leading-tight font-extrabold ${badge.badgeClass}`}>
+                                                            {badge.fraction}
+                                                        </span>
+                                                    ) : badge.isPing ? (
+                                                        <span className="relative flex h-2.5 w-2.5" title={badge.text}>
+                                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-600"></span>
+                                                        </span>
+                                                    ) : (
+                                                        <span 
+                                                            className={`w-2.5 h-2.5 rounded-full transition-all group-hover:scale-125 ${badge.dotClass}`} 
+                                                            title={badge.text}
+                                                        />
+                                                    )}
+                                                </span>
+                                            )}
 
                                             {/* Active Bottom Indicator Accent */}
                                             {isActive && (
@@ -310,6 +332,7 @@ const ChildForm: React.FC<ChildFormProps> = ({
                     {activeTab === 'exam' && <ChildClinicalTab />}
                     {activeTab === 'lab' && <ChildLabTab />}
                     {activeTab === 'conclusion' && <ChildConclusionTab />}
+                    {activeTab === 'fee' && <FeeTab />}
                 </div>
 
                 {/* Footer Controls */}

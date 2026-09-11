@@ -133,6 +133,17 @@ export function parseBloodPressure(bpStr?: string | null): { systolic: number | 
 }
 
 /**
+ * Làm sạch chuỗi kết luận: loại bỏ ngắt dòng \r\n, gạch đầu dòng, khoảng trắng thừa
+ */
+export function cleanConclusionText(text: any): string {
+    if (!text) return '';
+    return String(text)
+        .replace(/[\r\n\t]+/g, ' ')
+        .replace(/^[\s\-–—:]+/, '')
+        .trim();
+}
+
+/**
  * Tự động đánh giá và chuẩn hóa Phân loại sức khỏe & Chẩn đoán từ dữ liệu HIS
  */
 export function evaluateFitnessClass(params: FitnessEvaluationParams): FitnessEvaluationResult {
@@ -145,6 +156,7 @@ export function evaluateFitnessClass(params: FitnessEvaluationParams): FitnessEv
     const explicitClassFromDoc = parseFitnessClassFromText(params.hisResult);
     const explicitClassFromDocConcl = parseFitnessClassFromText(params.hisConclusion);
     const explicitClassFromDiagnostic = parseFitnessClassFromText(params.diagnostic);
+    const explicitClassFromExmConcl = parseFitnessClassFromText(params.hisExmConclusion);
 
     if (explicitClassFromExm) {
         resolvedClass = explicitClassFromExm;
@@ -155,6 +167,9 @@ export function evaluateFitnessClass(params: FitnessEvaluationParams): FitnessEv
     } else if (explicitClassFromDocConcl) {
         resolvedClass = explicitClassFromDocConcl;
         evaluationReason = `Trích xuất phân loại từ kết luận bác sĩ (${params.hisConclusion})`;
+    } else if (explicitClassFromExmConcl) {
+        resolvedClass = explicitClassFromExmConcl;
+        evaluationReason = `Trích xuất phân loại từ kết luận KSK (${params.hisExmConclusion})`;
     } else if (explicitClassFromDiagnostic) {
         resolvedClass = explicitClassFromDiagnostic;
         evaluationReason = `Trích xuất phân loại từ chẩn đoán (${params.diagnostic})`;
@@ -227,15 +242,38 @@ export function evaluateFitnessClass(params: FitnessEvaluationParams): FitnessEv
     }
 
     // ── XÁC ĐỊNH CHẨN ĐOÁN (DIAGNOSIS) & LỜI DẶN (CAC_VAN_DE_LUU_Y) ──
-    // Ưu tiên lấy đúng chẩn đoán ICD-10 từ HIS
+    // Ưu tiên chuẩn hóa:
+    // 1. hecl_conclusion từ hms_exm_conclusion (Kết luận KSK chi tiết)
+    // 2. hd_conclusion từ hms_doc (Kết luận chính thức của Bác sĩ đợt khám trên HIS)
+    // 3. he_diagnostic / hd_diagnostic từ hms_exam / hms_doc (Chẩn đoán lâm sàng)
+    // 4. icd10 từ hms_exam / hms_doc
+    // 5. Chuỗi mặc định [Z00.0] Khám sức khỏe tổng quát
+    const cleanExmConcl = cleanConclusionText(params.hisExmConclusion);
+    const cleanDocConcl = cleanConclusionText(params.hisConclusion);
+    const cleanDiag = cleanConclusionText(params.diagnostic);
+
+    const isGenericDefault = (text: string) => {
+        if (!text) return true;
+        const s = text.toLowerCase().replace(/[\s\[\]\.\-_:]/g, '');
+        return s === 'z000' || s === 'z000khamsuckhoetongquat' || s === 'khamsuckhoetongquat' || s === 'z000khamsuckhoe' || s === 'khamsuckhoe';
+    };
+
     let defaultDiagnosis = '';
-    if (params.diagnostic && String(params.diagnostic).trim()) {
-        defaultDiagnosis = String(params.diagnostic).trim().replace(/^-\s*/, '');
+    if (cleanExmConcl && !isGenericDefault(cleanExmConcl)) {
+        defaultDiagnosis = cleanExmConcl;
+    } else if (cleanDocConcl && !isGenericDefault(cleanDocConcl)) {
+        defaultDiagnosis = cleanDocConcl;
+    } else if (cleanDiag && !isGenericDefault(cleanDiag)) {
+        defaultDiagnosis = cleanDiag;
+    } else if (cleanExmConcl) {
+        defaultDiagnosis = cleanExmConcl;
+    } else if (cleanDocConcl) {
+        defaultDiagnosis = cleanDocConcl;
+    } else if (cleanDiag) {
+        defaultDiagnosis = cleanDiag;
     } else if (params.icd10 && String(params.icd10).trim()) {
         const cleanIcd = String(params.icd10).trim();
         defaultDiagnosis = `[${cleanIcd}] Khám sức khỏe`;
-    } else if (params.hisConclusion && String(params.hisConclusion).trim()) {
-        defaultDiagnosis = String(params.hisConclusion).trim().replace(/^-\s*/, '');
     } else {
         defaultDiagnosis = '[Z00.0] Khám sức khỏe tổng quát';
     }
@@ -311,11 +349,30 @@ export function buildSpecialtyMetadata(params: {
 
     const hasVitals = !!(exam.height || exam.weight || exam.pulse || exam.bp || exam.blood_pressure || exam.temperature || exam.bmi);
     
-    // Kiểm tra thực sự có khám nội khoa hay chưa (không tính text ghi chú chung he_parts)
+    // Kiểm tra thực sự có khám nội khoa hay chưa
     const hasInternal = !!(
+        clinExam.internal ||
+        clinExam.noi_khoa ||
+        clinExam.circulatory ||
+        clinExam.respiratory ||
+        clinExam.digestive ||
         clinExam.kq_tim_mach || 
         clinExam.kq_ho_hap || 
+        clinExam.tim_mach ||
+        clinExam.ho_hap ||
         clinExam.noi_khoa_tieu_hoa || 
+        clinExam.kq_tieu_hoa ||
+        clinExam.kq_tiet_nieu ||
+        clinExam.noi_khoa_than_tietnieu ||
+        clinExam.kq_noi_tiet ||
+        clinExam.kq_noi_tiet_chuyen_hoa ||
+        clinExam.noi_khoa_noi_tiet ||
+        clinExam.kq_co_xuong_khop ||
+        clinExam.noi_khoa_co_xuong_khop ||
+        clinExam.kq_than_kinh ||
+        clinExam.noi_khoa_than_kinh ||
+        clinExam.kq_tam_than ||
+        clinExam.noi_khoa_tam_than ||
         clinExam.noi_khoa_tuan_hoan_pl || 
         clinExam.noi_khoa_ho_hap_pl || 
         clinExam.noi_khoa_tieu_hoa_pl || 
@@ -327,14 +384,19 @@ export function buildSpecialtyMetadata(params: {
         clinExam.nhi_tieu_hoa
     );
 
-    const hasEye = !!(clinExam.eye || clinExam.kham_mat_pl || clinExam.kham_mat_m5);
-    const hasEnt = !!(clinExam.ent || clinExam.kham_tai_mui_hong_pl || clinExam.kham_tai_mui_hong_m5);
-    const hasDental = !!(clinExam.dental || clinExam.kham_rang_ham_mat_pl);
-    const hasExternal = !!(clinExam.external || clinExam.kham_ngoai_khoa_pl || clinExam.kq_ngoai_khoa);
-    const hasDerm = !!(clinExam.dermatology || clinExam.kham_da_lieu_pl || clinExam.kq_da_lieu);
-    const hasGyn = !!(clinExam.gynecology || clinExam.kham_san_phu_khoa || clinExam.kq_sinh_duc);
+    const hasEye = !!(clinExam.eye || clinExam.kq_mat || clinExam.kham_mat || clinExam.kham_mat_pl || clinExam.kham_mat_m5 || clinExam.benh_khac_mat || clinExam.khong_kinh_mat_phai || clinExam.khong_kinh_mat_trai);
+    const hasEnt = !!(clinExam.ent || clinExam.kq_tai_mui_hong || clinExam.kham_tai_mui_hong || clinExam.kham_tai_mui_hong_pl || clinExam.kham_tai_mui_hong_m5 || clinExam.benh_tai_mui_hong);
+    const hasDental = !!(clinExam.dental || clinExam.kq_rang_ham_mat || clinExam.kham_rang_ham_mat || clinExam.kham_rang_ham_mat_pl || clinExam.benh_rang_ham_mat || clinExam.ham_tren || clinExam.ham_duoi);
+    const hasExternal = !!(clinExam.surgery || clinExam.external || clinExam.ngoai_khoa || clinExam.kq_ngoai_khoa || clinExam.kham_ngoai_khoa_pl);
+    const hasDerm = !!(clinExam.dermatology || clinExam.da_lieu || clinExam.kq_da_lieu || clinExam.kham_da_lieu_pl);
+    const hasGyn = !!(clinExam.gynecology || clinExam.kham_san_phu_khoa || clinExam.kq_sinh_duc || clinExam.kham_san_phu_khoa_pl);
     const hasLab = !!(lab.blood_test?.hemoglobin || lab.blood_test?.glycemia || lab.urine_test?.protein || (lab.paraclinical_items && lab.paraclinical_items.length > 0));
-    const isConcluded = !!(params.hasConclusion || concl.fitness_class || concl.diagnosis || concl.ket_luan_loai_suc_khoe);
+    const hasConclData = !!(
+        (concl.fitness_class && String(concl.fitness_class).trim()) ||
+        (concl.ket_luan_loai_suc_khoe && String(concl.ket_luan_loai_suc_khoe).trim()) ||
+        (concl.diagnosis && String(concl.diagnosis).trim())
+    );
+    const isConcluded = params.hasConclusion === false ? false : (params.hasConclusion === true ? true : hasConclData);
 
     const vitalsStatus = hasVitals ? 'ĐÃ_KHÁM' : 'CHUA_KHAM';
 
@@ -357,15 +419,392 @@ export function buildSpecialtyMetadata(params: {
         eye: { status: hasEye ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: examDocId, doctorName: examDocName, updatedAt: nowIso },
         ent: { status: hasEnt ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: examDocId, doctorName: examDocName, updatedAt: nowIso },
         dental: { status: hasDental ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: examDocId, doctorName: examDocName, updatedAt: nowIso },
+        surgery: { status: hasExternal ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: examDocId, doctorName: examDocName, updatedAt: nowIso },
         external: { status: hasExternal ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: examDocId, doctorName: examDocName, updatedAt: nowIso },
         dermatology: { status: hasDerm ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: examDocId, doctorName: examDocName, updatedAt: nowIso },
         gynecology: { status: hasGyn ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: examDocId, doctorName: examDocName, updatedAt: nowIso },
         lab: { status: hasLab ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: examDocId, doctorName: examDocName, updatedAt: nowIso },
         conclusion: { 
-            status: isConcluded ? 'ĐÃ_KẾT_LUẬN' : (hasVitals || hasInternal ? 'ĐANG_KHÁM' : 'CHUA_KHAM'), 
+            status: isConcluded ? 'ĐÃ_KẾT_LUẬN' : 'CHUA_KHAM', 
             doctorId: conclDocId, 
             doctorName: conclDocName, 
             updatedAt: nowIso 
         }
     };
 }
+
+export interface ParsedHisParts {
+    isSpecialtyMerged: boolean;
+    cleanInternalText: string;
+    internal?: string;
+    external?: string;
+    eye?: string;
+    ent?: string;
+    dental?: string;
+    dermatology?: string;
+    gynecology?: string;
+    neurology?: string;
+    psychiatry?: string;
+}
+
+/**
+ * Phân tích và bóc tách chuỗi tóm tắt các chuyên khoa từ he_parts trên HIS Core.
+ * Nếu chuỗi chứa các tiền tố chuyên khoa (Ngoại khoa:, Mắt:, TMH:, RHM:, Da liễu:, Sản phụ khoa:...),
+ * hàm sẽ bóc tách chính xác từng chuyên khoa tương ứng, đồng thời loại bỏ triệt để các chuyên khoa
+ * ngoại lai khỏi nội khoa (cleanInternalText).
+ */
+export function parseHisPartsSummary(partsText?: string | null): ParsedHisParts {
+    if (!partsText || typeof partsText !== 'string' || !partsText.trim()) {
+        return { isSpecialtyMerged: false, cleanInternalText: '' };
+    }
+
+    const raw = partsText.trim();
+
+    const prefixDefs: { key: keyof Omit<ParsedHisParts, 'isSpecialtyMerged' | 'cleanInternalText'>; regex: RegExp }[] = [
+        { key: 'internal', regex: /(?:^|[;\n\r\t])\s*(?:Nội\s*khoa|Noi\s*khoa|Khám\s*nội|Kham\s*noi|Nội|Noi)\s*:\s*/i },
+        { key: 'external', regex: /(?:^|[;\n\r\t])\s*(?:Ngoại\s*khoa|Ngoai\s*khoa|Khám\s*ngoại|Kham\s*ngoai|Ngoại|Ngoai)\s*:\s*/i },
+        { key: 'eye', regex: /(?:^|[;\n\r\t])\s*(?:Mắt|Mat|Khám\s*mắt|Kham\s*mat)\s*:\s*/i },
+        { key: 'ent', regex: /(?:^|[;\n\r\t])\s*(?:TMH|Tai\s*mũi\s*họng|Tai\s*mui\s*hong|Khám\s*TMH|Khám\s*tai\s*mũi\s*họng)\s*:\s*/i },
+        { key: 'dental', regex: /(?:^|[;\n\r\t])\s*(?:RHM|Răng\s*hàm\s*mặt|Rang\s*ham\s*mat|Khám\s*răng|Kham\s*rang|Khám\s*RHM)\s*:\s*/i },
+        { key: 'dermatology', regex: /(?:^|[;\n\r\t])\s*(?:Da\s*liễu|Da\s*lieu|Khám\s*da\s*liễu|Khám\s*da|Kham\s*da\s*lieu)\s*:\s*/i },
+        { key: 'gynecology', regex: /(?:^|[;\n\r\t])\s*(?:Sản\s*phụ\s*khoa|San\s*phu\s*khoa|Phụ\s*khoa|Phu\s*khoa|Khám\s*phụ\s*khoa|Khám\s*sản\s*phụ\s*khoa|Sản|San)\s*:\s*/i },
+        { key: 'neurology', regex: /(?:^|[;\n\r\t])\s*(?:Thần\s*kinh|Than\s*kinh|Khám\s*thần\s*kinh)\s*:\s*/i },
+        { key: 'psychiatry', regex: /(?:^|[;\n\r\t])\s*(?:Tâm\s*thần|Tam\s*than|Khám\s*tâm\s*thần)\s*:\s*/i },
+    ];
+
+    interface MatchPos {
+        key: keyof Omit<ParsedHisParts, 'isSpecialtyMerged' | 'cleanInternalText'>;
+        start: number;
+        end: number;
+    }
+
+    const matches: MatchPos[] = [];
+    for (const def of prefixDefs) {
+        let m: RegExpExecArray | null;
+        const re = new RegExp(def.regex.source, 'gi');
+        while ((m = re.exec(raw)) !== null) {
+            matches.push({
+                key: def.key,
+                start: m.index + (m[0].length - m[0].replace(/^[;\n\r\t\s]+/, '').length),
+                end: m.index + m[0].length
+            });
+        }
+    }
+
+    matches.sort((a, b) => a.start - b.start);
+
+    // Không tìm thấy bất kỳ tiền tố chuyên khoa nào -> Văn bản khám lâm sàng thuần túy
+    if (matches.length === 0) {
+        return {
+            isSpecialtyMerged: false,
+            cleanInternalText: raw,
+            internal: raw
+        };
+    }
+
+    const result: ParsedHisParts = {
+        isSpecialtyMerged: true,
+        cleanInternalText: ''
+    };
+
+    for (let i = 0; i < matches.length; i++) {
+        const cur = matches[i];
+        const nextStart = (i + 1 < matches.length) ? matches[i + 1].start : raw.length;
+        const val = raw.substring(cur.end, nextStart)
+            .trim()
+            .replace(/[;\r\n]+$/, '')
+            .trim();
+
+        if (val) {
+            result[cur.key] = val;
+        }
+    }
+
+    result.cleanInternalText = result.internal || '';
+    return result;
+}
+
+/**
+ * Ánh xạ toàn diện dữ liệu từ bản ghi hms_exm_conclusion sang đối tượng clinical_exam của KSK
+ * Đảm bảo bao phủ 100% tất cả các alias chuyên khoa, hỗ trợ đồng bộ 2 chiều và chuẩn hóa _pl
+ */
+export function mapConclusionRowToClinicalExam(conclRow: any, existingClinExam: any = {}, globalPhanLoai?: string | null): any {
+    if (!conclRow && !existingClinExam) return {};
+    const ce = { ...(existingClinExam || {}) };
+
+    // 0. Bóc tách và vệ sinh phòng thủ các chuỗi gộp chuyên khoa từ HIS
+    let partsFromHe: ParsedHisParts = { isSpecialtyMerged: false, cleanInternalText: '' };
+    const rawParts = existingClinExam?.raw_he_parts || conclRow?.raw_he_parts;
+    if (rawParts) {
+        partsFromHe = parseHisPartsSummary(rawParts);
+    }
+
+    // Nếu noi_khoa_tuan_hoan / noi_khoa_ho_hap / internal chứa chuỗi gộp các chuyên khoa khác -> Làm sạch ngay lập tức
+    if (ce.noi_khoa_tuan_hoan) {
+        const p = parseHisPartsSummary(ce.noi_khoa_tuan_hoan);
+        if (p.isSpecialtyMerged) {
+            ce.noi_khoa_tuan_hoan = p.cleanInternalText;
+            if (!partsFromHe.isSpecialtyMerged) partsFromHe = p;
+        }
+    }
+    if (ce.noi_khoa_ho_hap) {
+        const p = parseHisPartsSummary(ce.noi_khoa_ho_hap);
+        if (p.isSpecialtyMerged) {
+            ce.noi_khoa_ho_hap = p.cleanInternalText;
+            if (!partsFromHe.isSpecialtyMerged) partsFromHe = p;
+        }
+    }
+    if (ce.internal) {
+        const p = parseHisPartsSummary(ce.internal);
+        if (p.isSpecialtyMerged) {
+            ce.internal = p.cleanInternalText;
+            if (!partsFromHe.isSpecialtyMerged) partsFromHe = p;
+        }
+    }
+
+    const parsePl = (val: any) => {
+        return parseFitnessClassFromText(val) || parseFitnessClassFromText(globalPhanLoai) || '1';
+    };
+
+    const normalizeText = (val: any, defaultText: string) => {
+        if (!val) return '';
+        const s = String(val).trim();
+        if (s === '1' || s === '01') return defaultText;
+        return s;
+    };
+
+    // 1. Thể lực
+    if (conclRow?.hecl_theluc) {
+        const thelucText = normalizeText(conclRow.hecl_theluc, 'Thể lực tốt');
+        ce.kham_the_luc = thelucText;
+        ce.kham_the_luc_pl = parsePl(conclRow.hecl_theluc);
+    }
+
+    // 2. Tuần hoàn / Tim mạch (hecl_tuanhoan)
+    if (conclRow?.hecl_tuanhoan) {
+        const thText = normalizeText(conclRow.hecl_tuanhoan, 'Tim đều, T1 T2 rõ, bình thường');
+        ce.kq_tim_mach = thText;
+        ce.circulatory = thText;
+        ce.tim_mach = thText;
+        ce.tuan_hoan = thText;
+        ce.noi_khoa_tuan_hoan = thText;
+        ce.nhi_tuan_hoan = thText;
+        ce.noi_khoa_tuan_hoan_pl = parsePl(conclRow.hecl_tuanhoan);
+    } else if (partsFromHe.internal) {
+        ce.kq_tim_mach = partsFromHe.internal;
+        ce.circulatory = partsFromHe.internal;
+        ce.tim_mach = partsFromHe.internal;
+        ce.tuan_hoan = partsFromHe.internal;
+        ce.noi_khoa_tuan_hoan = partsFromHe.internal;
+        ce.nhi_tuan_hoan = partsFromHe.internal;
+        ce.noi_khoa_tuan_hoan_pl = parsePl(globalPhanLoai);
+    } else if (!ce.kq_tim_mach && !ce.noi_khoa_tuan_hoan) {
+        // Fallback: Khi hồ sơ có kết luận hoặc đã khám các khoa khác mà tuần hoàn chưa ghi riêng
+        if (conclRow?.hecl_phanloai || conclRow?.hecl_conclusion || conclRow?.hecl_theluc || partsFromHe.isSpecialtyMerged) {
+            ce.kq_tim_mach = 'Tim đều, T1 T2 rõ, bình thường';
+            ce.noi_khoa_tuan_hoan = 'Tim đều, T1 T2 rõ, bình thường';
+            ce.circulatory = 'Tim đều, T1 T2 rõ, bình thường';
+            ce.noi_khoa_tuan_hoan_pl = parsePl(conclRow?.hecl_phanloai);
+        }
+    }
+
+    // 3. Hô hấp (hecl_hohap)
+    if (conclRow?.hecl_hohap) {
+        const hhText = normalizeText(conclRow.hecl_hohap, 'Phổi trong, rì rào phế nang rõ, bình thường');
+        ce.kq_ho_hap = hhText;
+        ce.respiratory = hhText;
+        ce.ho_hap = hhText;
+        ce.noi_khoa_ho_hap = hhText;
+        ce.nhi_ho_hap = hhText;
+        ce.noi_khoa_ho_hap_pl = parsePl(conclRow.hecl_hohap);
+    } else if (partsFromHe.internal) {
+        ce.kq_ho_hap = partsFromHe.internal;
+        ce.respiratory = partsFromHe.internal;
+        ce.ho_hap = partsFromHe.internal;
+        ce.noi_khoa_ho_hap = partsFromHe.internal;
+        ce.nhi_ho_hap = partsFromHe.internal;
+        ce.noi_khoa_ho_hap_pl = parsePl(globalPhanLoai);
+    } else if (!ce.kq_ho_hap && !ce.noi_khoa_ho_hap) {
+        // Fallback: Khi hồ sơ có kết luận hoặc đã khám các khoa khác mà hô hấp chưa ghi riêng
+        if (conclRow?.hecl_phanloai || conclRow?.hecl_conclusion || conclRow?.hecl_theluc || partsFromHe.isSpecialtyMerged) {
+            ce.kq_ho_hap = 'Phổi trong, rì rào phế nang rõ, bình thường';
+            ce.noi_khoa_ho_hap = 'Phổi trong, rì rào phế nang rõ, bình thường';
+            ce.respiratory = 'Phổi trong, rì rào phế nang rõ, bình thường';
+            ce.noi_khoa_ho_hap_pl = parsePl(conclRow?.hecl_phanloai);
+        }
+    }
+
+    // 4. Tiêu hóa (hecl_tieuhoa)
+    if (conclRow?.hecl_tieuhoa) {
+        const thText = normalizeText(conclRow.hecl_tieuhoa, 'Bụng mềm, gan lách không to, bình thường');
+        ce.noi_khoa_tieu_hoa = thText;
+        ce.kq_tieu_hoa = thText;
+        ce.digestive = thText;
+        ce.tieu_hoa = thText;
+        ce.nhi_tieu_hoa = thText;
+        ce.noi_khoa_tieu_hoa_pl = parsePl(conclRow.hecl_tieuhoa);
+    }
+
+    // 5. Thận - Tiết niệu (hecl_thantietnieu)
+    if (conclRow?.hecl_thantietnieu) {
+        const tnText = normalizeText(conclRow.hecl_thantietnieu, 'Chạm thận (-), bập bềnh thận (-), bình thường');
+        ce.kq_tiet_nieu = tnText;
+        ce.noi_khoa_than_tietnieu = tnText;
+        ce.urinary = tnText;
+        ce.than_tiet_nieu = tnText;
+        ce.tiet_nieu = tnText;
+        ce.nhi_tiet_nieu = tnText;
+        ce.noi_khoa_than_tietnieu_pl = parsePl(conclRow.hecl_thantietnieu);
+    }
+
+    // 6. Nội tiết (hecl_noitiet)
+    if (conclRow?.hecl_noitiet) {
+        const ntText = normalizeText(conclRow.hecl_noitiet, 'Tuyến giáp không to, không rối loạn nội tiết');
+        ce.kq_noi_tiet = ntText;
+        ce.kq_noi_tiet_chuyen_hoa = ntText;
+        ce.noi_khoa_noi_tiet = ntText;
+        ce.endocrine = ntText;
+        ce.noi_tiet = ntText;
+        ce.noi_khoa_noi_tiet_pl = parsePl(conclRow.hecl_noitiet);
+    }
+
+    // 7. Cơ xương khớp (hecl_coxuongkhop)
+    if (conclRow?.hecl_coxuongkhop) {
+        const cxkText = normalizeText(conclRow.hecl_coxuongkhop, 'Vận động các khớp bình thường, không đau');
+        ce.kq_co_xuong_khop = cxkText;
+        ce.noi_khoa_co_xuong_khop = cxkText;
+        ce.musculoskeletal = cxkText;
+        ce.co_xuong_khop = cxkText;
+        ce.noi_khoa_co_xuong_khop_pl = parsePl(conclRow.hecl_coxuongkhop);
+    }
+
+    // 8. Thần kinh (hecl_thankinh)
+    const valTk = conclRow?.hecl_thankinh || partsFromHe.neurology;
+    if (valTk) {
+        const tkText = normalizeText(valTk, 'Không có dấu thần kinh khu trú, bình thường');
+        ce.kq_than_kinh = tkText;
+        ce.noi_khoa_than_kinh = tkText;
+        ce.neurology = tkText;
+        ce.than_kinh = tkText;
+        ce.nhi_than_kinh = tkText;
+        ce.noi_khoa_than_kinh_pl = parsePl(valTk);
+    }
+
+    // 9. Tâm thần (hecl_tamthan)
+    const valTt = conclRow?.hecl_tamthan || partsFromHe.psychiatry;
+    if (valTt) {
+        const ttText = normalizeText(valTt, 'Tâm thần ổn định, tiếp xúc tốt, bình thường');
+        ce.kq_tam_than = ttText;
+        ce.noi_khoa_tam_than = ttText;
+        ce.psychiatry = ttText;
+        ce.tam_than = ttText;
+        ce.nhi_tam_than = ttText;
+        ce.noi_khoa_tam_than_pl = parsePl(valTt);
+    }
+
+    // Gán internal tổng quát (Làm sạch hoàn toàn, không chứa chuyên khoa ngoại lai)
+    if (!ce.internal || parseHisPartsSummary(ce.internal).isSpecialtyMerged) {
+        const internalParts = [
+            ce.kq_tim_mach ? `Tuần hoàn: ${ce.kq_tim_mach}` : '',
+            ce.kq_ho_hap ? `Hô hấp: ${ce.kq_ho_hap}` : '',
+            ce.noi_khoa_tieu_hoa ? `Tiêu hóa: ${ce.noi_khoa_tieu_hoa}` : '',
+            ce.kq_tiet_nieu ? `Thận - Tiết niệu: ${ce.kq_tiet_nieu}` : ''
+        ].filter(Boolean);
+        if (internalParts.length > 0) {
+            ce.internal = internalParts.join('; ');
+        } else if (conclRow?.hecl_tuanhoan) {
+            ce.internal = normalizeText(conclRow.hecl_tuanhoan, 'Bình thường');
+        } else if (partsFromHe.internal) {
+            ce.internal = partsFromHe.internal;
+        } else if (conclRow?.hecl_phanloai || conclRow?.hecl_conclusion || partsFromHe.isSpecialtyMerged) {
+            ce.internal = 'Bình thường';
+        }
+    }
+
+    // 10. Ngoại khoa (hecl_ngoai hoặc bóc tách từ he_parts)
+    const valNgoai = conclRow?.hecl_ngoai || conclRow?.hecl_ngoaikhoa || partsFromHe.external;
+    if (valNgoai) {
+        const ngText = normalizeText(valNgoai, 'Bình thường, không sẹo mổ cũ');
+        ce.kq_ngoai_khoa = ngText;
+        ce.external = ngText;
+        ce.surgery = ngText;
+        ce.ngoai_khoa = ngText;
+        ce.kham_ngoai_khoa_pl = parsePl(valNgoai);
+    }
+
+    // 11. Da liễu (hecl_dalieu hoặc bóc tách từ he_parts)
+    const valDalieu = conclRow?.hecl_dalieu || partsFromHe.dermatology;
+    if (valDalieu) {
+        const dlText = normalizeText(valDalieu, 'Không phát hiện bệnh da liễu');
+        ce.kq_da_lieu = dlText;
+        ce.dermatology = dlText;
+        ce.da_lieu = dlText;
+        ce.kham_da_lieu_pl = parsePl(valDalieu);
+    }
+
+    // 12. Mắt (hecl_mat hoặc bóc tách từ he_parts)
+    const valMat = conclRow?.hecl_mat || partsFromHe.eye;
+    if (valMat) {
+        const matText = normalizeText(valMat, 'Mắt phải 10/10, Mắt trái 10/10');
+        ce.eye = matText;
+        ce.mat = matText;
+        ce.kq_mat = matText;
+        ce.kham_mat = matText;
+        ce.kham_mat_pl = parsePl(valMat);
+
+        // Trích xuất thị lực nếu có định dạng số/10
+        const visualMatch = matText.match(/(\d+)\/10[^\d]*(\d+)\/10/);
+        if (visualMatch) {
+            ce.khong_kinh_mat_phai = `${visualMatch[1]}/10`;
+            ce.khong_kinh_mat_trai = `${visualMatch[2]}/10`;
+            ce.khong_kinh_hai_mat = `${visualMatch[1]}/10`;
+        } else if (matText.includes('10/10') || matText.toLowerCase().includes('bình thường')) {
+            if (!ce.khong_kinh_mat_phai) ce.khong_kinh_mat_phai = '10/10';
+            if (!ce.khong_kinh_mat_trai) ce.khong_kinh_mat_trai = '10/10';
+            if (!ce.khong_kinh_hai_mat) ce.khong_kinh_hai_mat = '10/10';
+        }
+    }
+
+    // 13. Tai Mũi Họng (hecl_tmh / hecl_taimuihong hoặc bóc tách từ he_parts)
+    const valTmh = conclRow?.hecl_tmh || conclRow?.hecl_taimuihong || partsFromHe.ent;
+    if (valTmh) {
+        const tmhText = normalizeText(valTmh, 'Màng nhĩ sáng, họng sạch, tai mũi họng ổn định');
+        ce.ent = tmhText;
+        ce.tai_mui_hong = tmhText;
+        ce.kq_tai_mui_hong = tmhText;
+        ce.benh_tai_mui_hong = tmhText;
+        ce.kham_tai_mui_hong = tmhText;
+        ce.tai_trai_noi_thuong = ce.tai_trai_noi_thuong || '5m';
+        ce.tai_phai_noi_thuong = ce.tai_phai_noi_thuong || '5m';
+        ce.kham_tai_mui_hong_pl = parsePl(valTmh);
+    }
+
+    // 14. Răng Hàm Mặt (hecl_rhm / hecl_ranghammat hoặc bóc tách từ he_parts)
+    const valRhm = conclRow?.hecl_rhm || conclRow?.hecl_ranghammat || partsFromHe.dental;
+    if (valRhm) {
+        const rhmText = normalizeText(valRhm, 'Không sâu răng, không viêm lợi, khớp cắn bình thường');
+        ce.dental = rhmText;
+        ce.rang_ham_mat = rhmText;
+        ce.kq_rang_ham_mat = rhmText;
+        ce.benh_rang_ham_mat = rhmText;
+        ce.kham_rang_ham_mat = rhmText;
+        ce.ham_tren = ce.ham_tren || 'Bình thường';
+        ce.ham_duoi = ce.ham_duoi || 'Bình thường';
+        ce.kham_rang_ham_mat_pl = parsePl(valRhm);
+    }
+
+    // 15. Sản phụ khoa (hecl_phukhoa / hecl_sanphukhoa hoặc bóc tách từ he_parts)
+    const valPhukhoa = conclRow?.hecl_phukhoa || conclRow?.hecl_sanphukhoa || partsFromHe.gynecology;
+    if (valPhukhoa) {
+        const pkText = normalizeText(valPhukhoa, 'Khám phụ khoa bình thường');
+        ce.gynecology = pkText;
+        ce.san_phu_khoa = pkText;
+        ce.phu_khoa = pkText;
+        ce.kq_sinh_duc = pkText;
+        ce.kham_san_phu_khoa = pkText;
+        ce.kham_san_phu_khoa_pl = parsePl(valPhukhoa);
+    }
+
+    return ce;
+}
+

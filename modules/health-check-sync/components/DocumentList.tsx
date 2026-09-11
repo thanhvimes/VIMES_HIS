@@ -32,6 +32,7 @@ interface DocumentListProps {
     currentPage?: number;
     setCurrentPage?: (page: number) => void;
     totalCount?: number;
+    syncTargetMode?: 'BYT_ONLY' | 'BOTH' | 'SYT_ONLY';
 }
 
 const DocumentList: React.FC<DocumentListProps> = ({
@@ -50,7 +51,8 @@ const DocumentList: React.FC<DocumentListProps> = ({
     setPageSize,
     currentPage = 1,
     setCurrentPage,
-    totalCount
+    totalCount,
+    syncTargetMode = 'BYT_ONLY'
 }) => {
     const totalRecords = totalCount !== undefined ? totalCount : documents.length;
     const numericPageSize = typeof pageSize === 'number' ? pageSize : 100;
@@ -71,34 +73,47 @@ const DocumentList: React.FC<DocumentListProps> = ({
         return [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
     }, [totalPages, currentPage]);
 
-    const getStatusBadge = (status: string) => {
+    const getStatusBadge = (status: string, label?: string) => {
+        let badgeContent;
         switch(status) {
             case 'Success': 
-                return (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800/40">
-                        <CheckCircleIcon className="w-3.5 h-3.5"/> Thành công
+                badgeContent = (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800/40">
+                        <CheckCircleIcon className="w-3 h-3"/> Thành công
                     </span>
                 );
+                break;
             case 'Error': 
-                return (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-600 text-white shadow-sm">
-                        <span className="w-3.5 h-3.5 flex items-center justify-center bg-white text-rose-600 rounded-full text-[9px] font-extrabold">✕</span> 
+                badgeContent = (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-600 text-white shadow-sm">
+                        <span className="w-3 h-3 flex items-center justify-center bg-white text-rose-600 rounded-full text-[8px] font-extrabold">✕</span> 
                         Thất bại
                     </span>
                 );
+                break;
             case 'Pending': 
-                return (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 border border-teal-200 dark:border-teal-800/40 animate-pulse">
+                badgeContent = (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 border border-teal-200 dark:border-teal-800/40 animate-pulse">
                         <RefreshIcon className="w-3 h-3 animate-spin"/> Đang gửi...
                     </span>
                 );
+                break;
             default: 
-                return (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                badgeContent = (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
                         Chờ gửi
                     </span>
                 );
+                break;
         }
+
+        if (!label) return badgeContent;
+        return (
+            <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase w-7 flex-shrink-0">{label}:</span>
+                {badgeContent}
+            </div>
+        );
     };
 
     return (
@@ -182,26 +197,35 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                     <td className="p-4">
                                         {(() => {
                                             const specMeta = doc.clinical_data?.specialty_metadata || doc.clinical_data?.clinical_exam?.specialty_metadata || {};
+                                            const hasConcl = !!(
+                                                (doc.conclusion_data?.fitness_class && String(doc.conclusion_data.fitness_class).trim()) ||
+                                                (doc.conclusion_data?.ket_luan_loai_suc_khoe && String(doc.conclusion_data.ket_luan_loai_suc_khoe).trim()) ||
+                                                (doc.conclusion_data?.diagnosis && String(doc.conclusion_data.diagnosis).trim())
+                                            );
                                             const isConcluded = specMeta.conclusion?.status === 'ĐÃ_KẾT_LUẬN'
                                                 || specMeta.conclusion?.status === 'ĐÃ_DUYỆT'
-                                                || specMeta.conclusion?.status === 'ĐÃ_KHÁM'
                                                 || doc.signature_status === 'Signed'
-                                                || !!(doc.conclusion_data?.fitness_class || doc.conclusion_data?.ket_luan_loai_suc_khoe || doc.conclusion_data?.diagnosis);
+                                                || (hasConcl && specMeta.conclusion?.status !== 'CHUA_KHAM');
+
+                                            const clinicalSpecialtyKeys = ['physical', 'examination', 'internal', 'surgery', 'external', 'eye', 'ent', 'dental', 'dermatology', 'gynecology'];
+                                            const hasAnySpecialtyExamined = clinicalSpecialtyKeys.some(k => specMeta[k]?.status === 'ĐÃ_KHÁM' || specMeta[k]?.status === 'ĐÃ_DUYỆT');
+                                            const hasAnySpecialtyExamining = clinicalSpecialtyKeys.some(k => specMeta[k]?.status === 'ĐANG_KHÁM');
+
+                                            const hasParaclinicalResults = (doc.lab_data?.paraclinical_items || []).some(
+                                                (it: any) => (it.value && String(it.value).trim()) || (it.result && String(it.result).trim()) || it.is_his_value
+                                            ) || !!(doc.lab_data?.blood_test?.hemoglobin || doc.lab_data?.blood_test?.glycemia || doc.lab_data?.urine_test?.protein);
 
                                             const isExamined = !isConcluded && (
-                                                specMeta.examination?.status === 'ĐÃ_KHÁM'
-                                                || Object.values(specMeta).some((s: any) => s?.status === 'ĐÃ_KHÁM' || s?.status === 'ĐÃ_DUYỆT')
+                                                hasAnySpecialtyExamined
                                                 || !!doc.clinical_data?.examination?.height
                                                 || !!doc.clinical_data?.examination?.weight
                                                 || !!doc.clinical_data?.examination?.pulse
                                                 || !!doc.clinical_data?.examination?.bp
                                                 || !!doc.clinical_data?.examination?.blood_pressure
-                                                || (doc.lab_data?.paraclinical_items && doc.lab_data.paraclinical_items.length > 0)
+                                                || hasParaclinicalResults
                                             );
 
-                                            const isExamining = !isConcluded && !isExamined && (
-                                                Object.values(specMeta).some((s: any) => s?.status === 'ĐANG_KHÁM')
-                                            );
+                                            const isExamining = !isConcluded && !isExamined && hasAnySpecialtyExamining;
 
                                             if (isConcluded) {
                                                 return (
@@ -242,28 +266,82 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                         )}
                                     </td>
                                     <td className="p-4">
-                                        {getStatusBadge(doc.send_status)}
-                                    </td>
-                                    <td className="p-4 max-w-[200px] break-words text-xs leading-tight">
-                                        {doc.send_status === 'Error' && (
-                                            <div className="text-rose-800 dark:text-rose-400 font-bold uppercase mb-1">
-                                                {doc.error_message || 'Lỗi gửi cổng'}
+                                        {syncTargetMode === 'BOTH' ? (
+                                            <div className="flex flex-col gap-1.5">
+                                                {getStatusBadge(doc.send_status, 'BYT')}
+                                                {getStatusBadge(doc.syt_send_status || 'Unsent', 'SYT')}
                                             </div>
-                                        )}
-                                        {doc.response_log ? (
-                                            <div 
-                                                className="text-[10px] text-slate-500 font-mono line-clamp-2 cursor-pointer hover:text-teal-600 hover:underline"
-                                                title="Nhấn để xem chi tiết log"
-                                                onClick={() => {
-                                                    alert(`CHI TIẾT LOG PHẢN HỒI TỪ CỔNG:\n\n${doc.response_log}`);
-                                                }}
-                                            >
-                                                Log: {doc.response_log}
-                                            </div>
-                                        ) : doc.transaction_id ? (
-                                            <span className="font-mono text-slate-500 text-[11px]">{doc.transaction_id}</span>
+                                        ) : syncTargetMode === 'SYT_ONLY' ? (
+                                            getStatusBadge(doc.syt_send_status || doc.send_status)
                                         ) : (
-                                            <span className="text-slate-400">-</span>
+                                            getStatusBadge(doc.send_status)
+                                        )}
+                                    </td>
+                                    <td className="p-4 max-w-[220px] break-words text-xs leading-tight">
+                                        {syncTargetMode === 'BOTH' ? (
+                                            <div className="space-y-1">
+                                                {doc.send_status === 'Error' && (
+                                                    <div className="text-rose-800 dark:text-rose-400 font-bold uppercase text-[10px]">
+                                                        BYT: {doc.error_message || 'Lỗi gửi cổng'}
+                                                    </div>
+                                                )}
+                                                {doc.syt_send_status === 'Error' && (
+                                                    <div className="text-rose-800 dark:text-rose-400 font-bold uppercase text-[10px]">
+                                                        SYT: {doc.syt_error_message || 'Lỗi gửi cổng SYT'}
+                                                    </div>
+                                                )}
+                                                {doc.transaction_id && (
+                                                    <div className="text-[10px] text-slate-500 font-mono">
+                                                        <span className="font-semibold text-slate-600 dark:text-slate-400">BYT:</span> {doc.transaction_id}
+                                                    </div>
+                                                )}
+                                                {doc.syt_transaction_id && (
+                                                    <div className="text-[10px] text-teal-700 dark:text-teal-400 font-mono">
+                                                        <span className="font-semibold">SYT:</span> {doc.syt_transaction_id}
+                                                    </div>
+                                                )}
+                                                {(doc.response_log || doc.syt_response_log) && (
+                                                    <div 
+                                                        className="text-[10px] text-slate-500 font-mono line-clamp-1 cursor-pointer hover:text-teal-600 hover:underline"
+                                                        title="Nhấn để xem chi tiết log"
+                                                        onClick={() => {
+                                                            const logs = [
+                                                                doc.response_log ? `--- PHẢN HỒI CỔNG BỘ Y TẾ ---\n${doc.response_log}` : null,
+                                                                doc.syt_response_log ? `--- PHẢN HỒI CỔNG SỞ Y TẾ ---\n${doc.syt_response_log}` : null
+                                                            ].filter(Boolean).join('\n\n');
+                                                            alert(logs || 'Không có log chi tiết');
+                                                        }}
+                                                    >
+                                                        Xem log phản hồi...
+                                                    </div>
+                                                )}
+                                                {!doc.transaction_id && !doc.syt_transaction_id && !doc.error_message && !doc.syt_error_message && (
+                                                    <span className="text-slate-400">-</span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <>
+                                                {doc.send_status === 'Error' && (
+                                                    <div className="text-rose-800 dark:text-rose-400 font-bold uppercase mb-1">
+                                                        {doc.error_message || 'Lỗi gửi cổng'}
+                                                    </div>
+                                                )}
+                                                {doc.response_log ? (
+                                                    <div 
+                                                        className="text-[10px] text-slate-500 font-mono line-clamp-2 cursor-pointer hover:text-teal-600 hover:underline"
+                                                        title="Nhấn để xem chi tiết log"
+                                                        onClick={() => {
+                                                            alert(`CHI TIẾT LOG PHẢN HỒI TỪ CỔNG:\n\n${doc.response_log}`);
+                                                        }}
+                                                    >
+                                                        Log: {doc.response_log}
+                                                    </div>
+                                                ) : doc.transaction_id ? (
+                                                    <span className="font-mono text-slate-500 text-[11px]">{doc.transaction_id}</span>
+                                                ) : (
+                                                    <span className="text-slate-400">-</span>
+                                                )}
+                                            </>
                                         )}
                                     </td>
                                     <td className="p-4 text-right">
@@ -313,7 +391,17 @@ const DocumentList: React.FC<DocumentListProps> = ({
 
                                                 {/* Gửi */}
                                                 {(() => {
-                                                    const isDone = doc.status === 'ĐÃ_KẾT_LUẬN' || doc.conclusion_data?.fitness_class || doc.conclusion_data?.ket_luan_loai_suc_khoe || doc.conclusion_data?.diagnosis;
+                                                    const specMeta = doc.clinical_data?.specialty_metadata || doc.clinical_data?.clinical_exam?.specialty_metadata || {};
+                                                    const hasConcl = !!(
+                                                        (doc.conclusion_data?.fitness_class && String(doc.conclusion_data.fitness_class).trim()) ||
+                                                        (doc.conclusion_data?.ket_luan_loai_suc_khoe && String(doc.conclusion_data.ket_luan_loai_suc_khoe).trim()) ||
+                                                        (doc.conclusion_data?.diagnosis && String(doc.conclusion_data.diagnosis).trim())
+                                                    );
+                                                    const isDone = doc.status === 'ĐÃ_KẾT_LUẬN' 
+                                                        || specMeta.conclusion?.status === 'ĐÃ_KẾT_LUẬN'
+                                                        || specMeta.conclusion?.status === 'ĐÃ_DUYỆT'
+                                                        || doc.signature_status === 'Signed'
+                                                        || (hasConcl && specMeta.conclusion?.status !== 'CHUA_KHAM');
                                                     return (
                                                         <button 
                                                             onClick={() => {

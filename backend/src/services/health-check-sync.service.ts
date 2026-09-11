@@ -281,177 +281,256 @@ export function validateFinalEncodedHealthCheckXml(base64Xml: string) {
     return validateHealthCheckEnvelope(finalXml);
 }
 
+async function loginToSytGateway(settings: any): Promise<{ token: string; log: string }> {
+    const sytUrl = (settings.syt_url || 'https://api-hssk.hanoi.gov.vn').trim().replace(/\/+$/, '');
+    const loginUrl = `${sytUrl}/api/v1/resource/authentication/login`;
+    try {
+        console.log(`📡 [SYT Sync] Authenticating at: ${loginUrl}`);
+        const loginRes: any = await axios.post(loginUrl, {
+            username: settings.syt_username,
+            password: settings.syt_password
+        }, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+            },
+            timeout: 10000
+        });
+        const token = loginRes.data?.access_token || loginRes.data?.token || loginRes.data?.data?.token;
+        if (token) {
+            console.log('✅ [SYT Sync] Login success. Token length:', String(token).length);
+            return { token: String(token), log: `Login Success: ${JSON.stringify(loginRes.data)}` };
+        }
+        return { token: '', log: `Login Failed: No access_token returned. Response: ${JSON.stringify(loginRes.data)}` };
+    } catch (err: any) {
+        const errMsg = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+        console.error('❌ [SYT Sync] Login error:', errMsg);
+        return { token: '', log: `Login Failed: ${err.response?.status || 500} - ${errMsg}` };
+    }
+}
+
+async function pushSingleDocumentToSyt(
+    doc: any,
+    base64Xml: string,
+    glnCode: string,
+    settings: any,
+    sytToken: string,
+    parsedKey: any
+): Promise<{ success: boolean; transactionId: string; message: string; responseLog: string }> {
+    const sytUrl = (settings.syt_url || 'https://api-hssk.hanoi.gov.vn').trim().replace(/\/+$/, '');
+    const pushUrl = `${sytUrl}/api/v1/medical-record/ksk-lien-thong/kham-suc-khoe`;
+    const receiverId = (settings.syt_receiver_id && settings.syt_receiver_id.trim()) ? settings.syt_receiver_id : 'VTS';
+
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(-2);
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const randomSuffix = crypto.randomBytes(16).toString('hex');
+    const msgId = `${glnCode}${yy}${mm}${dd}${randomSuffix}`;
+
+    const payload: any = {
+        header: {
+            version: "1.0",
+            sender_id: glnCode,
+            receiver_id: receiverId,
+            txn_type: "sync_checkup",
+            msg_id: msgId,
+            msg_type: "101",
+            data_type: "xml/base64",
+            send_datetime: Date.now()
+        },
+        data: {
+            content: base64Xml
+        }
+    };
+
+    if (parsedKey) {
+        try {
+            payload.signature = createHealthCheckChecksumSignature(payload.header, payload.data, parsedKey);
+        } catch (e: any) {
+            return {
+                success: false,
+                transactionId: msgId,
+                message: `Lỗi tạo checksum chữ ký SYT: ${e.message}`,
+                responseLog: JSON.stringify({ error: e.message })
+            };
+        }
+    }
+
+    try {
+        console.log(`📡 [SYT Push] Pushing document ${doc.doc_no} to SYT: ${pushUrl}`);
+        const sytRes: any = await axios.post(pushUrl, payload, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sytToken}`,
+                'Accept': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+            },
+            httpsAgent: syncHttpsAgent,
+            timeout: 90000
+        } as any);
+
+        const resData = sytRes.data || {};
+        const responseLog = JSON.stringify(resData);
+        const status = resData.status ?? sytRes.status;
+        const maGiaoDich = resData.maGiaoDich || resData.transaction_id || msgId;
+        const msg = resData.message || 'Thành công';
+
+        if (status === 200 || sytRes.status === 200) {
+            return {
+                success: true,
+                transactionId: maGiaoDich,
+                message: msg,
+                responseLog
+            };
+        } else {
+            return {
+                success: false,
+                transactionId: maGiaoDich,
+                message: `[Mã ${status}] ${msg}`,
+                responseLog
+            };
+        }
+    } catch (err: any) {
+        const resData = err.response?.data;
+        const statusCode = err.response?.status;
+        const errMsg = resData?.message || (typeof resData === 'string' ? resData : err.message);
+        let hint = '';
+        if (statusCode === 403 || err.code === 'ECONNREFUSED' || err.message?.includes('timeout')) {
+            hint = ' (Kiểm tra IP Whitelist với Sở Y tế)';
+        }
+        return {
+            success: false,
+            transactionId: msgId,
+            message: `Lỗi kết nối Cổng SYT: ${statusCode || 500} - ${errMsg}${hint}`,
+            responseLog: JSON.stringify(resData || { error: err.message })
+        };
+    }
+}
+
 /**
- * Synchronizes documents to the VNeID gateway portal.
+ * Synchronizes documents to the VNeID gateway portal and/or Department of Health (SYT) portal.
  * Logs API request and response data to database.
  */
 export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> {
     const failedIds: string[] = [];
     try {
-        await loadHealthCheckSettings();
-        const settings = getHealthCheckSettings();
+        let settings = getHealthCheckSettings();
         if (!settings) {
-            console.error('❌ [VNeID Portal] Settings not loaded.');
+            settings = await loadHealthCheckSettings();
+        }
+        if (!settings) {
+            console.error('❌ [Sync Portal] Settings not loaded.');
             return docIds;
         }
 
-        console.log('🔍 [VNeID Sync DEBUG] Settings loaded from DB:', {
-            vneid_url: settings.vneid_url,
-            vneid_username: settings.vneid_username,
-            ma_cskcb: settings.ma_cskcb
-        });
+        const targetMode = settings.sync_target_mode || 'BYT_ONLY';
+        const needByt = targetMode === 'BYT_ONLY' || targetMode === 'BOTH';
+        const needSyt = targetMode === 'SYT_ONLY' || targetMode === 'BOTH';
 
+        console.log(`🔍 [Sync Portal DEBUG] Target Mode: ${targetMode} (Need BYT: ${needByt}, Need SYT: ${needSyt})`);
+
+        let bytToken = '';
+        let bytLoginLog = '';
         let baseUrl = (settings.vneid_url || 'https://api-sandbox.emrhub.vn/api').trim().replace(/\/+$/, '');
-        if (baseUrl.endsWith('/v1')) {
-            baseUrl = baseUrl.slice(0, -3);
-        }
-        if (!baseUrl.endsWith('/api')) {
-            baseUrl = `${baseUrl}/api`;
-        }
+        if (baseUrl.endsWith('/v1')) baseUrl = baseUrl.slice(0, -3);
+        if (!baseUrl.endsWith('/api')) baseUrl = `${baseUrl}/api`;
 
-        console.log('🔍 [VNeID Sync DEBUG] Normalized Base URL:', baseUrl);
-        const loginUrl = `${baseUrl}/auth/login`;
-        console.log('📡 [VNeID Sync DEBUG] Sending Auth POST request to:', loginUrl);
-
-        // 1. Authenticate / Login to get token
-        let token = '';
-        let loginResponseLog = '';
-        try {
-            const loginRes: any = await axios.post(loginUrl, {
-                username: settings.vneid_username,
-                password: settings.vneid_password
-            }, {
-                headers: { 
-                    'Content-Type': 'application/json', 
-                    'Accept': '*/*',
-                    'Accept-Encoding': 'gzip, deflate, br',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-                },
-                timeout: 10000
-            });
-            token = loginRes.data?.data?.token || loginRes.data?.token || loginRes.data?.data;
-            loginResponseLog = `Login Success: ${JSON.stringify(loginRes.data)}`;
-            console.log('✅ [VNeID Sync DEBUG] Login success. Token length:', token ? token.length : 0);
-        } catch (err: any) {
-            const errMsg = err.response?.data ? JSON.stringify(err.response.data) : err.message;
-            loginResponseLog = `Login Failed: ${err.response?.status || 500} - ${errMsg}`;
-            console.error(`❌ [VNeID Portal] Login error:`, errMsg);
+        // 1. Authenticate with BYT if needed
+        if (needByt) {
+            const loginUrl = `${baseUrl}/auth/login`;
+            console.log('📡 [VNeID Sync DEBUG] Sending Auth POST request to:', loginUrl);
+            try {
+                const loginRes: any = await axios.post(loginUrl, {
+                    username: settings.vneid_username,
+                    password: settings.vneid_password
+                }, {
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'Accept': '*/*',
+                        'Accept-Encoding': 'gzip, deflate, br',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+                    },
+                    timeout: 10000
+                });
+                bytToken = loginRes.data?.data?.token || loginRes.data?.token || loginRes.data?.data;
+                bytLoginLog = `Login Success: ${JSON.stringify(loginRes.data)}`;
+                console.log('✅ [VNeID Sync DEBUG] Login BYT success. Token length:', bytToken ? bytToken.length : 0);
+            } catch (err: any) {
+                const errMsg = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+                bytLoginLog = `Login Failed: ${err.response?.status || 500} - ${errMsg}`;
+                console.error(`❌ [VNeID Portal] Login error:`, errMsg);
+            }
         }
 
-        // 2. Loop through and push each document
+        // 2. Authenticate with SYT if needed
+        let sytToken = '';
+        let sytLoginLog = '';
+        if (needSyt) {
+            const sytAuth = await loginToSytGateway(settings);
+            sytToken = sytAuth.token;
+            sytLoginLog = sytAuth.log;
+        }
+
+        const glnCode = (settings.ma_cskcb && settings.ma_cskcb.length >= 13)
+            ? settings.ma_cskcb
+            : (settings.ma_gtin_cskcb && settings.ma_gtin_cskcb.length >= 13 && settings.ma_gtin_cskcb !== '1234567890123' ? settings.ma_gtin_cskcb : '8934285008135');
+        const bytCode = (settings as any).ma_cskcb_byt || (settings.ma_cskcb && settings.ma_cskcb.length === 5 ? settings.ma_cskcb : '37101');
+
+        let parsedKey: any = null;
+        if (settings.vneid_private_key) {
+            try {
+                parsedKey = parsePrivateKey(settings.vneid_private_key);
+            } catch (e: any) {
+                console.warn('⚠️ [Sync Portal] Could not parse private key:', e.message);
+            }
+        }
+
+        // 3. Loop through and push each document
         for (const docId of docIds) {
             console.log(`\n===============================================================`);
-            console.log(`📡 [VNeID SYNC DEBUG] BẮT ĐẦU XỬ LÝ GỬI HỒ SƠ ID: ${docId}`);
+            console.log(`📡 [Sync DEBUG] BẮT ĐẦU XỬ LÝ GỬI HỒ SƠ ID: ${docId} (Mode: ${targetMode})`);
             console.log(`===============================================================`);
 
-            const docQuery = await query(`SELECT id, doc_no, xml_data, patient_name, signature_status, signature FROM health_check_masters WHERE id = $1`, [parseInt(docId, 10)]);
+            const docQuery = await query(`
+                SELECT id, doc_no, xml_data, patient_name, signature_status, signature, send_status, syt_send_status 
+                FROM health_check_masters WHERE id = $1
+            `, [parseInt(docId, 10)]);
+
             if (docQuery.rows.length === 0) {
-                console.warn(`⚠️ [VNeID Sync] Không tìm thấy hồ sơ ID: ${docId} trong CSDL.`);
+                console.warn(`⚠️ [Sync] Không tìm thấy hồ sơ ID: ${docId} trong CSDL.`);
                 continue;
             }
             const doc = docQuery.rows[0];
 
-            console.log(`📋 [VNeID Sync] Trạng thái hiện tại của hồ sơ:`, {
-                id: doc.id,
-                doc_no: doc.doc_no,
-                patient_name: doc.patient_name,
-                signature_status: doc.signature_status || 'Unsigned',
-                has_xml: !!(doc.xml_data && doc.xml_data.trim()),
-                has_signature: !!(doc.signature && String(doc.signature).trim()),
-                allow_unsigned_sync: settings.allow_unsigned_sync === true
-            });
-
-            // 2.1 Kiểm tra điều kiện ký số & dữ liệu bắt buộc
-            const syncValidationError = validateDocumentBeforeSync(doc, { allow_unsigned_sync: settings.allow_unsigned_sync === true });
-            if (syncValidationError) {
-                console.error(`❌ [VNeID Sync TỪ CHỐI GỬI]: ${syncValidationError}`);
-                console.error(`   👉 Chi tiết: Hồ sơ "${doc.doc_no}" (${doc.patient_name}) trạng thái ký = "${doc.signature_status || 'Chưa ký'}". Quy định QĐ 1551/QĐ-BYT yêu cầu hồ sơ phải được Ký Số trước khi liên thông cổng.`);
-                const diagLog = JSON.stringify({
-                    error: syncValidationError,
-                    stage: 'pre_sync_validation',
-                    doc_no: doc.doc_no,
-                    patient_name: doc.patient_name,
-                    signature_status: doc.signature_status || 'Unsigned',
-                    suggestion: 'Vui lòng mở hồ sơ và thực hiện Khóa & Ký Số trước khi bấm Gửi cổng.',
-                    timestamp: new Date().toISOString()
-                }, null, 2);
-
-                await query(`
-                    UPDATE health_check_masters
-                    SET send_status = 'Error', 
-                        error_message = $1, 
-                        response_log = $2, 
-                        updated_at = NOW()
-                    WHERE id = $3
-                `, [syncValidationError, diagLog, doc.id]);
+            // 3.1 Validate nghiệp vụ trước khi đồng bộ
+            if (!settings.allow_unsigned_sync && doc.signature_status !== 'Signed') {
+                const unsignedMsg = 'Hồ sơ chưa ký số, không được gửi cổng';
+                await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [unsignedMsg, doc.id]);
+                failedIds.push(docId);
+                continue;
+            }
+            if (!doc.xml_data || !doc.xml_data.trim()) {
+                const noXmlMsg = 'Hồ sơ chưa có XML dữ liệu để gửi';
+                await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [noXmlMsg, doc.id]);
                 failedIds.push(docId);
                 continue;
             }
 
-            // 2.2 Kiểm tra cấu trúc XML Envelope
-            const xmlValidation = validateHealthCheckEnvelope(doc.xml_data);
-            if (!xmlValidation.valid) {
-                const xmlError = `XML không hợp lệ: ${xmlValidation.errors.join('; ')}`;
-                console.error(`❌ [VNeID Sync LỖI XML]: ${xmlError}`);
-                const xmlDiagLog = JSON.stringify({
-                    error: xmlError,
-                    stage: 'xml_envelope_validation',
-                    details: xmlValidation.errors,
-                    timestamp: new Date().toISOString()
-                }, null, 2);
-
-                await query(`
-                    UPDATE health_check_masters 
-                    SET send_status = 'Error', 
-                        error_message = $1, 
-                        response_log = $2, 
-                        updated_at = NOW() 
-                    WHERE id = $3
-                `, [xmlError.slice(0, 500), xmlDiagLog, doc.id]);
-                failedIds.push(docId);
-                continue;
-            }
-
-            // 2.3 Kiểm tra phiên xác thực Token Cổng
-            if (!token) {
-                console.error(`❌ [VNeID Sync LỖI AUTH CỔNG]: Không có Token đăng nhập Cổng VNeID/EMRHub. Chi tiết: ${loginResponseLog}`);
-                await query(`
-                    UPDATE health_check_masters
-                    SET send_status = 'Error',
-                        error_message = 'Đăng nhập cổng thất bại',
-                        response_log = $1,
-                        updated_at = NOW()
-                    WHERE id = $2
-                `, [loginResponseLog, doc.id]);
-                failedIds.push(docId);
-                continue;
-            }
-
-            const glnCode = (settings.ma_cskcb && settings.ma_cskcb.length >= 13)
-                ? settings.ma_cskcb
-                : (settings.ma_gtin_cskcb && settings.ma_gtin_cskcb.length >= 13 && settings.ma_gtin_cskcb !== '1234567890123' ? settings.ma_gtin_cskcb : '8934285008135');
-            const bytCode = (settings as any).ma_cskcb_byt || (settings.ma_cskcb && settings.ma_cskcb.length === 5 ? settings.ma_cskcb : '37101');
-
+            // 3.2 Chuẩn bị dữ liệu XML
             let base64Xml = '';
             let rawXmlToProcess = sanitizeXmlContent(doc.xml_data || '', glnCode, bytCode);
 
-            let outerSignatureVal = doc.signature_data || '';
             if (doc.signature_status === 'Signed' && doc.signature) {
                 try {
                     const trimmedSig = doc.signature.trim();
-                    if (!trimmedSig.startsWith('<') && !trimmedSig.startsWith('{')) {
-                        outerSignatureVal = trimmedSig;
-                    }
                     if (trimmedSig.startsWith('{')) {
                         const sigObj = JSON.parse(trimmedSig);
                         const signedFile = sigObj.signature_result?.signed_file || sigObj.signed_file;
                         if (signedFile && signedFile.data_base64) {
-                            outerSignatureVal = signedFile.data_base64;
                             if (signedFile.mime_type && (signedFile.mime_type.includes('xml') || signedFile.file_name?.endsWith('.xml'))) {
-                                // A signed XML document is immutable. Decoding, sanitizing or
-                                // re-encoding its contents after HSM/USB signing invalidates XMLDSig.
                                 base64Xml = signedFile.data_base64.replace(/\s+/g, '');
-                                console.log(`✅ [VNeID Sync] Using original signed XML bytes for doc ${doc.doc_no}`);
                             } else {
                                 const signatureValue = signedFile.data_base64;
                                 let xml = rawXmlToProcess;
@@ -459,7 +538,6 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                                     xml = xml.replace('<CKS_BENH_VIEN></CKS_BENH_VIEN>', `<CKS_BENH_VIEN>${signatureValue}</CKS_BENH_VIEN>`);
                                 }
                                 base64Xml = Buffer.from(xml, 'utf8').toString('base64');
-                                console.log(`✅ [VNeID Sync] Injected signature value into <CKS_BENH_VIEN> for doc ${doc.doc_no}`);
                             }
                         } else {
                             base64Xml = Buffer.from(rawXmlToProcess, 'utf8').toString('base64');
@@ -473,8 +551,7 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                         }
                         base64Xml = Buffer.from(xml, 'utf8').toString('base64');
                     }
-                } catch (err: any) {
-                    console.error('⚠️ [VNeID Sync] Error processing signature, using clean xml_data:', err.message);
+                } catch {
                     base64Xml = Buffer.from(rawXmlToProcess, 'utf8').toString('base64');
                 }
             } else {
@@ -489,170 +566,200 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                 continue;
             }
 
-            const now = new Date();
-            const yy = String(now.getFullYear()).slice(-2);
-            const mm = String(now.getMonth() + 1).padStart(2, '0');
-            const dd = String(now.getDate()).padStart(2, '0');
+            let bytSuccess = (doc.send_status === 'Success');
+            let sytSuccess = (doc.syt_send_status === 'Success');
+            let anyFailed = false;
 
-            const randomSuffix = crypto.randomBytes(16).toString('hex');
-            const msgId = `${glnCode}${yy}${mm}${dd}${randomSuffix}`;
-
-            const receiverId = (settings.vneid_receiver_id && settings.vneid_receiver_id.trim()) ? settings.vneid_receiver_id : 'emrhub';
-
-            const payload: any = buildHealthCheckSyncPayload({
-                    version: "1.0.6",
-                    sender_id: glnCode,
-                    receiver_id: receiverId,
-                    txn_type: "sync_checkup",
-                    msg_type: "101",
-                    data_type: "xml/base64",
-                    send_datetime: Date.now(),
-                    msg_id: msgId
-                }, base64Xml);
-
-            // Calculate Checksum Signature according to QD1551 Section 11 (hashA.hashB)
-            if (settings.vneid_private_key) {
-                try {
-                    const parsedKey = parsePrivateKey(settings.vneid_private_key);
-                    payload.signature = createHealthCheckChecksumSignature(payload.header, payload.data, parsedKey);
-                    console.log(`✅ [VNeID Sync] Generated QĐ1551 Checksum Signature for doc ${doc.doc_no}`);
-                } catch (e: any) {
-                    console.error('❌ [VNeID Sync] Failed to sign payload with Private Key:', e.message);
-                    await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [`Không tạo được checksum chữ ký: ${e.message}`, doc.id]);
-                    failedIds.push(docId);
-                    continue;
-                }
-            } else {
-                const errorMessage = 'Chưa cấu hình private key để tạo checksum chữ ký';
-                console.error(`❌ [VNeID Sync] ${errorMessage}`);
-                await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [errorMessage, doc.id]);
-                failedIds.push(docId);
-                continue;
-            }
-
-            console.log('🔍 [VNeID Sync DEBUG] Final Header Payload:', JSON.stringify(payload.header));
-
-            let responseLog = '';
-            let sendSuccess = false;
-            let errorMsg = '';
-            let transactionId = msgId;
-
-            try {
-                console.log(`📡 [VNeID Portal] Pushing document ${doc.doc_no} (BN: ${doc.patient_name})`);
-                const finalPushUrl = `${baseUrl}/platform/data-sync/push`;
-                console.log(`📡 [VNeID Sync DEBUG] Sending XML POST request to:`, finalPushUrl);
-                console.log(`🔍 [VNeID Sync DEBUG] Full Request Payload Header:`, JSON.stringify(payload.header, null, 2));
-                try {
-                    const decodedXml = Buffer.from(base64Xml, 'base64').toString('utf8');
-                    console.log(`🔍 [VNeID Sync DEBUG] Decoded XML Length: ${decodedXml.length}`);
-                    console.log(`🔍 [VNeID Sync DEBUG] Decoded XML First 1000 Chars:\n${decodedXml.substring(0, 1000)}`);
-                } catch (e) {}
-
-                let pushRes: any = null;
-                let attempt = 0;
-                const maxAttempts = 2;
-
-                while (attempt < maxAttempts) {
-                    attempt++;
-                    try {
-                        pushRes = await axios.post(finalPushUrl, payload, {
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`,
-                                'service-type': '100'
-                            },
-                            httpsAgent: syncHttpsAgent,
-                            timeout: 90000
-                        } as any);
-                        break;
-                    } catch (reqErr: any) {
-                        const isNetworkOrTimeout = reqErr.code === 'ECONNABORTED' 
-                            || reqErr.code === 'ETIMEDOUT' 
-                            || reqErr.code === 'ECONNRESET'
-                            || (reqErr.message && reqErr.message.includes('timeout'));
-
-                        if (isNetworkOrTimeout && attempt < maxAttempts) {
-                            console.warn(`⚠️ [VNeID Sync] Cổng phản hồi quá hạn (Lần ${attempt}). Đang tự động thử lại sau 2 giây cho hồ sơ ${doc.doc_no}...`);
-                            await new Promise(r => setTimeout(r, 2000));
-                            continue;
-                        }
-                        throw reqErr;
-                    }
-                }
-
-                const resCode = String(pushRes?.data?.header?.res_code || pushRes?.data?.res_code || '').trim();
-                const resMsg = pushRes?.data?.header?.res_msg || pushRes?.data?.res_msg || '';
-                responseLog = JSON.stringify(pushRes?.data || {});
-
-                // Chỉ coi là thành công khi Cổng trả về mã thành công chuẩn CM_SUCCESS hoặc PS_SYNC_SUCCESS
-                if (pushRes?.status === 200 && (resCode === 'CM_SUCCESS' || resCode === 'PS_SYNC_SUCCESS')) {
-                    sendSuccess = true;
-                    transactionId = pushRes.data?.header?.txn_id || pushRes.data?.txn_id || msgId;
-                    console.log(`✅ [VNeID Sync] Document ${doc.doc_no} sent successfully (txn_id: ${transactionId})`);
+            // ─────────────────────────────────────────────────────────────
+            // 3.3 Đẩy lên Cổng Bộ Y tế (nếu cần và chưa thành công)
+            // ─────────────────────────────────────────────────────────────
+            if (needByt && !bytSuccess) {
+                if (!bytToken) {
+                    console.error(`❌ [VNeID Sync LỖI AUTH CỔNG]: Không có Token đăng nhập Cổng VNeID. Chi tiết: ${bytLoginLog}`);
+                    await query(`
+                        UPDATE health_check_masters
+                        SET send_status = 'Error',
+                            error_message = 'Đăng nhập cổng Bộ Y tế thất bại',
+                            response_log = $1,
+                            updated_at = NOW()
+                        WHERE id = $2
+                    `, [bytLoginLog, doc.id]);
+                    anyFailed = true;
+                } else if (!parsedKey) {
+                    const errorMessage = 'Chưa cấu hình private key để tạo checksum chữ ký BYT';
+                    await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [errorMessage, doc.id]);
+                    anyFailed = true;
                 } else {
-                    sendSuccess = false;
-                    let friendlyMsg = resMsg;
-                    if (resCode === 'PS_CCCD_DUPLICATE_IN_6_MONTHS') {
-                        friendlyMsg = 'Bệnh nhân đã khám sức khỏe trong vòng 6 tháng qua (Cổng từ chối nhận hồ sơ lặp lại)';
-                    } else if (resCode === 'PS_SIGNATURE_INVALID') {
-                        friendlyMsg = 'Chữ ký số không hợp lệ hoặc không đúng định dạng';
-                    } else if (resCode === 'CM_INVALID_REQUEST') {
-                        friendlyMsg = 'Cấu trúc dữ liệu hoặc thông số không hợp lệ';
-                    } else if (resCode === 'ERROR_99') {
-                        friendlyMsg = 'Máy chủ Cổng từ chối tiếp nhận (Lỗi không xác định từ Cổng / Cấu trúc dữ liệu hồ sơ chưa hợp lệ)';
+                    const now = new Date();
+                    const yy = String(now.getFullYear()).slice(-2);
+                    const mm = String(now.getMonth() + 1).padStart(2, '0');
+                    const dd = String(now.getDate()).padStart(2, '0');
+                    const randomSuffix = crypto.randomBytes(16).toString('hex');
+                    const msgId = `${glnCode}${yy}${mm}${dd}${randomSuffix}`;
+                    const receiverId = (settings.vneid_receiver_id && settings.vneid_receiver_id.trim()) ? settings.vneid_receiver_id : 'emrhub';
+
+                    const payload: any = buildHealthCheckSyncPayload({
+                        version: "1.0.6",
+                        sender_id: glnCode,
+                        receiver_id: receiverId,
+                        txn_type: "sync_checkup",
+                        msg_type: "101",
+                        data_type: "xml/base64",
+                        send_datetime: Date.now(),
+                        msg_id: msgId
+                    }, base64Xml);
+
+                    try {
+                        payload.signature = createHealthCheckChecksumSignature(payload.header, payload.data, parsedKey);
+                    } catch (e: any) {
+                        await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [`Không tạo được checksum chữ ký: ${e.message}`, doc.id]);
+                        anyFailed = true;
                     }
-                    errorMsg = resCode ? `[${resCode}] ${friendlyMsg || 'Cổng phản hồi lỗi tiếp nhận'}` : (resMsg || 'Cổng từ chối tiếp nhận hồ sơ');
-                    console.warn(`❌ [VNeID Sync] Document ${doc.doc_no} rejected by Gateway with code: ${resCode}, message: ${errorMsg}`);
-                }
-            } catch (err: any) {
-                sendSuccess = false;
-                const resData = err.response?.data;
-                const headerObj = resData?.header || resData;
-                const resCode = headerObj?.res_code || '';
-                let resMsg = headerObj?.res_msg || (typeof resData === 'string' ? resData : err.message);
 
-                let friendlyMsg = resMsg;
-                if (err.message && err.message.includes('timeout')) {
-                    friendlyMsg = 'Cổng tiếp nhận phản hồi quá lâu (>90s). Hệ thống đã lưu trạng thái để gửi lại.';
-                } else if (resCode === 'PS_CCCD_DUPLICATE_IN_6_MONTHS') {
-                    friendlyMsg = 'Bệnh nhân đã khám sức khỏe trong vòng 6 tháng qua (Cổng từ chối nhận hồ sơ lặp lại)';
-                } else if (resCode === 'PS_SIGNATURE_INVALID') {
-                    friendlyMsg = 'Chữ ký số không hợp lệ hoặc không đúng định dạng';
-                } else if (resCode === 'CM_INVALID_REQUEST') {
-                    friendlyMsg = 'Cấu trúc dữ liệu hoặc thông số không hợp lệ';
-                } else if (resCode === 'ERROR_99') {
-                    friendlyMsg = 'Máy chủ Cổng từ chối tiếp nhận (Lỗi không xác định từ Cổng / Cấu trúc dữ liệu hồ sơ chưa hợp lệ)';
-                }
+                    if (!anyFailed) {
+                        const finalPushUrl = `${baseUrl}/platform/data-sync/push`;
+                        let pushRes: any = null;
+                        let attempt = 0;
+                        const maxAttempts = 2;
 
-                const statusCode = err.response?.status;
-                errorMsg = resCode ? `[${resCode}] ${friendlyMsg}` : `Lỗi kết nối cổng: ${statusCode || 500} - ${friendlyMsg}`;
-                if (!isRetryableSyncFailure(statusCode, resCode, errorMsg)) {
-                    console.log(`ℹ️ [VNeID Sync] Permanent failure for doc ${doc.doc_no}; auto retry will be skipped.`);
+                        while (attempt < maxAttempts) {
+                            attempt++;
+                            try {
+                                pushRes = await axios.post(finalPushUrl, payload, {
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${bytToken}`,
+                                        'service-type': '100'
+                                    },
+                                    httpsAgent: syncHttpsAgent,
+                                    timeout: 90000
+                                } as any);
+                                break;
+                            } catch (reqErr: any) {
+                                const isNetworkOrTimeout = reqErr.code === 'ECONNABORTED' 
+                                    || reqErr.code === 'ETIMEDOUT' 
+                                    || reqErr.code === 'ECONNRESET'
+                                    || (reqErr.message && reqErr.message.includes('timeout'));
+
+                                if (isNetworkOrTimeout && attempt < maxAttempts) {
+                                    await new Promise(r => setTimeout(r, 2000));
+                                    continue;
+                                }
+                                pushRes = { status: reqErr.response?.status || 500, data: reqErr.response?.data || { error: reqErr.message } };
+                                break;
+                            }
+                        }
+
+                        const resCode = String(pushRes?.data?.header?.res_code || pushRes?.data?.res_code || '').trim();
+                        const resMsg = pushRes?.data?.header?.res_msg || pushRes?.data?.res_msg || '';
+                        const responseLog = JSON.stringify(pushRes?.data || {});
+
+                        if (pushRes?.status === 200 && (resCode === 'CM_SUCCESS' || resCode === 'PS_SYNC_SUCCESS')) {
+                            bytSuccess = true;
+                            const transactionId = pushRes.data?.header?.txn_id || pushRes.data?.txn_id || msgId;
+                            await query(`
+                                UPDATE health_check_masters
+                                SET send_status = 'Success',
+                                    sent_at = NOW(),
+                                    transaction_id = $1,
+                                    response_log = $2,
+                                    error_message = NULL,
+                                    updated_at = NOW()
+                                WHERE id = $3
+                            `, [transactionId, responseLog, doc.id]);
+                            console.log(`✅ [VNeID Sync] Document ${doc.doc_no} sent successfully to BYT (txn_id: ${transactionId})`);
+                        } else {
+                            anyFailed = true;
+                            let friendlyMsg = resMsg;
+                            if (resCode === 'PS_CCCD_DUPLICATE_IN_6_MONTHS') {
+                                friendlyMsg = 'Bệnh nhân đã khám sức khỏe trong vòng 6 tháng qua (Cổng từ chối nhận hồ sơ lặp lại)';
+                            } else if (resCode === 'PS_SIGNATURE_INVALID') {
+                                friendlyMsg = 'Chữ ký số không hợp lệ hoặc không đúng định dạng';
+                            }
+                            const errorMsg = resCode ? `[${resCode}] ${friendlyMsg || 'Cổng phản hồi lỗi tiếp nhận'}` : (resMsg || 'Cổng từ chối tiếp nhận hồ sơ');
+                            await query(`
+                                UPDATE health_check_masters
+                                SET send_status = 'Error',
+                                    error_message = $1,
+                                    response_log = $2,
+                                    updated_at = NOW()
+                                WHERE id = $3
+                            `, [errorMsg.slice(0, 500), responseLog, doc.id]);
+                        }
+                    }
                 }
-                responseLog = JSON.stringify(resData || { error: err.message });
-                console.log(`❌ [VNeID Sync DEBUG] Gateway returned error code: ${resCode}, message: ${resMsg}`);
             }
 
-            if (sendSuccess) {
-                await query(`
-                    UPDATE health_check_masters
-                    SET send_status = 'Success',
-                        sent_at = NOW(),
-                        transaction_id = $1,
-                        response_log = $2,
-                        error_message = NULL,
-                        updated_at = NOW()
-                    WHERE id = $3
-                `, [transactionId, responseLog, doc.id]);
-            } else {
-                await query(`
-                    UPDATE health_check_masters
-                    SET send_status = 'Error',
-                        error_message = $1,
-                        response_log = $2,
-                        updated_at = NOW()
-                    WHERE id = $3
-                `, [errorMsg.slice(0, 500), responseLog, doc.id]);
+            // ─────────────────────────────────────────────────────────────
+            // 3.4 Đẩy lên Cổng Sở Y tế (nếu cần và chưa thành công)
+            // ─────────────────────────────────────────────────────────────
+            if (needSyt && !sytSuccess) {
+                if (!sytToken) {
+                    console.error(`❌ [SYT Sync LỖI AUTH CỔNG]: Không có Token đăng nhập Cổng SYT. Chi tiết: ${sytLoginLog}`);
+                    await query(`
+                        UPDATE health_check_masters
+                        SET syt_send_status = 'Error',
+                            syt_error_message = 'Đăng nhập Cổng Sở Y tế thất bại',
+                            syt_response_log = $1,
+                            updated_at = NOW()
+                        WHERE id = $2
+                    `, [sytLoginLog, doc.id]);
+                    anyFailed = true;
+                } else {
+                    const sytPushResult = await pushSingleDocumentToSyt(doc, base64Xml, glnCode, settings, sytToken, parsedKey);
+                    if (sytPushResult.success) {
+                        sytSuccess = true;
+                        await query(`
+                            UPDATE health_check_masters
+                            SET syt_send_status = 'Success',
+                                syt_sent_at = NOW(),
+                                syt_transaction_id = $1,
+                                syt_response_log = $2,
+                                syt_error_message = NULL,
+                                updated_at = NOW()
+                            WHERE id = $3
+                        `, [sytPushResult.transactionId, sytPushResult.responseLog, doc.id]);
+                        console.log(`✅ [SYT Sync] Document ${doc.doc_no} sent successfully to SYT (maGiaoDich: ${sytPushResult.transactionId})`);
+                    } else {
+                        anyFailed = true;
+                        await query(`
+                            UPDATE health_check_masters
+                            SET syt_send_status = 'Error',
+                                syt_error_message = $1,
+                                syt_response_log = $2,
+                                updated_at = NOW()
+                            WHERE id = $3
+                        `, [sytPushResult.message.slice(0, 500), sytPushResult.responseLog, doc.id]);
+                    }
+                }
+
+                // Nếu chế độ là SYT_ONLY: đồng bộ luôn send_status để giao diện chung nhận diện
+                if (targetMode === 'SYT_ONLY') {
+                    if (sytSuccess) {
+                        await query(`
+                            UPDATE health_check_masters
+                            SET send_status = 'Success',
+                                sent_at = NOW(),
+                                transaction_id = syt_transaction_id,
+                                error_message = NULL,
+                                response_log = syt_response_log,
+                                updated_at = NOW()
+                            WHERE id = $1
+                        `, [doc.id]);
+                    } else {
+                        await query(`
+                            UPDATE health_check_masters
+                            SET send_status = 'Error',
+                                error_message = syt_error_message,
+                                response_log = syt_response_log,
+                                updated_at = NOW()
+                            WHERE id = $1
+                        `, [doc.id]);
+                    }
+                }
+            }
+
+            if (anyFailed) {
                 failedIds.push(docId);
             }
 
@@ -660,14 +767,14 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
             await new Promise(r => setTimeout(r, 600));
         }
     } catch (error: any) {
-        console.error('❌ [VNeID Portal] sendDocumentsToVNeID unexpected error:', error);
+        console.error('❌ [Sync Portal] sendDocumentsToVNeID unexpected error:', error);
     }
     return failedIds;
 }
 
 /**
  * Periodically searches for signed, unsent health check documents 
- * and synchronizes them to the mock VNeID gateway portal.
+ * and synchronizes them to the target gateway portals.
  */
 async function syncUnsentDocuments() {
     try {
@@ -676,20 +783,52 @@ async function syncUnsentDocuments() {
             return;
         }
 
-        // Query documents that are unsent or had previous errors (respecting allow_unsigned_sync)
+        const targetMode = settings.sync_target_mode || 'BYT_ONLY';
         const signatureFilter = settings.allow_unsigned_sync ? '' : "signature_status = 'Signed' AND ";
+
+        let whereClause = "";
+        if (targetMode === 'BOTH') {
+            whereClause = `
+                ${signatureFilter}(
+                    send_status = 'Unsent' OR syt_send_status = 'Unsent'
+                    OR (send_status = 'Error' AND (
+                        error_message ILIKE 'Lỗi kết nối cổng:%'
+                        OR error_message ILIKE '%timeout%'
+                        OR error_message ILIKE '%ETIMEDOUT%'
+                        OR error_message ILIKE '%ECONNRESET%'
+                    ))
+                    OR (syt_send_status = 'Error' AND (
+                        syt_error_message ILIKE '%Lỗi kết nối%'
+                        OR syt_error_message ILIKE '%timeout%'
+                    ))
+                )
+            `;
+        } else if (targetMode === 'SYT_ONLY') {
+            whereClause = `
+                ${signatureFilter}(syt_send_status = 'Unsent' OR (syt_send_status = 'Error' AND (
+                    syt_error_message ILIKE '%Lỗi kết nối%'
+                    OR syt_error_message ILIKE '%timeout%'
+                )))
+            `;
+        } else {
+            // BYT_ONLY (mặc định) - giữ nguyên 100% logic cũ
+            whereClause = `
+                ${signatureFilter}(send_status = 'Unsent' OR (send_status = 'Error' AND (
+                    error_message ILIKE 'Lỗi kết nối cổng:%'
+                    OR error_message ILIKE '%timeout%'
+                    OR error_message ILIKE '%ETIMEDOUT%'
+                    OR error_message ILIKE '%ECONNRESET%'
+                    OR error_message ILIKE '%504%'
+                    OR error_message ILIKE '%503%'
+                    OR error_message ILIKE '%429%'
+                )))
+            `;
+        }
+
         const sql = `
             SELECT id
             FROM health_check_masters
-            WHERE ${signatureFilter}(send_status = 'Unsent' OR (send_status = 'Error' AND (
-                error_message ILIKE 'Lỗi kết nối cổng:%'
-                OR error_message ILIKE '%timeout%'
-                OR error_message ILIKE '%ETIMEDOUT%'
-                OR error_message ILIKE '%ECONNRESET%'
-                OR error_message ILIKE '%504%'
-                OR error_message ILIKE '%503%'
-                OR error_message ILIKE '%429%'
-              )))
+            WHERE ${whereClause}
             LIMIT 50
         `;
         const res = await query(sql);

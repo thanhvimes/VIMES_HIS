@@ -1,0 +1,517 @@
+        UBND THÀNH PHỐ HÀ NỘI                 CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
+               SỞ Y TẾ                              Độc lập - Tự do - Hạnh phúc
+       Số: 7286 /SYT-QLBHYTCNTT                    Hà Nội, ngày 22 tháng 7 năm 2026
+       V/v kết nối, liên thông dữ liệu khám
+        sức khỏe với Hệ thống Hồ sơ sức
+               khỏe điện tử TPHN
+
+
+          Kính gửi: Các cơ sở khám bệnh, chữa bệnh trên địa bàn thành phố Hà Nội.
+KHẨN          Thực hiện Quyết định số 06/QĐ-TTg ngày 06/01/2022 của Thủ tướng
+       Chính phủ phê duyệt “Đề án phát triển ứng dụng dữ liệu về dân cư, định danh và
+       xác thực điện tử phục vụ chuyển đổi số quốc gia giai đoạn 2022-2025, tầm nhìn
+       đến năm 2030” (sau đây gọi tắt là Đề án 06) và Thông báo số 8055/TBTCTTKĐA
+       ngày 01/11/2023 của Tổ Công tác triển khai Đề án phát triển ứng dụng dữ liệu
+       dân cư, định danh và xác thực điện tử về thông báo kết luận cuộc họp giao ban Tổ
+       công tác triển khai Đề án 06 tháng 10/2023, UBND Thành phố đã tổ chức triển
+       khai thí điểm Hồ sơ sức khỏe điện tử trên địa bàn Thành phố;
+              Thực hiện Quyết định số 1551/QĐ-BYT ngày 31/5/2026 của Bộ Y tế về
+       ban hành Hướng dẫn thu thập, cập nhật, kết nối liên thông dữ liệu khám sức khỏe
+       và tạo lập, cập nhật Sổ Sức khỏe điện tử trên ứng dụng VNeID; Quyết định số
+       2062/QĐ-BYT ngày 07/7/2026 của Bộ Y tế về sửa đổi, bổ sung một số nội dung
+       của Quyết định số 1551/QĐ-BYT ngày 31 tháng 05 năm 2026 của Bộ Y tế ban
+       hành Hướng dẫn thu thập, cập nhật, kết nối liên thông dữ liệu khám sức khỏe và
+       tạo lập, cập nhật Sổ Sức khỏe điện tử trên ứng dụng VNeID; Kế hoạch số
+       1261/KH-BYT ngày 08/7/2026 của Bộ Y tế về triển khai chiến dịch 100 ngày tạo
+       lập, cập nhật Sổ sức khỏe điện tử trên ứng dụng VNeID thông qua liên thông dữ
+       liệu khám sức khỏe và khám bệnh, chữa bệnh; Quyết định số 2944/QĐ-UBND
+       ngày 10/6/2026 của UBND Thành phố về việc ban hành kế hoạch Khám sức khỏe
+       định kỳ hoặc khám sàng lọc miễn phí ít nhất mỗi năm một lần cho người dân trên
+       địa bàn thành phố Hà Nội năm 2026 và giai đoạn 2026-2030;
+              Để triển khai việc thu thập, cập nhật và liên thông dữ liệu khám sức khỏe
+       của người dân trên địa bàn Thành phố theo chỉ đạo, hướng dẫn của Bộ Y tế tại
+       Quyết định số 1551/QĐ-BYT ngày 31/5/2026, Quyết định số 2062/QĐ-BYT
+       ngày 07/7/2026, Kế hoạch số 1261/KH-BYT ngày 08/7/2026. Sở Y tế Hà Nội
+       triển khai tích hợp, liên thông dữ liệu khám sức khỏe của người dân trên địa bàn
+       Thành phố theo mô hình sau: Dữ liệu KSK từ các cơ sở y tế trên địa bàn Thành
+       phố  tích hợp, liên thông dữ liệu lên Hệ thống Hồ sơ sức khỏe điện tử của Thành
+                                        2
+
+phố (địa chỉ truy cập https://hssk.hanoi.gov.vn)  tích hợp, liên thông dữ liệu với
+Cơ sở dữ liệu sức khỏe cá nhân của Bộ Y tế.
+       Việc triển khai tích hợp dữ liệu khám sức khỏe của người dân lên Hệ thống
+Hồ sơ sức khỏe điện tử thành phố Hà Nội (sau đây gọi là Hệ thống Hồ sơ sức khoẻ
+điện tử) nhằm phục vụ công tác theo dõi, quản lý và chăm sóc sức khỏe người dân
+theo vòng đời. Để bảo đảm đồng bộ dữ liệu theo quy định của Bộ Y tế, Sở Y tế
+Hà Nội Sở Y tế yêu cầu các cơ sở khám bệnh, chữa bệnh và các đơn vị có liên
+quan nghiêm túc triển khai các nội dung sau:
+       1. Đối với các cơ sở khám bệnh, chữa bệnh (gọi tắt là đơn vị) trên địa bàn
+Thành phố thực hiện một số nội dung như sau:
+       - Chủ động bố trí nhân lực công nghệ thông tin, cán bộ chuyên môn và
+phối hợp với Sở Y tế, đơn vị cung cấp phần mềm HIS để triển khai các nội dung
+theo đúng tiến độ.
+       - Thực hiện liên thông dữ liệu khám sức khỏe định kỳ, khám sàng lọc miễn
+phí (sau đây gọi là khám sức khỏe) của người dân trên địa bàn Thành phố lên Hệ
+thống Hồ sơ sức khỏe điện tử thành phố Hà Nội. Đơn vị phải đảm bảo toàn bộ dữ
+liệu khám sức khỏe của người dân Hà Nội được cập nhật, đồng bộ đầy đủ lên Hệ
+thống Hồ sơ sức khoẻ điện tử (Chi tiết theo Phụ lục I kèm theo).
+       - Nâng cấp, hiệu chỉnh phần mềm Quản lý khám, chữa bệnh tại đơn vị liên
+thông tự động dữ liệu khám sức khỏe của người dân trên địa bàn thành phố Hà
+Nội lên Hệ thống Hồ sơ sức khỏe điện tử ngay sau khi người dân kết thúc khám
+tại đơn vị (tài liệu hướng dẫn kết nối API tại Phụ lục II kèm theo). Thời gian hoàn
+thành chậm nhất trước ngày 31/7/2026.
+       - Chuẩn định dạng liên thông: Theo định dạng XML ban hành theo hướng
+dẫn của Bộ Y tế tại Quyết định số 2062/QĐ-BYT ngày 07/7/2026.
+       - Đối với đơn vị chưa được cấp tài khoản đề nghị cung cấp thông tin tạo tài
+khoản để kết nối, liên thông dữ liệu; thông tin cơ sở khám, chữa bệnh tham gia
+vào Hệ thống Hồ sơ sức khỏe điện tử (Phụ lục III kèm theo). Thời gian hoàn
+thành trước ngày 28/7/2026.
+       2. Các doanh nghiệp cung cấp dịch vụ Viễn thông và Công nghệ trên địa
+bàn thành phố Hà Nội
+      Phối hợp, hỗ trợ Sở Y tế, các đơn vị liên quan trong quá trình triển khai
+nhiệm vụ tạo lập, hoàn thiện, làm sạch, chuẩn hóa, kết nối, chia sẻ và khai thác
+dữ liệu; hỗ trợ nguồn lực, công nghệ, giải pháp kỹ thuật, công cụ đánh giá chất
+lượng, phát hiện lỗi, phân loại dữ liệu cần xử lý; hỗ trợ tích hợp, đồng bộ dữ liệu
+khám sức khỏe lên Hệ thống Hồ sơ sức khỏe điện tử. Trong quá trình thực hiện,
+doanh nghiệp đồng hành có trách nhiệm phối hợp chặt chẽ với Sở Y tế và các đơn
+                                          3
+
+vị liên quan bảo đảm hiệu quả triển khai, an toàn thông tin, an ninh mạng, bảo vệ
+dữ liệu cá nhân; kịp thời phản ánh khó khăn, vướng mắc và đề xuất sáng kiến, giải
+pháp nhằm đẩy nhanh tiến độ, nâng cao chất lượng dữ liệu nếu có.
+       Trong quá trình triển khai thực hiện, đơn vị gặp khó khăn, vướng mắc xin
+liên hệ: Đ/c Trần Văn Tĩnh, chuyên viên, phòng Quản lý Bảo hiểm y tế và Công
+nghệ thông tin, Sở Y tế, ĐT: 0989 113 444.
+       Sở Y tế yêu cầu các đơn vị nghiêm túc triển khai, thực hiện./.
+Nơi nhận:                                              GIÁM ĐỐC
+- Như trên;
+- Bộ Y tế;
+- UBND Thành phố;
+- Văn phòng UBND TP;
+- Công an TPHN;
+- Sở Khoa học và Công nghệ;
+- Tập đoàn Công nghiệp – Viễn thông QĐ;
+- UBND các xã, phường;
+- Các Đ/c Phó Giám đốc SYT;                        Nguyễn Trọng Diện
+- Các phòng chuyên môn thuộc SYT;
+- Lưu: VT, QLBHYTCNTT(TĨNH).
+
+
+
+Qrcode nhóm Zalo hỗ trợ kỹ thuật
+                                     4
+
+                                PHỤ LỤC I
+ KẾ HOẠCH DỰ KIẾN THỰC HIỆN KẾT NỐI LIÊN THÔNG DỮ LIỆU
+GIỮA HỆ THỐNG HỒ SƠ SỨC KHỎE ĐIỆN TỬ VỚI CÁC PHẦN MỀM
+  QUẢN LÝ KHÁM, CHỮA BỆNH CỦA CƠ SỞ KHÁM CHỮA BỆNH
+                 TRÊN ĐỊA BÀN THÀNH PHỐ HÀ NỘI
+(Kèm theo Công văn số: 7286 /SYT-QLBHYTCNTT ngày22/7/2026 của Sở Y tế)
+
+                                     Thời gian
+      Nội dung công    Thời gian                       Dự kiến kết quả
+Stt                                   dự kiến
+           việc         bắt đầu                          thực hiện
+                                    hoàn thành
+                                                 Các cơ sở khám bệnh, chữa
+      Tổng hợp danh
+                                                 bệnh gửi thông tin tham gia
+      sách các cơ sở
+                                                 Hệ thống Hồ sơ sức khỏe điện
+      khám bệnh, chữa
+ 1                     21/7/2026    28/7/2026    tử và đăng ký tài khoản để kết
+      bệnh tham gia
+                                                 nối liên thông (Theo phụ lục
+      Hệ thống Hồ sơ
+                                                 kèm theo). Hạn cuối hoàn
+      sức khỏe điện tử
+                                                 thành ngày 28/7/2026)
+      Cấp tài khoản,
+      hướng dẫn liên                             Danh sách tài khoản Sở Y tế
+ 2    thông dữ liệu lên 28/7/2026   31/7/2026    gửi các Cơ sở Khám chữa
+      Hệ thống Hồ sơ                             bệnh
+      sức khỏe điện tử
+
+
+      Các cơ sở khám
+                                                 Các cơ sở khám bệnh, chữa
+      bệnh, chữa bệnh
+                                                 bệnh chủ động chỉnh sửa phần
+      chủ động Nâng
+                                                 mềm Quản lý khám, chữa
+      cấp phần mềm
+                                                 bệnh tại đơn vị liên thông tự
+      Quản lý khám,
+ 3                    21/7/2026      31/7/2026   động lên Hệ thống Hồ sơ sức
+      chữa bệnh tại
+                                                 khỏe điện tử (trong trường hợp
+      đơn vị để liên
+                                                 đơn vị chủ động kết nối hệ
+      thông Hệ thống
+                                                 thống qua hình thức API được
+      Hồ sơ sức khỏe
+                                                 mô tả tại mục Phụ lục II)
+      điện tử
+                             5
+
+    Các cơ sở khám,
+    chữa bệnh liên
+    thông dữ liệu                1) Các cơ sở Khám chữa bệnh
+    khám sức khỏe                đẩy dữ liệu khám sức khỏe của
+    của người dân                người dân Hà Nội từ trước
+    trên địa bàn                 ngày 21/7/2026 lên Hệ thống
+4   thành phố Hà 21/7/2026       Hồ sơ sức khỏe điện tử.
+    Nội từ trước                 2) Thực hiện đẩy dữ liệu khám
+    ngày 21/7/2026               sức khỏe phát sinh hàng ngày
+    đến thời điểm                lên Hệ thống Hồ sơ sức khỏe
+    hiện tại lên Hệ              điện tử.
+    thống Hồ sơ sức
+    khỏe điện tử
+                                       6
+
+                  PHỤ LỤC II
+HƯỚNG DẪN KẾT NỐI LIÊN THÔNG DỮ LIỆU KHÁM SỨC
+KHỎE TOÀN DÂN TỪ PHẦN MỀM QUẢN LÝ KHÁM, CHỮA
+   BỆNH LÊN HỆ THỐNG HỒ SƠ SỨC KHỎE ĐIỆN TỬ
+               THÀNH PHỐ HÀ NỘI
+(Kèm theo Công văn số:          /SYT-QLBHYTCNTT ngày /7/2026 của Sở Y tế)
+
+I. MÔ HÌNH LIÊN THÔNG DỮ LIỆU KHÁM SỨC KHỎE
+1. Điều kiện liên thông dữ liệu
+       - Để liên thông dữ liệu từ phần mềm khám chữa bệnh tại các bệnh viện,
+phòng khám và trạm y tế trên địa bàn Thành phố Hà Nội về Hồ sơ sức khỏe điện
+tử Thành phố Hà Nội, đồng thời bảo đảm đồng bộ chính xác với thông tin hồ sơ
+sức khỏe của người dân do ngành Y tế Thành phố Hà Nội quản lý, dữ liệu thông
+tin hành chính của người dân cần có đầy đủ các thông tin sau:
+ TT         Chỉ tiêu                        Mô tả                   Bắt buộc
+  1   HO_TEN                 Họ và tên người dân                        x
+  2   NGAY_SINH              Ngày sinh của người dân                    x
+  3   GIOI_TINH              Giới tính người dân                        x
+  4   MATINH_CU_TRU          Mã tỉnh cư trú của người dân               x
+  5   MAXA_CU_TRU            Mã xã cư trú của người dân                 x
+                             Số CCCD/Mã định danh công dân của
+                             người dân (Với trẻ em thì được ghi
+  6   SO_CCCD                                                           x
+                             trong giấy khai sinh của trẻ hoặc
+                             VNeiD của bố mẹ)
+       - Dữ liệu Khám sức khỏe phải được ký số theo quy định và theo hướng dẫn
+của Bộ Y tế, bảo đảm tính pháp lý và sẵn sàng chia sẻ với các hệ thống thông tin
+có liên quan.
+2. Các văn bản pháp lý
+       - Mẫu phiếu khám sức khỏe: Thông tư số 25/2026/TT-BYT ngày
+30/06/2026 của Bộ Y tế về việc Sửa đổi, bổ sung một số điều của Thông tư số
+01/2013/TT-BYT hướng dẫn thực hiện quản lý chất lượng xét nghiệm tại cơ sở
+khám bệnh, chữa bệnh, Thông tư số 32/2023/TT-BYT quy định chi tiết một số
+điều của Luật Khám bệnh, chữa bệnh, Thông tư số 23/2024/TT-BYT ban hành
+Danh mục kỹ thuật trong khám bệnh, chữa bệnh và Thông tư số 42/2025/TT-BYT
+quy định về tiêu chuẩn sức khỏe của người điều khiển phương tiện giao thông
+đường sắt phục vụ cho quản lý Khám sức khỏe toàn dân.
+      - Mẫu định dạng XML liên thông Khám sức khỏe: Quyết định số
+2062/QĐ-BYT ngày 07/07/2026 của Bộ Y tế về việc Sửa đổi, bổ sung một số nội
+dung của Quyết định số 1551/QĐ-BYT ngày 31 tháng 05 năm 2026 của Bộ Y tế
+                                                      7
+
+ban hành Hướng dẫn thu thập, cập nhật, kết nối liên thông dữ liệu khám sức khỏe
+và tạo lập, cập nhật Sổ Sức khỏe điện tử trên ứng dụng VneID.
+
+3. Hình thức liên thông dữ liệu
+       Kết nối thông qua API do Hệ thống Hồ sơ sức khỏe điện tử Thành phố Hà
+Nội cung cấp. Với hình thức này, các cơ sở khám, chữa bệnh tích hợp API trực
+tiếp vào phần mềm quản lý bệnh viện, phần mềm quản lý phòng khám hoặc phần
+mềm quản lý y tế cơ sở, đồng thời chủ động gửi kết quả khám sức khỏe của người
+dân lên Hệ thống Hồ sơ sức khỏe điện tử Thành phố Hà Nội ngay sau khi kết thúc
+quá trình khám sức khỏe, có kết luận chuyên môn và dữ liệu đã được cơ sở khám,
+chữa bệnh ký số xác nhận:
+
+
+
+
+   Phần mềm quản lý bệnh viện,
+          phòng khám
+
+
+
+
+                                                                                                    Danh mục dùng chung
+                                                                                                                          Quản lý mã định danh
+
+
+                                                                                                                                                                   ATTT cấp độ 3
+                                                                                                                                                 Hạ tầng lưu trữ
+                                 UserName/PassWord/IP Whitelist
+               API
+                                  Định dạng dữ liệu XML KSK
+                                                                  Hệ thống Hồ sơ sức khỏe điện tử
+                                                                        Thành phố Hà Nôi
+
+
+
+
+   Phần mềm quản lý tuyến y tế
+    cơ sở (các TYT xã/phường)
+
+
+
+
+II. CÁC API LIÊN THÔNG DỮ LIỆU KHÁM SỨC KHỎE
+1. API lấy Token key liên thông dữ liệu Khám sức khỏe
+1.1. Mô tả API
+   Tên dịch vụ                                              Mô tả dịch vụ
+Request Method    POST
+Request Header    Content-Type: application/json
+                  https://api-
+Đường dẫn dịch vụ
+                  hssk.hanoi.gov.vn/api/v1/resource/authentication/login
+Body              {"username":"username", "password":"password"}
+                  - username, password liên hệ Sở Y tế để được cấp thông
+                    tin.
+Lưu ý             - Khi mã phiên làm việc hết hạn hoặc gần hết hạn mới
+                    thực hiện request cấp lại mã phiên làm việc mới, không
+                    request liên tục.
+                                         8
+
+                      - Để đảm bảo An toàn thông tin cơ sở khám chữa bệnh
+                        cần đăng ký dải IP máy tính thực hiện liên thông dữ liệu
+                        Khám sức khỏe lên Hệ thống Hồ sơ sức khỏe điện tử
+                        Thành phố Hà Nội
+1.2. Thông điệp trả lời
+
+ Dữ liệu phản hồi Tên tham số Kiểu dữ liệu                    Ghi chú
+                     code                          Danh sách mã trạng thái:
+Mã trạng thái                       Số              - Mã 200: Thành công
+                                                    - Mã khác 200: Thất bại
+                                                   Chuỗi token dùng để liên
+Token                                              thông dữ liệu Khám sức
+                     access_token Chuỗi
+                                                   khỏe được mô tả tại các API
+                                                   trong tài liệu này
+
+2. API liên thông dữ liệu Khám sức khỏe người dân
+2.1. Mô tả API
+
+Tên dịch vụ          Login
+
+Request Method       POST
+               Content-Type: multipart/form-data
+Request Header
+               Authorization: Bearer {access_token}
+Đường dẫn dịch https://api-hssk.hanoi.gov.vn/api/v1/medical-record/ksk-
+vụ             lien-thong/kham-suc-khoe
+               {
+                 "header": {
+                  "version": "1.0",
+                  "sender_id": "1234567890123",
+                  "receiver_id": "VTS",
+                  "txn_type": "sync_checkup",
+                  "msg_id":
+               "1234567890123260605f47ac10b58cc4372a5670e02b2c3
+Body
+               b479",
+                  "msg_type": "101",
+                  "data_type": "xml/base64",
+                  "send_datetime": 1780646400000
+                 },
+                 "data": {
+                  "content": "{{base64_data}}"
+                 },
+                                        9
+
+                      "signature":
+                    "7F4C3A8B2D9E1F6A4B8C7D5E2F1A9B3C6D8E4F7A
+                    1B2C5D9E3F6A8B4C7D1E2F5"
+                    }
+                     - base64_data: là nội dung file XML khám sức khỏe áp
+                        dụng cho mọi nhóm tuổi sau khi mã hóa Base64, không
+Lưu ý                   truyền trực tiếp XML dạng plain text
+                     - {access_token} được lấy từ “API lấy token key liên
+                        thông dữ liệu Khám sức khỏe”
+
+2.2. Thông điệp yêu cầu
+                                     Kiểu
+ Dữ liệu đầu vào     Tên tham số                           Ghi chú
+                                    dữ liệu
+                                               Thông tin định danh, loại giao
+Thông tin header    header          Object     dịch và thời điểm gửi thông
+                                               điệp
+ Dữ liệu XML       data.content     Chuỗi      Nội dung XML khám sức khỏe
+ Chữ ký thông                                  Chuỗi chữ ký số/chữ ký thông
+                   signature        Chuỗi
+ điệp                                          điệp gửi kèm dữ liệu liên thông
+Bảng mô tả thông tin header
+                                   Bắt
+  Tên tham số      Kiểu dữ liệu                          Ghi chú
+                                   buộc
+                                            Phiên bản cấu trúc thông điệp. Ví
+ version           Chuỗi            x
+                                            dụ: 1.0
+ sender_id         Chuỗi            x       Mã định danh đơn vị gửi dữ liệu
+                                            Mã định danh đơn vị nhận dữ liệu.
+ receiver_id       Chuỗi            x
+                                            Giá trị sử dụng: VTS
+                                            Loại giao dịch. Giá trị sử dụng:
+ txn_type          Chuỗi            x
+                                            sync_checkup
+                                            Mã thông điệp duy nhất cho mỗi
+ msg_id            Chuỗi            x
+                                            lần gửi dữ liệu
+ msg_type          Chuỗi            x       Loại thông điệp. Ví dụ: 101
+                                            Loại dữ liệu gửi. Giá trị sử dụng:
+ data_type         Chuỗi            x
+                                            xml/base64
+                                            Thời điểm gửi thông điệp, dạng
+ send_datetime     Số               x
+                                            timestamp milliseconds
+Bảng mô tả thông tin data
+ Tên tham số Kiểu dữ liệu      Bắt buộc                 Ghi chú
+                                            Chuỗi XML đã được mã hóa
+                                            Base64. Nội dung XML trước khi
+content          Chuỗi        x
+                                            mã hóa phải đúng cấu trúc XML
+                                            khám sức khỏe được áp dụng cho
+                                       10
+
+ Tên tham số Kiểu dữ liệu        Bắt buộc                 Ghi chú
+                                              mọi nhóm tuổi theo cấu trúc XML
+                                              được ban hành theo Quyết định số
+                                              2062/QĐ-BYT ngày 07/07/2026
+                                              của Bộ Y tế
+Ví dụ giá trị data.content sau khi encode
+PD94bWwgdmVyc2lvbj0nMS4wJyBlbmNvZGluZz0ndXRmLTgnPz4KPERV
+T0lfMTggeG1sbnM6bnMwPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwLzA5
+L3htbGRzaWcjIj4KICA8VEhPTkdfVElOX0hBTkhfQ0hJTkg+CiAgICA8SE9
+fVEVOPk5HVVlFTiBWQU4gPC9IT19URU4+CiAgICA8R0lPSV9USU5IPjE
+8L0dJT0lfVElOSD4KICAgIDxOR0FZX1NJTkg+MjAyMDA2MTcwODMwP
+C9OR0FZX1NJTkg+CiAgICA8VFVPST4xMjM8L1RVT0k+CiAgICA8TUFf
+REFOX1RPQz45OTwvTUFfREFO…
+Cấu trúc thông tin gửi lên:
+Body gửi lên API có định dạng application/json, cấu trúc tổng quát như sau
+{
+ "header": {
+   "version": "1.0",
+   "sender_id": "1234567890123",
+   "receiver_id": "VTS",
+   "txn_type": "sync_checkup",
+   "msg_id": "1234567890123260605f47ac10b58cc4372a5670e02b2c3b479",
+   "msg_type": "101",
+   "data_type": "xml/base64",
+   "send_datetime": 1780646400000
+  },
+  "data": {
+   "content": "{BASE64_XML_CONTENT}"
+  },
+  "signature": "{SIGNATURE}"
+}
+
+2.3. Thông điệp trả lời
+ Dữ liệu phản                       Kiểu dữ
+                  Tên tham số                              Ghi chú
+      hồi                             liệu
+                                                Cần lưu trữ lại mã giao dịch để
+ Mã giao dịch    maGiaoDich       Chuỗi         có thể tra cứu thông tin về kết
+                                                quả liên thông của hồ sơ
+                                                Thông báo trả về cho người
+                                                dùng biết việc tiếp nhận hồ sơ
+ Thông báo       message          Chuỗi
+                                                để chờ xử lý có thành công hay
+                                                không (dạng text)
+                                      11
+
+ Dữ liệu phản                     Kiểu dữ
+                 Tên tham số                              Ghi chú
+      hồi                           liệu
+                                              Thông báo trả về cho người
+                                              dùng biết việc tiếp nhận hồ sơ
+                                              để chờ xử lý có thành công hay
+ Trạng thái     status           Số
+                                              không (dạng mã)
+                                              - Mã 200: Thành công
+                                              - Mã khác 200: Thất bại
+
+       Lưu ý: Thông điệp trả lời chỉ đảm bảo hệ thống đã tiếp nhận hồ sơ để chờ
+xử lý. Việc xác định hồ sơ có hợp lệ hay không sau khi hệ thống xử lý sẽ được
+xác định thông qua việc tra cứu lịch sử liên thông theo mã giao dịch.
+
+2.4. Mô tả cấu trúc file XML
+
+     Cấu trúc XML Khám sức khỏe căn cứ vào hướng dẫn tại Quyết định số
+2062/QĐ-BYT ngày 07/07/2026 của Bộ Y tế
+12
+13
+14
+15
+16
+17
+                                       18
+
+III. CHỨC NĂNG THEO DÕI LIÊN THÔNG KHÁM SỨC KHỎE
+1. Lịch sử liên thông Khám sức khỏe
+       Để kiểm tra tình trạng xử lý các file đã đẩy lên hệ thống, các cơ sở Khám
+chữa bệnh thực hiện như sau:
+ Bước 1: Đăng nhập vào hệ thống bằng tài khoản đã được cấp vào đường dẫn
+https://hssk.hanoi.gov.vn , chọn Quản trị Theo dõi liên thông  Lịch sử liên
+thông Khám sức khỏe, màn hình hiển thị như sau:
+
+
+
+
+    Hình 1: Màn hình tra cứu lịch sử liên thông dữ liệu Khám sức khỏe
+ Bước 2: Chọn các điều kiện để thực hiện tìm kiếm
+ - Thời gian
+ - Địa bàn (mặc định địa bàn của tài khoản được phân quyền)
+ - Trạng thái (Thành công, Thành công 1 phần, Lỗi, Đang xử lý)
+ - Mã Cơ sở Khám chữa bệnh (Mặc định cơ sở Khám chữa bệnh với tài khoản
+   phân quyền Khám chữa bệnh)
+ - Mã giao dịch (Mã giao dịch theo file đẩy lên)
+ - Tài khoản gửi (username tài khoản đẩy liên thông)
+ Bước 3: Chọn                       để hiển thị lịch sử liên thông và thông tin
+trạng thái liên thông.
+   - Để xem chi tiết lịch sử liên thông, chọn     màn hình hiển thị như sau:
+
+
+
+
+                 Hình 2: Màn hình xem chi tiết lịch sử liên thông
+
+2. Danh sách Hồ sơ khám sức khỏe
+      Để kiểm tra danh sách hồ sơ Khám sức khỏe liên thông lên hệ thống:
+                                      19
+
+ Bước 1: Đăng nhập vào hệ thống bằng tài khoản đã được cấp vào đường dẫn
+https://hssk.hanoi.gov.vn, chọn Hồ sơ chứng từ  Hồ sơ bệnh án liên thông
+XML 4210/130, màn hình hiển thị như sau:
+
+
+
+
+     Hình 3: Màn hình tra cứu dữ liệu Khám chữa bệnh, Khám sức khỏe
+ Bước 2: Chọn các điều kiện để thực hiện tìm kiếm dữ liệu Khám sức
+khỏe
+  - Thời gian: Mặc định là tháng hiện tại
+  - Loại hình KCB: Chọn loại hình khám 1 trong 2 loại hình sau: “Khám sức
+     khỏe định kỳ” hoặc “Khám sàng lọc”
+  - Cơ sở Khám chữa bệnh: Mặc định là cơ sở Khám chữa bệnh theo tài khoản
+     được phân quyền
+
+
+
+
+              Hình 4: Chọn điều kiện để lọc thông tin Khám sức khỏe
+
+   Bước 3: Chọn                     để hiển thị danh sách kết quả khám sức khỏe
+
+        Để xem chi tiết Khám sức khỏe, chọn      để hiển thị màn hình khám sức
+khỏe.
+                                 PHỤ LỤC III
+    RÀ SOÁT ĐĂNG KÝ TÀI KHOẢN LIÊN THÔNG HỆ THỐNG HỒ SƠ SỨC KHỎE ĐIỆN TỬ
+                              THÀNH PHỐ HÀ NỘI
+                      (Kèm theo Công văn số:     /SYT-QLBHYTCNTT ngày /7/2026 của Sở Y tế)
+
+
+            Số điện                   Mã        Tên
+TT Họ tên               Chức vụ                           Địa chỉ       Mã xã/phường          Tên xã/phường
+             thoại                  CSKCB      CSKCB
+1                                                                           00091            Phường Phú Thượng
+2
+3
+4
+

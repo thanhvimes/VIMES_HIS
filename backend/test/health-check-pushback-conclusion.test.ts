@@ -23,9 +23,9 @@ test('pushbackClinicalAndConclusion syncs vitals, exam parts, conclusion and clo
 
         // Tạo bệnh nhân & đợt khám giả lập với trạng thái 'O' (chưa kết thúc)
         await query(`
-            INSERT INTO hms_patient (hp_patientno, hp_surname, hp_firstname, hp_sex, hp_birthdate)
-            VALUES ($1, 'TEST', 'NGUYEN VAN', 'M', '1990-01-01')
-        `, [testPatientNo]);
+            INSERT INTO hms_patient (hp_patientno, hp_patientid, hp_surname, hp_firstname, hp_sex, hp_birthdate)
+            VALUES ($1, $2, 'TEST', 'NGUYEN VAN', 'M', '1990-01-01')
+        `, [testPatientNo, 'P' + testPatientNo]);
 
         await query(`
             INSERT INTO hms_doc (hd_docno, hd_patientno, hd_status, hd_admitdate, hd_object)
@@ -195,9 +195,9 @@ test('pushbackClinicalAndConclusion handles already closed hms_doc gracefully wi
 
         // Đợt khám đã kết thúc ('T')
         await query(`
-            INSERT INTO hms_patient (hp_patientno, hp_surname, hp_firstname, hp_sex)
-            VALUES ($1, 'TEST', 'DA DONG', 'F')
-        `, [testPatientNo]);
+            INSERT INTO hms_patient (hp_patientno, hp_patientid, hp_surname, hp_firstname, hp_sex)
+            VALUES ($1, $2, 'TEST', 'DA DONG', 'F')
+        `, [testPatientNo, 'P' + testPatientNo]);
 
         await query(`
             INSERT INTO hms_doc (hd_docno, hd_patientno, hd_status, hd_enddate, hd_diagnostic)
@@ -242,7 +242,7 @@ test('End-to-End: documentsController.updateDocument syncs clinical vitals, lab 
 
     try {
         // Dọn dẹp trước
-        await query(`DELETE FROM hms_pacs_result WHERE hpr_docno = $1`, [testDocNo]);
+        try { await query(`DELETE FROM hms_pacs_result WHERE hpr_docno = $1`, [testDocNo]); } catch {}
         await query(`DELETE FROM hms_pacsorderline WHERE hpcl_docno = $1`, [testDocNo]);
         await query(`DELETE FROM hms_pacsorder WHERE hpc_orderid = $1`, [testOrderId]);
         await query(`DELETE FROM hms_testorderline WHERE hpcl_docno = $1`, [testDocNo]);
@@ -257,9 +257,9 @@ test('End-to-End: documentsController.updateDocument syncs clinical vitals, lab 
 
         // 1. Tạo đợt khám và phiếu khám trên HIS Core (Status: 'O' - Đang mở)
         await query(`
-            INSERT INTO hms_patient (hp_patientno, hp_surname, hp_firstname, hp_sex, hp_birthdate)
-            VALUES ($1, 'TEST', 'E2E CONCL', 'M', '1995-05-20')
-        `, [testPatientNo]);
+            INSERT INTO hms_patient (hp_patientno, hp_patientid, hp_surname, hp_firstname, hp_sex, hp_birthdate)
+            VALUES ($1, $2, 'TEST', 'E2E CONCL', 'M', '1995-05-20')
+        `, [testPatientNo, 'P' + testPatientNo]);
 
         await query(`
             INSERT INTO hms_doc (hd_docno, hd_patientno, hd_status, hd_admitdate, hd_object)
@@ -430,12 +430,12 @@ test('End-to-End: documentsController.updateDocument syncs clinical vitals, lab 
             await query(`DELETE FROM health_check_masters WHERE id = $1`, [createdMasterId]);
         }
         await query(`DELETE FROM hms_exm_conclusion WHERE hecl_docno = $1`, [testDocNo]);
-        await query(`DELETE FROM hms_pacs_result WHERE hpr_docno = $1`, [testDocNo]);
-        await query(`DELETE FROM hms_pacsorderline WHERE hpcl_docno = $1`, [testDocNo]);
-        await query(`DELETE FROM hms_pacsorder WHERE hpc_orderid = $1`, [testOrderId]);
-        await query(`DELETE FROM hms_testorderline WHERE hpcl_docno = $1`, [testDocNo]);
-        await query(`DELETE FROM hms_testorder WHERE hpc_orderid = $1`, [testOrderId]);
-        await query(`DELETE FROM hms_disease_hist WHERE hdh_docno = $1`, [testDocNo]);
+        try { await query(`DELETE FROM hms_pacs_result WHERE hpr_docno = $1`, [testDocNo]); } catch {}
+        try { await query(`DELETE FROM hms_pacsorderline WHERE hpcl_docno = $1`, [testDocNo]); } catch {}
+        try { await query(`DELETE FROM hms_pacsorder WHERE hpc_orderid = $1`, [testOrderId]); } catch {}
+        try { await query(`DELETE FROM hms_testorderline WHERE hpcl_docno = $1`, [testDocNo]); } catch {}
+        try { await query(`DELETE FROM hms_testorder WHERE hpc_orderid = $1`, [testOrderId]); } catch {}
+        try { await query(`DELETE FROM hms_disease_hist WHERE hdh_docno = $1`, [testDocNo]); } catch {}
         await query(`DELETE FROM hms_exam WHERE he_docno = $1`, [testDocNo]);
         await query(`DELETE FROM hms_doc WHERE hd_docno = $1`, [testDocNo]);
         await query(`DELETE FROM hms_patient WHERE hp_patientno = $1`, [testPatientNo]);
@@ -454,9 +454,9 @@ test('Two-Way Sync (HIS -> KSK): getHisPatient reads clinical specialties, vital
 
         // Tạo bệnh nhân & đợt khám trên HIS
         await query(`
-            INSERT INTO hms_patient (hp_patientno, hp_surname, hp_firstname, hp_sex, hp_birthdate)
-            VALUES ($1, 'TEST', 'DOC CONCL', 'F', '1992-10-10')
-        `, [testPatientNo]);
+            INSERT INTO hms_patient (hp_patientno, hp_patientid, hp_surname, hp_firstname, hp_sex, hp_birthdate)
+            VALUES ($1, $2, 'TEST', 'DOC CONCL', 'F', '1992-10-10')
+        `, [testPatientNo, 'P' + testPatientNo]);
 
         await query(`
             INSERT INTO hms_doc (hd_docno, hd_patientno, hd_status, hd_admitdate, hd_object)
@@ -559,4 +559,317 @@ test('Two-Way Sync (HIS -> KSK): getHisPatient reads clinical specialties, vital
     }
 });
 
+test('Pushback: correctly parses Roman numeral Loại IV to Loại 4, truncates >254 chars safely and maps VN specialty aliases', async () => {
+    const testDocNo = 99988805;
+    const testPatientNo = 999892;
 
+    try {
+        await query(`DELETE FROM hms_exm_conclusion WHERE hecl_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_exam WHERE he_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_doc WHERE hd_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_patient WHERE hp_patientno = $1`, [testPatientNo]);
+
+        await query(`
+            INSERT INTO hms_patient (hp_patientno, hp_patientid, hp_surname, hp_firstname, hp_sex, hp_birthdate)
+            VALUES ($1, $2, 'TEST', 'ROMAN IV', 'M', '1980-05-20')
+        `, [testPatientNo, 'P' + testPatientNo]);
+
+        await query(`
+            INSERT INTO hms_doc (hd_docno, hd_patientno, hd_status, hd_admitdate, hd_object)
+            VALUES ($1, $2, 'O', CURRENT_TIMESTAMP, 7)
+        `, [testDocNo, testPatientNo]);
+
+        await query(`
+            INSERT INTO hms_exam (he_docno, he_patientno, he_receptidx, he_status, he_deptid, he_roomid)
+            VALUES ($1, $2, 1, 'O', 'KKB', 1)
+        `, [testDocNo, testPatientNo]);
+
+        // Chuỗi siêu dài vượt 254 ký tự
+        const longDiagnosis = 'Tăng huyết áp độ 2, theo dõi rối loạn chuyển hóa lipid và tim mạch mạn tính. ' + 'Chi tiết điều trị và theo dõi dài hạn. '.repeat(10);
+        const longRemark = 'Bệnh nhân cần ăn nhạt tuyệt đối, uống thuốc điều trị đều đặn mỗi sáng, tập thể dục nhẹ nhàng. ' + 'Lời dặn bổ sung kéo dài. '.repeat(10);
+
+        // Gọi pushback với phân loại 'Loại IV' và các alias tiếng Việt
+        await hisIntegrationController.pushbackClinicalAndConclusion(
+            { query },
+            testDocNo,
+            {
+                examination: {
+                    physical_summary: 'Thể lực trung bình, thể trạng hơi thừa cân nhẹ'
+                },
+                clinical_exam: {
+                    tuan_hoan: 'Nhịp tim nhanh xoang',
+                    ho_hap: 'Rì rào phế nang êm dịu',
+                    tai_mui_hong: 'Viêm họng mạn tính',
+                    rang_ham_mat: 'Sâu răng hàm số 6',
+                    noi_tiet: 'Bình thường',
+                    co_xuong_khop: 'Thoái hóa khớp gối nhẹ',
+                    than_kinh: 'Bình thường',
+                    tam_than: 'Tỉnh táo, tiếp xúc tốt',
+                    da_lieu: 'Không viêm da',
+                    ngoai_khoa: 'Không phát hiện bất thường'
+                }
+            },
+            {
+                fitness_class: 'Loại IV',
+                diagnosis: longDiagnosis,
+                cac_van_de_luu_y: longRemark
+            },
+            'admin',
+            'Administrator'
+        );
+
+        // Kiểm tra dữ liệu trong hms_exm_conclusion
+        const res = await query(`
+            SELECT 
+                hecl_phanloai, hecl_conclusion, hecl_remark,
+                hecl_theluc, hecl_tuanhoan, hecl_hohap, hecl_tmh, hecl_rhm,
+                hecl_noitiet, hecl_coxuongkhop, hecl_thankinh, hecl_tamthan,
+                hecl_dalieu, hecl_ngoai
+            FROM hms_exm_conclusion
+            WHERE hecl_docno = $1
+        `, [testDocNo]);
+
+        assert.equal(res.rows.length, 1);
+        const row = res.rows[0];
+
+        // 1. Phân loại Loại IV phải được map thành Loại 4 (KHÔNG bị nhầm thành Loại 5)
+        assert.equal(row.hecl_phanloai, 'Loại 4');
+
+        // 2. Chuỗi dài đã được cắt an toàn <= 254 ký tự
+        assert(row.hecl_conclusion.length <= 254);
+        assert(row.hecl_conclusion.startsWith('Tăng huyết áp độ 2'));
+        assert(row.hecl_remark.length <= 254);
+        assert(row.hecl_remark.startsWith('Bệnh nhân cần ăn nhạt'));
+
+        // 3. Các alias tiếng Việt đã được lưu chính xác vào các cột tương ứng
+        assert.equal(row.hecl_theluc, 'Thể lực trung bình, thể trạng hơi thừa cân nhẹ');
+        assert.equal(row.hecl_tuanhoan, 'Nhịp tim nhanh xoang');
+        assert.equal(row.hecl_hohap, 'Rì rào phế nang êm dịu');
+        assert.equal(row.hecl_tmh, 'Viêm họng mạn tính');
+        assert.equal(row.hecl_rhm, 'Sâu răng hàm số 6');
+        assert.equal(row.hecl_noitiet, 'Bình thường');
+        assert.equal(row.hecl_coxuongkhop, 'Thoái hóa khớp gối nhẹ');
+        assert.equal(row.hecl_thankinh, 'Bình thường');
+        assert.equal(row.hecl_tamthan, 'Tỉnh táo, tiếp xúc tốt');
+        assert.equal(row.hecl_dalieu, 'Không viêm da');
+        assert.equal(row.hecl_ngoai, 'Không phát hiện bất thường');
+    } finally {
+        await query(`DELETE FROM hms_exm_conclusion WHERE hecl_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_exam WHERE he_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_doc WHERE hd_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_patient WHERE hp_patientno = $1`, [testPatientNo]);
+    }
+});
+
+test('Two-Way Sync (HIS -> KSK): getHisPatient merges clinical specialties from hms_exm_conclusion for HEALTH_CHECK_MASTER', async () => {
+    const testDocNo = 99988806;
+    const testPatientNo = 999893;
+    let masterId: number | null = null;
+
+    try {
+        await query(`DELETE FROM hms_exm_conclusion WHERE hecl_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_exam WHERE he_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_doc WHERE hd_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_patient WHERE hp_patientno = $1`, [testPatientNo]);
+
+        // 1. Tạo dữ liệu trên HIS
+        await query(`
+            INSERT INTO hms_patient (hp_patientno, hp_patientid, hp_surname, hp_firstname, hp_sex, hp_birthdate)
+            VALUES ($1, $2, 'TEST', 'MASTER CONCL', 'F', '1988-08-08')
+        `, [testPatientNo, 'P' + testPatientNo]);
+
+        await query(`
+            INSERT INTO hms_doc (hd_docno, hd_patientno, hd_status, hd_admitdate, hd_object)
+            VALUES ($1, $2, 'O', CURRENT_TIMESTAMP, 7)
+        `, [testDocNo, testPatientNo]);
+
+        await query(`
+            INSERT INTO hms_exm_conclusion (
+                hecl_docno, hecl_theluc, hecl_tuanhoan, hecl_hohap,
+                hecl_mat, hecl_tmh, hecl_rhm, hecl_noitiet, hecl_coxuongkhop,
+                hecl_phanloai, hecl_conclusion, hecl_remark
+            ) VALUES (
+                $1, 'Thể lực tốt', 'Nhịp đều rõ', 'Phổi sáng',
+                'Thị lực tốt 10/10', 'TMH sạch', 'Hàm răng đều', 'Nội tiết ổn định', 'Khớp vận động tốt',
+                'Loại 1', 'Đủ sức khỏe làm việc xuất sắc', 'Khám định kỳ hàng năm'
+            )
+        `, [testDocNo]);
+
+        // 2. Tạo bản ghi đã import sẵn trong KSK (chưa có chuyên khoa chi tiết)
+        const masterRes = await query(`
+            INSERT INTO health_check_masters (
+                patient_id, patient_name, dob, gender, doc_no, his_doc_no, form_type
+            ) VALUES (
+                $1, 'TEST MASTER CONCL', '1988-08-08', 'Nữ', $2, $2, '3'
+            ) RETURNING id
+        `, [String(testPatientNo), String(testDocNo)]);
+        masterId = masterRes.rows[0].id;
+
+        await query(`
+            INSERT INTO health_check_details (
+                master_id, clinical_data, conclusion_data
+            ) VALUES (
+                $1,
+                $2,
+                $3
+            )
+        `, [
+            masterId,
+            JSON.stringify({ examination: { height: '160', weight: '50' } }),
+            JSON.stringify({ fitness_class: '1', diagnosis: '[Z00.0] Khám sức khỏe tổng quát' })
+        ]);
+
+        // 3. Gọi getHisPatient để lấy dữ liệu đồng bộ
+        let resData: any = null;
+        const mockReq: any = { params: { identifier: String(testDocNo) }, query: {} };
+        const mockRes: any = {
+            status: () => mockRes,
+            json: (data: any) => { resData = data; return mockRes; }
+        };
+
+        await hisIntegrationController.getHisPatient(mockReq, mockRes);
+
+        assert.equal(resData.source, 'HEALTH_CHECK_MASTER');
+        assert.equal(resData.doc_no, String(testDocNo));
+
+        // Kiểm tra chuyên khoa đã được merge từ hms_exm_conclusion vào KSK
+        const ce = resData.clinical_data.clinical_exam;
+        assert.equal(ce.eye, 'Thị lực tốt 10/10');
+        assert.equal(ce.ent, 'TMH sạch');
+        assert.equal(ce.dental, 'Hàm răng đều');
+        assert.equal(ce.noi_khoa_tuan_hoan, 'Nhịp đều rõ');
+        assert.equal(ce.noi_khoa_ho_hap, 'Phổi sáng');
+        assert.equal(ce.noi_khoa_noi_tiet, 'Nội tiết ổn định');
+        assert.equal(ce.noi_khoa_co_xuong_khop, 'Khớp vận động tốt');
+        assert.equal(ce.noi_khoa_noi_tiet_pl, '1');
+        assert.equal(ce.noi_khoa_co_xuong_khop_pl, '1');
+
+        // Kiểm tra kết luận đã được cập nhật từ hms_exm_conclusion
+        const concl = resData.conclusion_data;
+        assert.equal(concl.fitness_class, '1');
+        assert.equal(concl.diagnosis, 'Đủ sức khỏe làm việc xuất sắc');
+        assert.equal(concl.cac_van_de_luu_y, 'Khám định kỳ hàng năm');
+    } finally {
+        if (masterId) {
+            await query(`DELETE FROM health_check_details WHERE master_id = $1`, [masterId]);
+            await query(`DELETE FROM health_check_masters WHERE id = $1`, [masterId]);
+        }
+        await query(`DELETE FROM hms_exm_conclusion WHERE hecl_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_exam WHERE he_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_doc WHERE hd_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_patient WHERE hp_patientno = $1`, [testPatientNo]);
+    }
+});
+
+test('pushbackClinicalAndConclusion preserves hd_conclusion like "- [Z00.0] Loại II" without generic override', async () => {
+    const testDocNo = 99988807;
+    const testPatientNo = 999894;
+    const mockClient = { query: (sql: string, params?: any[]) => query(sql, params) };
+
+    try {
+        await query(`DELETE FROM hms_exm_conclusion WHERE hecl_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_exam WHERE he_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_doc WHERE hd_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_patient WHERE hp_patientno = $1`, [testPatientNo]);
+
+        await query(`
+            INSERT INTO hms_patient (hp_patientno, hp_patientid, hp_surname, hp_firstname, hp_sex, hp_birthdate)
+            VALUES ($1, $2, 'TEST', 'CONCL PRESERVE', 'M', '1985-05-05')
+        `, [testPatientNo, 'P' + testPatientNo]);
+
+        // Đợt khám có kết luận cụ thể của bác sĩ HIS nhưng chẩn đoán tiếp đón là chung chung
+        await query(`
+            INSERT INTO hms_doc (hd_docno, hd_patientno, hd_status, hd_diagnostic, hd_conclusion, hd_result, hd_object)
+            VALUES ($1, $2, 'T', '[Z00.0] Khám sức khỏe tổng quát', '- [Z00.0] Loại II\r\n', '2', 7)
+        `, [testDocNo, testPatientNo]);
+
+        // Gọi pushback với conclusionData rỗng hoặc chỉ có chuỗi chung chung
+        await hisIntegrationController.pushbackClinicalAndConclusion(
+            mockClient,
+            testDocNo,
+            { clinical_exam: { eye: 'Thị lực 10/10' } },
+            { diagnosis: '[Z00.0] Khám sức khỏe tổng quát', fitness_class: '' },
+            'BS_TEST',
+            'Bác sĩ Test'
+        );
+
+        // Kiểm tra hms_exm_conclusion
+        const conclRes = await query(`
+            SELECT hecl_docno, hecl_conclusion, hecl_phanloai, hecl_mat
+            FROM hms_exm_conclusion
+            WHERE hecl_docno = $1
+        `, [testDocNo]);
+
+        assert.equal(conclRes.rows.length, 1);
+        const conclRow = conclRes.rows[0];
+        // Phải bảo tồn kết luận thực tế của bác sĩ: [Z00.0] Loại II (đã dọn dẹp \r\n và dấu -)
+        assert.equal(conclRow.hecl_conclusion, '[Z00.0] Loại II');
+        // Phải map đúng phân loại từ hd_result = '2'
+        assert.equal(conclRow.hecl_phanloai, 'Loại 2');
+        assert.equal(conclRow.hecl_mat, 'Thị lực 10/10');
+    } finally {
+        await query(`DELETE FROM hms_exm_conclusion WHERE hecl_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_exam WHERE he_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_doc WHERE hd_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_patient WHERE hp_patientno = $1`, [testPatientNo]);
+    }
+});
+
+test('getHisPatient automatically triggers UPSERT into hms_exm_conclusion for newly queried HIS patient', async () => {
+    const testDocNo = 99988808;
+    const testPatientNo = 999895;
+
+    try {
+        await query(`DELETE FROM hms_exm_conclusion WHERE hecl_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_exam WHERE he_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_doc WHERE hd_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_patient WHERE hp_patientno = $1`, [testPatientNo]);
+
+        await query(`
+            INSERT INTO hms_patient (hp_patientno, hp_patientid, hp_surname, hp_firstname, hp_sex, hp_birthdate)
+            VALUES ($1, $2, 'TEST', 'AUTO SYNC CONCL', 'F', '1992-12-12')
+        `, [testPatientNo, 'P' + testPatientNo]);
+
+        await query(`
+            INSERT INTO hms_doc (hd_docno, hd_patientno, hd_status, hd_diagnostic, hd_conclusion, hd_result, hd_object)
+            VALUES ($1, $2, 'T', '[Z00.0] Khám sức khỏe', '- [Z00.0] LOẠI III\r\n', '3', 7)
+        `, [testDocNo, testPatientNo]);
+
+        await query(`
+            INSERT INTO hms_exam (he_docno, he_patientno, he_deptid, he_roomid, he_receptidx, he_status, he_parts)
+            VALUES ($1, $2, 'KKB', 1, 999901, 'T', 'Mắt: 9/10; TMH: Bình thường')
+        `, [testDocNo, testPatientNo]);
+
+        // Xác nhận ban đầu hms_exm_conclusion chưa hề có dòng nào cho testDocNo
+        const beforeRes = await query(`SELECT 1 FROM hms_exm_conclusion WHERE hecl_docno = $1`, [testDocNo]);
+        assert.equal(beforeRes.rows.length, 0);
+
+        // Gọi getHisPatient
+        let resData: any = null;
+        const mockReq: any = { params: { identifier: String(testDocNo) }, query: {} };
+        const mockRes: any = {
+            status: () => mockRes,
+            json: (data: any) => { resData = data; return mockRes; }
+        };
+
+        await hisIntegrationController.getHisPatient(mockReq, mockRes);
+        assert.equal(resData.source, 'HIS_DIRECT');
+        assert.equal(resData.doc_no, String(testDocNo));
+
+        // Kiểm tra hms_exm_conclusion đã được tự động tạo và điền kết luận
+        const afterRes = await query(`
+            SELECT hecl_docno, hecl_conclusion, hecl_phanloai
+            FROM hms_exm_conclusion
+            WHERE hecl_docno = $1
+        `, [testDocNo]);
+
+        assert.equal(afterRes.rows.length, 1);
+        assert.equal(afterRes.rows[0].hecl_conclusion, '[Z00.0] LOẠI III');
+        assert.equal(afterRes.rows[0].hecl_phanloai, 'Loại 3');
+    } finally {
+        await query(`DELETE FROM hms_exm_conclusion WHERE hecl_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_exam WHERE he_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_doc WHERE hd_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_patient WHERE hp_patientno = $1`, [testPatientNo]);
+    }
+});

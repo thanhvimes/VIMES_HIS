@@ -102,13 +102,16 @@ async function main() {
         buildDate: new Date().toISOString(),
         changelog: [
             `Bản phát hành cập nhật v${version} - Phân hệ Khám Sức Khỏe & Tích hợp HIS Core`,
+            'Hỗ trợ liên thông Đa Cổng KSK: Cổng Bộ Y tế (VNeID) & Cổng Hồ sơ sức khỏe điện tử Sở Y tế Hà Nội (CV 7286/SYT-QLBHYTCNTT)',
+            'Bổ sung 3 chế độ gửi dữ liệu linh hoạt: Chỉ Cổng BYT, Gửi đồng thời CẢ HAI CỔNG, Chỉ Cổng Sở Y tế',
+            'Tích hợp tính năng Kiểm tra kết nối Cổng Sở Y tế và theo dõi mã giao dịch riêng biệt trên hssk.hanoi.gov.vn',
             'Đồng bộ dữ liệu 2 chiều HIS Core <-> KSK VNeID & Gateway XML theo QĐ 1551/QĐ-BYT và QĐ 2062/QĐ-BYT',
             'Nâng cấp Giao diện Điều hướng Khám (High-Contrast cards, step badges, sub-tabs chuyên khoa)',
             'Bổ sung tính năng Tiếp đón tất cả (Bulk Reception), Nhập hồ sơ HIS vào gói khám & Hủy tiếp nhận an toàn',
             'Cơ chế Deep-Merge & Khóa bản ghi chống ghi đè dữ liệu đa bàn khám đồng thời',
             'Tự động chuẩn hóa quốc tịch (mã 000 - Việt Nam) và đối tượng KSK theo nhóm tuổi',
             'Hoàn thiện in ấn mã vạch xét nghiệm (Barcode XN), phân trang động và mẫu biểu ký số',
-            'Tự động đồng bộ cấu trúc cơ sở dữ liệu (Migrations an toàn 076)'
+            'Tự động đồng bộ cấu trúc cơ sở dữ liệu (Migrations an toàn 078)'
         ],
         downloadUrl: process.env.RELEASE_DOWNLOAD_URL || `https://github.com/thanhvimes/VIMES_HIS/releases/download/v${version}/${releaseArchiveName}`,
         sha256: sha256,

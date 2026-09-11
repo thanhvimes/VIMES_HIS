@@ -68,7 +68,10 @@ class BookingCatalogController {
         }
     }
 
+    private static kiosTableEnsured = false;
+
     private async ensureKiosTable() {
+        if (BookingCatalogController.kiosTableEnsured) return;
         try {
             await query(`
                 CREATE TABLE IF NOT EXISTS hms_roomlist_kios (
@@ -83,8 +86,10 @@ class BookingCatalogController {
                     hrk_updateddate TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             `);
+            BookingCatalogController.kiosTableEnsured = true;
         } catch (e) {
             // ignore if exists
+            BookingCatalogController.kiosTableEnsured = true;
         }
     }
 

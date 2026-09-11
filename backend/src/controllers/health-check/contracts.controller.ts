@@ -5,24 +5,15 @@ import { loadHealthCheckSettings } from '../../config/health-check-settings';
 import { restartHealthCheckSyncWorker } from '../../services/health-check-sync.service';
 import { calculateAge } from '../../services/health-check-classifier.service';
 import { batchSyncController } from './batch-sync.controller';
+import { hisIntegrationController } from './his-integration';
+import { mergeLabData } from '../../services/health-check-merge.service';
+import { generateXmlPayload } from './xml-generator';
 import axios from 'axios';
 
 export class ContractsController {
     // Lấy cấu hình liên thông VNeID
     async getSettings(req: Request, res: Response) {
         try {
-            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS vneid_private_key text`);
-            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS vneid_public_key text`);
-            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS signature_type varchar(20) DEFAULT 'HSM'`);
-            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_url varchar(255) DEFAULT 'http://vimes.xyz:8091'`);
-            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_provider varchar(50) DEFAULT 'VNPT-CA'`);
-            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_username varchar(100)`);
-            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_password text`);
-            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_client_id varchar(100)`);
-            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_client_secret text`);
-
-            await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS ma_cskcb_byt varchar(20)`);
-
             const result = await query(
                 `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_cskcb_byt, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, reception_slip_template, use_qz_tray, vneid_private_key, vneid_public_key, signature_type, hsm_url, hsm_provider, hsm_username, hsm_password, hsm_client_id, hsm_client_secret FROM health_check_settings ORDER BY id ASC LIMIT 1`
             );
@@ -158,6 +149,9 @@ export class ContractsController {
             if (row.hsm_client_secret) {
                 row.hsm_client_secret = '******';
             }
+            if (row.syt_password) {
+                row.syt_password = '******';
+            }
 
             return res.json(row);
         } catch (error: any) {
@@ -188,7 +182,7 @@ export class ContractsController {
         }
     }
 
-    // Cập nhật cấu hình liên thông VNeID
+    // Cập nhật cấu hình liên thông VNeID & Sở Y tế
     async updateSettings(req: Request, res: Response) {
         const {
             vneid_url,
@@ -218,16 +212,23 @@ export class ContractsController {
             hsm_username,
             hsm_password,
             hsm_client_id,
-            hsm_client_secret
+            hsm_client_secret,
+            sync_target_mode,
+            syt_url,
+            syt_username,
+            syt_password,
+            syt_receiver_id,
+            syt_enabled
         } = req.body;
 
         try {
-            const existCheck = await query('SELECT id, vneid_password, vneid_private_key, hsm_password, hsm_client_secret FROM health_check_settings ORDER BY id ASC LIMIT 1');
+            const existCheck = await query('SELECT id, vneid_password, vneid_private_key, hsm_password, hsm_client_secret, syt_password FROM health_check_settings ORDER BY id ASC LIMIT 1');
             
             let finalPassword = '';
             let finalPrivateKey = '';
             let finalHsmPassword = '';
             let finalHsmClientSecret = '';
+            let finalSytPassword = '';
 
             if (existCheck.rows.length > 0) {
                 const existing = existCheck.rows[0];
@@ -257,6 +258,12 @@ export class ContractsController {
                     finalHsmClientSecret = existing.hsm_client_secret;
                 } else {
                     finalHsmClientSecret = hsm_client_secret ? SecurityUtils.encrypt(hsm_client_secret) : '';
+                }
+
+                if (syt_password === '******') {
+                    finalSytPassword = existing.syt_password;
+                } else {
+                    finalSytPassword = syt_password ? SecurityUtils.encrypt(syt_password) : '';
                 }
 
                 const updateSql = `
@@ -289,8 +296,14 @@ export class ContractsController {
                         hsm_password = $26,
                         hsm_client_id = $27,
                         hsm_client_secret = $28,
+                        sync_target_mode = $29,
+                        syt_url = $30,
+                        syt_username = $31,
+                        syt_password = $32,
+                        syt_receiver_id = $33,
+                        syt_enabled = $34,
                         updated_at = NOW()
-                    WHERE id = $29
+                    WHERE id = $35
                     RETURNING id
                 `;
                 await query(updateSql, [
@@ -322,6 +335,12 @@ export class ContractsController {
                     finalHsmPassword,
                     hsm_client_id || '',
                     finalHsmClientSecret,
+                    sync_target_mode || 'BYT_ONLY',
+                    syt_url ? syt_url.trim() : 'https://api-hssk.hanoi.gov.vn',
+                    syt_username || '',
+                    finalSytPassword,
+                    syt_receiver_id || 'VTS',
+                    syt_enabled === true,
                     existing.id
                 ]);
             } else {
@@ -329,14 +348,16 @@ export class ContractsController {
                 finalPrivateKey = vneid_private_key ? SecurityUtils.encrypt(vneid_private_key) : '';
                 finalHsmPassword = hsm_password ? SecurityUtils.encrypt(hsm_password) : '';
                 finalHsmClientSecret = hsm_client_secret ? SecurityUtils.encrypt(hsm_client_secret) : '';
+                finalSytPassword = syt_password ? SecurityUtils.encrypt(syt_password) : '';
 
                 const insertSql = `
                     INSERT INTO health_check_settings (
                         vneid_url, vneid_username, vneid_password, ma_cskcb, ma_cskcb_byt, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval,
                         barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type,
                         allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, reception_slip_template, use_qz_tray,
-                        vneid_private_key, vneid_public_key, signature_type, hsm_url, hsm_provider, hsm_username, hsm_password, hsm_client_id, hsm_client_secret
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
+                        vneid_private_key, vneid_public_key, signature_type, hsm_url, hsm_provider, hsm_username, hsm_password, hsm_client_id, hsm_client_secret,
+                        sync_target_mode, syt_url, syt_username, syt_password, syt_receiver_id, syt_enabled
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)
                     RETURNING id
                 `;
                 await query(insertSql, [
@@ -367,7 +388,13 @@ export class ContractsController {
                     hsm_username || '',
                     finalHsmPassword,
                     hsm_client_id || '',
-                    finalHsmClientSecret
+                    finalHsmClientSecret,
+                    sync_target_mode || 'BYT_ONLY',
+                    syt_url ? syt_url.trim() : 'https://api-hssk.hanoi.gov.vn',
+                    syt_username || '',
+                    finalSytPassword,
+                    syt_receiver_id || 'VTS',
+                    syt_enabled === true
                 ]);
             }
 
@@ -378,6 +405,81 @@ export class ContractsController {
         } catch (error: any) {
             console.error('❌ KSK Controller: Lỗi updateSettings:', error);
             return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // Gọi ping thử kết nối tới Cổng Sở Y tế (HSSKĐT Hà Nội)
+    async testSytConnection(req: Request, res: Response) {
+        const { syt_url, syt_username, syt_password } = req.body;
+
+        try {
+            const url = (syt_url || 'https://api-hssk.hanoi.gov.vn').trim().replace(/\/+$/, '');
+            const loginUrl = `${url}/api/v1/resource/authentication/login`;
+
+            let testPassword = syt_password || '';
+            if (testPassword === '******') {
+                const settingsQuery = await query('SELECT syt_password FROM health_check_settings LIMIT 1');
+                if (settingsQuery.rows.length > 0) {
+                    const encryptedPass = settingsQuery.rows[0].syt_password;
+                    if (encryptedPass) {
+                        try {
+                            if (SecurityUtils.isEncrypted(encryptedPass)) {
+                                testPassword = SecurityUtils.resolveSecret(encryptedPass);
+                            } else {
+                                testPassword = SecurityUtils.decrypt(encryptedPass);
+                            }
+                        } catch {
+                            testPassword = SecurityUtils.resolveSecret(encryptedPass);
+                        }
+                    }
+                }
+            }
+
+            if (!syt_username || !testPassword) {
+                return res.status(400).json({ success: false, message: 'Thiếu tài khoản hoặc mật khẩu Cổng Sở Y tế' });
+            }
+
+            console.log(`📡 [SYT Portal] Testing connection to login at: ${loginUrl}`);
+
+            const loginRes = await axios.post(loginUrl, {
+                username: syt_username,
+                password: testPassword
+            }, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+                },
+                timeout: 10000
+            }) as any;
+
+            const token = loginRes.data?.access_token || loginRes.data?.token || loginRes.data?.data?.token;
+            const code = loginRes.data?.code;
+
+            if (code === 200 || token) {
+                const tokenStr = typeof token === 'string' ? token : '';
+                const shortToken = tokenStr.length > 20 ? `${tokenStr.substring(0, 10)}...${tokenStr.substring(tokenStr.length - 8)}` : tokenStr;
+                return res.json({
+                    success: true,
+                    message: `🎉 Kết nối thành công! Đã đăng nhập Cổng HSSKĐT Sở Y tế Hà Nội thành công (Token: ${shortToken}). IP của hệ thống đã được cấp phép.`
+                });
+            } else {
+                return res.json({
+                    success: false,
+                    message: `Cổng Sở Y tế tiếp nhận nhưng chưa trả về token hợp lệ. Mã phản hồi: ${code || 400}. Chi tiết: ${JSON.stringify(loginRes.data)}`
+                });
+            }
+        } catch (error: any) {
+            console.error('❌ KSK Controller: Lỗi testSytConnection:', error);
+            const errMsg = error.response?.data ? JSON.stringify(error.response.data) : error.message;
+            let hint = '';
+            if (error.response?.status === 403 || error.code === 'ECONNREFUSED' || error.message?.includes('timeout')) {
+                hint = ' (Lưu ý: Sở Y tế yêu cầu IP Whitelist. Vui lòng kiểm tra IP tĩnh của máy chủ đã được Sở cấp quyền chưa).';
+            }
+            return res.json({
+                success: false,
+                message: `Lỗi kết nối tới Cổng Sở Y tế: ${error.response?.status || 500} - ${errMsg}${hint}`
+            });
         }
     }
 
@@ -914,10 +1016,11 @@ export class ContractsController {
                     const age = calculateAge(docData.birthdate);
                     const targetGroup = (age !== null && age >= 60) ? '1' : '3';
                     const occNum = docData.hp_occupation ? parseInt(String(docData.hp_occupation), 10) : 1539;
+                    const fullName = [docData.hp_surname, docData.hp_midname, docData.hp_firstname].filter(Boolean).join(' ') || (docData.patient_name || '');
 
                     await query(`
                         INSERT INTO hms_exm_employee (
-                            hee_employee_id, hee_contract_id, hee_id,
+                            hee_employee_id, hee_contract_id, hee_id, hee_name,
                             hee_surname, hee_midname, hee_firstname,
                             hee_birthdate, hee_sex, hee_docno, hee_phone,
                             hee_status, hee_isactive, hee_address,
@@ -926,14 +1029,15 @@ export class ContractsController {
                             hee_ethnic, hee_occupation, hee_target_group,
                             hee_createdby, hee_createddate
                         ) VALUES (
-                            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                            'T', 'Y', $11, $12, $13, $14, $15, $16, $17,
-                            $18, $19, $20, $21, NOW()
+                            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+                            'T', 'Y', $12, $13, $14, $15, $16, $17, $18,
+                            $19, $20, $21, $22, NOW()
                         )
                     `, [
                         employeeId,
                         contractId,
                         String(docData.hd_patientno || docNo),
+                        fullName,
                         docData.hp_surname || '',
                         docData.hp_midname || '',
                         docData.hp_firstname || '',
@@ -976,6 +1080,374 @@ export class ContractsController {
             });
         } catch (error: any) {
             console.error('❌ KSK Controller: Lỗi importHisDocsToContract:', error);
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    /**
+     * Đồng bộ kết quả Cận lâm sàng từ HIS sang hồ sơ Khám sức khỏe VNeID
+     * Quét tất cả nhân viên đã tiếp đón trong hợp đồng, lấy kết quả LIS & PACS từ HIS,
+     * tự động merge vào health_check_details.lab_data và tái tạo XML liên thông.
+     */
+    async syncContractParaclinicalResults(req: Request, res: Response) {
+        const { id } = req.params;
+        const contractId = parseInt(id as string, 10);
+        const { mode = 'missing_only' } = req.body || {}; // 'missing_only' | 'all_new'
+
+        if (isNaN(contractId)) {
+            return res.status(400).json({ success: false, message: 'Mã hợp đồng không hợp lệ' });
+        }
+
+        try {
+            // 1. Kiểm tra trạng thái hợp đồng
+            const contractRes = await query('SELECT hec_status, COALESCE(NULLIF(TRIM(hec_description), \'\'), hec_no) as name FROM hms_exm_contract WHERE hec_contract_id = $1', [contractId]);
+            if (contractRes.rows.length === 0) {
+                return res.status(404).json({ success: false, message: 'Không tìm thấy hợp đồng' });
+            }
+            if (contractRes.rows[0].hec_status === 'A') {
+                return res.status(400).json({ success: false, message: 'Gói khám đã được duyệt chốt, không thể thay đổi dữ liệu!' });
+            }
+
+            const currentUser = (req as any).user?.username || (req as any).userId || 'admin';
+
+            // 2. Lấy danh sách nhân viên đã tiếp nhận trong hợp đồng
+            const empRes = await query(`
+                SELECT 
+                    hee.hee_employee_id,
+                    hee.hee_docno,
+                    m.id as master_id,
+                    m.doc_no,
+                    m.form_type,
+                    m.patient_name,
+                    m.cccd,
+                    m.dob,
+                    m.gender,
+                    m.signature_status,
+                    m.send_status,
+                    d.id as detail_id,
+                    d.clinical_data,
+                    d.lab_data,
+                    d.conclusion_data
+                FROM hms_exm_employee hee
+                LEFT JOIN health_check_masters m ON (
+                    (hee.hee_docno > 0 AND m.his_doc_no = hee.hee_docno::text)
+                    OR m.his_employee_id = hee.hee_employee_id::text
+                )
+                LEFT JOIN health_check_details d ON d.master_id = m.id
+                WHERE hee.hee_contract_id = $1
+                  AND hee.hee_docno > 0
+                  AND hee.hee_isactive = 'Y'
+                ORDER BY hee.hee_employee_id ASC
+            `, [contractId]);
+
+            const receivedEmployees = empRes.rows;
+            if (receivedEmployees.length === 0) {
+                return res.json({
+                    success: true,
+                    message: 'Không có nhân viên nào đã tiếp nhận trong hợp đồng này.',
+                    stats: { totalReceived: 0, updatedCount: 0, skippedAlreadyHasResults: 0, skippedNoHisResults: 0, skippedSignedOrSent: 0 }
+                });
+            }
+
+            // 3. Gom danh sách docNos để batch fetch từ HIS
+            const docNos = Array.from(new Set(receivedEmployees.map(r => Number(r.hee_docno)).filter(d => d > 0)));
+
+            console.log(`🔬 [syncContractParaclinicalResults] Đang batch query kết quả CLS từ HIS cho ${docNos.length} hồ sơ hợp đồng ${contractId}...`);
+            const hisClsMap = await hisIntegrationController.fetchBatchStructuredParaclinicalData(docNos);
+
+            let updatedCount = 0;
+            let skippedAlreadyHasResults = 0;
+            let skippedNoHisResults = 0;
+            let skippedSignedOrSent = 0;
+
+            for (const emp of receivedEmployees) {
+                const docNo = Number(emp.hee_docno);
+                const hisCls = hisClsMap.get(docNo);
+
+                // Kiểm tra xem HIS có kết quả nào không
+                const hisHasItems = hisCls && Array.isArray(hisCls.paraclinical_items) && hisCls.paraclinical_items.some((i: any) => 
+                    (i.value !== null && i.value !== undefined && String(i.value).trim() !== '') ||
+                    (i.description !== null && i.description !== undefined && String(i.description).trim() !== '') ||
+                    (i.conclusion !== null && i.conclusion !== undefined && String(i.conclusion).trim() !== '')
+                );
+                const hisHasQuick = !!hisCls?.hemoglobin || !!hisCls?.glycemia || !!hisCls?.protein || !!hisCls?.kqXnKhac;
+
+                if (!hisHasItems && !hisHasQuick) {
+                    skippedNoHisResults++;
+                    continue;
+                }
+
+                // Nếu hồ sơ đã ký số hoặc đã gửi VNeID thành công -> Bỏ qua để đảm bảo tính pháp lý
+                if (emp.signature_status === 'Signed' || emp.send_status === 'Success') {
+                    skippedSignedOrSent++;
+                    continue;
+                }
+
+                // Kiểm tra xem KSK hiện tại đã có kết quả chưa
+                const currentLab = emp.lab_data || {};
+                const currentHasItems = Array.isArray(currentLab.paraclinical_items) && currentLab.paraclinical_items.some((i: any) => 
+                    (i.value !== null && i.value !== undefined && String(i.value).trim() !== '') ||
+                    (i.description !== null && i.description !== undefined && String(i.description).trim() !== '') ||
+                    (i.conclusion !== null && i.conclusion !== undefined && String(i.conclusion).trim() !== '')
+                );
+                const currentHasQuick = !!currentLab.blood_test?.hemoglobin || !!currentLab.blood_test?.glycemia || !!currentLab.urine_test?.protein || !!currentLab.kq_xn_khac;
+                const currentHasAny = currentHasItems || currentHasQuick;
+
+                // Nếu chọn mode 'missing_only' và KSK đã có kết quả đầy đủ -> Bỏ qua
+                // Tuy nhiên, nếu HIS có kết quả mới mà KSK chưa có, vẫn merge vào
+                if (mode === 'missing_only' && currentHasAny) {
+                    // Kiểm tra xem HIS có kết quả mới nào chưa có trong currentLab không
+                    let hasNewData = false;
+                    if (hisCls?.hemoglobin && !currentLab.blood_test?.hemoglobin) hasNewData = true;
+                    if (hisCls?.glycemia && !currentLab.blood_test?.glycemia) hasNewData = true;
+                    if (hisCls?.protein && !currentLab.urine_test?.protein) hasNewData = true;
+                    if (hisCls?.kqXnKhac && !currentLab.kq_xn_khac) hasNewData = true;
+
+                    if (!hasNewData && Array.isArray(hisCls?.paraclinical_items)) {
+                        for (const it of hisCls.paraclinical_items) {
+                            const curIt = currentLab.paraclinical_items?.find((c: any) => c.service_code === it.service_code);
+                            if (!curIt || (!curIt.value && it.value) || (!curIt.description && it.description) || (!curIt.conclusion && it.conclusion)) {
+                                hasNewData = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!hasNewData) {
+                        skippedAlreadyHasResults++;
+                        continue;
+                    }
+                }
+
+                // Nếu chưa có master record -> Đồng bộ tạo mới từ HIS
+                if (!emp.master_id) {
+                    try {
+                        const syncRes = await batchSyncController.syncSingleDocFromHis(docNo, currentUser, 'Administrator', true);
+                        if (syncRes.success) {
+                            updatedCount++;
+                        }
+                    } catch (e: any) {
+                        console.warn(`⚠️ [syncContractParaclinicalResults] Lỗi tạo hồ sơ KSK cho docNo ${docNo}:`, e.message);
+                    }
+                    continue;
+                }
+
+                // Chuẩn bị freshLabData từ HIS
+                const freshLabData: any = {
+                    blood_test: {},
+                    urine_test: {},
+                    paraclinical_items: []
+                };
+                if (hisCls.hemoglobin) freshLabData.blood_test.hemoglobin = hisCls.hemoglobin;
+                if (hisCls.glycemia) freshLabData.blood_test.glycemia = hisCls.glycemia;
+                if (hisCls.protein) freshLabData.urine_test.protein = hisCls.protein;
+                if (hisCls.kqXnKhac) freshLabData.kq_xn_khac = hisCls.kqXnKhac;
+                if (Array.isArray(hisCls.paraclinical_items)) {
+                    freshLabData.paraclinical_items = hisCls.paraclinical_items.map((item: any) => ({
+                        ...item,
+                        is_his_value: !!item.value,
+                        user_edited: false
+                    }));
+                }
+
+                // Sử dụng mergeLabData an toàn (bảo toàn dữ liệu bác sĩ đã sửa tay)
+                const finalLab = mergeLabData(currentLab, freshLabData);
+
+                // Tái tạo XML liên thông theo biểu mẫu tương ứng
+                let xmlData = '';
+                try {
+                    xmlData = generateXmlPayload(
+                        emp.form_type || '3',
+                        {
+                            patientName: emp.patient_name,
+                            cccd: emp.cccd,
+                            dob: emp.dob,
+                            gender: emp.gender,
+                            docNo: emp.doc_no
+                        },
+                        emp.clinical_data || {},
+                        finalLab,
+                        emp.conclusion_data || {}
+                    );
+                } catch (xmlErr: any) {
+                    console.warn(`⚠️ [syncContractParaclinicalResults] Lỗi tái tạo XML cho master ${emp.master_id}:`, xmlErr.message);
+                }
+
+                // Cập nhật vào DB
+                if (emp.detail_id) {
+                    await query(
+                        'UPDATE health_check_details SET lab_data = $1::jsonb, updated_at = NOW() WHERE id = $2',
+                        [JSON.stringify(finalLab), emp.detail_id]
+                    );
+                } else {
+                    await query(
+                        'INSERT INTO health_check_details (master_id, clinical_data, lab_data, conclusion_data, created_at, updated_at) VALUES ($1, $2::jsonb, $3::jsonb, $4::jsonb, NOW(), NOW())',
+                        [emp.master_id, JSON.stringify(emp.clinical_data || {}), JSON.stringify(finalLab), JSON.stringify(emp.conclusion_data || {})]
+                    );
+                }
+
+                if (xmlData) {
+                    await query(
+                        'UPDATE health_check_masters SET xml_data = $1, updated_at = NOW() WHERE id = $2',
+                        [xmlData, emp.master_id]
+                    );
+                } else {
+                    await query(
+                        'UPDATE health_check_masters SET updated_at = NOW() WHERE id = $1',
+                        [emp.master_id]
+                    );
+                }
+
+                updatedCount++;
+            }
+
+            console.log(`✅ [syncContractParaclinicalResults] Hoàn thành: Đã cập nhật ${updatedCount} hồ sơ, bỏ qua ${skippedAlreadyHasResults} (đã có), ${skippedNoHisResults} (HIS chưa có KQ), ${skippedSignedOrSent} (đã ký/gửi).`);
+
+            let message = '';
+            if (updatedCount > 0) {
+                message = `Đã đồng bộ kết quả CLS thành công cho ${updatedCount}/${receivedEmployees.length} hồ sơ!`;
+                if (skippedNoHisResults > 0) message += ` (${skippedNoHisResults} hồ sơ HIS chưa có KQ)`;
+                if (skippedAlreadyHasResults > 0) message += ` (${skippedAlreadyHasResults} hồ sơ đã có đủ KQ)`;
+            } else if (skippedNoHisResults > 0 && skippedNoHisResults === receivedEmployees.length) {
+                message = `Chưa thể đồng bộ: ${skippedNoHisResults} hồ sơ đã tiếp đón nhưng chưa có kết quả xét nghiệm/CĐHA nào trên HIS Core!`;
+            } else if (skippedAlreadyHasResults > 0 && skippedAlreadyHasResults === receivedEmployees.length) {
+                message = `Tất cả ${skippedAlreadyHasResults} hồ sơ đã có kết quả CLS đầy đủ, không có kết quả mới từ HIS.`;
+            } else {
+                message = `Đã kiểm tra ${receivedEmployees.length} hồ sơ: Cập nhật ${updatedCount}, bỏ qua ${skippedNoHisResults} (HIS chưa có KQ), ${skippedAlreadyHasResults} (đã có KQ), ${skippedSignedOrSent} (đã ký/gửi).`;
+            }
+
+            return res.json({
+                success: true,
+                message,
+                stats: {
+                    totalReceived: receivedEmployees.length,
+                    updatedCount,
+                    skippedAlreadyHasResults,
+                    skippedNoHisResults,
+                    skippedSignedOrSent
+                }
+            });
+        } catch (error: any) {
+            console.error('❌ KSK Controller: Lỗi syncContractParaclinicalResults:', error);
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // Báo cáo tổng kết & thống kê phân loại sức khỏe đoàn khám (Enterprise Health Check Analytics)
+    async getContractReportSummary(req: Request, res: Response) {
+        const { id } = req.params;
+        const contractId = parseInt(String(id), 10);
+        if (!contractId || isNaN(contractId)) {
+            return res.status(400).json({ success: false, message: 'Mã hợp đồng không hợp lệ' });
+        }
+
+        try {
+            // 1. Thông tin hợp đồng
+            const contractRes = await query(`
+                SELECT c.hec_contract_id as id, c.hec_no as code,
+                       COALESCE(NULLIF(TRIM(c.hec_description), ''), c.hec_no) as name,
+                       c.hec_company_id, c.hec_date, c.hec_examdate, c.hec_status
+                FROM hms_exm_contract c
+                WHERE c.hec_contract_id = $1
+            `, [contractId]);
+
+            if (contractRes.rows.length === 0) {
+                return res.status(404).json({ success: false, message: 'Không tìm thấy hợp đồng' });
+            }
+
+            const contract = contractRes.rows[0];
+
+            // 2. Danh sách nhân viên và chi tiết kết luận khám
+            const empRes = await query(`
+                SELECT 
+                    e.hee_employee_id as id,
+                    COALESCE(e.hee_id, e.hee_employee_id) as code,
+                    trim(COALESCE(e.hee_surname,'')||' '||COALESCE(e.hee_midname,'')||' '||COALESCE(e.hee_firstname, e.hee_name, '')) as name,
+                    to_char(e.hee_birthdate, 'DD/MM/YYYY') as dob,
+                    e.hee_sex as gender,
+                    COALESCE(e.hee_cardid, e.hee_cccd) as cccd,
+                    e.hee_phone as phone,
+                    e.hee_dept as dept,
+                    e.hee_pos as pos,
+                    e.hee_docno as doc_no,
+                    e.hee_status as employee_status,
+                    COALESCE(cl.hecl_phanloai, e.hee_conclusion) as phanloai,
+                    cl.hecl_conclusion as conclusion,
+                    cl.hecl_remark as remark,
+                    cl.hecl_mat as mat,
+                    cl.hecl_tmh as tmh,
+                    cl.hecl_rhm as rhm,
+                    cl.hecl_tuanhoan as noi,
+                    cl.hecl_ngoai as ngoai,
+                    e.hee_height as height,
+                    e.hee_weight as weight,
+                    e.hee_bmi as bmi,
+                    e.hee_blood_pressure as blood_pressure,
+                    m.signature_status,
+                    m.send_status
+                FROM hms_exm_employee e
+                LEFT JOIN hms_exm_conclusion cl ON cl.hecl_docno::text = e.hee_docno
+                LEFT JOIN health_check_masters m ON m.his_employee_id = e.hee_employee_id AND m.his_contract_id = $1
+                WHERE e.hee_contract_id = $1 AND e.hee_isactive = 'Y'
+                ORDER BY e.hee_employee_id ASC
+            `, [contractId]);
+
+            const employees = empRes.rows;
+            const totalEmployees = employees.length;
+            const receivedEmployees = employees.filter(e => e.doc_no && e.doc_no !== '0').length;
+            const concludedEmployees = employees.filter(e => e.phanloai && e.phanloai.trim() !== '').length;
+            const syncedEmployees = employees.filter(e => e.send_status === 'Success').length;
+
+            // 3. Thống kê phân loại sức khỏe (Loại 1 -> Loại 5)
+            const classificationCounts: Record<string, number> = {
+                'Loại 1': 0,
+                'Loại 2': 0,
+                'Loại 3': 0,
+                'Loại 4': 0,
+                'Loại 5': 0,
+                'Chưa phân loại': 0
+            };
+
+            for (const emp of employees) {
+                let pl = emp.phanloai?.trim();
+                if (pl === '1') pl = 'Loại 1';
+                else if (pl === '2') pl = 'Loại 2';
+                else if (pl === '3') pl = 'Loại 3';
+                else if (pl === '4') pl = 'Loại 4';
+                else if (pl === '5') pl = 'Loại 5';
+
+                if (pl && classificationCounts[pl] !== undefined) {
+                    classificationCounts[pl]++;
+                } else if (emp.doc_no) {
+                    classificationCounts['Chưa phân loại']++;
+                }
+            }
+
+            // 4. Thống kê tỷ lệ bệnh lý thường gặp
+            const pathologyStats = {
+                refractiveError: employees.filter(e => e.mat && (e.mat.toLowerCase().includes('cận') || e.mat.toLowerCase().includes('loạn') || e.mat.toLowerCase().includes('viễn'))).length,
+                entIssue: employees.filter(e => e.tmh && (e.tmh.toLowerCase().includes('viêm') || e.tmh.toLowerCase().includes('lệch'))).length,
+                dentalIssue: employees.filter(e => e.rhm && (e.rhm.toLowerCase().includes('sâu') || e.rhm.toLowerCase().includes('viêm') || e.rhm.toLowerCase().includes('cao'))).length,
+                hypertension: employees.filter(e => e.blood_pressure && (parseInt(String(e.blood_pressure).split('/')[0], 10) >= 140 || parseInt(String(e.blood_pressure).split('/')[1] || '0', 10) >= 90)).length,
+                overweight: employees.filter(e => Number(e.bmi) >= 23).length
+            };
+
+            return res.json({
+                success: true,
+                contract,
+                summary: {
+                    totalEmployees,
+                    receivedEmployees,
+                    concludedEmployees,
+                    syncedEmployees,
+                    concludedRate: totalEmployees > 0 ? Math.round((concludedEmployees / totalEmployees) * 100) : 0,
+                    classificationCounts,
+                    pathologyStats
+                },
+                employees
+            });
+        } catch (error: any) {
+            console.error('❌ KSK Controller: Lỗi getContractReportSummary:', error);
             return res.status(500).json({ error: error.message });
         }
     }

@@ -18,6 +18,11 @@ export interface HealthCheckDocument {
     sentAt?: string;
     transactionId?: string;
     errorMessage?: string;
+    syt_send_status?: 'Unsent' | 'Pending' | 'Success' | 'Error';
+    syt_sent_at?: string;
+    syt_transaction_id?: string;
+    syt_error_message?: string;
+    syt_response_log?: string;
     createdAt: string;
 }
 
@@ -30,6 +35,42 @@ export interface SeedFromHisResponse {
     partial_update?: number;
     skipped_signed?: number;
     skipped_sent?: number;
+}
+
+export interface PatientFeeItem {
+    fee_id: number;
+    doc_no: number;
+    item_id: string;
+    item_name: string;
+    unit: string;
+    quantity: number;
+    ins_price: number;
+    unit_price: number;
+    total_ins_cost: number;
+    total_cost: number;
+    fee_date: string;
+    status: string;
+    group_name: string;
+}
+
+export interface PatientFeeGroup {
+    group_name: string;
+    count: number;
+    total_ins_cost: number;
+    total_cost: number;
+}
+
+export interface PatientFeeReport {
+    success: boolean;
+    docNo: number | string;
+    docNoDisplay?: string;
+    patientName?: string;
+    totalInsuranceCost: number;
+    totalServiceCost: number;
+    totalItems: number;
+    items: PatientFeeItem[];
+    groups: PatientFeeGroup[];
+    message?: string;
 }
 
 export const healthCheckService = {
@@ -186,6 +227,15 @@ export const healthCheckService = {
         }
     },
 
+    getDocumentFees: async (id: string | number): Promise<PatientFeeReport> => {
+        try {
+            return await apiClient.get<PatientFeeReport>(`/health-check-sync/documents/${id}/fees`);
+        } catch (error) {
+            console.error("Error fetching document fees:", error);
+            throw error;
+        }
+    },
+
     createDocument: async (payload: any): Promise<{ success: boolean; id: number }> => {
         try {
             return await apiClient.post<{ success: boolean; id: number }>('/health-check-sync/documents', payload);
@@ -290,6 +340,25 @@ export const healthCheckService = {
             return await apiClient.post<{ success: boolean; message: string; deletedCount?: number }>(`/health-check-sync/contracts/${id}/cleanup-unreceived`, {});
         } catch (error) {
             console.error("Error cleaning up unreceived contract employees:", error);
+            throw error;
+        }
+    },
+
+    syncContractParaclinicalResults: async (id: string | number, options?: { mode?: 'missing_only' | 'all_new' }): Promise<{
+        success: boolean;
+        message: string;
+        stats?: {
+            totalReceived: number;
+            updatedCount: number;
+            skippedAlreadyHasResults: number;
+            skippedNoHisResults: number;
+            skippedSignedOrSent: number;
+        };
+    }> => {
+        try {
+            return await apiClient.post(`/health-check-sync/contracts/${id}/sync-cls`, options || { mode: 'missing_only' });
+        } catch (error) {
+            console.error("Error syncing paraclinical results from HIS:", error);
             throw error;
         }
     },
@@ -451,6 +520,15 @@ export const healthCheckService = {
         }
     },
 
+    testSytConnection: async (payload: any): Promise<{ success: boolean; message: string }> => {
+        try {
+            return await apiClient.post<{ success: boolean; message: string }>('/health-check-sync/settings/test-syt-connection', payload);
+        } catch (error) {
+            console.error("Error testing SYT health check connection:", error);
+            throw error;
+        }
+    },
+
     searchEmployeeByCard: async (queryStr: string, contractId?: string | number): Promise<any[]> => {
         try {
             const contractParam = contractId ? `&contractId=${contractId}` : '';
@@ -475,6 +553,15 @@ export const healthCheckService = {
             return await apiClient.post<{ success: boolean; message: string; count: number; total: number; failed: number; errors?: string[] }>(`/health-check-sync/contracts/${contractId}/receive-all`, { roomId });
         } catch (error) {
             console.error("Error receiving all contract employees:", error);
+            throw error;
+        }
+    },
+
+    getContractReportSummary: async (contractId: number | string): Promise<any> => {
+        try {
+            return await apiClient.get<any>(`/health-check-sync/contracts/${contractId}/report-summary`);
+        } catch (error) {
+            console.error("Error fetching contract report summary:", error);
             throw error;
         }
     },

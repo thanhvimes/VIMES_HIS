@@ -34,6 +34,12 @@ export interface HealthCheckSettings {
     hsm_password?: string;
     hsm_client_id?: string;
     hsm_client_secret?: string;
+    sync_target_mode?: 'BYT_ONLY' | 'BOTH' | 'SYT_ONLY';
+    syt_url?: string;
+    syt_username?: string;
+    syt_password?: string;
+    syt_receiver_id?: string;
+    syt_enabled?: boolean;
     created_at?: Date;
     updated_at?: Date;
 }
@@ -47,37 +53,8 @@ let globalHealthCheckSettings: HealthCheckSettings | null = null;
  */
 export async function loadHealthCheckSettings(): Promise<HealthCheckSettings | null> {
     try {
-        // Ensure columns exist in DB dynamically
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS vneid_private_key text`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS vneid_public_key text`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS vneid_receiver_id varchar(50) DEFAULT 'TTYQG'`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS signature_type varchar(20) DEFAULT 'HSM'`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_url varchar(255) DEFAULT 'http://vimes.xyz:8091'`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_provider varchar(50) DEFAULT 'VNPT-CA'`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_username varchar(100)`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_password text`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_client_id varchar(100)`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS hsm_client_secret text`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS ma_cskcb_byt varchar(20)`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS reception_slip_template text`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS use_qz_tray boolean DEFAULT false`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_label_size_xn varchar(50)`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_label_size_ksk varchar(50)`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_show_hospital boolean DEFAULT true`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_show_date boolean DEFAULT true`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_show_sample_type boolean DEFAULT true`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS allow_unsigned_sync boolean DEFAULT false`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_zpl_template_xn text`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_zpl_template_ksk text`);
-        await query(`ALTER TABLE health_check_settings ADD COLUMN IF NOT EXISTS barcode_printer_name varchar(255)`);
-        // Auto-migrate any existing XML records in DB from <TYPE>Child</TYPE> to <TYPE>ChildUnder</TYPE>
-        try {
-            await query(`UPDATE health_check_masters SET xml_data = REPLACE(xml_data, '<TYPE>Child</TYPE>', '<TYPE>ChildUnder</TYPE>') WHERE xml_data LIKE '%<TYPE>Child</TYPE>%'`);
-            await query(`UPDATE health_check_masters SET signature = REPLACE(signature, '<TYPE>Child</TYPE>', '<TYPE>ChildUnder</TYPE>') WHERE signature LIKE '%<TYPE>Child</TYPE>%'`);
-        } catch (migErr) {}
-
         const result = await query(
-            `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_cskcb_byt, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, use_qz_tray, vneid_private_key, vneid_public_key, vneid_receiver_id, signature_type, hsm_url, hsm_provider, hsm_username, hsm_password, hsm_client_id, hsm_client_secret FROM health_check_settings ORDER BY id ASC LIMIT 1`
+            `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_cskcb_byt, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, use_qz_tray, vneid_private_key, vneid_public_key, vneid_receiver_id, signature_type, hsm_url, hsm_provider, hsm_username, hsm_password, hsm_client_id, hsm_client_secret, sync_target_mode, syt_url, syt_username, syt_password, syt_receiver_id, syt_enabled FROM health_check_settings ORDER BY id ASC LIMIT 1`
         );
 
         if (result.rows.length > 0) {
@@ -138,14 +115,32 @@ export async function loadHealthCheckSettings(): Promise<HealthCheckSettings | n
                 }
             }
 
+            const rawSytPassword = row.syt_password || '';
+            let decryptedSytPassword = '';
+            if (rawSytPassword) {
+                try {
+                    if (SecurityUtils.isEncrypted(rawSytPassword)) {
+                        decryptedSytPassword = SecurityUtils.resolveSecret(rawSytPassword);
+                    } else {
+                        decryptedSytPassword = SecurityUtils.decrypt(rawSytPassword);
+                    }
+                } catch (e) {
+                    decryptedSytPassword = rawSytPassword;
+                }
+            }
+
             globalHealthCheckSettings = {
                 ...row,
+                sync_target_mode: row.sync_target_mode || 'BYT_ONLY',
+                syt_url: row.syt_url || 'https://api-hssk.hanoi.gov.vn',
+                syt_receiver_id: row.syt_receiver_id || 'VTS',
                 vneid_password: decryptedPassword,
                 vneid_private_key: decryptedPrivateKey,
                 hsm_password: decryptedHsmPassword,
-                hsm_client_secret: decryptedHsmClientSecret
+                hsm_client_secret: decryptedHsmClientSecret,
+                syt_password: decryptedSytPassword
             };
-            console.log(`✅ Health Check Sync Settings loaded into memory (Facility: ${row.ma_cskcb})`);
+            console.log(`✅ Health Check Sync Settings loaded into memory (Facility: ${row.ma_cskcb}, Mode: ${row.sync_target_mode || 'BYT_ONLY'})`);
             return globalHealthCheckSettings;
         }
         console.warn('⚠️ No Health Check settings found in database settings table.');

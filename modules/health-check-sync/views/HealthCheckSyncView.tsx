@@ -154,6 +154,7 @@ const HealthCheckSyncView: React.FC = () => {
     const [barcodeShowDate, setBarcodeShowDate] = useState(true);
     const [barcodeShowSampleType, setBarcodeShowSampleType] = useState(true);
     const [allowUnsignedSync, setAllowUnsignedSync] = useState(false);
+    const [syncTargetMode, setSyncTargetMode] = useState<'BYT_ONLY' | 'BOTH' | 'SYT_ONLY'>('BYT_ONLY');
 
     // Barcode print action states
     const [activeBarcodeDocs, setActiveBarcodeDocs] = useState<any[]>([]);
@@ -172,6 +173,7 @@ const HealthCheckSyncView: React.FC = () => {
                 setBarcodeShowSampleType(settings.barcode_show_sample_type !== false);
                 setAllowUnsignedSync(settings.allow_unsigned_sync === true);
                 setSignatureTypeSelect(settings.signature_type || 'HSM');
+                setSyncTargetMode(settings.sync_target_mode || 'BYT_ONLY');
             }
         } catch (error) {
             console.error("Failed to load settings in HealthCheckSyncView:", error);
@@ -483,10 +485,21 @@ const HealthCheckSyncView: React.FC = () => {
         }
 
         // Kiểm tra điều kiện chỉ cho phép gửi khi ĐÃ KẾT LUẬN
-        const uncompletedDocs = documents.filter(d => 
-            selectedIds.has(d.id.toString()) && 
-            !(d.status === 'ĐÃ_KẾT_LUẬN' || d.conclusion_data?.fitness_class || d.conclusion_data?.ket_luan_loai_suc_khoe || d.conclusion_data?.diagnosis)
-        );
+        const uncompletedDocs = documents.filter(d => {
+            if (!selectedIds.has(d.id.toString())) return false;
+            const specMeta = d.clinical_data?.specialty_metadata || d.clinical_data?.clinical_exam?.specialty_metadata || {};
+            const hasConcl = !!(
+                (d.conclusion_data?.fitness_class && String(d.conclusion_data.fitness_class).trim()) ||
+                (d.conclusion_data?.ket_luan_loai_suc_khoe && String(d.conclusion_data.ket_luan_loai_suc_khoe).trim()) ||
+                (d.conclusion_data?.diagnosis && String(d.conclusion_data.diagnosis).trim())
+            );
+            const isDone = d.status === 'ĐÃ_KẾT_LUẬN' 
+                || specMeta.conclusion?.status === 'ĐÃ_KẾT_LUẬN'
+                || specMeta.conclusion?.status === 'ĐÃ_DUYỆT'
+                || d.signature_status === 'Signed'
+                || (hasConcl && specMeta.conclusion?.status !== 'CHUA_KHAM');
+            return !isDone;
+        });
         if (uncompletedDocs.length > 0) {
             toast.warning(`Có ${uncompletedDocs.length} hồ sơ chưa có kết luận khám. Bấm "Gửi" chỉ cho phép khi hồ sơ ở trạng thái "Đã kết luận"!`);
             return;
@@ -698,7 +711,17 @@ const HealthCheckSyncView: React.FC = () => {
                 else if (status === 'Pending') sendStatusText = 'Đang gửi';
                 else if (status === 'Error') sendStatusText = 'Thất bại';
 
-                const isDone = doc.conclusion_data?.fitness_class || doc.conclusion_data?.ket_luan_loai_suc_khoe || doc.conclusion_data?.diagnosis;
+                const specMeta = doc.clinical_data?.specialty_metadata || doc.clinical_data?.clinical_exam?.specialty_metadata || {};
+                const hasConcl = !!(
+                    (doc.conclusion_data?.fitness_class && String(doc.conclusion_data.fitness_class).trim()) ||
+                    (doc.conclusion_data?.ket_luan_loai_suc_khoe && String(doc.conclusion_data.ket_luan_loai_suc_khoe).trim()) ||
+                    (doc.conclusion_data?.diagnosis && String(doc.conclusion_data.diagnosis).trim())
+                );
+                const isDone = doc.status === 'ĐÃ_KẾT_LUẬN' 
+                    || specMeta.conclusion?.status === 'ĐÃ_KẾT_LUẬN'
+                    || specMeta.conclusion?.status === 'ĐÃ_DUYỆT'
+                    || doc.signature_status === 'Signed'
+                    || (hasConcl && specMeta.conclusion?.status !== 'CHUA_KHAM');
                 const examStatusText = isDone ? 'Đã kết luận' : 'Đang khám';
 
                 return [
@@ -1312,6 +1335,7 @@ const HealthCheckSyncView: React.FC = () => {
                                 />
                             ) : (
                                 <DocumentList
+                                    syncTargetMode={syncTargetMode}
                                     documents={filteredDocuments}
                                     selectedIds={selectedIds}
                                     onToggleSelect={handleToggleSelect}

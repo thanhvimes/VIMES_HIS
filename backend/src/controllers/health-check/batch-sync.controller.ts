@@ -3,7 +3,7 @@ import { query, transaction } from '../../config/database';
 import { generateXmlPayload } from './xml-generator';
 import { hisIntegrationController } from './his-integration';
 import { mergeClinicalData, mergeLabData, mergeConclusionData, formatYmdString } from '../../services/health-check-merge.service';
-import { sanitizeHisDate, calculateAge, evaluateFitnessClass, buildSpecialtyMetadata } from '../../services/health-check-classifier.service';
+import { sanitizeHisDate, calculateAge, evaluateFitnessClass, buildSpecialtyMetadata, mapConclusionRowToClinicalExam, parseHisPartsSummary } from '../../services/health-check-classifier.service';
 
 export interface SyncDocResult {
     docNo: number | string;
@@ -259,28 +259,12 @@ class BatchSyncController {
                     bmi: examRow?.he_bmi ? Number(examRow.he_bmi).toFixed(2) : '',
                     physical_summary: conclRow?.hecl_theluc || ''
                 },
-                clinical_exam: {
-                    internal: [conclRow?.hecl_tuanhoan, conclRow?.hecl_hohap, conclRow?.hecl_tieuhoa, conclRow?.hecl_thantietnieu].filter(Boolean).join('\n'),
-                    eye: conclRow?.hecl_mat || '',
-                    ent: conclRow?.hecl_tmh || '',
-                    dental: conclRow?.hecl_rhm || '',
-                    external: conclRow?.hecl_ngoai || '',
-                    dermatology: conclRow?.hecl_dalieu || '',
-                    gynecology: conclRow?.hecl_phukhoa || '',
-                    neurology: conclRow?.hecl_thankinh || '',
-                    psychiatry: conclRow?.hecl_tamthan || '',
-                    noi_khoa_tuan_hoan: conclRow?.hecl_tuanhoan || '',
-                    noi_khoa_ho_hap: conclRow?.hecl_hohap || '',
-                    noi_khoa_tieu_hoa: conclRow?.hecl_tieuhoa || '',
-                    noi_khoa_than_tietnieu_pl: conclRow?.hecl_thantietnieu || '',
-                    noi_khoa_than_kinh: conclRow?.hecl_thankinh || '',
-                    noi_khoa_tam_than: conclRow?.hecl_tamthan || '',
-                    nhi_tuan_hoan: conclRow?.hecl_tuanhoan || '',
-                    nhi_ho_hap: conclRow?.hecl_hohap || '',
-                    nhi_tieu_hoa: conclRow?.hecl_tieuhoa || '',
-                    nhi_than_kinh: conclRow?.hecl_thankinh || '',
-                    nhi_tam_than: conclRow?.hecl_tamthan || ''
-                },
+                clinical_exam: mapConclusionRowToClinicalExam(conclRow, {
+                    raw_he_parts: examRow?.he_parts || '',
+                    noi_khoa_tuan_hoan: parseHisPartsSummary(examRow?.he_parts).cleanInternalText || '',
+                    noi_khoa_ho_hap: parseHisPartsSummary(examRow?.he_parts).cleanInternalText || '',
+                    internal: parseHisPartsSummary(examRow?.he_parts).cleanInternalText || ''
+                }, conclRow?.hecl_phanloai),
                 extra: {
                     gio_kham: examRow?.exam_time || '',
                     ngay_kham: examRow?.exam_date || hisRow.ngay_vao || '',
@@ -442,6 +426,21 @@ class BatchSyncController {
                         masterId
                     ]);
 
+                    if (docNoVal) {
+                        try {
+                            await hisIntegrationController.pushbackClinicalAndConclusion(
+                                client,
+                                docNoVal,
+                                finalClinical,
+                                finalConclusion,
+                                currentUserId,
+                                currentUserName
+                            );
+                        } catch (pushErr) {
+                            console.warn(`⚠️ [batchSyncHis] Lỗi đồng bộ hms_exm_conclusion cho ${docNoVal}:`, pushErr);
+                        }
+                    }
+
                     return { action: 'updated', message: 'Cập nhật thành công từ HIS' };
                 } else {
                     // Tạo mới
@@ -480,6 +479,21 @@ class BatchSyncController {
                         JSON.stringify(labData),
                         JSON.stringify(conclusionData)
                     ]);
+
+                    if (docNoVal) {
+                        try {
+                            await hisIntegrationController.pushbackClinicalAndConclusion(
+                                client,
+                                docNoVal,
+                                clinicalData,
+                                conclusionData,
+                                currentUserId,
+                                currentUserName
+                            );
+                        } catch (pushErr) {
+                            console.warn(`⚠️ [batchSyncHis] Lỗi đồng bộ hms_exm_conclusion cho ${docNoVal}:`, pushErr);
+                        }
+                    }
 
                     return { action: 'created', message: 'Tạo mới thành công từ HIS' };
                 }

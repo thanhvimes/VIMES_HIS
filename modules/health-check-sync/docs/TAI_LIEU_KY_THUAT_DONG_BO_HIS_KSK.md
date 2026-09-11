@@ -212,6 +212,19 @@ sequenceDiagram
 3. **Cơ chế Đọc 2 Chiều (HIS -> KSK) qua `getHisPatient`:**
    - Khi tra cứu đợt khám trực tiếp từ HIS, hệ thống ưu tiên đọc các trường kết luận và khám chuyên khoa từ `hms_exm_conclusion` để đổ dữ liệu tự động vào form nhập liệu KSK, đảm bảo tính đồng bộ 2 chiều toàn diện giữa 2 phân hệ.
 
+### 2.6. API Đồng bộ Kết quả Cận lâm sàng Hàng loạt theo Gói khám
+
+#### `POST /api/v1/health-check-sync/contracts/:id/sync-cls`
+- **Chức năng:** Quét toàn bộ nhân viên đã tiếp nhận trong hợp đồng KSK (`hee_docno > 0`), tự động lấy kết quả Xét nghiệm (LIS: `hms_testorderline`) và Chẩn đoán hình ảnh, Siêu âm (PACS: `hms_pacsorderline`, `hms_pacs_result`) từ HIS Core và cập nhật hàng loạt vào `health_check_details.lab_data`.
+- **Controller:** `contractsController.syncContractParaclinicalResults`
+- **Payload (`req.body`):** `{ mode: 'missing_only' | 'all_new' }` (Mặc định: `'missing_only'`).
+- **Cơ chế hoạt động:**
+  1. Gom nhóm danh sách `docNos` của toàn bộ nhân viên đã tiếp nhận trong hợp đồng.
+  2. Sử dụng `hisIntegrationController.fetchBatchStructuredParaclinicalData(docNos)` để truy vấn song song hiệu năng cao (xử lý ~1.000 hồ sơ trong < 400ms).
+  3. Áp dụng thuật toán an toàn `mergeLabData(currentLab, freshLabData)`: bảo vệ kết quả bác sĩ đã chỉnh sửa tay (`user_edited: true`), chỉ cập nhật hoặc bổ sung các chỉ số mới.
+  4. Tự động tái tạo XML liên thông bằng `generateXmlPayload` để sẵn sàng cho quy trình Ký số và Liên thông VNeID.
+  5. Tự động bỏ qua các hồ sơ đã ký số (`signature_status = 'Signed'`) hoặc đã gửi VNeID thành công (`send_status = 'Success'`).
+
 ---
 
 ## 3. ĐẶC TẢ ĐỒNG BỘ CẬN LÂM SÀNG & XUẤT XML11 THEO `hfl_ma_chi_so`

@@ -455,9 +455,12 @@ class DocumentsController {
                 conclusionData
             );
 
-            // Lấy số tiếp nhận gốc của HIS từ mã số hồ sơ KSK
+            // Lấy số tiếp nhận gốc của HIS từ mã số hồ sơ KSK hoặc body
+            const bodyHisDocNo = req.body.his_doc_no || req.body.hisDocNo;
             const hisDocNoStr = docNo ? docNo.split('-').pop() : '';
-            let hisDocNo = hisDocNoStr ? parseInt(hisDocNoStr, 10) : null;
+            let hisDocNo = (bodyHisDocNo && /^\d+$/.test(String(bodyHisDocNo).trim()))
+                ? parseInt(String(bodyHisDocNo).trim(), 10)
+                : (hisDocNoStr && /^\d+$/.test(hisDocNoStr.trim()) ? parseInt(hisDocNoStr.trim(), 10) : null);
             if (hisDocNo && (isNaN(hisDocNo) || hisDocNo > 2147483647 || hisDocNo < -2147483648)) {
                 hisDocNo = null;
             }
@@ -465,7 +468,7 @@ class DocumentsController {
             const result = await transaction(async (client) => {
                 // Check if doc_no already exists in health_check_masters
                 const existingRes = await client.query(
-                    'SELECT id, signature_status, send_status FROM health_check_masters WHERE doc_no = $1 FOR UPDATE',
+                    'SELECT id, signature_status, send_status, his_doc_no FROM health_check_masters WHERE doc_no = $1 FOR UPDATE',
                     [docNo]
                 );
 
@@ -477,6 +480,9 @@ class DocumentsController {
                         throw err;
                     }
                     masterId = existingRes.rows[0].id;
+                    if (!hisDocNo && existingRes.rows[0]?.his_doc_no && /^\d+$/.test(String(existingRes.rows[0].his_doc_no).trim())) {
+                        hisDocNo = parseInt(String(existingRes.rows[0].his_doc_no).trim(), 10);
+                    }
                     
                     // Fetch existing details with lock to perform deep merge
                     const detailRes = await client.query(
@@ -662,7 +668,7 @@ class DocumentsController {
             }
 
             // Check if document has already been successfully synced to VNeID
-            const masterCheck = await query(`SELECT send_status, signature_status FROM health_check_masters WHERE id = $1`, [numId]);
+            const masterCheck = await query(`SELECT send_status, signature_status, his_doc_no FROM health_check_masters WHERE id = $1`, [numId]);
             if (masterCheck.rows.length > 0 && masterCheck.rows[0].send_status === 'Success') {
                 return res.status(400).json({ error: "Hồ sơ đã gửi liên thông VNeID thành công, không thể chỉnh sửa!" });
             }
@@ -671,9 +677,14 @@ class DocumentsController {
                 return res.status(423).json({ error: 'Hồ sơ đã ký số. Phải hủy ký số trước khi chỉnh sửa.' });
             }
 
-            // Lấy số tiếp nhận gốc của HIS từ mã số hồ sơ KSK (ví dụ: KSK-2026-12345 -> 12345)
+            // Lấy số tiếp nhận gốc của HIS từ mã số hồ sơ KSK hoặc his_doc_no
+            const bodyHisDocNo = req.body.his_doc_no || req.body.hisDocNo;
             const hisDocNoStr = docNo ? docNo.split('-').pop() : '';
-            let hisDocNo = hisDocNoStr ? parseInt(hisDocNoStr, 10) : null;
+            let hisDocNo = (bodyHisDocNo && /^\d+$/.test(String(bodyHisDocNo).trim()))
+                ? parseInt(String(bodyHisDocNo).trim(), 10)
+                : (masterCheck.rows[0]?.his_doc_no && /^\d+$/.test(String(masterCheck.rows[0].his_doc_no).trim())
+                    ? parseInt(String(masterCheck.rows[0].his_doc_no).trim(), 10)
+                    : (hisDocNoStr && /^\d+$/.test(hisDocNoStr.trim()) ? parseInt(hisDocNoStr.trim(), 10) : null));
             if (hisDocNo && (isNaN(hisDocNo) || hisDocNo > 2147483647 || hisDocNo < -2147483648)) {
                 hisDocNo = null;
             }
@@ -1061,6 +1072,135 @@ class DocumentsController {
         } catch (error: any) {
             console.error('❌ KSK Controller: Lỗi markBarcodePrinted:', error);
             return res.status(500).json({ error: error.message });
+        }
+    }
+
+    /**
+     * Lấy danh sách chi phí dịch vụ & đơn giá bảo hiểm của bệnh nhân từ HIS Core
+     */
+    async getDocumentFees(req: Request, res: Response) {
+        try {
+            const rawId = req.params.id;
+            const id = Array.isArray(rawId) ? String(rawId[0] || '') : String(rawId || '');
+            if (!id) {
+                return res.status(400).json({ success: false, message: 'Thiếu mã hồ sơ' });
+            }
+
+            // 1. Tìm thông tin hồ sơ trong health_check_masters
+            let masterRes: any;
+            if (/^\d+$/.test(id)) {
+                masterRes = await query('SELECT id, doc_no, his_doc_no, patient_id, patient_name FROM health_check_masters WHERE id = $1 LIMIT 1', [parseInt(id, 10)]);
+            }
+            if (!masterRes || masterRes.rows.length === 0) {
+                masterRes = await query('SELECT id, doc_no, his_doc_no, patient_id, patient_name FROM health_check_masters WHERE doc_no = $1 LIMIT 1', [id]);
+            }
+
+            let hisDocNo: number | null = null;
+            let patientName = '';
+            let docNoDisplay = '';
+
+            if (masterRes && masterRes.rows.length > 0) {
+                const master = masterRes.rows[0];
+                docNoDisplay = master.doc_no;
+                patientName = master.patient_name;
+                if (master.his_doc_no && Number(master.his_doc_no) > 0) {
+                    hisDocNo = Number(master.his_doc_no);
+                } else if (master.doc_no) {
+                    // Trích xuất số hồ sơ HIS từ chuỗi doc_no (VD: KSK-2026-26062886 -> 26062886)
+                    const cleaned = String(master.doc_no).replace(/^.*-/, '').replace(/\D/g, '');
+                    if (cleaned.length >= 4) {
+                        hisDocNo = parseInt(cleaned, 10);
+                    }
+                }
+            } else if (/^\d+$/.test(id)) {
+                hisDocNo = parseInt(id, 10);
+                docNoDisplay = id;
+            }
+
+            if (!hisDocNo) {
+                return res.json({
+                    success: true,
+                    docNo: docNoDisplay || id,
+                    docNoDisplay: docNoDisplay || id,
+                    patientName: patientName,
+                    totalInsuranceCost: 0,
+                    totalServiceCost: 0,
+                    totalItems: 0,
+                    items: [],
+                    groups: []
+                });
+            }
+
+            // 2. Truy vấn chi tiết dịch vụ và đơn giá bảo hiểm từ hms_fee
+            const feeSql = `
+                SELECT 
+                    f.hfe_fee_id AS fee_id,
+                    f.hfe_docno AS doc_no,
+                    f.hfe_itemid AS item_id,
+                    COALESCE(NULLIF(f.hfe_desc, ''), l.hfl_name, 'Dịch vụ y tế') AS item_name,
+                    COALESCE(NULLIF(f.hfe_unit, ''), l.hfl_unit, 'Lần') AS unit,
+                    COALESCE(f.hfe_quantity, 1) AS quantity,
+                    COALESCE(f.hfe_insprice, l.hfl_insprice, 0) AS ins_price,
+                    COALESCE(f.hfe_unitprice, l.hfl_servprice, 0) AS unit_price,
+                    (COALESCE(f.hfe_insprice, l.hfl_insprice, 0) * COALESCE(f.hfe_quantity, 1)) AS total_ins_cost,
+                    COALESCE(f.hfe_cost, f.hfe_unitprice * f.hfe_quantity, 0) AS total_cost,
+                    f.hfe_date AS fee_date,
+                    f.hfe_status AS status,
+                    COALESCE(g.hfg_name, 'Dịch vụ kỹ thuật & Khám') AS group_name
+                FROM hms_fee f
+                LEFT JOIN hms_fee_list l ON (l.hfl_feeid = f.hfe_itemid)
+                LEFT JOIN hms_fee_group g ON (g.hfg_id = COALESCE(f.hfe_feegroup, l.hfl_groupid))
+                WHERE f.hfe_docno = $1
+                ORDER BY COALESCE(g.hfg_name, ''), f.hfe_fee_id ASC
+            `;
+
+            const feeRes = await query(feeSql, [hisDocNo]);
+            const items = feeRes.rows.map((r: any) => ({
+                fee_id: r.fee_id,
+                doc_no: r.doc_no,
+                item_id: r.item_id,
+                item_name: r.item_name,
+                unit: r.unit,
+                quantity: parseFloat(r.quantity) || 1,
+                ins_price: parseFloat(r.ins_price) || 0,
+                unit_price: parseFloat(r.unit_price) || 0,
+                total_ins_cost: parseFloat(r.total_ins_cost) || 0,
+                total_cost: parseFloat(r.total_cost) || 0,
+                fee_date: r.fee_date,
+                status: r.status,
+                group_name: r.group_name
+            }));
+
+            const totalInsuranceCost = items.reduce((sum: number, item: any) => sum + item.total_ins_cost, 0);
+            const totalServiceCost = items.reduce((sum: number, item: any) => sum + item.total_cost, 0);
+
+            // Phân nhóm dịch vụ
+            const groupMap = new Map<string, { group_name: string; count: number; total_ins_cost: number; total_cost: number }>();
+            for (const item of items) {
+                const g = item.group_name || 'Dịch vụ khác';
+                if (!groupMap.has(g)) {
+                    groupMap.set(g, { group_name: g, count: 0, total_ins_cost: 0, total_cost: 0 });
+                }
+                const entry = groupMap.get(g)!;
+                entry.count += 1;
+                entry.total_ins_cost += item.total_ins_cost;
+                entry.total_cost += item.total_cost;
+            }
+
+            return res.json({
+                success: true,
+                docNo: hisDocNo,
+                docNoDisplay: docNoDisplay || String(hisDocNo),
+                patientName: patientName,
+                totalInsuranceCost,
+                totalServiceCost,
+                totalItems: items.length,
+                items,
+                groups: Array.from(groupMap.values())
+            });
+        } catch (error: any) {
+            console.error('❌ KSK Controller: Lỗi getDocumentFees:', error);
+            return res.status(500).json({ success: false, message: error.message });
         }
     }
 }

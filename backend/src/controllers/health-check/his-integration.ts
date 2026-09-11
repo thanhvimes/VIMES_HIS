@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { query, transaction } from '../../config/database';
 import { generateXmlPayload } from './xml-generator';
 import { formatYmdString } from '../../services/health-check-merge.service';
-import { evaluateFitnessClass, calculateAge, buildSpecialtyMetadata, sanitizeHisDate } from '../../services/health-check-classifier.service';
+import { evaluateFitnessClass, calculateAge, buildSpecialtyMetadata, sanitizeHisDate, parseFitnessClassFromText, cleanConclusionText, mapConclusionRowToClinicalExam, parseHisPartsSummary } from '../../services/health-check-classifier.service';
 
 class HisIntegrationController {
     
@@ -617,6 +617,8 @@ class HisIntegrationController {
                         bmiVal = (Number(weightVal) / (hM * hM)).toFixed(2);
                     }
 
+                    const partsParsed = parseHisPartsSummary(examRow?.he_parts);
+
                     const internalText = [
                         conclRow?.hecl_tuanhoan,
                         conclRow?.hecl_hohap,
@@ -625,7 +627,7 @@ class HisIntegrationController {
                         conclRow?.hecl_noitiet,
                         conclRow?.hecl_coxuongkhop,
                         examRow?.he_examine,
-                        examRow?.he_parts
+                        partsParsed.cleanInternalText
                     ].filter(Boolean).map((s: string) => String(s).trim()).join('\n');
 
                     const docName = examRow?.doctor_name || row.doctor_name || 'BS. Nguyễn Văn A';
@@ -689,29 +691,13 @@ class HisIntegrationController {
                             nhip_tho: examRow?.he_breathinterval ? String(examRow.he_breathinterval) : '',
                             physical_summary: conclRow?.hecl_theluc || examRow?.he_examine || ''
                         },
-                        clinical_exam: {
+                        clinical_exam: mapConclusionRowToClinicalExam(conclRow, {
                             specialty_metadata: specialtyMetadata,
                             internal: internalText || '',
-                            eye: conclRow?.hecl_mat || '',
-                            ent: conclRow?.hecl_tmh || '',
-                            dental: conclRow?.hecl_rhm || '',
-                            external: conclRow?.hecl_ngoai || '',
-                            dermatology: conclRow?.hecl_dalieu || '',
-                            gynecology: conclRow?.hecl_phukhoa || '',
-                            neurology: conclRow?.hecl_thankinh || '',
-                            psychiatry: conclRow?.hecl_tamthan || '',
-                            noi_khoa_tuan_hoan: conclRow?.hecl_tuanhoan || (examRow?.he_parts ? String(examRow.he_parts).trim() : ''),
-                            noi_khoa_ho_hap: conclRow?.hecl_hohap || (examRow?.he_parts ? String(examRow.he_parts).trim() : ''),
-                            noi_khoa_tieu_hoa: conclRow?.hecl_tieuhoa || '',
-                            noi_khoa_than_tietnieu_pl: conclRow?.hecl_thantietnieu || '',
-                            noi_khoa_than_kinh: conclRow?.hecl_thankinh || '',
-                            noi_khoa_tam_than: conclRow?.hecl_tamthan || '',
-                            nhi_tuan_hoan: conclRow?.hecl_tuanhoan || (examRow?.he_parts ? String(examRow.he_parts).trim() : ''),
-                            nhi_ho_hap: conclRow?.hecl_hohap || (examRow?.he_parts ? String(examRow.he_parts).trim() : ''),
-                            nhi_tieu_hoa: conclRow?.hecl_tieuhoa || '',
-                            nhi_than_kinh: conclRow?.hecl_thankinh || '',
-                            nhi_tam_than: conclRow?.hecl_tamthan || ''
-                        },
+                            noi_khoa_tuan_hoan: partsParsed.cleanInternalText || '',
+                            noi_khoa_ho_hap: partsParsed.cleanInternalText || '',
+                            raw_he_parts: examRow?.he_parts || ''
+                        }, conclRow?.hecl_phanloai),
                         extra: {
                             gio_kham: examRow?.exam_time || row.admit_time || '',
                             ngay_kham: examRow?.exam_date || row.admit_ymd || '',
@@ -869,7 +855,7 @@ class HisIntegrationController {
                         formType: formType
                     });
 
-                    const conclusionData: any = (hasConclusion || evalResult.isAutoEvaluated || evalResult.fitnessClass) ? {
+                    const conclusionData: any = hasConclusion ? {
                         fitness_class: evalResult.fitnessClass,
                         diagnosis: evalResult.diagnosis,
                         doctor_id: evalResult.doctorId || conclDoctorId,
@@ -883,13 +869,13 @@ class HisIntegrationController {
                     const specMetadata = buildSpecialtyMetadata({
                         clinicalData,
                         labData,
-                        conclusionData,
+                        conclusionData: conclusionData || {},
                         examDoctorId: examDoctorId,
                         examDoctorName: examDoctorName,
                         conclDoctorId: conclDoctorId,
                         conclDoctorName: conclDoctorName,
                         hasExam: !!examRow,
-                        hasConclusion: hasConclusion || !!conclusionData
+                        hasConclusion: hasConclusion
                     });
                     clinicalData.specialty_metadata = specMetadata;
                     if (clinicalData.clinical_exam) {
@@ -932,7 +918,23 @@ class HisIntegrationController {
                         const recObj = { id: existing.id, his_employee_id: hisEmpId, doc_no: docNo, his_doc_no: row.hee_docno ? String(row.hee_docno) : null, signature_status: existing.signature_status, send_status: existing.send_status };
                         byHisEmpId.set(hisEmpId, recObj);
                         byDocNo.set(docNo, recObj);
-                        if (row.hee_docno) byDocNo.set(String(row.hee_docno), recObj);
+                        if (row.hee_docno) {
+                            byDocNo.set(String(row.hee_docno), recObj);
+                            if (conclusionData) {
+                                try {
+                                    await this.pushbackClinicalAndConclusion(
+                                        { query },
+                                        Number(row.hee_docno),
+                                        clinicalData,
+                                        conclusionData,
+                                        'admin',
+                                        'Hệ thống KSK'
+                                    );
+                                } catch (pushErr) {
+                                    console.warn(`⚠️ [searchPatients] Lỗi đồng bộ hms_exm_conclusion cho docNo=${row.hee_docno}:`, pushErr);
+                                }
+                            }
+                        }
                         fullUpdateCount++;
                     } else {
                         // ── Tạo mới hồ sơ (với ON CONFLICT an toàn chống trùng doc_no) ──
@@ -967,7 +969,23 @@ class HisIntegrationController {
                             const recObj = { id: masterId, his_employee_id: hisEmpId, doc_no: docNo, his_doc_no: row.hee_docno ? String(row.hee_docno) : null, signature_status: 'Unsigned', send_status: 'Unsent' };
                             byHisEmpId.set(hisEmpId, recObj);
                             byDocNo.set(docNo, recObj);
-                            if (row.hee_docno) byDocNo.set(String(row.hee_docno), recObj);
+                            if (row.hee_docno) {
+                                byDocNo.set(String(row.hee_docno), recObj);
+                                if (conclusionData) {
+                                    try {
+                                        await this.pushbackClinicalAndConclusion(
+                                            { query },
+                                            Number(row.hee_docno),
+                                            clinicalData,
+                                            conclusionData,
+                                            'admin',
+                                            'Hệ thống KSK'
+                                        );
+                                    } catch (pushErr) {
+                                        console.warn(`⚠️ [searchPatients] Lỗi đồng bộ hms_exm_conclusion cho docNo=${row.hee_docno}:`, pushErr);
+                                    }
+                                }
+                            }
 
                             if (detailSet.has(masterId)) {
                                 await query(`
@@ -1038,7 +1056,7 @@ async getHisPatient(req: Request, res: Response) {
                     m.patient_id,
                     m.patient_name,
                     m.cccd,
-                    to_char(m.dob, 'YYYY-MM-DD') as dob,
+                    m.dob,
                     m.gender,
                     m.doc_no,
                     m.his_doc_no,
@@ -1240,6 +1258,21 @@ async getHisPatient(req: Request, res: Response) {
                             if (!clinicalData.extra.ngay_kham && ex.exam_date) clinicalData.extra.ngay_kham = ex.exam_date;
                         }
 
+                        if (conclRow) {
+                            if (!clinicalData.examination) clinicalData.examination = {};
+                            if (!clinicalData.examination.physical_summary && conclRow.hecl_theluc) {
+                                clinicalData.examination.physical_summary = conclRow.hecl_theluc;
+                            }
+                            clinicalData.clinical_exam = mapConclusionRowToClinicalExam(
+                                conclRow,
+                                {
+                                    ...(clinicalData.clinical_exam || {}),
+                                    raw_he_parts: ex?.he_parts || ''
+                                },
+                                conclRow.hecl_phanloai
+                            );
+                        }
+
                         if (a) {
                             if (!clinicalData.address && a.address) clinicalData.address = a.address;
                             if (!clinicalData.matinh_cu_tru && a.matinh_cu_tru && a.matinh_cu_tru !== '0') clinicalData.matinh_cu_tru = a.matinh_cu_tru;
@@ -1290,30 +1323,45 @@ async getHisPatient(req: Request, res: Response) {
                             formType: row.form_type
                         });
 
-                        if (!conclusionData) conclusionData = {};
-                        if (!conclusionData.fitness_class || conclusionData.fitness_class === '1' || evalResult.isAutoEvaluated || conclRow?.hecl_phanloai || a?.hd_result) {
-                            conclusionData.fitness_class = evalResult.fitnessClass;
+                        const hasHisDocResult = !!(a?.hd_result && ['1', '2', '3', '4', '5'].includes(String(a.hd_result).trim()));
+                        const docConclClean = cleanConclusionText(a?.hd_conclusion);
+                        const hasHisDocConcl = !!(docConclClean && docConclClean !== '[Z00.0] Khám sức khỏe tổng quát');
+                        const hasHisExmConcl = !!(conclRow?.hecl_phanloai || conclRow?.hecl_conclusion);
+                        const hasSavedConcl = !!(
+                            (conclusionData?.fitness_class && String(conclusionData.fitness_class).trim()) ||
+                            (conclusionData?.ket_luan_loai_suc_khoe && String(conclusionData.ket_luan_loai_suc_khoe).trim()) ||
+                            (conclusionData?.diagnosis && String(conclusionData.diagnosis).trim())
+                        );
+                        const hasRealConclusion = hasHisDocResult || hasHisDocConcl || hasHisExmConcl || hasSavedConcl;
+
+                        if (hasRealConclusion) {
+                            if (!conclusionData) conclusionData = {};
+                            if (!conclusionData.fitness_class || evalResult.isAutoEvaluated || conclRow?.hecl_phanloai || a?.hd_result) {
+                                conclusionData.fitness_class = evalResult.fitnessClass;
+                            }
+                            if (!conclusionData.diagnosis || conclusionData.diagnosis === '[Z00.0] Khám sức khỏe tổng quát' || evalResult.diagnosis) {
+                                conclusionData.diagnosis = evalResult.diagnosis;
+                            }
+                            conclusionData.doctor_id = evalResult.doctorId || conclDocId;
+                            conclusionData.doctor_name = evalResult.doctorName || conclDocName;
+                            if (!conclusionData.cac_van_de_luu_y || evalResult.cacVanDeLuuY) conclusionData.cac_van_de_luu_y = evalResult.cacVanDeLuuY;
+                            if (!conclusionData.cac_benh_tat_neu_co || evalResult.cacBenhTatNeuCo) conclusionData.cac_benh_tat_neu_co = evalResult.cacBenhTatNeuCo;
+                            conclusionData.ket_luan_loai_suc_khoe = evalResult.fitnessClass;
+                        } else {
+                            conclusionData = conclusionData || {};
                         }
-                        if (!conclusionData.diagnosis || conclusionData.diagnosis === '[Z00.0] Khám sức khỏe tổng quát' || evalResult.diagnosis) {
-                            conclusionData.diagnosis = evalResult.diagnosis;
-                        }
-                        conclusionData.doctor_id = evalResult.doctorId || conclDocId;
-                        conclusionData.doctor_name = evalResult.doctorName || conclDocName;
-                        if (!conclusionData.cac_van_de_luu_y || evalResult.cacVanDeLuuY) conclusionData.cac_van_de_luu_y = evalResult.cacVanDeLuuY;
-                        if (!conclusionData.cac_benh_tat_neu_co || evalResult.cacBenhTatNeuCo) conclusionData.cac_benh_tat_neu_co = evalResult.cacBenhTatNeuCo;
-                        conclusionData.ket_luan_loai_suc_khoe = evalResult.fitnessClass;
 
                         // Đồng bộ cấu trúc trạng thái ĐÃ_KHÁM / ĐÃ_KẾT_LUẬN và phân công bác sĩ vào specialty_metadata
                         const specMetadata = buildSpecialtyMetadata({
                             clinicalData,
                             labData: row.lab_data,
-                            conclusionData,
+                            conclusionData: conclusionData || {},
                             examDoctorId: examDocId,
                             examDoctorName: examDocName,
                             conclDoctorId: conclDocId,
                             conclDoctorName: conclDocName,
                             hasExam: !!ex,
-                            hasConclusion: !!conclRow || !!a?.hd_result || !!conclusionData
+                            hasConclusion: hasRealConclusion
                         });
                         clinicalData.specialty_metadata = specMetadata;
                         if (clinicalData.clinical_exam) {
@@ -1327,6 +1375,21 @@ async getHisPatient(req: Request, res: Response) {
                             WHERE master_id = $3
                         `, [JSON.stringify(clinicalData), JSON.stringify(conclusionData), row.id]);
                         console.log(`✅ [getHisPatient] Tự động cập nhật clinical & conclusion cho BN: ${row.patient_name}`);
+
+                        if (docNoVal && hasRealConclusion) {
+                            try {
+                                await this.pushbackClinicalAndConclusion(
+                                    { query },
+                                    docNoVal,
+                                    clinicalData,
+                                    conclusionData,
+                                    conclDocId || 'admin',
+                                    conclDocName || 'Hệ thống KSK'
+                                );
+                            } catch (pushErr) {
+                                console.warn(`⚠️ [getHisPatient] Lỗi đồng bộ hms_exm_conclusion cho docNo=${docNoVal}:`, pushErr);
+                            }
+                        }
                     } catch (examErr) {
                         console.error('⚠️ [getHisPatient] Lỗi tra cứu exam & conclusion cho HEALTH_CHECK_MASTER:', examErr);
                     }
@@ -1681,28 +1744,12 @@ async getHisPatient(req: Request, res: Response) {
                             bmi: examRow?.he_bmi ? Number(examRow.he_bmi).toFixed(2) : '',
                             physical_summary: conclRow?.hecl_theluc || ''
                         },
-                        clinical_exam: {
-                            internal: [conclRow?.hecl_tuanhoan, conclRow?.hecl_hohap, conclRow?.hecl_tieuhoa, conclRow?.hecl_thantietnieu].filter(Boolean).join('\n'),
-                            eye: conclRow?.hecl_mat || '',
-                            ent: conclRow?.hecl_tmh || '',
-                            dental: conclRow?.hecl_rhm || '',
-                            external: conclRow?.hecl_ngoai || '',
-                            dermatology: conclRow?.hecl_dalieu || '',
-                            gynecology: conclRow?.hecl_phukhoa || '',
-                            neurology: conclRow?.hecl_thankinh || '',
-                            psychiatry: conclRow?.hecl_tamthan || '',
-                            noi_khoa_tuan_hoan: conclRow?.hecl_tuanhoan || '',
-                            noi_khoa_ho_hap: conclRow?.hecl_hohap || '',
-                            noi_khoa_tieu_hoa: conclRow?.hecl_tieuhoa || '',
-                            noi_khoa_than_tietnieu_pl: conclRow?.hecl_thantietnieu || '',
-                            noi_khoa_than_kinh: conclRow?.hecl_thankinh || '',
-                            noi_khoa_tam_than: conclRow?.hecl_tamthan || '',
-                            nhi_tuan_hoan: conclRow?.hecl_tuanhoan || '',
-                            nhi_ho_hap: conclRow?.hecl_hohap || '',
-                            nhi_tieu_hoa: conclRow?.hecl_tieuhoa || '',
-                            nhi_than_kinh: conclRow?.hecl_thankinh || '',
-                            nhi_tam_than: conclRow?.hecl_tamthan || ''
-                        },
+                        clinical_exam: mapConclusionRowToClinicalExam(conclRow, {
+                            raw_he_parts: examRow?.he_parts || '',
+                            noi_khoa_tuan_hoan: parseHisPartsSummary(examRow?.he_parts).cleanInternalText || '',
+                            noi_khoa_ho_hap: parseHisPartsSummary(examRow?.he_parts).cleanInternalText || '',
+                            internal: parseHisPartsSummary(examRow?.he_parts).cleanInternalText || ''
+                        }, conclRow?.hecl_phanloai),
                         extra: {
                             gio_kham: examRow?.exam_time || '',
                             ngay_kham: examRow?.exam_date || hisRow.ngay_vao || '',
@@ -1747,6 +1794,21 @@ async getHisPatient(req: Request, res: Response) {
                     clinicalDataObj.specialty_metadata = specMetadata;
                     clinicalDataObj.clinical_exam.specialty_metadata = specMetadata;
 
+                    if (hisRow.his_doc_no && conclusionDataObj) {
+                        try {
+                            await this.pushbackClinicalAndConclusion(
+                                { query },
+                                Number(hisRow.his_doc_no),
+                                clinicalDataObj,
+                                conclusionDataObj,
+                                conclDoctorId || 'admin',
+                                conclDoctorName || 'Hệ thống KSK'
+                            );
+                        } catch (pushErr) {
+                            console.warn(`⚠️ [getHisPatient] Lỗi đồng bộ hms_exm_conclusion cho HIS_DIRECT docNo=${hisRow.his_doc_no}:`, pushErr);
+                        }
+                    }
+
                     return res.json({
                         source: 'HIS_DIRECT',
                         id: null,
@@ -1789,7 +1851,7 @@ async getHisPatient(req: Request, res: Response) {
         try {
             // 1. Lấy thông tin đợt khám hiện tại từ hms_doc
             const docRes = await client.query(`
-                SELECT hd_docno, hd_patientno, hd_status, hd_enddate, hd_enddept, hd_diagnostic, hd_conclusion
+                SELECT hd_docno, hd_patientno, hd_status, hd_enddate, hd_enddept, hd_diagnostic, hd_conclusion, hd_result
                 FROM hms_doc
                 WHERE hd_docno = $1
             `, [hisDocNo]);
@@ -1803,27 +1865,36 @@ async getHisPatient(req: Request, res: Response) {
             const patientNo = docRow.hd_patientno;
             const isDocNotEnded = docRow.hd_status !== 'T' || !docRow.hd_enddate;
 
-            // Trích xuất thông tin kết luận
-            const fitnessClassRaw = conclusionData?.fitness_class || conclusionData?.fitnessClass || '';
-            let fitnessClassNumber = '1';
-            if (fitnessClassRaw) {
-                const matchNum = String(fitnessClassRaw).match(/\d+/);
-                if (matchNum) {
-                    fitnessClassNumber = matchNum[0];
-                } else {
-                    const fLower = String(fitnessClassRaw).toLowerCase();
-                    if (fLower.includes('v') || fLower.includes('5')) fitnessClassNumber = '5';
-                    else if (fLower.includes('iv') || fLower.includes('4')) fitnessClassNumber = '4';
-                    else if (fLower.includes('iii') || fLower.includes('3')) fitnessClassNumber = '3';
-                    else if (fLower.includes('ii') || fLower.includes('2')) fitnessClassNumber = '2';
-                    else fitnessClassNumber = '1';
-                }
-            }
+            const docConcl = cleanConclusionText(docRow.hd_conclusion);
+            const fitnessClassRaw = conclusionData?.fitness_class 
+                || conclusionData?.fitnessClass 
+                || conclusionData?.ket_luan_loai_suc_khoe 
+                || '';
+            const parsedClassNum = parseFitnessClassFromText(fitnessClassRaw);
+            const rawDiag = cleanConclusionText(conclusionData?.diagnosis || conclusionData?.ket_luan || conclusionData?.ketLuan || conclusionData?.chuan_doan || conclusionData?.hecl_conclusion);
+            const hasExplicitConclusion = !!(
+                (conclusionData?.fitness_class && String(conclusionData.fitness_class).trim()) ||
+                (conclusionData?.fitnessClass && String(conclusionData.fitnessClass).trim()) ||
+                (conclusionData?.ket_luan_loai_suc_khoe && String(conclusionData.ket_luan_loai_suc_khoe).trim()) ||
+                (conclusionData?.diagnosis && String(conclusionData.diagnosis).trim()) ||
+                (docRow.hd_result && ['1','2','3','4','5'].includes(String(docRow.hd_result).trim())) ||
+                (docConcl && docConcl !== '[Z00.0] Khám sức khỏe tổng quát')
+            );
+
+            const fitnessClassNumber = parsedClassNum || (docRow.hd_result && ['1','2','3','4','5'].includes(String(docRow.hd_result).trim()) ? String(docRow.hd_result).trim() : '1');
             const fitnessClassText = `Loại ${fitnessClassNumber}`;
 
-            const diagnosis = String(conclusionData?.diagnosis || conclusionData?.ket_luan || conclusionData?.ketLuan || '').trim() || (fitnessClassNumber === '1' || fitnessClassNumber === '2' ? 'Đủ sức khỏe làm việc' : 'Khám sức khỏe định kỳ');
+            let diagnosis = rawDiag;
+            if (!diagnosis || diagnosis === '[Z00.0] Khám sức khỏe tổng quát') {
+                if (docConcl && docConcl !== '[Z00.0] Khám sức khỏe tổng quát') {
+                    diagnosis = docConcl;
+                }
+            }
+            if (!diagnosis) {
+                diagnosis = (fitnessClassNumber === '1' || fitnessClassNumber === '2' ? 'Đủ sức khỏe làm việc' : 'Khám sức khỏe định kỳ');
+            }
             const icd10 = String(conclusionData?.diagnosis_icd10 || conclusionData?.icd10 || '').trim() || 'Z00.0';
-            const remarkAdvise = String(conclusionData?.cac_van_de_luu_y || conclusionData?.advise || conclusionData?.cac_benh_tat_neu_co || '').trim();
+            const remarkAdvise = String(conclusionData?.cac_van_de_luu_y || conclusionData?.advise || conclusionData?.cac_benh_tat_neu_co || conclusionData?.hecl_remark || conclusionData?.ghi_chu || conclusionData?.loi_dan || '').trim();
 
             const specialtyMetadata = clinicalData?.specialty_metadata || clinicalData?.clinical_exam?.specialty_metadata || {};
             const conclusionDoctorId = specialtyMetadata.conclusion?.doctorId || conclusionData?.doctor_id || clinicalData?.extra?.concl_doctor_id || currentUserId || 'admin';
@@ -1862,29 +1933,51 @@ async getHisPatient(req: Request, res: Response) {
                 }
             }
 
-            // Trích xuất Khám thể lực & Chuyên khoa
+            // Trích xuất Khám thể lực & Chuyên khoa (Hỗ trợ toàn diện alias tiếng Việt & tiếng Anh)
             const ce = clinicalData?.clinical_exam || {};
-            const specialtyTexts: string[] = [];
-            if (ce.internal) specialtyTexts.push(`Nội khoa: ${ce.internal}`);
-            if (ce.external) specialtyTexts.push(`Ngoại khoa: ${ce.external}`);
-            if (ce.eye) specialtyTexts.push(`Mắt: ${ce.eye}`);
-            if (ce.ent) specialtyTexts.push(`TMH: ${ce.ent}`);
-            if (ce.dental) specialtyTexts.push(`RHM: ${ce.dental}`);
-            if (ce.dermatology) specialtyTexts.push(`Da liễu: ${ce.dermatology}`);
-            if (ce.gynecology) specialtyTexts.push(`Sản phụ khoa: ${ce.gynecology}`);
-            if (ce.neurology) specialtyTexts.push(`Thần kinh: ${ce.neurology}`);
-            if (ce.psychiatry) specialtyTexts.push(`Tâm thần: ${ce.psychiatry}`);
 
-            const examineGeneral = String(examVitals.physical_summary || clinicalData?.kham_the_luc || 'Thể lực bình thường').trim();
-            const partsSummary = specialtyTexts.length > 0 ? specialtyTexts.join('; ') : 'Các chuyên khoa chưa phát hiện bất thường';
+            const valTheLuc = String(examVitals.physical_summary || clinicalData?.kham_the_luc || 'Thể lực bình thường').trim().substring(0, 254);
+            const valTuanHoan = String(ce.kq_tim_mach || ce.circulatory || ce.tuanhoan || ce.tuan_hoan || ce.noi_khoa_tuan_hoan || ce.internal || ce.noi_khoa || ce.noi_khoa_tuan_hoan_pl || '').trim().substring(0, 254);
+            const valHoHap = String(ce.kq_ho_hap || ce.respiratory || ce.hohap || ce.ho_hap || ce.noi_khoa_ho_hap || ce.noi_khoa_ho_hap_pl || '').trim().substring(0, 254);
+            const valTieuHoa = String(ce.noi_khoa_tieu_hoa || ce.digestive || ce.tieuhoa || ce.tieu_hoa || ce.noi_khoa_tieu_hoa_pl || '').trim().substring(0, 254);
+            const valThanTietNieu = String(ce.kq_tiet_nieu || ce.urinary || ce.thantietnieu || ce.than_tiet_nieu || ce.noi_khoa_than_tietnieu || ce.noi_khoa_than_tietnieu_pl || '').trim().substring(0, 254);
+            const valNoiTiet = String(ce.kq_noi_tiet || ce.endocrine || ce.noitiet || ce.noi_tiet || ce.noi_khoa_noi_tiet || ce.noi_khoa_noi_tiet_pl || '').trim().substring(0, 254);
+            const valCoXuongKhop = String(ce.kq_co_xuong_khop || ce.musculoskeletal || ce.coxuongkhop || ce.co_xuong_khop || ce.noi_khoa_co_xuong_khop || ce.noi_khoa_co_xuong_khop_pl || '').trim().substring(0, 254);
+            const valThanKinh = String(ce.kq_than_kinh || ce.neurology || ce.thankinh || ce.than_kinh || ce.noi_khoa_than_kinh || ce.noi_khoa_than_kinh_pl || '').trim().substring(0, 254);
+            const valTamThan = String(ce.kq_tam_than || ce.psychiatry || ce.tamthan || ce.tam_than || ce.noi_khoa_tam_than || ce.noi_khoa_tam_than_pl || '').trim().substring(0, 254);
+            const valNgoai = String(ce.kq_ngoai_khoa || ce.external || ce.ngoai || ce.ngoai_khoa || ce.kham_ngoai_khoa_pl || '').trim().substring(0, 254);
+            const valDaLieu = String(ce.kq_da_lieu || ce.dermatology || ce.dalieu || ce.da_lieu || ce.kham_da_lieu_pl || '').trim().substring(0, 254);
+            const valMat = String(ce.kq_mat || ce.eye || ce.mat || ce.kham_mat_pl || '').trim().substring(0, 254);
+            const valTmh = String(ce.kq_tai_mui_hong || ce.benh_tai_mui_hong || ce.ent || ce.tmh || ce.tai_mui_hong || ce.kham_tai_mui_hong_pl || '').trim().substring(0, 254);
+            const valRhm = String(ce.kq_rang_ham_mat || ce.benh_rang_ham_mat || ce.dental || ce.rhm || ce.rang_ham_mat || ce.kham_rang_ham_mat_pl || '').trim().substring(0, 254);
+            const valPhuKhoa = String(ce.kq_sinh_duc || ce.kham_san_phu_khoa || ce.gynecology || ce.phukhoa || ce.san_phu_khoa || ce.kham_san_phu_khoa_pl || '').trim().substring(0, 254);
+            const valPhanLoai = fitnessClassText.substring(0, 254);
+            const valDiagnosis = diagnosis.substring(0, 254);
+            const valRemark = remarkAdvise.substring(0, 254);
+
+            const specialtyTexts: string[] = [];
+            if (ce.internal || valTuanHoan || valHoHap || valTieuHoa || valThanTietNieu) {
+                specialtyTexts.push(`Nội khoa: ${ce.internal || [valTuanHoan, valHoHap, valTieuHoa, valThanTietNieu].filter(Boolean).join(', ')}`);
+            }
+            if (valNgoai) specialtyTexts.push(`Ngoại khoa: ${valNgoai}`);
+            if (valMat) specialtyTexts.push(`Mắt: ${valMat}`);
+            if (valTmh) specialtyTexts.push(`TMH: ${valTmh}`);
+            if (valRhm) specialtyTexts.push(`RHM: ${valRhm}`);
+            if (valDaLieu) specialtyTexts.push(`Da liễu: ${valDaLieu}`);
+            if (valPhuKhoa) specialtyTexts.push(`Sản phụ khoa: ${valPhuKhoa}`);
+            if (valThanKinh) specialtyTexts.push(`Thần kinh: ${valThanKinh}`);
+            if (valTamThan) specialtyTexts.push(`Tâm thần: ${valTamThan}`);
+
+            const examineGeneral = valTheLuc;
+            const partsSummary = (specialtyTexts.length > 0 ? specialtyTexts.join('; ') : 'Các chuyên khoa chưa phát hiện bất thường').substring(0, 254);
 
             // Trích xuất Tiền sử
             const history = clinicalData?.extra || {};
-            const medicalHistory = [
+            const valMedicalHistory = [
                 history.ts_ban_than ? `Bản thân: ${history.ts_ban_than}` : '',
                 history.ts_gia_dinh ? `Gia đình: ${history.ts_gia_dinh}` : '',
                 history.di_ung_thuoc ? `Dị ứng: ${history.di_ung_thuoc}` : ''
-            ].filter(Boolean).join('; ');
+            ].filter(Boolean).join('; ').substring(0, 254);
 
             // 2. Cập nhật hms_exam (Nếu phiếu khám chưa kết thúc he_status <> 'T')
             const examCheck = await client.query(`
@@ -1898,7 +1991,7 @@ async getHisPatient(req: Request, res: Response) {
             if (examCheck.rows.length > 0) {
                 const examRow = examCheck.rows[0];
                 if (examRow.he_status !== 'T') {
-                    console.log(`🚀 [pushbackConclusion] Đồng bộ kết quả vào hms_exam cho docNo=${hisDocNo}, receptidx=${examRow.he_receptidx}`);
+                    console.log(`🚀 [pushbackConclusion] Đồng bộ kết quả vào hms_exam cho docNo=${hisDocNo}, receptidx=${examRow.he_receptidx} (hasConclusion: ${hasExplicitConclusion})`);
                     await client.query(`
                         UPDATE hms_exam SET
                             he_height = COALESCE($1, he_height),
@@ -1912,25 +2005,25 @@ async getHisPatient(req: Request, res: Response) {
                             he_examine = COALESCE(NULLIF($9, ''), he_examine),
                             he_parts = COALESCE(NULLIF($10, ''), he_parts),
                             he_medical = COALESCE(NULLIF($11, ''), he_medical),
-                            he_diagnostic = COALESCE(NULLIF($12, ''), he_diagnostic),
-                            he_icd10 = COALESCE(NULLIF($13, ''), he_icd10),
-                            he_remark = COALESCE(NULLIF($14, ''), he_remark),
+                            he_diagnostic = CASE WHEN $18 THEN COALESCE(NULLIF($12, ''), he_diagnostic) ELSE he_diagnostic END,
+                            he_icd10 = CASE WHEN $18 THEN COALESCE(NULLIF($13, ''), he_icd10) ELSE he_icd10 END,
+                            he_remark = CASE WHEN $18 THEN COALESCE(NULLIF($14, ''), he_remark) ELSE he_remark END,
                             he_doctor = COALESCE(NULLIF($15, ''), he_doctor),
-                            he_examdate = CURRENT_TIMESTAMP,
-                            he_status = 'T',
+                            he_examdate = CASE WHEN $18 THEN CURRENT_TIMESTAMP ELSE he_examdate END,
+                            he_status = CASE WHEN $18 THEN 'T' ELSE he_status END,
                             he_updateddate = CURRENT_TIMESTAMP,
                             he_updatedby = $15
                         WHERE he_docno = $16 AND he_receptidx = $17
                     `, [
                         height, weight, bmi, pulse, bpSystolic, bpDiastolic, temperature, breathingRate,
-                        examineGeneral, partsSummary, medicalHistory, diagnosis, icd10,
-                        remarkAdvise, examDoctorId, hisDocNo, examRow.he_receptidx
+                        examineGeneral, partsSummary, valMedicalHistory, valDiagnosis, icd10,
+                        valRemark, examDoctorId, hisDocNo, examRow.he_receptidx, hasExplicitConclusion
                     ]);
                 }
             }
 
-            // 3. Cập nhật hms_doc (Nếu đợt khám chưa kết thúc)
-            if (isDocNotEnded) {
+            // 3. Cập nhật hms_doc (CHỈ khi đợt khám chưa kết thúc VÀ thực sự có kết luận)
+            if (isDocNotEnded && hasExplicitConclusion) {
                 console.log(`🚀 [pushbackConclusion] Đồng bộ kết luận và đóng đợt khám hms_doc cho docNo=${hisDocNo}`);
                 await client.query(`
                     UPDATE hms_doc SET
@@ -1945,22 +2038,28 @@ async getHisPatient(req: Request, res: Response) {
                         hd_updateddate = CURRENT_TIMESTAMP,
                         hd_updatedby = $4
                     WHERE hd_docno = $7
-                `, [diagnosis, fitnessClassText, icd10, conclusionDoctorId, fitnessClassNumber, doctorDeptId, hisDocNo]);
+                `, [valDiagnosis, valPhanLoai, icd10, conclusionDoctorId, fitnessClassNumber, doctorDeptId, hisDocNo]);
             }
 
-            // 4. Cập nhật hms_exm_employee (Nhân viên trong hợp đồng KSK)
-            const employeeNote = `${fitnessClassText} - ${diagnosis}`;
-            await client.query(`
-                UPDATE hms_exm_employee SET
-                    hee_status = 'T',
-                    hee_note = COALESCE(NULLIF($1, ''), hee_note),
-                    hee_updateddate = CURRENT_TIMESTAMP,
-                    hee_updatedby = $2
-                WHERE hee_docno = $3 OR (hee_patientno = $4 AND hee_patientno > 0)
-            `, [employeeNote, conclusionDoctorId, hisDocNo, patientNo]);
+            // 4. Cập nhật hms_exm_employee (Nhân viên trong hợp đồng KSK - CHỈ khi có kết luận)
+            if (hasExplicitConclusion) {
+                const employeeNote = `${valPhanLoai} - ${valDiagnosis}`.substring(0, 254);
+                await client.query(`
+                    UPDATE hms_exm_employee SET
+                        hee_status = 'T',
+                        hee_note = COALESCE(NULLIF($1, ''), hee_note),
+                        hee_updateddate = CURRENT_TIMESTAMP,
+                        hee_updatedby = $2
+                    WHERE hee_docno = $3 OR (hee_patientno = $4 AND hee_patientno > 0)
+                `, [employeeNote, conclusionDoctorId, hisDocNo, patientNo]);
+            }
 
             // 5. Cập nhật / UPSERT hms_disease_hist
             if (history.ts_ban_than || history.ts_gia_dinh || history.di_ung_thuoc) {
+                const valOwner = String(history.ts_ban_than || '').trim().substring(0, 254);
+                const valFamily = String(history.ts_gia_dinh || '').trim().substring(0, 254);
+                const valDrugAllergy = String(history.di_ung_thuoc || '').trim().substring(0, 254);
+
                 const histCheck = await client.query(`
                     SELECT 1 FROM hms_disease_hist WHERE hdh_docno = $1 OR (hdh_patientno = $2 AND hdh_patientno > 0) LIMIT 1
                 `, [hisDocNo, patientNo]);
@@ -1974,13 +2073,13 @@ async getHisPatient(req: Request, res: Response) {
                             hdh_updateddate = CURRENT_TIMESTAMP,
                             hdh_updatedby = $4
                         WHERE hdh_docno = $5 OR (hdh_patientno = $6 AND hdh_patientno > 0)
-                    `, [history.ts_ban_than || '', history.ts_gia_dinh || '', history.di_ung_thuoc || '', conclusionDoctorId, hisDocNo, patientNo]);
+                    `, [valOwner, valFamily, valDrugAllergy, conclusionDoctorId, hisDocNo, patientNo]);
                 } else if (patientNo) {
                     await client.query(`
                         INSERT INTO hms_disease_hist (
                             hdh_patientno, hdh_docno, hdh_owner, hdh_family, hdh_drugallergy, hdh_createdby, hdh_createddate
                         ) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
-                    `, [patientNo, hisDocNo, history.ts_ban_than || '', history.ts_gia_dinh || '', history.di_ung_thuoc || '', conclusionDoctorId]);
+                    `, [patientNo, hisDocNo, valOwner, valFamily, valDrugAllergy, conclusionDoctorId]);
                 }
             }
 
@@ -2009,24 +2108,24 @@ async getHisPatient(req: Request, res: Response) {
                         hecl_remark = COALESCE(NULLIF($18, ''), hecl_remark)
                     WHERE hecl_docno = $19
                 `, [
-                    examineGeneral,
-                    ce.circulatory || ce.tuanhoan || ce.noi_khoa_tuan_hoan || '',
-                    ce.respiratory || ce.hohap || ce.noi_khoa_ho_hap || '',
-                    ce.digestive || ce.tieuhoa || ce.noi_khoa_tieu_hoa || '',
-                    ce.urinary || ce.thantietnieu || ce.noi_khoa_than_tietnieu_pl || '',
-                    ce.endocrine || ce.noitiet || '',
-                    ce.musculoskeletal || ce.coxuongkhop || '',
-                    ce.neurology || ce.thankinh || ce.noi_khoa_than_kinh || '',
-                    ce.psychiatry || ce.tamthan || ce.noi_khoa_tam_than || '',
-                    ce.external || ce.ngoai || '',
-                    ce.dermatology || ce.dalieu || '',
-                    ce.eye || ce.mat || '',
-                    ce.ent || ce.tmh || '',
-                    ce.dental || ce.rhm || '',
-                    ce.gynecology || ce.phukhoa || '',
-                    fitnessClassText,
-                    diagnosis,
-                    remarkAdvise,
+                    valTheLuc,
+                    valTuanHoan,
+                    valHoHap,
+                    valTieuHoa,
+                    valThanTietNieu,
+                    valNoiTiet,
+                    valCoXuongKhop,
+                    valThanKinh,
+                    valTamThan,
+                    valNgoai,
+                    valDaLieu,
+                    valMat,
+                    valTmh,
+                    valRhm,
+                    valPhuKhoa,
+                    valPhanLoai,
+                    valDiagnosis,
+                    valRemark,
                     hisDocNo
                 ]);
             } else {
@@ -2042,24 +2141,24 @@ async getHisPatient(req: Request, res: Response) {
                     )
                 `, [
                     hisDocNo,
-                    examineGeneral,
-                    ce.circulatory || ce.tuanhoan || ce.noi_khoa_tuan_hoan || '',
-                    ce.respiratory || ce.hohap || ce.noi_khoa_ho_hap || '',
-                    ce.digestive || ce.tieuhoa || ce.noi_khoa_tieu_hoa || '',
-                    ce.urinary || ce.thantietnieu || ce.noi_khoa_than_tietnieu_pl || '',
-                    ce.endocrine || ce.noitiet || '',
-                    ce.musculoskeletal || ce.coxuongkhop || '',
-                    ce.neurology || ce.thankinh || ce.noi_khoa_than_kinh || '',
-                    ce.psychiatry || ce.tamthan || ce.noi_khoa_tam_than || '',
-                    ce.external || ce.ngoai || '',
-                    ce.dermatology || ce.dalieu || '',
-                    ce.eye || ce.mat || '',
-                    ce.ent || ce.tmh || '',
-                    ce.dental || ce.rhm || '',
-                    ce.gynecology || ce.phukhoa || '',
-                    fitnessClassText,
-                    diagnosis,
-                    remarkAdvise
+                    valTheLuc,
+                    valTuanHoan,
+                    valHoHap,
+                    valTieuHoa,
+                    valThanTietNieu,
+                    valNoiTiet,
+                    valCoXuongKhop,
+                    valThanKinh,
+                    valTamThan,
+                    valNgoai,
+                    valDaLieu,
+                    valMat,
+                    valTmh,
+                    valRhm,
+                    valPhuKhoa,
+                    valPhanLoai,
+                    valDiagnosis,
+                    valRemark
                 ]);
             }
 

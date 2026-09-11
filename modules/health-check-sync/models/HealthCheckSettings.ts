@@ -29,6 +29,12 @@ export interface SettingsData {
     hsm_password?: string;
     hsm_client_id?: string;
     hsm_client_secret?: string;
+    sync_target_mode?: 'BYT_ONLY' | 'BOTH' | 'SYT_ONLY';
+    syt_url?: string;
+    syt_username?: string;
+    syt_password?: string;
+    syt_receiver_id?: string;
+    syt_enabled?: boolean;
 }
 
 export class HealthCheckSettings implements SettingsData {
@@ -59,6 +65,12 @@ export class HealthCheckSettings implements SettingsData {
     hsm_password?: string = '';
     hsm_client_id?: string = '';
     hsm_client_secret?: string = '';
+    sync_target_mode: 'BYT_ONLY' | 'BOTH' | 'SYT_ONLY' = 'BYT_ONLY';
+    syt_url: string = 'https://api-hssk.hanoi.gov.vn';
+    syt_username: string = '';
+    syt_password: string = '';
+    syt_receiver_id: string = 'VTS';
+    syt_enabled: boolean = false;
     reception_slip_template: string = `<div class="receipt-card">
     <div class="header">
         <div class="hospital-name">{{hospital}}</div>
@@ -177,6 +189,12 @@ export class HealthCheckSettings implements SettingsData {
             this.hsm_password = data.hsm_password ?? this.hsm_password;
             this.hsm_client_id = data.hsm_client_id ?? this.hsm_client_id;
             this.hsm_client_secret = data.hsm_client_secret ?? this.hsm_client_secret;
+            this.sync_target_mode = data.sync_target_mode ?? this.sync_target_mode;
+            this.syt_url = data.syt_url ?? this.syt_url;
+            this.syt_username = data.syt_username ?? this.syt_username;
+            this.syt_password = data.syt_password ?? this.syt_password;
+            this.syt_receiver_id = data.syt_receiver_id ?? this.syt_receiver_id;
+            this.syt_enabled = data.syt_enabled ?? this.syt_enabled;
         }
     }
 
@@ -205,8 +223,11 @@ export class HealthCheckSettings implements SettingsData {
 
     validate(): { isValid: boolean; errors: Partial<Record<keyof SettingsData, string>> } {
         const errors: Partial<Record<keyof SettingsData, string>> = {};
-        if (!this.vneid_url.trim()) {
-            errors.vneid_url = 'Địa chỉ URL cổng kết nối không được để trống';
+        if (this.sync_target_mode !== 'SYT_ONLY' && !this.vneid_url.trim()) {
+            errors.vneid_url = 'Địa chỉ URL Cổng BYT/VNeID không được để trống';
+        }
+        if (this.sync_target_mode !== 'BYT_ONLY' && (!this.syt_url || !this.syt_url.trim())) {
+            errors.syt_url = 'Địa chỉ URL Cổng Sở Y tế không được để trống';
         }
         if (!this.ma_cskcb.trim()) {
             errors.ma_cskcb = 'Mã cơ sở KCB không được để trống';
@@ -249,7 +270,13 @@ export class HealthCheckSettings implements SettingsData {
             hsm_username: this.hsm_username,
             hsm_password: this.hsm_password,
             hsm_client_id: this.hsm_client_id,
-            hsm_client_secret: this.hsm_client_secret
+            hsm_client_secret: this.hsm_client_secret,
+            sync_target_mode: this.sync_target_mode,
+            syt_url: this.syt_url,
+            syt_username: this.syt_username,
+            syt_password: this.syt_password,
+            syt_receiver_id: this.syt_receiver_id,
+            syt_enabled: this.syt_enabled
         };
     }
 }

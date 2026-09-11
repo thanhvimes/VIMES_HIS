@@ -3,8 +3,8 @@ import { CatalogItem } from '../../../../services/catalogService';
 
 export interface ChildFormContextType {
     initialData: any;
-    activeTab: 'admin' | 'history' | 'childDev' | 'exam' | 'lab' | 'conclusion';
-    setActiveTab: React.Dispatch<React.SetStateAction<'admin' | 'history' | 'childDev' | 'exam' | 'lab' | 'conclusion'>>;
+    activeTab: 'admin' | 'history' | 'childDev' | 'exam' | 'lab' | 'conclusion' | 'fee';
+    setActiveTab: React.Dispatch<React.SetStateAction<'admin' | 'history' | 'childDev' | 'exam' | 'lab' | 'conclusion' | 'fee'>>;
 
     // State for HIS Sync
     hisSearchQuery: string;
@@ -331,7 +331,7 @@ export interface ChildFormContextType {
     handleSubmit: () => Promise<void>;
     confirmConfig: { isOpen: boolean, title: string, message: string, onConfirm: () => void } | null;
     setConfirmConfig: React.Dispatch<React.SetStateAction<{ isOpen: boolean, title: string, message: string, onConfirm: () => void } | null>>;
-    handleTabChange: (tabId: 'admin' | 'history' | 'childDev' | 'exam' | 'lab' | 'conclusion') => void;
+    handleTabChange: (tabId: 'admin' | 'history' | 'childDev' | 'exam' | 'lab' | 'conclusion' | 'fee') => void;
     buildPayload?: () => any;
 }
 

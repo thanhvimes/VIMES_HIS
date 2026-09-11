@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { query } from '../../config/database';
-import { calculateAge } from '../../services/health-check-classifier.service';
+import { calculateAge, parseFitnessClassFromText, evaluateFitnessClass, buildSpecialtyMetadata } from '../../services/health-check-classifier.service';
+import { hisIntegrationController } from './his-integration';
 
 export class EmployeesController {
     // Lấy danh sách nhân viên trong hợp đồng
@@ -9,6 +10,23 @@ export class EmployeesController {
         const contractId = parseInt(id as string, 10);
         try {
             const result = await query(`
+                WITH contract_cls AS (
+                    SELECT 
+                        m.his_doc_no,
+                        m.his_employee_id,
+                        CASE WHEN (
+                            d.lab_data IS NOT NULL AND (
+                                (d.lab_data->>'kq_xn_khac' IS NOT NULL AND TRIM(d.lab_data->>'kq_xn_khac') <> '')
+                                OR (d.lab_data->'blood_test'->>'glycemia' IS NOT NULL AND TRIM(d.lab_data->'blood_test'->>'glycemia') <> '')
+                                OR (d.lab_data->'blood_test'->>'hemoglobin' IS NOT NULL AND TRIM(d.lab_data->'blood_test'->>'hemoglobin') <> '')
+                                OR (d.lab_data->'urine_test'->>'protein' IS NOT NULL AND TRIM(d.lab_data->'urine_test'->>'protein') <> '')
+                                OR (d.lab_data->>'paraclinical_items' LIKE '%"value":_%' AND d.lab_data->>'paraclinical_items' NOT LIKE '%"value":""%')
+                            )
+                        ) THEN true ELSE false END as has_cls
+                    FROM health_check_masters m
+                    JOIN health_check_details d ON d.master_id = m.id
+                    WHERE m.his_contract_id::text = $1::text
+                )
                 SELECT 
                     e.hee_employee_id as id,
                     e.hee_id as code,
@@ -37,11 +55,26 @@ export class EmployeesController {
                     v.sv_name as vill_name,
                     COALESCE(e.hee_address, '') as address,
                     (SELECT send_status FROM health_check_masters m 
-                     WHERE m.his_employee_id::text = e.hee_employee_id::text AND m.his_contract_id::text = $1::text LIMIT 1) as sync_status
+                     WHERE m.his_employee_id::text = e.hee_employee_id::text AND m.his_contract_id::text = $1::text LIMIT 1) as sync_status,
+                    COALESCE(c1.has_cls, c2.has_cls, false) as has_cls_result,
+                    e.hee_height as height,
+                    e.hee_weight as weight,
+                    e.hee_bloodpressure as blood_pressure,
+                    e.hee_pulse as pulse,
+                    e.hee_temperature as temperature,
+                    e.hee_respiration as respiration,
+                    e.hee_conclusion as conclusion,
+                    e.hee_comment as comment,
+                    e.hee_righteye as eye,
+                    (e.hee_clinical_data IS NOT NULL OR e.hee_height IS NOT NULL OR e.hee_conclusion IS NOT NULL) as has_clinical_data,
+                    e.hee_clinical_data as clinical_data,
+                    e.hee_conclusion_data as conclusion_data
                 FROM hms_exm_employee e
                 LEFT JOIN sys_prov p ON p.sp_id::text = COALESCE(NULLIF(TRIM(e.hee_prov_code), ''), e.hee_provid::text)
                 LEFT JOIN sys_vill v ON v.sv_id::text = COALESCE(NULLIF(TRIM(e.hee_vill_code), ''), e.hee_villid::text)
                 LEFT JOIN sys_sel occ ON trim(occ.ss_id) = 'sys_occupation' AND trim(occ.ss_code) = trim(e.hee_occupation::text)
+                LEFT JOIN contract_cls c1 ON (COALESCE(NULLIF(TRIM(e.hee_docno::text), ''), '0') <> '0' AND c1.his_doc_no = e.hee_docno::text)
+                LEFT JOIN contract_cls c2 ON c2.his_employee_id = e.hee_employee_id::text
                 WHERE e.hee_contract_id::text = $1::text AND e.hee_isactive='Y'
                 ORDER BY e.hee_employee_id ASC
             `, [contractId]);
@@ -87,7 +120,7 @@ export class EmployeesController {
             const occMapById = new Map<string, number>();
             const occMapByName = new Map<string, number>();
             try {
-                const occRes = await query(`SELECT ss_code, ss_desc FROM sys_sel WHERE trim(ss_id)='sys_occupation' AND ss_isactive='Y'`);
+                const occRes = await query(`SELECT ss_code, ss_desc FROM sys_sel WHERE trim(ss_id)='sys_occupation'`);
                 for (const row of occRes.rows) {
                     const codeNum = parseInt(String(row.ss_code).trim(), 10);
                     if (!isNaN(codeNum)) {
@@ -99,7 +132,20 @@ export class EmployeesController {
                 console.warn('⚠️ Không thể tải trước danh mục sys_occupation:', oErr);
             }
 
-            const maxIdRes = await query(`SELECT COALESCE(MAX(hee_employee_id), 0) as max_id FROM hms_exm_employee`);
+            // 1.1. Tải trước danh sách nhân viên hiện có trong hợp đồng để tránh trùng lặp & hỗ trợ cập nhật kết quả khám
+            const existingEmpsRes = await query(`
+                SELECT hee_employee_id, hee_id, hee_cardid, hee_docno 
+                FROM hms_exm_employee 
+                WHERE hee_contract_id = $1 AND hee_isactive = 'Y'
+            `, [contractId]);
+            const existingByCard = new Map<string, { id: number, docNo: number }>();
+            const existingByCode = new Map<string, { id: number, docNo: number }>();
+            for (const row of existingEmpsRes.rows) {
+                if (row.hee_cardid) existingByCard.set(String(row.hee_cardid).trim(), { id: row.hee_employee_id, docNo: row.hee_docno || 0 });
+                if (row.hee_id) existingByCode.set(String(row.hee_id).trim().toLowerCase(), { id: row.hee_employee_id, docNo: row.hee_docno || 0 });
+            }
+
+            const maxIdRes = await query(`SELECT COALESCE(MAX(NULLIF(regexp_replace(hee_employee_id::text, '[^0-9]', '', 'g'), '')::bigint), 0) as max_id FROM hms_exm_employee`);
             let currentMaxId = parseInt(maxIdRes.rows[0].max_id, 10);
 
             // 2. Bắt đầu Transaction để thực thi nhanh & đảm bảo an toàn toàn vẹn dữ liệu
@@ -112,7 +158,6 @@ export class EmployeesController {
                     const batch = employees.slice(b, b + BATCH_SIZE);
 
                     for (const emp of batch) {
-                        currentMaxId++;
                         const fullName = String(emp.name || '').replace(/\s+/g, ' ').trim();
                         
                         const nameParts = fullName.split(/\s+/);
@@ -121,14 +166,14 @@ export class EmployeesController {
                         let firstname = '';
 
                         if (nameParts.length === 1) {
-                            firstname = nameParts[0];
+                            firstname = nameParts[0].slice(0, 15);
                         } else if (nameParts.length === 2) {
-                            surname = nameParts[0];
-                            firstname = nameParts[1];
+                            surname = nameParts[0].slice(0, 15);
+                            firstname = nameParts[1].slice(0, 15);
                         } else if (nameParts.length > 2) {
-                            surname = nameParts[0];
-                            firstname = nameParts[nameParts.length - 1];
-                            midname = nameParts.slice(1, nameParts.length - 1).join(' ');
+                            surname = nameParts[0].slice(0, 15);
+                            firstname = nameParts[nameParts.length - 1].slice(0, 15);
+                            midname = nameParts.slice(1, nameParts.length - 1).join(' ').slice(0, 45);
                         }
 
                         // Chuẩn hóa ngày sinh
@@ -149,8 +194,8 @@ export class EmployeesController {
                             }
                         }
 
-                        // Cắt gọt và làm sạch các trường độ dài cố định
-                        const empCode = String(emp.code || `NV${currentMaxId}`).trim().slice(0, 30);
+                        // Cắt gọt và làm sạch các trường độ dài cố định (đảm bảo tương thích Stored Procedure hms_exm_registration_exam VARCHAR(15))
+                        const empCode = String(emp.code || `NV${currentMaxId + 1}`).trim().slice(0, 15);
                         
                         // CCCD: chỉ giữ số, cắt tối đa 12 ký tự
                         const docNo = String(emp.doc_no || emp.cccd || '').replace(/\D/g, '').slice(0, 12);
@@ -252,49 +297,355 @@ export class EmployeesController {
                         const position = String(emp.position || '').trim().slice(0, 100);
                         const address = String(emp.detail_address || emp.address || '').trim().slice(0, 255);
 
-                        const insertSql = `
-                            INSERT INTO hms_exm_employee (
-                                hee_employee_id, hee_contract_id, hee_id, 
-                                hee_surname, hee_midname, hee_firstname, 
-                                hee_birthdate, hee_sex, hee_docno, hee_phone, 
-                                hee_note, hee_status, hee_isactive,
-                                hee_dept, hee_position_desc, hee_address,
-                                hee_provid, hee_distid, hee_villid,
-                                hee_cardid, hee_cardid_date, hee_cardid_place,
-                                hee_guardian_name, hee_guardian_cccd, hee_ethnic,
-                                hee_prov_code, hee_vill_code, hee_occupation,
-                                hee_target_group
-                            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'O', 'Y', $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
-                        `;
-                        await query(insertSql, [
-                            currentMaxId,
-                            contractId,
-                            empCode,
-                            surname,
-                            midname,
-                            firstname,
-                            birthDate,
-                            (emp.sex === 'Nữ' || emp.sex === 'F') ? 'F' : 'M',
-                            null,
-                            phone,
-                            note,
-                            dept,
-                            position,
-                            address,
-                            provNum,
-                            emp.district_id ? parseInt(String(emp.district_id), 10) : null,
-                            villNum,
-                            docNo,
-                            cardIdDate,
-                            cardIdPlace,
-                            guardianName,
-                            guardianCccd,
-                            emp.ethnic ? parseInt(String(emp.ethnic), 10) : null,
-                            provCode || null,
-                            villCode || null,
-                            occNum,
-                            targetGroup
-                        ]);
+                        // Trích xuất Thể lực & Sinh hiệu
+                        const rawHeight = emp.height ?? emp.chieu_cao ?? emp.clinical_data?.examination?.height;
+                        const heightNum = rawHeight ? (parseFloat(String(rawHeight).replace(',', '.')) || null) : null;
+
+                        const rawWeight = emp.weight ?? emp.can_nang ?? emp.clinical_data?.examination?.weight;
+                        const weightNum = rawWeight ? (parseFloat(String(rawWeight).replace(',', '.')) || null) : null;
+
+                        let bmiVal = emp.bmi ?? emp.clinical_data?.examination?.bmi;
+                        if (!bmiVal && heightNum && weightNum && heightNum > 0 && weightNum > 0) {
+                            bmiVal = (weightNum / Math.pow(heightNum / 100, 2)).toFixed(2);
+                        }
+
+                        const rawBp = emp.blood_pressure ?? emp.huyet_ap ?? emp.ha ?? emp.bp ?? emp.clinical_data?.examination?.blood_pressure;
+                        const bpStr = rawBp ? String(rawBp).trim().slice(0, 20) : '';
+
+                        const rawPulse = emp.pulse ?? emp.mach ?? emp.nhip_tim ?? emp.clinical_data?.examination?.pulse;
+                        const pulseNum = rawPulse ? (parseFloat(String(rawPulse)) || null) : null;
+
+                        const rawTemp = emp.temperature ?? emp.nhiet_do ?? emp.temp ?? emp.clinical_data?.examination?.temperature;
+                        const tempNum = rawTemp ? (parseFloat(String(rawTemp).replace(',', '.')) || null) : null;
+
+                        const rawResp = emp.breathing_rate ?? emp.respiration ?? emp.nhip_tho ?? emp.clinical_data?.examination?.breathing_rate;
+                        const respNum = rawResp ? (parseFloat(String(rawResp)) || null) : null;
+
+                        const physicalSummary = String(emp.physical_summary ?? emp.the_luc ?? emp.kham_the_luc ?? emp.clinical_data?.examination?.physical_summary ?? '').trim().slice(0, 254);
+
+                        // Trích xuất Khám lâm sàng chuyên khoa
+                        const internalStr = String(emp.internal ?? emp.noi_khoa ?? emp.noikhoa ?? emp.clinical_data?.clinical_exam?.internal ?? '').trim().slice(0, 254);
+                        const externalStr = String(emp.external ?? emp.ngoai_khoa ?? emp.ngoaikhoa ?? emp.clinical_data?.clinical_exam?.external ?? '').trim().slice(0, 254);
+                        const dermStr = String(emp.dermatology ?? emp.da_lieu ?? emp.dalieu ?? emp.clinical_data?.clinical_exam?.dermatology ?? '').trim().slice(0, 254);
+                        const gynStr = String(emp.gynecology ?? emp.san_phu_khoa ?? emp.phu_khoa ?? emp.clinical_data?.clinical_exam?.gynecology ?? '').trim().slice(0, 254);
+                        const eyeStr = String(emp.eye ?? emp.mat ?? emp.thi_luc ?? emp.clinical_data?.clinical_exam?.eye ?? '').trim().slice(0, 100);
+                        const entStr = String(emp.ent ?? emp.tai_mui_hong ?? emp.tmh ?? emp.clinical_data?.clinical_exam?.ent ?? '').trim().slice(0, 254);
+                        const dentalStr = String(emp.dental ?? emp.rang_ham_mat ?? emp.rhm ?? emp.clinical_data?.clinical_exam?.dental ?? '').trim().slice(0, 254);
+
+                        const circStr = String(emp.circulatory ?? emp.tuan_hoan ?? emp.tim_mach ?? emp.clinical_data?.clinical_exam?.circulatory ?? '').trim().slice(0, 254);
+                        const respSpecStr = String(emp.respiratory ?? emp.ho_hap ?? emp.clinical_data?.clinical_exam?.respiratory ?? '').trim().slice(0, 254);
+                        const digestStr = String(emp.digestive ?? emp.tieu_hoa ?? emp.clinical_data?.clinical_exam?.digestive ?? '').trim().slice(0, 254);
+                        const urinaryStr = String(emp.urinary ?? emp.than_tiet_nieu ?? emp.tiet_nieu ?? emp.clinical_data?.clinical_exam?.urinary ?? '').trim().slice(0, 254);
+                        const endocStr = String(emp.endocrine ?? emp.noi_tiet ?? emp.clinical_data?.clinical_exam?.endocrine ?? '').trim().slice(0, 254);
+                        const musculoStr = String(emp.musculoskeletal ?? emp.co_xuong_khop ?? emp.clinical_data?.clinical_exam?.musculoskeletal ?? '').trim().slice(0, 254);
+                        const neuroStr = String(emp.neurology ?? emp.than_kinh ?? emp.clinical_data?.clinical_exam?.neurology ?? '').trim().slice(0, 254);
+                        const psychStr = String(emp.psychiatry ?? emp.tam_than ?? emp.clinical_data?.clinical_exam?.psychiatry ?? '').trim().slice(0, 254);
+
+                        // Kết luận & phân loại sức khỏe: CHỈ ghi nhận khi trong file Excel thực sự có nhập
+                        const rawFitness = emp.fitness_class ?? emp.phan_loai_sk ?? emp.loai_sk ?? emp.conclusion_data?.fitness_class;
+                        const fitnessClassNum = parseFitnessClassFromText(rawFitness);
+
+                        const diagStr = String(emp.diagnosis ?? emp.ket_luan ?? emp.chan_doan ?? emp.conclusion_data?.diagnosis ?? '').trim().slice(0, 254);
+                        const remarkStr = String(emp.cac_van_de_luu_y ?? emp.benh_tat_luu_y ?? emp.loi_dan ?? emp.remark ?? emp.conclusion_data?.cac_van_de_luu_y ?? '').trim().slice(0, 254);
+                        const doctorName = String(emp.doctor_name ?? emp.bac_si_ket_luan ?? emp.conclusion_data?.doctor_name ?? '').trim().slice(0, 100);
+
+                        const hasExplicitConclusion = !!(fitnessClassNum || diagStr);
+                        const hasInternalData = !!(internalStr || circStr || respSpecStr || digestStr || urinaryStr || endocStr || musculoStr || neuroStr || psychStr);
+                        const hasAnyExam = !!(
+                            heightNum || weightNum || bpStr || pulseNum || tempNum || respNum || physicalSummary ||
+                            hasInternalData || externalStr || dermStr || gynStr || eyeStr || entStr || dentalStr
+                        );
+                        const hasClinicalData = hasAnyExam || hasExplicitConclusion;
+
+                        let clinicalDataJson: any = null;
+                        let conclusionDataJson: any = null;
+
+                        if (hasClinicalData) {
+                            // Phân tích thị lực từ text khám mắt nếu có (ví dụ "10/10" hoặc "Mắt phải 10/10, Mắt trái 10/10")
+                            let eyeRight = '';
+                            let eyeLeft = '';
+                            if (eyeStr) {
+                                const fractionMatch = eyeStr.match(/(\d+\s*\/\s*\d+)/g);
+                                if (fractionMatch && fractionMatch.length >= 2) {
+                                    eyeRight = fractionMatch[0].replace(/\s+/g, '');
+                                    eyeLeft = fractionMatch[1].replace(/\s+/g, '');
+                                } else if (fractionMatch && fractionMatch.length === 1) {
+                                    eyeRight = fractionMatch[0].replace(/\s+/g, '');
+                                    eyeLeft = fractionMatch[0].replace(/\s+/g, '');
+                                } else if (eyeStr.toLowerCase().includes('10/10')) {
+                                    eyeRight = '10/10';
+                                    eyeLeft = '10/10';
+                                }
+                            }
+
+                            clinicalDataJson = {
+                                examination: {
+                                    height: heightNum ? String(heightNum) : '',
+                                    weight: weightNum ? String(weightNum) : '',
+                                    bmi: bmiVal ? String(bmiVal) : '',
+                                    blood_pressure: bpStr,
+                                    pulse: pulseNum ? String(pulseNum) : '',
+                                    temperature: tempNum ? String(tempNum) : '',
+                                    breathing_rate: respNum ? String(respNum) : '',
+                                    physical_summary: physicalSummary,
+                                    kham_the_luc_pl: (physicalSummary || emp.kham_the_luc_pl) ? '1' : ''
+                                },
+                                clinical_exam: {
+                                    // Nội khoa tổng quát và chi tiết từng hệ cơ quan
+                                    internal: internalStr || circStr || respSpecStr || digestStr || '',
+                                    kq_tim_mach: circStr || (internalStr ? internalStr : ''),
+                                    kq_ho_hap: respSpecStr || (internalStr ? 'Bình thường' : ''),
+                                    noi_khoa_tieu_hoa: digestStr || (internalStr ? 'Bình thường' : ''),
+                                    kq_tiet_nieu: urinaryStr || (internalStr ? 'Bình thường' : ''),
+                                    kq_noi_tiet: endocStr || (internalStr ? 'Bình thường' : ''),
+                                    kq_co_xuong_khop: musculoStr || (internalStr ? 'Bình thường' : ''),
+                                    kq_than_kinh: neuroStr || (internalStr ? 'Bình thường' : ''),
+                                    kq_tam_than: psychStr || (internalStr ? 'Bình thường' : ''),
+                                    noi_khoa_tuan_hoan_pl: hasInternalData ? '1' : '',
+                                    noi_khoa_ho_hap_pl: hasInternalData ? '1' : '',
+                                    noi_khoa_tieu_hoa_pl: hasInternalData ? '1' : '',
+                                    noi_khoa_than_tietnieu_pl: hasInternalData ? '1' : '',
+                                    noi_khoa_noi_tiet_pl: hasInternalData ? '1' : '',
+                                    noi_khoa_co_xuong_khop_pl: hasInternalData ? '1' : '',
+                                    noi_khoa_than_kinh_pl: hasInternalData ? '1' : '',
+                                    noi_khoa_tam_than_pl: hasInternalData ? '1' : '',
+
+                                    // Ngoại khoa
+                                    external: externalStr,
+                                    kq_ngoai_khoa: externalStr,
+                                    kham_ngoai_khoa_pl: externalStr ? '1' : '',
+
+                                    // Da liễu
+                                    dermatology: dermStr,
+                                    kq_da_lieu: dermStr,
+                                    kham_da_lieu_pl: dermStr ? '1' : '',
+
+                                    // Sản phụ khoa (nữ)
+                                    gynecology: gynStr,
+                                    kham_san_phu_khoa: gynStr,
+                                    kq_sinh_duc: gynStr,
+                                    kham_san_phu_khoa_pl: gynStr ? '1' : '',
+
+                                    // Mắt
+                                    eye: eyeStr,
+                                    benh_khac_mat: eyeStr,
+                                    khong_kinh_mat_phai: eyeRight,
+                                    khong_kinh_mat_trai: eyeLeft,
+                                    kham_mat_pl: eyeStr ? '1' : '',
+
+                                    // Tai Mũi Họng
+                                    ent: entStr,
+                                    benh_tai_mui_hong: entStr,
+                                    kq_tai_mui_hong: entStr,
+                                    kham_tai_mui_hong_pl: entStr ? '1' : '',
+                                    tai_phai_noi_thuong: entStr ? '5m' : '',
+                                    tai_trai_noi_thuong: entStr ? '5m' : '',
+                                    tai_phai_noi_tham: entStr ? '0.5m' : '',
+                                    tai_trai_noi_tham: entStr ? '0.5m' : '',
+
+                                    // Răng Hàm Mặt
+                                    dental: dentalStr,
+                                    benh_rang_ham_mat: dentalStr,
+                                    ham_tren: dentalStr || '',
+                                    ham_duoi: dentalStr || '',
+                                    kham_rang_ham_mat_pl: dentalStr ? '1' : '',
+
+                                    circulatory: circStr,
+                                    respiratory: respSpecStr,
+                                    digestive: digestStr,
+                                    urinary: urinaryStr,
+                                    endocrine: endocStr,
+                                    musculoskeletal: musculoStr,
+                                    neurology: neuroStr,
+                                    psychiatry: psychStr
+                                }
+                            };
+
+                            if (hasExplicitConclusion) {
+                                conclusionDataJson = {
+                                    fitness_class: fitnessClassNum || '1',
+                                    diagnosis: diagStr || (fitnessClassNum === '1' || fitnessClassNum === '2' ? 'Đủ sức khỏe làm việc' : 'Khám sức khỏe định kỳ'),
+                                    cac_van_de_luu_y: remarkStr,
+                                    doctor_name: doctorName || 'Bác sĩ Kết luận'
+                                };
+                            }
+
+                            const specMetadata = buildSpecialtyMetadata({
+                                clinicalData: clinicalDataJson,
+                                labData: {},
+                                conclusionData: conclusionDataJson || {},
+                                doctorId: 'admin',
+                                doctorName: doctorName || 'Bác sĩ Khám',
+                                hasExam: hasAnyExam,
+                                hasConclusion: hasExplicitConclusion
+                            });
+                            clinicalDataJson.specialty_metadata = specMetadata;
+                            clinicalDataJson.clinical_exam.specialty_metadata = specMetadata;
+                        }
+
+                        // Kiểm tra nếu nhân viên đã tồn tại trong hợp đồng thì cập nhật (Update)
+                        const existingMatch = (docNo && existingByCard.get(docNo)) || (empCode && existingByCode.get(empCode.toLowerCase()));
+
+                        if (existingMatch) {
+                            const updateSql = `
+                                UPDATE hms_exm_employee SET
+                                    hee_surname = $1, hee_midname = $2, hee_firstname = $3,
+                                    hee_birthdate = COALESCE($4, hee_birthdate),
+                                    hee_sex = $5,
+                                    hee_phone = COALESCE(NULLIF($6, ''), hee_phone),
+                                    hee_note = COALESCE(NULLIF($7, ''), hee_note),
+                                    hee_dept = COALESCE(NULLIF($8, ''), hee_dept),
+                                    hee_position_desc = COALESCE(NULLIF($9, ''), hee_position_desc),
+                                    hee_address = COALESCE(NULLIF($10, ''), hee_address),
+                                    hee_provid = COALESCE($11, hee_provid),
+                                    hee_distid = COALESCE($12, hee_distid),
+                                    hee_villid = COALESCE($13, hee_villid),
+                                    hee_cardid = COALESCE(NULLIF($14, ''), hee_cardid),
+                                    hee_cardid_date = COALESCE(NULLIF($15, ''), hee_cardid_date),
+                                    hee_cardid_place = COALESCE(NULLIF($16, ''), hee_cardid_place),
+                                    hee_guardian_name = COALESCE(NULLIF($17, ''), hee_guardian_name),
+                                    hee_guardian_cccd = COALESCE(NULLIF($18, ''), hee_guardian_cccd),
+                                    hee_ethnic = COALESCE($19, hee_ethnic),
+                                    hee_prov_code = COALESCE(NULLIF($20, ''), hee_prov_code),
+                                    hee_vill_code = COALESCE(NULLIF($21, ''), hee_vill_code),
+                                    hee_occupation = COALESCE($22, hee_occupation),
+                                    hee_target_group = COALESCE(NULLIF($23, ''), hee_target_group),
+                                    hee_height = COALESCE($24, hee_height),
+                                    hee_weight = COALESCE($25, hee_weight),
+                                    hee_bloodpressure = COALESCE(NULLIF($26, ''), hee_bloodpressure),
+                                    hee_pulse = COALESCE($27, hee_pulse),
+                                    hee_temperature = COALESCE($28, hee_temperature),
+                                    hee_respiration = COALESCE($29, hee_respiration),
+                                    hee_conclusion = COALESCE(NULLIF($30, ''), hee_conclusion),
+                                    hee_comment = COALESCE(NULLIF($31, ''), hee_comment),
+                                    hee_righteye = COALESCE(NULLIF($32, ''), hee_righteye),
+                                    hee_clinical_data = COALESCE($33::jsonb, hee_clinical_data),
+                                    hee_conclusion_data = COALESCE($34::jsonb, hee_conclusion_data),
+                                    hee_updateddate = CURRENT_TIMESTAMP
+                                WHERE hee_employee_id = $35
+                            `;
+                            await query(updateSql, [
+                                surname, midname, firstname, birthDate,
+                                (emp.sex === 'Nữ' || emp.sex === 'F') ? 'F' : 'M',
+                                phone, note, dept, position, address,
+                                provNum, emp.district_id ? parseInt(String(emp.district_id), 10) : null, villNum,
+                                docNo, cardIdDate, cardIdPlace, guardianName, guardianCccd,
+                                emp.ethnic ? parseInt(String(emp.ethnic), 10) : null,
+                                provCode || null, villCode || null, occNum, targetGroup,
+                                heightNum, weightNum, bpStr, pulseNum, tempNum, respNum,
+                                fitnessClassNum ? String(fitnessClassNum).slice(0, 2) : null,
+                                diagStr ? diagStr.slice(0, 200) : null,
+                                eyeStr ? eyeStr.slice(0, 15) : null,
+                                clinicalDataJson ? JSON.stringify(clinicalDataJson) : null,
+                                conclusionDataJson ? JSON.stringify(conclusionDataJson) : null,
+                                existingMatch.id
+                            ]);
+
+                            // Nếu nhân viên này đã tiếp nhận (có docNo) và có dữ liệu lâm sàng mới,
+                            // cập nhật luôn sang health_check_details và pushback về HIS Core
+                            if (existingMatch.docNo > 0 && hasClinicalData) {
+                                try {
+                                    await query(`
+                                        UPDATE health_check_details 
+                                        SET clinical_data = COALESCE($1::jsonb, clinical_data),
+                                            conclusion_data = COALESCE($2::jsonb, conclusion_data),
+                                            updated_at = NOW()
+                                        WHERE master_id = (
+                                            SELECT id FROM health_check_masters 
+                                            WHERE his_employee_id = $3::varchar OR his_doc_no = $4::varchar 
+                                            LIMIT 1
+                                        )
+                                    `, [
+                                        JSON.stringify(clinicalDataJson),
+                                        JSON.stringify(conclusionDataJson),
+                                        String(existingMatch.id),
+                                        String(existingMatch.docNo)
+                                    ]);
+
+                                    const clientWrapper = { query: (s: string, p?: any[]) => query(s, p) };
+                                    await hisIntegrationController.pushbackClinicalAndConclusion(
+                                        clientWrapper,
+                                        existingMatch.docNo,
+                                        clinicalDataJson,
+                                        conclusionDataJson,
+                                        (req as any).user?.username || 'admin',
+                                        (req as any).user?.fullName || 'Bác sĩ Kết luận'
+                                    );
+                                } catch (pushErr: any) {
+                                    console.warn(`⚠️ [importEmployees] Cập nhật HIS Core cho NV #${existingMatch.id} gặp cảnh báo:`, pushErr.message);
+                                }
+                            }
+                        } else {
+                            // Tạo mới nhân viên (Insert)
+                            currentMaxId++;
+                            const fullName = [surname, midname, firstname].filter(Boolean).join(' ') || (emp.name || emp.fullName || '');
+                            const insertSql = `
+                                INSERT INTO hms_exm_employee (
+                                    hee_employee_id, hee_contract_id, hee_id, hee_name,
+                                    hee_surname, hee_midname, hee_firstname, 
+                                    hee_birthdate, hee_sex, hee_docno, hee_phone, 
+                                    hee_note, hee_status, hee_isactive,
+                                    hee_dept, hee_position_desc, hee_address,
+                                    hee_provid, hee_distid, hee_villid,
+                                    hee_cardid, hee_cardid_date, hee_cardid_place,
+                                    hee_guardian_name, hee_guardian_cccd, hee_ethnic,
+                                    hee_prov_code, hee_vill_code, hee_occupation,
+                                    hee_target_group,
+                                    hee_height, hee_weight, hee_bloodpressure, hee_pulse,
+                                    hee_temperature, hee_respiration, hee_conclusion, hee_comment,
+                                    hee_righteye, hee_clinical_data, hee_conclusion_data
+                                ) VALUES (
+                                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                                    $11, $12, 'O', 'Y', $13, $14, $15, $16, $17, $18,
+                                    $19, $20, $21, $22, $23, $24, $25, $26, $27,
+                                    $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39
+                                )
+                            `;
+                            await query(insertSql, [
+                                currentMaxId,
+                                contractId,
+                                empCode,
+                                fullName,
+                                surname,
+                                midname,
+                                firstname,
+                                birthDate,
+                                (emp.sex === 'Nữ' || emp.sex === 'F') ? 'F' : 'M',
+                                null,
+                                phone,
+                                note,
+                                dept,
+                                position,
+                                address,
+                                provNum,
+                                emp.district_id ? parseInt(String(emp.district_id), 10) : null,
+                                villNum,
+                                docNo,
+                                cardIdDate,
+                                cardIdPlace,
+                                guardianName,
+                                guardianCccd,
+                                emp.ethnic ? parseInt(String(emp.ethnic), 10) : null,
+                                provCode || null,
+                                villCode || null,
+                                occNum,
+                                targetGroup,
+                                heightNum,
+                                weightNum,
+                                bpStr || null,
+                                pulseNum,
+                                tempNum,
+                                respNum,
+                                fitnessClassNum ? String(fitnessClassNum).slice(0, 2) : null,
+                                diagStr ? diagStr.slice(0, 200) : null,
+                                eyeStr ? eyeStr.slice(0, 15) : null,
+                                clinicalDataJson ? JSON.stringify(clinicalDataJson) : null,
+                                conclusionDataJson ? JSON.stringify(conclusionDataJson) : null
+                            ]);
+
+                            if (docNo) existingByCard.set(docNo, { id: currentMaxId, docNo: 0 });
+                            if (empCode) existingByCode.set(empCode.toLowerCase(), { id: currentMaxId, docNo: 0 });
+                        }
                     }
                 }
 
@@ -426,22 +777,25 @@ export class EmployeesController {
 
             const tgVal = String(targetGroup || target_group || doi_tuong_ksk || '14').trim();
 
+            const fullName = [surname.trim(), (midname || '').trim(), firstname.trim()].filter(Boolean).join(' ');
+
             const insertSql = `
                 INSERT INTO hms_exm_employee (
-                    hee_employee_id, hee_contract_id, hee_id, 
+                    hee_employee_id, hee_contract_id, hee_id, hee_name,
                     hee_surname, hee_midname, hee_firstname, 
                     hee_birthdate, hee_sex, hee_docno, hee_phone, 
                     hee_note, hee_status, hee_isactive,
                     hee_address, hee_provid, hee_villid,
                     hee_cardid, hee_cardid_date, hee_cardid_place,
                     hee_ethnic, hee_occupation, hee_target_group
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, null, $9, $10, 'O', 'Y', $11, $12, $13, $14, $15, $16, $17, $18, $19)
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, null, $10, $11, 'O', 'Y', $12, $13, $14, $15, $16, $17, $18, $19, $20)
             `;
 
             await query(insertSql, [
                 nextEmployeeId,
                 contractId,
                 empCode,
+                fullName,
                 surname.trim(),
                 (midname || '').trim(),
                 firstname.trim(),

@@ -20,6 +20,7 @@ router.use(authMiddleware);
 // CRUD Endpoints (Health Check Documents)
 router.get('/documents', healthCheckController.getDocuments.bind(healthCheckController));
 router.get('/documents/:id', healthCheckController.getDocumentById.bind(healthCheckController));
+router.get('/documents/:id/fees', healthCheckController.getDocumentFees.bind(healthCheckController));
 router.post('/documents', healthCheckController.createDocument.bind(healthCheckController));
 router.put('/documents/:id', healthCheckController.updateDocument.bind(healthCheckController));
 router.delete('/documents/:id', healthCheckController.deleteDocument.bind(healthCheckController));
@@ -88,7 +89,9 @@ router.put('/contracts/:id', contractsController.updateContract.bind(contractsCo
 router.put('/contracts/:id/status', contractsController.updateContractStatus.bind(contractsController));
 router.delete('/contracts/:id', contractsController.deleteContract.bind(contractsController));
 router.post('/contracts/:id/cleanup-unreceived', contractsController.cleanupUnreceivedEmployees.bind(contractsController));
+router.get('/contracts/:id/report-summary', contractsController.getContractReportSummary.bind(contractsController));
 router.post('/contracts/:id/import-his-docs', contractsController.importHisDocsToContract.bind(contractsController));
+router.post('/contracts/:id/sync-cls', contractsController.syncContractParaclinicalResults.bind(contractsController));
 router.get('/contracts/:id/employees', employeesController.getContractEmployees.bind(employeesController));
 router.post('/contracts/:id/employees/import', employeesController.importEmployees.bind(employeesController));
 router.post('/contracts/:id/receive-all', receptionController.receiveAllContractEmployees.bind(receptionController));
@@ -110,6 +113,7 @@ router.get('/settings', contractsController.getSettings.bind(contractsController
 router.get('/settings/partners', contractsController.getSigningPartners.bind(contractsController));
 router.put('/settings', contractsController.updateSettings.bind(contractsController));
 router.post('/settings/test-connection', contractsController.testConnection.bind(contractsController));
+router.post('/settings/test-syt-connection', contractsController.testSytConnection.bind(contractsController));
 
 
 // Reception & CCCD search endpoints

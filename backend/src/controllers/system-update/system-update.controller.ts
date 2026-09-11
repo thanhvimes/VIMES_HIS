@@ -71,7 +71,10 @@ class SystemUpdateController {
         return 0;
     }
 
+    private static updateHistoryTableEnsured = false;
+
     private async ensureUpdateHistoryTable(): Promise<void> {
+        if (SystemUpdateController.updateHistoryTableEnsured) return;
         try {
             await query(`
                 CREATE TABLE IF NOT EXISTS sys_system_updates (
@@ -87,8 +90,10 @@ class SystemUpdateController {
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             `);
+            SystemUpdateController.updateHistoryTableEnsured = true;
         } catch (err) {
             console.warn('[SystemUpdate] Could not initialize sys_system_updates table:', err);
+            SystemUpdateController.updateHistoryTableEnsured = true;
         }
     }
 

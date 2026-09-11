@@ -24,7 +24,12 @@ const SpecialtyCard: React.FC<SpecialtyCardProps> = ({ specialtyKey, title, chil
     const { user } = useSession();
 
     const safeMetadata = specialtyMetadata || {};
-    const initialMetadata = { ...(safeMetadata[specialtyKey] || { doctorId: '', status: 'CHUA_KHAM' }) };
+    const fallbackMeta = safeMetadata[specialtyKey] || 
+        (specialtyKey === 'surgery' ? safeMetadata['external'] : undefined) ||
+        (specialtyKey === 'external' ? safeMetadata['surgery'] : undefined) ||
+        (specialtyKey === 'physical' ? safeMetadata['examination'] : undefined) ||
+        (specialtyKey === 'examination' ? safeMetadata['physical'] : undefined);
+    const initialMetadata = { ...(fallbackMeta || { doctorId: '', status: 'CHUA_KHAM' }) };
     
     // Default to the currently logged in doctor if not selected
     if (!initialMetadata.doctorId && user) {
