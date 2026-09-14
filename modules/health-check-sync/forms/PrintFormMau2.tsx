@@ -76,7 +76,39 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
     const clinicalExam = rawClinical.clinical_exam || rawClinical.clinicalExam || {};
     const examination = rawClinical.examination || {};
     const extra = rawClinical.extra || {};
-    const clinical = { ...examination, ...rawClinical, ...clinicalExam };
+    const specMetaSources = [
+        docNormalized.specialtyMetadata,
+        docNormalized.specialty_metadata,
+        rawClinical.specialty_metadata,
+        clinicalExam.specialty_metadata
+    ].filter(Boolean);
+
+    const mergedSpecMeta: Record<string, any> = {};
+    for (const source of specMetaSources) {
+        if (!source || typeof source !== 'object') continue;
+        for (const [k, v] of Object.entries(source)) {
+            if (!v || typeof v !== 'object') continue;
+            const existing = mergedSpecMeta[k];
+            if (!existing) {
+                mergedSpecMeta[k] = { ...v };
+            } else {
+                const isNewActive = (v as any).status === 'ĐÃ_KHÁM' || (v as any).status === 'ĐÃ_DUYỆT' || (v as any).doctorId || (v as any).doctorName;
+                const isExistingActive = existing.status === 'ĐÃ_KHÁM' || existing.status === 'ĐÃ_DUYỆT' || existing.doctorId || existing.doctorName;
+                if (isNewActive || !isExistingActive) {
+                    mergedSpecMeta[k] = { ...existing, ...v };
+                } else {
+                    mergedSpecMeta[k] = { ...v, ...existing };
+                }
+            }
+        }
+    }
+
+    const clinical = { 
+        ...examination, 
+        ...rawClinical, 
+        ...clinicalExam,
+        specialty_metadata: mergedSpecMeta
+    };
     const lab = docNormalized.lab_data || docNormalized.labData || {};
     const conclusion = docNormalized.conclusion_data || docNormalized.conclusionData || {};
     const paraclinicalItems: any[] = lab.paraclinical_items || lab.paraclinicalItems || [];

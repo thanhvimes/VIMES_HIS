@@ -103,6 +103,18 @@ class HealthCheckController {
         }
     }
 
+    async resetSyncStatus(req: Request, res: Response) {
+        return documentsController.resetSyncStatus(req, res);
+    }
+
+    async resetSyncStatusBatch(req: Request, res: Response) {
+        return documentsController.resetSyncStatusBatch(req, res);
+    }
+
+    async createFeesForDoc(req: Request, res: Response) {
+        return documentsController.createFeesForDoc(req, res);
+    }
+
 }
 
 export default new HealthCheckController();

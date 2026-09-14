@@ -32,6 +32,7 @@ const FeeTab: React.FC<FeeTabProps> = ({ customDocNo, initialData: propsInitialD
     const targetId = customDocNo || initialData?.id || initialData?.doc_no || dynamicCtx?.docNo || childCtx?.docNo;
 
     const [loading, setLoading] = useState<boolean>(false);
+    const [isCreatingFees, setIsCreatingFees] = useState<boolean>(false);
     const [feeData, setFeeData] = useState<PatientFeeReport | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState<string>('');
@@ -54,6 +55,30 @@ const FeeTab: React.FC<FeeTabProps> = ({ customDocNo, initialData: propsInitialD
             toast.error('Không thể tải dữ liệu chi phí từ HIS');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleCreateFees = async () => {
+        const docNo = targetId || dynamicCtx?.docNo || childCtx?.docNo || initialData?.doc_no;
+        if (!docNo) {
+            toast.error("Không xác định được số hồ sơ (doc_no) để tạo lập phí.");
+            return;
+        }
+
+        setIsCreatingFees(true);
+        const toastId = toast.loading("Đang gọi thủ tục tạo lập mục phí (hms_fee_create) từ HIS...");
+        try {
+            const res = await healthCheckService.createDocumentFees(Number(docNo));
+            if (res.success) {
+                toast.success(res.message || "Đã tạo lập mục phí thành công!", { id: toastId });
+                await fetchFees();
+            } else {
+                toast.error(res.message || "Tạo lập mục phí thất bại.", { id: toastId });
+            }
+        } catch (err: any) {
+            toast.error("Lỗi tạo lập mục phí: " + err.message, { id: toastId });
+        } finally {
+            setIsCreatingFees(false);
         }
     };
 
@@ -229,6 +254,17 @@ const FeeTab: React.FC<FeeTabProps> = ({ customDocNo, initialData: propsInitialD
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <button
+                        type="button"
+                        onClick={handleCreateFees}
+                        disabled={loading || isCreatingFees}
+                        className="px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-xs"
+                        title="Tạo lập lại toàn bộ mục phí từ các chỉ định trên HIS"
+                    >
+                        <Layers className={`w-3.5 h-3.5 ${isCreatingFees ? 'animate-spin' : ''}`} />
+                        <span>Tạo lập mục phí</span>
+                    </button>
+
                     <button
                         type="button"
                         onClick={fetchFees}

@@ -31,14 +31,16 @@ export const HEALTH_CHECK_NAV_ITEMS: NavItemType[] = [
         path: '/health-check?step=contracts',
         section: 'TIẾP NHẬN',
         icon: React.createElement(DocumentTextIcon, { className: "w-5 h-5" }),
-        iconName: 'DocumentTextIcon'
+        iconName: 'DocumentTextIcon',
+        adminOnly: true
     },
     {
         name: 'Đồng bộ dữ liệu',
         path: '/health-check?step=sync',
         section: 'TIẾP NHẬN',
         icon: React.createElement(CloudUploadIcon, { className: "w-5 h-5" }),
-        iconName: 'CloudUploadIcon'
+        iconName: 'CloudUploadIcon',
+        adminOnly: true
     },
 
     {

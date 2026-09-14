@@ -328,6 +328,120 @@
   border-color: #0f172a !important;
 }
 
+/* ==================== NATIONAL HEALTHCARE UI TABLE TOKENS (gcv-ninhbinh standard) ==================== */
+:root {
+  --medical-primary: #0288d1;
+  --medical-primary-hover: #0277bd;
+  --medical-primary-deep: #01579b;
+  --medical-primary-subtle: #edf4fa;
+  --medical-border: #cbd5e1;
+  --medical-border-subtle: #e2e8f0;
+}
+
+.his-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+.dark .his-table-wrap {
+  border-color: #334155;
+  background: #1e293b;
+}
+
+.his-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  text-align: left;
+}
+
+.his-table th {
+  background: #edf4fa !important;
+  color: #01579b !important;
+  font-weight: 800;
+  padding: 8px 10px;
+  border-bottom: 2px solid #94a3b8;
+  border-right: 1px solid #cbd5e1;
+  white-space: nowrap;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.dark .his-table th {
+  background: #1e293b !important;
+  color: #38bdf8 !important;
+  border-bottom: 2px solid #475569;
+  border-right: 1px solid #334155;
+}
+
+.his-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  border-right: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.dark .his-table td {
+  border-bottom: 1px solid #334155;
+  border-right: 1px solid #1e293b;
+}
+
+.his-table tr:nth-child(even) {
+  background: #fafcff;
+}
+
+.dark .his-table tr:nth-child(even) {
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.his-table tr:hover {
+  background: #f0f7ff !important;
+}
+
+.dark .his-table tr:hover {
+  background: rgba(51, 65, 85, 0.45) !important;
+}
+
+.his-table tfoot td {
+  background: #edf4fa !important;
+  font-weight: 800;
+  border-top: 2px solid #94a3b8 !important;
+  border-right: 1px solid #cbd5e1;
+  color: #0f172a;
+}
+
+.dark .his-table tfoot td {
+  background: #1e293b !important;
+  border-top: 2px solid #475569 !important;
+  border-right: 1px solid #334155;
+  color: #f1f5f9;
+}
+
+/* KPI Card with 4px left indicator border */
+.his-kpi-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-left-width: 4px;
+  border-radius: 10px;
+  padding: 14px 16px;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+}
+
+.his-kpi-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.08);
+}
+
+.dark .his-kpi-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
 /* --- GLOBAL ENTERPRISE PRINT STYLES --- */
 @media print {
   *, *::before, *::after {

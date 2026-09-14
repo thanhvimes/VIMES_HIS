@@ -1203,6 +1203,112 @@ class DocumentsController {
             return res.status(500).json({ success: false, message: error.message });
         }
     }
+
+    async resetSyncStatus(req: Request, res: Response) {
+        const { id } = req.params;
+        const { reason } = req.body;
+        const numId = parseInt(String(id), 10);
+        if (isNaN(numId)) {
+            return res.status(400).json({ error: 'Mã hồ sơ không hợp lệ.' });
+        }
+
+        try {
+            await transaction(async (client) => {
+                const state = await client.query(
+                    `SELECT m.*, d.clinical_data, d.lab_data, d.conclusion_data 
+                     FROM health_check_masters m
+                     LEFT JOIN health_check_details d ON d.master_id = m.id
+                     WHERE m.id = $1
+                     FOR UPDATE OF m`,
+                    [numId]
+                );
+
+                if (state.rows.length === 0) {
+                    const err: any = new Error('Không tìm thấy hồ sơ.');
+                    err.statusCode = 404;
+                    throw err;
+                }
+
+                const doc = state.rows[0];
+
+                const unsignedXml = generateXmlPayload(
+                    doc.form_type,
+                    { patientId: doc.patient_id, patientName: doc.patient_name, cccd: doc.cccd, dob: doc.dob, gender: doc.gender, docNo: doc.doc_no },
+                    doc.clinical_data || {}, doc.lab_data || {}, doc.conclusion_data || {}
+                );
+
+                await client.query(
+                    `UPDATE health_check_masters
+                     SET xml_data = $1, signature = NULL, signature_status = 'Unsigned',
+                         send_status = 'Unsent', sent_at = NULL,
+                         transaction_id = NULL, error_message = NULL, response_log = NULL,
+                         syt_send_status = 'Unsent', syt_sent_at = NULL,
+                         syt_transaction_id = NULL, syt_error_message = NULL, syt_response_log = NULL,
+                         updated_at = NOW()
+                     WHERE id = $2`,
+                    [unsignedXml, numId]
+                );
+
+                try {
+                    await client.query(
+                        `INSERT INTO sys_audit_log (table_name, record_id, action, old_data, new_data, changed_fields, user_id, client_ip, context_module)
+                         VALUES ('health_check_masters', $1, 'U', $2::jsonb, $3::jsonb, $4::jsonb, $5, $6, 'health-check-reset-sync')`,
+                        [String(numId), JSON.stringify({ signature_status: doc.signature_status, send_status: doc.send_status, syt_send_status: doc.syt_send_status }), JSON.stringify({ signature_status: 'Unsigned', send_status: 'Unsent', syt_send_status: 'Unsent' }), JSON.stringify({ reason: reason || 'Người dùng yêu cầu hủy gửi mở khóa để sửa thông tin' }), String((req as any).userId || ''), req.ip]
+                    );
+                } catch {}
+            });
+
+            return res.json({ success: true, message: 'Đã hủy trạng thái đồng bộ và mở khóa hồ sơ để chỉnh sửa.' });
+        } catch (error: any) {
+            console.error('❌ Lỗi resetSyncStatus:', error);
+            return res.status(error.statusCode || 500).json({ error: error.message });
+        }
+    }
+
+    async resetSyncStatusBatch(req: Request, res: Response) {
+        const { docIds, reason } = req.body;
+        if (!docIds || !Array.isArray(docIds) || docIds.length === 0) {
+            return res.status(400).json({ error: 'Danh sách ID hồ sơ không hợp lệ.' });
+        }
+
+        try {
+            const intIds = docIds.map((id: any) => parseInt(id, 10)).filter((id: number) => !isNaN(id));
+            await query(
+                `UPDATE health_check_masters
+                 SET signature = NULL, signature_status = 'Unsigned',
+                     send_status = 'Unsent', sent_at = NULL,
+                     transaction_id = NULL, error_message = NULL, response_log = NULL,
+                     syt_send_status = 'Unsent', syt_sent_at = NULL,
+                     syt_transaction_id = NULL, syt_error_message = NULL, syt_response_log = NULL,
+                     updated_at = NOW()
+                 WHERE id = ANY($1::int[])`,
+                [intIds]
+            );
+
+            return res.json({ success: true, message: `Đã hủy gửi và mở khóa ${intIds.length} hồ sơ thành công.` });
+        } catch (error: any) {
+            console.error('❌ Lỗi resetSyncStatusBatch:', error);
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    async createFeesForDoc(req: Request, res: Response) {
+        const { docNo, deptId } = req.body;
+        if (!docNo) {
+            return res.status(400).json({ error: 'Thiếu số hồ sơ khám (docNo).' });
+        }
+
+        const numericDocNo = Number(docNo);
+        const effectiveDept = String(deptId || 'KB').trim();
+
+        try {
+            await query(`SELECT hms_fee_create($1::integer, 'ETPO', $2::varchar)`, [numericDocNo, effectiveDept]);
+            return res.json({ success: true, message: 'Đã tạo lập và tính toán mục phí từ chỉ định thành công!' });
+        } catch (error: any) {
+            console.error('❌ Lỗi createFeesForDoc:', error);
+            return res.status(500).json({ error: error.message || 'Lỗi khi gọi hms_fee_create trên HIS.' });
+        }
+    }
 }
 
 export const documentsController = new DocumentsController();

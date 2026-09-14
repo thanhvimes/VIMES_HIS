@@ -1,72 +1,59 @@
 # ĐẶC TẢ VÀ KẾT QUẢ UNIT TEST PHÂN HỆ THỐNG KÊ BỆNH VIỆN
 
 **Module:** `hospital-statistics`  
-**File thực thi Unit Test:** `backend/scripts/test_statistics_unit.ts`  
-**Lệnh chạy:** `npx ts-node scripts/test_statistics_unit.ts` (tại thư mục `backend/`)  
-**Kết quả thực tế:** **10/10 Passed (100%)**
+**File thực thi Unit Test:** `backend/test/hospital-statistics-corrected.test.ts`  
+**Lệnh chạy:** `node --test -r ts-node/register test/hospital-statistics-corrected.test.ts` (tại thư mục `backend/`)  
+**Kết quả thực tế:** **7/7 Test Cases Passed (100%)**
 
 ---
 
-## Danh Sách 10 Test Cases Nghiệp Vụ
+## Danh Sách Chi Tiết Các Kịch Bản Kiểm Thử Tự Động
 
-### 1. UT01 - Báo cáo Hoạt động Bệnh viện Tổng thể (`getHospitalActivity`)
+### 1. TC01 - Báo cáo Hoạt động BV Tổng thể (`getHospitalActivity`)
 - **Mục tiêu:** Kiểm tra cấu trúc dữ liệu trả về 4 phần chuyên môn: Khám bệnh (Ngoại trú), Điều trị nội trú, Cận lâm sàng (CLS), Phẫu thuật - Thủ thuật (PTTT).
 - **Tiêu chuẩn nghiệm thu (Assertions):**
-  - `tong_so >= 0`, `so_bhyt >= 0`, `so_dichvu >= 0`.
-  - `tong_so >= so_bhyt` (Tổng số lượt khám >= số lượt BHYT).
-  - Cận lâm sàng và PTTT trả về danh sách phân loại hợp lệ.
+  - `examination`: `tong_so >= 0`, `so_bhyt >= 0`, `nhap_vien >= 0`, `chuyen_vien >= 0`.
+  - `inpatient`: `vao_vien >= 0`, `ra_vien >= 0`, `tu_vong >= 0`, `dang_dieu_tri >= 0`, `chuyen_vien_noi_tru >= 0`.
+  - Khớp logic C6: `tong_so = so_bhyt + so_dichvu`.
+  - Không lẫn nhóm phẫu thuật `B4%` và thủ thuật `B5%` trong mảng `paraclinical`.
 
-### 2. UT02 - Thống kê theo Phòng khám (`getClinicsStatistics`)
-- **Mục tiêu:** Kiểm tra dữ liệu theo từng buồng khám chuyên khoa.
+### 2. TC02 - Thống kê theo Phòng khám (`getClinicsStatistics`)
+- **Mục tiêu:** Kiểm tra dữ liệu theo từng buồng khám chuyên khoa chuẩn C6.
 - **Tiêu chuẩn nghiệm thu (Assertions):**
-  - Danh sách phòng khám không rỗng (`rows.length > 0`).
-  - Mỗi phòng có `room_id`, `room_name` (string), và các chỉ số: `tong_luot_kham`, `so_bhyt`, `so_dichvu`, `nhap_vien`, `chuyen_vien`, `cho_ve`, `dang_kham`.
+  - Danh sách phòng khám có `room_id`, `room_name`, `tong_luot_kham`, `so_bhyt`, `so_dichvu`.
+  - Có các chỉ số chuyển biến: `nhap_vien`, `chuyen_vien`, `cho_ve` (hiển thị giao diện là **Ra Viện** theo yêu cầu PDF), và `dang_kham`.
+  - Cân đối: `tong_luot_kham >= so_bhyt`.
 
-### 3. UT03 - Biến động BN Điều trị nội trú (`getInpatientStatistics`)
-- **Mục tiêu:** Kiểm tra chuyển động và cân đối người bệnh nội trú theo khoa phòng.
+### 3. TC03 - Biến động BN Điều trị nội trú (`getInpatientStatistics`)
+- **Mục tiêu:** Kiểm tra chuyển động và cân đối người bệnh nội trú theo từng khoa lâm sàng (Ground Truth).
 - **Tiêu chuẩn nghiệm thu (Assertions):**
-  - Có các khoa lâm sàng với `dept_id`, `dept_name`.
-  - Các chỉ số: `dau_ky`, `vao_vien`, `chuyen_den`, `chuyen_di`, `ra_vien`, `tu_vong`, `hien_dien` đều là số không âm.
+  - Mỗi khoa có: `dau_ky`, `vao_vien`, `chuyen_den`, `chuyen_di`, `ra_vien`, `tu_vong`, `hien_dien`.
+  - Đảm bảo công thức cân đối bệnh nhân nội trú: `hien_dien = dau_ky + vao_vien + chuyen_den - ra_vien - chuyen_di - tu_vong`.
 
-### 4. UT04 - Thống kê Cận lâm sàng (`getParaclinicalStatistics`)
-- **Mục tiêu:** Thống kê theo nhóm kỹ thuật cận lâm sàng (Huyết học, Sinh hóa, X-Quang, CT, Siêu âm...).
+### 4. TC04 - Báo cáo Cận lâm sàng (`getParaclinicalStatistics`)
+- **Mục tiêu:** Thống kê theo nhóm kỹ thuật CLS (Huyết học, Sinh hóa, X-Quang, CT- Scanner, Siêu âm, Nội soi, TDCN...).
 - **Tiêu chuẩn nghiệm thu (Assertions):**
-  - Có `group_id`, `group_name`, `tong_so_bn`, `tong_so_ca`, `ca_bhyt`, `ca_dichvu`.
-  - Doanh thu `tong_thanh_tien >= 0`.
+  - Tuyệt đối không chứa nhóm `B4` (phẫu thuật) hay `B5` (thủ thuật).
+  - Tên nhóm "Cắt lớp vi tính" đã được chuẩn hóa hiển thị thành `CT- Scanner`.
+  - Chỉ số `ca_bhyt` được tính chính xác từ `hfe_object / hfe_inspaid`, không bị bằng 0 sai lệch.
 
-### 5. UT05 - Phẫu thuật - Thủ thuật (`getSurgeryStatistics`)
-- **Mục tiêu:** Phân loại phẫu thuật thủ thuật theo tính chất chuyên môn.
+### 5. TC05 - Báo cáo Phẫu thuật - Thủ thuật (`getSurgeryStatistics`)
+- **Mục tiêu:** Phân loại ca mổ và thủ thuật theo phân nhóm và khoa phòng thực hiện (khớp Báo cáo mục 1 nhóm C nội trú).
 - **Tiêu chuẩn nghiệm thu (Assertions):**
-  - Phân tách rõ các loại: `loai_dac_biet`, `loai_1`, `loai_2`, `loai_3`, `thu_thuat`.
-  - `tong_so_ca >= loai_dac_biet + loai_1 + loai_2 + loai_3 + thu_thuat`.
+  - Phân tách rõ ràng: `loai_dac_biet`, `loai_1`, `loai_2`, `loai_3`, `thu_thuat`.
+  - Không gặp lỗi cột CSDL, sử dụng phân loại từ `hfl_groupid` và `hfl_name`.
 
-### 6. UT06 - Tổng hợp Chi phí theo Khoa phòng (`getDepartmentCostStatistics`)
-- **Mục tiêu:** Ma trận tài chính viện phí và phân bổ chi phí theo bộ phận.
+### 6. TC06 - Bộ lọc thời gian chuẩn 24 giờ (`formatDateRange`)
+- **Mục tiêu:** Đảm bảo khi người dùng chọn ngày từ `YYYY-MM-DD` đến `YYYY-MM-DD`, query luôn bao quát từ `00:00:00` đến `23:59:59`.
 - **Tiêu chuẩn nghiệm thu (Assertions):**
-  - Kiểm tra đầy đủ các mục chi phí: Tiền khám, tiền giường, xét nghiệm, CĐHA, TDCN, PTTT, thuốc, máu, VTYT, chi phí khác.
-  - Phân định rõ `tong_cong_chi_phi`, `bhyt_thanh_toan`, `benh_nhan_tra`.
+  - Đảm bảo dữ liệu phát sinh trong mọi giờ trong ngày (kể cả ca trực đêm 23:30) đều được thống kê đầy đủ.
 
-### 7. UT07 - Công suất sử dụng Giường bệnh (`getBedOccupancyStatistics`)
-- **Mục tiêu:** Theo dõi số giường kế hoạch, giường thực tế và tỷ lệ lấp đầy giường.
-- **Tiêu chuẩn nghiệm thu (Assertions):**
-  - `giuong_ke_hoach >= 0`, `giuong_thuc_ke >= 0`, `bn_dang_nam >= 0`.
-  - `ty_le_cong_suat` là số thực hợp lệ (không bị `NaN` hoặc lỗi chia cho 0).
+---
 
-### 8. UT08 - Biểu đồ Xu hướng Lượt khám theo ngày (`getDashboardCharts`)
-- **Mục tiêu:** Dữ liệu chuỗi thời gian phục vụ vẽ biểu đồ BarChart / AreaChart.
-- **Tiêu chuẩn nghiệm thu (Assertions):**
-  - Có `exam_date`, `label_date` định dạng ngày tháng `DD/MM`.
-  - `tong_kham`, `bhyt`, `vien_phi` là số không âm.
+## Lệnh Chạy Kiểm Thử Định Kỳ
 
-### 9. UT09 - Top 10 Bác sĩ có lượt khám nhiều nhất (`getTopDoctors`)
-- **Mục tiêu:** Xếp hạng bác sĩ có lượt khám cao nhất phục vụ quản lý nhân lực.
-- **Tiêu chuẩn nghiệm thu (Assertions):**
-  - Giới hạn tối đa 10 bác sĩ (`rows.length <= 10`).
-  - Sắp xếp giảm dần theo `total_visits DESC`.
-  - `doctor_name` hiển thị đầy đủ từ danh mục người dùng hệ thống.
+```bash
+cd backend
+node --test -r ts-node/register test/hospital-statistics-corrected.test.ts
+```
 
-### 10. UT10 - Kiểm tra Biên & Dữ liệu Rỗng trong Tương lai (Edge Cases)
-- **Mục tiêu:** Đảm bảo hệ thống không bị lỗi crash khi người dùng chọn khoảng ngày không có phát sinh dữ liệu (ví dụ chọn ngày trong tương lai).
-- **Tiêu chuẩn nghiệm thu (Assertions):**
-  - Toàn bộ 8 hàm thống kê trả về mảng rỗng `[]` hoặc số lượng `0` an toàn.
-  - Không ném ngoại lệ (`Unhandled Exception`).

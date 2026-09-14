@@ -19,6 +19,7 @@ export interface HospitalActivityData {
         ra_vien: number | string;
         tu_vong: number | string;
         dang_dieu_tri: number | string;
+        chuyen_vien_noi_tru?: number | string;
     };
     paraclinical: Array<{
         cls_group: string;

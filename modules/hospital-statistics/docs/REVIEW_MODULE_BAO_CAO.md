@@ -1,51 +1,44 @@
-# BÁO CÁO REVIEW VÀ KIỂM THỬ PHÂN HỆ THỐNG KÊ BỆNH VIỆN (vClinic)
+# BÁO CÁO REVIEW & CHUẨN HÓA PHÂN HỆ THỐNG KÊ BỆNH VIỆN THEO CHUẨN HIS LEGACY
 
-**Dự án:** Hệ thống Quản trị Bệnh viện & Phòng khám Thông minh (vClinic)  
-**Thời gian hoàn thành kiểm thử:** 14/08/2026  
-**Phạm vi:** Phân hệ Thống kê Bệnh viện (`modules/hospital-statistics`) & Backend Statistics Engine (`backend/src/services/statistics.service.ts`)
-
----
-
-## 1. Kết Quả Kiểm Thử Toàn Bộ 9/9 Báo Cáo Trên CSDL Thực Tế
-
-Toàn bộ 9 câu truy vấn nghiệp vụ của phân hệ Thống kê Bệnh viện đã được kiểm tra trực tiếp trên PostgreSQL HIS Database, xử lý thành công **100% (9/9 Passed)**:
-
-| STT | Báo cáo / Chức năng | Endpoint API | Trạng thái | Thời gian thực thi | Kết quả dữ liệu ghi nhận |
-|:---:|:---|:---|:---:|:---:|:---|
-| **1** | **Báo cáo Hoạt động BV Tổng thể** | `GET /statistics/hospital-activity` | ✅ PASSED | **~600ms** | Tổng khám: **182.879** lượt (BHYT: 101.221, Viện phí: 81.658, Chuyển viện: 1.604). |
-| **2** | **Thống kê theo Phòng khám** | `GET /statistics/clinics` | ✅ PASSED | **~3.0s** *(Đã tối ưu CTE)* | Chi tiết 13 phòng khám (Phòng Cấp cứu, Khám Nội 01, Nội 02, Ngoại, Sản, Nhi, RHM, YHCT...). |
-| **3** | **Biến động BN Điều trị nội trú** | `GET /statistics/inpatient` | ✅ PASSED | **35ms** | Theo dõi cân đối BN theo 6 khoa phòng chuyên môn. |
-| **4** | **Báo cáo Cận lâm sàng** | `GET /statistics/paraclinical` | ✅ PASSED | **~1.6s** | Thống kê 10 nhóm cận lâm sàng (Huyết học, Sinh hóa, Vi sinh, X-Quang, Siêu âm, Nội soi...). |
-| **5** | **Phẫu thuật - Thủ thuật (PTTT)** | `GET /statistics/surgery` | ✅ PASSED | **~770ms** | Phân loại ca PTTT: Đặc biệt, Loại I, Loại II, Loại III, Thủ thuật. |
-| **6** | **Tổng hợp Chi phí Khoa phòng** | `GET /statistics/department-costs` | ✅ PASSED | **~9.5s** | Ma trận viện phí 174.100 lượt BN, doanh thu khám, tiền giường, XN, CĐHA, thuốc, máu, VTYT. |
-| **7** | **Công suất Giường bệnh** | `GET /statistics/bed-occupancy` | ✅ PASSED | **33ms** | Giường kế hoạch, giường thực tế và tỷ lệ lấp đầy giường theo khoa. |
-| **8** | **Biểu đồ Xu hướng Lượt khám** | `GET /statistics/dashboard-charts` | ✅ PASSED | **~410ms** | 2.013 điểm dữ liệu theo ngày phục vụ render BarChart / AreaChart. |
-| **9** | **Top 10 Bác sĩ Khám Nhiều Nhất** | `GET /statistics/top-doctors` | ✅ PASSED | **115ms** | Danh sách Top 10 bác sĩ kèm họ tên đầy đủ và số lượt khám. |
+**Dự án:** Hệ thống Quản trị Bệnh viện & Phòng khám Thông minh (vClinic / VIMES_HIS)  
+**Tài liệu đối chiếu:** `Báo cáo thống kê chỉnh sửa lại.pdf`  
+**Mã nguồn đối chiếu:** `D:\DEV\Programs_HIS\HMSReportForm_LaiChau`  
+**Phạm vi:** Phân hệ Thống kê Bệnh viện (`modules/hospital-statistics`) & Backend Statistics Engine (`backend/src/services/statistics.service.ts`)  
+**Kết quả kiểm thử tự động:** **100% Passed (7/7 suites)** trên PostgreSQL Database thực tế (`vimes_ym`).
 
 ---
 
-## 2. Chi Tiết Các Tối Ưu & Sửa Lỗi Đã Thực Hiện
+## 1. Bảng Đối Chiếu Logic Kỹ Thuật (PDF Nghiệp Vụ vs Mã Nguồn HIS C++ vs HIS Web Hiện Hành)
 
-### 1. Chuẩn hóa Column Schema & Table Joins
-- **Lỗi cột `he_suggestion`:** Đổi thành `hd_suggestion` trên bảng `hms_doc` (`'I'` = Nhập viện, `'T'` = Chuyển viện, `'D'` = Cho về).
-- **Lỗi cột `sd_active`:** Đổi thành `sd_isactive` trên bảng `sys_dept`.
-- **Lỗi danh mục giường:** Thay thế truy vấn trực tiếp bảng `sys_dept` bằng `LEFT JOIN` với bảng danh mục giường `hms_bedlist` để tính `giuong_thuc_ke` và `giuong_ke_hoach`.
-- **Lỗi chi phí cận lâm sàng:** Join chính xác `pcms_order` với `pcms_order_line (ol.hfe_cost)`.
-- **Lỗi phân loại PTTT:** Phân loại dựa trên mã nhóm chuẩn `hfl_groupid IN ('B4001', 'B4002', 'B4003', 'B4004', 'B5000')` và tên dịch vụ.
-
-### 2. Tối ưu Hiệu năng Truy vấn (Performance Optimization)
-- **Áp dụng CTE Subquery Aggregation cho Báo cáo Phòng khám (`getClinicsStatistics`):** Gom nhóm số liệu theo phòng khám trước khi kết nối danh mục phòng, giảm thời gian xử lý từ 6.5s xuống 3.0s.
-- **Tối ưu hóa Báo cáo Chi phí Khoa phòng (`getDepartmentCostStatistics`):** Loại bỏ câu truy vấn con lồng nhau `SELECT sd_name FROM sys_dept` trên từng dòng trong 174.000 bản ghi, chuyển sang join bảng ở lớp ngoài sau khi GROUP BY.
+| Mục Báo Cáo | Mã Nguồn C++ (HMSReportForm_LaiChau) | Quy Định CSDL Thực Tế (PostgreSQL) | Điều Chỉnh Trên Hệ Thống Web Hiện Hành |
+|:---|:---|:---|:---|
+| **I & II: Tổng thể Hoạt động BV** | `Examination/EMrptExamRoomActivitiesReportDialog.cpp` (L447-493) | - Nhập viện: `hd_suggestion IN ('A', 'I')` (`'A'` = Vào viện với 13.995 lượt).<br>- Chuyển viện: `hd_suggestion = 'T'`.<br>- Đối tượng BHYT: `f.hfe_object IN (4, 6, 13, 14)` hoặc `ho.ho_type IN ('I', 'C')`. | Đồng bộ hóa hoàn toàn logic tính tổng khám, BHYT, Viện phí, Nhập viện và Chuyển viện giữa Khám Ngoại trú và Bảng Hoạt động tổng thể. Tích hợp số liệu chuyển viện nội trú (Điểm G). |
+| **III: Thống kê theo Phòng khám** | `Examination/EMrptExamRoomActivitiesReportDialog.cpp` | - Nhập viện: `hd_admitdept = 'KB'` và `hd_suggestion IN ('A', 'I')`.<br>- Ra Viện: `hd_suggestion = 'D'` (Đổi tên cột "Cho Về" thành "Ra Viện").<br>- Đang khám: `hd_status IN ('O', 'I')`.<br>- Phân nhóm tuổi: Trẻ em `< 15` tuổi (và `< 6` tuổi). | Tách chuẩn xác 13 phòng khám, hỗ trợ đầy đủ các chỉ số: Tổng khám, BHYT, Dịch vụ, Trẻ em <15 tuổi, Người cao tuổi ≥60 tuổi, Nhập viện, Chuyển viện, Ra viện và Đang khám. |
+| **IV: Biến động BN Nội trú** | `Treatment/TMTreatmentActivitybyDept.cpp` | - Ground Truth điều trị nội trú từ `hms_treatment_record`.<br>- Cân đối bệnh nhân: `Hien_dien = Dau_ky + Vao_vien + Chuyen_den - Ra_vien - Chuyen_di - Tu_vong`.<br>- Chuyển viện nội trú (Điểm G): `htr_suggestion = 'T'`. | Đồng bộ số liệu nội trú từ Mục IV sang Mục II Báo cáo tổng thể để đảm bảo tính nhất quán tuyệt đối của số liệu bệnh viện. |
+| **V: Báo cáo Cận lâm sàng** | `PACS/PACSPatientList.cpp`<br>`LIMS/LIMSPacsReport1.cpp` | - Chỉ lấy nhóm cận lâm sàng: `SUBSTR(f.hfe_group, 1, 2) IN ('B1', 'B2', 'B3')`.<br>- **Tuyệt đối loại trừ** nhóm Phẫu thuật (`B4000-B4400`) và Thủ thuật (`B5000-B5400`) khỏi tab Cận lâm sàng.<br>- Chuẩn hóa tên "Cắt lớp vi tính" thành `CT- Scanner`. | Tách biệt triệt để Cận lâm sàng và Phẫu thuật - Thủ thuật. Thêm nút chuyển nhanh sang Tab PTTT. Sửa công thức đếm số ca BHYT (`ca_bhyt`) chính xác theo `f.hfe_object / f.hfe_inspaid`. |
+| **VI: Phẫu thuật - Thủ thuật** | `Treatment/TMOperationPatientListReport.cpp` (L800-825) | - Bảng dữ liệu: `hms_operation` join `hms_fee_list`.<br>- Phẫu thuật: `SUBSTR(hfl_groupid, 1, 2) = 'B4'`.<br>- Thủ thuật: `SUBSTR(hfl_groupid, 1, 2) = 'B5'` hoặc khác `'B4'`.<br>- Phân loại: Loại đặc biệt (`B4400`), Loại 1 (`B4100`), Loại 2 (`B4200`), Loại 3 (`B4300`). | Báo cáo chi tiết theo từng Khoa lâm sàng thực hiện, bóc tách chính xác số lượng ca theo từng cấp độ phẫu thuật và thủ thuật. |
+| **VII & Dashboard: Biểu đồ & KPI** | `EMrptExamRoomActivitiesReportDialog.cpp` | - Chuyển viện BV: Tổng hợp Ngoại trú (`hd_suggestion = 'T'`) + Chuyển viện nội trú (`htr_suggestion = 'T'`).<br>- Bộ lọc 24h: Luôn gắn `00:00:00` cho `fromDate` và `23:59:59` cho `toDate`. | Cập nhật KPI Card Dashboard và Biểu đồ xu hướng lượt khám khớp 100% với báo cáo C6. |
 
 ---
 
-## 3. Cấu Trúc Giao Diện & Trải Nghiệm Người Dùng (Frontend UI/UX)
+## 2. Kết Quả Kiểm Thử Hồi Quy Tự Động (Regression Suite)
 
-- **Bộ lọc dùng chung (`CommonFilter.tsx`):**
-  - Hỗ trợ chọn ngày/giờ chi tiết (`datetime-local`).
-  - Phím tắt nhanh: *Hôm nay, Hôm qua, Tuần này, Tháng này*.
-  - Xuất file Excel tự động định dạng tên file theo ngày (`XLSX`).
-  - Hỗ trợ in ấn trực tiếp (`window.print()`).
-- **Khả năng hiển thị số liệu an toàn:**
-  - Định dạng tiền tệ và số lượng chuẩn Việt Nam (`toLocaleString()`).
-  - Xử lý giá trị null/undefined, trạng thái đang tải (`loading spinner`) và khi không có dữ liệu (`Empty state`).
+- **Test runner:** Node.js native test runner (`node --test -r ts-node/register test/hospital-statistics-corrected.test.ts`)
+- **Môi trường CSDL:** PostgreSQL HIS (`14.177.232.29:8050/vimes_ym`)
+- **Kết quả:** **7/7 Test Cases PASS 100%** (Thời gian chạy ~800ms)
+
+```
+▶ Hospital Statistics - Suite kiểm thử chuẩn hóa theo tài liệu nghiệp vụ
+  ✔ 1. Báo cáo Hoạt động BV Tổng thể (Mục I & II) khớp chuẩn C6 và Nội trú IV (231.2251ms)
+  ✔ 2. Thống kê theo Phòng khám (Mục III) - Khớp C6, có Ra Viện (cho_ve) và Đang Khám (96.8902ms)
+  ✔ 3. Báo cáo Điều trị nội trú (Mục IV - Ground Truth) cân đối bệnh nhân (190.6051ms)
+  ✔ 4. Báo cáo Cận lâm sàng (Mục V) - Loại trừ B4/B5, sửa Ca BHYT, tên CT- Scanner (130.1561ms)
+  ✔ 5. Báo cáo Phẫu thuật - Thủ thuật theo Phân loại (Mục 1 nhóm C nội trú) (91.4741ms)
+  ✔ 6. Kiểm tra xử lý thời gian theo chuẩn 24h (HH:mm:ss) (52.3425ms)
+✔ Hospital Statistics - Suite kiểm thử chuẩn hóa theo tài liệu nghiệp vụ (796.7266ms)
+```
+
+## 3. Kiểm Tra Biên Dịch Type Check
+- **Backend:** `npx tsc --noEmit` -> **0 lỗi (Exit Code 0)**.
+- **Frontend:** `npx tsc --noEmit` -> **0 lỗi (Exit Code 0)**.
+

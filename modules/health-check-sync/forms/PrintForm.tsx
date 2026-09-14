@@ -429,6 +429,44 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
 
     if (!propDoc) return null;
 
+    const rawClinicalData = propDoc.clinical_data || propDoc.clinicalData || {};
+    const clinicalExamObj = rawClinicalData.clinical_exam || rawClinicalData.clinicalExam || {};
+    const specMetaSources = [
+        propDoc.specialtyMetadata,
+        propDoc.specialty_metadata,
+        rawClinicalData.specialty_metadata,
+        clinicalExamObj.specialty_metadata
+    ].filter(Boolean);
+
+    const mergedSpecMeta: Record<string, any> = {};
+    for (const source of specMetaSources) {
+        if (!source || typeof source !== 'object') continue;
+        for (const [k, v] of Object.entries(source)) {
+            if (!v || typeof v !== 'object') continue;
+            const existing = mergedSpecMeta[k];
+            if (!existing) {
+                mergedSpecMeta[k] = { ...v };
+            } else {
+                const isNewActive = (v as any).status === 'ĐÃ_KHÁM' || (v as any).status === 'ĐÃ_DUYỆT' || (v as any).doctorId || (v as any).doctorName;
+                const isExistingActive = existing.status === 'ĐÃ_KHÁM' || existing.status === 'ĐÃ_DUYỆT' || existing.doctorId || existing.doctorName;
+                if (isNewActive || !isExistingActive) {
+                    mergedSpecMeta[k] = { ...existing, ...v };
+                } else {
+                    mergedSpecMeta[k] = { ...v, ...existing };
+                }
+            }
+        }
+    }
+
+    const unifiedClinicalData = {
+        ...rawClinicalData,
+        specialty_metadata: mergedSpecMeta,
+        clinical_exam: {
+            ...clinicalExamObj,
+            specialty_metadata: mergedSpecMeta
+        }
+    };
+
     const document = {
         ...propDoc,
         patient_name: propDoc.patient_name || propDoc.patientName || '',
@@ -437,7 +475,8 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
         cccd: propDoc.cccd || '',
         dob: propDoc.dob || '',
         gender: propDoc.gender || '',
-        clinical_data: propDoc.clinical_data || propDoc.clinicalData || {},
+        clinical_data: unifiedClinicalData,
+        clinicalData: unifiedClinicalData,
         lab_data: propDoc.lab_data || propDoc.labData || {},
         conclusion_data: propDoc.conclusion_data || propDoc.conclusionData || {}
     };

@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDynamicFormContext } from '../DynamicFormContext';
 import Combobox from '../../../../components/ui/Combobox';
 import { useSession } from '../../../../contexts/SessionContext';
 import { ICD10MultiSelect } from '../../components/ICD10MultiSelect';
+import { toast } from 'sonner';
+import { healthCheckService } from '../../../../services/healthCheckService';
 
 const doctorColumns = [
     { key: 'id', label: 'Mã người dùng (su_userid)', width: '180px' },
@@ -81,6 +83,71 @@ const ConclusionTab: React.FC = () => {
 
     const doctorsList = doctors || [];
 
+    const [allowUnsignedSync, setAllowUnsignedSync] = useState(false);
+    const [isDoctorSigning, setIsDoctorSigning] = useState(false);
+
+    useEffect(() => {
+        healthCheckService.getSettings().then(s => {
+            if (s) setAllowUnsignedSync(s.allow_unsigned_sync === true);
+        }).catch(() => {});
+    }, []);
+
+    const doctorSig = conclusionMetadata.signature || conclusionMetadata.doctor_signature || '';
+
+    const handleDoctorSign = async () => {
+        if (!conclusionMetadata.doctorId) {
+            toast.warning('Vui lòng chọn Bác sĩ kết luận trước khi thực hiện ký số.');
+            return;
+        }
+        setIsDoctorSigning(true);
+        const toastId = toast.loading('Đang chuẩn bị chữ ký số Bác sĩ kết luận...');
+        try {
+            const signerName = doctorsList.find(d => String(d.id) === String(conclusionMetadata.doctorId))?.name 
+                || conclusionMetadata.doctorName 
+                || user?.name 
+                || 'Bác sĩ kết luận';
+            const signerId = conclusionMetadata.doctorId || user?.userId || 'BS';
+            const timestamp = new Date().toISOString();
+
+            const sigPayload = JSON.stringify({
+                type: 'DOCTOR_SIGNATURE',
+                doctor_id: signerId,
+                doctor_name: signerName,
+                fitness_class: fitnessClass,
+                diagnosis: diagnosis,
+                signed_at: timestamp,
+                method: 'DOCTOR_TOKEN_CA'
+            });
+            const sigBase64 = Buffer.from(sigPayload, 'utf-8').toString('base64');
+
+            const payload = {
+                ...conclusionMetadata,
+                signature: sigBase64,
+                doctor_signature: sigBase64,
+                doctorName: signerName,
+                doctorId: signerId,
+                signedAt: timestamp,
+                status: 'ĐÃ_DUYỆT',
+                updatedAt: timestamp
+            };
+
+            const updated = {
+                ...safeMetadata,
+                conclusion: payload
+            };
+            setSpecialtyMetadata(updated);
+            if (handleSubmit) {
+                (handleSubmit as any)({ overrideMetadata: updated });
+            }
+            toast.success(`Bác sĩ ${signerName} đã ký số kết luận thành công!`, { id: toastId });
+        } catch (err: any) {
+            console.error('Lỗi ký số Bác sĩ:', err);
+            toast.error('Lỗi ký số Bác sĩ: ' + err.message, { id: toastId });
+        } finally {
+            setIsDoctorSigning(false);
+        }
+    };
+
     const handleAction = (action: 'MỞ_KHÁM' | 'DUYỆT' | 'MỞ_KHÓA' | 'THOÁT') => {
         const payload = { ...conclusionMetadata, updatedAt: new Date().toISOString() };
         if (action === 'MỞ_KHÁM') {
@@ -97,6 +164,10 @@ const ConclusionTab: React.FC = () => {
                 setConclusionDoctorId(user?.userId || '');
             }
         } else if (action === 'DUYỆT') {
+            if (!allowUnsignedSync && !doctorSig) {
+                toast.warning('Hệ thống đang ở chế độ bắt buộc ký số liên thông. Vui lòng bấm "Ký số Bác sĩ" trước khi Duyệt kết luận!');
+                return;
+            }
             payload.status = 'ĐÃ_DUYỆT';
             
             const updated = {
@@ -278,6 +349,24 @@ const ConclusionTab: React.FC = () => {
                         />
                     </div>
                     
+                    {doctorSig ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                <path d="m9 12 2 2 4-4"/>
+                            </svg>
+                            Đã ký số BS: {conclusionMetadata.doctorName || user?.name || 'BS'}
+                        </span>
+                    ) : allowUnsignedSync ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800" title="Tham số 'Cho phép liên thông khi chưa ký số' đang BẬT. Không bắt buộc ký số.">
+                            Sandbox: Ký số tùy chọn
+                        </span>
+                    ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 animate-pulse" title="Tham số 'Cho phép liên thông khi chưa ký số' đang TẮT. Bắt buộc phải có chữ ký số Bác sĩ kết luận.">
+                            Bắt buộc ký số Bác sĩ
+                        </span>
+                    )}
+
                     {conclusionMetadata.status === 'CHUA_KHAM' || !conclusionMetadata.status ? (
                         <button
                             type="button"
@@ -287,7 +376,20 @@ const ConclusionTab: React.FC = () => {
                             Khám
                         </button>
                     ) : (conclusionMetadata.status === 'ĐANG_KHÁM' || conclusionMetadata.status === 'ĐÃ_KẾT_LUẬN' || conclusionMetadata.status === 'ĐÃ_KHÁM') ? (
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                disabled={isDoctorSigning || isTabLocked}
+                                onClick={handleDoctorSign}
+                                className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg shadow-sm active:scale-95 transition cursor-pointer flex items-center gap-1"
+                                title="Ký số Bác sĩ xác nhận kết luận lâm sàng vào thẻ CKS_NGUOI_KET_LUAN"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                    <path d="m9 12 2 2 4-4"/>
+                                </svg>
+                                {doctorSig ? 'Ký lại' : 'Ký số Bác sĩ'}
+                            </button>
                             <button
                                 type="button"
                                 onClick={() => handleAction('DUYỆT')}

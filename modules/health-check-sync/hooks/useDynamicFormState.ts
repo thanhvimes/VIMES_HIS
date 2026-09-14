@@ -1363,8 +1363,27 @@ export const useDynamicFormState = (
 
             // Detail strings
             if (!timMach) setTimMach('Bình thường');
+            if (!kqTimMach) setKqTimMach('Bình thường');
             if (!hoHap) setHoHap('Bình thường');
+            if (!kqHoHap) setKqHoHap('Bình thường');
             if (!noiKhoaTieuHoa) setNoiKhoaTieuHoa('Bình thường');
+            if (!kqNoiTiet) setKqNoiTiet('Bình thường');
+            if (!kqNoiTietChuyenHoa) setKqNoiTietChuyenHoa('Bình thường');
+            if (!kqTietNieu) setKqTietNieu('Bình thường');
+            if (!kqCoXuongKhop) setKqCoXuongKhop('Bình thường');
+            if (!kqThanKinh) setKqThanKinh('Bình thường');
+            if (!kqTamThan) setKqTamThan('Bình thường');
+            if (!kqNgoaiKhoa) setKqNgoaiKhoa('Hệ vận động, xương khớp bình thường');
+            if (!kqDaLieu) setKqDaLieu('Da sạch, không sẹo lồi, không nấm ngứa');
+
+            if (!nhiTuanHoan) setNhiTuanHoan('Bình thường');
+            if (!nhiHoHap) setNhiHoHap('Bình thường');
+            if (!nhiTieuHoa) setNhiTieuHoa('Bình thường');
+            if (!nhiThanKinh) setNhiThanKinh('Bình thường');
+            if (!nhiTietNieu) setNhiTietNieu('Bình thường');
+            if (!nhiTamThan) setNhiTamThan('Bình thường');
+            if (!nhiKhac) setNhiKhac('Bình thường');
+
             if (!ganMat) setGanMat('Bình thường');
             if (!mauCoQuanTaoMau) setMauCoQuanTaoMau('Bình thường');
             if (!daToChucDuoiDa) setDaToChucDuoiDa('Bình thường');
@@ -1834,6 +1853,7 @@ export const useDynamicFormState = (
                 ngay_vao: ngayVao,
                 nhiet_do: nhietDo,
                 nhip_tho: nhipTho,
+                specialty_metadata: calculatedMetadata,
                 examination: {
                     height,
                     weight,
@@ -2200,7 +2220,11 @@ export const useDynamicFormState = (
                 doctor_id: conclusionDoctorId,
                 quan_ly_benh: quanLyBenh,
                 theo_doi_tai: theoDoiTai,
-                chuyen_tuyen: chuyenTuyen
+                chuyen_tuyen: chuyenTuyen,
+                signature: (options?.overrideMetadata?.conclusion || specialtyMetadataRef.current?.conclusion)?.signature || initialData?.conclusion_data?.signature || '',
+                doctor_signature: (options?.overrideMetadata?.conclusion || specialtyMetadataRef.current?.conclusion)?.doctor_signature || initialData?.conclusion_data?.doctor_signature || '',
+                doctor_name: (options?.overrideMetadata?.conclusion || specialtyMetadataRef.current?.conclusion)?.doctorName || initialData?.conclusion_data?.doctor_name || '',
+                signed_at: (options?.overrideMetadata?.conclusion || specialtyMetadataRef.current?.conclusion)?.signedAt || initialData?.conclusion_data?.signed_at || ''
             }
         };
         
@@ -2244,6 +2268,7 @@ export const useDynamicFormState = (
                 ten_xa: currentWardName,
                 ly_do_vv: lyDoVv,
                 ngay_vao: ngayVao,
+                specialty_metadata: specialtyMetadata,
                 examination: {
                     height,
                     weight,

@@ -1,17 +1,22 @@
 -- Migration 079: Sync and Backfill KSK Conclusion to hms_exm_conclusion
 -- Description: Idempotently ensures unique index on hecl_docno and backfills hecl_conclusion, hecl_phanloai, vitals, specialties from health_check_masters, health_check_details, hms_doc, and hms_exm_employee
 
--- 1. Ensure unique index on hecl_docno for fast lookup and UPSERT safety
+-- 1. Ensure duplicate cleanup and unique index on hecl_docno for fast lookup and UPSERT safety
+DELETE FROM hms_exm_conclusion a
+USING hms_exm_conclusion b
+WHERE a.ctid < b.ctid AND a.hecl_docno = b.hecl_docno;
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_hms_exm_conclusion_docno ON hms_exm_conclusion(hecl_docno);
 
 -- 2. Backfill/UPSERT from existing health_check_masters + health_check_details + hms_doc
+-- Uses DISTINCT ON (m.his_doc_no) to prevent "ON CONFLICT DO UPDATE command cannot affect row a second time" (error 21000)
 INSERT INTO hms_exm_conclusion (
     hecl_docno, hecl_theluc, hecl_tuanhoan, hecl_hohap, hecl_tieuhoa,
     hecl_thantietnieu, hecl_noitiet, hecl_coxuongkhop, hecl_thankinh, hecl_tamthan,
     hecl_ngoai, hecl_dalieu, hecl_mat, hecl_tmh, hecl_rhm, hecl_phukhoa,
     hecl_phanloai, hecl_conclusion, hecl_remark
 )
-SELECT 
+SELECT DISTINCT ON (CAST(m.his_doc_no AS INTEGER))
     CAST(m.his_doc_no AS INTEGER) AS docno,
     SUBSTRING(COALESCE(d.clinical_data->'examination'->>'physical_summary', d.clinical_data->>'kham_the_luc', 'Thể lực bình thường'), 1, 254) AS theluc,
     SUBSTRING(COALESCE(d.clinical_data->'clinical_exam'->>'circulatory', d.clinical_data->'clinical_exam'->>'tuanhoan', d.clinical_data->'clinical_exam'->>'noi_khoa_tuan_hoan', ''), 1, 254) AS tuanhoan,
@@ -55,6 +60,7 @@ SELECT
 FROM health_check_masters m
 JOIN hms_doc h ON m.his_doc_no ~ '^[0-9]+$' AND h.hd_docno = CAST(m.his_doc_no AS INTEGER)
 LEFT JOIN health_check_details d ON d.master_id = m.id
+ORDER BY CAST(m.his_doc_no AS INTEGER), m.id DESC, d.id DESC NULLS LAST
 ON CONFLICT (hecl_docno) DO UPDATE SET
     hecl_theluc = COALESCE(NULLIF(EXCLUDED.hecl_theluc, ''), hms_exm_conclusion.hecl_theluc),
     hecl_tuanhoan = COALESCE(NULLIF(EXCLUDED.hecl_tuanhoan, ''), hms_exm_conclusion.hecl_tuanhoan),
@@ -76,13 +82,14 @@ ON CONFLICT (hecl_docno) DO UPDATE SET
     hecl_remark = COALESCE(NULLIF(EXCLUDED.hecl_remark, ''), hms_exm_conclusion.hecl_remark);
 
 -- 3. Backfill/UPSERT from completed KSK records in hms_exm_employee + hms_doc
+-- Uses DISTINCT ON (h.hd_docno) to prevent "ON CONFLICT DO UPDATE command cannot affect row a second time" (error 21000)
 INSERT INTO hms_exm_conclusion (
     hecl_docno, hecl_theluc, hecl_tuanhoan, hecl_hohap, hecl_tieuhoa,
     hecl_thantietnieu, hecl_noitiet, hecl_coxuongkhop, hecl_thankinh, hecl_tamthan,
     hecl_ngoai, hecl_dalieu, hecl_mat, hecl_tmh, hecl_rhm, hecl_phukhoa,
     hecl_phanloai, hecl_conclusion, hecl_remark
 )
-SELECT 
+SELECT DISTINCT ON (h.hd_docno)
     h.hd_docno,
     'Thể lực bình thường', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
     SUBSTRING(
@@ -104,8 +111,9 @@ SELECT
     ),
     ''
 FROM hms_doc h
-JOIN hms_exm_employee e ON e.hee_docno = h.hd_docno
-WHERE h.hd_status = 'T'
+JOIN hms_exm_employee e ON e.hee_docno::text = h.hd_docno::text
+WHERE h.hd_status = 'T' AND h.hd_docno IS NOT NULL
+ORDER BY h.hd_docno
 ON CONFLICT (hecl_docno) DO UPDATE SET
     hecl_conclusion = COALESCE(NULLIF(hms_exm_conclusion.hecl_conclusion, ''), EXCLUDED.hecl_conclusion),
     hecl_phanloai = COALESCE(NULLIF(hms_exm_conclusion.hecl_phanloai, ''), EXCLUDED.hecl_phanloai);

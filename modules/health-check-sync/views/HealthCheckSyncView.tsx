@@ -449,6 +449,101 @@ const HealthCheckSyncView: React.FC = () => {
         setSearchParams({ step: 'manage' });
     };
 
+    const normalizeDocumentForPrint = (doc: any) => {
+        if (!doc) return doc;
+        const rawClinical = doc.clinical_data || doc.clinicalData || {};
+        const clinicalExam = rawClinical.clinical_exam || rawClinical.clinicalExam || {};
+        const examination = rawClinical.examination || {};
+        const extra = rawClinical.extra || {};
+        const rawLab = doc.lab_data || doc.labData || rawClinical.lab || {};
+        const rawConclusion = doc.conclusion_data || doc.conclusionData || rawClinical.conclusion || {};
+
+        // Smart merge of specialty_metadata: prioritize active exams / doctors
+        const specMetaSources = [
+            doc.specialtyMetadata,
+            doc.specialty_metadata,
+            rawClinical.specialty_metadata,
+            clinicalExam.specialty_metadata
+        ].filter(Boolean);
+
+        const mergedSpecMeta: Record<string, any> = {};
+        for (const source of specMetaSources) {
+            if (!source || typeof source !== 'object') continue;
+            for (const [k, v] of Object.entries(source)) {
+                if (!v || typeof v !== 'object') continue;
+                const existing = mergedSpecMeta[k];
+                if (!existing) {
+                    mergedSpecMeta[k] = { ...v };
+                } else {
+                    const isNewActive = (v as any).status === 'ĐÃ_KHÁM' || (v as any).status === 'ĐÃ_DUYỆT' || (v as any).doctorId || (v as any).doctorName;
+                    const isExistingActive = existing.status === 'ĐÃ_KHÁM' || existing.status === 'ĐÃ_DUYỆT' || existing.doctorId || existing.doctorName;
+                    if (isNewActive || !isExistingActive) {
+                        mergedSpecMeta[k] = { ...existing, ...v };
+                    } else {
+                        mergedSpecMeta[k] = { ...v, ...existing };
+                    }
+                }
+            }
+        }
+
+        const unifiedClinicalExam = {
+            ...clinicalExam,
+            specialty_metadata: mergedSpecMeta
+        };
+
+        const unifiedClinical = {
+            ...rawClinical,
+            examination: { ...examination },
+            clinical_exam: unifiedClinicalExam,
+            extra: { ...extra },
+            specialty_metadata: mergedSpecMeta
+        };
+
+        return {
+            ...doc,
+            patient_name: (doc.patient_name || doc.patientName || '').toUpperCase(),
+            patientName: (doc.patient_name || doc.patientName || '').toUpperCase(),
+            doc_no: doc.doc_no || doc.docNo || '',
+            docNo: doc.doc_no || doc.docNo || '',
+            form_type: doc.form_type || doc.formType || '',
+            formType: doc.form_type || doc.formType || '',
+            cccd: doc.cccd || '',
+            dob: doc.dob || '',
+            gender: doc.gender || '',
+            clinical_data: unifiedClinical,
+            clinicalData: unifiedClinical,
+            lab_data: rawLab,
+            labData: rawLab,
+            conclusion_data: rawConclusion,
+            conclusionData: rawConclusion
+        };
+    };
+
+    const handlePrintDocument = async (doc: any) => {
+        setIsLoading(true);
+        try {
+            let fullDoc = null;
+            if (doc?.id) {
+                try {
+                    fullDoc = await healthCheckService.getDocument(doc.id);
+                } catch (fetchErr) {
+                    console.warn("Không thể tải chi tiết hồ sơ từ server, dùng dữ liệu hiện tại:", fetchErr);
+                }
+            }
+            const docToPrint = fullDoc || doc;
+            setActiveDocument(normalizeDocumentForPrint(docToPrint));
+            setPrevViewMode('LIST');
+            setViewMode('PRINT');
+        } catch (error) {
+            console.error("Lỗi chuẩn bị dữ liệu in:", error);
+            setActiveDocument(normalizeDocumentForPrint(doc));
+            setPrevViewMode('LIST');
+            setViewMode('PRINT');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const handleDeleteDoc = async (id: string) => {
         if (!confirm("Bạn có chắc chắn muốn xóa hồ sơ khám sức khỏe này?")) return;
         setIsLoading(true);
@@ -507,8 +602,8 @@ const HealthCheckSyncView: React.FC = () => {
 
         if (!allowUnsignedSync) {
             const unsignedDocs = documents.filter(d => selectedIds.has(d.id.toString()) && d.signature_status === 'Unsigned');
-            if (unsignedDocs.length > 0) {
-                toast.warning(`Có ${unsignedDocs.length} hồ sơ chưa được ký số. Bạn phải thực hiện ký số trước khi gửi cổng y tế.`);
+            if (unsignedDocs.length > 0 && signatureTypeSelect === 'USB') {
+                toast.warning(`Có ${unsignedDocs.length} hồ sơ chưa được ký số bằng USB Token. Vui lòng ký số thiết bị trước khi gửi cổng y tế.`);
                 return;
             }
         }
@@ -575,8 +670,8 @@ const HealthCheckSyncView: React.FC = () => {
             return;
         }
 
-        if (!allowUnsignedSync && doc.signature_status === 'Unsigned') {
-            toast.warning(`Hồ sơ bệnh nhân ${doc.patient_name} chưa được ký số. Bạn phải thực hiện ký số trước khi gửi cổng y tế.`);
+        if (!allowUnsignedSync && doc.signature_status === 'Unsigned' && signatureTypeSelect === 'USB') {
+            toast.warning(`Hồ sơ bệnh nhân ${doc.patient_name} chưa được ký số bằng USB Token. Vui lòng ký số thiết bị trước khi gửi cổng y tế.`);
             return;
         }
 
@@ -658,6 +753,41 @@ const HealthCheckSyncView: React.FC = () => {
             } finally {
                 setIsSigning(false);
             }
+        }
+    };
+
+    const handleResetSyncSingle = async (doc: any) => {
+        const confirmReset = window.confirm(`Bạn có chắc chắn muốn Hủy gửi / Mở khóa hồ sơ ${doc.doc_no || doc.patient_name}?\nThao tác này sẽ xóa trạng thái gửi cổng, gỡ chữ ký số và đưa hồ sơ về trạng thái mở để có thể chỉnh sửa hoặc ký/gửi lại.`);
+        if (!confirmReset) return;
+
+        const toastId = toast.loading("Đang xử lý hủy gửi / mở khóa...");
+        try {
+            await healthCheckService.resetSyncStatus(doc.id);
+            toast.success("Đã hủy gửi và mở khóa hồ sơ thành công!", { id: toastId });
+            await loadData();
+        } catch (error: any) {
+            toast.error("Lỗi hủy gửi: " + error.message, { id: toastId });
+        }
+    };
+
+    const handleResetSyncBatch = async () => {
+        if (selectedIds.size === 0) {
+            toast.warning("Vui lòng chọn ít nhất một hồ sơ để hủy gửi.");
+            return;
+        }
+
+        const confirmReset = window.confirm(`Bạn có chắc chắn muốn Hủy gửi / Mở khóa cho ${selectedIds.size} hồ sơ đã chọn?\nTrạng thái gửi và chữ ký số sẽ được đặt lại.`);
+        if (!confirmReset) return;
+
+        const toastId = toast.loading(`Đang hủy gửi ${selectedIds.size} hồ sơ...`);
+        try {
+            const ids = Array.from(selectedIds) as string[];
+            await healthCheckService.resetSyncStatusBatch(ids);
+            toast.success(`Đã hủy gửi / mở khóa thành công cho ${ids.length} hồ sơ!`, { id: toastId });
+            setSelectedIds(new Set());
+            await loadData();
+        } catch (error: any) {
+            toast.error("Lỗi hủy gửi hàng loạt: " + error.message, { id: toastId });
         }
     };
 
@@ -1078,7 +1208,25 @@ const HealthCheckSyncView: React.FC = () => {
 
                     {/* Contract Management */}
                     {stepParam === 'contracts' && (
-                        <ContractManagement />
+                        isAdmin ? (
+                            <ContractManagement />
+                        ) : (
+                            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+                                <div className="flex flex-col items-center justify-center py-20 text-center">
+                                    <div className="w-20 h-20 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
+                                        <svg className="w-10 h-10 text-red-500 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                                        </svg>
+                                    </div>
+                                    <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-2">
+                                        Không có quyền truy cập
+                                    </h3>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm">
+                                        Chức năng quản lý gói khám chỉ dành cho quản trị viên hệ thống. Vui lòng liên hệ admin nếu cần hỗ trợ.
+                                    </p>
+                                </div>
+                            </div>
+                        )
                     )}
 
                     {/* Patient Reception */}
@@ -1093,13 +1241,32 @@ const HealthCheckSyncView: React.FC = () => {
                         </ErrorBoundary>
                     )}
 
+                    {/* Sync permission check for non-admin */}
+                    {stepParam === 'sync' && !isAdmin && (
+                        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+                            <div className="flex flex-col items-center justify-center py-20 text-center">
+                                <div className="w-20 h-20 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
+                                    <svg className="w-10 h-10 text-red-500 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                                    </svg>
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-2">
+                                    Không có quyền truy cập
+                                </h3>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm">
+                                    Chức năng đồng bộ dữ liệu chỉ dành cho quản trị viên hệ thống. Vui lòng liên hệ admin nếu cần hỗ trợ.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Filter toolbar and Table only shown on non-dashboard workflow steps */}
 
-                    {stepParam !== 'dashboard' && stepParam !== 'contracts' && stepParam !== 'reception' && stepParam !== 'sample-tracking' && !stepParam.startsWith('settings') && (
+                    {stepParam !== 'dashboard' && stepParam !== 'contracts' && stepParam !== 'reception' && stepParam !== 'sample-tracking' && !stepParam.startsWith('settings') && !(stepParam === 'sync' && !isAdmin) && (
 
                         <>
                             <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
-                                <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 items-end ${stepParam === 'sync' ? 'lg:grid-cols-3' : 'lg:grid-cols-6'}`}>
+                                <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 items-end ${stepParam === 'sync' ? 'lg:grid-cols-3' : 'lg:grid-cols-4 xl:grid-cols-7'}`}>
                                     {/* Từ ngày */}
                                     <div className="space-y-1">
                                         <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Từ ngày</label>
@@ -1151,6 +1318,23 @@ const HealthCheckSyncView: React.FC = () => {
                                                 <option value="All">Tất cả trạng thái</option>
                                                 <option value="Done">Đã kết luận</option>
                                                 <option value="InProgress">Đang khám</option>
+                                            </select>
+                                        </div>
+                                    )}
+
+                                    {/* Trạng thái ký số (signFilter) - ẩn khi ở trang đồng bộ */}
+                                    {stepParam !== 'sync' && (
+                                        <div className="space-y-1">
+                                            <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">Trạng thái ký</label>
+                                            <select 
+                                                value={signFilter}
+                                                onChange={e => setSignFilter(e.target.value)}
+                                                className={`w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none cursor-pointer ${fontSettings.controls}`}
+                                            >
+                                                <option value="All">Tất cả trạng thái</option>
+                                                <option value="Unsigned">Chưa ký số</option>
+                                                <option value="Signed">Đã ký số</option>
+                                                <option value="Rejected">Bị từ chối ký</option>
                                             </select>
                                         </div>
                                     )}
@@ -1220,7 +1404,7 @@ const HealthCheckSyncView: React.FC = () => {
 
                                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
                                     {/* Signature filter */}
-                                    {stepParam === 'pending-sign' && (
+                                    {(stepParam === 'pending-sign' || stepParam === 'manage') && (
                                         <div className="flex border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden text-xs">
                                             <button
                                                 onClick={() => setSignatureTypeSelect('USB')}
@@ -1237,14 +1421,26 @@ const HealthCheckSyncView: React.FC = () => {
                                         </div>
                                     )}
 
-                                    {stepParam === 'pending-sign' && (
-                        <button 
+                                    {(stepParam === 'pending-sign' || stepParam === 'manage') && (
+                                        <button 
                                             onClick={handleSignDocuments}
                                             disabled={selectedIds.size === 0 || isLoading || isSending || isSigning}
                                             className="px-4 py-2 bg-white border border-[#0f766e] text-[#0f766e] hover:bg-emerald-50 rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition text-xs active:scale-95 cursor-pointer"
                                         >
                                             {isSigning ? <RefreshIcon className="w-4 h-4 animate-spin"/> : <SignatureIcon className="w-4 h-4 text-[#0f766e]"/>}
                                             Ký số ({selectedIds.size})
+                                        </button>
+                                    )}
+
+                                    {stepParam !== 'print-code' && stepParam !== 'sync' && (
+                                        <button 
+                                            onClick={handleResetSyncBatch}
+                                            disabled={selectedIds.size === 0 || isLoading || isSending || isSigning}
+                                            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold flex items-center gap-1.5 transition-all text-xs active:scale-95 cursor-pointer shadow-sm disabled:opacity-50"
+                                            title="Hủy trạng thái gửi và gỡ chữ ký số để chỉnh sửa/ký lại"
+                                        >
+                                            <RefreshIcon className="w-4 h-4"/>
+                                            Hủy gửi ({selectedIds.size})
                                         </button>
                                     )}
 
@@ -1312,11 +1508,7 @@ const HealthCheckSyncView: React.FC = () => {
                                     selectedIds={selectedIds}
                                     onToggleSelect={handleToggleSelect}
                                     onSelectAll={handleSelectAll}
-                                    onPrint={(doc) => {
-                                        setActiveDocument(doc);
-                                        setPrevViewMode('LIST');
-                                        setViewMode('PRINT');
-                                    }}
+                                    onPrint={handlePrintDocument}
                                     onPrintBarcode={(docs) => {
                                         setActiveBarcodeDocs(docs);
                                         setIsPrintXnModalOpen(true);
@@ -1365,12 +1557,9 @@ const HealthCheckSyncView: React.FC = () => {
                                          }
                                          setActiveXmlDoc(doc);
                                      }}
-                                    onPrint={(doc) => {
-                                        setActiveDocument(doc);
-                                        setPrevViewMode('LIST');
-                                        setViewMode('PRINT');
-                                    }}
+                                    onPrint={handlePrintDocument}
                                     onSend={handleSendSingleDocument}
+                                    onResetSync={handleResetSyncSingle}
                                     getFormName={getFormName}
                                     getFormColor={getFormColor}
                                     pageSize={pageSize}
@@ -1424,7 +1613,7 @@ const HealthCheckSyncView: React.FC = () => {
             ) : (
                 <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                     <DynamicForm
-                        key={`${activeDocument?.id || 'new'}-${viewMode === 'EDIT' ? activeDocument?.form_type : createFormType}`}
+                        key={activeDocument?.id ? `doc-${activeDocument.id}` : 'new-document'}
                         formType={viewMode === 'EDIT' ? activeDocument?.form_type : createFormType}
                         initialData={viewMode === 'EDIT' ? activeDocument : undefined}
                         onSave={handleSaveDocument}
@@ -1446,7 +1635,7 @@ const HealthCheckSyncView: React.FC = () => {
                             }
                         }}
                         onPreview={(formData) => {
-                            setActiveDocument(formData);
+                            setActiveDocument(normalizeDocumentForPrint(formData));
                             setPrevViewMode(viewMode);
                             setViewMode('PRINT');
                         }}

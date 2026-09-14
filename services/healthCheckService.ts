@@ -207,6 +207,33 @@ export const healthCheckService = {
         return true;
     },
 
+    resetSyncStatus: async (id: string | number, reason?: string): Promise<{ success: boolean; message: string }> => {
+        try {
+            return await apiClient.post<{ success: boolean; message: string }>(`/health-check-sync/documents/${id}/reset-sync`, { reason });
+        } catch (error) {
+            console.error("Error resetting sync status:", error);
+            throw error;
+        }
+    },
+
+    resetSyncStatusBatch: async (docIds: (string | number)[], reason?: string): Promise<{ success: boolean; message: string; count: number }> => {
+        try {
+            return await apiClient.post<{ success: boolean; message: string; count: number }>('/health-check-sync/documents/reset-sync', { docIds, reason });
+        } catch (error) {
+            console.error("Error batch resetting sync status:", error);
+            throw error;
+        }
+    },
+
+    createDocumentFees: async (docNo: number | string, deptId: string = 'KB'): Promise<{ success: boolean; message: string }> => {
+        try {
+            return await apiClient.post<{ success: boolean; message: string }>('/health-check-sync/fee/create-fees', { docNo, deptId });
+        } catch (error) {
+            console.error("Error creating document fees:", error);
+            throw error;
+        }
+    },
+
 
 
     seedFromHis: async (filters?: { startDate?: string; endDate?: string; workplaceId?: string }): Promise<SeedFromHisResponse> => {

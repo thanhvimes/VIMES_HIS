@@ -92,40 +92,50 @@ export const CommonFilter: React.FC<CommonFilterProps> = ({
 
     const handlePreset = (preset: DatePreset) => {
         const now = new Date();
+        let newFrom = '';
+        let newTo = '';
         if (preset === 'today') {
             const d = formatLocalDate(now);
-            onFromDateChange(`${d} 00:00:00`);
-            onToDateChange(`${d} 23:59:59`);
+            newFrom = `${d} 00:00:00`;
+            newTo = `${d} 23:59:59`;
         } else if (preset === 'yesterday') {
             const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
             const d = formatLocalDate(yesterday);
-            onFromDateChange(`${d} 00:00:00`);
-            onToDateChange(`${d} 23:59:59`);
+            newFrom = `${d} 00:00:00`;
+            newTo = `${d} 23:59:59`;
         } else if (preset === 'last_7_days') {
             const past7 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
-            onFromDateChange(`${formatLocalDate(past7)} 00:00:00`);
-            onToDateChange(`${formatLocalDate(now)} 23:59:59`);
+            newFrom = `${formatLocalDate(past7)} 00:00:00`;
+            newTo = `${formatLocalDate(now)} 23:59:59`;
         } else if (preset === 'this_month') {
-            onFromDateChange(`${getStartOfMonthLocalDate(now)} 00:00:00`);
-            onToDateChange(`${formatLocalDate(now)} 23:59:59`);
+            newFrom = `${getStartOfMonthLocalDate(now)} 00:00:00`;
+            newTo = `${formatLocalDate(now)} 23:59:59`;
         } else if (preset === 'last_month') {
             const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
             const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-            onFromDateChange(`${formatLocalDate(startOfLastMonth)} 00:00:00`);
-            onToDateChange(`${formatLocalDate(endOfLastMonth)} 23:59:59`);
+            newFrom = `${formatLocalDate(startOfLastMonth)} 00:00:00`;
+            newTo = `${formatLocalDate(endOfLastMonth)} 23:59:59`;
         } else if (preset === 'this_quarter') {
             const currentQuarter = Math.floor(now.getMonth() / 3);
             const startOfQuarter = new Date(now.getFullYear(), currentQuarter * 3, 1);
-            onFromDateChange(`${formatLocalDate(startOfQuarter)} 00:00:00`);
-            onToDateChange(`${formatLocalDate(now)} 23:59:59`);
+            newFrom = `${formatLocalDate(startOfQuarter)} 00:00:00`;
+            newTo = `${formatLocalDate(now)} 23:59:59`;
         } else if (preset === 'this_year') {
-            onFromDateChange(`${now.getFullYear()}-01-01 00:00:00`);
-            onToDateChange(`${formatLocalDate(now)} 23:59:59`);
+            newFrom = `${now.getFullYear()}-01-01 00:00:00`;
+            newTo = `${formatLocalDate(now)} 23:59:59`;
+        }
+
+        if (newFrom && newTo) {
+            onFromDateChange(newFrom);
+            onToDateChange(newTo);
+            if (onRefresh) {
+                onRefresh(newFrom, newTo);
+            }
         }
     };
 
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200/80 dark:border-slate-700/80 p-3.5 sm:p-4 mb-6 transition-all print:hidden space-y-3.5">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xs border border-slate-200/80 dark:border-slate-700/80 p-2.5 sm:p-3 transition-all print:hidden space-y-2.5">
             {/* Row 1: Date Range & Actions */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 {/* Date Inputs */}
@@ -365,3 +375,44 @@ export const exportTableToExcel = (data: any[], fileName: string, sheetName = 'B
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
     XLSX.writeFile(wb, `${fileName}_${new Date().toISOString().slice(0, 10)}.xlsx`);
 };
+
+// ==================== REUSABLE CLINICAL EMPTY STATE ====================
+export const TableEmptyState: React.FC<{
+    colSpan: number;
+    title?: string;
+    message?: string;
+    onResetFilter?: () => void;
+}> = ({
+    colSpan,
+    title = 'Không tìm thấy dữ liệu phù hợp với tiêu chí lọc',
+    message = 'Vui lòng thay đổi khoảng thời gian, từ khóa tìm kiếm hoặc bỏ chọn ẩn dòng 0 số liệu.',
+    onResetFilter
+}) => (
+    <tr>
+        <td colSpan={colSpan} className="px-4 py-12 text-center bg-white dark:bg-slate-800">
+            <div className="flex flex-col items-center justify-center max-w-md mx-auto">
+                <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/60 flex items-center justify-center text-amber-600 dark:text-amber-400 mb-3 shadow-xs">
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                    </svg>
+                </div>
+                <div className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-1">
+                    {title}
+                </div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-3">
+                    {message}
+                </div>
+                {onResetFilter && (
+                    <button
+                        type="button"
+                        onClick={onResetFilter}
+                        className="px-3 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 rounded-lg transition"
+                    >
+                        Đặt lại bộ lọc
+                    </button>
+                )}
+            </div>
+        </td>
+    </tr>
+);
+

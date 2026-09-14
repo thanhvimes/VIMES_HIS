@@ -1,157 +1,195 @@
-# HƯỚNG DẪN SỬ DỤNG MODULE LIÊN THÔNG KHÁM SỨC KHỎE (VNeID) & QUẢN LÝ MẪU XÉT NGHIỆM
+# SỔ TAY HƯỚNG DẪN SỬ DỤNG VẬN HÀNH
+## PHÂN HỆ KHÁM SỨC KHỎE ĐỊNH KỲ & LIÊN THÔNG DỮ LIỆU VNeID (VIMES HIS)
 
-> **Phiên bản tài liệu:** 3.0 — Cập nhật đầy đủ kèm Hình ảnh Hướng dẫn  
-> **Áp dụng cho:** Phân hệ **Liên thông Khám sức khỏe VNeID (Quyết định 1551/QĐ-BYT)** và **Quản lý Giao nhận Mẫu Xét nghiệm (LIMS Sample Tracking)**.
+> **Cơ quan phát triển:** Khối Giải pháp Y tế số VIMES  
+> **Phiên bản:** 3.2.0 (Cập nhật tháng 09/2026)  
+> **Tài liệu Word hoàn chỉnh (.docx):** [Huong_Dan_Su_Dung_Module_Kham_Suc_Khoe_VNeID.docx](./Huong_Dan_Su_Dung_Module_Kham_Suc_Khoe_VNeID.docx)  
+> **Căn cứ pháp lý:** Thông tư 32/2023/TT-BYT, Quyết định 1551/QĐ-BYT, Quyết định 2062/QĐ-BYT của Bộ Y tế, Thông tư 36/2024/TT-BYT.
 
 ---
 
-## 1. Tổng quan quy trình nghiệp vụ (Workflow Diagram)
+## MỤC LỤC HƯỚNG DẪN THEO VAI TRÒ NGHIỆP VỤ
+
+| Phân hệ / Vị trí | Nội dung hướng dẫn chính | Màn hình tương ứng |
+|---|---|---|
+| **Bộ phận Kế hoạch / Khám đoàn** | Tạo hợp đồng, Import danh sách nhân viên từ Excel, gán gói khám | Menu: Quản lý hợp đồng (`#/health-check?step=contracts`) |
+| **Bộ phận Tiếp đón bệnh nhân** | Tìm kiếm nhân viên, phân phòng khám, duyệt bệnh nhân, in tem Barcode | Menu: Tiếp đón bệnh nhân (`#/health-check?step=reception`) |
+| **Bác sĩ Khám lâm sàng** | Khám thể lực (BMI), khám 7 chuyên khoa, duyệt chuyên khoa | Menu: Quản lý hồ sơ -> [Sửa / Khám] (`DynamicForm`) |
+| **Khoa Xét nghiệm & CĐHA** | Đồng bộ kết quả LIS/PACS, in tem ống nghiệm Barcode 50x30mm | Menu: In mã hồ sơ (`#/health-check?step=print-code`) |
+| **Bác sĩ Kết luận & Lãnh đạo** | Phân loại sức khỏe I - V, chẩn đoán ICD-10, ký số Cloud HSM / Token | Menu: Quản lý hồ sơ -> [Xem XML] & [Ký số] |
+| **Tổ Công nghệ thông tin** | Đóng gói XML QĐ 1551, gửi liên thông VNeID, cấu hình hệ thống | Menu: Cấu hình VNeID (`#/health-check?step=settings`) |
+
+---
+
+## CHƯƠNG 1: TỔNG QUAN HỆ THỐNG VÀ QUY TRÌNH NGHIỆP VỤ
 
 ```mermaid
 graph TD
-    A["1. Đồng bộ dữ liệu tiếp nhận từ HIS"] --> B["2. Tìm kiếm & Khởi tạo hồ sơ"]
-    B --> C["3. Nhập liệu khám lâm sàng (Tab I–V)"]
-    C --> D["4. Đồng bộ chủ động kết quả CLS từ HIS"]
-    D --> E["5. Khóa & Ký số hồ sơ (USB / HSM)"]
-    E --> F["6. Gửi Cổng Liên thông VNeID (QĐ 1551)"]
-    
-    subgraph "Luồng Quản lý Mẫu Xét nghiệm (LIMS)"
-        G["In tem Barcode XN (50x30mm)"] --> H["Quét Barcode / Nhận mẫu (F4)"]
-        H --> I["Phân chia khay / Chuyển máy XN"]
-        H --> J["Từ chối mẫu lỗi (F8)"]
-    end
+    A["1. Tạo Hợp đồng & Import Excel nhân viên (hoặc quét từ HIS)"] --> B["2. Tiếp đón bệnh nhân tại quầy & Duyệt cấp số hồ sơ"]
+    B --> C["3. In tem Barcode hồ sơ & tem ống nghiệm xét nghiệm (LIMS)"]
+    C --> D["4. Khám thể lực: Chiều cao, cân nặng, BMI tự động, HA, Mạch"]
+    D --> E["5. Khám lâm sàng 7 chuyên khoa (Nội, Ngoại, Sản phụ khoa, Mắt, TMH, RHM, Da liễu)"]
+    E --> F["6. Cận lâm sàng tự động: Đồng bộ LIS (XN) & PACS (CĐHA)"]
+    F --> G["7. Bác sĩ kết luận phân loại sức khỏe & Đồng bộ 2 chiều về HIS Core"]
+    G --> H["8. Ký số điện tử: Bác sĩ chuyên khoa & Giám đốc (Cloud HSM / Token)"]
+    H --> I["9. Đóng gói XML liên thông VNeID & In Giấy KSK A4 hoàn chỉnh"]
 ```
 
----
-
-## 2. Hướng dẫn chi tiết từng bước vận hành
-
-### 2.1. Bước 1: Đồng bộ hồ sơ tiếp nhận từ HIS
-
-1. Truy cập menu **Khám sức khỏe VNeID** → chọn tab **Đồng bộ dữ liệu**.
-2. Thiết lập bộ lọc:
-   - **Từ ngày — Đến ngày:** Chọn khoảng thời gian bệnh nhân đến khám.
-   - **Đoàn khám / Công ty:** Chọn gói khám sức khỏe doanh nghiệp (nếu có).
-3. Nhấn **Quét dữ liệu HIS** — Hệ thống truy vấn danh sách bệnh nhân từ tiếp nhận HIS.
-4. Tích chọn các hồ sơ cần xử lý → Nhấn **Khởi tạo hồ sơ VNeID**. Hệ thống tự động điền thông tin hành chính và tạo hồ sơ nháp tương ứng với 1 trong 3 mẫu biểu chuẩn.
-
-![Giao diện Đồng bộ dữ liệu tiếp nhận từ HIS](./images/step1_his_sync.png)
+### Danh mục các biểu mẫu khám sức khỏe chuẩn Bộ Y tế
+- **Mẫu 01:** Giấy khám sức khỏe định kỳ cho trẻ em dưới 06 tuổi (Phụ lục XXIV - TT 32/2023/TT-BYT).
+- **Mẫu 02:** Giấy khám sức khỏe định kỳ học sinh, thiếu niên từ đủ 06 tuổi đến dưới 18 tuổi (Phụ lục XXV - TT 32/2023/TT-BYT).
+- **Mẫu 03:** Giấy khám sức khỏe định kỳ người lớn từ đủ 18 tuổi trở lên (Phụ lục XXVI - TT 32/2023/TT-BYT).
+- **Mẫu Lái xe:** Giấy khám sức khỏe người lái xe (Thông tư số 36/2024/TT-BYT).
+- **Mẫu Thuyền viên:** Giấy khám sức khỏe định kỳ thuyền viên đi biển.
 
 ---
 
-### 2.2. Bước 2: Tìm kiếm và mở hồ sơ bệnh nhân
+## CHƯƠNG 2: QUẢN LÝ HỢP ĐỒNG KSK & IMPORT DANH SÁCH NHÂN VIÊN TỪ EXCEL
 
-- **Tìm kiếm nội bộ:** Nhập **Số CCCD**, **Mã hồ sơ (MHS)**, hoặc **Số điện thoại** tại tab *Hồ sơ sức khỏe*.
-- **Tìm kiếm trực tiếp từ HIS:**
-  1. Nhập thông tin tìm kiếm tại **Tab I. Hành chính & Đặc thù**.
-  2. Nhấn **Tìm từ HIS** — Hệ thống tự động nạp thông tin bệnh nhân.
+Chức năng Quản lý hợp đồng (truy cập tại: `#/health-check?step=contracts`) phục vụ thiết lập các đợt khám sức khỏe đoàn cho cơ quan, công ty, nhà máy, trường học.
 
-> ⚠️ **Lưu ý:** Khi chưa chọn bệnh nhân hợp lệ, các tab chuyên khoa **(II–V)** và nút **Lưu / Ký số** sẽ bị vô hiệu hóa để bảo vệ tính toàn vẹn dữ liệu.
+![Hình 1: Giao diện Quản lý Hợp đồng Khám sức khỏe & Danh sách nhân viên](./images/06_quan_ly_hop_dong.png)
+
+### 2.1. Thao tác Tạo mới Hợp đồng Khám sức khỏe
+1. **Bước 1:** Tại màn hình Quản lý hợp đồng, bấm nút **[+ Thêm hợp đồng]** ở góc trên bên phải.
+2. **Bước 2:** Điền các thông tin trong hộp thoại:
+   - **Mã hợp đồng:** Nhập mã định danh (VD: `HD2026-XIMANG`, `HD-MAYMAC`...).
+   - **Tên hợp đồng:** Tên đợt khám (VD: *Khám sức khỏe định kỳ năm 2026 - Công ty Xi măng Vicem*).
+   - **Công ty / Doanh nghiệp:** Chọn hoặc nhập tên cơ quan/doanh nghiệp ký kết.
+   - **Ngày ký & Ngày khám:** Chọn ngày ký hợp đồng và ngày tổ chức khám thực tế.
+   - **Loại đối tượng:** KSK Doanh nghiệp, BHYT, Dịch vụ...
+   - **Biểu mẫu áp dụng:** Chọn Mẫu 03 (người lớn) hoặc Mẫu 02 (học sinh).
+3. **Bước 3:** Nhấn nút **[Lưu hợp đồng]**. Hợp đồng mới tạo sẽ xuất hiện ngay trên danh sách.
+
+![Hình 2: Hộp thoại Tạo mới / Hiệu chỉnh Hợp đồng Khám sức khỏe](./images/07_tao_hop_dong_modal.png)
+
+### 2.2. Thao tác Import danh sách nhân viên từ file Excel
+1. **Bước 1 (Tải file mẫu):** Chọn hợp đồng trên danh sách, bấm nút **[Tải file mẫu Excel]**. Hệ thống xuất file Excel mẫu `.xlsx` chuẩn.
+2. **Bước 2 (Chuẩn bị dữ liệu):** Nhập danh sách nhân sự công ty vào file:
+   - Cột bắt buộc: *Mã nhân viên, Họ và tên, Ngày sinh (DD/MM/YYYY), Giới tính (Nam/Nữ), Số CCCD (12 số)*.
+   - Cột bổ sung: *Số điện thoại, Địa chỉ cư trú, Phòng ban, Chức vụ*.
+3. **Bước 3 (Nạp file):** Bấm nút **[Nhập từ Excel]** -> Chọn file Excel vừa điền. Hệ thống quét dữ liệu, tự động kiểm tra tính hợp lệ và hiển thị bảng xem trước (Preview). Dòng lỗi (trùng CCCD, sai ngày sinh) sẽ có cảnh báo đỏ rõ ràng.
+4. **Bước 4 (Xác nhận):** Bấm nút **[Xác nhận Import]**. Toàn bộ nhân viên hợp lệ được nạp vào hợp đồng và sẵn sàng cho khâu tiếp đón.
+
+### 2.3. Thiết lập Gói dịch vụ khám cho hợp đồng
+1. Chọn hợp đồng -> Chuyển sang Tab **"Gói dịch vụ khám"**.
+2. Tích chọn các kỹ thuật trong gói: Khám lâm sàng đa khoa, Xét nghiệm máu, Xét nghiệm nước tiểu, X-quang tim phổi, Siêu âm ổ bụng, Điện tim...
+3. Bấm **[Lưu gói dịch vụ]**. Khi bệnh nhân được tiếp đón, hệ thống sẽ tự động chỉ định toàn bộ danh mục dịch vụ này.
+
+### 2.4. Tính năng Import danh sách số hồ sơ từ HIS (HisBatchImportModal)
+Tại màn hình Quản lý hồ sơ, nút **[Import từ HIS (Excel)]** cho phép nạp danh sách các số hồ sơ khám (`doc_no`) đã tiếp nhận trước trên HIS. Hệ thống tự động quét và đồng bộ dữ liệu vào hồ sơ KSK hàng loạt có hiển thị thanh tiến trình trực quan.
 
 ---
 
-### 2.3. Bước 3: Hoàn thiện thông tin khám lâm sàng (3 Mẫu biểu chuẩn)
+## CHƯƠNG 3: TIẾP ĐÓN BỆNH NHÂN & PHÊ DUYỆT CẤP SỐ HỒ SƠ TẠI QUẦY
 
-Hệ thống tự động nạp form tương thích với loại khám sức khỏe được chọn:
-- **Mẫu 1:** Trẻ em (6T - dưới 18T)
-- **Mẫu 2:** Người lớn (>= 18T)
-- **Mẫu 3:** Khám sức khỏe Lái xe
+Màn hình Tiếp đón bệnh nhân (truy cập tại: `#/health-check?step=reception`) là nơi điều dưỡng và nhân viên đón tiếp thực hiện thủ tục cho người đến khám.
 
-| Tab | Nội dung nghiệp vụ | Tính năng hỗ trợ |
+![Hình 3: Giao diện Tiếp đón Bệnh nhân Khám sức khỏe & Phê duyệt cấp số hồ sơ](./images/08_tiep_don_duyet_bn.png)
+
+### Quy trình 4 bước Tiếp đón & Duyệt bệnh nhân:
+1. **Tìm kiếm:**
+   - Quét mã vạch CCCD bằng máy đọc Barcode/QR Code.
+   - Hoặc nhập số CCCD, Mã nhân viên, Họ tên vào ô tìm kiếm.
+   - Hoặc chọn Hợp đồng công ty để lọc toàn bộ nhân viên của đoàn.
+2. **Kiểm tra thông tin:** Đối soát thông tin cá nhân. Nếu có thay đổi, bấm nút **[Sửa thông tin]** (biểu tượng bút chì) để cập nhật ngay tại quầy.
+3. **Phân phòng khám:** Tại mục *"Phòng khám tiếp nhận"*, chọn phòng khám ban đầu phù hợp (VD: Phòng khám Thể lực, Phòng KSK 1...).
+4. **Duyệt tiếp đón & Cấp số hồ sơ:**
+   - Nhấn nút **[Duyệt & Cấp số hồ sơ]** (hoặc bấm phím nóng **F4** / **Ctrl + Enter**).
+   - Hệ thống tự động cấp số hồ sơ khám ngoại trú (`doc_no`), sinh Barcode Code 128, chuyển trạng thái sang **"ĐÃ TIẾP ĐÓN"** và kích hoạt máy in in Phiếu hướng dẫn khám.
+
+> ⚡ **Mẹo thao tác nhanh:** Khi bật tùy chọn *"Tự động làm mới"*, hệ thống sẽ tự động làm trống ô tìm kiếm ngay sau khi duyệt xong, giúp nhân viên tiếp đón bệnh nhân kế tiếp chỉ trong 3 - 5 giây!
+
+---
+
+## CHƯƠNG 4: QUẢN LÝ DANH SÁCH & ĐIỀU PHỐI HỒ SƠ TOÀN VIỆN
+
+Màn hình Quản lý hồ sơ (`#/health-check?step=manage`) giúp điều phối luồng người bệnh giữa các phòng chuyên khoa:
+
+![Hình 4: Giao diện Quản lý Danh sách Hồ sơ Khám sức khỏe & Thanh tác vụ điều phối](./images/01_danh_sach_ho_so.png)
+
+### Các thao tác nhanh trên từng dòng hồ sơ:
+- **[IN] (Xanh lá):** Mở trực tiếp bản in PDF Giấy khám sức khỏe A4 hoàn chỉnh với dữ liệu chuyên khoa mới nhất từ server.
+- **[Sửa / Khám] (Xanh dương):** Mở Form nhập liệu DynamicForm để bác sĩ tiến hành khám, cho điểm và phân loại.
+- **[Xem XML] (Xám đậm):** Hiển thị dữ liệu XML đóng gói chuẩn QĐ 1551/QĐ-BYT để kiểm tra cấu trúc trước khi truyền.
+- **[Gửi VNeID] (Tím):** Gửi trực tiếp hồ sơ đã ký số lên Cổng tiếp nhận dữ liệu Bộ Y tế.
+- **[Xóa] (Đỏ):** Hủy hồ sơ nháp khỏi danh sách (yêu cầu quyền quản trị).
+
+---
+
+## CHƯƠNG 5: NHẬP LIỆU KHÁM LÂM SÀNG CHUYÊN KHOA (DYNAMIC FORM)
+
+Biểu mẫu khám DynamicForm tự động thích ứng theo từng loại mẫu biểu khám:
+
+![Hình 5: Giao diện Form nhập liệu Khám Lâm sàng Chuyên khoa và Tính toán Thể lực tự động](./images/04_form_nhap_lieu.png)
+
+### Nội dung chi tiết các tab khám:
+1. **Khám Thể lực & Tự động tính BMI:**
+   - Nhập Chiều cao ($cm$) và Cân nặng ($kg$), hệ thống tự tính:
+     $$\text{BMI} = \frac{\text{Cân nặng (kg)}}{[\text{Chiều cao (m)}]^2}$$
+   - Tự động đề xuất phân loại thể lực: Loại I (BMI 18.5 - 22.9), Loại II, Loại III hoặc Thừa cân / Suy dinh dưỡng.
+   - Đo Huyết áp tâm thu/tâm trương, mạch đập, vòng ngực trung bình.
+2. **Khám 7 chuyên khoa lâm sàng bắt buộc:**
+   - **Nội khoa:** Tuần hoàn, Hô hấp, Tiêu hóa, Thận - Tiết niệu, Cơ xương khớp, Thần kinh, Tâm thần.
+   - **Ngoại khoa:** Hệ vận động, cột sống, vết mổ cũ, dị tật.
+   - **Sản phụ khoa (Dành cho nữ):** Khám sản khoa, phụ khoa. Đối với nam, hệ thống tự động khóa và in chữ *"Không khám"*.
+   - **Mắt:** Thị lực từng mắt (không kính / có kính), sắc giác, thị trường ngang/đứng.
+   - **Tai - Mũi - Họng:** Thính lực tai trái/phải (nói thường, nói thầm), thính lực tần số 500 - 6000 Hz.
+   - **Răng - Hàm - Mặt:** Đếm răng sâu, mất răng, hàm trên, hàm dưới, nha chu.
+   - **Da liễu:** Bệnh ngoài da, dị ứng tiếp xúc.
+
+> 💡 **Tính năng "Điền nhanh kết quả mặc định":** Nhấn nút *Điền nhanh bình thường* ở góc trên form để tự động điền các kết quả lâm sàng bình thường cho tất cả chuyên khoa, tiết kiệm 80% thời gian khám đoàn.
+
+---
+
+## CHƯƠNG 6: ĐỒNG BỘ CẬN LÂM SÀNG TỰ ĐỘNG & ĐẨY NGƯỢC HIS CORE
+
+- **Đồng bộ tự động từ máy xét nghiệm (LIS) & Chẩn đoán hình ảnh (PACS):** Bác sĩ bấm nút **[🔄 Đồng bộ kết quả từ HIS]** để nạp kết quả Công thức máu, Sinh hóa, Nước tiểu 10 thông số, X-quang, Siêu âm, Điện tim (ECG).
+- **Đồng bộ ngược về HIS Core (`hms_exm_conclusion`):** Khi lưu hồ sơ, hệ thống tự động cập nhật phân loại sức khỏe, danh sách bệnh tật chính và tên bác sĩ kết luận vào bảng Core HIS ngoại trú.
+
+---
+
+## CHƯƠNG 7: KẾT LUẬN, PHÂN LOẠI SỨC KHỎE & KÝ SỐ ĐIỆN TỬ
+
+### Tiêu chuẩn phân loại sức khỏe tổng thể (Thông tư 32/2023/TT-BYT)
+- **Loại I (Rất khỏe):** Tất cả các chuyên khoa đều xếp Loại I.
+- **Loại II (Khỏe):** Có ít nhất một chuyên khoa xếp Loại II, không có chuyên khoa nào xếp Loại III trở xuống.
+- **Loại III (Trung bình):** Có ít nhất một chuyên khoa xếp Loại III, không có chuyên khoa nào xếp Loại IV hoặc V.
+- **Loại IV (Yếu):** Có ít nhất một chuyên khoa xếp Loại IV, người khám cần theo dõi và điều trị.
+- **Loại V (Rất yếu):** Có chuyên khoa xếp Loại V hoặc mắc các bệnh mạn tính nặng.
+
+### Ký số điện tử & Đóng gói XML liên thông VNeID
+- Hỗ trợ Cloud HSM ký số từ xa và USB Token cắm trực tiếp máy trạm qua VIMES Signer Agent.
+- Đóng gói dữ liệu XML chuẩn QĐ 1551/QĐ-BYT và QĐ 2062/QĐ-BYT (XML1, XML2, XML3).
+- Bấm **[Gửi VNeID]** để truyền tải qua kênh bảo mật TLS 1.3 và nhận mã giao dịch `Transaction ID`.
+
+---
+
+## CHƯƠNG 8: IN ẤN GIẤY KHÁM SỨC KHỎE & QUẢN LÝ IN MÃ VẠCH (BARCODE)
+
+### Bản in Giấy khám sức khỏe A4 chuẩn Bộ Y tế
+Dàn trang 2 mặt A4 tự động, hiển thị sắc nét toàn bộ các chuyên khoa, phân loại và chữ ký số:
+
+![Hình 6: Bản in Giấy khám sức khỏe định kỳ Mẫu 03 hoàn chỉnh theo Thông tư 32/2023/TT-BYT](./images/05_ban_in_mau3.png)
+
+### Quản lý In mã vạch hồ sơ & Tem Barcode ống nghiệm
+Tại tab In mã hồ sơ (`#/health-check?step=print-code`), hỗ trợ in tem Barcode hồ sơ và in tem nhiệt 50x30 mm dán ống nghiệm phòng Lab:
+
+![Hình 7: Giao diện Quản lý In Mã vạch Hồ sơ & Tem Barcode Xét nghiệm](./images/03_in_ma_vach.png)
+
+---
+
+## CHƯƠNG 9: HƯỚNG DẪN XỬ LÝ SỰ CỐ & CÂU HỎI THƯỜNG GẶP (FAQ)
+
+| Hiện tượng / Câu hỏi | Nguyên nhân | Cách xử lý nhanh |
 |---|---|---|
-| **I. Hành chính & Đặc thù** | Thông tin cá nhân, chọn biểu mẫu | Điền tự động từ HIS |
-| **II. Tiền sử & Tiêm chủng** | Tiền sử gia đình, bản thân, vaccine | Gợi ý mã ICD-10 |
-| **III. Thể lực & Lâm sàng** | Chiều cao, cân nặng, HA, chuyên khoa | **BMI tự động tính** |
-| **IV. Cận lâm sàng** | Xét nghiệm, CĐHA, TDCN | **Đồng bộ tự động từ HIS** |
-| **V. Kết luận** | Kết luận phân loại SK, mã ICD-10 chính | Tìm kiếm mã bệnh hợp lệ |
-
-* **Điền nhanh mặc định:** Nhấn nút *Điền nhanh kết quả mặc định* để điền tự động các chỉ số bình thường chuẩn, giúp tăng tốc khám đoàn.
-
-![Giao diện Form nhập liệu Khám lâm sàng và tính BMI](./images/step3_clinical_form.png)
+| **Không thấy nhân viên trong hợp đồng tại quầy Tiếp đón?** | Hợp đồng chưa được nạp danh sách nhân viên hoặc chọn sai hợp đồng. | Vào mục Quản lý hợp đồng, kiểm tra cột "Số nhân viên". Nếu là 0, thực hiện Import Excel danh sách nhân viên. |
+| **Import Excel báo lỗi "Trùng số CCCD"?** | File Excel có 2 dòng trùng số CCCD hoặc nhân viên đã có hồ sơ trong hợp đồng khác. | Kiểm tra lại số CCCD trên file Excel hoặc xóa dòng nhân viên trùng lặp trước khi import lại. |
+| **Mục Sản phụ khoa hiển thị "Chưa khám" khi in Mẫu 03?** | Bác sĩ chưa chọn trạng thái "Đã khám/Đã duyệt" hoặc chưa bấm Lưu hồ sơ. | Mở form khám, kiểm tra tab Sản phụ khoa, chọn trạng thái "Đã khám", chọn bác sĩ khám và bấm [Lưu hồ sơ]. |
+| **Bệnh nhân nam có hiển thị mục Sản phụ khoa không?** | Quy chuẩn Bộ Y tế yêu cầu thể hiện đủ 7 chuyên khoa. | Hệ thống tự động nhận diện giới tính Nam và in chữ "Không khám", hoàn toàn đúng chuẩn pháp lý. |
+| **Cổng VNeID báo lỗi "Mã ICD-10 không hợp lệ"?** | Bác sĩ nhập sai mã chẩn đoán hoặc gõ mã không có trong danh mục Bộ Y tế. | Mở Tab V (Kết luận), xóa mã cũ và chọn mã bệnh chuẩn từ danh mục gợi ý tự động của hệ thống. |
+| **Lỗi không kết nối được USB Token ký số?** | Chưa cắm USB Token hoặc phần mềm Signer Agent chưa được bật. | Cắm lại USB Token, khởi chạy ứng dụng VIMES Signer Agent dưới thanh Taskbar và thực hiện ký lại. |
 
 ---
-
-### 2.4. Bước 4: Đồng bộ kết quả Cận lâm sàng từ HIS ⚡
-
-1. Tại **Tab IV. Cận lâm sàng**, nhấn nút **🔄 Đồng bộ kết quả từ HIS**.
-2. Hệ thống tải trực tiếp các dịch vụ chỉ định và kết quả xét nghiệm/CĐHA/TDCN từ HIS theo `his_doc_no`.
-3. Dịch vụ tự động phân loại đúng tab con:
-   - **Xét nghiệm (XN)** — Mã nhóm `A...` hoặc `B1...`
-   - **Chẩn đoán hình ảnh (HA)** — Siêu âm, X-quang, MRI...
-   - **Thăm dò chức năng (TD)** — Điện tâm đồ, thính lực, thị lực...
-4. Bác sĩ có thể bấm đồng bộ nhiều lần mà không làm mất dữ liệu đã nhập ở các tab khác.
-
----
-
-### 2.5. Bước 5: Khóa & Ký số hồ sơ (Chữ ký điện tử)
-
-#### Ký từng hồ sơ:
-1. Nhấn nút **Khóa & Ký Số** tại chân trang form nhập liệu.
-2. Xác nhận hộp thoại → Hồ sơ chuyển sang trạng thái **Đã khóa** (chống sửa đổi).
-
-#### Ký số hàng loạt:
-1. Tại danh sách hồ sơ, tích chọn các hồ sơ có trạng thái **Chưa ký**.
-2. Chọn phương thức: **USB Token** hoặc **Cloud HSM**.
-3. Nhấn **Ký số hàng loạt** → Nhập PIN → Hoàn tất.
-
-![Cửa sổ Xóa & Ký số Chữ ký điện tử Cloud HSM và USB Token](./images/step5_digital_sign.png)
-
----
-
-### 2.6. Bước 6: Liên thông dữ liệu Cổng VNeID (QĐ 1551/QĐ-BYT)
-
-1. Tích chọn hồ sơ **Đã ký** có trạng thái đồng bộ *Chưa gửi* hoặc *Gửi lỗi*.
-2. Nhấn **Đồng bộ Cổng VNeID**.
-3. Hệ thống đóng gói dữ liệu chuẩn XML, gửi trực tiếp tới API liên thông của Bộ Y tế:
-   - ✅ **Thành công:** Trạng thái chuyển sang *Thành công* kèm mã giao dịch `Transaction ID`.
-   - ❌ **Thất bại:** Trạng thái chuyển sang *Lỗi*. Nhấn vào dòng thông báo để xem nguyên nhân chi tiết.
-
----
-
-### 2.7. Quản lý Giao nhận Mẫu Xét nghiệm (LIMS Sample Tracking)
-
-Phân hệ dành riêng cho phòng Lab để kiểm soát luồng giao nhận ống mẫu xét nghiệm từ các khoa phòng:
-
-#### Các phím tắt thao tác nhanh (Hotkeys):
-* **`F2`**: Mở hộp thoại Nhận mẫu theo Khay/Batch (`BatchReceivingModal`).
-* **`F4`** hoặc **`Ctrl + Enter`**: Xác nhận nhận mẫu bệnh nhân đang chọn.
-* **`F5`**: Tải lại danh sách phiếu giao nhận mẫu.
-* **`F8`** hoặc **`Alt + R`**: Mở hộp thoại từ chối mẫu hỏng/hủy mẫu.
-* **`Shift + ?`**: Hiển thị bảng hướng dẫn phím tắt.
-* **`Esc`**: Đóng cửa sổ modal hoặc quay lại danh sách.
-
----
-
-### 2.8. In tem Barcode định danh mẫu xét nghiệm (50×30 mm)
-
-1. Chọn bệnh nhân / phiếu xét nghiệm → Nhấn **In Barcode**.
-2. Hệ thống render tem theo đúng quy chuẩn máy in nhiệt (Zebra, Xprinter, Godex) và máy phân tích xét nghiệm tự động:
-
-![Mẫu tem Barcode nhiệt 50x30mm dán ống mẫu xét nghiệm](./images/step7_barcode_label.png)
-
----
-
-## 3. Bảng tra cứu trạng thái hồ sơ
-
-| Trạng thái | Ý nghĩa hệ thống | Hành động xử lý |
-|---|---|---|
-| **Nháp** | Hồ sơ mới khởi tạo, chưa đủ dữ liệu | Tiếp tục nhập liệu / Đồng bộ CLS |
-| **Hoàn thiện** | Đã điền đủ các thông tin khám | Tiến hành Khóa & Ký số |
-| **Đã khóa / Đã ký** | Hồ sơ đã ký số pháp lý | Gửi liên thông Cổng VNeID |
-| **Thành công** | Đã gửi và Cổng BYT chấp nhận | Hoàn tất lưu trữ |
-| **Gửi lỗi** | Cổng BYT từ chối (lỗi CCCD, mã ICD...) | Mở khóa → Sửa dữ liệu → Ký lại → Gửi lại |
-
----
-
-## 4. Xử lý sự cố thường gặp (Troubleshooting)
-
-1. **Lỗi không ký số được qua USB Token:**
-   - Kiểm tra USB Token đã cắm vào máy tính và phần mềm ký số (SignServer/Plugin) đang chạy.
-2. **Không đồng bộ được kết quả Cận lâm sàng từ HIS:**
-   - Kiểm tra mã `his_doc_no` của bệnh nhân có chính xác với dữ liệu tiếp nhận trên HIS hay chưa.
-3. **Cổng VNeID báo lỗi mã ICD-10 không hợp lệ:**
-   - Vào Tab V (Kết luận), chọn lại mã bệnh chính xác từ danh mục gợi ý `hms_icd`.
-
----
-**Bộ phận Hỗ trợ Vận hành vClinic & HIS**  
-*Tài liệu được cập nhật tự động kèm bộ ảnh hướng dẫn quy trình.*
+**BAN PHÁT TRIỂN & VẬN HÀNH HỆ THỐNG VIMES HIS**  
+*Mọi yêu cầu hỗ trợ kỹ thuật, vui lòng liên hệ Bộ phận Kỹ thuật VIMES HIS.*

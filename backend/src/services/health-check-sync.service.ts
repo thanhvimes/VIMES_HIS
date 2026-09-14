@@ -13,6 +13,7 @@ import { createHealthCheckChecksumSignature } from './health-check-checksum';
 import { isRetryableSyncFailure } from './health-check-sync-retry';
 import { validateHealthCheckEnvelope } from './health-check-xml-validation';
 import { resolveProvinceBhCode, resolveVillageBhCode } from './administrative-catalog.service';
+import { signXmlViaHisHsm } from './his-sign.service';
 
 const syncHttpsAgent = new https.Agent({
     keepAlive: true,
@@ -505,12 +506,6 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
             const doc = docQuery.rows[0];
 
             // 3.1 Validate nghiệp vụ trước khi đồng bộ
-            if (!settings.allow_unsigned_sync && doc.signature_status !== 'Signed') {
-                const unsignedMsg = 'Hồ sơ chưa ký số, không được gửi cổng';
-                await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [unsignedMsg, doc.id]);
-                failedIds.push(docId);
-                continue;
-            }
             if (!doc.xml_data || !doc.xml_data.trim()) {
                 const noXmlMsg = 'Hồ sơ chưa có XML dữ liệu để gửi';
                 await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [noXmlMsg, doc.id]);
@@ -521,6 +516,79 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
             // 3.2 Chuẩn bị dữ liệu XML
             let base64Xml = '';
             let rawXmlToProcess = sanitizeXmlContent(doc.xml_data || '', glnCode, bytCode);
+
+            // Đảm bảo CKS_NGUOI_KET_LUAN được điền nếu có chữ ký bác sĩ
+            let doctorSig = '';
+            try {
+                const detailRes = await query(`SELECT conclusion_data FROM health_check_details WHERE master_id = $1`, [doc.id]);
+                const conclData = detailRes.rows[0]?.conclusion_data || {};
+                doctorSig = conclData.signature || conclData.doctor_signature || conclData.signature_base64 || (doc.signature_type === 'DOCTOR' ? doc.signature : '') || '';
+                if (doctorSig && rawXmlToProcess.includes('<CKS_NGUOI_KET_LUAN></CKS_NGUOI_KET_LUAN>')) {
+                    rawXmlToProcess = rawXmlToProcess.replace('<CKS_NGUOI_KET_LUAN></CKS_NGUOI_KET_LUAN>', `<CKS_NGUOI_KET_LUAN>${doctorSig}</CKS_NGUOI_KET_LUAN>`);
+                }
+            } catch (cErr) {
+                console.warn('Không thể nạp chữ ký bác sĩ từ conclusion_data:', cErr);
+            }
+
+            // KIỂM TRA THAM SỐ THIẾT LẬP: allow_unsigned_sync
+            if (!settings.allow_unsigned_sync) {
+                // Tier 1: Kiểm tra Bác sĩ đã ký kết luận chưa (CKS_NGUOI_KET_LUAN)
+                const hasDoctorSig = Boolean(
+                    doctorSig || 
+                    (rawXmlToProcess.includes('<CKS_NGUOI_KET_LUAN>') && !rawXmlToProcess.includes('<CKS_NGUOI_KET_LUAN></CKS_NGUOI_KET_LUAN>'))
+                );
+                if (!hasDoctorSig) {
+                    const noDocMsg = 'Hồ sơ chưa có chữ ký số của Bác sĩ kết luận (CKS_NGUOI_KET_LUAN)';
+                    await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [noDocMsg, doc.id]);
+                    failedIds.push(docId);
+                    continue;
+                }
+
+                // Tier 2: Ký số Cơ sở y tế (Tổ chức)
+                // Nếu chưa có chữ ký đơn vị (signature_status !== 'Signed') -> Tự động gọi HSM ký nếu có cấu hình
+                if (doc.signature_status !== 'Signed') {
+                    const hasHsmConfig = Boolean(settings.hsm_username && settings.hsm_password);
+                    if (hasHsmConfig) {
+                        try {
+                            console.log(`🔑 [Auto-Sign HSM] Đang tự động ký số HSM đơn vị cho hồ sơ ${doc.doc_no || doc.id}...`);
+                            const signedXmlBase64 = await signXmlViaHisHsm(rawXmlToProcess, settings, doc.doc_no || `ksk_${doc.id}`);
+                            if (signedXmlBase64) {
+                                const signatureWrapper = JSON.stringify({
+                                    signed_file: {
+                                        file_name: `${doc.doc_no || 'document'}_signed.xml`,
+                                        mime_type: 'application/xml',
+                                        data_base64: signedXmlBase64
+                                    }
+                                });
+                                await query(`
+                                    UPDATE health_check_masters 
+                                    SET signature = $1, 
+                                        signature_status = 'Signed', 
+                                        signature_type = 'HSM',
+                                        updated_at = NOW() 
+                                    WHERE id = $2
+                                `, [signatureWrapper, doc.id]);
+                                
+                                doc.signature_status = 'Signed';
+                                doc.signature = signatureWrapper;
+                                doc.signature_type = 'HSM';
+                                console.log(`✅ [Auto-Sign HSM] Ký số HSM đơn vị thành công cho hồ sơ ${doc.doc_no || doc.id}`);
+                            }
+                        } catch (hsmErr: any) {
+                            const hsmErrMsg = `Lỗi ký số HSM đơn vị: ${hsmErr.message}`;
+                            console.error(`❌ [Auto-Sign HSM] Thất bại:`, hsmErrMsg);
+                            await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [hsmErrMsg.slice(0, 500), doc.id]);
+                            failedIds.push(docId);
+                            continue;
+                        }
+                    } else {
+                        const unsignedMsg = 'Hồ sơ chưa có chữ ký số Cơ sở y tế và chưa cấu hình tài khoản HSM tự động ký';
+                        await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [unsignedMsg, doc.id]);
+                        failedIds.push(docId);
+                        continue;
+                    }
+                }
+            }
 
             if (doc.signature_status === 'Signed' && doc.signature) {
                 try {
@@ -784,7 +852,7 @@ async function syncUnsentDocuments() {
         }
 
         const targetMode = settings.sync_target_mode || 'BYT_ONLY';
-        const signatureFilter = settings.allow_unsigned_sync ? '' : "signature_status = 'Signed' AND ";
+        const signatureFilter = settings.allow_unsigned_sync ? '' : ((settings.hsm_username && settings.hsm_password) ? "(signature_status = 'Signed' OR status = 'ĐÃ_KẾT_LUẬN') AND " : "signature_status = 'Signed' AND ");
 
         let whereClause = "";
         if (targetMode === 'BOTH') {

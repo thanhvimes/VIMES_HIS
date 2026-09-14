@@ -4,7 +4,7 @@ import { useSession } from '../../../../contexts/SessionContext';
 import { toast } from 'sonner';
 import Combobox from '../../../../components/ui/Combobox';
 import { healthCheckService } from '../../../../services/healthCheckService';
-import { SearchIcon, PlusIcon } from '../../../../components/Icons';
+import { SearchIcon, PlusIcon, TrashIcon } from '../../../../components/Icons';
 
 const LabTab: React.FC = () => {
     const {
@@ -123,6 +123,41 @@ const LabTab: React.FC = () => {
         if (id.startsWith('B2') || id.startsWith('B0') || id.startsWith('C')) return 'HA';
         if (id.startsWith('B3') || id.startsWith('B4') || id.startsWith('B5') || id.startsWith('D')) return 'TD';
         return 'XN';
+    };
+
+    // Hủy chỉ định cận lâm sàng trên HIS hoặc xóa dịch vụ tự thêm
+    const handleCancelItem = async (item: any) => {
+        const confirmCancel = window.confirm(`Bạn có chắc chắn muốn hủy dịch vụ "${item.service_name}"?${item.order_id ? '\nHệ thống sẽ hủy chỉ định trên HIS và tự động cập nhật lại bảng kê chi phí.' : ''}`);
+        if (!confirmCancel) return;
+
+        if (item.order_id && docNo) {
+            const toastId = toast.loading(`Đang hủy chỉ định "${item.service_name}" trên HIS...`);
+            try {
+                const res = await healthCheckService.cancelHisParaclinicItem({
+                    docNo: Number(docNo),
+                    orderId: item.order_id,
+                    serviceCode: item.service_code || item.item_id || item.code
+                });
+                if (res.success) {
+                    toast.success(res.message || "Đã hủy chỉ định dịch vụ thành công!", { id: toastId });
+                    const updated = paraclinicalItems.filter((_, idx) => idx !== item.originalIndex);
+                    setParaclinicalItems(updated);
+                    syncGridToCoreFields(updated);
+                    if (handleSyncParaclinical) {
+                        handleSyncParaclinical();
+                    }
+                } else {
+                    toast.error(res.message || "Hủy chỉ định thất bại.", { id: toastId });
+                }
+            } catch (err: any) {
+                toast.error("Lỗi khi hủy chỉ định: " + err.message, { id: toastId });
+            }
+        } else {
+            const updated = paraclinicalItems.filter((_, idx) => idx !== item.originalIndex);
+            setParaclinicalItems(updated);
+            syncGridToCoreFields(updated);
+            toast.success(`Đã xóa dịch vụ "${item.service_name}".`);
+        }
     };
 
     // Danh sách nhóm dịch vụ đã qua bộ lọc loại (ALL / XN / HA / TD)
@@ -642,19 +677,19 @@ const LabTab: React.FC = () => {
                         <table className="w-full text-left border-collapse text-xs">
                             <thead>
                                 <tr className="border-b border-slate-250 dark:border-slate-750 text-[10px] font-extrabold text-slate-500 uppercase">
-                                    <th className="py-2.5 px-3 w-[10%]">Số phiếu</th>
-                                    <th className={`py-2.5 px-3 ${labSubTab === 'XN' ? 'w-[32%]' : 'w-[25%]'}`}>Tên dịch vụ/chỉ số</th>
-                                    <th className={`py-2.5 px-3 ${labSubTab === 'XN' ? 'w-[23%]' : 'w-[18%]'}`}>Kết quả</th>
-                                    {labSubTab === 'XN' && <th className="py-2.5 px-3 w-[13%]">Đơn vị</th>}
-                                    {labSubTab !== 'XN' && <th className="py-2.5 px-3 w-[22%]">Mô tả chi tiết</th>}
-                                    <th className={`py-2.5 px-3 ${labSubTab === 'XN' ? 'w-[22%]' : 'w-[14%]'}`}>Kết luận</th>
-                                    {labSubTab !== 'XN' && <th className="py-2.5 px-3 w-[8%] text-center">Thao tác</th>}
+                                    <th className="py-2.5 px-3 w-[8%]">Số phiếu</th>
+                                    <th className={`py-2.5 px-3 ${labSubTab === 'XN' ? 'w-[28%]' : 'w-[22%]'}`}>Tên dịch vụ/chỉ số</th>
+                                    <th className={`py-2.5 px-3 ${labSubTab === 'XN' ? 'w-[20%]' : 'w-[16%]'}`}>Kết quả</th>
+                                    {labSubTab === 'XN' && <th className="py-2.5 px-3 w-[12%]">Đơn vị</th>}
+                                    {labSubTab !== 'XN' && <th className="py-2.5 px-3 w-[20%]">Mô tả chi tiết</th>}
+                                    <th className={`py-2.5 px-3 ${labSubTab === 'XN' ? 'w-[20%]' : 'w-[14%]'}`}>Kết luận</th>
+                                    <th className={`py-2.5 px-3 ${labSubTab === 'XN' ? 'w-[12%]' : 'w-[20%]'} text-center`}>Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100/60 dark:divide-slate-800/40">
                                 {paraclinicalItems.filter(item => item.type === labSubTab).length === 0 ? (
                                     <tr>
-                                        <td colSpan={labSubTab === 'XN' ? 5 : 6} className="py-6 text-center text-slate-400 dark:text-slate-500 italic">
+                                        <td colSpan={6} className="py-6 text-center text-slate-400 dark:text-slate-500 italic">
                                             Chưa có dịch vụ nào được chỉ định cho nhóm này.
                                         </td>
                                     </tr>
@@ -722,7 +757,7 @@ const LabTab: React.FC = () => {
                                             <React.Fragment key={g.name}>
                                                 {/* Nhóm Xét Nghiệm Header Row */}
                                                 <tr className="bg-slate-100 dark:bg-slate-800 border-y border-slate-200 dark:border-slate-700">
-                                                    <td colSpan={labSubTab === 'XN' ? 5 : 6} className="py-2.5 px-3 font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider text-[10px]">
+                                                    <td colSpan={6} className="py-2.5 px-3 font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider text-[10px]">
                                                         {g.name === 'Chưa phân nhóm' ? 'Chưa phân nhóm (Dịch vụ tự thêm)' : g.name}
                                                     </td>
                                                 </tr>
@@ -740,14 +775,14 @@ const LabTab: React.FC = () => {
                                                         lastParentCode = currentParentCode;
                                                         elements.push(
                                                             <tr key={`parent-${currentParentCode}`} className="bg-teal-50/40 dark:bg-teal-950/20 text-teal-800 dark:text-teal-300 font-bold border-y border-teal-100/30 dark:border-teal-900/20">
-                                                                <td colSpan={labSubTab === 'XN' ? 5 : 6} className="py-2 px-3 text-[11px] font-bold">
+                                                                <td colSpan={6} className="py-2 px-3 text-[11px] font-bold">
                                                                     <span className="mr-1.5 text-teal-600 dark:text-teal-400">📂</span> {currentParentName}
                                                                 </td>
                                                             </tr>
                                                         );
                                                     }
 
-                                                    // If this item itself is a parent indicator, we render it as a row with only name, and no inputs/actions for other columns.
+                                                    // If this item itself is a parent indicator, we render it as a row with only name, and cancel button for the whole package.
                                                     if (isParent) {
                                                         lastParentCode = currentParentCode; // Ensure child items don't trigger header
                                                         elements.push(
@@ -764,7 +799,16 @@ const LabTab: React.FC = () => {
                                                                 {labSubTab === 'XN' && <td className="py-2.5 px-3"></td>}
                                                                 {labSubTab !== 'XN' && <td className="py-2.5 px-3"></td>}
                                                                 <td className="py-2.5 px-3"></td>
-                                                                {labSubTab !== 'XN' && <td className="py-2.5 px-3 text-center"></td>}
+                                                                <td className="py-2.5 px-3 text-center">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleCancelItem(item)}
+                                                                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded transition cursor-pointer"
+                                                                        title="Hủy chỉ định / Xóa cả gói"
+                                                                    >
+                                                                        <TrashIcon className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                </td>
                                                             </tr>
                                                         );
                                                         return elements;
@@ -882,17 +926,27 @@ const LabTab: React.FC = () => {
                                                                     className="w-full px-2 py-1.5 border border-slate-300 dark:border-slate-650 rounded bg-transparent text-slate-800 dark:text-white font-semibold"
                                                                 />
                                                             </td>
-                                                            {labSubTab !== 'XN' && (
-                                                                <td className="py-2 px-1.5 text-center">
+                                                            <td className="py-2 px-1.5 text-center">
+                                                                <div className="flex items-center justify-center gap-1">
+                                                                    {labSubTab !== 'XN' && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleOpenResultModal(item)}
+                                                                            className="px-2.5 py-1 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded text-[10px] font-bold transition-all cursor-pointer inline-flex items-center gap-0.5 active:scale-95 shadow-xs"
+                                                                        >
+                                                                            Nhập KQ
+                                                                        </button>
+                                                                    )}
                                                                     <button
                                                                         type="button"
-                                                                        onClick={() => handleOpenResultModal(item)}
-                                                                        className="px-2.5 py-1 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded text-[10px] font-bold transition-all cursor-pointer inline-flex items-center gap-0.5 active:scale-95 shadow-xs"
+                                                                        onClick={() => handleCancelItem(item)}
+                                                                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded transition cursor-pointer"
+                                                                        title="Hủy chỉ định / Xóa dịch vụ"
                                                                     >
-                                                                        Nhập KQ
+                                                                        <TrashIcon className="w-3.5 h-3.5" />
                                                                     </button>
-                                                                </td>
-                                                            )}
+                                                                </div>
+                                                            </td>
                                                         </tr>
                                                     );
                                                     return elements;

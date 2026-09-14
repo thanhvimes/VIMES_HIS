@@ -274,10 +274,73 @@ const PatientReception: React.FC = () => {
         });
     }, [searchResults, statusFilter]);
 
+    const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        if (val.includes('|')) {
+            const parts = val.split('|');
+            const cccd = parts[0]?.trim();
+            if (cccd && /^\d{9,12}$/.test(cccd)) {
+                setSearchQuery(cccd);
+                const name = parts[2]?.trim();
+                const dobRaw = parts[3]?.trim();
+                const gender = parts[4]?.trim();
+                const address = parts[5]?.trim();
+                const issueDateRaw = parts[6]?.trim();
+
+                let formattedDob = '';
+                if (dobRaw && dobRaw.length === 8) {
+                    formattedDob = `${dobRaw.slice(4, 8)}-${dobRaw.slice(2, 4)}-${dobRaw.slice(0, 2)}`;
+                }
+                let formattedIssueDate = '';
+                if (issueDateRaw && issueDateRaw.length === 8) {
+                    formattedIssueDate = `${issueDateRaw.slice(4, 8)}-${issueDateRaw.slice(2, 4)}-${issueDateRaw.slice(0, 2)}`;
+                }
+
+                toast.info(`Đã quét QR CCCD: ${cccd} - ${name || ''}`);
+                healthCheckService.searchEmployeeByCard(cccd, selectedContractId)
+                    .then((data: any[]) => {
+                        setSearchResults(data);
+                        if (data.length >= 1) {
+                            const emp = { ...data[0] };
+                            if (address && !emp.address) emp.address = address;
+                            if (name && !emp.name) emp.name = name;
+                            if (formattedDob && !emp.dob) emp.dob = formattedDob;
+                            if (gender && !emp.gender) emp.gender = gender === 'Nữ' || gender === 'F' ? 'F' : 'M';
+                            if (formattedIssueDate && !emp.card_id_date) emp.card_id_date = formattedIssueDate;
+                            selectEmployee(emp);
+                        }
+                    })
+                    .catch(err => console.error(err));
+                return;
+            }
+        }
+        setSearchQuery(val);
+    };
+
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            // Just blur input slightly or let useEffect do the query immediately
+            const term = searchQuery.trim();
+            if (term.includes('|')) {
+                const parts = term.split('|');
+                const cccd = parts[0]?.trim();
+                if (cccd && /^\d{9,12}$/.test(cccd)) {
+                    setSearchQuery(cccd);
+                    healthCheckService.searchEmployeeByCard(cccd, selectedContractId)
+                        .then(data => {
+                            setSearchResults(data);
+                            if (data.length >= 1) selectEmployee(data[0]);
+                        })
+                        .catch(err => console.error(err));
+                    return;
+                }
+            }
+            healthCheckService.searchEmployeeByCard(term, selectedContractId)
+                .then(data => {
+                    setSearchResults(data);
+                    if (data.length >= 1) selectEmployee(data[0]);
+                })
+                .catch(err => console.error(err));
         }
     };
 
@@ -958,7 +1021,7 @@ const PatientReception: React.FC = () => {
                             type="text"
                             placeholder="Quét thẻ CCCD hoặc nhập CCCD/SĐT/Tên..."
                             value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onChange={handleSearchInputChange}
                             onKeyDown={handleKeyDown}
                             className="w-full pl-9 pr-20 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm font-semibold"
                         />

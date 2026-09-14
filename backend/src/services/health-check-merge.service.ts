@@ -157,12 +157,13 @@ export function mergeClinicalData(
     const incomingClinicalExam = incomingSafe.clinical_exam && typeof incomingSafe.clinical_exam === 'object' ? incomingSafe.clinical_exam : {};
 
     const mergedClinicalExam = mergeObjectFields(existClinicalExam, incomingClinicalExam);
-    mergedClinicalExam.specialty_metadata = mergeSpecialtyMetadata(
-        existClinicalExam.specialty_metadata,
-        incomingClinicalExam.specialty_metadata
-    );
+    const existingMeta = existClinicalExam.specialty_metadata || existSafe.specialty_metadata;
+    const incomingMeta = incomingClinicalExam.specialty_metadata || incomingSafe.specialty_metadata;
+    const resolvedSpecialtyMetadata = mergeSpecialtyMetadata(existingMeta, incomingMeta);
 
+    mergedClinicalExam.specialty_metadata = resolvedSpecialtyMetadata;
     merged.clinical_exam = mergedClinicalExam;
+    merged.specialty_metadata = resolvedSpecialtyMetadata;
 
     // 4. Extra (occupational, driver, child, history extra fields) merge
     merged.extra = mergeObjectFields(existSafe.extra, incomingSafe.extra);

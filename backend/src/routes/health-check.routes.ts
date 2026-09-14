@@ -74,6 +74,9 @@ router.post('/documents/sign-pdf-vimes', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 router.post('/documents/:id/unlock', healthCheckController.unlockDocument.bind(healthCheckController));
+router.post('/documents/:id/reset-sync', healthCheckController.resetSyncStatus.bind(healthCheckController));
+router.post('/documents/reset-sync', healthCheckController.resetSyncStatusBatch.bind(healthCheckController));
+router.post('/fee/create-fees', healthCheckController.createFeesForDoc.bind(healthCheckController));
 router.post('/documents/seed-from-his', healthCheckController.seedFromHis.bind(healthCheckController));
 router.post('/documents/mark-printed', healthCheckController.markBarcodePrinted.bind(healthCheckController));
 router.get('/his-patient/:identifier', healthCheckController.getHisPatient.bind(healthCheckController));

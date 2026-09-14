@@ -24,6 +24,7 @@ interface DocumentListProps {
     onViewXml: (doc: any) => void;
     onPrint: (doc: any) => void;
     onSend?: (doc: any) => void;
+    onResetSync?: (doc: any) => void;
     getFormName: (type: string) => string;
     getFormColor: (type: string) => string;
     onSeed?: () => void;
@@ -45,6 +46,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
     onViewXml,
     onPrint,
     onSend,
+    onResetSync,
     getFormName,
     getFormColor,
     pageSize,
@@ -72,6 +74,28 @@ const DocumentList: React.FC<DocumentListProps> = ({
         }
         return [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
     }, [totalPages, currentPage]);
+
+    const getResolvedSpecMeta = (doc: any) => {
+        const raw = doc?.clinical_data?.specialty_metadata || {};
+        const exam = doc?.clinical_data?.clinical_exam?.specialty_metadata || {};
+        const merged: Record<string, any> = { ...raw };
+        for (const [k, v] of Object.entries(exam)) {
+            if (!v || typeof v !== 'object') continue;
+            const existing = merged[k];
+            if (!existing) {
+                merged[k] = { ...v };
+            } else {
+                const isNewActive = (v as any).status === 'ĐÃ_KHÁM' || (v as any).status === 'ĐÃ_DUYỆT' || (v as any).doctorId || (v as any).doctorName;
+                const isExistingActive = existing.status === 'ĐÃ_KHÁM' || existing.status === 'ĐÃ_DUYỆT' || existing.doctorId || existing.doctorName;
+                if (isNewActive || !isExistingActive) {
+                    merged[k] = { ...existing, ...v };
+                } else {
+                    merged[k] = { ...v, ...existing };
+                }
+            }
+        }
+        return merged;
+    };
 
     const getStatusBadge = (status: string, label?: string) => {
         let badgeContent;
@@ -196,7 +220,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                     </td>
                                     <td className="p-4">
                                         {(() => {
-                                            const specMeta = doc.clinical_data?.specialty_metadata || doc.clinical_data?.clinical_exam?.specialty_metadata || {};
+                                            const specMeta = getResolvedSpecMeta(doc);
                                             const hasConcl = !!(
                                                 (doc.conclusion_data?.fitness_class && String(doc.conclusion_data.fitness_class).trim()) ||
                                                 (doc.conclusion_data?.ket_luan_loai_suc_khoe && String(doc.conclusion_data.ket_luan_loai_suc_khoe).trim()) ||
@@ -346,11 +370,20 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                     </td>
                                     <td className="p-4 text-right">
                                         <div className="flex justify-end items-center gap-1.5">
-                                            {/* Nút phụ: Xóa */}
-                                            <div className="flex items-center mr-2">
+                                            {/* Nút phụ: Hủy gửi & Xóa */}
+                                            <div className="flex items-center mr-2 gap-1">
+                                                {onResetSync && (doc.send_status === 'Success' || doc.send_status === 'Error' || doc.signature_status === 'Signed') && (
+                                                    <button 
+                                                        onClick={() => onResetSync(doc)}
+                                                        className="p-1.5 text-amber-500 hover:text-amber-700 rounded hover:bg-amber-50 dark:hover:bg-amber-950/30 transition cursor-pointer"
+                                                        title="Hủy gửi / Mở khóa hồ sơ (reset trạng thái để sửa lại)"
+                                                    >
+                                                        <RefreshIcon className="w-4 h-4"/>
+                                                    </button>
+                                                )}
                                                 <button 
                                                     onClick={() => onDelete(doc.id)}
-                                                    className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
+                                                    className="p-1.5 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer"
                                                     title="Xóa hồ sơ"
                                                 >
                                                     <TrashIcon className="w-4 h-4"/>
@@ -391,7 +424,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
 
                                                 {/* Gửi */}
                                                 {(() => {
-                                                    const specMeta = doc.clinical_data?.specialty_metadata || doc.clinical_data?.clinical_exam?.specialty_metadata || {};
+                                                    const specMeta = getResolvedSpecMeta(doc);
                                                     const hasConcl = !!(
                                                         (doc.conclusion_data?.fitness_class && String(doc.conclusion_data.fitness_class).trim()) ||
                                                         (doc.conclusion_data?.ket_luan_loai_suc_khoe && String(doc.conclusion_data.ket_luan_loai_suc_khoe).trim()) ||

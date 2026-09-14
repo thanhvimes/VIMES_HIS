@@ -33,7 +33,40 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
     const clinicalExam = rawClinical.clinical_exam || rawClinical.clinicalExam || {};
     const examination = rawClinical.examination || {};
     const extra = rawClinical.extra || {};
-    const clinical = { ...examination, ...rawClinical, ...clinicalExam };
+    // Smart merge of specialty_metadata giving precedence to clinicalExam and active statuses
+    const specMetaSources = [
+        document.specialtyMetadata,
+        document.specialty_metadata,
+        rawClinical.specialty_metadata,
+        clinicalExam.specialty_metadata
+    ].filter(Boolean);
+
+    const mergedSpecMeta: Record<string, any> = {};
+    for (const source of specMetaSources) {
+        if (!source || typeof source !== 'object') continue;
+        for (const [k, v] of Object.entries(source)) {
+            if (!v || typeof v !== 'object') continue;
+            const existing = mergedSpecMeta[k];
+            if (!existing) {
+                mergedSpecMeta[k] = { ...v };
+            } else {
+                const isNewActive = (v as any).status === 'ĐÃ_KHÁM' || (v as any).status === 'ĐÃ_DUYỆT' || (v as any).doctorId || (v as any).doctorName;
+                const isExistingActive = existing.status === 'ĐÃ_KHÁM' || existing.status === 'ĐÃ_DUYỆT' || existing.doctorId || existing.doctorName;
+                if (isNewActive || !isExistingActive) {
+                    mergedSpecMeta[k] = { ...existing, ...v };
+                } else {
+                    mergedSpecMeta[k] = { ...v, ...existing };
+                }
+            }
+        }
+    }
+
+    const clinical = { 
+        ...examination, 
+        ...rawClinical, 
+        ...clinicalExam,
+        specialty_metadata: mergedSpecMeta
+    };
     const lab = document.lab_data || document.labData || {};
     const conclusion = document.conclusion_data || document.conclusionData || {};
 
@@ -227,6 +260,11 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                 const doc = doctors.find((d: any) => String(d.id) === String(internalMeta.doctorId) || String(d.code) === String(internalMeta.doctorId) || String(d.hee_employee_id) === String(internalMeta.doctorId));
                 if (doc) return doc.name || doc.fullname || doc.hee_fullname;
             }
+        }
+
+        if (specKey === 'gynecology' || specKey === 'san_phu_khoa') {
+            const directDoc = clinical.bac_si_kham_san_phu_khoa || clinical.bac_si_san_phu_khoa || clinical.bs_san_phu_khoa || clinical.bs_kham_san_phu_khoa;
+            if (directDoc) return directDoc;
         }
 
         // Fallback conclusion doctor if examined
@@ -1023,7 +1061,7 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                                         <td className="border border-black p-1 align-top">
                                             <div>
                                                 {clinical.noi_khoa_noi_tiet || (hasSpecialtyExamined('noi_tiet') ? 'Bình thường' : '')}
-                                                {isNu && (clinical.gynecology || clinical.kham_san_phu_khoa || clinical.kq_sinh_duc || clinical.ket_qua_kham_san_phu_khoa) ? ` | Sản phụ khoa: ${clinical.gynecology || clinical.kham_san_phu_khoa || clinical.kq_sinh_duc || clinical.ket_qua_kham_san_phu_khoa}` : ''}
+                                                {(clinical.gynecology || clinical.kham_san_phu_khoa || clinical.kq_sinh_duc || clinical.ket_qua_kham_san_phu_khoa || clinical.san_phu_khoa) ? ` | Sản phụ khoa: ${clinical.gynecology || clinical.kham_san_phu_khoa || clinical.kq_sinh_duc || clinical.ket_qua_kham_san_phu_khoa || clinical.san_phu_khoa}` : ''}
                                             </div>
                                         </td>
                                         {renderDoctorSignCell('noi_tiet', 'endocrine')}
@@ -1103,22 +1141,37 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                                     </tr>
 
                                     {/* 3. Sản phụ khoa */}
-                                    <tr>
-                                        <td className="border border-black p-1 font-bold align-top">3. Sản phụ khoa</td>
-                                        <td className="border border-black p-1 align-top">
-                                            {isNu ? (
-                                                clinical.gynecology ||
-                                                clinical.kham_san_phu_khoa ||
-                                                clinical.kq_sinh_duc ||
-                                                clinical.ket_qua_kham_san_phu_khoa ||
-                                                clinical.kq_kham_san_phu_khoa ||
-                                                clinical.san_phu_khoa ||
-                                                (hasSpecialtyExamined('gynecology') ? 'Bình thường' : '')
-                                            ) : 'Không khám'}
-                                        </td>
-                                        <td className="border border-black p-1 text-center align-top font-semibold">{isNu ? formatPl(clinical.kham_san_phu_khoa_pl) : ''}</td>
-                                        {isNu ? renderDoctorSignCell('gynecology', 'san_phu_khoa') : <td className="border border-black p-1 text-center align-middle h-14 min-h-[50px]"></td>}
-                                    </tr>
+                                    {(() => {
+                                        const isExaminedGyn = hasSpecialtyExamined('gynecology') || hasSpecialtyExamined('san_phu_khoa') || !!(
+                                            clinical.gynecology ||
+                                            clinical.kham_san_phu_khoa ||
+                                            clinical.kq_sinh_duc ||
+                                            clinical.ket_qua_kham_san_phu_khoa ||
+                                            clinical.kq_kham_san_phu_khoa ||
+                                            clinical.san_phu_khoa ||
+                                            clinical.kham_san_phu_khoa_pl
+                                        );
+                                        const gynContent = clinical.gynecology ||
+                                            clinical.kham_san_phu_khoa ||
+                                            clinical.kq_sinh_duc ||
+                                            clinical.ket_qua_kham_san_phu_khoa ||
+                                            clinical.kq_kham_san_phu_khoa ||
+                                            clinical.san_phu_khoa ||
+                                            (isExaminedGyn ? 'Bình thường' : (isNu ? '' : 'Không khám'));
+
+                                        return (
+                                            <tr>
+                                                <td className="border border-black p-1 font-bold align-top">3. Sản phụ khoa</td>
+                                                <td className="border border-black p-1 align-top">
+                                                    {gynContent}
+                                                </td>
+                                                <td className="border border-black p-1 text-center align-top font-semibold">
+                                                    {isExaminedGyn ? formatPl(clinical.kham_san_phu_khoa_pl) : ''}
+                                                </td>
+                                                {isExaminedGyn ? renderDoctorSignCell('gynecology', 'san_phu_khoa') : <td className="border border-black p-1 text-center align-middle h-14 min-h-[50px]"></td>}
+                                            </tr>
+                                        );
+                                    })()}
 
                                     {/* 4. Mắt */}
                                     <tr>

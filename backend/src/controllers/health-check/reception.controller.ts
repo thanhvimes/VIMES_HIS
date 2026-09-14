@@ -140,14 +140,22 @@ export class ReceptionController {
             const params: any[] = [];
             let paramIndex = 1;
 
-            if (term !== '') {
+            let cleanTerm = term.trim();
+            if (cleanTerm.includes('|')) {
+                const parts = cleanTerm.split('|');
+                if (parts[0] && /^\d{9,12}$/.test(parts[0].trim())) {
+                    cleanTerm = parts[0].trim();
+                }
+            }
+
+            if (cleanTerm !== '') {
                 sql += ` AND (
                     trim(e.hee_cardid) = $${paramIndex} 
                     OR trim(e.hee_phone) = $${paramIndex} 
                     OR trim(COALESCE(e.hee_surname,'') || ' ' || COALESCE(e.hee_midname,'') || ' ' || e.hee_firstname) ILIKE $${paramIndex + 1}
                 )`;
-                params.push(term);
-                params.push(`%${term}%`);
+                params.push(cleanTerm);
+                params.push(`%${cleanTerm}%`);
                 paramIndex += 2;
             }
 
@@ -233,6 +241,11 @@ export class ReceptionController {
                     SET hee_patientno = $1 
                     WHERE hee_employee_id = $2
                 `, [existingPatientNo, employeeId]);
+                await query(`
+                    UPDATE hms_patient 
+                    SET hp_nationality = '000' 
+                    WHERE hp_patientno = $1 AND (hp_nationality IS NULL OR hp_nationality = '' OR hp_nationality = 'VIE')
+                `, [existingPatientNo]);
                 emp.hee_patientno = existingPatientNo;
             } else {
                 console.log('🔍 [Tiếp đón KSK] Bệnh nhân chưa có mã hợp lệ trong hms_patient và không trùng CCCD, tiến hành sinh mã mới...');
@@ -279,8 +292,8 @@ export class ReceptionController {
                         hp_birthdate, hp_sex, hp_ethnic,
                         hp_provid, hp_distid, hp_villid,
                         hp_dtladdr, hp_createdby, hp_createddate,
-                        hp_occupation, hp_workplace, hp_noicap, hp_ngaycap
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, CURRENT_TIMESTAMP, $15, $16, $17, $18)
+                        hp_occupation, hp_workplace, hp_noicap, hp_ngaycap, hp_nationality
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, CURRENT_TIMESTAMP, $15, $16, $17, $18, '000')
                 `, [
                     newPatientNo,
                     emp.hee_cardid || '',
@@ -358,7 +371,8 @@ export class ReceptionController {
                 activeRoomId = defaultRoomRes.rows[0]?.hrl_id ? parseInt(String(defaultRoomRes.rows[0].hrl_id), 10) : 22;
             }
         }
-        const examType = emp.contract_def_examtype || emp.contract_exam_type || 'E01';
+        const rawExamType = emp.contract_def_examtype || emp.contract_exam_type || 'D0000001';
+        const examType = (rawExamType === 'E01' || !rawExamType.trim()) ? 'D0000001' : rawExamType.trim();
 
         console.log('🚀 Gọi hms_exm_registration_exam:', {
             employeeId,
@@ -515,7 +529,7 @@ export class ReceptionController {
                 blood_group: '',
                 target_group: targetGroupStr,
                 doi_tuong: targetGroupStr,
-                funding_source: '9',
+                funding_source: emp.hee_funding_source || '9',
                 examination: { 
                     height: heightVal, 
                     weight: weightVal, 

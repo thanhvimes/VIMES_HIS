@@ -49,6 +49,8 @@ export class EmployeesController {
                     COALESCE(occ.ss_desc, '') as occupation_name,
                     COALESCE(e.hee_target_group, '14') as target_group,
                     COALESCE(e.hee_target_group, '14') as doi_tuong_ksk,
+                    COALESCE(e.hee_funding_source, '9') as funding_source,
+                    COALESCE(e.hee_funding_source, '9') as nguon_chi_tra,
                     COALESCE(NULLIF(TRIM(e.hee_prov_code), ''), e.hee_provid::text, '') as prov_id,
                     COALESCE(NULLIF(TRIM(e.hee_vill_code), ''), e.hee_villid::text, '') as vill_id,
                     p.sp_name as prov_name,
@@ -214,6 +216,7 @@ export class EmployeesController {
                         // Người giám hộ
                         const guardianName = String(emp.guardian_name || '').trim().slice(0, 100);
                         const guardianCccd = String(emp.guardian_cccd || '').replace(/\D/g, '').slice(0, 12);
+                        const fundingSource = String(emp.funding_source || emp.nguon_chi_tra || '9').trim().slice(0, 50);
 
                         // Nghề nghiệp: map sang mã số nguyên sys_sel (sys_occupation)
                         let rawOcc = String(emp.occupation || emp.ma_nghe_nghiep || emp.job || emp.position || '').trim();
@@ -515,14 +518,15 @@ export class EmployeesController {
                                     hee_bloodpressure = COALESCE(NULLIF($26, ''), hee_bloodpressure),
                                     hee_pulse = COALESCE($27, hee_pulse),
                                     hee_temperature = COALESCE($28, hee_temperature),
-                                    hee_respiration = COALESCE($29, hee_respiration),
+                                    hee_respiration = COALESCE(NULLIF($29, ''), hee_respiration),
                                     hee_conclusion = COALESCE(NULLIF($30, ''), hee_conclusion),
                                     hee_comment = COALESCE(NULLIF($31, ''), hee_comment),
                                     hee_righteye = COALESCE(NULLIF($32, ''), hee_righteye),
                                     hee_clinical_data = COALESCE($33::jsonb, hee_clinical_data),
                                     hee_conclusion_data = COALESCE($34::jsonb, hee_conclusion_data),
+                                    hee_funding_source = COALESCE(NULLIF($35, ''), hee_funding_source),
                                     hee_updateddate = CURRENT_TIMESTAMP
-                                WHERE hee_employee_id = $35
+                                WHERE hee_employee_id = $36
                             `;
                             await query(updateSql, [
                                 surname, midname, firstname, birthDate,
@@ -538,6 +542,7 @@ export class EmployeesController {
                                 eyeStr ? eyeStr.slice(0, 15) : null,
                                 clinicalDataJson ? JSON.stringify(clinicalDataJson) : null,
                                 conclusionDataJson ? JSON.stringify(conclusionDataJson) : null,
+                                fundingSource,
                                 existingMatch.id
                             ]);
 
@@ -593,12 +598,12 @@ export class EmployeesController {
                                     hee_target_group,
                                     hee_height, hee_weight, hee_bloodpressure, hee_pulse,
                                     hee_temperature, hee_respiration, hee_conclusion, hee_comment,
-                                    hee_righteye, hee_clinical_data, hee_conclusion_data
+                                    hee_righteye, hee_clinical_data, hee_conclusion_data, hee_funding_source
                                 ) VALUES (
                                     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                                     $11, $12, 'O', 'Y', $13, $14, $15, $16, $17, $18,
                                     $19, $20, $21, $22, $23, $24, $25, $26, $27,
-                                    $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39
+                                    $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40
                                 )
                             `;
                             await query(insertSql, [
@@ -640,7 +645,8 @@ export class EmployeesController {
                                 diagStr ? diagStr.slice(0, 200) : null,
                                 eyeStr ? eyeStr.slice(0, 15) : null,
                                 clinicalDataJson ? JSON.stringify(clinicalDataJson) : null,
-                                conclusionDataJson ? JSON.stringify(conclusionDataJson) : null
+                                conclusionDataJson ? JSON.stringify(conclusionDataJson) : null,
+                                fundingSource
                             ]);
 
                             if (docNo) existingByCard.set(docNo, { id: currentMaxId, docNo: 0 });

@@ -37,6 +37,10 @@ interface Contract {
     type: string;
     object: string;
     form_type?: string;
+    def_roomid?: number | string;
+    room_id?: number | string;
+    room_name?: string;
+    def_examtype?: string;
     status: string;
     employee_count: number;
     synced_count: number;
@@ -57,6 +61,8 @@ interface Employee {
     note: string;
     status: string;
     sync_status: string;
+    funding_source?: string;
+    nguon_chi_tra?: string;
     has_cls_result?: boolean;
     card_id_date?: string;
     card_id_place?: string;
@@ -140,6 +146,7 @@ const ContractManagement: React.FC = () => {
     // Modal States
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [formMode, setFormMode] = useState<'ADD' | 'EDIT'>('ADD');
+    const [editingContract, setEditingContract] = useState<Contract | null>(null);
     const [formData, setFormData] = useState({
         code: '',
         company_id: '',
@@ -147,7 +154,9 @@ const ContractManagement: React.FC = () => {
         contract_date: '',
         exam_date: '',
         type: 'DV',
-        object: '',
+        object: '3',
+        def_roomid: '22',
+        def_examtype: 'D0000001',
         form_type: '2'
     });
 
@@ -487,14 +496,17 @@ const ContractManagement: React.FC = () => {
 
     const handleAddClick = () => {
         setFormMode('ADD');
+        setEditingContract(null);
         setFormData({
             code: '',
             company_id: workplaces[0]?.id ? String(workplaces[0].id) : '',
             description: '',
             contract_date: new Date().toISOString().split('T')[0],
             exam_date: new Date().toISOString().split('T')[0],
-            type: '',
+            type: 'DV',
             object: '3',
+            def_roomid: rooms[0]?.id ? String(rooms[0].id) : '22',
+            def_examtype: 'D0000001',
             form_type: '2'
         });
         setIsFormOpen(true);
@@ -503,14 +515,18 @@ const ContractManagement: React.FC = () => {
     const handleEditClick = (e: React.MouseEvent, contract: Contract) => {
         e.stopPropagation();
         setFormMode('EDIT');
+        setEditingContract(contract);
+        setSelectedContract(contract);
         setFormData({
             code: contract.code || '',
             company_id: contract.company_id || '',
             description: contract.name || '',
             contract_date: contract.contract_date || '',
             exam_date: contract.exam_date || '',
-            type: contract.type || '',
-            object: contract.object ? String(contract.object) : '',
+            type: contract.type || 'DV',
+            object: contract.object ? String(contract.object) : '3',
+            def_roomid: contract.def_roomid ? String(contract.def_roomid) : (rooms[0]?.id ? String(rooms[0].id) : '22'),
+            def_examtype: contract.def_examtype || 'D0000001',
             form_type: contract.form_type || '2'
         });
         setIsFormOpen(true);
@@ -528,11 +544,17 @@ const ContractManagement: React.FC = () => {
             if (formMode === 'ADD') {
                 await healthCheckService.createContract(formData);
                 toast.success("Thêm hợp đồng thành công!");
-            } else if (formMode === 'EDIT' && selectedContract) {
-                await healthCheckService.updateContract(selectedContract.id, formData);
+            } else if (formMode === 'EDIT') {
+                const targetId = editingContract?.id || selectedContract?.id;
+                if (!targetId) {
+                    toast.error("Không xác định được hợp đồng cần sửa!");
+                    return;
+                }
+                await healthCheckService.updateContract(targetId, formData);
                 toast.success("Cập nhật hợp đồng thành công!");
             }
             setIsFormOpen(false);
+            setEditingContract(null);
             await loadContracts();
         } catch (error: any) {
             toast.error("Thao tác thất bại: " + error.message);
@@ -879,6 +901,7 @@ const ContractManagement: React.FC = () => {
             'DIEN_THOAI',
             'BOPHAN',
             'CHUCVU',
+            'NGUON_CHI_TRA',
             'GHICHU',
             // --- CÁC CỘT THỂ LỰC & SINH HIỆU (TÙY CHỌN) ---
             'CHIEU_CAO',
@@ -922,6 +945,7 @@ const ContractManagement: React.FC = () => {
                 '0912345678',
                 'Phòng Kỹ thuật',
                 'Lái xe / Kỹ sư',
+                '9',
                 'Khám sức khỏe định kỳ',
                 170,
                 68,
@@ -960,6 +984,7 @@ const ContractManagement: React.FC = () => {
                 '0987654321',
                 'Hội Người cao tuổi',
                 'Hội viên',
+                '9',
                 'Khám sức khỏe người cao tuổi',
                 156,
                 52,
@@ -1002,6 +1027,7 @@ const ContractManagement: React.FC = () => {
             { wch: 14 }, // DIEN_THOAI
             { wch: 18 }, // BOPHAN
             { wch: 18 }, // CHUCVU
+            { wch: 18 }, // NGUON_CHI_TRA
             { wch: 25 }, // GHICHU
             { wch: 12 }, // CHIEU_CAO
             { wch: 12 }, // CAN_NANG
@@ -1188,6 +1214,7 @@ const ContractManagement: React.FC = () => {
                 const distIdx = findHeaderIdx(['mahuyencutru', 'mahuyen', 'huyen', 'quan', 'district', 'quanhuyen']);
                 const wardIdx = findHeaderIdx(['maxacutru', 'maxa', 'xa', 'phuong', 'ward', 'vill', 'xaphuong']);
                 const phoneIdx = findHeaderIdx(['dienthoai', 'sdt', 'phone', 'telephone', 'sodienthoai', 'mobile']);
+                const fundingIdx = findHeaderIdx(['nguonchitra', 'nguonchi', 'fundingsource', 'funding', 'nguon_chi_tra']);
                 const deptIdx = findHeaderIdx(['bophan', 'phongban', 'dept', 'khoaphong', 'department']);
                 const posIdx = findHeaderIdx(['chucvu', 'vitri', 'position']);
                 const ownerIdx = findHeaderIdx(['banthan', 'owner']);
@@ -1242,6 +1269,7 @@ const ContractManagement: React.FC = () => {
                     let cardIdPlace = cardPlaceIdx !== -1 ? cleanField(row[cardPlaceIdx]).slice(0, 100) : '';
                     let rawOcc = occIdx !== -1 ? cleanField(row[occIdx]) : '';
                     let rawTg = tgIdx !== -1 ? cleanField(row[tgIdx]) : '';
+                    let fundingSource = fundingIdx !== -1 ? cleanField(row[fundingIdx]) : '9';
 
                     const hVal = heightIdx !== -1 ? parseNum(row[heightIdx]) : null;
                     const wVal = weightIdx !== -1 ? parseNum(row[weightIdx]) : null;
@@ -1275,6 +1303,8 @@ const ContractManagement: React.FC = () => {
                         doc_no: docNo,
                         phone: phone,
                         note: noteIdx !== -1 ? cleanField(row[noteIdx]).slice(0, 255) : '',
+                        funding_source: fundingSource || '9',
+                        nguon_chi_tra: fundingSource || '9',
                         dept: deptIdx !== -1 ? cleanField(row[deptIdx]).slice(0, 100) : '',
                         position: posIdx !== -1 ? cleanField(row[posIdx]).slice(0, 100) : '',
                         owner: ownerIdx !== -1 ? cleanField(row[ownerIdx]) : '',
@@ -1346,7 +1376,10 @@ const ContractManagement: React.FC = () => {
                         }
                     }
 
-                    const nameKey = `${emp.name.toLowerCase()}_${emp.birth_date}`;
+                    // Nếu có CCCD thì kiểm tra Họ tên + Ngày sinh + CCCD để không chặn 2 người trùng tên, ngày sinh nhưng khác CCCD
+                    const nameKey = emp.doc_no 
+                        ? `${emp.name.toLowerCase()}_${emp.birth_date}_${emp.doc_no}` 
+                        : `${emp.name.toLowerCase()}_${emp.birth_date}`;
                     if (dupNames.has(nameKey)) {
                         duplicatesInFile.push(`Trùng lặp Họ tên & Ngày sinh '${emp.name} - ${emp.birth_date}' ở dòng ${rowNum}`);
                     } else {
@@ -1862,6 +1895,7 @@ const ContractManagement: React.FC = () => {
                                             <th className="p-3 w-32 font-mono">Số hồ sơ</th>
                                             <th className="p-3 w-28 text-center">Kết quả CLS</th>
                                             <th className="p-3 w-28 text-center">Khám lâm sàng</th>
+                                            <th className="p-3 w-24 text-center">Nguồn chi</th>
                                             <th className="p-3 w-28 text-center">SĐT</th>
                                             <th className="p-3 w-32 text-center">VNeID Sync</th>
                                             {selectedContract?.status !== 'A' && (
@@ -1921,6 +1955,11 @@ const ContractManagement: React.FC = () => {
                                                             Chưa có
                                                         </span>
                                                     )}
+                                                </td>
+                                                <td className="p-3 text-center">
+                                                    <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200">
+                                                        {e.funding_source || e.nguon_chi_tra || '9'}
+                                                    </span>
                                                 </td>
                                                 <td className="p-3 text-center text-xs font-mono text-slate-600 dark:text-slate-300">{e.phone || '---'}</td>
                                                 <td className="p-3 text-center">
@@ -2153,49 +2192,66 @@ const ContractManagement: React.FC = () => {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="flex flex-col gap-1.5">
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Loại phí khám *</label>
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Phòng tiếp nhận mặc định *</label>
                                         <select
                                             required
-                                            value={formData.type}
-                                            onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                                            value={formData.def_roomid}
+                                            onChange={(e) => setFormData({ ...formData, def_roomid: e.target.value })}
                                             className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#0f766e] focus:outline-none font-bold text-sm"
                                         >
-                                            <option value="">-- Chọn phí khám --</option>
-                                            {examFees.map((fee) => (
-                                                <option key={fee.id} value={fee.id}>{fee.id} - {fee.name}</option>
+                                            <option value="">-- Chọn phòng tiếp nhận --</option>
+                                            {rooms.map((room) => (
+                                                <option key={room.id} value={room.id}>{room.name}</option>
                                             ))}
                                         </select>
                                     </div>
 
                                     <div className="flex flex-col gap-1.5">
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Phòng khám *</label>
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Đối tượng bệnh nhân *</label>
                                         <select
                                             required
                                             value={formData.object}
                                             onChange={(e) => setFormData({ ...formData, object: e.target.value })}
                                             className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#0f766e] focus:outline-none font-bold text-sm"
                                         >
-                                            <option value="">-- Chọn phòng khám --</option>
-                                            {rooms.map((room) => (
-                                                <option key={room.id} value={room.id}>{room.name}</option>
+                                            <option value="3">3 - Khám sức khỏe / Miễn giảm (Mặc định)</option>
+                                            {patientObjects.filter(o => String(o.id) !== '3').map((obj) => (
+                                                <option key={obj.id} value={obj.id}>{obj.code || obj.id} - {obj.name}</option>
                                             ))}
                                         </select>
                                     </div>
                                 </div>
 
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mẫu khám sức khỏe mặc định *</label>
-                                    <select
-                                        required
-                                        value={formData.form_type}
-                                        onChange={(e) => setFormData({ ...formData, form_type: e.target.value })}
-                                        className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#0f766e] focus:outline-none font-bold text-sm w-full cursor-pointer"
-                                    >
-                                        <option value="1">Mẫu 1: Trẻ em dưới 06 tuổi</option>
-                                        <option value="2">Mẫu 2: Người từ đủ 06 tuổi đến dưới 18 tuổi</option>
-                                        <option value="3">Mẫu 3: Người từ đủ 18 tuổi trở lên</option>
-                                        <option value="driver">Giấy KSK người lái xe (Học lái xe / Nâng hạng / Đổi GPLX)</option>
-                                    </select>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mục phí công khám mặc định *</label>
+                                        <select
+                                            required
+                                            value={formData.def_examtype}
+                                            onChange={(e) => setFormData({ ...formData, def_examtype: e.target.value, type: e.target.value })}
+                                            className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#0f766e] focus:outline-none font-bold text-sm"
+                                        >
+                                            <option value="D0000001">D0000001 - Công khám (Mặc định)</option>
+                                            {examFees.filter(f => f.id !== 'D0000001').map((fee) => (
+                                                <option key={fee.id} value={fee.id}>{fee.id} - {fee.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mẫu khám sức khỏe mặc định *</label>
+                                        <select
+                                            required
+                                            value={formData.form_type}
+                                            onChange={(e) => setFormData({ ...formData, form_type: e.target.value })}
+                                            className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#0f766e] focus:outline-none font-bold text-sm w-full cursor-pointer"
+                                        >
+                                            <option value="1">Mẫu 1: Trẻ em dưới 06 tuổi</option>
+                                            <option value="2">Mẫu 2: Người từ đủ 06 tuổi đến dưới 18 tuổi</option>
+                                            <option value="3">Mẫu 3: Người từ đủ 18 tuổi trở lên</option>
+                                            <option value="driver">Giấy KSK người lái xe (Học lái xe / Nâng hạng / Đổi GPLX)</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
 

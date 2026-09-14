@@ -729,7 +729,12 @@ export const useChildFormState = ({
             conclusion_data: {
                 fitness_class: fitnessClass,
                 diagnosis: diagnosis,
-                cac_van_de_luu_y: cacVanDeLuuY
+                cac_van_de_luu_y: cacVanDeLuuY,
+                doctor_id: activeMetadata?.conclusion?.doctorId || '',
+                doctor_name: activeMetadata?.conclusion?.doctorName || '',
+                signature: activeMetadata?.conclusion?.signature || initialData?.conclusion_data?.signature || '',
+                doctor_signature: activeMetadata?.conclusion?.doctor_signature || initialData?.conclusion_data?.doctor_signature || '',
+                signed_at: activeMetadata?.conclusion?.signedAt || initialData?.conclusion_data?.signed_at || ''
             }
         };
     };

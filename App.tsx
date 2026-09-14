@@ -125,6 +125,7 @@ const WorkspaceLayout: React.FC = () => {
     location.pathname.includes('/command-center') ||
     location.pathname.includes('/queue-management') ||
     location.pathname.includes('/health-check') ||
+    location.pathname.includes('/hospital-statistics') ||
     location.pathname.includes('/emr');
 
   const { pageTitle, moduleNavItems } = useMemo(() => {

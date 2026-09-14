@@ -8,8 +8,9 @@ import {
     ClipboardListIcon,
     BuildingOfficeIcon,
     HeartIcon,
-    UserGroupIcon,
-    CurrencyDollarIcon
+    ScissorsIcon,
+    CurrencyDollarIcon,
+    BeakerIcon
 } from '../../components/Icons';
 import { NavItemType } from '../../types';
 
@@ -41,14 +42,14 @@ export const HOSPITAL_STATISTICS_NAV_ITEMS: NavItemType[] = [
     { 
         name: 'Cận lâm sàng', 
         path: '/hospital-statistics/paraclinical', 
-        icon: React.createElement(ChartBarIcon, { className: "w-5 h-5" }), 
-        iconName: 'ChartBarIcon' 
+        icon: React.createElement(BeakerIcon, { className: "w-5 h-5" }), 
+        iconName: 'BeakerIcon' 
     },
     { 
         name: 'Phẫu thuật - Thủ thuật', 
         path: '/hospital-statistics/surgery', 
-        icon: React.createElement(UserGroupIcon, { className: "w-5 h-5" }), 
-        iconName: 'UserGroupIcon' 
+        icon: React.createElement(ScissorsIcon, { className: "w-5 h-5" }), 
+        iconName: 'ScissorsIcon' 
     },
     { 
         name: 'Tổng hợp chi phí', 
