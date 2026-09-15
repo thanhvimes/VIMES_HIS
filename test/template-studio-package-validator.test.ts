@@ -1,0 +1,18 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import crypto from 'node:crypto'; import { validatePackageManifest, canonicalManifest, verifyPackageSignature } from '../src/template-studio/package-validator';
+const docx = Buffer.from('docx'); const sha = crypto.createHash('sha256').update(docx).digest('hex'); const base = { format: 'VIMES_TEMPLATE_PACKAGE_V1', templateCode: 'A_V1', version: 1, files: { 'template.docx': sha } };
+test('accepts valid package manifest', () => { assert.equal(validatePackageManifest(base, { 'template.docx': docx }).valid, true); });
+test('rejects unsupported format', () => { assert.match(validatePackageManifest({ ...base, format: 'BAD' }, { 'template.docx': docx }).errors[0], /format/); });
+test('rejects unsafe template code', () => { assert.match(validatePackageManifest({ ...base, templateCode: 'bad-code' }, { 'template.docx': docx }).errors[0], /templateCode/); });
+test('rejects invalid version', () => { assert.match(validatePackageManifest({ ...base, version: 0 }, { 'template.docx': docx }).errors[0], /version/); });
+test('rejects missing files', () => { assert.match(validatePackageManifest({ ...base, files: undefined }, {}).errors[0], /files/); });
+test('rejects traversal artifact', () => { assert.match(validatePackageManifest({ ...base, files: { '../x': sha } }, { '../x': docx }).errors[0], /artifact/); });
+test('rejects missing artifact', () => { assert.match(validatePackageManifest(base, {}).errors[0], /artifact/); });
+test('rejects checksum mismatch', () => { assert.match(validatePackageManifest({ ...base, files: { 'template.docx': 'bad' } }, { 'template.docx': docx }).errors[0], /Checksum/); });
+test('accepts optional contract code', () => { assert.equal(validatePackageManifest({ ...base, contractCode: 'PATIENT' }, { 'template.docx': docx }).valid, true); });
+test('reports multiple validation errors', () => { assert.ok(validatePackageManifest({ format: 'BAD', templateCode: 'x', version: 0, files: {} }, {}).errors.length >= 3); });
+const keys = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+test('canonical manifest excludes signature', () => { assert.equal(canonicalManifest({ ...base, signature: 'x' }).includes('signature'), false); });
+test('verifies valid RSA signature', () => { const signer = crypto.createSign('RSA-SHA256'); signer.update(canonicalManifest(base as any)); signer.end(); const signed = { ...base, signature: signer.sign(keys.privateKey, 'base64') }; assert.equal(verifyPackageSignature(signed as any, keys.publicKey.export({ type: 'spki', format: 'pem' }).toString()), true); });
+test('rejects invalid signature', () => { assert.equal(verifyPackageSignature({ ...base, signature: 'bad' } as any, keys.publicKey.export({ type: 'spki', format: 'pem' }).toString()), false); });
+test('rejects missing signature', () => { assert.equal(verifyPackageSignature(base as any, keys.publicKey.export({ type: 'spki', format: 'pem' }).toString()), false); });
+test('rejects tampered manifest', () => { const signer = crypto.createSign('RSA-SHA256'); signer.update(canonicalManifest(base as any)); signer.end(); const signed = { ...base, signature: signer.sign(keys.privateKey, 'base64'), version: 2 }; assert.equal(verifyPackageSignature(signed as any, keys.publicKey.export({ type: 'spki', format: 'pem' }).toString()), false); });

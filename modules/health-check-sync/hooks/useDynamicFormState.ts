@@ -1336,6 +1336,12 @@ export const useDynamicFormState = (
                 if (!dangApDungBpttKhong) setDangApDungBpttKhong('0');
                 if (!daTungMoSanPhuKhoaChua) setDaTungMoSanPhuKhoaChua('0');
             }
+            // Physical defaults for Tab Tiền sử & Khám thể lực
+            if (!height) setHeight('168');
+            if (!weight) setWeight('60');
+            if (!pulse) setPulse('75');
+            if (!bp) setBp('120/80');
+            if (!khamTheLucPl) setKhamTheLucPl('1');
         } else if (tabKey === 'exam') {
             // Physical defaults
             if (!height) setHeight('168');
@@ -1583,49 +1589,31 @@ export const useDynamicFormState = (
         }
     }, [user, conclusionDoctorId]);
 
-    // Auto-select logged-in user as doctor for unexamined specialties
+    // Chỉ tự động điền người tiếp đón/người nhập liệu cho tab hành chính (admin), không điền vào các chuyên khoa lâm sàng
     useEffect(() => {
-        if (!user || doctors.length === 0) return;
+        if (!user) return;
 
-        // Fallback to previous doctor if patient was already examined
-        const prevDocName = initialData?.conclusion_data?.doctor_name || initialData?.conclusion_data?.doctor_id;
-        const prevDocMatch = prevDocName 
-            ? doctors.find(doc => 
-                String(doc.name).toLowerCase() === String(prevDocName).toLowerCase() || 
-                String(doc.id).toLowerCase() === String(prevDocName).toLowerCase()
-              )
-            : null;
-
-        const match = prevDocMatch || doctors.find(doc => 
-            String(doc.id).toLowerCase() === String(user.userId || user.username || '').toLowerCase() ||
-            String(doc.name).toLowerCase() === String(user.fullname || '').toLowerCase()
-        );
-        
-        const defaultDoctorId = match ? match.id : (user.userId || user.username || '');
-        const defaultDoctorName = match ? match.name : (user.fullname || '');
+        const currentUserId = user.userId || user.username || '';
+        const currentUserName = (user as any)?.fullName || user.fullname || user.name || '';
 
         setSpecialtyMetadata(prev => {
             const updated = { ...prev };
             let hasChanges = false;
 
-            const keys = ['admin', 'history', 'conclusion', 'internal', 'eye', 'ent', 'dental', 'external', 'dermatology', 'gynecology'];
-            keys.forEach(key => {
-                const current = updated[key];
-                // ONLY auto-select doctor if doctorId is completely empty/missing
-                if (!current || !current.doctorId) {
-                    updated[key] = {
-                        doctorId: defaultDoctorId,
-                        doctorName: defaultDoctorName,
-                        status: current?.status || 'CHUA_KHAM',
-                        updatedAt: current?.updatedAt || new Date().toISOString()
-                    };
-                    hasChanges = true;
-                }
-            });
+            // Chỉ điền cho 'admin' (Người tiếp đón / Người nhập liệu) nếu chưa có
+            if (!updated.admin || !updated.admin.doctorId) {
+                updated.admin = {
+                    doctorId: currentUserId,
+                    doctorName: currentUserName,
+                    status: updated.admin?.status || 'ĐÃ_KHÁM',
+                    updatedAt: updated.admin?.updatedAt || new Date().toISOString()
+                };
+                hasChanges = true;
+            }
 
             return hasChanges ? updated : prev;
         });
-    }, [user, doctors, initialData]);
+    }, [user]);
 
     useEffect(() => {
         if (maTinhCuTru) {

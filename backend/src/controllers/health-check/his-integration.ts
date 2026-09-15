@@ -3,6 +3,7 @@ import { query, transaction } from '../../config/database';
 import { generateXmlPayload } from './xml-generator';
 import { formatYmdString } from '../../services/health-check-merge.service';
 import { evaluateFitnessClass, calculateAge, buildSpecialtyMetadata, sanitizeHisDate, parseFitnessClassFromText, cleanConclusionText, mapConclusionRowToClinicalExam, parseHisPartsSummary } from '../../services/health-check-classifier.service';
+import { resolveOccupationBhCode } from '../../services/administrative-catalog.service';
 
 class HisIntegrationController {
     
@@ -652,7 +653,7 @@ class HisIntegrationController {
                         });
                     }
 
-                    const occCode = row.occupation ? String(row.occupation).trim() : '';
+                    const occCode = resolveOccupationBhCode(row.occupation);
                     const cleanCccdDate = sanitizeHisDate(row.hee_cardid_date || row.hp_ngaycap);
 
                     const clinicalData: any = {
@@ -1711,7 +1712,7 @@ async getHisPatient(req: Request, res: Response) {
                     };
 
                     const cleanCccdDate = sanitizeHisDate(hisRow.cccd_date);
-                    const occCode = hisRow.occupation ? String(hisRow.occupation).trim() : '1539';
+                    const occCode = resolveOccupationBhCode(hisRow.occupation);
 
                     const clinicalDataObj: any = {
                         phone: hisRow.phone || '',

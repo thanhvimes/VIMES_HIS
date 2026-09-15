@@ -1,0 +1,1 @@
+const required=['MINIO_KMS_KES_ENDPOINT','MINIO_KMS_KES_KEY_NAME'];const missing=required.filter(k=>!process.env[k]);const out={provider:process.env.MINIO_KMS_KES_ENDPOINT?'KES':'not-configured',keyName:process.env.MINIO_KMS_KES_KEY_NAME||null,missing,ready:missing.length===0};console.log(JSON.stringify(out));if(missing.length)process.exitCode=1;

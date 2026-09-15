@@ -1,0 +1,14 @@
+const checks = [];
+const env = process.env;
+const production = env.NODE_ENV === 'production';
+const check = (name, ok, detail) => checks.push({ name, ok, detail });
+check('permissions', env.TEMPLATE_STUDIO_ENFORCE_PERMISSIONS !== 'false', 'TEMPLATE_STUDIO_ENFORCE_PERMISSIONS must not be false');
+check('template-source', production ? env.DOCUMENT_TEMPLATE_SOURCE === 'database' : env.DOCUMENT_TEMPLATE_SOURCE !== 'filesystem', 'Production source must be database; non-production may omit it');
+check('database-tls', !production || env.DB_SSL === 'true' || env.DATABASE_URL?.includes('sslmode=require'), 'DB_SSL=true or sslmode=require');
+check('redis-tls', !production || String(env.REDIS_URL || '').startsWith('rediss://'), 'REDIS_URL must use rediss://');
+check('storage-tls', !production || String(env.S3_ENDPOINT || '').startsWith('https://'), 'S3_ENDPOINT must use https://');
+check('kms', !production || Boolean(env.MINIO_KMS_KES_ENDPOINT && env.MINIO_KMS_KES_KEY_NAME), 'KMS endpoint and key are required');
+check('sample-data-mode', env.TEMPLATE_SAMPLE_DATA_MODE !== 'production', 'Production must not use shared sample data mode');
+const result = { production, checks, passed: checks.every(item => item.ok) };
+console.log(JSON.stringify(result, null, 2));
+if (!result.passed) process.exitCode = 1;

@@ -12,7 +12,7 @@ import { validateDocumentBeforeSync } from './health-check-sync-validation';
 import { createHealthCheckChecksumSignature } from './health-check-checksum';
 import { isRetryableSyncFailure } from './health-check-sync-retry';
 import { validateHealthCheckEnvelope } from './health-check-xml-validation';
-import { resolveProvinceBhCode, resolveVillageBhCode } from './administrative-catalog.service';
+import { resolveProvinceBhCode, resolveVillageBhCode, resolveOccupationBhCode } from './administrative-catalog.service';
 import { signXmlViaHisHsm } from './his-sign.service';
 
 const syncHttpsAgent = new https.Agent({
@@ -157,12 +157,15 @@ export function sanitizeXmlContent(rawXml: string, maCskcbGln?: string, maCskcbB
             return `<DIEN_THOAI>${digits}</DIEN_THOAI>`;
         });
 
-        // Fix MA_NGHE_NGHIEP to 2 digits (e.g. '100' -> '04', '4' -> '04')
-        decoded = decoded.replace(/<MA_NGHE_NGHIEP>(.*?)<\/MA_NGHE_NGHIEP>/g, (m, val) => {
-            const d = val.trim();
-            if (!d || d.length > 2) return '<MA_NGHE_NGHIEP>04</MA_NGHE_NGHIEP>';
-            if (d.length === 1) return `<MA_NGHE_NGHIEP>0${d}</MA_NGHE_NGHIEP>`;
-            return `<MA_NGHE_NGHIEP>${d}</MA_NGHE_NGHIEP>`;
+        // Fix MA_NGHE_NGHIEP to standard ss_vndesc (e.g. '1539' -> '00', '1471' -> '83', '4' -> '04')
+        decoded = decoded.replace(/<MA_NGHE_NGHIEP>(.*?)<\/MA_NGHE_NGHIEP>/g, (_m, val) => {
+            return `<MA_NGHE_NGHIEP>${resolveOccupationBhCode(val)}</MA_NGHE_NGHIEP>`;
+        });
+        decoded = decoded.replace(/<MA_NGHE_NGHIEP_NGH_BO>(.*?)<\/MA_NGHE_NGHIEP_NGH_BO>/g, (m, val) => {
+            return val.trim() ? `<MA_NGHE_NGHIEP_NGH_BO>${resolveOccupationBhCode(val)}</MA_NGHE_NGHIEP_NGH_BO>` : m;
+        });
+        decoded = decoded.replace(/<MA_NGHE_NGHIEP_NGH_ME>(.*?)<\/MA_NGHE_NGHIEP_NGH_ME>/g, (m, val) => {
+            return val.trim() ? `<MA_NGHE_NGHIEP_NGH_ME>${resolveOccupationBhCode(val)}</MA_NGHE_NGHIEP_NGH_ME>` : m;
         });
 
         // Fix MATINH_CU_TRU to 2-digit sp_id_bh

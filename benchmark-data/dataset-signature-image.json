@@ -1,0 +1,179 @@
+{
+  "hospital": {
+    "name": "BỆNH VIỆN ĐA KHOA VIMES"
+  },
+  "patient": {
+    "code": "BN-SIG-2026",
+    "fullName": "TRẦN THỊ TEST SIGNATURE"
+  },
+  "doctor": {
+    "name": "BS. CKII NGUYỄN VĂN A",
+    "signature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+  },
+  "director": {
+    "name": "PGS. TS LÊ VĂN B",
+    "seal": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+  },
+  "items": [
+    {
+      "i": 1,
+      "name": "Thuốc mẫu 1",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "1 viên",
+      "result": "1.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 2,
+      "name": "Thuốc mẫu 2",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "2 viên",
+      "result": "2.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 3,
+      "name": "Thuốc mẫu 3",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "3 viên",
+      "result": "3.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 4,
+      "name": "Thuốc mẫu 4",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "4 viên",
+      "result": "4.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 5,
+      "name": "Thuốc mẫu 5",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "5 viên",
+      "result": "5.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 6,
+      "name": "Thuốc mẫu 6",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "6 viên",
+      "result": "6.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 7,
+      "name": "Thuốc mẫu 7",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "7 viên",
+      "result": "7.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 8,
+      "name": "Thuốc mẫu 8",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "8 viên",
+      "result": "8.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 9,
+      "name": "Thuốc mẫu 9",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "9 viên",
+      "result": "9.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 10,
+      "name": "Thuốc mẫu 10",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "10 viên",
+      "result": "10.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 11,
+      "name": "Thuốc mẫu 11",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "11 viên",
+      "result": "11.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 12,
+      "name": "Thuốc mẫu 12",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "12 viên",
+      "result": "12.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 13,
+      "name": "Thuốc mẫu 13",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "13 viên",
+      "result": "13.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 14,
+      "name": "Thuốc mẫu 14",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "14 viên",
+      "result": "14.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 15,
+      "name": "Thuốc mẫu 15",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "15 viên",
+      "result": "15.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 16,
+      "name": "Thuốc mẫu 16",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "16 viên",
+      "result": "16.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 17,
+      "name": "Thuốc mẫu 17",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "17 viên",
+      "result": "17.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 18,
+      "name": "Thuốc mẫu 18",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "18 viên",
+      "result": "18.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 19,
+      "name": "Thuốc mẫu 19",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "19 viên",
+      "result": "19.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 20,
+      "name": "Thuốc mẫu 20",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "20 viên",
+      "result": "20.5",
+      "unit": "mg/L"
+    }
+  ]
+}

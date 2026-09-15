@@ -30,22 +30,27 @@ const SpecialtyCard: React.FC<SpecialtyCardProps> = ({ specialtyKey, title, chil
         (specialtyKey === 'physical' ? safeMetadata['examination'] : undefined) ||
         (specialtyKey === 'examination' ? safeMetadata['physical'] : undefined);
     const initialMetadata = { ...(fallbackMeta || { doctorId: '', status: 'CHUA_KHAM' }) };
-    
-    // Default to the currently logged in doctor if not selected
-    if (!initialMetadata.doctorId && user) {
+    const doctorsList = doctors || [];
+    const isCurrentUserDoctor = user && doctorsList.some(d => String(d.id || d.code || '').toLowerCase() === String(user.userId || '').toLowerCase());
+
+    // Default to the currently logged in doctor ONLY if not selected and the current user is a doctor
+    if (!initialMetadata.doctorId && isCurrentUserDoctor && user) {
         initialMetadata.doctorId = user.userId || '';
-        initialMetadata.doctorName = user.name || '';
+        const found = doctorsList.find(d => String(d.id || d.code || '').toLowerCase() === String(user.userId || '').toLowerCase());
+        initialMetadata.doctorName = found?.name || (user as any).fullName || '';
     }
     
     const metadata = initialMetadata;
-    const doctorsList = doctors || [];
 
     const handleAction = (action: 'MỞ_KHÁM' | 'DUYỆT' | 'MỞ_KHÓA' | 'THOÁT') => {
         const payload = { ...metadata, updatedAt: new Date().toISOString() };
         if (action === 'MỞ_KHÁM') {
             payload.status = 'ĐANG_KHÁM';
-            payload.doctorId = user?.userId || '';
-            payload.doctorName = user?.name || '';
+            if (isCurrentUserDoctor) {
+                payload.doctorId = user?.userId || '';
+                const found = doctorsList.find(d => String(d.id || d.code || '').toLowerCase() === String(user?.userId || '').toLowerCase());
+                payload.doctorName = found?.name || (user as any).fullName || '';
+            }
         } else if (action === 'DUYỆT') {
             payload.status = 'ĐÃ_DUYỆT';
         } else if (action === 'MỞ_KHÓA') {
@@ -54,6 +59,14 @@ const SpecialtyCard: React.FC<SpecialtyCardProps> = ({ specialtyKey, title, chil
             payload.status = 'CHUA_KHAM';
         }
         
+        // Đồng bộ chuẩn xác họ tên bác sĩ từ danh mục dựa trên doctorId
+        if (payload.doctorId) {
+            const matchedDoc = doctorsList.find(d => String(d.id || d.code || '').toLowerCase() === String(payload.doctorId).toLowerCase());
+            if (matchedDoc?.name) {
+                payload.doctorName = matchedDoc.name;
+            }
+        }
+
         if (setSpecialtyMetadata) {
             const updated = {
                 ...safeMetadata,
@@ -93,12 +106,14 @@ const SpecialtyCard: React.FC<SpecialtyCardProps> = ({ specialtyKey, title, chil
                             columns={doctorColumns}
                             onChange={(val, item) => {
                                 if (setSpecialtyMetadata) {
+                                    const matchedDoc = doctorsList.find(d => String(d.id || d.code || '').toLowerCase() === String(val || '').toLowerCase());
+                                    const resolvedDoctorName = matchedDoc?.name || (item as any)?.name || '';
                                     setSpecialtyMetadata(prev => ({
                                         ...prev,
                                         [specialtyKey]: {
                                             ...metadata,
                                             doctorId: val,
-                                            doctorName: item?.name || '',
+                                            doctorName: resolvedDoctorName,
                                             updatedAt: new Date().toISOString()
                                         }
                                     }));

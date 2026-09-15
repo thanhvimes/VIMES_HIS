@@ -10,7 +10,41 @@ const villIdToBh = new Map<string, string>();
 const villNameToBh = new Map<string, string>();
 const villBhCodes = new Set<string>();
 
+// Memory Caches for Occupation lookup (ss_code -> ss_vndesc)
+const occCodeToVndesc = new Map<string, string>();
+const occNameToVndesc = new Map<string, string>();
+const occVndescSet = new Set<string>();
+
 let isInitialized = false;
+
+// Standard Fallback Occupations (Mapping HIS ss_code -> official standard ss_vndesc)
+const STATIC_OCCUPATIONS: Array<{ ss_code: string; ss_vndesc: string; ss_desc: string }> = [
+    { ss_code: '1539', ss_vndesc: '00', ss_desc: 'Không có nghề nghiệp cụ thể' },
+    { ss_code: '1', ss_vndesc: '01', ss_desc: 'Nông dân' },
+    { ss_code: '4', ss_vndesc: '04', ss_desc: 'Viên chức' },
+    { ss_code: '8', ss_vndesc: '08', ss_desc: 'Hưu trí' },
+    { ss_code: '10', ss_vndesc: '10', ss_desc: 'Chính Sách' },
+    { ss_code: '100', ss_vndesc: '17360', ss_desc: 'Dịch vụ và tính toán' },
+    { ss_code: '814', ss_vndesc: '01', ss_desc: 'Lực lượng quân đội' },
+    { ss_code: '824', ss_vndesc: '02', ss_desc: 'Lực lượng công an' },
+    { ss_code: '834', ss_vndesc: '03', ss_desc: 'Cơ yếu và lực lượng vũ trang khác' },
+    { ss_code: '990', ss_vndesc: '22', ss_desc: 'Nhà chuyên môn về sức khỏe' },
+    { ss_code: '1000', ss_vndesc: '2240', ss_desc: 'Bác sỹ phụ tá' },
+    { ss_code: '1005', ss_vndesc: '2262', ss_desc: 'Dược sỹ' },
+    { ss_code: '1012', ss_vndesc: '23', ss_desc: 'Nhà chuyên môn về giảng dạy' },
+    { ss_code: '1471', ss_vndesc: '83', ss_desc: 'Lái xe và thợ vận hành thiết bị chuyển động' }
+];
+
+function seedStaticOccupations() {
+    for (const occ of STATIC_OCCUPATIONS) {
+        occCodeToVndesc.set(occ.ss_code, occ.ss_vndesc);
+        occVndescSet.add(occ.ss_vndesc);
+        occNameToVndesc.set(occ.ss_desc.toLowerCase().trim(), occ.ss_vndesc);
+        const norm = normalizeName(occ.ss_desc);
+        if (norm) occNameToVndesc.set(norm, occ.ss_vndesc);
+    }
+}
+seedStaticOccupations();
 
 // Standard 63 Provinces / Cities baseline fallback (Pre-populated so offline/tests work instantly)
 const STATIC_PROVINCES: Array<{ sp_id: number; sp_id_bh: string; sp_name: string }> = [
@@ -173,10 +207,36 @@ export async function initAdministrativeCatalog(): Promise<void> {
             }
         }
 
+        // 3. Load sys_sel (sys_occupation)
+        try {
+            const occRes = await query(`
+                SELECT trim(ss_code) as code, trim(ss_vndesc) as vndesc, trim(ss_desc) as name
+                FROM sys_sel 
+                WHERE trim(ss_id) = 'sys_occupation'
+            `);
+            for (const row of occRes.rows) {
+                const code = String(row.code || '').trim();
+                let vndesc = String(row.vndesc || '').trim();
+                const name = String(row.name || '').trim();
+                if (vndesc && vndesc.length === 1) vndesc = '0' + vndesc;
+                if (code && vndesc) {
+                    occCodeToVndesc.set(code, vndesc);
+                    occVndescSet.add(vndesc);
+                    if (name) {
+                        occNameToVndesc.set(name.toLowerCase().trim(), vndesc);
+                        const norm = normalizeName(name);
+                        if (norm) occNameToVndesc.set(norm, vndesc);
+                    }
+                }
+            }
+        } catch (occErr: any) {
+            console.warn('⚠️ [AdministrativeCatalog] Lỗi khi tải sys_sel sys_occupation:', occErr?.message);
+        }
+
         isInitialized = true;
-        console.log(`✅ [AdministrativeCatalog] Loaded ${provIdToBh.size} province mappings and ${villIdToBh.size} village/commune mappings.`);
+        console.log(`✅ [AdministrativeCatalog] Loaded ${provIdToBh.size} province mappings, ${villIdToBh.size} village mappings, and ${occCodeToVndesc.size} occupation mappings.`);
     } catch (error: any) {
-        console.warn('⚠️ [AdministrativeCatalog] Lỗi khi tải danh mục sys_prov/sys_vill từ database, sử dụng fallback cấu hình sẵn:', error?.message);
+        console.warn('⚠️ [AdministrativeCatalog] Lỗi khi tải danh mục sys_prov/sys_vill/sys_occupation từ database, sử dụng fallback cấu hình sẵn:', error?.message);
     }
 }
 
@@ -271,3 +331,53 @@ export function resolveVillageBhCode(rawVal: string | number | null | undefined,
 
     return '00001';
 }
+
+/**
+ * Resolve Occupation to official standard code (ss_vndesc from sys_sel sys_occupation, e.g. '00', '01', '04', '08', '22', '83')
+ * Maps internal HIS ss_code -> standard ss_vndesc
+ */
+export function resolveOccupationBhCode(rawVal: string | number | null | undefined): string {
+    if (rawVal === null || rawVal === undefined) return '00';
+    const str = String(rawVal).trim();
+    if (!str || str === '0') return '00';
+
+    // 1. Direct ss_code match -> returns ss_vndesc (e.g. '1539' -> '00', '1471' -> '83', '990' -> '22', '4' -> '04')
+    if (occCodeToVndesc.has(str)) {
+        return occCodeToVndesc.get(str)!;
+    }
+
+    // 2. Direct ss_vndesc match -> already a valid standard code
+    if (occVndescSet.has(str)) {
+        return str;
+    }
+
+    // 3. Digits handling
+    const digitsOnly = str.replace(/\D/g, '');
+    if (digitsOnly) {
+        if (occCodeToVndesc.has(digitsOnly)) {
+            return occCodeToVndesc.get(digitsOnly)!;
+        }
+        if (occVndescSet.has(digitsOnly)) {
+            return digitsOnly;
+        }
+        if (digitsOnly.length === 1) {
+            return '0' + digitsOnly;
+        }
+        if (digitsOnly.length === 2) {
+            return digitsOnly;
+        }
+    }
+
+    // 4. Name lookup
+    const lowerName = str.toLowerCase().trim();
+    if (occNameToVndesc.has(lowerName)) {
+        return occNameToVndesc.get(lowerName)!;
+    }
+    const norm = normalizeName(str);
+    if (norm && occNameToVndesc.has(norm)) {
+        return occNameToVndesc.get(norm)!;
+    }
+
+    return '00';
+}
+

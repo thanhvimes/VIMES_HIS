@@ -330,12 +330,14 @@ const ConclusionTab: React.FC = () => {
                             options={doctorsList}
                             columns={doctorColumns}
                             onChange={(val, item) => {
+                                const matchedDoc = doctorsList.find(d => String(d.id || d.code || '').toLowerCase() === String(val || '').toLowerCase());
+                                const resolvedDoctorName = matchedDoc?.name || (item as any)?.name || '';
                                 setSpecialtyMetadata(prev => ({
                                     ...prev,
                                     conclusion: {
                                         ...conclusionMetadata,
                                         doctorId: val,
-                                        doctorName: item?.name || '',
+                                        doctorName: resolvedDoctorName,
                                         updatedAt: new Date().toISOString()
                                     }
                                 }));

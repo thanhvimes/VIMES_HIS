@@ -336,7 +336,6 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                     }
                     if (key === 'exam') {
                         const examKeys = ['internal', 'surgery', 'dermatology', 'eye', 'ent', 'dental', 'gynecology'];
-                        if (formType !== '2') examKeys.unshift('physical');
                         const total = examKeys.length;
                         const doneCount = examKeys.filter(k => specMeta[k]?.status === 'ĐÃ_DUYỆT' || specMeta[k]?.status === 'ĐÃ_KHÁM').length;
                         const isExamining = examKeys.some(k => specMeta[k]?.status === 'ĐANG_KHÁM');
@@ -361,6 +360,39 @@ const DynamicForm: React.FC<DynamicFormProps> = ({ formType, initialData, onSave
                                 status: 'partial',
                                 fraction: `${doneCount}/${total}`,
                                 badgeClass: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
+                            };
+                        }
+                        return {
+                            text: 'Chưa khám',
+                            status: 'todo',
+                            dotClass: 'bg-slate-300 dark:bg-slate-600'
+                        };
+                    }
+
+                    if (key === 'history') {
+                        const histSt = specMeta['history']?.status;
+                        const physSt = specMeta['physical']?.status;
+                        const hasVitals = !!(formState.height || formState.weight || formState.bp || formState.pulse);
+
+                        if (histSt === 'ĐANG_KHÁM' || physSt === 'ĐANG_KHÁM') {
+                            return {
+                                text: 'Đang khám',
+                                status: 'examining',
+                                isPing: true
+                            };
+                        }
+                        if ((histSt === 'ĐÃ_DUYỆT' || histSt === 'ĐÃ_KHÁM') && (physSt === 'ĐÃ_DUYỆT' || physSt === 'ĐÃ_KHÁM' || hasVitals)) {
+                            return {
+                                text: 'Đã khám',
+                                status: 'done',
+                                dotClass: 'bg-emerald-500 ring-2 ring-emerald-500/25 shadow-xs shadow-emerald-500/50'
+                            };
+                        }
+                        if (histSt === 'ĐÃ_DUYỆT' || histSt === 'ĐÃ_KHÁM' || physSt === 'ĐÃ_DUYỆT' || physSt === 'ĐÃ_KHÁM' || hasVitals) {
+                            return {
+                                text: 'Đã khám',
+                                status: 'done',
+                                dotClass: 'bg-emerald-500 ring-2 ring-emerald-500/25 shadow-xs shadow-emerald-500/50'
                             };
                         }
                         return {

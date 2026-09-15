@@ -1,5 +1,5 @@
 import { getHealthCheckSettings } from '../../config/health-check-settings';
-import { resolveProvinceBhCode, resolveVillageBhCode } from '../../services/administrative-catalog.service';
+import { resolveProvinceBhCode, resolveVillageBhCode, resolveOccupationBhCode } from '../../services/administrative-catalog.service';
 
 // Helper: Tìm kiếm giá trị trường linh hoạt từ nhiều nguồn (case-insensitive & snake/camel-case)
 export function findValue(tag: string, ...sources: any[]): string {
@@ -444,23 +444,9 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
     if (soCccdNguoiDiCung.length !== 12) soCccdNguoiDiCung = '';
     const moiQuanHeVoiTre = findValue('MOI_QUAN_HE_VOI_TRE', src) || '0';
     const dienThoaiNguoiDiCung = findValue('DIEN_THOAI_NGUOI_DI_CUNG', src);
-    function normalizeMaNgheNghiep(val: any): string {
-        if (!val) return '04';
-        const s = String(val).trim();
-        if (/^\d{2}$/.test(s)) return s;
-        if (/^\d{1}$/.test(s)) return '0' + s;
-        if (s === '1539') return '00';
-        if (s === '990') return '04';
-        if (s === '1471') return '08';
-        if (s.length > 2) {
-            const digits = s.replace(/\D/g, '');
-            if (digits.length >= 2) return digits.slice(-2);
-        }
-        return '04';
-    }
 
-    const rawNgheNghiep = findValue('MA_NGHE_NGHIEP', src) || findValue('occupation', src) || findValue('ma_nghe_nghiep', src) || '04';
-    const maNgheNghiep = normalizeMaNgheNghiep(rawNgheNghiep);
+    const rawNgheNghiep = findValue('MA_NGHE_NGHIEP', src) || findValue('occupation', src) || findValue('ma_nghe_nghiep', src) || '00';
+    const maNgheNghiep = resolveOccupationBhCode(rawNgheNghiep);
     const noiLamViec = findValue('NOI_LAM_VIEC_HOC_TAP', src) || findValue('noi_cong_tac', src);
     const lyDoVv = findValue('LY_DO_VV', src) || 'Khám sức khỏe định kỳ';
 

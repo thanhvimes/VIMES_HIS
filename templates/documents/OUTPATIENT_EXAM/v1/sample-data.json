@@ -1,0 +1,14 @@
+{
+  "hospital": { "name": "BỆNH VIỆN ĐA KHOA VIMES", "department": "KHOA KHÁM BỆNH" },
+  "document": { "number": "PK-2026-000001", "createdDate": "04/08/2026" },
+  "patient": {
+    "code": "BN000001", "fullName": "NGUYỄN VĂN AN", "dob": "01/01/1985",
+    "gender": "Nam", "address": "Hà Nội", "insuranceNumber": "DN4010123456789"
+  },
+  "encounter": {
+    "reason": "Đau đầu, chóng mặt", "history": "Triệu chứng xuất hiện ba ngày.",
+    "examination": "Tỉnh, tiếp xúc tốt. Tim đều, phổi thông khí tốt.",
+    "diagnosis": "R51 - Đau đầu", "treatment": "Theo dõi huyết áp; tái khám sau 7 ngày."
+  },
+  "doctor": { "fullName": "BS. TRẦN MINH KHÔI", "title": "Bác sĩ điều trị" }
+}

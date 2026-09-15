@@ -1,0 +1,4010 @@
+{
+  "hospital": {
+    "name": "VIMES BENCHMARK"
+  },
+  "patient": {
+    "code": "TEST-500rows"
+  },
+  "items": [
+    {
+      "i": 1,
+      "name": "Thuốc mẫu 1",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "1 viên",
+      "result": "1.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 2,
+      "name": "Thuốc mẫu 2",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "2 viên",
+      "result": "2.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 3,
+      "name": "Thuốc mẫu 3",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "3 viên",
+      "result": "3.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 4,
+      "name": "Thuốc mẫu 4",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "4 viên",
+      "result": "4.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 5,
+      "name": "Thuốc mẫu 5",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "5 viên",
+      "result": "5.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 6,
+      "name": "Thuốc mẫu 6",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "6 viên",
+      "result": "6.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 7,
+      "name": "Thuốc mẫu 7",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "7 viên",
+      "result": "7.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 8,
+      "name": "Thuốc mẫu 8",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "8 viên",
+      "result": "8.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 9,
+      "name": "Thuốc mẫu 9",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "9 viên",
+      "result": "9.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 10,
+      "name": "Thuốc mẫu 10",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "10 viên",
+      "result": "10.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 11,
+      "name": "Thuốc mẫu 11",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "11 viên",
+      "result": "11.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 12,
+      "name": "Thuốc mẫu 12",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "12 viên",
+      "result": "12.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 13,
+      "name": "Thuốc mẫu 13",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "13 viên",
+      "result": "13.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 14,
+      "name": "Thuốc mẫu 14",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "14 viên",
+      "result": "14.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 15,
+      "name": "Thuốc mẫu 15",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "15 viên",
+      "result": "15.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 16,
+      "name": "Thuốc mẫu 16",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "16 viên",
+      "result": "16.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 17,
+      "name": "Thuốc mẫu 17",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "17 viên",
+      "result": "17.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 18,
+      "name": "Thuốc mẫu 18",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "18 viên",
+      "result": "18.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 19,
+      "name": "Thuốc mẫu 19",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "19 viên",
+      "result": "19.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 20,
+      "name": "Thuốc mẫu 20",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "20 viên",
+      "result": "20.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 21,
+      "name": "Thuốc mẫu 21",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "21 viên",
+      "result": "21.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 22,
+      "name": "Thuốc mẫu 22",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "22 viên",
+      "result": "22.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 23,
+      "name": "Thuốc mẫu 23",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "23 viên",
+      "result": "23.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 24,
+      "name": "Thuốc mẫu 24",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "24 viên",
+      "result": "24.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 25,
+      "name": "Thuốc mẫu 25",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "25 viên",
+      "result": "25.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 26,
+      "name": "Thuốc mẫu 26",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "26 viên",
+      "result": "26.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 27,
+      "name": "Thuốc mẫu 27",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "27 viên",
+      "result": "27.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 28,
+      "name": "Thuốc mẫu 28",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "28 viên",
+      "result": "28.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 29,
+      "name": "Thuốc mẫu 29",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "29 viên",
+      "result": "29.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 30,
+      "name": "Thuốc mẫu 30",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "30 viên",
+      "result": "30.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 31,
+      "name": "Thuốc mẫu 31",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "31 viên",
+      "result": "31.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 32,
+      "name": "Thuốc mẫu 32",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "32 viên",
+      "result": "32.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 33,
+      "name": "Thuốc mẫu 33",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "33 viên",
+      "result": "33.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 34,
+      "name": "Thuốc mẫu 34",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "34 viên",
+      "result": "34.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 35,
+      "name": "Thuốc mẫu 35",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "35 viên",
+      "result": "35.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 36,
+      "name": "Thuốc mẫu 36",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "36 viên",
+      "result": "36.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 37,
+      "name": "Thuốc mẫu 37",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "37 viên",
+      "result": "37.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 38,
+      "name": "Thuốc mẫu 38",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "38 viên",
+      "result": "38.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 39,
+      "name": "Thuốc mẫu 39",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "39 viên",
+      "result": "39.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 40,
+      "name": "Thuốc mẫu 40",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "40 viên",
+      "result": "40.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 41,
+      "name": "Thuốc mẫu 41",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "41 viên",
+      "result": "41.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 42,
+      "name": "Thuốc mẫu 42",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "42 viên",
+      "result": "42.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 43,
+      "name": "Thuốc mẫu 43",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "43 viên",
+      "result": "43.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 44,
+      "name": "Thuốc mẫu 44",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "44 viên",
+      "result": "44.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 45,
+      "name": "Thuốc mẫu 45",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "45 viên",
+      "result": "45.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 46,
+      "name": "Thuốc mẫu 46",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "46 viên",
+      "result": "46.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 47,
+      "name": "Thuốc mẫu 47",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "47 viên",
+      "result": "47.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 48,
+      "name": "Thuốc mẫu 48",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "48 viên",
+      "result": "48.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 49,
+      "name": "Thuốc mẫu 49",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "49 viên",
+      "result": "49.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 50,
+      "name": "Thuốc mẫu 50",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "50 viên",
+      "result": "50.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 51,
+      "name": "Thuốc mẫu 51",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "51 viên",
+      "result": "51.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 52,
+      "name": "Thuốc mẫu 52",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "52 viên",
+      "result": "52.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 53,
+      "name": "Thuốc mẫu 53",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "53 viên",
+      "result": "53.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 54,
+      "name": "Thuốc mẫu 54",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "54 viên",
+      "result": "54.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 55,
+      "name": "Thuốc mẫu 55",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "55 viên",
+      "result": "55.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 56,
+      "name": "Thuốc mẫu 56",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "56 viên",
+      "result": "56.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 57,
+      "name": "Thuốc mẫu 57",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "57 viên",
+      "result": "57.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 58,
+      "name": "Thuốc mẫu 58",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "58 viên",
+      "result": "58.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 59,
+      "name": "Thuốc mẫu 59",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "59 viên",
+      "result": "59.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 60,
+      "name": "Thuốc mẫu 60",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "60 viên",
+      "result": "60.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 61,
+      "name": "Thuốc mẫu 61",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "61 viên",
+      "result": "61.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 62,
+      "name": "Thuốc mẫu 62",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "62 viên",
+      "result": "62.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 63,
+      "name": "Thuốc mẫu 63",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "63 viên",
+      "result": "63.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 64,
+      "name": "Thuốc mẫu 64",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "64 viên",
+      "result": "64.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 65,
+      "name": "Thuốc mẫu 65",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "65 viên",
+      "result": "65.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 66,
+      "name": "Thuốc mẫu 66",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "66 viên",
+      "result": "66.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 67,
+      "name": "Thuốc mẫu 67",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "67 viên",
+      "result": "67.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 68,
+      "name": "Thuốc mẫu 68",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "68 viên",
+      "result": "68.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 69,
+      "name": "Thuốc mẫu 69",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "69 viên",
+      "result": "69.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 70,
+      "name": "Thuốc mẫu 70",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "70 viên",
+      "result": "70.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 71,
+      "name": "Thuốc mẫu 71",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "71 viên",
+      "result": "71.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 72,
+      "name": "Thuốc mẫu 72",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "72 viên",
+      "result": "72.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 73,
+      "name": "Thuốc mẫu 73",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "73 viên",
+      "result": "73.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 74,
+      "name": "Thuốc mẫu 74",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "74 viên",
+      "result": "74.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 75,
+      "name": "Thuốc mẫu 75",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "75 viên",
+      "result": "75.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 76,
+      "name": "Thuốc mẫu 76",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "76 viên",
+      "result": "76.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 77,
+      "name": "Thuốc mẫu 77",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "77 viên",
+      "result": "77.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 78,
+      "name": "Thuốc mẫu 78",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "78 viên",
+      "result": "78.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 79,
+      "name": "Thuốc mẫu 79",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "79 viên",
+      "result": "79.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 80,
+      "name": "Thuốc mẫu 80",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "80 viên",
+      "result": "80.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 81,
+      "name": "Thuốc mẫu 81",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "81 viên",
+      "result": "81.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 82,
+      "name": "Thuốc mẫu 82",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "82 viên",
+      "result": "82.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 83,
+      "name": "Thuốc mẫu 83",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "83 viên",
+      "result": "83.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 84,
+      "name": "Thuốc mẫu 84",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "84 viên",
+      "result": "84.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 85,
+      "name": "Thuốc mẫu 85",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "85 viên",
+      "result": "85.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 86,
+      "name": "Thuốc mẫu 86",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "86 viên",
+      "result": "86.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 87,
+      "name": "Thuốc mẫu 87",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "87 viên",
+      "result": "87.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 88,
+      "name": "Thuốc mẫu 88",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "88 viên",
+      "result": "88.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 89,
+      "name": "Thuốc mẫu 89",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "89 viên",
+      "result": "89.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 90,
+      "name": "Thuốc mẫu 90",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "90 viên",
+      "result": "90.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 91,
+      "name": "Thuốc mẫu 91",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "91 viên",
+      "result": "91.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 92,
+      "name": "Thuốc mẫu 92",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "92 viên",
+      "result": "92.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 93,
+      "name": "Thuốc mẫu 93",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "93 viên",
+      "result": "93.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 94,
+      "name": "Thuốc mẫu 94",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "94 viên",
+      "result": "94.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 95,
+      "name": "Thuốc mẫu 95",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "95 viên",
+      "result": "95.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 96,
+      "name": "Thuốc mẫu 96",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "96 viên",
+      "result": "96.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 97,
+      "name": "Thuốc mẫu 97",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "97 viên",
+      "result": "97.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 98,
+      "name": "Thuốc mẫu 98",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "98 viên",
+      "result": "98.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 99,
+      "name": "Thuốc mẫu 99",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "99 viên",
+      "result": "99.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 100,
+      "name": "Thuốc mẫu 100",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "100 viên",
+      "result": "100.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 101,
+      "name": "Thuốc mẫu 101",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "101 viên",
+      "result": "101.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 102,
+      "name": "Thuốc mẫu 102",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "102 viên",
+      "result": "102.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 103,
+      "name": "Thuốc mẫu 103",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "103 viên",
+      "result": "103.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 104,
+      "name": "Thuốc mẫu 104",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "104 viên",
+      "result": "104.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 105,
+      "name": "Thuốc mẫu 105",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "105 viên",
+      "result": "105.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 106,
+      "name": "Thuốc mẫu 106",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "106 viên",
+      "result": "106.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 107,
+      "name": "Thuốc mẫu 107",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "107 viên",
+      "result": "107.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 108,
+      "name": "Thuốc mẫu 108",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "108 viên",
+      "result": "108.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 109,
+      "name": "Thuốc mẫu 109",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "109 viên",
+      "result": "109.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 110,
+      "name": "Thuốc mẫu 110",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "110 viên",
+      "result": "110.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 111,
+      "name": "Thuốc mẫu 111",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "111 viên",
+      "result": "111.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 112,
+      "name": "Thuốc mẫu 112",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "112 viên",
+      "result": "112.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 113,
+      "name": "Thuốc mẫu 113",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "113 viên",
+      "result": "113.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 114,
+      "name": "Thuốc mẫu 114",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "114 viên",
+      "result": "114.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 115,
+      "name": "Thuốc mẫu 115",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "115 viên",
+      "result": "115.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 116,
+      "name": "Thuốc mẫu 116",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "116 viên",
+      "result": "116.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 117,
+      "name": "Thuốc mẫu 117",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "117 viên",
+      "result": "117.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 118,
+      "name": "Thuốc mẫu 118",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "118 viên",
+      "result": "118.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 119,
+      "name": "Thuốc mẫu 119",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "119 viên",
+      "result": "119.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 120,
+      "name": "Thuốc mẫu 120",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "120 viên",
+      "result": "120.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 121,
+      "name": "Thuốc mẫu 121",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "121 viên",
+      "result": "121.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 122,
+      "name": "Thuốc mẫu 122",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "122 viên",
+      "result": "122.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 123,
+      "name": "Thuốc mẫu 123",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "123 viên",
+      "result": "123.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 124,
+      "name": "Thuốc mẫu 124",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "124 viên",
+      "result": "124.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 125,
+      "name": "Thuốc mẫu 125",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "125 viên",
+      "result": "125.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 126,
+      "name": "Thuốc mẫu 126",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "126 viên",
+      "result": "126.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 127,
+      "name": "Thuốc mẫu 127",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "127 viên",
+      "result": "127.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 128,
+      "name": "Thuốc mẫu 128",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "128 viên",
+      "result": "128.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 129,
+      "name": "Thuốc mẫu 129",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "129 viên",
+      "result": "129.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 130,
+      "name": "Thuốc mẫu 130",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "130 viên",
+      "result": "130.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 131,
+      "name": "Thuốc mẫu 131",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "131 viên",
+      "result": "131.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 132,
+      "name": "Thuốc mẫu 132",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "132 viên",
+      "result": "132.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 133,
+      "name": "Thuốc mẫu 133",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "133 viên",
+      "result": "133.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 134,
+      "name": "Thuốc mẫu 134",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "134 viên",
+      "result": "134.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 135,
+      "name": "Thuốc mẫu 135",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "135 viên",
+      "result": "135.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 136,
+      "name": "Thuốc mẫu 136",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "136 viên",
+      "result": "136.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 137,
+      "name": "Thuốc mẫu 137",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "137 viên",
+      "result": "137.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 138,
+      "name": "Thuốc mẫu 138",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "138 viên",
+      "result": "138.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 139,
+      "name": "Thuốc mẫu 139",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "139 viên",
+      "result": "139.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 140,
+      "name": "Thuốc mẫu 140",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "140 viên",
+      "result": "140.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 141,
+      "name": "Thuốc mẫu 141",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "141 viên",
+      "result": "141.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 142,
+      "name": "Thuốc mẫu 142",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "142 viên",
+      "result": "142.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 143,
+      "name": "Thuốc mẫu 143",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "143 viên",
+      "result": "143.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 144,
+      "name": "Thuốc mẫu 144",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "144 viên",
+      "result": "144.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 145,
+      "name": "Thuốc mẫu 145",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "145 viên",
+      "result": "145.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 146,
+      "name": "Thuốc mẫu 146",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "146 viên",
+      "result": "146.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 147,
+      "name": "Thuốc mẫu 147",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "147 viên",
+      "result": "147.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 148,
+      "name": "Thuốc mẫu 148",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "148 viên",
+      "result": "148.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 149,
+      "name": "Thuốc mẫu 149",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "149 viên",
+      "result": "149.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 150,
+      "name": "Thuốc mẫu 150",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "150 viên",
+      "result": "150.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 151,
+      "name": "Thuốc mẫu 151",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "151 viên",
+      "result": "151.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 152,
+      "name": "Thuốc mẫu 152",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "152 viên",
+      "result": "152.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 153,
+      "name": "Thuốc mẫu 153",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "153 viên",
+      "result": "153.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 154,
+      "name": "Thuốc mẫu 154",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "154 viên",
+      "result": "154.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 155,
+      "name": "Thuốc mẫu 155",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "155 viên",
+      "result": "155.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 156,
+      "name": "Thuốc mẫu 156",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "156 viên",
+      "result": "156.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 157,
+      "name": "Thuốc mẫu 157",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "157 viên",
+      "result": "157.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 158,
+      "name": "Thuốc mẫu 158",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "158 viên",
+      "result": "158.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 159,
+      "name": "Thuốc mẫu 159",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "159 viên",
+      "result": "159.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 160,
+      "name": "Thuốc mẫu 160",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "160 viên",
+      "result": "160.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 161,
+      "name": "Thuốc mẫu 161",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "161 viên",
+      "result": "161.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 162,
+      "name": "Thuốc mẫu 162",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "162 viên",
+      "result": "162.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 163,
+      "name": "Thuốc mẫu 163",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "163 viên",
+      "result": "163.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 164,
+      "name": "Thuốc mẫu 164",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "164 viên",
+      "result": "164.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 165,
+      "name": "Thuốc mẫu 165",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "165 viên",
+      "result": "165.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 166,
+      "name": "Thuốc mẫu 166",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "166 viên",
+      "result": "166.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 167,
+      "name": "Thuốc mẫu 167",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "167 viên",
+      "result": "167.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 168,
+      "name": "Thuốc mẫu 168",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "168 viên",
+      "result": "168.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 169,
+      "name": "Thuốc mẫu 169",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "169 viên",
+      "result": "169.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 170,
+      "name": "Thuốc mẫu 170",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "170 viên",
+      "result": "170.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 171,
+      "name": "Thuốc mẫu 171",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "171 viên",
+      "result": "171.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 172,
+      "name": "Thuốc mẫu 172",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "172 viên",
+      "result": "172.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 173,
+      "name": "Thuốc mẫu 173",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "173 viên",
+      "result": "173.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 174,
+      "name": "Thuốc mẫu 174",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "174 viên",
+      "result": "174.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 175,
+      "name": "Thuốc mẫu 175",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "175 viên",
+      "result": "175.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 176,
+      "name": "Thuốc mẫu 176",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "176 viên",
+      "result": "176.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 177,
+      "name": "Thuốc mẫu 177",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "177 viên",
+      "result": "177.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 178,
+      "name": "Thuốc mẫu 178",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "178 viên",
+      "result": "178.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 179,
+      "name": "Thuốc mẫu 179",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "179 viên",
+      "result": "179.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 180,
+      "name": "Thuốc mẫu 180",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "180 viên",
+      "result": "180.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 181,
+      "name": "Thuốc mẫu 181",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "181 viên",
+      "result": "181.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 182,
+      "name": "Thuốc mẫu 182",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "182 viên",
+      "result": "182.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 183,
+      "name": "Thuốc mẫu 183",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "183 viên",
+      "result": "183.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 184,
+      "name": "Thuốc mẫu 184",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "184 viên",
+      "result": "184.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 185,
+      "name": "Thuốc mẫu 185",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "185 viên",
+      "result": "185.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 186,
+      "name": "Thuốc mẫu 186",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "186 viên",
+      "result": "186.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 187,
+      "name": "Thuốc mẫu 187",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "187 viên",
+      "result": "187.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 188,
+      "name": "Thuốc mẫu 188",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "188 viên",
+      "result": "188.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 189,
+      "name": "Thuốc mẫu 189",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "189 viên",
+      "result": "189.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 190,
+      "name": "Thuốc mẫu 190",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "190 viên",
+      "result": "190.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 191,
+      "name": "Thuốc mẫu 191",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "191 viên",
+      "result": "191.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 192,
+      "name": "Thuốc mẫu 192",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "192 viên",
+      "result": "192.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 193,
+      "name": "Thuốc mẫu 193",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "193 viên",
+      "result": "193.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 194,
+      "name": "Thuốc mẫu 194",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "194 viên",
+      "result": "194.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 195,
+      "name": "Thuốc mẫu 195",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "195 viên",
+      "result": "195.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 196,
+      "name": "Thuốc mẫu 196",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "196 viên",
+      "result": "196.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 197,
+      "name": "Thuốc mẫu 197",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "197 viên",
+      "result": "197.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 198,
+      "name": "Thuốc mẫu 198",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "198 viên",
+      "result": "198.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 199,
+      "name": "Thuốc mẫu 199",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "199 viên",
+      "result": "199.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 200,
+      "name": "Thuốc mẫu 200",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "200 viên",
+      "result": "200.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 201,
+      "name": "Thuốc mẫu 201",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "201 viên",
+      "result": "201.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 202,
+      "name": "Thuốc mẫu 202",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "202 viên",
+      "result": "202.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 203,
+      "name": "Thuốc mẫu 203",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "203 viên",
+      "result": "203.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 204,
+      "name": "Thuốc mẫu 204",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "204 viên",
+      "result": "204.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 205,
+      "name": "Thuốc mẫu 205",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "205 viên",
+      "result": "205.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 206,
+      "name": "Thuốc mẫu 206",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "206 viên",
+      "result": "206.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 207,
+      "name": "Thuốc mẫu 207",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "207 viên",
+      "result": "207.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 208,
+      "name": "Thuốc mẫu 208",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "208 viên",
+      "result": "208.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 209,
+      "name": "Thuốc mẫu 209",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "209 viên",
+      "result": "209.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 210,
+      "name": "Thuốc mẫu 210",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "210 viên",
+      "result": "210.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 211,
+      "name": "Thuốc mẫu 211",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "211 viên",
+      "result": "211.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 212,
+      "name": "Thuốc mẫu 212",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "212 viên",
+      "result": "212.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 213,
+      "name": "Thuốc mẫu 213",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "213 viên",
+      "result": "213.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 214,
+      "name": "Thuốc mẫu 214",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "214 viên",
+      "result": "214.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 215,
+      "name": "Thuốc mẫu 215",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "215 viên",
+      "result": "215.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 216,
+      "name": "Thuốc mẫu 216",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "216 viên",
+      "result": "216.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 217,
+      "name": "Thuốc mẫu 217",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "217 viên",
+      "result": "217.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 218,
+      "name": "Thuốc mẫu 218",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "218 viên",
+      "result": "218.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 219,
+      "name": "Thuốc mẫu 219",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "219 viên",
+      "result": "219.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 220,
+      "name": "Thuốc mẫu 220",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "220 viên",
+      "result": "220.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 221,
+      "name": "Thuốc mẫu 221",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "221 viên",
+      "result": "221.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 222,
+      "name": "Thuốc mẫu 222",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "222 viên",
+      "result": "222.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 223,
+      "name": "Thuốc mẫu 223",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "223 viên",
+      "result": "223.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 224,
+      "name": "Thuốc mẫu 224",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "224 viên",
+      "result": "224.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 225,
+      "name": "Thuốc mẫu 225",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "225 viên",
+      "result": "225.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 226,
+      "name": "Thuốc mẫu 226",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "226 viên",
+      "result": "226.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 227,
+      "name": "Thuốc mẫu 227",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "227 viên",
+      "result": "227.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 228,
+      "name": "Thuốc mẫu 228",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "228 viên",
+      "result": "228.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 229,
+      "name": "Thuốc mẫu 229",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "229 viên",
+      "result": "229.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 230,
+      "name": "Thuốc mẫu 230",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "230 viên",
+      "result": "230.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 231,
+      "name": "Thuốc mẫu 231",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "231 viên",
+      "result": "231.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 232,
+      "name": "Thuốc mẫu 232",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "232 viên",
+      "result": "232.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 233,
+      "name": "Thuốc mẫu 233",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "233 viên",
+      "result": "233.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 234,
+      "name": "Thuốc mẫu 234",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "234 viên",
+      "result": "234.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 235,
+      "name": "Thuốc mẫu 235",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "235 viên",
+      "result": "235.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 236,
+      "name": "Thuốc mẫu 236",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "236 viên",
+      "result": "236.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 237,
+      "name": "Thuốc mẫu 237",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "237 viên",
+      "result": "237.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 238,
+      "name": "Thuốc mẫu 238",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "238 viên",
+      "result": "238.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 239,
+      "name": "Thuốc mẫu 239",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "239 viên",
+      "result": "239.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 240,
+      "name": "Thuốc mẫu 240",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "240 viên",
+      "result": "240.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 241,
+      "name": "Thuốc mẫu 241",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "241 viên",
+      "result": "241.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 242,
+      "name": "Thuốc mẫu 242",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "242 viên",
+      "result": "242.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 243,
+      "name": "Thuốc mẫu 243",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "243 viên",
+      "result": "243.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 244,
+      "name": "Thuốc mẫu 244",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "244 viên",
+      "result": "244.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 245,
+      "name": "Thuốc mẫu 245",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "245 viên",
+      "result": "245.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 246,
+      "name": "Thuốc mẫu 246",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "246 viên",
+      "result": "246.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 247,
+      "name": "Thuốc mẫu 247",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "247 viên",
+      "result": "247.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 248,
+      "name": "Thuốc mẫu 248",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "248 viên",
+      "result": "248.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 249,
+      "name": "Thuốc mẫu 249",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "249 viên",
+      "result": "249.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 250,
+      "name": "Thuốc mẫu 250",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "250 viên",
+      "result": "250.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 251,
+      "name": "Thuốc mẫu 251",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "251 viên",
+      "result": "251.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 252,
+      "name": "Thuốc mẫu 252",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "252 viên",
+      "result": "252.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 253,
+      "name": "Thuốc mẫu 253",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "253 viên",
+      "result": "253.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 254,
+      "name": "Thuốc mẫu 254",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "254 viên",
+      "result": "254.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 255,
+      "name": "Thuốc mẫu 255",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "255 viên",
+      "result": "255.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 256,
+      "name": "Thuốc mẫu 256",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "256 viên",
+      "result": "256.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 257,
+      "name": "Thuốc mẫu 257",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "257 viên",
+      "result": "257.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 258,
+      "name": "Thuốc mẫu 258",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "258 viên",
+      "result": "258.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 259,
+      "name": "Thuốc mẫu 259",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "259 viên",
+      "result": "259.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 260,
+      "name": "Thuốc mẫu 260",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "260 viên",
+      "result": "260.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 261,
+      "name": "Thuốc mẫu 261",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "261 viên",
+      "result": "261.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 262,
+      "name": "Thuốc mẫu 262",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "262 viên",
+      "result": "262.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 263,
+      "name": "Thuốc mẫu 263",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "263 viên",
+      "result": "263.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 264,
+      "name": "Thuốc mẫu 264",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "264 viên",
+      "result": "264.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 265,
+      "name": "Thuốc mẫu 265",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "265 viên",
+      "result": "265.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 266,
+      "name": "Thuốc mẫu 266",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "266 viên",
+      "result": "266.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 267,
+      "name": "Thuốc mẫu 267",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "267 viên",
+      "result": "267.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 268,
+      "name": "Thuốc mẫu 268",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "268 viên",
+      "result": "268.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 269,
+      "name": "Thuốc mẫu 269",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "269 viên",
+      "result": "269.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 270,
+      "name": "Thuốc mẫu 270",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "270 viên",
+      "result": "270.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 271,
+      "name": "Thuốc mẫu 271",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "271 viên",
+      "result": "271.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 272,
+      "name": "Thuốc mẫu 272",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "272 viên",
+      "result": "272.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 273,
+      "name": "Thuốc mẫu 273",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "273 viên",
+      "result": "273.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 274,
+      "name": "Thuốc mẫu 274",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "274 viên",
+      "result": "274.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 275,
+      "name": "Thuốc mẫu 275",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "275 viên",
+      "result": "275.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 276,
+      "name": "Thuốc mẫu 276",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "276 viên",
+      "result": "276.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 277,
+      "name": "Thuốc mẫu 277",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "277 viên",
+      "result": "277.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 278,
+      "name": "Thuốc mẫu 278",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "278 viên",
+      "result": "278.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 279,
+      "name": "Thuốc mẫu 279",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "279 viên",
+      "result": "279.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 280,
+      "name": "Thuốc mẫu 280",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "280 viên",
+      "result": "280.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 281,
+      "name": "Thuốc mẫu 281",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "281 viên",
+      "result": "281.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 282,
+      "name": "Thuốc mẫu 282",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "282 viên",
+      "result": "282.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 283,
+      "name": "Thuốc mẫu 283",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "283 viên",
+      "result": "283.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 284,
+      "name": "Thuốc mẫu 284",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "284 viên",
+      "result": "284.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 285,
+      "name": "Thuốc mẫu 285",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "285 viên",
+      "result": "285.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 286,
+      "name": "Thuốc mẫu 286",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "286 viên",
+      "result": "286.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 287,
+      "name": "Thuốc mẫu 287",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "287 viên",
+      "result": "287.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 288,
+      "name": "Thuốc mẫu 288",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "288 viên",
+      "result": "288.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 289,
+      "name": "Thuốc mẫu 289",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "289 viên",
+      "result": "289.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 290,
+      "name": "Thuốc mẫu 290",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "290 viên",
+      "result": "290.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 291,
+      "name": "Thuốc mẫu 291",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "291 viên",
+      "result": "291.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 292,
+      "name": "Thuốc mẫu 292",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "292 viên",
+      "result": "292.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 293,
+      "name": "Thuốc mẫu 293",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "293 viên",
+      "result": "293.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 294,
+      "name": "Thuốc mẫu 294",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "294 viên",
+      "result": "294.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 295,
+      "name": "Thuốc mẫu 295",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "295 viên",
+      "result": "295.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 296,
+      "name": "Thuốc mẫu 296",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "296 viên",
+      "result": "296.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 297,
+      "name": "Thuốc mẫu 297",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "297 viên",
+      "result": "297.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 298,
+      "name": "Thuốc mẫu 298",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "298 viên",
+      "result": "298.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 299,
+      "name": "Thuốc mẫu 299",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "299 viên",
+      "result": "299.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 300,
+      "name": "Thuốc mẫu 300",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "300 viên",
+      "result": "300.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 301,
+      "name": "Thuốc mẫu 301",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "301 viên",
+      "result": "301.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 302,
+      "name": "Thuốc mẫu 302",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "302 viên",
+      "result": "302.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 303,
+      "name": "Thuốc mẫu 303",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "303 viên",
+      "result": "303.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 304,
+      "name": "Thuốc mẫu 304",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "304 viên",
+      "result": "304.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 305,
+      "name": "Thuốc mẫu 305",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "305 viên",
+      "result": "305.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 306,
+      "name": "Thuốc mẫu 306",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "306 viên",
+      "result": "306.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 307,
+      "name": "Thuốc mẫu 307",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "307 viên",
+      "result": "307.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 308,
+      "name": "Thuốc mẫu 308",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "308 viên",
+      "result": "308.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 309,
+      "name": "Thuốc mẫu 309",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "309 viên",
+      "result": "309.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 310,
+      "name": "Thuốc mẫu 310",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "310 viên",
+      "result": "310.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 311,
+      "name": "Thuốc mẫu 311",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "311 viên",
+      "result": "311.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 312,
+      "name": "Thuốc mẫu 312",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "312 viên",
+      "result": "312.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 313,
+      "name": "Thuốc mẫu 313",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "313 viên",
+      "result": "313.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 314,
+      "name": "Thuốc mẫu 314",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "314 viên",
+      "result": "314.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 315,
+      "name": "Thuốc mẫu 315",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "315 viên",
+      "result": "315.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 316,
+      "name": "Thuốc mẫu 316",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "316 viên",
+      "result": "316.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 317,
+      "name": "Thuốc mẫu 317",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "317 viên",
+      "result": "317.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 318,
+      "name": "Thuốc mẫu 318",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "318 viên",
+      "result": "318.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 319,
+      "name": "Thuốc mẫu 319",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "319 viên",
+      "result": "319.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 320,
+      "name": "Thuốc mẫu 320",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "320 viên",
+      "result": "320.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 321,
+      "name": "Thuốc mẫu 321",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "321 viên",
+      "result": "321.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 322,
+      "name": "Thuốc mẫu 322",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "322 viên",
+      "result": "322.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 323,
+      "name": "Thuốc mẫu 323",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "323 viên",
+      "result": "323.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 324,
+      "name": "Thuốc mẫu 324",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "324 viên",
+      "result": "324.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 325,
+      "name": "Thuốc mẫu 325",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "325 viên",
+      "result": "325.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 326,
+      "name": "Thuốc mẫu 326",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "326 viên",
+      "result": "326.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 327,
+      "name": "Thuốc mẫu 327",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "327 viên",
+      "result": "327.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 328,
+      "name": "Thuốc mẫu 328",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "328 viên",
+      "result": "328.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 329,
+      "name": "Thuốc mẫu 329",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "329 viên",
+      "result": "329.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 330,
+      "name": "Thuốc mẫu 330",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "330 viên",
+      "result": "330.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 331,
+      "name": "Thuốc mẫu 331",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "331 viên",
+      "result": "331.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 332,
+      "name": "Thuốc mẫu 332",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "332 viên",
+      "result": "332.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 333,
+      "name": "Thuốc mẫu 333",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "333 viên",
+      "result": "333.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 334,
+      "name": "Thuốc mẫu 334",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "334 viên",
+      "result": "334.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 335,
+      "name": "Thuốc mẫu 335",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "335 viên",
+      "result": "335.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 336,
+      "name": "Thuốc mẫu 336",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "336 viên",
+      "result": "336.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 337,
+      "name": "Thuốc mẫu 337",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "337 viên",
+      "result": "337.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 338,
+      "name": "Thuốc mẫu 338",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "338 viên",
+      "result": "338.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 339,
+      "name": "Thuốc mẫu 339",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "339 viên",
+      "result": "339.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 340,
+      "name": "Thuốc mẫu 340",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "340 viên",
+      "result": "340.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 341,
+      "name": "Thuốc mẫu 341",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "341 viên",
+      "result": "341.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 342,
+      "name": "Thuốc mẫu 342",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "342 viên",
+      "result": "342.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 343,
+      "name": "Thuốc mẫu 343",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "343 viên",
+      "result": "343.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 344,
+      "name": "Thuốc mẫu 344",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "344 viên",
+      "result": "344.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 345,
+      "name": "Thuốc mẫu 345",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "345 viên",
+      "result": "345.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 346,
+      "name": "Thuốc mẫu 346",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "346 viên",
+      "result": "346.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 347,
+      "name": "Thuốc mẫu 347",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "347 viên",
+      "result": "347.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 348,
+      "name": "Thuốc mẫu 348",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "348 viên",
+      "result": "348.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 349,
+      "name": "Thuốc mẫu 349",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "349 viên",
+      "result": "349.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 350,
+      "name": "Thuốc mẫu 350",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "350 viên",
+      "result": "350.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 351,
+      "name": "Thuốc mẫu 351",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "351 viên",
+      "result": "351.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 352,
+      "name": "Thuốc mẫu 352",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "352 viên",
+      "result": "352.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 353,
+      "name": "Thuốc mẫu 353",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "353 viên",
+      "result": "353.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 354,
+      "name": "Thuốc mẫu 354",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "354 viên",
+      "result": "354.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 355,
+      "name": "Thuốc mẫu 355",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "355 viên",
+      "result": "355.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 356,
+      "name": "Thuốc mẫu 356",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "356 viên",
+      "result": "356.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 357,
+      "name": "Thuốc mẫu 357",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "357 viên",
+      "result": "357.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 358,
+      "name": "Thuốc mẫu 358",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "358 viên",
+      "result": "358.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 359,
+      "name": "Thuốc mẫu 359",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "359 viên",
+      "result": "359.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 360,
+      "name": "Thuốc mẫu 360",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "360 viên",
+      "result": "360.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 361,
+      "name": "Thuốc mẫu 361",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "361 viên",
+      "result": "361.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 362,
+      "name": "Thuốc mẫu 362",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "362 viên",
+      "result": "362.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 363,
+      "name": "Thuốc mẫu 363",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "363 viên",
+      "result": "363.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 364,
+      "name": "Thuốc mẫu 364",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "364 viên",
+      "result": "364.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 365,
+      "name": "Thuốc mẫu 365",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "365 viên",
+      "result": "365.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 366,
+      "name": "Thuốc mẫu 366",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "366 viên",
+      "result": "366.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 367,
+      "name": "Thuốc mẫu 367",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "367 viên",
+      "result": "367.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 368,
+      "name": "Thuốc mẫu 368",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "368 viên",
+      "result": "368.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 369,
+      "name": "Thuốc mẫu 369",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "369 viên",
+      "result": "369.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 370,
+      "name": "Thuốc mẫu 370",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "370 viên",
+      "result": "370.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 371,
+      "name": "Thuốc mẫu 371",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "371 viên",
+      "result": "371.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 372,
+      "name": "Thuốc mẫu 372",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "372 viên",
+      "result": "372.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 373,
+      "name": "Thuốc mẫu 373",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "373 viên",
+      "result": "373.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 374,
+      "name": "Thuốc mẫu 374",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "374 viên",
+      "result": "374.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 375,
+      "name": "Thuốc mẫu 375",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "375 viên",
+      "result": "375.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 376,
+      "name": "Thuốc mẫu 376",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "376 viên",
+      "result": "376.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 377,
+      "name": "Thuốc mẫu 377",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "377 viên",
+      "result": "377.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 378,
+      "name": "Thuốc mẫu 378",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "378 viên",
+      "result": "378.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 379,
+      "name": "Thuốc mẫu 379",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "379 viên",
+      "result": "379.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 380,
+      "name": "Thuốc mẫu 380",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "380 viên",
+      "result": "380.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 381,
+      "name": "Thuốc mẫu 381",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "381 viên",
+      "result": "381.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 382,
+      "name": "Thuốc mẫu 382",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "382 viên",
+      "result": "382.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 383,
+      "name": "Thuốc mẫu 383",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "383 viên",
+      "result": "383.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 384,
+      "name": "Thuốc mẫu 384",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "384 viên",
+      "result": "384.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 385,
+      "name": "Thuốc mẫu 385",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "385 viên",
+      "result": "385.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 386,
+      "name": "Thuốc mẫu 386",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "386 viên",
+      "result": "386.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 387,
+      "name": "Thuốc mẫu 387",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "387 viên",
+      "result": "387.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 388,
+      "name": "Thuốc mẫu 388",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "388 viên",
+      "result": "388.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 389,
+      "name": "Thuốc mẫu 389",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "389 viên",
+      "result": "389.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 390,
+      "name": "Thuốc mẫu 390",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "390 viên",
+      "result": "390.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 391,
+      "name": "Thuốc mẫu 391",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "391 viên",
+      "result": "391.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 392,
+      "name": "Thuốc mẫu 392",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "392 viên",
+      "result": "392.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 393,
+      "name": "Thuốc mẫu 393",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "393 viên",
+      "result": "393.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 394,
+      "name": "Thuốc mẫu 394",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "394 viên",
+      "result": "394.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 395,
+      "name": "Thuốc mẫu 395",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "395 viên",
+      "result": "395.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 396,
+      "name": "Thuốc mẫu 396",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "396 viên",
+      "result": "396.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 397,
+      "name": "Thuốc mẫu 397",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "397 viên",
+      "result": "397.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 398,
+      "name": "Thuốc mẫu 398",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "398 viên",
+      "result": "398.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 399,
+      "name": "Thuốc mẫu 399",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "399 viên",
+      "result": "399.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 400,
+      "name": "Thuốc mẫu 400",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "400 viên",
+      "result": "400.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 401,
+      "name": "Thuốc mẫu 401",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "401 viên",
+      "result": "401.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 402,
+      "name": "Thuốc mẫu 402",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "402 viên",
+      "result": "402.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 403,
+      "name": "Thuốc mẫu 403",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "403 viên",
+      "result": "403.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 404,
+      "name": "Thuốc mẫu 404",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "404 viên",
+      "result": "404.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 405,
+      "name": "Thuốc mẫu 405",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "405 viên",
+      "result": "405.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 406,
+      "name": "Thuốc mẫu 406",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "406 viên",
+      "result": "406.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 407,
+      "name": "Thuốc mẫu 407",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "407 viên",
+      "result": "407.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 408,
+      "name": "Thuốc mẫu 408",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "408 viên",
+      "result": "408.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 409,
+      "name": "Thuốc mẫu 409",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "409 viên",
+      "result": "409.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 410,
+      "name": "Thuốc mẫu 410",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "410 viên",
+      "result": "410.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 411,
+      "name": "Thuốc mẫu 411",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "411 viên",
+      "result": "411.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 412,
+      "name": "Thuốc mẫu 412",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "412 viên",
+      "result": "412.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 413,
+      "name": "Thuốc mẫu 413",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "413 viên",
+      "result": "413.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 414,
+      "name": "Thuốc mẫu 414",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "414 viên",
+      "result": "414.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 415,
+      "name": "Thuốc mẫu 415",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "415 viên",
+      "result": "415.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 416,
+      "name": "Thuốc mẫu 416",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "416 viên",
+      "result": "416.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 417,
+      "name": "Thuốc mẫu 417",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "417 viên",
+      "result": "417.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 418,
+      "name": "Thuốc mẫu 418",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "418 viên",
+      "result": "418.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 419,
+      "name": "Thuốc mẫu 419",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "419 viên",
+      "result": "419.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 420,
+      "name": "Thuốc mẫu 420",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "420 viên",
+      "result": "420.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 421,
+      "name": "Thuốc mẫu 421",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "421 viên",
+      "result": "421.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 422,
+      "name": "Thuốc mẫu 422",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "422 viên",
+      "result": "422.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 423,
+      "name": "Thuốc mẫu 423",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "423 viên",
+      "result": "423.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 424,
+      "name": "Thuốc mẫu 424",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "424 viên",
+      "result": "424.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 425,
+      "name": "Thuốc mẫu 425",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "425 viên",
+      "result": "425.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 426,
+      "name": "Thuốc mẫu 426",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "426 viên",
+      "result": "426.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 427,
+      "name": "Thuốc mẫu 427",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "427 viên",
+      "result": "427.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 428,
+      "name": "Thuốc mẫu 428",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "428 viên",
+      "result": "428.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 429,
+      "name": "Thuốc mẫu 429",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "429 viên",
+      "result": "429.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 430,
+      "name": "Thuốc mẫu 430",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "430 viên",
+      "result": "430.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 431,
+      "name": "Thuốc mẫu 431",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "431 viên",
+      "result": "431.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 432,
+      "name": "Thuốc mẫu 432",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "432 viên",
+      "result": "432.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 433,
+      "name": "Thuốc mẫu 433",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "433 viên",
+      "result": "433.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 434,
+      "name": "Thuốc mẫu 434",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "434 viên",
+      "result": "434.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 435,
+      "name": "Thuốc mẫu 435",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "435 viên",
+      "result": "435.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 436,
+      "name": "Thuốc mẫu 436",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "436 viên",
+      "result": "436.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 437,
+      "name": "Thuốc mẫu 437",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "437 viên",
+      "result": "437.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 438,
+      "name": "Thuốc mẫu 438",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "438 viên",
+      "result": "438.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 439,
+      "name": "Thuốc mẫu 439",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "439 viên",
+      "result": "439.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 440,
+      "name": "Thuốc mẫu 440",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "440 viên",
+      "result": "440.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 441,
+      "name": "Thuốc mẫu 441",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "441 viên",
+      "result": "441.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 442,
+      "name": "Thuốc mẫu 442",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "442 viên",
+      "result": "442.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 443,
+      "name": "Thuốc mẫu 443",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "443 viên",
+      "result": "443.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 444,
+      "name": "Thuốc mẫu 444",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "444 viên",
+      "result": "444.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 445,
+      "name": "Thuốc mẫu 445",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "445 viên",
+      "result": "445.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 446,
+      "name": "Thuốc mẫu 446",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "446 viên",
+      "result": "446.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 447,
+      "name": "Thuốc mẫu 447",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "447 viên",
+      "result": "447.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 448,
+      "name": "Thuốc mẫu 448",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "448 viên",
+      "result": "448.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 449,
+      "name": "Thuốc mẫu 449",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "449 viên",
+      "result": "449.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 450,
+      "name": "Thuốc mẫu 450",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "450 viên",
+      "result": "450.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 451,
+      "name": "Thuốc mẫu 451",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "451 viên",
+      "result": "451.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 452,
+      "name": "Thuốc mẫu 452",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "452 viên",
+      "result": "452.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 453,
+      "name": "Thuốc mẫu 453",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "453 viên",
+      "result": "453.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 454,
+      "name": "Thuốc mẫu 454",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "454 viên",
+      "result": "454.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 455,
+      "name": "Thuốc mẫu 455",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "455 viên",
+      "result": "455.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 456,
+      "name": "Thuốc mẫu 456",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "456 viên",
+      "result": "456.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 457,
+      "name": "Thuốc mẫu 457",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "457 viên",
+      "result": "457.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 458,
+      "name": "Thuốc mẫu 458",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "458 viên",
+      "result": "458.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 459,
+      "name": "Thuốc mẫu 459",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "459 viên",
+      "result": "459.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 460,
+      "name": "Thuốc mẫu 460",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "460 viên",
+      "result": "460.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 461,
+      "name": "Thuốc mẫu 461",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "461 viên",
+      "result": "461.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 462,
+      "name": "Thuốc mẫu 462",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "462 viên",
+      "result": "462.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 463,
+      "name": "Thuốc mẫu 463",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "463 viên",
+      "result": "463.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 464,
+      "name": "Thuốc mẫu 464",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "464 viên",
+      "result": "464.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 465,
+      "name": "Thuốc mẫu 465",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "465 viên",
+      "result": "465.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 466,
+      "name": "Thuốc mẫu 466",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "466 viên",
+      "result": "466.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 467,
+      "name": "Thuốc mẫu 467",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "467 viên",
+      "result": "467.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 468,
+      "name": "Thuốc mẫu 468",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "468 viên",
+      "result": "468.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 469,
+      "name": "Thuốc mẫu 469",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "469 viên",
+      "result": "469.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 470,
+      "name": "Thuốc mẫu 470",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "470 viên",
+      "result": "470.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 471,
+      "name": "Thuốc mẫu 471",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "471 viên",
+      "result": "471.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 472,
+      "name": "Thuốc mẫu 472",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "472 viên",
+      "result": "472.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 473,
+      "name": "Thuốc mẫu 473",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "473 viên",
+      "result": "473.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 474,
+      "name": "Thuốc mẫu 474",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "474 viên",
+      "result": "474.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 475,
+      "name": "Thuốc mẫu 475",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "475 viên",
+      "result": "475.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 476,
+      "name": "Thuốc mẫu 476",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "476 viên",
+      "result": "476.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 477,
+      "name": "Thuốc mẫu 477",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "477 viên",
+      "result": "477.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 478,
+      "name": "Thuốc mẫu 478",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "478 viên",
+      "result": "478.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 479,
+      "name": "Thuốc mẫu 479",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "479 viên",
+      "result": "479.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 480,
+      "name": "Thuốc mẫu 480",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "480 viên",
+      "result": "480.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 481,
+      "name": "Thuốc mẫu 481",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "481 viên",
+      "result": "481.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 482,
+      "name": "Thuốc mẫu 482",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "482 viên",
+      "result": "482.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 483,
+      "name": "Thuốc mẫu 483",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "483 viên",
+      "result": "483.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 484,
+      "name": "Thuốc mẫu 484",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "484 viên",
+      "result": "484.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 485,
+      "name": "Thuốc mẫu 485",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "485 viên",
+      "result": "485.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 486,
+      "name": "Thuốc mẫu 486",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "486 viên",
+      "result": "486.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 487,
+      "name": "Thuốc mẫu 487",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "487 viên",
+      "result": "487.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 488,
+      "name": "Thuốc mẫu 488",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "488 viên",
+      "result": "488.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 489,
+      "name": "Thuốc mẫu 489",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "489 viên",
+      "result": "489.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 490,
+      "name": "Thuốc mẫu 490",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "490 viên",
+      "result": "490.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 491,
+      "name": "Thuốc mẫu 491",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "491 viên",
+      "result": "491.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 492,
+      "name": "Thuốc mẫu 492",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "492 viên",
+      "result": "492.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 493,
+      "name": "Thuốc mẫu 493",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "493 viên",
+      "result": "493.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 494,
+      "name": "Thuốc mẫu 494",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "494 viên",
+      "result": "494.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 495,
+      "name": "Thuốc mẫu 495",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "495 viên",
+      "result": "495.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 496,
+      "name": "Thuốc mẫu 496",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "496 viên",
+      "result": "496.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 497,
+      "name": "Thuốc mẫu 497",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "497 viên",
+      "result": "497.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 498,
+      "name": "Thuốc mẫu 498",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "498 viên",
+      "result": "498.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 499,
+      "name": "Thuốc mẫu 499",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "499 viên",
+      "result": "499.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 500,
+      "name": "Thuốc mẫu 500",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "500 viên",
+      "result": "500.5",
+      "unit": "mg/L"
+    }
+  ]
+}

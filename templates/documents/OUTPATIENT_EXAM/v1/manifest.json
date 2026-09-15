@@ -1,0 +1,8 @@
+{
+  "code": "OUTPATIENT_EXAM",
+  "name": "Phiếu khám bệnh ngoại trú",
+  "version": 1,
+  "file": "template.docx",
+  "documentType": "OUTPATIENT_EXAM",
+  "status": "published"
+}

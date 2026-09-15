@@ -1,0 +1,1 @@
+SELECT * FROM hms_bed LIMIT 2;

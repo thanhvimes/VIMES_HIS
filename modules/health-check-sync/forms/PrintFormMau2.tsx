@@ -258,19 +258,45 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
             imaging: ['imaging', 'cdha']
         };
 
+        const adminMeta = clinical.specialty_metadata?.admin || clinicalExam.specialty_metadata?.admin;
+        const adminDoctorId = String(adminMeta?.doctorId || docNormalized.created_by || '').trim().toUpperCase();
+        const adminDoctorName = String(adminMeta?.doctorName || docNormalized.created_by_name || '').trim().toUpperCase();
+
+        const findDocInList = (idOrCode: any) => {
+            if (!idOrCode || !Array.isArray(doctors)) return null;
+            const target = String(idOrCode).trim().toUpperCase();
+            return doctors.find(d => [d.id, d.hee_employee_id, d.code, d.username]
+                .some(val => String(val || '').trim().toUpperCase() === target));
+        };
+
         const checkKeys = metadataMap[specialty] || [specialty, 'internal'];
         for (const k of checkKeys) {
             const meta = clinical.specialty_metadata?.[k] || clinicalExam.specialty_metadata?.[k];
-            if (meta?.doctorName) return meta.doctorName;
-            if (meta?.doctorId && Array.isArray(doctors)) {
-                const doc = doctors.find(d => [d.id, d.hee_employee_id, d.code, d.username]
-                    .some(value => String(value || '').trim().toUpperCase() === String(meta.doctorId).trim().toUpperCase()));
-                if (doc) return doc.name || doc.fullname || doc.hee_fullname;
+            if (meta) {
+                // 1. Ưu tiên tra cứu doctorId trong danh mục bác sĩ
+                if (meta.doctorId) {
+                    const matched = findDocInList(meta.doctorId);
+                    if (matched) return matched.name || matched.fullname || matched.hee_fullname;
+                    if (adminDoctorId && String(meta.doctorId).trim().toUpperCase() === adminDoctorId) {
+                        continue;
+                    }
+                }
+                // 2. Tra cứu theo doctorName nếu không trùng người tiếp đón
+                if (meta.doctorName) {
+                    const nameUpper = String(meta.doctorName).trim().toUpperCase();
+                    if (adminDoctorName && nameUpper === adminDoctorName) {
+                        continue;
+                    }
+                    return meta.doctorName;
+                }
             }
         }
 
         if (hasSpecialtyData(specialty)) {
-            return getConclusionDoctorName();
+            const conclName = getConclusionDoctorName();
+            if (conclName && (!adminDoctorName || conclName.trim().toUpperCase() !== adminDoctorName)) {
+                return conclName;
+            }
         }
         return '';
     };
@@ -278,6 +304,14 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
     const renderDoctorCell = (specialty: string) => {
         const docName = getDoctor(specialty);
         if (!docName) return null;
+
+        const adminMeta = clinical.specialty_metadata?.admin || clinicalExam.specialty_metadata?.admin;
+        const adminDoctorId = String(adminMeta?.doctorId || docNormalized.created_by || '').trim().toUpperCase();
+        const adminDoctorName = String(adminMeta?.doctorName || docNormalized.created_by_name || '').trim().toUpperCase();
+
+        if (adminDoctorName && docName.trim().toUpperCase() === adminDoctorName) {
+            return null;
+        }
 
         const metadataMap: Record<string, string[]> = {
             tuan_hoan: ['circulatory', 'tuan_hoan', 'internal'],
@@ -300,7 +334,13 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
         let docMeta: any = null;
         for (const k of checkKeys) {
             const m = clinical.specialty_metadata?.[k] || clinicalExam.specialty_metadata?.[k];
-            if (m) { docMeta = m; break; }
+            if (m) {
+                if (adminDoctorId && m.doctorId && String(m.doctorId).trim().toUpperCase() === adminDoctorId) {
+                    continue;
+                }
+                docMeta = m;
+                break;
+            }
         }
 
         const doctorByMetadata = findDoctorByIdentifier(docMeta?.doctorCode)

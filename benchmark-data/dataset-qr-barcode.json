@@ -1,0 +1,133 @@
+{
+  "hospital": {
+    "name": "BỆNH VIỆN ĐA KHOA VIMES"
+  },
+  "patient": {
+    "code": "BN-QR-2026",
+    "fullName": "NGUYỄN VĂN TEST QR",
+    "barcode": "123456789012"
+  },
+  "qrCode": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJQAAACUCAYAAAB1PADUAAAAAklEQVR4AewaftIAAAS2SURBVO3BSY4jSRAEQdMA//9lnTr6KYBEOnsbE8EfqVpyUrXopGrRSdWik6pFJ1WLTqoWnVQtOqladFK16KRq0UnVopOqRSdVi06qFp1ULfrkJSC/kpongExq3gAyqZmATGomIDdqJiC/kpo3TqoWnVQtOqla9MkyNZuAfBOQGzVPqJmATGreULMJyKaTqkUnVYtOqhZ98mVAnlDzBJAngNyo2aRmAnKj5gkgT6j5ppOqRSdVi06qFn3yP6NmAvKEmgnIE2r+ZSdVi06qFp1ULfrkH6NmAjIBmdRMQG7UTGpugExAbtT8zU6qFp1ULTqpWvTJl6n5m6h5Asik5kbNBOQNNX+Sk6pFJ1WLTqoWfbIMyJ9MzQRkUjMBmdT8TkD+ZCdVi06qFp1ULfrkJTX/MjUTkEnNBOQJNTdq/iYnVYtOqhadVC3CH3kByKRmArJJzQ2QN9Q8AWRSMwG5UXMDZJOabzqpWnRSteikahH+yC8E5Ak1TwCZ1ExAJjUTkEnNE0AmNROQGzUTkCfUPAFkUvPGSdWik6pFJ1WLPnkJyBNqJiA3QCY1m4DcAJnUTECeUHMDZFIzAdmkZtNJ1aKTqkUnVYs+eUnNJjU3QG7UTEDeUDMBeQPIpGZSMwF5AsikZgIyqdl0UrXopGrRSdUi/JEXgExqJiCb1NwAeUPNBGRS8wSQSc0E5EbNE0Bu1HzTSdWik6pFJ1WL8Ed+IyA3aiYgk5oJyKRmAnKj5gbIE2omIN+k5gkgk5o3TqoWnVQtOqlahD/yApBJzRtAbtS8AWRS8zsBmdRMQDap+aaTqkUnVYtOqhZ98odR8wSQN4BMaiYgk5oJyBNqboA8oeYJIJOaTSdVi06qFp1ULfrkJTUTkEnNDZAn1Lyh5gk1E5BJzQ2QGzWbgNyo+aaTqkUnVYtOqhZ98hKQGyBvqJmA3KiZgDwB5EbNDZAbIDdqJiBPqJmA3ACZ1LxxUrXopGrRSdWiT5apmYBMam6ATEAmNU+ouQHyBJAbNROQSc0TaiYgm9RsOqladFK16KRqEf7IC0AmNROQGzVvALlRMwGZ1ExAJjUTkN9JzRtAJjWbTqoWnVQtOqlahD/yApBJzRNAJjUTkEnNE0Bu1NwAuVFzA2RSMwHZpGYC8oSaN06qFp1ULTqpWoQ/8hcDcqPmBsik5g0gk5oJyI2aJ4BsUvPGSdWik6pFJ1WLPnkJyK+kZlLzhppNajYBmdS8oeabTqoWnVQtOqla9MkyNZuA3ACZ1NwAmdTcAJnU/EpqnlDzBJBJzRsnVYtOqhadVC365MuAPKHmm9RMQCY1k5oJyI2aGzUTkAnIJiCTmknNppOqRSdVi06qFn3yjwMyqbkBsgnIE2reAPI7nVQtOqladFK16JN/nJpNam6ATGomIDdAvgnIpGbTSdWik6pFJ1WLPvkyNd+kZgJyo2ZSMwG5ATKpmdTcqJmATGomIJOaGyCTmgnIN51ULTqpWnRStQh/5AUgv5KaCciNmhsgk5oJyKTmCSCTmhsg36Tmm06qFp1ULTqpWoQ/UrXkpGrRSdWik6pFJ1WLTqoWnVQtOqladFK16KRq0UnVopOqRSdVi06qFp1ULTqpWvQf/O86C8qGaPYAAAAASUVORK5CYII=",
+  "items": [
+    {
+      "i": 1,
+      "name": "Thuốc mẫu 1",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "1 viên",
+      "result": "1.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 2,
+      "name": "Thuốc mẫu 2",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "2 viên",
+      "result": "2.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 3,
+      "name": "Thuốc mẫu 3",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "3 viên",
+      "result": "3.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 4,
+      "name": "Thuốc mẫu 4",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "4 viên",
+      "result": "4.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 5,
+      "name": "Thuốc mẫu 5",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "5 viên",
+      "result": "5.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 6,
+      "name": "Thuốc mẫu 6",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "6 viên",
+      "result": "6.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 7,
+      "name": "Thuốc mẫu 7",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "7 viên",
+      "result": "7.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 8,
+      "name": "Thuốc mẫu 8",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "8 viên",
+      "result": "8.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 9,
+      "name": "Thuốc mẫu 9",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "9 viên",
+      "result": "9.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 10,
+      "name": "Thuốc mẫu 10",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "10 viên",
+      "result": "10.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 11,
+      "name": "Thuốc mẫu 11",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "11 viên",
+      "result": "11.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 12,
+      "name": "Thuốc mẫu 12",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "12 viên",
+      "result": "12.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 13,
+      "name": "Thuốc mẫu 13",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "13 viên",
+      "result": "13.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 14,
+      "name": "Thuốc mẫu 14",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "14 viên",
+      "result": "14.5",
+      "unit": "mg/L"
+    },
+    {
+      "i": 15,
+      "name": "Thuốc mẫu 15",
+      "usage": "Uống theo hướng dẫn",
+      "quantity": "15 viên",
+      "result": "15.5",
+      "unit": "mg/L"
+    }
+  ]
+}

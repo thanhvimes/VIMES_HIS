@@ -1,0 +1,58 @@
+{
+  "hospital": {
+    "name": "BỆNH VIỆN ĐA KHOA VIMES",
+    "code": "01005",
+    "department": "PHÒNG TÀI CHÍNH KẾ TOÁN"
+  },
+  "document": {
+    "number": "BK-2026-001289",
+    "createdDate": "12/08/2026"
+  },
+  "patient": {
+    "code": "BN000125",
+    "fullName": "NGUYỄN VĂN AN",
+    "dob": "15/08/1980",
+    "gender": "Nam",
+    "address": "Phường Tràng Tiền, Quận Hoàn Kiếm, Hà Nội",
+    "insuranceNumber": "DN4010123456789",
+    "insuranceRate": "80%"
+  },
+  "stay": {
+    "admittedAt": "08/08/2026 08:30",
+    "dischargedAt": "12/08/2026 15:00",
+    "totalDays": 5,
+    "department": "KHOA NỘI TIM MẠCH",
+    "diagnosis": "I10 - Tăng huyết áp độ 2"
+  },
+  "feeGroups": [
+    {
+      "i": 1,
+      "groupName": "I. Tiền khám bệnh",
+      "groupTotal": 150000,
+      "items": [
+        { "j": 1, "name": "Khám chuyên khoa Tim mạch", "unit": "Lần", "quantity": 1, "price": 150000, "amount": 150000, "bhytAmount": 120000, "patientAmount": 30000 }
+      ]
+    },
+    {
+      "i": 2,
+      "groupName": "II. Xét nghiệm",
+      "groupTotal": 450000,
+      "items": [
+        { "j": 1, "name": "Tổng phân tích tế bào máu ngoại vi", "unit": "Lần", "quantity": 1, "price": 100000, "amount": 100000, "bhytAmount": 80000, "patientAmount": 20000 },
+        { "j": 2, "name": "Sinh hóa máu (Glucose, Ure, Creatinin)", "unit": "Lần", "quantity": 1, "price": 350000, "amount": 350000, "bhytAmount": 280000, "patientAmount": 70000 }
+      ]
+    }
+  ],
+  "summary": {
+    "totalAmount": 600000,
+    "bhytPaid": 480000,
+    "patientPaid": 120000,
+    "deposit": 500000,
+    "refundAmount": 380000,
+    "amountInWords": "Sáu trăm nghìn đồng chẵn."
+  },
+  "signatures": {
+    "cashier": "NGUYỄN THỊ THU HẰNG",
+    "accountant": "TRẦN VĂN MINH"
+  }
+}

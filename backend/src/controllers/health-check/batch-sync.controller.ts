@@ -4,6 +4,7 @@ import { generateXmlPayload } from './xml-generator';
 import { hisIntegrationController } from './his-integration';
 import { mergeClinicalData, mergeLabData, mergeConclusionData, formatYmdString } from '../../services/health-check-merge.service';
 import { sanitizeHisDate, calculateAge, evaluateFitnessClass, buildSpecialtyMetadata, mapConclusionRowToClinicalExam, parseHisPartsSummary } from '../../services/health-check-classifier.service';
+import { resolveOccupationBhCode } from '../../services/administrative-catalog.service';
 
 export interface SyncDocResult {
     docNo: number | string;
@@ -213,7 +214,7 @@ class BatchSyncController {
 
             // 9. Đóng gói Clinical Data
             const cleanCccdDate = sanitizeHisDate(hisRow.cccd_date);
-            const occCode = hisRow.occupation ? String(hisRow.occupation).trim() : '1539';
+            const occCode = resolveOccupationBhCode(hisRow.occupation);
             
             // Mã đối tượng KSK quy định: >= 60 tuổi là Người cao tuổi (Mã 1), < 60 tuổi là Cận nghèo, nghèo (Mã 3)
             const targetGroupVal = (patientAge !== null && patientAge >= 60) ? '1' : '3';

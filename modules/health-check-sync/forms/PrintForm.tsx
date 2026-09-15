@@ -627,22 +627,41 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
         };
         
         const metaKey = metadataMap[specialty];
+        const adminMeta = clinical.specialty_metadata?.admin || clinicalExam.specialty_metadata?.admin;
+        const adminDoctorId = String(adminMeta?.doctorId || propDoc.created_by || '').trim().toUpperCase();
+        const adminDoctorName = String(adminMeta?.doctorName || propDoc.created_by_name || '').trim().toUpperCase();
+
         const docMeta = clinical.specialty_metadata?.[metaKey] || clinicalExam.specialty_metadata?.[metaKey];
         if (docMeta?.doctorId) {
-            const found = doctors.find(d => String(d.id || d.hee_employee_id) === String(docMeta.doctorId));
+            const found = doctors.find(d => [d.id, d.code, d.username, d.hee_employee_id]
+                .some(v => String(v || '').trim().toUpperCase() === String(docMeta.doctorId).trim().toUpperCase()));
             if (found) return found.name || found.hee_fullname;
+            if (adminDoctorId && String(docMeta.doctorId).trim().toUpperCase() === adminDoctorId) {
+                // receptionist, don't use as clinical doctor
+            }
         }
 
         if (metaKey && clinicalExam.specialty_metadata?.[metaKey]?.doctorName) {
-            return clinicalExam.specialty_metadata[metaKey].doctorName;
+            const rawName = clinicalExam.specialty_metadata[metaKey].doctorName;
+            if (!adminDoctorName || rawName.trim().toUpperCase() !== adminDoctorName) {
+                return rawName;
+            }
         }
 
         if (clinicalExam[`doctor_${specialty}`]) return clinicalExam[`doctor_${specialty}`];
-        if (clinicalExam.doctor_name) return clinicalExam.doctor_name;
+        if (clinicalExam.doctor_name && (!adminDoctorName || clinicalExam.doctor_name.trim().toUpperCase() !== adminDoctorName)) return clinicalExam.doctor_name;
         if (['ngoai_khoa', 'da_lieu', 'tai_mui_hong', 'rang_ham_mat'].includes(specialty)) {
-            return getConclusionDoctorName();
+            const conclDoc = getConclusionDoctorName();
+            if (!adminDoctorName || conclDoc.trim().toUpperCase() !== adminDoctorName) {
+                return conclDoc;
+            }
+            return '';
         }
-        return getConclusionDoctorName();
+        const conclDoc = getConclusionDoctorName();
+        if (!adminDoctorName || conclDoc.trim().toUpperCase() !== adminDoctorName) {
+            return conclDoc;
+        }
+        return '';
     };
 
     const formatEyeExam = () => {

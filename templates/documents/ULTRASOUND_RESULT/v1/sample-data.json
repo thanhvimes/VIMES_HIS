@@ -1,0 +1,74 @@
+{
+  "hospital": {
+    "name": "BỆNH VIỆN ĐA KHOA VIMES",
+    "department": "KHOA CHẨN ĐOÁN HÌNH ẢNH & THĂM DÒ CHỨC NĂNG",
+    "address": "Số 188 Đường Giải Phóng, Quận Thanh Xuân, Hà Nội",
+    "hotline": "1900 8888"
+  },
+  "document": {
+    "number": "SA-2026-000889",
+    "createdDate": "16/08/2026 10:45",
+    "barcode": "BN000125-SA000889"
+  },
+  "patient": {
+    "code": "BN000125",
+    "fullName": "NGUYỄN VĂN AN",
+    "dob": "15/08/1980",
+    "age": "46 tuổi",
+    "gender": "Nam",
+    "address": "Số 45 Phố Tràng Tiền, Quận Hoàn Kiếm, TP. Hà Nội",
+    "insuranceNumber": "DN4010123456789",
+    "phone": "0912 345 678"
+  },
+  "encounter": {
+    "department": "Khoa Khám Bệnh - Phòng khám Nội Tổng Quát",
+    "doctor": "BS. CKI. Đặng Quốc Huy",
+    "diagnosis": "Theo dõi sỏi túi mật / Đau hạ sườn phải",
+    "modality": "Siêu âm ổ bụng tổng quát (Doppler màu 4D)",
+    "device": "GE Healthcare Voluson E10"
+  },
+  "images": [
+    {
+      "index": 1,
+      "label": "Hình 1: Nhu mô Gan & Tĩnh mạch cửa",
+      "url": "http://localhost:3000/uploads/samples/us_sample_1.png",
+      "description": "Nhu mô gan mịn đều, không thấy khối khu trú."
+    },
+    {
+      "index": 2,
+      "label": "Hình 2: Túi Mật & Ống mật chủ",
+      "url": "http://localhost:3000/uploads/samples/us_sample_2.png",
+      "description": "Túi mật thành mỏng, lòng có sỏi d#8mm kèm bóng cản."
+    },
+    {
+      "index": 3,
+      "label": "Hình 3: Thận Phải (Mặt cắt dọc)",
+      "url": "http://localhost:3000/uploads/samples/us_sample_3.png",
+      "description": "Kích thước thận phải bình thường, phân biệt vỏ tủy rõ."
+    },
+    {
+      "index": 4,
+      "label": "Hình 4: Thận Trái & Bàng Quang",
+      "url": "http://localhost:3000/uploads/samples/us_sample_4.png",
+      "description": "Thận trái không ứ nước, bàng quang nước tiểu trong."
+    }
+  ],
+  "findings": {
+    "liver": "Gan không to, cấu trúc nhu mô đồng nhất, bờ đều, tĩnh mạch cửa không giãn.",
+    "gallbladder": "Túi mật kích thước bình thường, thành túi mật mỏng (2mm), trong lòng có hình ảnh sỏi tăng âm kích thước ~8mm, có bóng cản âm rõ rệt phía sau. Đường mật trong và ngoài gan không giãn.",
+    "pancreas": "Tụy kích thước trong giới hạn bình thường, nhu mô tụy đồng nhất, ống Wirsung không giãn.",
+    "spleen": "Lách kích thước bình thường, nhu mô đồng nhất, không có khối bất thường.",
+    "kidneys": "Hai thận kích thước bình thường, ranh giới vỏ tủy rõ ràng, đài bể thận hai bên không giãn, không thấy sỏi hay khối khu trú.",
+    "urinaryBladder": "Bàng quang thành mỏng đều, nước tiểu trong, không có sỏi hay u sùi.",
+    "prostate": "Tiền liệt tuyến kích thước ~22g, cấu trúc đồng nhất.",
+    "peritoneum": "Khoang màng bụng không có dịch tự do. Không thấy hạch mạc treo phì đại."
+  },
+  "conclusion": "HÌNH ẢNH SỎI TÚI MẬT KÍCH THƯỚC ~8mm, CHƯA CÓ DẤU HIỆU VIÊM TÚI MẬT CẤP.\nCÁC CƠ QUAN KHÁC TRONG Ổ BỤNG HIỆN CHƯA THẤY BẤT THƯỜNG TRÊN SIÊU ÂM.",
+  "recommendation": "Khám chuyên khoa Tiêu hóa / Ngoại Gan Mật để được tư vấn và theo dõi định kỳ sau 3 - 6 tháng.",
+  "approver": {
+    "fullName": "BS. CKI. NGUYỄN HOÀNG DƯƠNG",
+    "title": "Bác sĩ Chuyên khoa Chẩn đoán Hình ảnh",
+    "isDigitalSigned": true,
+    "signedAt": "16/08/2026 11:00:25"
+  }
+}

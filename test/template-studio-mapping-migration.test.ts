@@ -1,0 +1,2 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import fs from 'node:fs'; import path from 'node:path';
+test('mapping migration is runner-compatible and uses hms_document prefix', () => { const file = path.join(__dirname, '../migrations/061_hms_document_mapping.sql'); const sql = fs.readFileSync(file, 'utf8'); assert.match(path.basename(file), /^\d+_.*\.sql$/); assert.match(sql, /CREATE TABLE IF NOT EXISTS hms_document_mapping/); assert.match(sql, /UNIQUE \(code, version\)/); assert.match(sql, /status IN \('DRAFT','PUBLISHED','RETIRED'\)/); });

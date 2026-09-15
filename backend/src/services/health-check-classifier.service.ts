@@ -405,29 +405,29 @@ export function buildSpecialtyMetadata(params: {
         history: { status: 'ĐÃ_KHÁM', doctorId: examDocId, doctorName: examDocName, updatedAt: nowIso },
         physical: { 
             status: vitalsStatus, 
-            doctorId: examDocId, 
-            doctorName: examDocName, 
+            doctorId: hasVitals ? examDocId : '', 
+            doctorName: hasVitals ? examDocName : '', 
             updatedAt: nowIso 
         },
         examination: { 
             status: vitalsStatus, 
-            doctorId: examDocId, 
-            doctorName: examDocName, 
+            doctorId: hasVitals ? examDocId : '', 
+            doctorName: hasVitals ? examDocName : '', 
             updatedAt: nowIso 
         },
-        internal: { status: hasInternal ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: examDocId, doctorName: examDocName, updatedAt: nowIso },
-        eye: { status: hasEye ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: examDocId, doctorName: examDocName, updatedAt: nowIso },
-        ent: { status: hasEnt ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: examDocId, doctorName: examDocName, updatedAt: nowIso },
-        dental: { status: hasDental ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: examDocId, doctorName: examDocName, updatedAt: nowIso },
-        surgery: { status: hasExternal ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: examDocId, doctorName: examDocName, updatedAt: nowIso },
-        external: { status: hasExternal ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: examDocId, doctorName: examDocName, updatedAt: nowIso },
-        dermatology: { status: hasDerm ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: examDocId, doctorName: examDocName, updatedAt: nowIso },
-        gynecology: { status: hasGyn ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: examDocId, doctorName: examDocName, updatedAt: nowIso },
-        lab: { status: hasLab ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: examDocId, doctorName: examDocName, updatedAt: nowIso },
+        internal: { status: hasInternal ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: hasInternal ? examDocId : '', doctorName: hasInternal ? examDocName : '', updatedAt: nowIso },
+        eye: { status: hasEye ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: hasEye ? examDocId : '', doctorName: hasEye ? examDocName : '', updatedAt: nowIso },
+        ent: { status: hasEnt ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: hasEnt ? examDocId : '', doctorName: hasEnt ? examDocName : '', updatedAt: nowIso },
+        dental: { status: hasDental ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: hasDental ? examDocId : '', doctorName: hasDental ? examDocName : '', updatedAt: nowIso },
+        surgery: { status: hasExternal ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: hasExternal ? examDocId : '', doctorName: hasExternal ? examDocName : '', updatedAt: nowIso },
+        external: { status: hasExternal ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: hasExternal ? examDocId : '', doctorName: hasExternal ? examDocName : '', updatedAt: nowIso },
+        dermatology: { status: hasDerm ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: hasDerm ? examDocId : '', doctorName: hasDerm ? examDocName : '', updatedAt: nowIso },
+        gynecology: { status: hasGyn ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: hasGyn ? examDocId : '', doctorName: hasGyn ? examDocName : '', updatedAt: nowIso },
+        lab: { status: hasLab ? 'ĐÃ_KHÁM' : 'CHUA_KHAM', doctorId: hasLab ? examDocId : '', doctorName: hasLab ? examDocName : '', updatedAt: nowIso },
         conclusion: { 
             status: isConcluded ? 'ĐÃ_KẾT_LUẬN' : 'CHUA_KHAM', 
-            doctorId: conclDocId, 
-            doctorName: conclDocName, 
+            doctorId: isConcluded ? conclDocId : '', 
+            doctorName: isConcluded ? conclDocName : '', 
             updatedAt: nowIso 
         }
     };

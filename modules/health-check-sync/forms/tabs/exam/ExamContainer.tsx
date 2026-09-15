@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import PhysicalExamTab from './PhysicalExamTab';
 import InternalMedTab from './InternalMedTab';
 import SurgeryTab from './SurgeryTab';
 import DermatologyTab from './DermatologyTab';
@@ -10,7 +9,6 @@ import GynecologyTab from './GynecologyTab';
 import { useDynamicFormContext } from '../../DynamicFormContext';
 import { toast } from 'sonner';
 import { 
-    Activity, 
     Stethoscope, 
     ShieldAlert, 
     Sparkles, 
@@ -23,12 +21,10 @@ import {
 } from 'lucide-react';
 
 const ExamContainer: React.FC = () => {
-    const { formType, specialtyMetadata, height, weight, pulse, bp } = useDynamicFormContext();
-    const showPhysical = formType !== '2';
-    const [activeSubTab, setActiveSubTab] = useState(showPhysical ? 'physical' : 'internal');
+    const { specialtyMetadata } = useDynamicFormContext();
+    const [activeSubTab, setActiveSubTab] = useState('internal');
 
     const tabs = [
-        ...(showPhysical ? [{ id: 'physical', label: 'Thể lực', icon: Activity }] : []),
         { id: 'internal', label: 'Nội khoa', icon: Stethoscope },
         { id: 'surgery', label: 'Ngoại khoa', icon: ShieldAlert },
         { id: 'dermatology', label: 'Da liễu', icon: Sparkles },
@@ -51,7 +47,6 @@ const ExamContainer: React.FC = () => {
 
     const renderContent = () => {
         switch (activeSubTab) {
-            case 'physical': return <PhysicalExamTab />;
             case 'internal': return <InternalMedTab />;
             case 'surgery': return <SurgeryTab />;
             case 'dermatology': return <DermatologyTab />;
@@ -59,7 +54,7 @@ const ExamContainer: React.FC = () => {
             case 'ent': return <EntExamTab />;
             case 'dental': return <DentalExamTab />;
             case 'gynecology': return <GynecologyTab />;
-            default: return <PhysicalExamTab />;
+            default: return <InternalMedTab />;
         }
     };
 
@@ -76,10 +71,8 @@ const ExamContainer: React.FC = () => {
                 <div className="p-2 space-y-1 overflow-y-auto flex-1 custom-scrollbar">
                     {tabs.map(tab => {
                         const meta = specialtyMetadata?.[tab.id] || 
-                            (tab.id === 'surgery' ? specialtyMetadata?.['external'] : undefined) ||
-                            (tab.id === 'physical' ? specialtyMetadata?.['examination'] : undefined);
-                        const hasPhysicalVitals = tab.id === 'physical' && !!(height || weight || bp || pulse);
-                        const isApproved = meta?.status === 'ĐÃ_DUYỆT' || meta?.status === 'ĐÃ_KHÁM' || hasPhysicalVitals;
+                            (tab.id === 'surgery' ? specialtyMetadata?.['external'] : undefined);
+                        const isApproved = meta?.status === 'ĐÃ_DUYỆT' || meta?.status === 'ĐÃ_KHÁM';
                         const isExamining = meta?.status === 'ĐANG_KHÁM';
                         const isActive = activeSubTab === tab.id;
                         const IconComp = tab.icon;

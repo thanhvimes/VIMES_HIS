@@ -243,22 +243,59 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
             san_phu_khoa: ['gynecology', 'san_phu_khoa']
         };
 
+        const adminMeta = clinical.specialty_metadata?.admin || (clinical.clinical_exam && clinical.clinical_exam.specialty_metadata?.admin);
+        const adminDoctorId = String(adminMeta?.doctorId || document.created_by || '').trim().toUpperCase();
+        const adminDoctorName = String(adminMeta?.doctorName || document.created_by_name || '').trim().toUpperCase();
+
+        const findDocInList = (idOrCode: any) => {
+            if (!idOrCode || !Array.isArray(doctors)) return null;
+            const target = String(idOrCode).trim().toUpperCase();
+            return doctors.find((d: any) => [d.id, d.code, d.username, d.hee_employee_id]
+                .some(val => String(val || '').trim().toUpperCase() === target));
+        };
+
         const checkKeys = metaKeyMap[specKey] || [specKey];
         for (const k of checkKeys) {
             const metadata = clinical.specialty_metadata?.[k] || (clinical.clinical_exam && clinical.clinical_exam.specialty_metadata?.[k]);
-            if (metadata?.doctorName) return metadata.doctorName;
-            if (metadata?.doctorId && Array.isArray(doctors)) {
-                const doc = doctors.find((d: any) => String(d.id) === String(metadata.doctorId) || String(d.code) === String(metadata.doctorId) || String(d.hee_employee_id) === String(metadata.doctorId));
-                if (doc) return doc.name || doc.fullname || doc.hee_fullname;
+            if (metadata) {
+                // 1. Ưu tiên cao nhất: Tra cứu doctorId trong danh mục bác sĩ
+                if (metadata.doctorId) {
+                    const matchedDoc = findDocInList(metadata.doctorId);
+                    if (matchedDoc) {
+                        return matchedDoc.name || matchedDoc.fullname || matchedDoc.hee_fullname;
+                    }
+                    // Nếu doctorId trùng mã người tiếp đón và người này không phải bác sĩ trong catalog -> bỏ qua
+                    if (adminDoctorId && String(metadata.doctorId).trim().toUpperCase() === adminDoctorId) {
+                        continue;
+                    }
+                }
+                // 2. Tra cứu theo doctorName nếu không bị trùng người tiếp đón
+                if (metadata.doctorName) {
+                    const docNameUpper = String(metadata.doctorName).trim().toUpperCase();
+                    if (adminDoctorName && docNameUpper === adminDoctorName) {
+                        // Tên bị dính người tiếp đón từ lỗi khởi tạo -> bỏ qua
+                        continue;
+                    }
+                    return metadata.doctorName;
+                }
             }
         }
 
         const internalMeta = clinical.specialty_metadata?.internal || (clinical.clinical_exam && clinical.clinical_exam.specialty_metadata?.internal);
         if (['tam_than', 'psychiatry', 'than_kinh', 'neurology', 'tuan_hoan', 'circulatory', 'ho_hap', 'respiratory', 'tieu_hoa', 'digestive', 'than_tiet_nieu', 'urinary', 'noi_tiet', 'endocrine', 'co_xuong_khop', 'musculoskeletal'].includes(specKey)) {
-            if (internalMeta?.doctorName) return internalMeta.doctorName;
-            if (internalMeta?.doctorId && Array.isArray(doctors)) {
-                const doc = doctors.find((d: any) => String(d.id) === String(internalMeta.doctorId) || String(d.code) === String(internalMeta.doctorId) || String(d.hee_employee_id) === String(internalMeta.doctorId));
-                if (doc) return doc.name || doc.fullname || doc.hee_fullname;
+            if (internalMeta) {
+                if (internalMeta.doctorId) {
+                    const matchedDoc = findDocInList(internalMeta.doctorId);
+                    if (matchedDoc) {
+                        return matchedDoc.name || matchedDoc.fullname || matchedDoc.hee_fullname;
+                    }
+                }
+                if (internalMeta.doctorName) {
+                    const docNameUpper = String(internalMeta.doctorName).trim().toUpperCase();
+                    if (!adminDoctorName || docNameUpper !== adminDoctorName) {
+                        return internalMeta.doctorName;
+                    }
+                }
             }
         }
 
@@ -269,7 +306,10 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
 
         // Fallback conclusion doctor if examined
         if (hasSpecialtyExamined(specKey)) {
-            return getConclusionDoctorName();
+            const conclName = getConclusionDoctorName();
+            if (conclName && (!adminDoctorName || conclName.trim().toUpperCase() !== adminDoctorName)) {
+                return conclName;
+            }
         }
 
         return '';
@@ -307,6 +347,17 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
             san_phu_khoa: ['gynecology', 'san_phu_khoa']
         };
 
+        const adminMeta = clinical.specialty_metadata?.admin || (clinical.clinical_exam && clinical.clinical_exam.specialty_metadata?.admin);
+        const adminDoctorId = String(adminMeta?.doctorId || document.created_by || '').trim().toUpperCase();
+        const adminDoctorName = String(adminMeta?.doctorName || document.created_by_name || '').trim().toUpperCase();
+
+        const findDocInList = (idOrCode: any) => {
+            if (!idOrCode || !Array.isArray(doctors)) return null;
+            const target = String(idOrCode).trim().toUpperCase();
+            return doctors.find((d: any) => [d.id, d.code, d.username, d.hee_employee_id]
+                .some(val => String(val || '').trim().toUpperCase() === target));
+        };
+
         const checkKeys = metaKeyMap[specKey] || [specKey];
         for (const k of checkKeys) {
             const metadata = clinical.specialty_metadata?.[k] || (clinical.clinical_exam && clinical.clinical_exam.specialty_metadata?.[k]);
@@ -319,10 +370,14 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
             Object.entries(doctorSignatures).map(([key, value]) => [normalizeSignatureKey(key), value])
         );
 
-        // 1. Ưu tiên tra cứu trực tiếp theo doctorUsername, doctorCode, doctorId từ metadata chuyên khoa
+        // 1. Ưu tiên tra cứu trực tiếp theo doctorUsername, doctorCode, doctorId từ metadata chuyên khoa (loại trừ tiếp đón)
         for (const k of checkKeys) {
             const metadata = clinical.specialty_metadata?.[k] || (clinical.clinical_exam && clinical.clinical_exam.specialty_metadata?.[k]);
             if (metadata) {
+                // Không lấy chữ ký của người tiếp đón cho chuyên khoa lâm sàng
+                if (adminDoctorId && metadata.doctorId && String(metadata.doctorId).trim().toUpperCase() === adminDoctorId) {
+                    continue;
+                }
                 const directCandidates = [metadata.doctorUsername, metadata.doctorCode, metadata.doctorId].filter(Boolean);
                 for (const cand of directCandidates) {
                     const norm = normalizeSignatureKey(cand);
@@ -331,8 +386,7 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                     }
                 }
                 if (metadata.doctorId && Array.isArray(doctors)) {
-                    const found = doctors.find((d: any) => [d.id, d.code, d.username, d.hee_employee_id]
-                        .some(val => String(val || '').trim().toUpperCase() === String(metadata.doctorId).trim().toUpperCase()));
+                    const found = findDocInList(metadata.doctorId);
                     if (found) {
                         for (const cand of [found.username, found.code, found.id, found.hee_employee_id]) {
                             const norm = normalizeSignatureKey(cand);
@@ -347,6 +401,9 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
 
         const doctorName = resolveSpecialtyDoctorName(specKey);
         if (!doctorName) return null;
+        if (adminDoctorName && String(doctorName).trim().toUpperCase() === adminDoctorName) {
+            return null;
+        }
 
         const candidates: any[] = [];
         if (Array.isArray(doctors)) {

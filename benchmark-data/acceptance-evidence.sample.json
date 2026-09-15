@@ -1,0 +1,7 @@
+{
+  "lostJobs": 0,
+  "duplicateArtifacts": 0,
+  "p95Ms": 1200,
+  "queueGrowth": 0,
+  "ramGrowthPercent": 5
+}

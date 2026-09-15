@@ -4,6 +4,7 @@ import { generateXmlPayload } from './xml-generator';
 import { hisIntegrationController } from './his-integration';
 import { formatYmdString } from '../../services/health-check-merge.service';
 import { evaluateFitnessClass, calculateAge, buildSpecialtyMetadata, sanitizeHisDate, parseFitnessClassFromText } from '../../services/health-check-classifier.service';
+import { resolveOccupationBhCode } from '../../services/administrative-catalog.service';
 
 export class ReceptionController {
     // Lấy danh sách phòng khám/phòng tiếp đón để chọn phòng đo sinh hiệu
@@ -122,7 +123,8 @@ export class ReceptionController {
                     e.hee_guardian_name as guardian_name,
                     e.hee_guardian_cccd as guardian_cccd,
                     e.hee_occupation::text as occupation,
-                    e.hee_occupation as ma_nghe_nghiep,
+                    COALESCE(occ.ss_vndesc, e.hee_occupation::text) as ma_nghe_nghiep,
+                    occ.ss_vndesc as occupation_code,
                     COALESCE(occ.ss_desc, '') as occupation_name,
                     COALESCE(e.hee_target_group, '14') as target_group,
                     COALESCE(e.hee_target_group, '14') as doi_tuong_ksk,
@@ -479,7 +481,7 @@ export class ReceptionController {
             }
             const docNo = String(newDocNo);
 
-            const occCode = emp.hee_occupation ? String(emp.hee_occupation).trim() : '';
+            const occCode = resolveOccupationBhCode(emp.hee_occupation);
             const cleanCccdDate = sanitizeHisDate(emp.hee_cardid_date);
             const workplaceStr = emp.company_name || emp.hec_name || emp.hee_dept || '';
             const targetGroupStr = String(emp.hee_target_group || '').trim() || '14';
@@ -669,11 +671,17 @@ export class ReceptionController {
                 clinicalData,
                 labData,
                 conclusionData,
-                doctorId: conclusionData.doctor_id || currentUser || 'admin',
-                doctorName: conclusionData.doctor_name || currentUserName || 'Bác sĩ Kết luận',
+                doctorId: conclusionData.doctor_id || '',
+                doctorName: conclusionData.doctor_name || '',
+                conclDoctorId: conclusionData.doctor_id || '',
+                conclDoctorName: conclusionData.doctor_name || '',
                 hasExam: hasExamNow,
                 hasConclusion: hasExplicitConclusion
             });
+            if (specMetadata.admin) {
+                specMetadata.admin.doctorId = currentUser || specMetadata.admin.doctorId;
+                specMetadata.admin.doctorName = currentUserName || specMetadata.admin.doctorName;
+            }
             clinicalData.specialty_metadata = specMetadata;
             if (clinicalData.clinical_exam) {
                 clinicalData.clinical_exam.specialty_metadata = specMetadata;

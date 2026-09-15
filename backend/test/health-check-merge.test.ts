@@ -139,3 +139,25 @@ test('mergeConclusionData merges and preserves conclusion details', () => {
     assert.equal(merged.diagnosis, 'Sức khỏe loại I');
     assert.equal(merged.doctor_id, 'bs_truongkhoa');
 });
+
+test('mergeSpecialtyMetadata does not copy stale receptionist doctorName when incoming doctorId changes', () => {
+    const existingMeta = {
+        internal: { doctorId: 'ttthoa', doctorName: 'Trịnh Thị Thoa', status: 'CHUA_KHAM' }
+    };
+    const incomingMeta = {
+        internal: { doctorId: 'ngtthuong', doctorName: 'Nguyễn Thị Thương', status: 'ĐÃ_DUYỆT' }
+    };
+
+    const merged = mergeSpecialtyMetadata(existingMeta, incomingMeta);
+    assert.equal(merged.internal.doctorId, 'ngtthuong');
+    assert.equal(merged.internal.doctorName, 'Nguyễn Thị Thương');
+
+    // Case 2: incoming has doctorId without doctorName
+    const incomingMeta2 = {
+        internal: { doctorId: 'ngtthuong', doctorName: '', status: 'ĐÃ_DUYỆT' }
+    };
+    const merged2 = mergeSpecialtyMetadata(existingMeta, incomingMeta2);
+    assert.equal(merged2.internal.doctorId, 'ngtthuong');
+    assert.notEqual(merged2.internal.doctorName, 'Trịnh Thị Thoa');
+});
+

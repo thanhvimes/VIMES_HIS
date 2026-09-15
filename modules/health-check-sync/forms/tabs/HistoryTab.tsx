@@ -4,6 +4,7 @@ import { catalogService } from '../../../../services/catalogService';
 import { useSession } from '../../../../contexts/SessionContext';
 import Combobox from '../../../../components/ui/Combobox';
 import { ICD10MultiSelect } from '../../components/ICD10MultiSelect';
+import PhysicalExamTab from './exam/PhysicalExamTab';
 
 const HistoryTab: React.FC = () => {
     const {
@@ -317,167 +318,89 @@ const HistoryTab: React.FC = () => {
                             <line x1="16" y1="17" x2="8" y2="17"/>
                             <polyline points="10 9 9 9 8 9"/>
                         </svg>
-                        Điền nhanh kết quả mặc định (Tiền sử)
+                        Điền nhanh kết quả mặc định (Tiền sử &amp; Thể lực)
                     </button>
                 </div>
             )}
 
+            {/* I. THÔNG TIN CHUNG VỀ LẦN KHÁM */}
+            {(isChild || formType === '2' || formType === '3') && (
+                <div className="p-4 bg-slate-50/50 dark:bg-slate-800/20 border border-slate-200 dark:border-slate-700/60 rounded-xl space-y-4 shadow-sm">
+                    <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700/50 pb-2">Thông tin chung về lần khám</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">1. Mã cơ sở khám bệnh, chữa bệnh</label>
+                            <input
+                                type="text"
+                                value={maGtinCskcb}
+                                disabled
+                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-100 dark:bg-slate-700/40 text-slate-800 dark:text-white font-mono font-bold"
+                                placeholder="Mã cơ sở..."
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">2. Ngày khám sức khỏe</label>
+                            <input
+                                type="text"
+                                value={ngayVao ? new Date(ngayVao).toLocaleDateString('vi-VN') : ''}
+                                disabled
+                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-100 dark:bg-slate-700/40 text-slate-800 dark:text-white font-bold"
+                                placeholder="Ngày khám..."
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">Giờ khám</label>
+                            <input
+                                type="text"
+                                value={gioKham}
+                                onChange={e => setGioKham(e.target.value)}
+                                disabled={isTabLocked}
+                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-mono font-bold"
+                                placeholder="Giờ khám (VD: 11:16)"
+                            />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 dark:border-slate-700/30 pt-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">Lý do khám</label>
+                            <select
+                                value={lyDoVv}
+                                onChange={e => setLyDoVv(e.target.value)}
+                                disabled={isTabLocked}
+                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
+                            >
+                                <option value="Khám sức khỏe định kỳ">Khám sức khỏe định kỳ</option>
+                                <option value="Khám sức khỏe phân loại">Khám sức khỏe phân loại</option>
+                                <option value="Khám sức khỏe học sinh/sinh viên">Khám sức khỏe học sinh/sinh viên</option>
+                                <option value="Khám sức khỏe tuyển dụng">Khám sức khỏe tuyển dụng</option>
+                                <option value="Khám sức khỏe khác">Khám sức khỏe khác</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">Loại hình khám bệnh, chữa bệnh</label>
+                            <select
+                                value={loaiHinhKcb}
+                                onChange={e => setLoaiHinhKcb(e.target.value)}
+                                disabled={isTabLocked}
+                                className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
+                            >
+                                <option value="01">01 - Khám bệnh</option>
+                                <option value="02">02 - Chữa bệnh</option>
+                                <option value="03">03 - Khám bệnh, chữa bệnh</option>
+                                <option value="04">04 - Khám sức khỏe</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* II. KHÁM THỂ LỰC (Physical Examination Card) */}
+            <PhysicalExamTab />
+
+            {/* III. TIỀN SỬ BỆNH & VACCINE */}
             <fieldset disabled={isTabLocked} className="space-y-6">
             {(isChild || formType === '2' || formType === '3') ? (
                 <div className="space-y-6">
-                    {/* THÔNG TIN CHUNG VỀ LẦN KHÁM */}
-                    <div className="p-4 bg-slate-50/50 dark:bg-slate-800/20 border border-slate-200 dark:border-slate-700/60 rounded-xl space-y-4 shadow-sm">
-                        <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700/50 pb-2">Thông tin chung về lần khám</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">1. Mã cơ sở khám bệnh, chữa bệnh</label>
-                                <input
-                                    type="text"
-                                    value={maGtinCskcb}
-                                    disabled
-                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-100 dark:bg-slate-700/40 text-slate-800 dark:text-white font-mono font-bold"
-                                    placeholder="Mã cơ sở..."
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">2. Ngày khám sức khỏe</label>
-                                <input
-                                    type="text"
-                                    value={ngayVao ? new Date(ngayVao).toLocaleDateString('vi-VN') : ''}
-                                    disabled
-                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-100 dark:bg-slate-700/40 text-slate-800 dark:text-white font-bold"
-                                    placeholder="Ngày khám..."
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Giờ khám</label>
-                                <input
-                                    type="text"
-                                    value={gioKham}
-                                    onChange={e => setGioKham(e.target.value)}
-                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-mono font-bold"
-                                    placeholder="Giờ khám (VD: 11:16)"
-                                />
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 dark:border-slate-700/30 pt-4">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Lý do khám</label>
-                                <select
-                                    value={lyDoVv}
-                                    onChange={e => setLyDoVv(e.target.value)}
-                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
-                                >
-                                    <option value="Khám sức khỏe định kỳ">Khám sức khỏe định kỳ</option>
-                                    <option value="Khám sức khỏe phân loại">Khám sức khỏe phân loại</option>
-                                    <option value="Khám sức khỏe học sinh/sinh viên">Khám sức khỏe học sinh/sinh viên</option>
-                                    <option value="Khám sức khỏe tuyển dụng">Khám sức khỏe tuyển dụng</option>
-                                    <option value="Khám sức khỏe khác">Khám sức khỏe khác</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Loại hình khám bệnh, chữa bệnh</label>
-                                <select
-                                    value={loaiHinhKcb}
-                                    onChange={e => setLoaiHinhKcb(e.target.value)}
-                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
-                                >
-                                    <option value="01">01 - Khám bệnh</option>
-                                    <option value="02">02 - Chữa bệnh</option>
-                                    <option value="03">03 - Khám bệnh, chữa bệnh</option>
-                                    <option value="04">04 - Khám sức khỏe</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* ĐÁNH GIÁ THỂ LỰC & DẤU HIỆU SINH TỒN (Chuẩn QĐ 1551 cho Mẫu 2 - Người từ 06 đến dưới 18 tuổi) */}
-                    {formType === '2' && (
-                    <div className="p-4 bg-slate-50/50 dark:bg-slate-800/20 border border-slate-200 dark:border-slate-700/60 rounded-xl space-y-4 shadow-sm">
-                        <h4 className="text-sm font-bold text-[#0f766e] dark:text-emerald-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700/50 pb-2 flex items-center justify-between">
-                            <span>IV. Khám thể lực (Chuẩn QĐ 1551 mục 30-35)</span>
-                            <span className="text-[10px] normal-case text-slate-500 font-semibold">* Chiều cao, Cân nặng, BMI, Mạch, Huyết áp, Phân loại</span>
-                        </h4>
-                        
-                        {/* Chiều cao, Cân nặng, BMI */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-slate-100 dark:border-slate-700/30 pb-4">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">30. Chiều cao (cm) (CHIEU_CAO)</label>
-                                <input
-                                    type="text"
-                                    value={height}
-                                    onChange={e => setHeight(e.target.value)}
-                                    disabled={isLocked}
-                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
-                                    placeholder="Nhập chiều cao (cm)"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">31. Cân nặng (kg) (CAN_NANG)</label>
-                                <input
-                                    type="text"
-                                    value={weight}
-                                    onChange={e => setWeight(e.target.value)}
-                                    disabled={isLocked}
-                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
-                                    placeholder="Nhập cân nặng (kg)"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">32. Chỉ số BMI (CHI_SO_BMI)</label>
-                                <input
-                                    type="text"
-                                    value={bmi}
-                                    disabled
-                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-100 dark:bg-slate-700/40 text-slate-500 dark:text-slate-300 font-bold"
-                                    placeholder="Tự động tính..."
-                                />
-                            </div>
-                        </div>
-
-                        {/* Mạch, Huyết áp, Phân loại thể lực */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">33. Mạch (lần/phút) (MACH)</label>
-                                <input
-                                    type="text"
-                                    value={pulse}
-                                    onChange={e => setPulse(e.target.value)}
-                                    disabled={isLocked}
-                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
-                                    placeholder="Nhập mạch (lần/phút)"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">34. Huyết áp (mmHg) (HUYET_AP)</label>
-                                <input
-                                    type="text"
-                                    value={bp}
-                                    onChange={e => setBp(e.target.value)}
-                                    disabled={isLocked}
-                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold"
-                                    placeholder="VD: 110/70"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">35. Phân loại thể lực (KHAM_THE_LUC_PL)</label>
-                                <select
-                                    value={khamTheLucPl}
-                                    onChange={e => setKhamTheLucPl(e.target.value)}
-                                    disabled={isLocked}
-                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-bold text-[#0f766e] dark:text-teal-400"
-                                >
-                                    <option value="">-- Chọn phân loại --</option>
-                                    <option value="1">Loại I (Rất khỏe)</option>
-                                    <option value="2">Loại II (Khỏe)</option>
-                                    <option value="3">Loại III (Trung bình)</option>
-                                    <option value="4">Loại IV (Yếu)</option>
-                                    <option value="5">Loại V (Rất yếu)</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    )}
 
                     {/* ĐÁNH GIÁ DẤU HIỆU SINH TỒN (Chỉ hiển thị cho Trẻ nhỏ specialized ngoài Mẫu 1, 2, 3) */}
                     {(isChild && formType !== '1' && formType !== '2' && formType !== '3') && (
