@@ -1097,6 +1097,98 @@ const ContractManagement: React.FC = () => {
         toast.success("Đã tải file Excel mẫu thành công!");
     };
 
+    const handleExportEmployeesReport = () => {
+        if (!selectedContract) {
+            toast.warning("Vui lòng chọn một hợp đồng trước khi xuất báo cáo!");
+            return;
+        }
+        if (employees.length === 0) {
+            toast.warning("Hợp đồng chưa có nhân viên nào để xuất báo cáo!");
+            return;
+        }
+
+        const toastId = toast.loading("Đang tổng hợp báo cáo kết quả khám đoàn...");
+        try {
+            const headers = [
+                'STT',
+                'Mã nhân viên',
+                'Họ và tên',
+                'Giới tính',
+                'Ngày sinh',
+                'Số CCCD/CMND',
+                'Số điện thoại',
+                'Số hồ sơ HIS',
+                'Trạng thái tiếp nhận',
+                'Nguồn chi trả',
+                'Chiều cao (cm)',
+                'Cân nặng (kg)',
+                'Huyết áp',
+                'Mạch (l/p)',
+                'Phân loại SK',
+                'Kết luận sức khỏe',
+                'Bệnh tật lưu ý / Lời dặn'
+            ];
+
+            const rows = employees.map((emp, index) => {
+                const clinData = emp.clinical_data || {};
+                const conclData = emp.conclusion_data || {};
+                const exam = clinData.examination || {};
+
+                return [
+                    index + 1,
+                    emp.code || emp.id || '',
+                    emp.name || '',
+                    emp.sex || '',
+                    emp.birth_date ? formatDate(emp.birth_date) : '',
+                    emp.doc_no || emp.cccd || '',
+                    emp.phone || '',
+                    emp.doc_no && emp.doc_no !== '0' ? emp.doc_no : '',
+                    emp.doc_no && emp.doc_no !== '0' ? 'Đã tiếp nhận' : 'Chưa tiếp nhận',
+                    emp.funding_source || emp.nguon_chi_tra || '',
+                    emp.height || exam.height || '',
+                    emp.weight || exam.weight || '',
+                    emp.blood_pressure || exam.blood_pressure || '',
+                    emp.pulse || exam.pulse || '',
+                    emp.conclusion || conclData.fitness_class || '',
+                    emp.comment || conclData.diagnosis || '',
+                    conclData.cac_van_de_luu_y || ''
+                ];
+            });
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+            // Căn chỉnh độ rộng cột
+            ws['!cols'] = [
+                { wch: 6 },  // STT
+                { wch: 14 }, // Mã NV
+                { wch: 24 }, // Họ tên
+                { wch: 10 }, // Giới tính
+                { wch: 12 }, // Ngày sinh
+                { wch: 16 }, // CCCD
+                { wch: 14 }, // SĐT
+                { wch: 14 }, // Số HS
+                { wch: 16 }, // Trạng thái
+                { wch: 14 }, // Nguồn chi
+                { wch: 12 }, // Cao
+                { wch: 12 }, // Nặng
+                { wch: 12 }, // Huyết áp
+                { wch: 10 }, // Mạch
+                { wch: 14 }, // Phân loại
+                { wch: 30 }, // Kết luận
+                { wch: 35 }  // Ghi chú
+            ];
+
+            XLSX.utils.book_append_sheet(wb, ws, "Bao_Cao_Doan_KSK");
+            const safeCode = (selectedContract.code || `HD_${selectedContract.id}`).replace(/[^a-zA-Z0-9_-]/g, '_');
+            XLSX.writeFile(wb, `Bao_cao_tong_ket_KSK_${safeCode}_${getLocalDateString()}.xlsx`);
+            toast.success("Xuất file báo cáo kết quả khám đoàn thành công!", { id: toastId });
+        } catch (err: any) {
+            console.error("Lỗi xuất báo cáo:", err);
+            toast.error(`Lỗi xuất file Excel: ${err.message}`, { id: toastId });
+        }
+    };
+
     const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !selectedContract) return;
@@ -1772,6 +1864,15 @@ const ContractManagement: React.FC = () => {
                                                     className="hidden"
                                                 />
                                             </label>
+                                            <div className="w-[1px] h-3.5 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+                                            <button
+                                                onClick={handleExportEmployeesReport}
+                                                className="px-2.5 py-1 text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg text-xs font-semibold transition flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                                                title="Xuất file Excel tổng hợp kết quả khám đoàn cho doanh nghiệp"
+                                            >
+                                                <DownloadIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                                Xuất báo cáo
+                                            </button>
                                         </div>
 
                                         {/* Nhập HS từ HIS Button */}

@@ -12,7 +12,7 @@ import { validateDocumentBeforeSync } from './health-check-sync-validation';
 import { createHealthCheckChecksumSignature } from './health-check-checksum';
 import { isRetryableSyncFailure } from './health-check-sync-retry';
 import { validateHealthCheckEnvelope } from './health-check-xml-validation';
-import { resolveProvinceBhCode, resolveVillageBhCode } from './administrative-catalog.service';
+import { resolveProvinceBhCode, resolveVillageBhCode, resolveOccupationBhCode, resolveProvinceName, resolveVillageName } from './administrative-catalog.service';
 
 const syncHttpsAgent = new https.Agent({
     keepAlive: true,
@@ -96,130 +96,171 @@ export function sanitizeXmlContent(rawXml: string, maCskcbGln?: string, maCskcbB
         xml = xml.replace(/<CHUKYDONVI\s*\/>/gi, `<CHUKYDONVI>\n\t\t<CKS_NGUOI_KET_LUAN></CKS_NGUOI_KET_LUAN>\n\t\t<CKS_BENH_VIEN></CKS_BENH_VIEN>\n\t</CHUKYDONVI>`);
     }
 
-    // Automatically decode Base64 if needed, sanitize, and keep unencoded plain XML inside <NOIDUNGFILE> matching sample data.xml
-    xml = xml.replace(/<NOIDUNGFILE>([\s\S]*?)<\/NOIDUNGFILE>/gi, (match, inner) => {
-        let trimmed = inner.trim();
-        let decoded = trimmed;
+    // Automatically decode Base64 if needed, sanitize, and keep unencoded plain XML matching sample data.xml
+    if (xml.includes('<NOIDUNGFILE>')) {
+        xml = xml.replace(/<NOIDUNGFILE>([\s\S]*?)<\/NOIDUNGFILE>/gi, (_match, inner) => {
+            let trimmed = inner.trim();
+            let decoded = trimmed;
 
-        // Check if it is Base64 encoded
-        if (!trimmed.startsWith('<') && !trimmed.startsWith('<?xml') && trimmed.length > 0) {
-            try {
-                const buf = Buffer.from(trimmed, 'base64');
-                const str = buf.toString('utf8');
-                if (str.includes('<') || str.includes('<?xml')) {
-                    decoded = str;
+            // Check if it is Base64 encoded
+            if (!trimmed.startsWith('<') && !trimmed.startsWith('<?xml') && trimmed.length > 0) {
+                try {
+                    const buf = Buffer.from(trimmed, 'base64');
+                    const str = buf.toString('utf8');
+                    if (str.includes('<') || str.includes('<?xml')) {
+                        decoded = str;
+                    }
+                } catch (e) {
+                    // Not Base64
                 }
-            } catch (e) {
-                // Not Base64
             }
+
+            const cleaned = sanitizeInnerXml(decoded, bytCode, xml);
+            return `<NOIDUNGFILE>${cleaned.trim()}</NOIDUNGFILE>`;
+        });
+    } else {
+        xml = sanitizeInnerXml(xml, bytCode, xml);
+    }
+
+    return xml;
+}
+
+function sanitizeInnerXml(rawInner: string, bytCode: string, rawXmlRef: string): string {
+    let decoded = rawInner;
+
+    // Strip inner <?xml version...?> declaration if present
+    decoded = decoded.replace(/<\?xml[\s\S]*?\?>/gi, '').trim();
+
+    // Fix MA_CSKCB inside XML2 to 5-digit BYT code if present
+    decoded = decoded.replace(/<MA_CSKCB>.*?<\/MA_CSKCB>/g, `<MA_CSKCB>${bytCode}</MA_CSKCB>`);
+
+    // Fix NGAYCAP_CCCD format: if DDMMYYYY (e.g. 14022024), convert to YYYYMMDD (20240214)
+    decoded = decoded.replace(/<NGAYCAP_CCCD>(\d{2})(\d{2})(\d{4})<\/NGAYCAP_CCCD>/g, (m, d, mth, y) => {
+        const year = parseInt(y, 10);
+        if (year >= 1900 && year <= 2100) {
+            return `<NGAYCAP_CCCD>${y}${mth}${d}</NGAYCAP_CCCD>`;
         }
+        return m;
+    });
 
-        // Strip inner <?xml version...?> declaration if present
-        decoded = decoded.replace(/<\?xml[\s\S]*?\?>/gi, '').trim();
-
-        // Fix MA_CSKCB inside XML2 to 5-digit BYT code if present
-        decoded = decoded.replace(/<MA_CSKCB>.*?<\/MA_CSKCB>/g, `<MA_CSKCB>${bytCode}</MA_CSKCB>`);
-
-        // Fix NGAYCAP_CCCD format: if DDMMYYYY (e.g. 14022024), convert to YYYYMMDD (20240214)
-        decoded = decoded.replace(/<NGAYCAP_CCCD>(\d{2})(\d{2})(\d{4})<\/NGAYCAP_CCCD>/g, (m, d, mth, y) => {
-            const year = parseInt(y, 10);
-            if (year >= 1900 && year <= 2100) {
-                return `<NGAYCAP_CCCD>${y}${mth}${d}</NGAYCAP_CCCD>`;
-            }
-            return m;
-        });
-
-        // Fix NGAY_SINH format: if DDMMYYYY (e.g. 13022009), convert to YYYYMMDD (20090213)
-        decoded = decoded.replace(/<NGAY_SINH>(\d{2})(\d{2})(\d{4})<\/NGAY_SINH>/g, (m, d, mth, y) => {
-            const year = parseInt(y, 10);
-            if (year >= 1900 && year <= 2100) {
-                return `<NGAY_SINH>${y}${mth}${d}</NGAY_SINH>`;
-            }
-            return m;
-        });
-
-        // Fix SO_CCCD to 12 digits (pad leading 0s or trim to 12 digits)
-        decoded = decoded.replace(/<SO_CCCD>(.*?)<\/SO_CCCD>/g, (m, val) => {
-            const digits = val.replace(/\D/g, '');
-            if (!digits) return '<SO_CCCD></SO_CCCD>';
-            if (digits.length < 12) return `<SO_CCCD>${digits.padStart(12, '0')}</SO_CCCD>`;
-            return `<SO_CCCD>${digits.slice(0, 12)}</SO_CCCD>`;
-        });
-
-        // Fix DIEN_THOAI to 10 digits starting with 0
-        decoded = decoded.replace(/<DIEN_THOAI>(.*?)<\/DIEN_THOAI>/g, (m, val) => {
-            let digits = val.replace(/\D/g, '');
-            if (!digits) return '<DIEN_THOAI></DIEN_THOAI>';
-            if (!digits.startsWith('0')) digits = '0' + digits;
-            if (digits.length > 10) digits = digits.slice(0, 10);
-            else if (digits.length < 10) digits = digits.padEnd(10, '0');
-            return `<DIEN_THOAI>${digits}</DIEN_THOAI>`;
-        });
-
-        // Fix MA_NGHE_NGHIEP to 2 digits (e.g. '100' -> '04', '4' -> '04')
-        decoded = decoded.replace(/<MA_NGHE_NGHIEP>(.*?)<\/MA_NGHE_NGHIEP>/g, (m, val) => {
-            const d = val.trim();
-            if (!d || d.length > 2) return '<MA_NGHE_NGHIEP>04</MA_NGHE_NGHIEP>';
-            if (d.length === 1) return `<MA_NGHE_NGHIEP>0${d}</MA_NGHE_NGHIEP>`;
-            return `<MA_NGHE_NGHIEP>${d}</MA_NGHE_NGHIEP>`;
-        });
-
-        // Fix MATINH_CU_TRU to 2-digit sp_id_bh
-        decoded = decoded.replace(/<MATINH_CU_TRU>(.*?)<\/MATINH_CU_TRU>/g, (_m, val) => {
-            return `<MATINH_CU_TRU>${resolveProvinceBhCode(val)}</MATINH_CU_TRU>`;
-        });
-
-        // Fix MAXA_CU_TRU to 5-digit sv_id_bh
-        decoded = decoded.replace(/<MAXA_CU_TRU>(.*?)<\/MAXA_CU_TRU>/g, (_m, val) => {
-            return `<MAXA_CU_TRU>${resolveVillageBhCode(val)}</MAXA_CU_TRU>`;
-        });
-
-        // Fix guardian province / ward tags if present
-        decoded = decoded.replace(/<MATINH_CU_TRU_NGH_BO>(.*?)<\/MATINH_CU_TRU_NGH_BO>/g, (m, val) => {
-            return val.trim() ? `<MATINH_CU_TRU_NGH_BO>${resolveProvinceBhCode(val)}</MATINH_CU_TRU_NGH_BO>` : m;
-        });
-        decoded = decoded.replace(/<MAXA_CU_TRU_NGH_BO>(.*?)<\/MAXA_CU_TRU_NGH_BO>/g, (m, val) => {
-            return val.trim() ? `<MAXA_CU_TRU_NGH_BO>${resolveVillageBhCode(val)}</MAXA_CU_TRU_NGH_BO>` : m;
-        });
-        decoded = decoded.replace(/<MATINH_CU_TRU_NGH_ME>(.*?)<\/MATINH_CU_TRU_NGH_ME>/g, (m, val) => {
-            return val.trim() ? `<MATINH_CU_TRU_NGH_ME>${resolveProvinceBhCode(val)}</MATINH_CU_TRU_NGH_ME>` : m;
-        });
-        decoded = decoded.replace(/<MAXA_CU_TRU_NGH_ME>(.*?)<\/MAXA_CU_TRU_NGH_ME>/g, (m, val) => {
-            return val.trim() ? `<MAXA_CU_TRU_NGH_ME>${resolveVillageBhCode(val)}</MAXA_CU_TRU_NGH_ME>` : m;
-        });
-
-        // Fix DOI_TUONG if invalid or '10' -> '1;2'
-        decoded = decoded.replace(/<DOI_TUONG>(.*?)<\/DOI_TUONG>/g, (m, val) => {
-            const v = val.trim();
-            if (!v || v === '10' || v === '0') return '<DOI_TUONG>1;2</DOI_TUONG>';
-            return m;
-        });
-
-        // Fix TYPE based on exact birthday boundary, using NGAY_KHAM when present.
-        // Year subtraction alone misclassifies patients whose birthday has not occurred.
-        const dobMatch = rawXml.match(/<NGAY_SINH>(\d{4})(\d{2})(\d{2})<\/NGAY_SINH>/);
-        if (dobMatch) {
-            const examMatch = rawXml.match(/<NGAY_KHAM>(\d{4})(\d{2})(\d{2})<\/NGAY_KHAM>/);
-            const examDate = examMatch
-                ? new Date(Date.UTC(Number(examMatch[1]), Number(examMatch[2]) - 1, Number(examMatch[3])))
-                : new Date();
-            const birthDate = new Date(Date.UTC(Number(dobMatch[1]), Number(dobMatch[2]) - 1, Number(dobMatch[3])));
-            let age = examDate.getUTCFullYear() - birthDate.getUTCFullYear();
-            const birthdayNotReached = examDate.getUTCMonth() < birthDate.getUTCMonth()
-                || (examDate.getUTCMonth() === birthDate.getUTCMonth() && examDate.getUTCDate() < birthDate.getUTCDate());
-            if (birthdayNotReached) age--;
-            if (age >= 18) {
-                decoded = decoded.replace(/<TYPE>.*?<\/TYPE>/g, '<TYPE>Adult</TYPE>');
-            } else if (age < 6) {
-                decoded = decoded.replace(/<TYPE>.*?<\/TYPE>/g, '<TYPE>ChildUnder</TYPE>');
-            } else {
-                decoded = decoded.replace(/<TYPE>.*?<\/TYPE>/g, '<TYPE>Minor</TYPE>');
-            }
+    // Fix NGAY_SINH format: if DDMMYYYY (e.g. 13022009), convert to YYYYMMDD (20090213)
+    decoded = decoded.replace(/<NGAY_SINH>(\d{2})(\d{2})(\d{4})<\/NGAY_SINH>/g, (m, d, mth, y) => {
+        const year = parseInt(y, 10);
+        if (year >= 1900 && year <= 2100) {
+            return `<NGAY_SINH>${y}${mth}${d}</NGAY_SINH>`;
         }
+        return m;
+    });
 
-        // Ensure TSGD and TSBT tags in THONG_TIN_HANH_CHINH if missing
-        if (decoded.includes('<THONG_TIN_HANH_CHINH>') && !decoded.includes('<TSGD_MAC_BENH>')) {
-            const medHistorySnippet = `
+    // Fix SO_CCCD to 12 digits (pad leading 0s or trim to 12 digits)
+    decoded = decoded.replace(/<SO_CCCD>(.*?)<\/SO_CCCD>/g, (m, val) => {
+        const digits = val.replace(/\D/g, '');
+        if (!digits) return '<SO_CCCD></SO_CCCD>';
+        if (digits.length < 12) return `<SO_CCCD>${digits.padStart(12, '0')}</SO_CCCD>`;
+        return `<SO_CCCD>${digits.slice(0, 12)}</SO_CCCD>`;
+    });
+
+    // Fix DIEN_THOAI to 10 digits starting with 0
+    decoded = decoded.replace(/<DIEN_THOAI>(.*?)<\/DIEN_THOAI>/g, (m, val) => {
+        let digits = val.replace(/\D/g, '');
+        if (!digits) return '<DIEN_THOAI></DIEN_THOAI>';
+        if (!digits.startsWith('0')) digits = '0' + digits;
+        if (digits.length > 10) digits = digits.slice(0, 10);
+        else if (digits.length < 10) digits = digits.padEnd(10, '0');
+        return `<DIEN_THOAI>${digits}</DIEN_THOAI>`;
+    });
+
+    // Fix MA_NGHE_NGHIEP to standard 2-digit code (e.g. '120034' -> '12', '17360' -> '17', '1539' -> '00', '1471' -> '83', '4' -> '04')
+    decoded = decoded.replace(/<MA_NGHE_NGHIEP>(.*?)<\/MA_NGHE_NGHIEP>/g, (_m, val) => {
+        return `<MA_NGHE_NGHIEP>${resolveOccupationBhCode(val)}</MA_NGHE_NGHIEP>`;
+    });
+    decoded = decoded.replace(/<MA_NGHE_NGHIEP_NGH_BO>(.*?)<\/MA_NGHE_NGHIEP_NGH_BO>/g, (m, val) => {
+        return val.trim() ? `<MA_NGHE_NGHIEP_NGH_BO>${resolveOccupationBhCode(val)}</MA_NGHE_NGHIEP_NGH_BO>` : m;
+    });
+    decoded = decoded.replace(/<MA_NGHE_NGHIEP_NGH_ME>(.*?)<\/MA_NGHE_NGHIEP_NGH_ME>/g, (m, val) => {
+        return val.trim() ? `<MA_NGHE_NGHIEP_NGH_ME>${resolveOccupationBhCode(val)}</MA_NGHE_NGHIEP_NGH_ME>` : m;
+    });
+
+    // Ensure HO_TEN is uppercase
+    decoded = decoded.replace(/<HO_TEN>(.*?)<\/HO_TEN>/g, (_m, val) => `<HO_TEN>${val.toUpperCase()}</HO_TEN>`);
+
+    // Fix MA_DAN_TOC (default to 01 if empty)
+    decoded = decoded.replace(/<MA_DAN_TOC>(.*?)<\/MA_DAN_TOC>/g, (_m, val) => {
+        let v = val.trim();
+        if (!v || v === '00' || v === '0') v = '01';
+        if (v.length === 1) v = '0' + v;
+        return `<MA_DAN_TOC>${v}</MA_DAN_TOC>`;
+    });
+
+    // Fix MATINH_CU_TRU to 2-digit sp_id_bh
+    decoded = decoded.replace(/<MATINH_CU_TRU>(.*?)<\/MATINH_CU_TRU>/g, (_m, val) => {
+        return `<MATINH_CU_TRU>${resolveProvinceBhCode(val)}</MATINH_CU_TRU>`;
+    });
+
+    // Fix MAXA_CU_TRU to 5-digit sv_id_bh
+    decoded = decoded.replace(/<MAXA_CU_TRU>(.*?)<\/MAXA_CU_TRU>/g, (_m, val) => {
+        return `<MAXA_CU_TRU>${resolveVillageBhCode(val)}</MAXA_CU_TRU>`;
+    });
+
+    // Fix DIA_CHI: if empty, auto-synthesize from MAXA_CU_TRU and MATINH_CU_TRU names
+    decoded = decoded.replace(/<DIA_CHI>(.*?)<\/DIA_CHI>/g, (m, val) => {
+        if (val && val.trim()) return m;
+        const provMatch = decoded.match(/<MATINH_CU_TRU>(.*?)<\/MATINH_CU_TRU>/);
+        const villMatch = decoded.match(/<MAXA_CU_TRU>(.*?)<\/MAXA_CU_TRU>/);
+        const pCode = provMatch ? provMatch[1].trim() : '';
+        const vCode = villMatch ? villMatch[1].trim() : '';
+        const pName = resolveProvinceName(pCode);
+        const vName = resolveVillageName(vCode);
+        const autoAddr = [vName, pName].filter(Boolean).map(s => s.trim()).join(', ');
+        return `<DIA_CHI>${autoAddr || 'Việt Nam'}</DIA_CHI>`;
+    });
+
+    // Fix guardian province / ward tags if present
+    decoded = decoded.replace(/<MATINH_CU_TRU_NGH_BO>(.*?)<\/MATINH_CU_TRU_NGH_BO>/g, (m, val) => {
+        return val.trim() ? `<MATINH_CU_TRU_NGH_BO>${resolveProvinceBhCode(val)}</MATINH_CU_TRU_NGH_BO>` : m;
+    });
+    decoded = decoded.replace(/<MAXA_CU_TRU_NGH_BO>(.*?)<\/MAXA_CU_TRU_NGH_BO>/g, (m, val) => {
+        return val.trim() ? `<MAXA_CU_TRU_NGH_BO>${resolveVillageBhCode(val)}</MAXA_CU_TRU_NGH_BO>` : m;
+    });
+    decoded = decoded.replace(/<MATINH_CU_TRU_NGH_ME>(.*?)<\/MATINH_CU_TRU_NGH_ME>/g, (m, val) => {
+        return val.trim() ? `<MATINH_CU_TRU_NGH_ME>${resolveProvinceBhCode(val)}</MATINH_CU_TRU_NGH_ME>` : m;
+    });
+    decoded = decoded.replace(/<MAXA_CU_TRU_NGH_ME>(.*?)<\/MAXA_CU_TRU_NGH_ME>/g, (m, val) => {
+        return val.trim() ? `<MAXA_CU_TRU_NGH_ME>${resolveVillageBhCode(val)}</MAXA_CU_TRU_NGH_ME>` : m;
+    });
+
+    // Fix DOI_TUONG if invalid or '10' -> '1;2'
+    decoded = decoded.replace(/<DOI_TUONG>(.*?)<\/DOI_TUONG>/g, (m, val) => {
+        const v = val.trim();
+        if (!v || v === '10' || v === '0') return '<DOI_TUONG>1;2</DOI_TUONG>';
+        return m;
+    });
+
+    // Fix TYPE based on exact birthday boundary, using NGAY_KHAM when present.
+    // Year subtraction alone misclassifies patients whose birthday has not occurred.
+    const dobMatch = rawXmlRef.match(/<NGAY_SINH>(\d{4})(\d{2})(\d{2})<\/NGAY_SINH>/) || decoded.match(/<NGAY_SINH>(\d{4})(\d{2})(\d{2})<\/NGAY_SINH>/);
+    if (dobMatch) {
+        const examMatch = rawXmlRef.match(/<NGAY_KHAM>(\d{4})(\d{2})(\d{2})<\/NGAY_KHAM>/) || decoded.match(/<NGAY_KHAM>(\d{4})(\d{2})(\d{2})<\/NGAY_KHAM>/);
+        const examDate = examMatch
+            ? new Date(Date.UTC(Number(examMatch[1]), Number(examMatch[2]) - 1, Number(examMatch[3])))
+            : new Date();
+        const birthDate = new Date(Date.UTC(Number(dobMatch[1]), Number(dobMatch[2]) - 1, Number(dobMatch[3])));
+        let age = examDate.getUTCFullYear() - birthDate.getUTCFullYear();
+        const birthdayNotReached = examDate.getUTCMonth() < birthDate.getUTCMonth()
+            || (examDate.getUTCMonth() === birthDate.getUTCMonth() && examDate.getUTCDate() < birthDate.getUTCDate());
+        if (birthdayNotReached) age--;
+        if (age >= 18) {
+            decoded = decoded.replace(/<TYPE>.*?<\/TYPE>/g, '<TYPE>Adult</TYPE>');
+        } else if (age < 6) {
+            decoded = decoded.replace(/<TYPE>.*?<\/TYPE>/g, '<TYPE>ChildUnder</TYPE>');
+        } else {
+            decoded = decoded.replace(/<TYPE>.*?<\/TYPE>/g, '<TYPE>Minor</TYPE>');
+        }
+    }
+
+    // Ensure TSGD and TSBT tags in THONG_TIN_HANH_CHINH if missing
+    if (decoded.includes('<THONG_TIN_HANH_CHINH>') && !decoded.includes('<TSGD_MAC_BENH>')) {
+        const medHistorySnippet = `
 							<TSGD_MAC_BENH>0</TSGD_MAC_BENH>
 							<TSGD_MA_BENH></TSGD_MA_BENH>
 							<TS_TIEP_XUC_LAO>0</TS_TIEP_XUC_LAO>
@@ -262,13 +303,10 @@ export function sanitizeXmlContent(rawXml: string, maCskcbGln?: string, maCskcbB
 							<TSBT_TEN_THUOC_LIEU_LUONG></TSBT_TEN_THUOC_LIEU_LUONG>
 							<TSBT_THAI_SAN>0</TSBT_THAI_SAN>
 							<TSBT_TEN_THUOC_THAI_SAN></TSBT_TEN_THUOC_THAI_SAN>`;
-            decoded = decoded.replace('</THONG_TIN_HANH_CHINH>', `${medHistorySnippet}\n						</THONG_TIN_HANH_CHINH>`);
-        }
+        decoded = decoded.replace('</THONG_TIN_HANH_CHINH>', `${medHistorySnippet}\n						</THONG_TIN_HANH_CHINH>`);
+    }
 
-        return `<NOIDUNGFILE>${decoded.trim()}</NOIDUNGFILE>`;
-    });
-
-    return xml;
+    return decoded;
 }
 
 export function validateFinalEncodedHealthCheckXml(base64Xml: string) {

@@ -261,9 +261,14 @@ export class ReceptionController {
 
                 if (!newPatientNo || isNaN(newPatientNo)) {
                     try {
-                        const seqRes = await query(`SELECT nextval('hms_patient_hp_patientno_seq') AS patient_no`);
+                        const seqRes = await query(`SELECT nextval('hms_patient_hp_patientno_asq') AS patient_no`);
                         newPatientNo = parseInt(String(seqRes.rows[0].patient_no), 10);
-                    } catch {}
+                    } catch {
+                        try {
+                            const seqRes = await query(`SELECT nextval('hms_patient_hp_patientno_seq') AS patient_no`);
+                            newPatientNo = parseInt(String(seqRes.rows[0].patient_no), 10);
+                        } catch {}
+                    }
                 }
 
                 // Bảo vệ chống lệch sequence: đảm bảo newPatientNo luôn lớn hơn MAX(hp_patientno) hiện tại
@@ -271,6 +276,9 @@ export class ReceptionController {
                 const currentMax = parseInt(String(maxPatientRes.rows[0].max_no), 10);
                 if (newPatientNo <= currentMax) {
                     newPatientNo = currentMax + 1;
+                    try {
+                        await query(`SELECT setval('hms_patient_hp_patientno_asq', $1, true)`, [newPatientNo]);
+                    } catch {}
                     try {
                         await query(`SELECT setval('hms_patient_hp_patientno_seq', $1, true)`, [newPatientNo]);
                     } catch {}

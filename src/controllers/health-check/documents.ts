@@ -3,8 +3,10 @@ import { query, transaction } from '../../config/database';
 import { getHealthCheckSettings } from '../../config/health-check-settings';
 import { generateXmlPayload } from './xml-generator';
 import { validateNewHealthCheckDocument } from '../../services/health-check-new-document-validation';
+import { validateMandatoryPortalFields } from '../../services/health-check-mandatory-fields';
 import { mergeClinicalData, mergeLabData, mergeConclusionData, formatYmdString } from '../../services/health-check-merge.service';
 import { hisIntegrationController } from './his-integration';
+import { healthCheckTwoTierSigner } from '../../services/health-check-two-tier-signer.service';
 
 class DocumentsController {
     
@@ -728,6 +730,23 @@ class DocumentsController {
                     finalConclusionData = mergeConclusionData(existingConclusion, conclusionData || {});
                 }
 
+                // Kiểm tra 17 trường bắt buộc theo file đặc tả nếu người dùng thực hiện Khóa & Ký kết luận
+                if (isSigning) {
+                    const mandatoryCheck = validateMandatoryPortalFields({
+                        formType,
+                        master: { form_type: formType, patient_name: patientName, cccd, dob, gender, doc_no: docNo },
+                        clinical: finalClinicalData,
+                        lab: finalLabData,
+                        conclusion: finalConclusionData
+                    });
+                    if (!mandatoryCheck.valid) {
+                        const err: any = new Error(`Chưa đủ điều kiện kết luận/ký số: ${mandatoryCheck.errors.join('; ')}`);
+                        err.statusCode = 400;
+                        err.details = mandatoryCheck.errors;
+                        throw err;
+                    }
+                }
+
                 // 2. Generate XML on merged data
                 await this.enrichDocumentsMetadata([{ lab_data: finalLabData }]);
 
@@ -816,132 +835,409 @@ class DocumentsController {
         }
     }
 
-    // 6. Ký số hồ sơ (USB / HSM)
+    // 6. Ký số hồ sơ (USB / HSM) - Hỗ trợ cả 2 cấp độ: Bác sĩ kết luận & Đơn vị
     async signDocuments(req: Request, res: Response) {
-        const { docIds, signatureType, signatures } = req.body;
+        const signRole = String(req.body?.signRole || '').toUpperCase();
+        if (signRole === 'DOCTOR' || signRole === 'CONCLUSION') {
+            return this.batchSignConclusion(req, res);
+        }
+        if (signRole === 'BOTH') {
+            return this.batchSignBoth(req, res);
+        }
+        return this.batchSignHospital(req, res);
+    }
+
+    // Ký Bác sĩ kết luận hàng loạt (CKS_NGUOI_KET_LUAN)
+    async batchSignConclusion(req: Request, res: Response) {
+        const { docIds, signatureType = 'HSM', doctorId, doctorName, defaultFitnessClass } = req.body || {};
 
         if (!docIds || !Array.isArray(docIds) || docIds.length === 0) {
             return res.status(400).json({ error: "Danh sách ID hồ sơ không hợp lệ" });
         }
 
-        const type = signatureType === 'HSM' ? 'HSM' : 'USB';
-
         try {
-            const intIds = docIds.map((id: any) => parseInt(id, 10));
-            if (intIds.some((id: number) => !Number.isInteger(id))) return res.status(400).json({ error: 'Danh sách ID hồ sơ không hợp lệ.' });
-            const states = await query(`SELECT id, signature_status, send_status FROM health_check_masters WHERE id = ANY($1::int[])`, [intIds]);
-            if (states.rows.length !== intIds.length) return res.status(404).json({ error: 'Có hồ sơ không tồn tại.' });
-            if (states.rows.some((row: any) => row.send_status === 'Success')) return res.status(409).json({ error: 'Không thể ký lại hồ sơ đã gửi cổng thành công.' });
-            if (states.rows.some((row: any) => row.signature_status === 'Signed')) return res.status(409).json({ error: 'Hồ sơ đã ký số. Hãy hủy ký trước khi ký lại.' });
+            const intIds = Array.from(new Set(docIds.map((id: any) => parseInt(id, 10)))).filter((id: number) => Number.isInteger(id) && id > 0);
+            if (intIds.length === 0) return res.status(400).json({ error: 'Danh sách ID hồ sơ không hợp lệ.' });
 
-            if (type === 'USB') {
-                if (!signatures || typeof signatures !== 'object' || intIds.some((id: number) => !signatures[String(id)])) {
-                    return res.status(400).json({ error: 'Thiếu dữ liệu XML đã ký cho một hoặc nhiều hồ sơ.' });
-                }
-                if (signatures && typeof signatures === 'object') {
-                    for (const id of docIds) {
-                        const signatureValue = signatures[id];
-                        if (signatureValue) {
-                            const sql = `
-                                UPDATE health_check_masters
-                                SET "signature" = $1,
-                                    "signature_status" = 'Signed',
-                                    "signature_type" = 'USB',
-                                    "updated_at" = NOW()
-                                WHERE id = $2
-                            `;
-                            await query(sql, [signatureValue, parseInt(id)]);
-                        }
-                    }
-                } else {
-                    return res.status(400).json({ error: 'Thiếu dữ liệu XML đã ký từ USB Token.' });
-                }
-            } else {
-                const { getHealthCheckSettings } = require('../../config/health-check-settings');
-                const { signXmlViaHisHsm } = require('../../services/his-sign.service');
-                const settings = { ...getHealthCheckSettings() };
-                
-                if (!settings) {
-                    throw new Error("Không tìm thấy cấu hình liên thông/ký số HSM.");
-                }
+            const currentUserId = (req as any).userId;
+            let signerId = doctorId || currentUserId || '';
+            let signerName = doctorName || '';
+            let doctorSignUserId = '';
+            let doctorCredentialId = '';
+            let doctorSignPartner = 'VIETTEL-CA';
 
-                // Override HSM credentials with user-specific values from sys_user if configured
-                const userRes = await query(
-                    `SELECT su_sign_userid, su_sign_passwd, su_sign_partner FROM sys_user WHERE su_userid = $1`,
-                    [(req as any).userId]
-                );
-
+            if (signerId) {
+                const userRes = await query(`
+                    SELECT su_userid, su_name, su_sign_userid, su_sign_credential_id, su_sign_partner 
+                    FROM sys_user 
+                    WHERE su_userid = $1 OR su_sign_userid = $1
+                    LIMIT 1
+                `, [signerId]);
                 if (userRes.rows.length > 0) {
-                    const userRow = userRes.rows[0];
-                    if (userRow.su_sign_userid) {
-                        settings.hsm_username = userRow.su_sign_userid;
-                        console.log(`🔑 [HIS HSM] Sử dụng tài khoản ký HSM cá nhân của user: ${userRow.su_sign_userid}`);
-                    }
-                    if (userRow.su_sign_partner) {
-                        settings.hsm_provider = userRow.su_sign_partner;
-                        settings.hsm_client_id = userRow.su_sign_partner;
-                    }
-                    if (userRow.su_sign_passwd) {
-                        const SecurityUtils = require('../../utils/security').default;
-                        let decryptedHsmPassword = '';
-                        try {
-                            if (SecurityUtils.isEncrypted(userRow.su_sign_passwd)) {
-                                decryptedHsmPassword = SecurityUtils.resolveSecret(userRow.su_sign_passwd);
-                            } else {
-                                decryptedHsmPassword = SecurityUtils.decrypt(userRow.su_sign_passwd);
-                            }
-                        } catch (e: any) {
-                            console.warn('⚠️ Decrypting user HSM password failed, using raw:', e.message);
-                            decryptedHsmPassword = SecurityUtils.resolveSecret(userRow.su_sign_passwd);
-                        }
-                        settings.hsm_password = decryptedHsmPassword;
-                    }
-                }
-
-                console.log(`🔑 [HIS HSM] Bắt đầu ký số HSM cho danh sách hồ sơ: ${docIds.join(', ')}`);
-
-                for (const id of docIds) {
-                    const docDetail = await query(
-                        `SELECT id, doc_no, xml_data, patient_name FROM health_check_masters WHERE id = $1`,
-                        [parseInt(id, 10)]
-                    );
-                    
-                    if (docDetail.rows.length === 0) {
-                        throw new Error(`Không tìm thấy hồ sơ ID ${id}`);
-                    }
-                    
-                    const doc = docDetail.rows[0];
-                    if (!doc.xml_data) {
-                        throw new Error(`Hồ sơ số ${doc.doc_no || id} của bệnh nhân ${doc.patient_name || ''} chưa có dữ liệu XML XML_DATA để ký.`);
-                    }
-
-                    // Perform real HSM signature
-                    const signedXmlBase64 = await signXmlViaHisHsm(doc.xml_data, settings, doc.doc_no || `ksk_${id}`);
-                    
-                    // Wrap signature result in standard JSON format expected by sync worker
-                    const signatureWrapper = JSON.stringify({
-                        signed_file: {
-                            file_name: `${doc.doc_no || 'document'}_signed.xml`,
-                            mime_type: 'application/xml',
-                            data_base64: signedXmlBase64
-                        }
-                    });
-
-                    const sql = `
-                        UPDATE health_check_masters
-                        SET "signature" = $1,
-                            "signature_status" = 'Signed',
-                            "signature_type" = 'HSM',
-                            "updated_at" = NOW()
-                        WHERE id = $2
-                    `;
-                    await query(sql, [signatureWrapper, parseInt(id, 10)]);
-                    console.log(`✅ [HIS HSM] Ký số HSM thành công cho hồ sơ ${doc.doc_no || id}`);
+                    const u = userRes.rows[0];
+                    signerName = signerName || u.su_name || 'Bác sĩ kết luận';
+                    signerId = u.su_userid;
+                    doctorSignUserId = u.su_sign_userid || '';
+                    doctorCredentialId = u.su_sign_credential_id || '';
+                    doctorSignPartner = u.su_sign_partner === 'VIETTEL' ? 'VIETTEL-CA' : (u.su_sign_partner || 'VIETTEL-CA');
                 }
             }
-            return res.json({ success: true, signatureType: type });
+
+            // Nếu chưa xác định được bác sĩ có chữ ký Viettel, ưu tiên bác sĩ KSK có Viettel HSM
+            if (!doctorSignUserId) {
+                try {
+                    const defaultDocRes = await query(`
+                        SELECT su_userid, su_name, su_sign_userid, su_sign_credential_id, su_sign_partner
+                        FROM sys_user
+                        WHERE su_sign_partner = 'VIETTEL' 
+                          AND su_sign_passwd IS NOT NULL AND su_sign_passwd <> ''
+                          AND su_userid IN ('httmai', 'quyenpm', 'ldthuong', 'binhhv')
+                        ORDER BY CASE WHEN su_userid = 'httmai' THEN 1 ELSE 2 END
+                        LIMIT 1
+                    `);
+                    if (defaultDocRes.rows.length > 0) {
+                        const defDoc = defaultDocRes.rows[0];
+                        if (!signerName || signerName === 'Bác sĩ kết luận') signerName = defDoc.su_name;
+                        if (!signerId || signerId === 'BS') signerId = defDoc.su_userid;
+                        doctorSignUserId = defDoc.su_sign_userid || '';
+                        doctorCredentialId = defDoc.su_sign_credential_id || '';
+                        doctorSignPartner = 'VIETTEL-CA';
+                    }
+                } catch (defErr: any) {
+                    console.warn('[batchSignConclusion] Không lấy được bác sĩ Viettel mặc định:', defErr.message);
+                }
+            }
+            if (!signerName) signerName = 'Bác sĩ kết luận';
+
+            const succeeded: any[] = [];
+            const failed: any[] = [];
+
+            for (const id of intIds) {
+                try {
+                    const docRes = await query(`
+                        SELECT m.*, d.clinical_data, d.lab_data, d.conclusion_data
+                        FROM health_check_masters m
+                        LEFT JOIN health_check_details d ON m.id = d.master_id
+                        WHERE m.id = $1
+                    `, [id]);
+
+                    if (docRes.rows.length === 0) {
+                        failed.push({ id, error: 'Không tìm thấy hồ sơ' });
+                        continue;
+                    }
+
+                    const doc = docRes.rows[0];
+                    if (doc.send_status === 'Success') {
+                        failed.push({ id, docNo: doc.doc_no, error: 'Hồ sơ đã gửi cổng thành công, không thể ký lại.' });
+                        continue;
+                    }
+
+                    let clinical = typeof doc.clinical_data === 'string' ? JSON.parse(doc.clinical_data) : (doc.clinical_data || {});
+                    let lab = typeof doc.lab_data === 'string' ? JSON.parse(doc.lab_data) : (doc.lab_data || {});
+                    let conclusion = typeof doc.conclusion_data === 'string' ? JSON.parse(doc.conclusion_data) : (doc.conclusion_data || {});
+
+                    // Phân loại sức khỏe: ưu tiên conclusion_data có sẵn, sau đó đến defaultFitnessClass
+                    let currentFitnessClass = String(
+                        conclusion.fitness_class || 
+                        conclusion.ket_luan_loai_suc_khoe || 
+                        clinical.specialty_metadata?.conclusion?.fitnessClass || 
+                        defaultFitnessClass || 
+                        ''
+                    ).trim();
+
+                    // Chuẩn hóa loại số: 'Loại I' -> '1', 'Loại 1' -> '1', 'II' -> '2'
+                    const romanMap: Record<string, string> = {
+                        'I': '1', 'II': '2', 'III': '3', 'IV': '4', 'V': '5',
+                        'LOẠI I': '1', 'LOẠI II': '2', 'LOẠI III': '3', 'LOẠI IV': '4', 'LOẠI V': '5',
+                        'LOAI I': '1', 'LOAI II': '2', 'LOAI III': '3', 'LOAI IV': '4', 'LOAI V': '5',
+                        'LOẠI 1': '1', 'LOẠI 2': '2', 'LOẠI 3': '3', 'LOẠI 4': '4', 'LOẠI 5': '5',
+                        'LOAI 1': '1', 'LOAI 2': '2', 'LOAI 3': '3', 'LOAI 4': '4', 'LOAI 5': '5'
+                    };
+                    if (romanMap[currentFitnessClass.toUpperCase()]) {
+                        currentFitnessClass = romanMap[currentFitnessClass.toUpperCase()];
+                    }
+
+                    if (!currentFitnessClass && doc.form_type !== '1') {
+                        failed.push({ id, docNo: doc.doc_no, error: 'Hồ sơ chưa có phân loại sức khỏe kết luận.' });
+                        continue;
+                    }
+
+                    if (currentFitnessClass) {
+                        conclusion.fitness_class = currentFitnessClass;
+                    }
+
+                    // Tự động sinh XML nếu thiếu hoặc chưa có thẻ KHAMSUCKHOE
+                    let xml = doc.xml_data;
+                    if (!xml || !xml.includes('<KHAMSUCKHOE>')) {
+                        xml = generateXmlPayload(doc.form_type, doc, clinical, lab, conclusion);
+                    }
+
+                    // Tạo chuỗi chữ ký Bác sĩ kết luận Base64
+                    const timestamp = new Date().toISOString();
+                    const sigPayload = JSON.stringify({
+                        type: 'DOCTOR_SIGNATURE',
+                        doctor_id: signerId,
+                        doctor_name: signerName,
+                        ca_provider: doctorSignPartner || 'VIETTEL-CA',
+                        ca_user_id: doctorSignUserId || undefined,
+                        credential_id: doctorCredentialId || undefined,
+                        fitness_class: currentFitnessClass,
+                        diagnosis: conclusion.diagnosis || 'Đủ sức khỏe học tập và công tác',
+                        signed_at: timestamp,
+                        method: signatureType === 'USB' ? 'DOCTOR_USB_CA' : 'DOCTOR_HSM_CA'
+                    });
+                    const sigBase64 = Buffer.from(sigPayload, 'utf8').toString('base64');
+
+                    // Áp dụng CKS Bác sĩ vào XML
+                    const newXml = healthCheckTwoTierSigner.applyDoctorSignature(xml, sigBase64);
+
+                    // Cập nhật conclusion_data
+                    conclusion.signature = sigBase64;
+                    conclusion.doctor_signature = sigBase64;
+                    conclusion.doctor_name = signerName;
+                    conclusion.doctor_id = signerId;
+                    conclusion.signed_at = timestamp;
+                    conclusion.status = 'ĐÃ_DUYỆT';
+
+                    // Cập nhật specialty_metadata nếu có
+                    if (!clinical.specialty_metadata) clinical.specialty_metadata = {};
+                    if (!clinical.specialty_metadata.conclusion) clinical.specialty_metadata.conclusion = {};
+                    clinical.specialty_metadata.conclusion.signature = sigBase64;
+                    clinical.specialty_metadata.conclusion.doctor_signature = sigBase64;
+                    clinical.specialty_metadata.conclusion.doctorName = signerName;
+                    clinical.specialty_metadata.conclusion.doctorId = signerId;
+                    clinical.specialty_metadata.conclusion.signedAt = timestamp;
+                    clinical.specialty_metadata.conclusion.status = 'ĐÃ_DUYỆT';
+
+                    // Cập nhật DB
+                    await query(`
+                        UPDATE health_check_masters
+                        SET xml_data = $1,
+                            signature_type = CASE WHEN signature_status = 'Signed' THEN signature_type ELSE 'DOCTOR' END,
+                            updated_at = NOW()
+                        WHERE id = $2
+                    `, [newXml, id]);
+
+                    await query(`
+                        UPDATE health_check_details
+                        SET conclusion_data = $1,
+                            clinical_data = $2,
+                            updated_at = NOW()
+                        WHERE master_id = $3
+                    `, [JSON.stringify(conclusion), JSON.stringify(clinical), id]);
+
+                    // Thử đồng bộ về HIS Core nếu có doc_no
+                    const hisDocNo = parseInt(String(doc.doc_no), 10);
+                    if (!isNaN(hisDocNo) && hisDocNo > 0) {
+                        try {
+                            await transaction(async (client) => {
+                                await hisIntegrationController.pushbackClinicalAndConclusion(
+                                    client,
+                                    hisDocNo,
+                                    clinical,
+                                    conclusion,
+                                    signerId,
+                                    signerName
+                                );
+                            });
+                        } catch (syncErr: any) {
+                            console.warn(`[BatchSignConclusion] Đồng bộ về HIS Core cho docNo=${hisDocNo} có cảnh báo:`, syncErr.message);
+                        }
+                    }
+
+                    succeeded.push({ id, docNo: doc.doc_no, patientName: doc.patient_name });
+                } catch (docErr: any) {
+                    failed.push({ id, error: docErr.message });
+                }
+            }
+
+            return res.json({
+                success: true,
+                total: intIds.length,
+                succeededCount: succeeded.length,
+                failedCount: failed.length,
+                succeeded,
+                failed,
+                message: `Đã ký số Bác sĩ kết luận thành công cho ${succeeded.length}/${intIds.length} hồ sơ.`
+            });
         } catch (error: any) {
-            console.error('❌ KSK Controller: Lỗi signDocuments:', error);
+            console.error('❌ Lỗi batchSignConclusion:', error);
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // Ký Chữ ký đơn vị hàng loạt (CKS_BENH_VIEN)
+    async batchSignHospital(req: Request, res: Response) {
+        const { docIds, signatureType = 'HSM', signatures } = req.body || {};
+
+        if (!docIds || !Array.isArray(docIds) || docIds.length === 0) {
+            return res.status(400).json({ error: "Danh sách ID hồ sơ không hợp lệ" });
+        }
+
+        const type = signatureType === 'USB' ? 'USB' : 'HSM';
+
+        try {
+            const intIds = Array.from(new Set(docIds.map((id: any) => parseInt(id, 10)))).filter((id: number) => Number.isInteger(id) && id > 0);
+            if (intIds.length === 0) return res.status(400).json({ error: 'Danh sách ID hồ sơ không hợp lệ.' });
+
+            const { signXmlViaHisHsm } = require('../../services/his-sign.service');
+            const settings = { ...getHealthCheckSettings() };
+
+            const succeeded: any[] = [];
+            const failed: any[] = [];
+
+            for (const id of intIds) {
+                try {
+                    const docRes = await query(`
+                        SELECT m.*, d.conclusion_data, d.clinical_data, d.lab_data
+                        FROM health_check_masters m
+                        LEFT JOIN health_check_details d ON m.id = d.master_id
+                        WHERE m.id = $1
+                    `, [id]);
+
+                    if (docRes.rows.length === 0) {
+                        failed.push({ id, error: 'Không tìm thấy hồ sơ' });
+                        continue;
+                    }
+
+                    const doc = docRes.rows[0];
+                    if (doc.send_status === 'Success') {
+                        failed.push({ id, docNo: doc.doc_no, error: 'Hồ sơ đã gửi cổng thành công.' });
+                        continue;
+                    }
+
+                    let clinical = typeof doc.clinical_data === 'string' ? JSON.parse(doc.clinical_data) : (doc.clinical_data || {});
+                    let lab = typeof doc.lab_data === 'string' ? JSON.parse(doc.lab_data) : (doc.lab_data || {});
+                    let conclusion = typeof doc.conclusion_data === 'string' ? JSON.parse(doc.conclusion_data) : (doc.conclusion_data || {});
+
+                    let xml = doc.xml_data;
+                    if (!xml || !xml.includes('<KHAMSUCKHOE>')) {
+                        xml = generateXmlPayload(doc.form_type, doc, clinical, lab, conclusion);
+                    }
+
+                    // Đảm bảo đã có CKS Bác sĩ kết luận
+                    let sigCheck = healthCheckTwoTierSigner.isFullySigned(xml);
+                    if (!sigCheck.hasDoctorSig) {
+                        const docSig = conclusion.signature || conclusion.doctor_signature || '';
+                        if (docSig) {
+                            xml = healthCheckTwoTierSigner.applyDoctorSignature(xml, docSig);
+                        } else {
+                            failed.push({ id, docNo: doc.doc_no, error: 'Hồ sơ chưa có chữ ký Bác sĩ kết luận. Vui lòng ký kết luận trước khi ký đơn vị.' });
+                            continue;
+                        }
+                    }
+
+                    let fullySignedXml = '';
+                    let signatureWrapper = '';
+
+                    if (type === 'USB') {
+                        const usbSig = signatures && signatures[String(id)];
+                        if (!usbSig) {
+                            failed.push({ id, docNo: doc.doc_no, error: 'Thiếu dữ liệu chữ ký USB Token cho hồ sơ.' });
+                            continue;
+                        }
+                        fullySignedXml = healthCheckTwoTierSigner.applyHospitalSignature(xml, usbSig);
+                        signatureWrapper = JSON.stringify({
+                            signed_file: {
+                                file_name: `${doc.doc_no || 'document'}_signed.xml`,
+                                mime_type: 'application/xml',
+                                data_base64: Buffer.from(fullySignedXml, 'utf8').toString('base64')
+                            }
+                        });
+                    } else {
+                        // Ký số HSM đơn vị
+                        const step2 = healthCheckTwoTierSigner.getStep2Hash(xml);
+                        const signedXmlBase64 = await signXmlViaHisHsm(step2.preparedXml, settings, doc.doc_no || `ksk_${id}`);
+                        
+                        let hospitalSigVal = signedXmlBase64;
+                        if (signedXmlBase64.startsWith('<') || signedXmlBase64.includes('<Signature')) {
+                            const sigValMatch = signedXmlBase64.match(/<SignatureValue[^>]*>([\s\S]*?)<\/SignatureValue>/i);
+                            if (sigValMatch) {
+                                hospitalSigVal = sigValMatch[1].replace(/\s+/g, '');
+                            }
+                        }
+
+                        fullySignedXml = healthCheckTwoTierSigner.applyHospitalSignature(xml, hospitalSigVal);
+                        signatureWrapper = JSON.stringify({
+                            signed_file: {
+                                file_name: `${doc.doc_no || 'document'}_signed.xml`,
+                                mime_type: 'application/xml',
+                                data_base64: Buffer.from(fullySignedXml, 'utf8').toString('base64')
+                            }
+                        });
+                    }
+
+                    await query(`
+                        UPDATE health_check_masters
+                        SET xml_data = $1,
+                            signature = $2,
+                            signature_status = 'Signed',
+                            signature_type = $3,
+                            updated_at = NOW()
+                        WHERE id = $4
+                    `, [fullySignedXml, signatureWrapper, type, id]);
+
+                    succeeded.push({ id, docNo: doc.doc_no, patientName: doc.patient_name });
+                } catch (hsmErr: any) {
+                    failed.push({ id, error: hsmErr.message });
+                }
+            }
+
+            return res.json({
+                success: true,
+                total: intIds.length,
+                succeededCount: succeeded.length,
+                failedCount: failed.length,
+                succeeded,
+                failed,
+                message: `Đã ký số Chữ ký đơn vị thành công cho ${succeeded.length}/${intIds.length} hồ sơ.`
+            });
+        } catch (error: any) {
+            console.error('❌ Lỗi batchSignHospital:', error);
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // Ký đồng thời cả hai cấp (Bác sĩ kết luận + Đơn vị)
+    async batchSignBoth(req: Request, res: Response) {
+        try {
+            const { docIds, signatureType = 'HSM' } = req.body || {};
+            if (!docIds || !Array.isArray(docIds) || docIds.length === 0) {
+                return res.status(400).json({ error: "Danh sách ID hồ sơ không hợp lệ" });
+            }
+
+            // 1. Ký Bác sĩ kết luận trước
+            let docSucceededIds: any[] = [];
+            const fakeDocRes: any = {
+                status: () => fakeDocRes,
+                json: (data: any) => {
+                    if (data?.succeeded && Array.isArray(data.succeeded)) {
+                        docSucceededIds = data.succeeded.map((s: any) => s.id);
+                    }
+                    return fakeDocRes;
+                }
+            };
+            await this.batchSignConclusion(req, fakeDocRes);
+
+            if (docSucceededIds.length === 0) {
+                return res.status(400).json({
+                    error: "Không có hồ sơ nào đủ điều kiện hoàn thành chữ ký Bác sĩ kết luận (Cấp 1)."
+                });
+            }
+
+            // 2. Ký tiếp Chữ ký đơn vị cho các hồ sơ đã ký bác sĩ thành công
+            const unitReq: any = {
+                ...req,
+                body: {
+                    ...req.body,
+                    docIds: docSucceededIds,
+                    signatureType
+                }
+            };
+
+            return this.batchSignHospital(unitReq, res);
+        } catch (error: any) {
+            console.error('❌ Lỗi batchSignBoth:', error);
             return res.status(500).json({ error: error.message });
         }
     }
@@ -1201,6 +1497,341 @@ class DocumentsController {
         } catch (error: any) {
             console.error('❌ KSK Controller: Lỗi getDocumentFees:', error);
             return res.status(500).json({ success: false, message: error.message });
+        }
+    }
+
+    async resetSyncStatus(req: Request, res: Response) {
+        const { id } = req.params;
+        const { reason } = req.body;
+        const numId = parseInt(String(id), 10);
+        if (isNaN(numId)) {
+            return res.status(400).json({ error: 'Mã hồ sơ không hợp lệ.' });
+        }
+
+        try {
+            await transaction(async (client) => {
+                const state = await client.query(
+                    `SELECT m.*, d.clinical_data, d.lab_data, d.conclusion_data 
+                     FROM health_check_masters m
+                     LEFT JOIN health_check_details d ON d.master_id = m.id
+                     WHERE m.id = $1
+                     FOR UPDATE OF m`,
+                    [numId]
+                );
+
+                if (state.rows.length === 0) {
+                    const err: any = new Error('Không tìm thấy hồ sơ.');
+                    err.statusCode = 404;
+                    throw err;
+                }
+
+                const doc = state.rows[0];
+
+                const unsignedXml = generateXmlPayload(
+                    doc.form_type,
+                    { patientId: doc.patient_id, patientName: doc.patient_name, cccd: doc.cccd, dob: doc.dob, gender: doc.gender, docNo: doc.doc_no },
+                    doc.clinical_data || {}, doc.lab_data || {}, doc.conclusion_data || {}
+                );
+
+                await client.query(
+                    `UPDATE health_check_masters
+                     SET xml_data = $1, signature = NULL, signature_status = 'Unsigned',
+                         send_status = 'Unsent', sent_at = NULL,
+                         transaction_id = NULL, error_message = NULL, response_log = NULL,
+                         syt_send_status = 'Unsent', syt_sent_at = NULL,
+                         syt_transaction_id = NULL, syt_error_message = NULL, syt_response_log = NULL,
+                         updated_at = NOW()
+                     WHERE id = $2`,
+                    [unsignedXml, numId]
+                );
+
+                try {
+                    await client.query(
+                        `INSERT INTO sys_audit_log (table_name, record_id, action, old_data, new_data, changed_fields, user_id, client_ip, context_module)
+                         VALUES ('health_check_masters', $1, 'U', $2::jsonb, $3::jsonb, $4::jsonb, $5, $6, 'health-check-reset-sync')`,
+                        [String(numId), JSON.stringify({ signature_status: doc.signature_status, send_status: doc.send_status, syt_send_status: doc.syt_send_status }), JSON.stringify({ signature_status: 'Unsigned', send_status: 'Unsent', syt_send_status: 'Unsent' }), JSON.stringify({ reason: reason || 'Người dùng yêu cầu hủy gửi mở khóa để sửa thông tin' }), String((req as any).userId || ''), req.ip]
+                    );
+                } catch {}
+            });
+
+            return res.json({ success: true, message: 'Đã hủy trạng thái đồng bộ và mở khóa hồ sơ để chỉnh sửa.' });
+        } catch (error: any) {
+            console.error('❌ Lỗi resetSyncStatus:', error);
+            return res.status(error.statusCode || 500).json({ error: error.message });
+        }
+    }
+
+    async resetSyncStatusBatch(req: Request, res: Response) {
+        const { docIds, reason } = req.body;
+        if (!docIds || !Array.isArray(docIds) || docIds.length === 0) {
+            return res.status(400).json({ error: 'Danh sách ID hồ sơ không hợp lệ.' });
+        }
+
+        try {
+            const intIds = docIds.map((id: any) => parseInt(id, 10)).filter((id: number) => !isNaN(id));
+            await query(
+                `UPDATE health_check_masters
+                 SET signature = NULL, signature_status = 'Unsigned',
+                     send_status = 'Unsent', sent_at = NULL,
+                     transaction_id = NULL, error_message = NULL, response_log = NULL,
+                     syt_send_status = 'Unsent', syt_sent_at = NULL,
+                     syt_transaction_id = NULL, syt_error_message = NULL, syt_response_log = NULL,
+                     updated_at = NOW()
+                 WHERE id = ANY($1::int[])`,
+                [intIds]
+            );
+
+            return res.json({ success: true, message: `Đã hủy gửi và mở khóa ${intIds.length} hồ sơ thành công.` });
+        } catch (error: any) {
+            console.error('❌ Lỗi resetSyncStatusBatch:', error);
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    async createFeesForDoc(req: Request, res: Response) {
+        const { docNo, deptId } = req.body;
+        if (!docNo) {
+            return res.status(400).json({ error: 'Thiếu số hồ sơ khám (docNo).' });
+        }
+
+        const numericDocNo = Number(docNo);
+        const effectiveDept = String(deptId || 'KB').trim();
+
+        try {
+            await query(`SELECT hms_fee_create($1::integer, 'ETPO', $2::varchar)`, [numericDocNo, effectiveDept]);
+            return res.json({ success: true, message: 'Đã tạo lập và tính toán mục phí từ chỉ định thành công!' });
+        } catch (error: any) {
+            console.error('❌ Lỗi createFeesForDoc:', error);
+            return res.status(500).json({ error: error.message || 'Lỗi khi gọi hms_fee_create trên HIS.' });
+        }
+    }
+
+    // Ký số 2 cấp độ (Bộ Y tế): Bước 1 - Lấy hash SHA-256 để Bác sĩ ký kết luận (CKS_NGUOI_KET_LUAN)
+    async getTwoTierSignStep1Hash(req: Request, res: Response) {
+        const id = parseInt(req.params.id as string, 10);
+        if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID hồ sơ không hợp lệ.' });
+        try {
+            const docRes = await query(`
+                SELECT id, doc_no, patient_id, patient_name, cccd, dob, gender, form_type, xml_data, signature_status, send_status 
+                FROM health_check_masters WHERE id = $1
+            `, [id]);
+            if (docRes.rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy hồ sơ.' });
+            const doc = docRes.rows[0];
+            if (doc.send_status === 'Success') return res.status(409).json({ error: 'Hồ sơ đã gửi cổng thành công, không thể ký lại.' });
+
+            // Kiểm tra đủ và đúng 17 trường bắt buộc theo file đặc tả trước khi tạo hash ký số kết luận
+            const detailRes = await query('SELECT clinical_data, lab_data, conclusion_data FROM health_check_details WHERE master_id = $1', [id]);
+            const detail = detailRes.rows[0] || {};
+            const mandatoryCheck = validateMandatoryPortalFields({
+                formType: doc.form_type,
+                master: doc,
+                clinical: detail.clinical_data || {},
+                lab: detail.lab_data || {},
+                conclusion: detail.conclusion_data || {}
+            });
+            if (!mandatoryCheck.valid) {
+                return res.status(400).json({
+                    error: 'Chưa đủ điều kiện kết luận/ký số: Thiếu thông tin bắt buộc theo quy định liên thông',
+                    details: mandatoryCheck.errors,
+                    fieldErrors: mandatoryCheck.fieldErrors
+                });
+            }
+
+            if (!doc.xml_data) return res.status(422).json({ error: 'Hồ sơ chưa có dữ liệu XML_DATA.' });
+
+            const step1 = healthCheckTwoTierSigner.getStep1Hash(doc.xml_data);
+
+            return res.json({
+                success: true,
+                step: 1,
+                documentId: doc.id,
+                docNo: doc.doc_no,
+                patientName: doc.patient_name,
+                hashHex: step1.hashHex,
+                hashBase64: step1.hashBase64,
+                message: 'Đã tạo chuỗi băm SHA-256 (Bước 1: CKS_NGUOI_KET_LUAN) thành công'
+            });
+        } catch (error: any) {
+            console.error('❌ Lỗi getTwoTierSignStep1Hash:', error);
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // Ký số 2 cấp độ: Bước 1 (Hoàn tất) - Dán chữ ký Bác sĩ (CKS_NGUOI_KET_LUAN) vào XML
+    async applyTwoTierSignStep1(req: Request, res: Response) {
+        const id = parseInt(req.params.id as string, 10);
+        if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID hồ sơ không hợp lệ.' });
+        const { signatureBase64, doctorName, doctorCode } = req.body || {};
+        if (!signatureBase64 || typeof signatureBase64 !== 'string') {
+            return res.status(400).json({ error: 'Thiếu chữ ký số Base64 của Bác sĩ kết luận (Bước 1).' });
+        }
+
+        try {
+            const docRes = await query(`
+                SELECT id, doc_no, patient_id, patient_name, cccd, dob, gender, form_type, xml_data, signature_status, send_status 
+                FROM health_check_masters WHERE id = $1
+            `, [id]);
+            if (docRes.rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy hồ sơ.' });
+            const doc = docRes.rows[0];
+            if (doc.send_status === 'Success') return res.status(409).json({ error: 'Hồ sơ đã gửi cổng thành công.' });
+
+            // Kiểm tra đủ và đúng 17 trường bắt buộc theo file đặc tả trước khi dán CKS Bác sĩ kết luận
+            const detailRes = await query('SELECT clinical_data, lab_data, conclusion_data FROM health_check_details WHERE master_id = $1', [id]);
+            const detail = detailRes.rows[0] || {};
+            const mandatoryCheck = validateMandatoryPortalFields({
+                formType: doc.form_type,
+                master: doc,
+                clinical: detail.clinical_data || {},
+                lab: detail.lab_data || {},
+                conclusion: detail.conclusion_data || {}
+            });
+            if (!mandatoryCheck.valid) {
+                return res.status(400).json({
+                    error: 'Chưa đủ điều kiện kết luận/ký số: Thiếu thông tin bắt buộc theo quy định liên thông',
+                    details: mandatoryCheck.errors,
+                    fieldErrors: mandatoryCheck.fieldErrors
+                });
+            }
+
+            if (!doc.xml_data) return res.status(422).json({ error: 'Hồ sơ chưa có dữ liệu XML_DATA.' });
+
+            const newXml = healthCheckTwoTierSigner.applyDoctorSignature(doc.xml_data, signatureBase64);
+
+            await query(`
+                UPDATE health_check_masters
+                SET xml_data = $1,
+                    signature_type = CASE WHEN signature_status = 'Signed' THEN signature_type ELSE 'DOCTOR' END,
+                    updated_at = NOW()
+                WHERE id = $2
+            `, [newXml, id]);
+
+            if (detailRes.rows.length > 0) {
+                const concl = detailRes.rows[0].conclusion_data || {};
+                concl.signature = signatureBase64;
+                concl.doctor_signature = signatureBase64;
+                if (doctorName) concl.doctor_name = doctorName;
+                if (doctorCode) concl.doctor_code = doctorCode;
+                concl.signed_at = new Date().toISOString();
+                await query('UPDATE health_check_details SET conclusion_data = $1 WHERE master_id = $2', [JSON.stringify(concl), id]);
+            }
+
+            const check = healthCheckTwoTierSigner.isFullySigned(newXml);
+            return res.json({
+                success: true,
+                step: 1,
+                hasDoctorSig: check.hasDoctorSig,
+                hasHospitalSig: check.hasHospitalSig,
+                fullySigned: check.fullySigned,
+                message: 'Đã chèn chữ ký Bác sĩ kết luận (Bước 1: CKS_NGUOI_KET_LUAN) thành công'
+            });
+        } catch (error: any) {
+            console.error('❌ Lỗi applyTwoTierSignStep1:', error);
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // Ký số 2 cấp độ (Bộ Y tế): Bước 2 - Lấy hash SHA-256 để Cơ sở y tế/Bệnh viện ký (CKS_BENH_VIEN)
+    async getTwoTierSignStep2Hash(req: Request, res: Response) {
+        const id = parseInt(req.params.id as string, 10);
+        if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID hồ sơ không hợp lệ.' });
+        try {
+            const docRes = await query('SELECT id, doc_no, patient_name, xml_data, signature_status, send_status FROM health_check_masters WHERE id = $1', [id]);
+            if (docRes.rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy hồ sơ.' });
+            const doc = docRes.rows[0];
+            if (doc.send_status === 'Success') return res.status(409).json({ error: 'Hồ sơ đã gửi cổng thành công.' });
+            if (!doc.xml_data) return res.status(422).json({ error: 'Hồ sơ chưa có dữ liệu XML_DATA.' });
+
+            let xmlWithDoc = doc.xml_data;
+            const checkInitial = healthCheckTwoTierSigner.isFullySigned(xmlWithDoc);
+            if (!checkInitial.hasDoctorSig) {
+                const detailRes = await query('SELECT conclusion_data FROM health_check_details WHERE master_id = $1', [id]);
+                const concl = detailRes.rows[0]?.conclusion_data || {};
+                const docSig = concl.signature || concl.doctor_signature || '';
+                if (docSig) {
+                    xmlWithDoc = healthCheckTwoTierSigner.applyDoctorSignature(xmlWithDoc, docSig);
+                } else {
+                    return res.status(400).json({ error: 'Hồ sơ chưa có chữ ký số của Bác sĩ kết luận (Bước 1: CKS_NGUOI_KET_LUAN).' });
+                }
+            }
+
+            const step2 = healthCheckTwoTierSigner.getStep2Hash(xmlWithDoc);
+            return res.json({
+                success: true,
+                step: 2,
+                documentId: doc.id,
+                docNo: doc.doc_no,
+                patientName: doc.patient_name,
+                hashHex: step2.hashHex,
+                hashBase64: step2.hashBase64,
+                message: 'Đã tạo chuỗi băm SHA-256 (Bước 2: CKS_BENH_VIEN) thành công'
+            });
+        } catch (error: any) {
+            console.error('❌ Lỗi getTwoTierSignStep2Hash:', error);
+            return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // Ký số 2 cấp độ: Bước 2 (Hoàn tất) - Dán chữ ký Bệnh viện (CKS_BENH_VIEN) vào XML
+    async applyTwoTierSignStep2(req: Request, res: Response) {
+        const id = parseInt(req.params.id as string, 10);
+        if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID hồ sơ không hợp lệ.' });
+        const { signatureBase64, signatureType = 'USB' } = req.body || {};
+        if (!signatureBase64 || typeof signatureBase64 !== 'string') {
+            return res.status(400).json({ error: 'Thiếu chữ ký số Base64 của Cơ sở y tế (Bước 2).' });
+        }
+
+        try {
+            const docRes = await query('SELECT id, doc_no, patient_name, xml_data, signature_status, send_status FROM health_check_masters WHERE id = $1', [id]);
+            if (docRes.rows.length === 0) return res.status(404).json({ error: 'Không tìm thấy hồ sơ.' });
+            const doc = docRes.rows[0];
+            if (doc.send_status === 'Success') return res.status(409).json({ error: 'Hồ sơ đã gửi cổng thành công.' });
+            if (!doc.xml_data) return res.status(422).json({ error: 'Hồ sơ chưa có dữ liệu XML_DATA.' });
+
+            let xmlToSign = doc.xml_data;
+            const checkInitial = healthCheckTwoTierSigner.isFullySigned(xmlToSign);
+            if (!checkInitial.hasDoctorSig) {
+                const detailRes = await query('SELECT conclusion_data FROM health_check_details WHERE master_id = $1', [id]);
+                const concl = detailRes.rows[0]?.conclusion_data || {};
+                const docSig = concl.signature || concl.doctor_signature || '';
+                if (docSig) {
+                    xmlToSign = healthCheckTwoTierSigner.applyDoctorSignature(xmlToSign, docSig);
+                } else {
+                    return res.status(400).json({ error: 'Hồ sơ chưa có chữ ký số của Bác sĩ kết luận (Bước 1: CKS_NGUOI_KET_LUAN).' });
+                }
+            }
+
+            const fullySignedXml = healthCheckTwoTierSigner.applyHospitalSignature(xmlToSign, signatureBase64);
+            const check = healthCheckTwoTierSigner.isFullySigned(fullySignedXml);
+
+            const signatureWrapper = JSON.stringify({
+                signed_file: {
+                    file_name: `${doc.doc_no || 'document'}_signed.xml`,
+                    mime_type: 'application/xml',
+                    data_base64: Buffer.from(fullySignedXml, 'utf8').toString('base64')
+                }
+            });
+
+            await query(`
+                UPDATE health_check_masters
+                SET xml_data = $1,
+                    signature = $2,
+                    signature_status = 'Signed',
+                    signature_type = $3,
+                    updated_at = NOW()
+                WHERE id = $4
+            `, [fullySignedXml, signatureWrapper, signatureType, id]);
+
+            return res.json({
+                success: true,
+                step: 2,
+                hasDoctorSig: check.hasDoctorSig,
+                hasHospitalSig: check.hasHospitalSig,
+                fullySigned: check.fullySigned,
+                message: 'Đã hoàn tất ký số Cơ sở khám chữa bệnh (Bước 2: CKS_BENH_VIEN). Hồ sơ đã đủ 2 chữ ký số.'
+            });
+        } catch (error: any) {
+            console.error('❌ Lỗi applyTwoTierSignStep2:', error);
+            return res.status(500).json({ error: error.message });
         }
     }
 }

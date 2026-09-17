@@ -13,6 +13,7 @@ import {
 } from '../../../components/Icons';
 import { formatDateTime, formatDate } from '../../../utils/formatters';
 import { toast } from 'sonner';
+import { getDocumentExamStatus } from '../utils/documentStatus';
 
 interface DocumentListProps {
     documents: any[];
@@ -220,74 +221,52 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                     </td>
                                     <td className="p-4">
                                         {(() => {
-                                            const specMeta = getResolvedSpecMeta(doc);
-                                            const hasConcl = !!(
-                                                (doc.conclusion_data?.fitness_class && String(doc.conclusion_data.fitness_class).trim()) ||
-                                                (doc.conclusion_data?.ket_luan_loai_suc_khoe && String(doc.conclusion_data.ket_luan_loai_suc_khoe).trim()) ||
-                                                (doc.conclusion_data?.diagnosis && String(doc.conclusion_data.diagnosis).trim())
+                                            const examStatus = getDocumentExamStatus(doc);
+                                            return (
+                                                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${examStatus.color}`}>
+                                                    {examStatus.label}
+                                                </span>
                                             );
-                                            const isConcluded = specMeta.conclusion?.status === 'ĐÃ_KẾT_LUẬN'
-                                                || specMeta.conclusion?.status === 'ĐÃ_DUYỆT'
-                                                || doc.signature_status === 'Signed'
-                                                || (hasConcl && specMeta.conclusion?.status !== 'CHUA_KHAM');
-
-                                            const clinicalSpecialtyKeys = ['physical', 'examination', 'internal', 'surgery', 'external', 'eye', 'ent', 'dental', 'dermatology', 'gynecology'];
-                                            const hasAnySpecialtyExamined = clinicalSpecialtyKeys.some(k => specMeta[k]?.status === 'ĐÃ_KHÁM' || specMeta[k]?.status === 'ĐÃ_DUYỆT');
-                                            const hasAnySpecialtyExamining = clinicalSpecialtyKeys.some(k => specMeta[k]?.status === 'ĐANG_KHÁM');
-
-                                            const hasParaclinicalResults = (doc.lab_data?.paraclinical_items || []).some(
-                                                (it: any) => (it.value && String(it.value).trim()) || (it.result && String(it.result).trim()) || it.is_his_value
-                                            ) || !!(doc.lab_data?.blood_test?.hemoglobin || doc.lab_data?.blood_test?.glycemia || doc.lab_data?.urine_test?.protein);
-
-                                            const isExamined = !isConcluded && (
-                                                hasAnySpecialtyExamined
-                                                || !!doc.clinical_data?.examination?.height
-                                                || !!doc.clinical_data?.examination?.weight
-                                                || !!doc.clinical_data?.examination?.pulse
-                                                || !!doc.clinical_data?.examination?.bp
-                                                || !!doc.clinical_data?.examination?.blood_pressure
-                                                || hasParaclinicalResults
+                                        })()}
+                                    </td>
+                                    <td className="p-4">
+                                        {(() => {
+                                            const isFullySigned = doc.signature_status === 'Signed';
+                                            const hasDoctorSig = !!(
+                                                doc.signature_type === 'DOCTOR' ||
+                                                doc.conclusion_data?.doctor_signature ||
+                                                doc.conclusion_data?.doctor_signature_info ||
+                                                (doc.xml_data && doc.xml_data.includes('<CKS_NGUOI_KET_LUAN>') && !doc.xml_data.includes('<CKS_NGUOI_KET_LUAN></CKS_NGUOI_KET_LUAN>'))
                                             );
 
-                                            const isExamining = !isConcluded && !isExamined && hasAnySpecialtyExamining;
-
-                                            if (isConcluded) {
+                                            if (isFullySigned) {
                                                 return (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                                                        Đã kết luận
+                                                    <span 
+                                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40"
+                                                        title="Hồ sơ đã ký đủ cả chữ ký Bác sĩ kết luận và chữ ký Đơn vị"
+                                                    >
+                                                        <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600" />
+                                                        Đã ký đủ (BS + Viện)
                                                     </span>
                                                 );
-                                            } else if (isExamined) {
+                                            } else if (hasDoctorSig) {
                                                 return (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                                        Đã khám
-                                                    </span>
-                                                );
-                                            } else if (isExamining) {
-                                                return (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                                                        Đang khám
+                                                    <span 
+                                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40"
+                                                        title="Đã có chữ ký số của Bác sĩ kết luận. Đang chờ ký số xác nhận của Đơn vị (CSKCB)"
+                                                    >
+                                                        <SignatureIcon className="w-3.5 h-3.5 text-blue-600" />
+                                                        Đã ký BS (Chờ ký Viện)
                                                     </span>
                                                 );
                                             } else {
                                                 return (
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-                                                        Chưa khám
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                                                        Chưa ký
                                                     </span>
                                                 );
                                             }
                                         })()}
-                                    </td>
-                                    <td className="p-4">
-                                        {doc.signature_status === 'Signed' ? (
-                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40">
-                                                Đã ký ({doc.signature_type || 'HSM'})
-                                            </span>
-                                        ) : (
-                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                                                Chưa ký
-                                            </span>
-                                        )}
                                     </td>
                                     <td className="p-4">
                                         {syncTargetMode === 'BOTH' ? (

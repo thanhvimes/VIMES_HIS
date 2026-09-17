@@ -39,6 +39,18 @@ class HealthCheckController {
         return documentsController.signDocuments(req, res);
     }
 
+    async batchSignConclusion(req: Request, res: Response) {
+        return documentsController.batchSignConclusion(req, res);
+    }
+
+    async batchSignHospital(req: Request, res: Response) {
+        return documentsController.batchSignHospital(req, res);
+    }
+
+    async batchSignBoth(req: Request, res: Response) {
+        return documentsController.batchSignBoth(req, res);
+    }
+
     async unlockDocument(req: Request, res: Response) {
         return documentsController.unlockDocument(req, res);
     }
@@ -113,6 +125,22 @@ class HealthCheckController {
 
     async createFeesForDoc(req: Request, res: Response) {
         return documentsController.createFeesForDoc(req, res);
+    }
+
+    async getTwoTierSignStep1Hash(req: Request, res: Response) {
+        return documentsController.getTwoTierSignStep1Hash(req, res);
+    }
+
+    async applyTwoTierSignStep1(req: Request, res: Response) {
+        return documentsController.applyTwoTierSignStep1(req, res);
+    }
+
+    async getTwoTierSignStep2Hash(req: Request, res: Response) {
+        return documentsController.getTwoTierSignStep2Hash(req, res);
+    }
+
+    async applyTwoTierSignStep2(req: Request, res: Response) {
+        return documentsController.applyTwoTierSignStep2(req, res);
     }
 
 }

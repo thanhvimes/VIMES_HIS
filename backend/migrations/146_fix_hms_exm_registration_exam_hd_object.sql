@@ -1,6 +1,18 @@
--- Migration 141: Patch hms_exm_registration_exam to support text/integer hee_employee_id
--- Description: Cập nhật hàm hms_exm_registration_exam so sánh hee_employee_id an toàn kiểu text
+-- Migration 146: Fix hms_exm_registration_exam hd_object type casting and patient sequence
+-- Description: Sửa lỗi ép kiểu v_object::varchar thành v_object (integer) khớp với cột hms_doc.hd_object và tạo sequence hms_patient_hp_patientno_seq nếu chưa có
 
+-- 1. Đảm bảo sequence hms_patient_hp_patientno_seq tồn tại và đồng bộ
+DO $$
+DECLARE
+    v_max_patientno INTEGER;
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relkind = 'S' AND relname = 'hms_patient_hp_patientno_seq') THEN
+        SELECT COALESCE(MAX(hp_patientno), 1) INTO v_max_patientno FROM hms_patient;
+        EXECUTE 'CREATE SEQUENCE hms_patient_hp_patientno_seq START WITH ' || (v_max_patientno + 1);
+    END IF;
+END $$;
+
+-- 2. Cập nhật Stored Procedure hms_exm_registration_exam
 DROP FUNCTION IF EXISTS hms_exm_registration_exam(integer,character varying,character varying,integer,character varying,character varying,character varying);
 
 CREATE OR REPLACE FUNCTION hms_exm_registration_exam(
@@ -52,11 +64,22 @@ DECLARE
     bIsAgeOk      BOOLEAN;
     bIsDeptOk     BOOLEAN;
     v_roomkey     INTEGER;
+    v_clean_examtype VARCHAR(50);
+    v_dept_final  VARCHAR(20);
 BEGIN
     v_examdate := TO_TIMESTAMP(p_examdate, 'YYYY-MM-DD HH24:MI');
     v_age := 0;
     IF v_examdate < CURRENT_TIMESTAMP THEN
         v_examdate := CURRENT_TIMESTAMP;
+    END IF;
+
+    -- Chuẩn hóa mã khoa (mặc định 'KB' cho tiếp đón ngoại trú KSK)
+    v_dept_final := COALESCE(NULLIF(TRIM(p_deptid), ''), 'KB');
+
+    -- Chuẩn hóa mã công khám: HIS Core sử dụng D0000001 (Công khám), không dùng E01
+    v_clean_examtype := TRIM(p_examtype);
+    IF v_clean_examtype IS NULL OR v_clean_examtype = '' OR v_clean_examtype = 'E01' THEN
+        v_clean_examtype := 'D0000001';
     END IF;
 
     SELECT hee_contract_id,
@@ -105,13 +128,21 @@ BEGIN
         RETURN v_docno;
     END IF;
 
-    -- Lấy đối tượng từ hợp đồng khám, mặc định là 7 (Dịch vụ) nếu không có hoặc <= 0
+    -- Lấy đối tượng từ hợp đồng khám, mặc định là 3 (Miễn giảm) cho đoàn KSK
     SELECT hec_object INTO v_object
     FROM hms_exm_contract
     WHERE hec_contract_id = v_contract_id;
 
     IF (v_object IS NULL OR v_object <= 0) THEN
-        v_object := 7;
+        v_object := 3;
+    END IF;
+
+    -- Chuẩn hóa Quốc tịch Việt Nam ('000') trong hms_patient nếu đang để trống hoặc 'VIE'
+    IF v_patientno > 0 THEN
+        UPDATE hms_patient 
+        SET hp_nationality = '000' 
+        WHERE hp_patientno = v_patientno 
+          AND (hp_nationality IS NULL OR hp_nationality = '' OR hp_nationality = 'VIE');
     END IF;
 
     v_docno := hms_getnextdocno();
@@ -133,9 +164,9 @@ BEGIN
         CURRENT_TIMESTAMP,
         v_patientno,
         v_docno,
-        p_deptid,
+        v_dept_final,
         v_examdate,
-        p_deptid,
+        v_dept_final,
         v_examdate,
         'B',
         'Y',
@@ -146,18 +177,35 @@ BEGIN
     SELECT COALESCE(MAX(he_receptno), 0) + 1
     INTO v_receptno
     FROM hms_exam
-    WHERE he_deptid = p_deptid
+    WHERE he_deptid = v_dept_final
       AND he_roomid = p_roomid
-      AND TRUNC(he_examdate) = TRUNC(v_examdate);
+      AND he_examdate::date = v_examdate::date;
 
-    SELECT COALESCE(hfl_idx, 0)
+    -- Tìm feeidx theo mã phí khám
+    SELECT COALESCE(hfl_idx, 1)
     INTO v_feeidx
     FROM hms_fee_list
-    WHERE hfl_feeid = p_examtype;
+    WHERE hfl_feeid = v_clean_examtype;
 
+    IF v_feeidx IS NULL OR v_feeidx = 0 THEN
+        v_feeidx := 1;
+    END IF;
+
+    -- Tìm hrl_key từ hms_roomlist
     SELECT hrl_key INTO v_roomkey
     FROM hms_roomlist
-    WHERE hrl_deptid = p_deptid AND hrl_id = p_roomid;
+    WHERE hrl_deptid = v_dept_final AND hrl_id = p_roomid;
+
+    IF v_roomkey IS NULL THEN
+        SELECT hrl_key INTO v_roomkey
+        FROM hms_roomlist
+        WHERE hrl_id = p_roomid
+        LIMIT 1;
+    END IF;
+
+    IF v_roomkey IS NULL THEN
+        v_roomkey := p_roomid;
+    END IF;
 
     INSERT INTO hms_exam (
         he_createdby,
@@ -176,9 +224,9 @@ BEGIN
         CURRENT_TIMESTAMP,
         v_patientno,
         v_docno,
-        p_deptid,
+        v_dept_final,
         p_roomid,
-        p_examtype,
+        v_clean_examtype,
         v_examdate,
         v_receptno,
         v_feeidx,
@@ -294,7 +342,7 @@ BEGIN
             END IF;
 
             BEGIN
-                v_orderid := hms_paraclinic_add(p_userid, p_deptid, 0, p_roomid, 0, v_patientno, v_docno, TO_CHAR(v_examdate, 'YYYY-MM-DD HH24:MI:SS'), '', v_group, 'O', 'RM', 0);
+                v_orderid := hms_paraclinic_add(p_userid, v_dept_final, 0, p_roomid, 0, v_patientno, v_docno, TO_CHAR(v_examdate, 'YYYY-MM-DD HH24:MI:SS'), '', v_group, 'O', 'RM', 0);
                 IF v_orderid > 0 THEN
                     tmpInt := hms_paraclinic_addline(v_docno, v_orderid, tmpRec.hesp_itemid, v_group, 'RM', tmpRec.hesp_quantity, '');
                 END IF;
@@ -305,16 +353,23 @@ BEGIN
 
         BEGIN
             UPDATE hms_testorder
-            SET hpc_status = 'S', hpc_orderdate = v_examdate
+            SET hpc_deptid = v_dept_final, hpc_status = 'S', hpc_orderdate = v_examdate
             WHERE hpc_docno = v_docno AND hpc_status = 'O';
         EXCEPTION WHEN OTHERS THEN END;
 
         BEGIN
             UPDATE hms_pacsorder
-            SET hpc_status = 'S', hpc_orderdate = v_examdate
+            SET hpc_deptid = v_dept_final, hpc_status = 'S', hpc_orderdate = v_examdate
             WHERE hpc_docno = v_docno AND hpc_status = 'O';
         EXCEPTION WHEN OTHERS THEN END;
     END IF;
+
+    -- Tự động gọi hms_fee_create để sinh các mục phí khám & cận lâm sàng vào hms_fee
+    BEGIN
+        PERFORM hms_fee_create(v_docno, 'ETPO', v_dept_final);
+    EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Lỗi tự động sinh mục phí hms_fee_create: %', SQLERRM;
+    END;
 
     RETURN v_docno;
 END;

@@ -6,6 +6,7 @@ import { healthCheckService } from '../../../../../services/healthCheckService';
 import { validateNewFormAge } from '../../../utils/healthCheckAge';
 import { formatDateForInput, parseDateSafe } from '../../../../../utils/formatters';
 import { toast } from 'sonner';
+import { validateMandatoryPortalFields } from '../../../utils/mandatoryFieldsValidator';
 
 const DEFAULT_CHILD_CARE_NOTE = 'Theo dõi và hướng dẫn chăm sóc trẻ định kỳ theo độ tuổi.';
 
@@ -576,6 +577,14 @@ export const useChildFormState = ({
 
     const buildPayload = (overrideMetadata?: any) => {
         const activeMetadata = overrideMetadata || specialtyMetadata;
+        const currentProv = provinces.find(p => String(p.id) === String(maTinhCuTru) || String(p.code) === String(maTinhCuTru));
+        const currentWard = wards.find(w => String(w.id) === String(maXaCuTru) || String(w.code) === String(maXaCuTru));
+        const currentProvName = currentProv?.name || '';
+        const currentWardName = currentWard?.name || '';
+        const effectiveAddress = (address && address.trim()) 
+            ? address.trim() 
+            : [currentWardName, currentProvName].filter(Boolean).map(s => s.trim()).join(', ');
+
         return {
             id: initialData?.id || initialData?._id,
             patient_id: patientId,
@@ -587,7 +596,9 @@ export const useChildFormState = ({
             form_type: '1',
             is_locked: isLocked,
             clinical_data: {
-                address,
+                address: effectiveAddress || address,
+                province_name: currentProvName,
+                ward_name: currentWardName,
                 phone,
                 ethnic,
                 cccd_date: cccdDate,
@@ -755,12 +766,49 @@ export const useChildFormState = ({
             newErrors.guardianCccd = 'Số định danh/CCCD người giám hộ phải gồm 9 hoặc 12 chữ số';
         }
 
-        const isOverallClassThreeOrBelow = ['3', '4', '5', 'III', 'IV', 'V'].includes(fitnessClass);
-        const normalizedNotes = (cacVanDeLuuY || '').trim().toLocaleLowerCase('vi-VN');
-        const hasSpecificHealthNotes = !!normalizedNotes
-            && normalizedNotes !== DEFAULT_CHILD_CARE_NOTE.toLocaleLowerCase('vi-VN');
-        if ((isOverallClassThreeOrBelow || hasSpecificHealthNotes) && !diagnosis.trim()) {
-            newErrors.diagnosis = 'Bắt buộc nhập mã bệnh tật/chẩn đoán ICD-10 khi phân loại sức khỏe từ loại III trở xuống hoặc có vấn đề lưu ý';
+        const currentProv = provinces.find(p => String(p.id) === String(maTinhCuTru) || String(p.code) === String(maTinhCuTru));
+        const currentWard = wards.find(w => String(w.id) === String(maXaCuTru) || String(w.code) === String(maXaCuTru));
+        const effectiveValidateAddress = (address && address.trim()) 
+            ? address.trim() 
+            : [currentWard?.name, currentProv?.name].filter(Boolean).map(s => s.trim()).join(', ');
+
+        if (options?.shouldSign) {
+            const mandatoryReport = validateMandatoryPortalFields({
+                formType: '1',
+                isChild: true,
+                patientName,
+                gender: gender === 'Nam' ? '1' : (gender === 'Nữ' ? '2' : gender),
+                dob,
+                ethnic,
+                cccd,
+                noCccd: !cccd,
+                guardianCccd,
+                address: effectiveValidateAddress,
+                maTinhCuTru,
+                maXaCuTru,
+                maNgheNghiep: '00',
+                lyDoVv,
+                maCskcb: initialData?.clinical_data?.extra?.ma_cskcb,
+                maGtinCskcb,
+                targetGroup,
+                fundingSource,
+                loaiHinhKcb: '01',
+                ngayVao: initialData?.clinical_data?.ngay_vao || new Date().toISOString().slice(0, 10),
+                fitnessClass,
+                childFitnessSummary: fitnessClass || 'Bình thường'
+            });
+
+            if (!mandatoryReport.valid) {
+                Object.assign(newErrors, mandatoryReport.fieldErrors);
+                setErrors(newErrors);
+                toast.error(`Thiếu thông tin bắt buộc khi kết luận: ${mandatoryReport.errors[0]}`);
+                if (mandatoryReport.firstErrorTab === 'conclusion') {
+                    setActiveTab('conclusion');
+                } else {
+                    setActiveTab('admin');
+                }
+                return;
+            }
         }
 
         if (dob && validateNewFormAge('1', dob)) newErrors.dob = validateNewFormAge('1', dob)!;

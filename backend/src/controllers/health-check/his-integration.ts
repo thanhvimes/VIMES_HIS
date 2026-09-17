@@ -1937,21 +1937,21 @@ async getHisPatient(req: Request, res: Response) {
             // Trích xuất Khám thể lực & Chuyên khoa (Hỗ trợ toàn diện alias tiếng Việt & tiếng Anh)
             const ce = clinicalData?.clinical_exam || {};
 
-            const valTheLuc = String(examVitals.physical_summary || clinicalData?.kham_the_luc || 'Thể lực bình thường').trim().substring(0, 254);
-            const valTuanHoan = String(ce.kq_tim_mach || ce.circulatory || ce.tuanhoan || ce.tuan_hoan || ce.noi_khoa_tuan_hoan || ce.internal || ce.noi_khoa || ce.noi_khoa_tuan_hoan_pl || '').trim().substring(0, 254);
-            const valHoHap = String(ce.kq_ho_hap || ce.respiratory || ce.hohap || ce.ho_hap || ce.noi_khoa_ho_hap || ce.noi_khoa_ho_hap_pl || '').trim().substring(0, 254);
-            const valTieuHoa = String(ce.noi_khoa_tieu_hoa || ce.digestive || ce.tieuhoa || ce.tieu_hoa || ce.noi_khoa_tieu_hoa_pl || '').trim().substring(0, 254);
-            const valThanTietNieu = String(ce.kq_tiet_nieu || ce.urinary || ce.thantietnieu || ce.than_tiet_nieu || ce.noi_khoa_than_tietnieu || ce.noi_khoa_than_tietnieu_pl || '').trim().substring(0, 254);
+            const valTheLuc = String(examVitals.physical_summary || clinicalData?.kham_the_luc || clinicalData?.child_dev?.danh_gia_the_luc || 'Thể lực bình thường').trim().substring(0, 254);
+            const valTuanHoan = String(ce.kq_tim_mach || ce.circulatory || ce.tuanhoan || ce.tuan_hoan || ce.noi_khoa_tuan_hoan || ce.internal || ce.noi_khoa || ce.noi_khoa_tuan_hoan_pl || ce.ngheTim || ce.nghe_tim || '').trim().substring(0, 254);
+            const valHoHap = String(ce.kq_ho_hap || ce.respiratory || ce.hohap || ce.ho_hap || ce.noi_khoa_ho_hap || ce.noi_khoa_ho_hap_pl || ce.nghePhoi || ce.nghe_phoi || '').trim().substring(0, 254);
+            const valTieuHoa = String(ce.noi_khoa_tieu_hoa || ce.digestive || ce.tieuhoa || ce.tieu_hoa || ce.noi_khoa_tieu_hoa_pl || ce.hinhDangBungRon || ce.ganLachTo || '').trim().substring(0, 254);
+            const valThanTietNieu = String(ce.kq_tiet_nieu || ce.urinary || ce.thantietnieu || ce.than_tiet_nieu || ce.noi_khoa_than_tietnieu || ce.noi_khoa_than_tietnieu_pl || ce.cqSinhDucNgoai || '').trim().substring(0, 254);
             const valNoiTiet = String(ce.kq_noi_tiet || ce.endocrine || ce.noitiet || ce.noi_tiet || ce.noi_khoa_noi_tiet || ce.noi_khoa_noi_tiet_pl || '').trim().substring(0, 254);
-            const valCoXuongKhop = String(ce.kq_co_xuong_khop || ce.musculoskeletal || ce.coxuongkhop || ce.co_xuong_khop || ce.noi_khoa_co_xuong_khop || ce.noi_khoa_co_xuong_khop_pl || '').trim().substring(0, 254);
-            const valThanKinh = String(ce.kq_than_kinh || ce.neurology || ce.thankinh || ce.than_kinh || ce.noi_khoa_than_kinh || ce.noi_khoa_than_kinh_pl || '').trim().substring(0, 254);
-            const valTamThan = String(ce.kq_tam_than || ce.psychiatry || ce.tamthan || ce.tam_than || ce.noi_khoa_tam_than || ce.noi_khoa_tam_than_pl || '').trim().substring(0, 254);
-            const valNgoai = String(ce.kq_ngoai_khoa || ce.external || ce.ngoai || ce.ngoai_khoa || ce.kham_ngoai_khoa_pl || '').trim().substring(0, 254);
-            const valDaLieu = String(ce.kq_da_lieu || ce.dermatology || ce.dalieu || ce.da_lieu || ce.kham_da_lieu_pl || '').trim().substring(0, 254);
-            const valMat = String(ce.kq_mat || ce.eye || ce.mat || ce.kham_mat_pl || '').trim().substring(0, 254);
-            const valTmh = String(ce.kq_tai_mui_hong || ce.benh_tai_mui_hong || ce.ent || ce.tmh || ce.tai_mui_hong || ce.kham_tai_mui_hong_pl || '').trim().substring(0, 254);
-            const valRhm = String(ce.kq_rang_ham_mat || ce.benh_rang_ham_mat || ce.dental || ce.rhm || ce.rang_ham_mat || ce.kham_rang_ham_mat_pl || '').trim().substring(0, 254);
-            const valPhuKhoa = String(ce.kq_sinh_duc || ce.kham_san_phu_khoa || ce.gynecology || ce.phukhoa || ce.san_phu_khoa || ce.kham_san_phu_khoa_pl || '').trim().substring(0, 254);
+            const valCoXuongKhop = String(ce.kq_co_xuong_khop || ce.musculoskeletal || ce.coxuongkhop || ce.co_xuong_khop || ce.noi_khoa_co_xuong_khop || ce.noi_khoa_co_xuong_khop_pl || ce.khamTuChiKhop || ce.khopHang || '').trim().substring(0, 254);
+            const valThanKinh = String(ce.kq_than_kinh || ce.neurology || ce.thankinh || ce.than_kinh || ce.noi_khoa_than_kinh || ce.noi_khoa_than_kinh_pl || ce.vanDongCo || ce.truongLucCo || ce.ptVanDongBinhThuong || '').trim().substring(0, 254);
+            const valTamThan = String(ce.kq_tam_than || ce.psychiatry || ce.tamthan || ce.tam_than || ce.noi_khoa_tam_than || ce.noi_khoa_tam_than_pl || ce.ptTinhThanBinhThuong || ce.nguyCoTuKy || '').trim().substring(0, 254);
+            const valNgoai = String(ce.kq_ngoai_khoa || ce.external || ce.ngoai || ce.ngoai_khoa || ce.kham_ngoai_khoa_pl || ce.kiemTraLungCotSong || '').trim().substring(0, 254);
+            const valDaLieu = String(ce.kq_da_lieu || ce.dermatology || ce.dalieu || ce.da_lieu || ce.kham_da_lieu_pl || ce.mauSacDa || ce.longBanTay || '').trim().substring(0, 254);
+            const valMat = String(ce.kq_mat || ce.eye || ce.mat || ce.kham_mat_pl || ce.viTri2Mat || ce.miMatKetMac || ce.dongTu || ce.lacMat || '').trim().substring(0, 254);
+            const valTmh = String(ce.kq_tai_mui_hong || ce.benh_tai_mui_hong || ce.ent || ce.tmh || ce.tai_mui_hong || ce.kham_tai_mui_hong_pl || ce.taiMangNhi || ce.hinhDangMui || ce.dapUngAmThanh || '').trim().substring(0, 254);
+            const valRhm = String(ce.kq_rang_ham_mat || ce.benh_rang_ham_mat || ce.dental || ce.rhm || ce.rang_ham_mat || ce.kham_rang_ham_mat_pl || ce.hinhDangMieng || ce.rangSuaSoSinh || ce.hong || '').trim().substring(0, 254);
+            const valPhuKhoa = String(ce.kq_sinh_duc || ce.kham_san_phu_khoa || ce.gynecology || ce.phukhoa || ce.san_phu_khoa || ce.kham_san_phu_khoa_pl || ce.cqSinhDucNgoai || '').trim().substring(0, 254);
             const valPhanLoai = fitnessClassText.substring(0, 254);
             const valDiagnosis = diagnosis.substring(0, 254);
             const valRemark = remarkAdvise.substring(0, 254);

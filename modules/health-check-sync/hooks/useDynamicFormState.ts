@@ -6,6 +6,7 @@ import { catalogService, CatalogItem } from '../../../services/catalogService';
 import { healthCheckService } from '../../../services/healthCheckService';
 import { validateNewFormAge } from '../utils/healthCheckAge';
 import { formatDateForInput, parseDateSafe } from '../../../utils/formatters';
+import { validateMandatoryPortalFields } from '../utils/mandatoryFieldsValidator';
 
 export const useDynamicFormState = (
     formType: string,
@@ -1759,11 +1760,48 @@ export const useDynamicFormState = (
         }
         if (dob && validateNewFormAge(formType, dob)) newErrors.dob = validateNewFormAge(formType, dob)!;
         
-        // Chỉ bắt buộc đầy đủ Kết luận khi Khóa & Ký Số
+        const currentProv = provinces.find(p => String(p.id) === String(maTinhCuTru) || String(p.code) === String(maTinhCuTru));
+        const currentWard = wards.find(w => String(w.id) === String(maXaCuTru) || String(w.code) === String(maXaCuTru));
+        const currentProvName = currentProv?.name || '';
+        const currentWardName = currentWard?.name || '';
+        const effectiveAddress = (address && address.trim()) 
+            ? address.trim() 
+            : [currentWardName, currentProvName].filter(Boolean).map(s => s.trim()).join(', ');
+
+        // Bắt buộc kiểm tra đủ và đúng 17 trường bắt buộc theo file đặc tả cổng khi Khóa & Ký số
         if (isSigning) {
-            if (!fundingSource) newErrors.fundingSource = 'Nguồn chi trả bắt buộc chọn theo QĐ 2062';
-            if (formType !== '1' && !fitnessClass) newErrors.fitnessClass = 'Phân loại sức khỏe chung bắt buộc chọn';
-            
+            const mandatoryReport = validateMandatoryPortalFields({
+                formType,
+                isChild: formType === '1' || formType === 'mau1-child' || formType === 'child',
+                patientName,
+                gender,
+                dob,
+                ethnic,
+                cccd,
+                noCccd,
+                guardianCccd,
+                address: effectiveAddress,
+                maTinhCuTru,
+                maXaCuTru,
+                maNgheNghiep,
+                lyDoVv,
+                maCskcb,
+                maGtinCskcb,
+                targetGroup,
+                fundingSource,
+                loaiHinhKcb,
+                ngayVao,
+                fitnessClass
+            });
+
+            if (!mandatoryReport.valid) {
+                Object.assign(newErrors, mandatoryReport.fieldErrors);
+                setErrors(newErrors);
+                toast.error(`Thiếu thông tin bắt buộc khi kết luận: ${mandatoryReport.errors[0]}`);
+                setActiveTab(mandatoryReport.firstErrorTab);
+                return false;
+            }
+
             const isOverallClassThreeOrBelow = ['3', '4', '5', 'III', 'IV', 'V'].includes(fitnessClass);
             const hasNotes = !!(cacVanDeLuuY && cacVanDeLuuY.trim());
             if ((isOverallClassThreeOrBelow || hasNotes) && !diagnosis.trim()) {
@@ -1803,11 +1841,6 @@ export const useDynamicFormState = (
 
         // Cập nhật lại state để giao diện đồng bộ
         setSpecialtyMetadata(calculatedMetadata);
-        
-        const currentProv = provinces.find(p => String(p.id) === String(maTinhCuTru) || String(p.code) === String(maTinhCuTru));
-        const currentWard = wards.find(w => String(w.id) === String(maXaCuTru) || String(w.code) === String(maXaCuTru));
-        const currentProvName = currentProv?.name || '';
-        const currentWardName = currentWard?.name || '';
 
         const fullPayload = {
             patientId,
@@ -1818,7 +1851,7 @@ export const useDynamicFormState = (
             docNo,
             formType,
             clinicalData: {
-                address,
+                address: effectiveAddress || address,
                 phone,
                 ethnic,
                 no_cccd: noCccd,
@@ -2226,6 +2259,10 @@ export const useDynamicFormState = (
         const currentProvName = currentProv?.name || '';
         const currentWardName = currentWard?.name || '';
 
+        const effectivePreviewAddress = (address && address.trim()) 
+            ? address.trim() 
+            : [currentWardName, currentProvName].filter(Boolean).map(s => s.trim()).join(', ');
+
         const fullPayload = {
             id: initialData?.id,
             patientId,
@@ -2236,7 +2273,7 @@ export const useDynamicFormState = (
             docNo,
             formType,
             clinicalData: {
-                address,
+                address: effectivePreviewAddress || address,
                 phone,
                 ethnic,
                 no_cccd: noCccd,

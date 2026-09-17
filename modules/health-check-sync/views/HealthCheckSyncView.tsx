@@ -16,7 +16,8 @@ import {
     PlusIcon,
     AdjustmentsHorizontalIcon,
     DocumentArrowDownIcon,
-    PrinterIcon
+    PrinterIcon,
+    CheckCircleIcon
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { healthCheckService } from '../../../services/healthCheckService';
@@ -36,6 +37,8 @@ import ContractManagement from '../components/ContractManagement';
 import PatientReception from '../components/PatientReception';
 import SampleTracking from '../components/SampleTracking';
 import { HisBatchImportModal } from '../components/HisBatchImportModal';
+import BatchSignModal from '../components/BatchSignModal';
+import { isDocumentConcluded } from '../utils/documentStatus';
 
 interface ErrorBoundaryProps {
     children: React.ReactNode;
@@ -161,6 +164,17 @@ const HealthCheckSyncView: React.FC = () => {
     const [isPrintXnModalOpen, setIsPrintXnModalOpen] = useState(false);
     const [xnPrintPayload, setXnPrintPayload] = useState<PrintXnPayload[]>([]);
     const [isBatchImportModalOpen, setIsBatchImportModalOpen] = useState(false);
+    const [isBatchSignModalOpen, setIsBatchSignModalOpen] = useState(false);
+    const [batchSignInitialRole, setBatchSignInitialRole] = useState<'DOCTOR' | 'UNIT' | 'BOTH'>('DOCTOR');
+
+    const openBatchSignModal = (role: 'DOCTOR' | 'UNIT' | 'BOTH') => {
+        if (selectedIds.size === 0) {
+            toast.warning("Vui lòng chọn ít nhất một hồ sơ để thực hiện ký số.");
+            return;
+        }
+        setBatchSignInitialRole(role);
+        setIsBatchSignModalOpen(true);
+    };
 
     const loadSettings = async () => {
         try {
@@ -582,18 +596,7 @@ const HealthCheckSyncView: React.FC = () => {
         // Kiểm tra điều kiện chỉ cho phép gửi khi ĐÃ KẾT LUẬN
         const uncompletedDocs = documents.filter(d => {
             if (!selectedIds.has(d.id.toString())) return false;
-            const specMeta = d.clinical_data?.specialty_metadata || d.clinical_data?.clinical_exam?.specialty_metadata || {};
-            const hasConcl = !!(
-                (d.conclusion_data?.fitness_class && String(d.conclusion_data.fitness_class).trim()) ||
-                (d.conclusion_data?.ket_luan_loai_suc_khoe && String(d.conclusion_data.ket_luan_loai_suc_khoe).trim()) ||
-                (d.conclusion_data?.diagnosis && String(d.conclusion_data.diagnosis).trim())
-            );
-            const isDone = d.status === 'ĐÃ_KẾT_LUẬN' 
-                || specMeta.conclusion?.status === 'ĐÃ_KẾT_LUẬN'
-                || specMeta.conclusion?.status === 'ĐÃ_DUYỆT'
-                || d.signature_status === 'Signed'
-                || (hasConcl && specMeta.conclusion?.status !== 'CHUA_KHAM');
-            return !isDone;
+            return !isDocumentConcluded(d);
         });
         if (uncompletedDocs.length > 0) {
             toast.warning(`Có ${uncompletedDocs.length} hồ sơ chưa có kết luận khám. Bấm "Gửi" chỉ cho phép khi hồ sơ ở trạng thái "Đã kết luận"!`);
@@ -664,8 +667,7 @@ const HealthCheckSyncView: React.FC = () => {
     };
 
     const handleSendSingleDocument = async (doc: any) => {
-        const isDone = doc.status === 'ĐÃ_KẾT_LUẬN' || doc.conclusion_data?.fitness_class || doc.conclusion_data?.ket_luan_loai_suc_khoe || doc.conclusion_data?.diagnosis;
-        if (!isDone) {
+        if (!isDocumentConcluded(doc)) {
             toast.warning(`Hồ sơ bệnh nhân ${doc.patient_name} chưa có kết luận khám. Bấm "Gửi" chỉ cho phép khi ở trạng thái "Đã kết luận"!`);
             return;
         }
@@ -1062,7 +1064,23 @@ const HealthCheckSyncView: React.FC = () => {
             // Filter by signature status
             let matchesSign = true;
             if (signFilter !== 'All') {
-                matchesSign = doc.signature_status === signFilter;
+                const isFullySigned = doc.signature_status === 'Signed';
+                const hasDoctorSig = !!(
+                    doc.signature_type === 'DOCTOR' ||
+                    doc.conclusion_data?.doctor_signature ||
+                    doc.conclusion_data?.doctor_signature_info ||
+                    (doc.xml_data && doc.xml_data.includes('<CKS_NGUOI_KET_LUAN>') && !doc.xml_data.includes('<CKS_NGUOI_KET_LUAN></CKS_NGUOI_KET_LUAN>'))
+                );
+
+                if (signFilter === 'Signed') {
+                    matchesSign = isFullySigned;
+                } else if (signFilter === 'DoctorSigned') {
+                    matchesSign = !isFullySigned && hasDoctorSig;
+                } else if (signFilter === 'Unsigned') {
+                    matchesSign = !isFullySigned && !hasDoctorSig;
+                } else {
+                    matchesSign = doc.signature_status === signFilter;
+                }
             }
 
             // Filter by send status
@@ -1111,8 +1129,8 @@ const HealthCheckSyncView: React.FC = () => {
             // Filter by exam status
             let matchesExam = true;
             if (examFilter !== 'All') {
-                const isDone = doc.conclusion_data?.fitness_class || doc.conclusion_data?.ket_luan_loai_suc_khoe || doc.conclusion_data?.diagnosis;
-                if (examFilter === 'Done') matchesExam = !!isDone;
+                const isDone = isDocumentConcluded(doc);
+                if (examFilter === 'Done') matchesExam = isDone;
                 if (examFilter === 'InProgress') matchesExam = !isDone;
             }
 
@@ -1333,7 +1351,8 @@ const HealthCheckSyncView: React.FC = () => {
                                             >
                                                 <option value="All">Tất cả trạng thái</option>
                                                 <option value="Unsigned">Chưa ký số</option>
-                                                <option value="Signed">Đã ký số</option>
+                                                <option value="DoctorSigned">Đã ký BS (Chờ ký Viện)</option>
+                                                <option value="Signed">Đã ký đủ (BS + Viện)</option>
                                                 <option value="Rejected">Bị từ chối ký</option>
                                             </select>
                                         </div>
@@ -1403,33 +1422,41 @@ const HealthCheckSyncView: React.FC = () => {
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
-                                    {/* Signature filter */}
                                     {(stepParam === 'pending-sign' || stepParam === 'manage') && (
-                                        <div className="flex border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden text-xs">
-                                            <button
-                                                onClick={() => setSignatureTypeSelect('USB')}
-                                                className={`px-3 py-1.5 font-bold transition ${signatureTypeSelect === 'USB' ? 'bg-[#0f766e] text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                            {/* Nút 1: Ký kết luận (Bác sĩ) */}
+                                            <button 
+                                                onClick={() => openBatchSignModal('DOCTOR')}
+                                                disabled={selectedIds.size === 0 || isLoading || isSending || isSigning}
+                                                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold flex items-center gap-1.5 disabled:opacity-50 transition text-xs active:scale-95 cursor-pointer shadow-sm"
+                                                title="Ký số hàng loạt cho Bác sĩ kết luận đối với các hồ sơ đã chọn"
                                             >
-                                                USB Token
+                                                <SignatureIcon className="w-3.5 h-3.5"/>
+                                                Ký kết luận ({selectedIds.size})
                                             </button>
-                                            <button
-                                                onClick={() => setSignatureTypeSelect('HSM')}
-                                                className={`px-3 py-1.5 font-bold transition ${signatureTypeSelect === 'HSM' ? 'bg-[#0f766e] text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+
+                                            {/* Nút 2: Ký chữ ký đơn vị */}
+                                            <button 
+                                                onClick={() => openBatchSignModal('UNIT')}
+                                                disabled={selectedIds.size === 0 || isLoading || isSending || isSigning}
+                                                className="px-3.5 py-2 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-lg font-bold flex items-center gap-1.5 disabled:opacity-50 transition text-xs active:scale-95 cursor-pointer shadow-sm"
+                                                title="Ký chữ ký đơn vị (CSKCB) hàng loạt cho các hồ sơ đã có chữ ký Bác sĩ"
                                             >
-                                                HSM Cloud
+                                                <CheckCircleIcon className="w-3.5 h-3.5"/>
+                                                Ký đơn vị ({selectedIds.size})
+                                            </button>
+
+                                            {/* Nút 3: Ký cả 2 cấp liên hoàn */}
+                                            <button 
+                                                onClick={() => openBatchSignModal('BOTH')}
+                                                disabled={selectedIds.size === 0 || isLoading || isSending || isSigning}
+                                                className="px-3.5 py-2 bg-gradient-to-r from-teal-600 to-indigo-600 hover:from-teal-700 hover:to-indigo-700 text-white rounded-lg font-bold flex items-center gap-1.5 disabled:opacity-50 transition text-xs active:scale-95 cursor-pointer shadow-sm"
+                                                title="Ký đồng thời cả 2 cấp: Bác sĩ kết luận và Đơn vị chỉ với 1 thao tác"
+                                            >
+                                                <span className="text-[12px]">⚡</span>
+                                                Ký cả 2 cấp ({selectedIds.size})
                                             </button>
                                         </div>
-                                    )}
-
-                                    {(stepParam === 'pending-sign' || stepParam === 'manage') && (
-                                        <button 
-                                            onClick={handleSignDocuments}
-                                            disabled={selectedIds.size === 0 || isLoading || isSending || isSigning}
-                                            className="px-4 py-2 bg-white border border-[#0f766e] text-[#0f766e] hover:bg-emerald-50 rounded-lg font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition text-xs active:scale-95 cursor-pointer"
-                                        >
-                                            {isSigning ? <RefreshIcon className="w-4 h-4 animate-spin"/> : <SignatureIcon className="w-4 h-4 text-[#0f766e]"/>}
-                                            Ký số ({selectedIds.size})
-                                        </button>
                                     )}
 
                                     {stepParam !== 'print-code' && stepParam !== 'sync' && (
@@ -1686,6 +1713,18 @@ const HealthCheckSyncView: React.FC = () => {
                 onClose={() => setIsBatchImportModalOpen(false)}
                 onSuccess={() => {
                     loadData();
+                }}
+            />
+
+            {/* Batch Sign Modal (Doctor + Unit) */}
+            <BatchSignModal
+                isOpen={isBatchSignModalOpen}
+                onClose={() => setIsBatchSignModalOpen(false)}
+                selectedDocs={documents.filter(d => selectedIds.has(d.id.toString()))}
+                initialRole={batchSignInitialRole}
+                onSuccess={async () => {
+                    await loadData();
+                    setSelectedIds(new Set());
                 }}
             />
         </div>

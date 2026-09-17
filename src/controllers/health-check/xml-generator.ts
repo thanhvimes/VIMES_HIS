@@ -1,5 +1,5 @@
 import { getHealthCheckSettings } from '../../config/health-check-settings';
-import { resolveProvinceBhCode, resolveVillageBhCode } from '../../services/administrative-catalog.service';
+import { resolveProvinceBhCode, resolveVillageBhCode, resolveOccupationBhCode, resolveProvinceName, resolveVillageName } from '../../services/administrative-catalog.service';
 
 // Helper: Tìm kiếm giá trị trường linh hoạt từ nhiều nguồn (case-insensitive & snake/camel-case)
 export function findValue(tag: string, ...sources: any[]): string {
@@ -418,16 +418,22 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
     if (!maDanTocVal || maDanTocVal === '00' || maDanTocVal === '0') maDanTocVal = '01';
 
     const ngayVaoVal = formatYmdHm(findValue('ngay_vao', src) || master.created_at || findValue('NGAY_VAO', src)) || formatYmdHm(new Date());
-    const patientNameVal = master.patientName || master.patient_name || findValue('HO_TEN', src) || '';
+    const patientNameVal = (master.patientName || master.patient_name || findValue('HO_TEN', src) || '').toUpperCase();
     const cccdVal = master.cccd || findValue('SO_CCCD', src) || '';
     const maLkVal = master.docNo || master.doc_no || findValue('MA_LK', src) || '';
 
-    const diaChiVal = findValue('DIA_CHI', src) || findValue('hp_address', src) || findValue('address', src) || '';
     const rawProv = findValue('MATINH_CU_TRU', src) || findValue('hp_provid', src) || findValue('hee_provid', src) || '01';
     const maTinhVal = resolveProvinceBhCode(rawProv);
     
     const rawXa = findValue('MAXA_CU_TRU', src) || findValue('hp_villid', src) || findValue('hee_villid', src) || '';
     const maXaVal = resolveVillageBhCode(rawXa, maTinhVal);
+
+    let diaChiVal = (findValue('DIA_CHI', src) || findValue('hp_address', src) || findValue('address', src) || '').trim();
+    if (!diaChiVal) {
+        const wardName = findValue('ward_name', src) || findValue('ten_xa', src) || findValue('ward', src) || resolveVillageName(rawXa || maXaVal);
+        const provName = findValue('province_name', src) || findValue('ten_tinh', src) || findValue('province', src) || resolveProvinceName(rawProv || maTinhVal);
+        diaChiVal = [wardName, provName].map(s => String(s || '').trim()).filter(Boolean).join(', ');
+    }
 
     const ngayCapCccd = formatYmd(findValue('NGAYCAP_CCCD', src)) || '';
     const noiCapCccd = findValue('NOICAP_CCCD', src) || '';

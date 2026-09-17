@@ -12,8 +12,10 @@ import { validateDocumentBeforeSync } from './health-check-sync-validation';
 import { createHealthCheckChecksumSignature } from './health-check-checksum';
 import { isRetryableSyncFailure } from './health-check-sync-retry';
 import { validateHealthCheckEnvelope } from './health-check-xml-validation';
-import { resolveProvinceBhCode, resolveVillageBhCode, resolveOccupationBhCode } from './administrative-catalog.service';
+import { resolveProvinceBhCode, resolveVillageBhCode, resolveOccupationBhCode, resolveProvinceName, resolveVillageName } from './administrative-catalog.service';
 import { signXmlViaHisHsm } from './his-sign.service';
+import { healthCheckTwoTierSigner } from './health-check-two-tier-signer.service';
+import { validateMandatoryPortalFields } from './health-check-mandatory-fields';
 
 const syncHttpsAgent = new https.Agent({
     keepAlive: true,
@@ -97,182 +99,217 @@ export function sanitizeXmlContent(rawXml: string, maCskcbGln?: string, maCskcbB
         xml = xml.replace(/<CHUKYDONVI\s*\/>/gi, `<CHUKYDONVI>\n\t\t<CKS_NGUOI_KET_LUAN></CKS_NGUOI_KET_LUAN>\n\t\t<CKS_BENH_VIEN></CKS_BENH_VIEN>\n\t</CHUKYDONVI>`);
     }
 
-    // Automatically decode Base64 if needed, sanitize, and keep unencoded plain XML inside <NOIDUNGFILE> matching sample data.xml
-    xml = xml.replace(/<NOIDUNGFILE>([\s\S]*?)<\/NOIDUNGFILE>/gi, (match, inner) => {
-        let trimmed = inner.trim();
-        let decoded = trimmed;
+    // Automatically decode Base64 if needed, sanitize, and keep unencoded plain XML matching sample data.xml
+    if (xml.includes('<NOIDUNGFILE>')) {
+        xml = xml.replace(/<NOIDUNGFILE>([\s\S]*?)<\/NOIDUNGFILE>/gi, (_match, inner) => {
+            let trimmed = inner.trim();
+            let decoded = trimmed;
 
-        // Check if it is Base64 encoded
-        if (!trimmed.startsWith('<') && !trimmed.startsWith('<?xml') && trimmed.length > 0) {
-            try {
-                const buf = Buffer.from(trimmed, 'base64');
-                const str = buf.toString('utf8');
-                if (str.includes('<') || str.includes('<?xml')) {
-                    decoded = str;
+            // Check if it is Base64 encoded
+            if (!trimmed.startsWith('<') && !trimmed.startsWith('<?xml') && trimmed.length > 0) {
+                try {
+                    const buf = Buffer.from(trimmed, 'base64');
+                    const str = buf.toString('utf8');
+                    if (str.includes('<') || str.includes('<?xml')) {
+                        decoded = str;
+                    }
+                } catch (e) {
+                    // Not Base64
                 }
-            } catch (e) {
-                // Not Base64
             }
-        }
 
-        // Strip inner <?xml version...?> declaration if present
-        decoded = decoded.replace(/<\?xml[\s\S]*?\?>/gi, '').trim();
-
-        // Fix MA_CSKCB inside XML2 to 5-digit BYT code if present
-        decoded = decoded.replace(/<MA_CSKCB>.*?<\/MA_CSKCB>/g, `<MA_CSKCB>${bytCode}</MA_CSKCB>`);
-
-        // Fix NGAYCAP_CCCD format: if DDMMYYYY (e.g. 14022024), convert to YYYYMMDD (20240214)
-        decoded = decoded.replace(/<NGAYCAP_CCCD>(\d{2})(\d{2})(\d{4})<\/NGAYCAP_CCCD>/g, (m, d, mth, y) => {
-            const year = parseInt(y, 10);
-            if (year >= 1900 && year <= 2100) {
-                return `<NGAYCAP_CCCD>${y}${mth}${d}</NGAYCAP_CCCD>`;
-            }
-            return m;
+            const cleaned = sanitizeInnerXml(decoded, bytCode, xml);
+            return `<NOIDUNGFILE>${cleaned.trim()}</NOIDUNGFILE>`;
         });
-
-        // Fix NGAY_SINH format: if DDMMYYYY (e.g. 13022009), convert to YYYYMMDD (20090213)
-        decoded = decoded.replace(/<NGAY_SINH>(\d{2})(\d{2})(\d{4})<\/NGAY_SINH>/g, (m, d, mth, y) => {
-            const year = parseInt(y, 10);
-            if (year >= 1900 && year <= 2100) {
-                return `<NGAY_SINH>${y}${mth}${d}</NGAY_SINH>`;
-            }
-            return m;
-        });
-
-        // Fix SO_CCCD to 12 digits (pad leading 0s or trim to 12 digits)
-        decoded = decoded.replace(/<SO_CCCD>(.*?)<\/SO_CCCD>/g, (m, val) => {
-            const digits = val.replace(/\D/g, '');
-            if (!digits) return '<SO_CCCD></SO_CCCD>';
-            if (digits.length < 12) return `<SO_CCCD>${digits.padStart(12, '0')}</SO_CCCD>`;
-            return `<SO_CCCD>${digits.slice(0, 12)}</SO_CCCD>`;
-        });
-
-        // Fix DIEN_THOAI to 10 digits starting with 0
-        decoded = decoded.replace(/<DIEN_THOAI>(.*?)<\/DIEN_THOAI>/g, (m, val) => {
-            let digits = val.replace(/\D/g, '');
-            if (!digits) return '<DIEN_THOAI></DIEN_THOAI>';
-            if (!digits.startsWith('0')) digits = '0' + digits;
-            if (digits.length > 10) digits = digits.slice(0, 10);
-            else if (digits.length < 10) digits = digits.padEnd(10, '0');
-            return `<DIEN_THOAI>${digits}</DIEN_THOAI>`;
-        });
-
-        // Fix MA_NGHE_NGHIEP to standard ss_vndesc (e.g. '1539' -> '00', '1471' -> '83', '4' -> '04')
-        decoded = decoded.replace(/<MA_NGHE_NGHIEP>(.*?)<\/MA_NGHE_NGHIEP>/g, (_m, val) => {
-            return `<MA_NGHE_NGHIEP>${resolveOccupationBhCode(val)}</MA_NGHE_NGHIEP>`;
-        });
-        decoded = decoded.replace(/<MA_NGHE_NGHIEP_NGH_BO>(.*?)<\/MA_NGHE_NGHIEP_NGH_BO>/g, (m, val) => {
-            return val.trim() ? `<MA_NGHE_NGHIEP_NGH_BO>${resolveOccupationBhCode(val)}</MA_NGHE_NGHIEP_NGH_BO>` : m;
-        });
-        decoded = decoded.replace(/<MA_NGHE_NGHIEP_NGH_ME>(.*?)<\/MA_NGHE_NGHIEP_NGH_ME>/g, (m, val) => {
-            return val.trim() ? `<MA_NGHE_NGHIEP_NGH_ME>${resolveOccupationBhCode(val)}</MA_NGHE_NGHIEP_NGH_ME>` : m;
-        });
-
-        // Fix MATINH_CU_TRU to 2-digit sp_id_bh
-        decoded = decoded.replace(/<MATINH_CU_TRU>(.*?)<\/MATINH_CU_TRU>/g, (_m, val) => {
-            return `<MATINH_CU_TRU>${resolveProvinceBhCode(val)}</MATINH_CU_TRU>`;
-        });
-
-        // Fix MAXA_CU_TRU to 5-digit sv_id_bh
-        decoded = decoded.replace(/<MAXA_CU_TRU>(.*?)<\/MAXA_CU_TRU>/g, (_m, val) => {
-            return `<MAXA_CU_TRU>${resolveVillageBhCode(val)}</MAXA_CU_TRU>`;
-        });
-
-        // Fix guardian province / ward tags if present
-        decoded = decoded.replace(/<MATINH_CU_TRU_NGH_BO>(.*?)<\/MATINH_CU_TRU_NGH_BO>/g, (m, val) => {
-            return val.trim() ? `<MATINH_CU_TRU_NGH_BO>${resolveProvinceBhCode(val)}</MATINH_CU_TRU_NGH_BO>` : m;
-        });
-        decoded = decoded.replace(/<MAXA_CU_TRU_NGH_BO>(.*?)<\/MAXA_CU_TRU_NGH_BO>/g, (m, val) => {
-            return val.trim() ? `<MAXA_CU_TRU_NGH_BO>${resolveVillageBhCode(val)}</MAXA_CU_TRU_NGH_BO>` : m;
-        });
-        decoded = decoded.replace(/<MATINH_CU_TRU_NGH_ME>(.*?)<\/MATINH_CU_TRU_NGH_ME>/g, (m, val) => {
-            return val.trim() ? `<MATINH_CU_TRU_NGH_ME>${resolveProvinceBhCode(val)}</MATINH_CU_TRU_NGH_ME>` : m;
-        });
-        decoded = decoded.replace(/<MAXA_CU_TRU_NGH_ME>(.*?)<\/MAXA_CU_TRU_NGH_ME>/g, (m, val) => {
-            return val.trim() ? `<MAXA_CU_TRU_NGH_ME>${resolveVillageBhCode(val)}</MAXA_CU_TRU_NGH_ME>` : m;
-        });
-
-        // Fix DOI_TUONG if invalid or '10' -> '1;2'
-        decoded = decoded.replace(/<DOI_TUONG>(.*?)<\/DOI_TUONG>/g, (m, val) => {
-            const v = val.trim();
-            if (!v || v === '10' || v === '0') return '<DOI_TUONG>1;2</DOI_TUONG>';
-            return m;
-        });
-
-        // Fix TYPE based on exact birthday boundary, using NGAY_KHAM when present.
-        // Year subtraction alone misclassifies patients whose birthday has not occurred.
-        const dobMatch = rawXml.match(/<NGAY_SINH>(\d{4})(\d{2})(\d{2})<\/NGAY_SINH>/);
-        if (dobMatch) {
-            const examMatch = rawXml.match(/<NGAY_KHAM>(\d{4})(\d{2})(\d{2})<\/NGAY_KHAM>/);
-            const examDate = examMatch
-                ? new Date(Date.UTC(Number(examMatch[1]), Number(examMatch[2]) - 1, Number(examMatch[3])))
-                : new Date();
-            const birthDate = new Date(Date.UTC(Number(dobMatch[1]), Number(dobMatch[2]) - 1, Number(dobMatch[3])));
-            let age = examDate.getUTCFullYear() - birthDate.getUTCFullYear();
-            const birthdayNotReached = examDate.getUTCMonth() < birthDate.getUTCMonth()
-                || (examDate.getUTCMonth() === birthDate.getUTCMonth() && examDate.getUTCDate() < birthDate.getUTCDate());
-            if (birthdayNotReached) age--;
-            if (age >= 18) {
-                decoded = decoded.replace(/<TYPE>.*?<\/TYPE>/g, '<TYPE>Adult</TYPE>');
-            } else if (age < 6) {
-                decoded = decoded.replace(/<TYPE>.*?<\/TYPE>/g, '<TYPE>ChildUnder</TYPE>');
-            } else {
-                decoded = decoded.replace(/<TYPE>.*?<\/TYPE>/g, '<TYPE>Minor</TYPE>');
-            }
-        }
-
-        // Ensure TSGD and TSBT tags in THONG_TIN_HANH_CHINH if missing
-        if (decoded.includes('<THONG_TIN_HANH_CHINH>') && !decoded.includes('<TSGD_MAC_BENH>')) {
-            const medHistorySnippet = `
-							<TSGD_MAC_BENH>0</TSGD_MAC_BENH>
-							<TSGD_MA_BENH></TSGD_MA_BENH>
-							<TS_TIEP_XUC_LAO>0</TS_TIEP_XUC_LAO>
-							<SAN_KHOA>1</SAN_KHOA>
-							<SAN_KHOA_KHONG_BT></SAN_KHOA_KHONG_BT>
-							<TIEM_CHUNG_BCG>0</TIEM_CHUNG_BCG>
-							<TIEM_CHUNG_BH_HG_UV>0</TIEM_CHUNG_BH_HG_UV>
-							<TIEM_CHUNG_SOI>0</TIEM_CHUNG_SOI>
-							<TIEM_CHUNG_BAI_LIET>0</TIEM_CHUNG_BAI_LIET>
-							<TIEM_CHUNG_VNNB_B>0</TIEM_CHUNG_VNNB_B>
-							<TIEM_CHUNG_VGB>0</TIEM_CHUNG_VGB>
-							<TIEM_CHUNG_CAC_LOAI_KHAC>0</TIEM_CHUNG_CAC_LOAI_KHAC>
-							<TIEM_CHUNG_VAC_XIN_KHAC></TIEM_CHUNG_VAC_XIN_KHAC>
-							<TSBT_MAC_BENH>0</TSBT_MAC_BENH>
-							<TSBT_MA_BENH></TSBT_MA_BENH>
-							<TSBT_DANG_DIEU_TRI_BENH>0</TSBT_DANG_DIEU_TRI_BENH>
-							<TSBT_BENH_TRONG_5_NAM_QUA>0</TSBT_BENH_TRONG_5_NAM_QUA>
-							<TSBT_BENH_THAN_KINH>0</TSBT_BENH_THAN_KINH>
-							<TSBT_BENH_MAT>0</TSBT_BENH_MAT>
-							<TSBT_BENH_TAI>0</TSBT_BENH_TAI>
-							<TSBT_BENH_TIM>0</TSBT_BENH_TIM>
-							<TSBT_PHAU_THUAT_TIM>0</TSBT_PHAU_THUAT_TIM>
-							<TSBT_TANG_HUYET_AP>0</TSBT_TANG_HUYET_AP>
-							<TSBT_KHO_THO>0</TSBT_KHO_THO>
-							<TSBT_BENH_PHOI>0</TSBT_BENH_PHOI>
-							<TSBT_BENH_THAN>0</TSBT_BENH_THAN>
-							<TSBT_NGHIEN_RUOU>0</TSBT_NGHIEN_RUOU>
-							<TSBT_DAI_THAO_DUONG>0</TSBT_DAI_THAO_DUONG>
-							<TSBT_BENH_TAM_THAN>0</TSBT_BENH_TAM_THAN>
-							<TSBT_MAT_Y_THUC>0</TSBT_MAT_Y_THUC>
-							<TSBT_NGAT>0</TSBT_NGAT>
-							<TSBT_BENH_TIEU_HOA>0</TSBT_BENH_TIEU_HOA>
-							<TSBT_ROI_LOAN_GIAC_NGU>0</TSBT_ROI_LOAN_GIAC_NGU>
-							<TSBT_TAI_BIEN>0</TSBT_TAI_BIEN>
-							<TSBT_BENH_COT_SONG>0</TSBT_BENH_COT_SONG>
-							<TSBT_RUOU_THUONG_XUYEN>0</TSBT_RUOU_THUONG_XUYEN>
-							<TSBT_MA_TUY>0</TSBT_MA_TUY>
-							<TSBT_BENH_KHAC>0</TSBT_BENH_KHAC>
-							<TSBT_MA_BENH_KHAC></TSBT_MA_BENH_KHAC>
-							<TSBT_TEN_THUOC_LIEU_LUONG></TSBT_TEN_THUOC_LIEU_LUONG>
-							<TSBT_THAI_SAN>0</TSBT_THAI_SAN>
-							<TSBT_TEN_THUOC_THAI_SAN></TSBT_TEN_THUOC_THAI_SAN>`;
-            decoded = decoded.replace('</THONG_TIN_HANH_CHINH>', `${medHistorySnippet}\n						</THONG_TIN_HANH_CHINH>`);
-        }
-
-        return `<NOIDUNGFILE>${decoded.trim()}</NOIDUNGFILE>`;
-    });
+    } else {
+        xml = sanitizeInnerXml(xml, bytCode, xml);
+    }
 
     return xml;
+}
+
+function sanitizeInnerXml(rawInner: string, bytCode: string, rawXmlRef: string): string {
+    let decoded = rawInner;
+
+    // Strip inner <?xml version...?> declaration if present
+    decoded = decoded.replace(/<\?xml[\s\S]*?\?>/gi, '').trim();
+
+    // Fix MA_CSKCB inside XML2 to 5-digit BYT code if present
+    decoded = decoded.replace(/<MA_CSKCB>.*?<\/MA_CSKCB>/g, `<MA_CSKCB>${bytCode}</MA_CSKCB>`);
+
+    // Fix NGAYCAP_CCCD format: if DDMMYYYY (e.g. 14022024), convert to YYYYMMDD (20240214)
+    decoded = decoded.replace(/<NGAYCAP_CCCD>(\d{2})(\d{2})(\d{4})<\/NGAYCAP_CCCD>/g, (m, d, mth, y) => {
+        const year = parseInt(y, 10);
+        if (year >= 1900 && year <= 2100) {
+            return `<NGAYCAP_CCCD>${y}${mth}${d}</NGAYCAP_CCCD>`;
+        }
+        return m;
+    });
+
+    // Fix NGAY_SINH format: if DDMMYYYY (e.g. 13022009), convert to YYYYMMDD (20090213)
+    decoded = decoded.replace(/<NGAY_SINH>(\d{2})(\d{2})(\d{4})<\/NGAY_SINH>/g, (m, d, mth, y) => {
+        const year = parseInt(y, 10);
+        if (year >= 1900 && year <= 2100) {
+            return `<NGAY_SINH>${y}${mth}${d}</NGAY_SINH>`;
+        }
+        return m;
+    });
+
+    // Fix SO_CCCD to 12 digits (pad leading 0s or trim to 12 digits)
+    decoded = decoded.replace(/<SO_CCCD>(.*?)<\/SO_CCCD>/g, (m, val) => {
+        const digits = val.replace(/\D/g, '');
+        if (!digits) return '<SO_CCCD></SO_CCCD>';
+        if (digits.length < 12) return `<SO_CCCD>${digits.padStart(12, '0')}</SO_CCCD>`;
+        return `<SO_CCCD>${digits.slice(0, 12)}</SO_CCCD>`;
+    });
+
+    // Fix DIEN_THOAI to 10 digits starting with 0
+    decoded = decoded.replace(/<DIEN_THOAI>(.*?)<\/DIEN_THOAI>/g, (m, val) => {
+        let digits = val.replace(/\D/g, '');
+        if (!digits) return '<DIEN_THOAI></DIEN_THOAI>';
+        if (!digits.startsWith('0')) digits = '0' + digits;
+        if (digits.length > 10) digits = digits.slice(0, 10);
+        else if (digits.length < 10) digits = digits.padEnd(10, '0');
+        return `<DIEN_THOAI>${digits}</DIEN_THOAI>`;
+    });
+
+    // Fix MA_NGHE_NGHIEP to standard ss_vndesc (e.g. '1539' -> '00', '1471' -> '83', '4' -> '04')
+    decoded = decoded.replace(/<MA_NGHE_NGHIEP>(.*?)<\/MA_NGHE_NGHIEP>/g, (_m, val) => {
+        return `<MA_NGHE_NGHIEP>${resolveOccupationBhCode(val)}</MA_NGHE_NGHIEP>`;
+    });
+    decoded = decoded.replace(/<MA_NGHE_NGHIEP_NGH_BO>(.*?)<\/MA_NGHE_NGHIEP_NGH_BO>/g, (m, val) => {
+        return val.trim() ? `<MA_NGHE_NGHIEP_NGH_BO>${resolveOccupationBhCode(val)}</MA_NGHE_NGHIEP_NGH_BO>` : m;
+    });
+    decoded = decoded.replace(/<MA_NGHE_NGHIEP_NGH_ME>(.*?)<\/MA_NGHE_NGHIEP_NGH_ME>/g, (m, val) => {
+        return val.trim() ? `<MA_NGHE_NGHIEP_NGH_ME>${resolveOccupationBhCode(val)}</MA_NGHE_NGHIEP_NGH_ME>` : m;
+    });
+
+    // Ensure HO_TEN is uppercase
+    decoded = decoded.replace(/<HO_TEN>(.*?)<\/HO_TEN>/g, (_m, val) => `<HO_TEN>${val.toUpperCase()}</HO_TEN>`);
+
+    // Fix MA_DAN_TOC (default to 01 if empty)
+    decoded = decoded.replace(/<MA_DAN_TOC>(.*?)<\/MA_DAN_TOC>/g, (_m, val) => {
+        let v = val.trim();
+        if (!v || v === '00' || v === '0') v = '01';
+        if (v.length === 1) v = '0' + v;
+        return `<MA_DAN_TOC>${v}</MA_DAN_TOC>`;
+    });
+
+    // Fix MATINH_CU_TRU to 2-digit sp_id_bh
+    decoded = decoded.replace(/<MATINH_CU_TRU>(.*?)<\/MATINH_CU_TRU>/g, (_m, val) => {
+        return `<MATINH_CU_TRU>${resolveProvinceBhCode(val)}</MATINH_CU_TRU>`;
+    });
+
+    // Fix MAXA_CU_TRU to 5-digit sv_id_bh
+    decoded = decoded.replace(/<MAXA_CU_TRU>(.*?)<\/MAXA_CU_TRU>/g, (_m, val) => {
+        return `<MAXA_CU_TRU>${resolveVillageBhCode(val)}</MAXA_CU_TRU>`;
+    });
+
+    // Fix DIA_CHI: if empty, auto-synthesize from MAXA_CU_TRU and MATINH_CU_TRU names
+    decoded = decoded.replace(/<DIA_CHI>(.*?)<\/DIA_CHI>/g, (m, val) => {
+        if (val && val.trim()) return m;
+        const provMatch = decoded.match(/<MATINH_CU_TRU>(.*?)<\/MATINH_CU_TRU>/);
+        const villMatch = decoded.match(/<MAXA_CU_TRU>(.*?)<\/MAXA_CU_TRU>/);
+        const pCode = provMatch ? provMatch[1].trim() : '';
+        const vCode = villMatch ? villMatch[1].trim() : '';
+        const pName = resolveProvinceName(pCode);
+        const vName = resolveVillageName(vCode);
+        const autoAddr = [vName, pName].filter(Boolean).map(s => s.trim()).join(', ');
+        return `<DIA_CHI>${autoAddr || 'Việt Nam'}</DIA_CHI>`;
+    });
+
+    // Fix guardian province / ward tags if present
+    decoded = decoded.replace(/<MATINH_CU_TRU_NGH_BO>(.*?)<\/MATINH_CU_TRU_NGH_BO>/g, (m, val) => {
+        return val.trim() ? `<MATINH_CU_TRU_NGH_BO>${resolveProvinceBhCode(val)}</MATINH_CU_TRU_NGH_BO>` : m;
+    });
+    decoded = decoded.replace(/<MAXA_CU_TRU_NGH_BO>(.*?)<\/MAXA_CU_TRU_NGH_BO>/g, (m, val) => {
+        return val.trim() ? `<MAXA_CU_TRU_NGH_BO>${resolveVillageBhCode(val)}</MAXA_CU_TRU_NGH_BO>` : m;
+    });
+    decoded = decoded.replace(/<MATINH_CU_TRU_NGH_ME>(.*?)<\/MATINH_CU_TRU_NGH_ME>/g, (m, val) => {
+        return val.trim() ? `<MATINH_CU_TRU_NGH_ME>${resolveProvinceBhCode(val)}</MATINH_CU_TRU_NGH_ME>` : m;
+    });
+    decoded = decoded.replace(/<MAXA_CU_TRU_NGH_ME>(.*?)<\/MAXA_CU_TRU_NGH_ME>/g, (m, val) => {
+        return val.trim() ? `<MAXA_CU_TRU_NGH_ME>${resolveVillageBhCode(val)}</MAXA_CU_TRU_NGH_ME>` : m;
+    });
+
+    // Fix DOI_TUONG if invalid or '10' -> '1;2'
+    decoded = decoded.replace(/<DOI_TUONG>(.*?)<\/DOI_TUONG>/g, (m, val) => {
+        const v = val.trim();
+        if (!v || v === '10' || v === '0') return '<DOI_TUONG>1;2</DOI_TUONG>';
+        return m;
+    });
+
+    // Fix TYPE based on exact birthday boundary, using NGAY_KHAM when present.
+    // Year subtraction alone misclassifies patients whose birthday has not occurred.
+    const dobMatch = rawXmlRef.match(/<NGAY_SINH>(\d{4})(\d{2})(\d{2})<\/NGAY_SINH>/) || decoded.match(/<NGAY_SINH>(\d{4})(\d{2})(\d{2})<\/NGAY_SINH>/);
+    if (dobMatch) {
+        const examMatch = rawXmlRef.match(/<NGAY_KHAM>(\d{4})(\d{2})(\d{2})<\/NGAY_KHAM>/) || decoded.match(/<NGAY_KHAM>(\d{4})(\d{2})(\d{2})<\/NGAY_KHAM>/);
+        const examDate = examMatch
+            ? new Date(Date.UTC(Number(examMatch[1]), Number(examMatch[2]) - 1, Number(examMatch[3])))
+            : new Date();
+        const birthDate = new Date(Date.UTC(Number(dobMatch[1]), Number(dobMatch[2]) - 1, Number(dobMatch[3])));
+        let age = examDate.getUTCFullYear() - birthDate.getUTCFullYear();
+        const birthdayNotReached = examDate.getUTCMonth() < birthDate.getUTCMonth()
+            || (examDate.getUTCMonth() === birthDate.getUTCMonth() && examDate.getUTCDate() < birthDate.getUTCDate());
+        if (birthdayNotReached) age--;
+        if (age >= 18) {
+            decoded = decoded.replace(/<TYPE>.*?<\/TYPE>/g, '<TYPE>Adult</TYPE>');
+        } else if (age < 6) {
+            decoded = decoded.replace(/<TYPE>.*?<\/TYPE>/g, '<TYPE>ChildUnder</TYPE>');
+        } else {
+            decoded = decoded.replace(/<TYPE>.*?<\/TYPE>/g, '<TYPE>Minor</TYPE>');
+        }
+    }
+
+    // Ensure TSGD and TSBT tags in THONG_TIN_HANH_CHINH if missing
+    if (decoded.includes('<THONG_TIN_HANH_CHINH>') && !decoded.includes('<TSGD_MAC_BENH>')) {
+        const medHistorySnippet = `
+						<TSGD_MAC_BENH>0</TSGD_MAC_BENH>
+						<TSGD_MA_BENH></TSGD_MA_BENH>
+						<TS_TIEP_XUC_LAO>0</TS_TIEP_XUC_LAO>
+						<SAN_KHOA>1</SAN_KHOA>
+						<SAN_KHOA_KHONG_BT></SAN_KHOA_KHONG_BT>
+						<TIEM_CHUNG_BCG>0</TIEM_CHUNG_BCG>
+						<TIEM_CHUNG_BH_HG_UV>0</TIEM_CHUNG_BH_HG_UV>
+						<TIEM_CHUNG_SOI>0</TIEM_CHUNG_SOI>
+						<TIEM_CHUNG_BAI_LIET>0</TIEM_CHUNG_BAI_LIET>
+						<TIEM_CHUNG_VNNB_B>0</TIEM_CHUNG_VNNB_B>
+						<TIEM_CHUNG_VGB>0</TIEM_CHUNG_VGB>
+						<TIEM_CHUNG_CAC_LOAI_KHAC>0</TIEM_CHUNG_CAC_LOAI_KHAC>
+						<TIEM_CHUNG_VAC_XIN_KHAC></TIEM_CHUNG_VAC_XIN_KHAC>
+						<TSBT_MAC_BENH>0</TSBT_MAC_BENH>
+						<TSBT_MA_BENH></TSBT_MA_BENH>
+						<TSBT_DANG_DIEU_TRI_BENH>0</TSBT_DANG_DIEU_TRI_BENH>
+						<TSBT_BENH_TRONG_5_NAM_QUA>0</TSBT_BENH_TRONG_5_NAM_QUA>
+						<TSBT_BENH_THAN_KINH>0</TSBT_BENH_THAN_KINH>
+						<TSBT_BENH_MAT>0</TSBT_BENH_MAT>
+						<TSBT_BENH_TAI>0</TSBT_BENH_TAI>
+						<TSBT_BENH_TIM>0</TSBT_BENH_TIM>
+						<TSBT_PHAU_THUAT_TIM>0</TSBT_PHAU_THUAT_TIM>
+						<TSBT_TANG_HUYET_AP>0</TSBT_TANG_HUYET_AP>
+						<TSBT_KHO_THO>0</TSBT_KHO_THO>
+						<TSBT_BENH_PHOI>0</TSBT_BENH_PHOI>
+						<TSBT_BENH_THAN>0</TSBT_BENH_THAN>
+						<TSBT_NGHIEN_RUOU>0</TSBT_NGHIEN_RUOU>
+						<TSBT_DAI_THAO_DUONG>0</TSBT_DAI_THAO_DUONG>
+						<TSBT_BENH_TAM_THAN>0</TSBT_BENH_TAM_THAN>
+						<TSBT_MAT_Y_THUC>0</TSBT_MAT_Y_THUC>
+						<TSBT_NGAT>0</TSBT_NGAT>
+						<TSBT_BENH_TIEU_HOA>0</TSBT_BENH_TIEU_HOA>
+						<TSBT_ROI_LOAN_GIAC_NGU>0</TSBT_ROI_LOAN_GIAC_NGU>
+						<TSBT_TAI_BIEN>0</TSBT_TAI_BIEN>
+						<TSBT_BENH_COT_SONG>0</TSBT_BENH_COT_SONG>
+						<TSBT_RUOU_THUONG_XUYEN>0</TSBT_RUOU_THUONG_XUYEN>
+						<TSBT_MA_TUY>0</TSBT_MA_TUY>
+						<TSBT_BENH_KHAC>0</TSBT_BENH_KHAC>
+						<TSBT_MA_BENH_KHAC></TSBT_MA_BENH_KHAC>
+						<TSBT_TEN_THUOC_LIEU_LUONG></TSBT_TEN_THUOC_LIEU_LUONG>
+						<TSBT_THAI_SAN>0</TSBT_THAI_SAN>
+						<TSBT_TEN_THUOC_THAI_SAN></TSBT_TEN_THUOC_THAI_SAN>`;
+        decoded = decoded.replace('</THONG_TIN_HANH_CHINH>', `${medHistorySnippet}\n						</THONG_TIN_HANH_CHINH>`);
+    }
+
+    return decoded;
 }
 
 export function validateFinalEncodedHealthCheckXml(base64Xml: string) {
@@ -498,7 +535,7 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
             console.log(`===============================================================`);
 
             const docQuery = await query(`
-                SELECT id, doc_no, xml_data, patient_name, signature_status, signature, send_status, syt_send_status 
+                SELECT id, doc_no, form_type, xml_data, patient_name, cccd, dob, gender, signature_status, signature, send_status, syt_send_status 
                 FROM health_check_masters WHERE id = $1
             `, [parseInt(docId, 10)]);
 
@@ -516,18 +553,37 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                 continue;
             }
 
+            // Kiểm tra đủ và đúng 17 trường bắt buộc theo file đặc tả trước khi ký gửi cổng
+            const detailRes = await query(`SELECT clinical_data, lab_data, conclusion_data FROM health_check_details WHERE master_id = $1`, [doc.id]);
+            const detail = detailRes.rows[0] || {};
+            if (doc.patient_name) doc.patient_name = doc.patient_name.toUpperCase();
+            const mandatoryCheck = validateMandatoryPortalFields({
+                formType: doc.form_type,
+                master: doc,
+                clinical: detail.clinical_data || {},
+                lab: detail.lab_data || {},
+                conclusion: detail.conclusion_data || {}
+            });
+            if (!mandatoryCheck.valid) {
+                const errMsg = `Thiếu thông tin bắt buộc theo quy định cổng KSK: ${mandatoryCheck.errors.join('; ')}`;
+                console.error(`❌ [Sync] Hồ sơ ${doc.doc_no || doc.id} không đạt kiểm tra 17 trường bắt buộc:`, errMsg);
+                await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [errMsg.slice(0, 1000), doc.id]);
+                failedIds.push(docId);
+                continue;
+            }
+
             // 3.2 Chuẩn bị dữ liệu XML
             let base64Xml = '';
             let rawXmlToProcess = sanitizeXmlContent(doc.xml_data || '', glnCode, bytCode);
 
-            // Đảm bảo CKS_NGUOI_KET_LUAN được điền nếu có chữ ký bác sĩ
+            // Chuẩn hóa và áp dụng Bước 1 & Bước 2 theo đúng hướng dẫn kỹ thuật chữ ký số:
+            // Bước 1: Ký CKS_NGUOI_KET_LUAN (để trống cả 2 thẻ CKS_NGUOI_KET_LUAN và CKS_BENH_VIEN, băm SHA-256)
             let doctorSig = '';
             try {
-                const detailRes = await query(`SELECT conclusion_data FROM health_check_details WHERE master_id = $1`, [doc.id]);
-                const conclData = detailRes.rows[0]?.conclusion_data || {};
+                const conclData = detail.conclusion_data || {};
                 doctorSig = conclData.signature || conclData.doctor_signature || conclData.signature_base64 || (doc.signature_type === 'DOCTOR' ? doc.signature : '') || '';
-                if (doctorSig && rawXmlToProcess.includes('<CKS_NGUOI_KET_LUAN></CKS_NGUOI_KET_LUAN>')) {
-                    rawXmlToProcess = rawXmlToProcess.replace('<CKS_NGUOI_KET_LUAN></CKS_NGUOI_KET_LUAN>', `<CKS_NGUOI_KET_LUAN>${doctorSig}</CKS_NGUOI_KET_LUAN>`);
+                if (doctorSig) {
+                    rawXmlToProcess = healthCheckTwoTierSigner.applyDoctorSignature(rawXmlToProcess, doctorSig);
                 }
             } catch (cErr) {
                 console.warn('Không thể nạp chữ ký bác sĩ từ conclusion_data:', cErr);
@@ -536,31 +592,38 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
             // KIỂM TRA THAM SỐ THIẾT LẬP: allow_unsigned_sync
             if (!settings.allow_unsigned_sync) {
                 // Tier 1: Kiểm tra Bác sĩ đã ký kết luận chưa (CKS_NGUOI_KET_LUAN)
-                const hasDoctorSig = Boolean(
-                    doctorSig || 
-                    (rawXmlToProcess.includes('<CKS_NGUOI_KET_LUAN>') && !rawXmlToProcess.includes('<CKS_NGUOI_KET_LUAN></CKS_NGUOI_KET_LUAN>'))
-                );
-                if (!hasDoctorSig) {
+                const sigCheck = healthCheckTwoTierSigner.isFullySigned(rawXmlToProcess);
+                if (!sigCheck.hasDoctorSig) {
                     const noDocMsg = 'Hồ sơ chưa có chữ ký số của Bác sĩ kết luận (CKS_NGUOI_KET_LUAN)';
                     await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [noDocMsg, doc.id]);
                     failedIds.push(docId);
                     continue;
                 }
 
-                // Tier 2: Ký số Cơ sở y tế (Tổ chức)
-                // Nếu chưa có chữ ký đơn vị (signature_status !== 'Signed') -> Tự động gọi HSM ký nếu có cấu hình
-                if (doc.signature_status !== 'Signed') {
+                // Tier 2: Ký số Cơ sở y tế (CKS_BENH_VIEN)
+                if (!sigCheck.hasHospitalSig) {
                     const hasHsmConfig = Boolean(settings.hsm_username && settings.hsm_password);
                     if (hasHsmConfig) {
                         try {
-                            console.log(`🔑 [Auto-Sign HSM] Đang tự động ký số HSM đơn vị cho hồ sơ ${doc.doc_no || doc.id}...`);
-                            const signedXmlBase64 = await signXmlViaHisHsm(rawXmlToProcess, settings, doc.doc_no || `ksk_${doc.id}`);
+                            console.log(`🔑 [Auto-Sign HSM] Đang tự động ký số HSM đơn vị (Bước 2: CKS_BENH_VIEN) cho hồ sơ ${doc.doc_no || doc.id}...`);
+                            // Bước 2: Băm XML đã chèn CKS_NGUOI_KET_LUAN (CKS_BENH_VIEN để trống)
+                            const step2Hash = healthCheckTwoTierSigner.getStep2Hash(rawXmlToProcess);
+                            const signedXmlBase64 = await signXmlViaHisHsm(step2Hash.preparedXml, settings, doc.doc_no || `ksk_${doc.id}`);
                             if (signedXmlBase64) {
+                                let hospitalSigVal = signedXmlBase64;
+                                if (signedXmlBase64.startsWith('<') || signedXmlBase64.includes('<Signature')) {
+                                    const sigValMatch = signedXmlBase64.match(/<SignatureValue[^>]*>([\s\S]*?)<\/SignatureValue>/i);
+                                    if (sigValMatch) {
+                                        hospitalSigVal = sigValMatch[1].replace(/\s+/g, '');
+                                    }
+                                }
+                                rawXmlToProcess = healthCheckTwoTierSigner.applyHospitalSignature(rawXmlToProcess, hospitalSigVal);
+
                                 const signatureWrapper = JSON.stringify({
                                     signed_file: {
                                         file_name: `${doc.doc_no || 'document'}_signed.xml`,
                                         mime_type: 'application/xml',
-                                        data_base64: signedXmlBase64
+                                        data_base64: Buffer.from(rawXmlToProcess, 'utf8').toString('base64')
                                     }
                                 });
                                 await query(`
@@ -568,14 +631,15 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                                     SET signature = $1, 
                                         signature_status = 'Signed', 
                                         signature_type = 'HSM',
+                                        xml_data = $2,
                                         updated_at = NOW() 
-                                    WHERE id = $2
-                                `, [signatureWrapper, doc.id]);
+                                    WHERE id = $3
+                                `, [signatureWrapper, rawXmlToProcess, doc.id]);
                                 
                                 doc.signature_status = 'Signed';
                                 doc.signature = signatureWrapper;
                                 doc.signature_type = 'HSM';
-                                console.log(`✅ [Auto-Sign HSM] Ký số HSM đơn vị thành công cho hồ sơ ${doc.doc_no || doc.id}`);
+                                console.log(`✅ [Auto-Sign HSM] Ký số HSM đơn vị (Bước 2: CKS_BENH_VIEN) thành công cho hồ sơ ${doc.doc_no || doc.id}`);
                             }
                         } catch (hsmErr: any) {
                             const hsmErrMsg = `Lỗi ký số HSM đơn vị: ${hsmErr.message}`;
@@ -583,6 +647,17 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                             await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [hsmErrMsg.slice(0, 500), doc.id]);
                             failedIds.push(docId);
                             continue;
+                        }
+                    } else if (parsedKey) {
+                        try {
+                            const step2 = healthCheckTwoTierSigner.getStep2Hash(rawXmlToProcess);
+                            const hospitalSig = healthCheckTwoTierSigner.signContentWithPrivateKey(step2.preparedXml, parsedKey);
+                            rawXmlToProcess = healthCheckTwoTierSigner.applyHospitalSignature(rawXmlToProcess, hospitalSig);
+                            doc.signature_status = 'Signed';
+                            await query(`UPDATE health_check_masters SET signature_status='Signed', signature_type='PRIVATE_KEY', xml_data=$1, updated_at=NOW() WHERE id=$2`, [rawXmlToProcess, doc.id]);
+                            console.log(`✅ [Auto-Sign PrivateKey] Ký số CKS_BENH_VIEN thành công cho hồ sơ ${doc.doc_no || doc.id}`);
+                        } catch (kErr: any) {
+                            console.warn('Lỗi ký private key:', kErr.message);
                         }
                     } else {
                         const unsignedMsg = 'Hồ sơ chưa có chữ ký số Cơ sở y tế và chưa cấu hình tài khoản HSM tự động ký';

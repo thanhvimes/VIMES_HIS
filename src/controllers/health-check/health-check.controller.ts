@@ -39,6 +39,18 @@ class HealthCheckController {
         return documentsController.signDocuments(req, res);
     }
 
+    async batchSignConclusion(req: Request, res: Response) {
+        return documentsController.batchSignConclusion(req, res);
+    }
+
+    async batchSignHospital(req: Request, res: Response) {
+        return documentsController.batchSignHospital(req, res);
+    }
+
+    async batchSignBoth(req: Request, res: Response) {
+        return documentsController.batchSignBoth(req, res);
+    }
+
     async unlockDocument(req: Request, res: Response) {
         return documentsController.unlockDocument(req, res);
     }

@@ -44,6 +44,9 @@ function getAgentPrivateKey(): string {
 // Batch Operations
 router.post('/documents/send', healthCheckController.sendDocuments.bind(healthCheckController));
 router.post('/documents/sign', healthCheckController.signDocuments.bind(healthCheckController));
+router.post('/documents/batch-sign-conclusion', healthCheckController.batchSignConclusion.bind(healthCheckController));
+router.post('/documents/batch-sign-unit', healthCheckController.batchSignHospital.bind(healthCheckController));
+router.post('/documents/batch-sign-both', healthCheckController.batchSignBoth.bind(healthCheckController));
 router.post('/agent/session/sign-challenge', (req: any, res, next) => {
   try {
     const payload = String(req.body?.signingPayload || '');

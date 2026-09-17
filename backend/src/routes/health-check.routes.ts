@@ -44,6 +44,9 @@ function getAgentPrivateKey(): string {
 // Batch Operations
 router.post('/documents/send', healthCheckController.sendDocuments.bind(healthCheckController));
 router.post('/documents/sign', healthCheckController.signDocuments.bind(healthCheckController));
+router.post('/documents/batch-sign-conclusion', healthCheckController.batchSignConclusion.bind(healthCheckController));
+router.post('/documents/batch-sign-unit', healthCheckController.batchSignHospital.bind(healthCheckController));
+router.post('/documents/batch-sign-both', healthCheckController.batchSignBoth.bind(healthCheckController));
 router.post('/agent/session/sign-challenge', (req: any, res, next) => {
   try {
     const payload = String(req.body?.signingPayload || '');
@@ -61,6 +64,14 @@ router.post('/documents/:id/xml-signature/prepare', async (req: any, res, next) 
 router.post('/documents/:id/xml-signature/complete', async (req: any, res, next) => {
   try { res.json({ success: true, data: await healthCheckXmlDsigService.complete(Number(req.params.id), String(req.userId), String(req.body?.transactionId || ''), String(req.body?.rawSignatureBase64 || '')) }); } catch (error) { next(error); }
 });
+
+// Quy trình ký số 2 cấp độ (Bước 1: Bác sĩ kết luận, Bước 2: Bệnh viện) theo chuẩn Bộ Y tế
+router.get('/documents/:id/two-tier-sign/step1-hash', healthCheckController.getTwoTierSignStep1Hash.bind(healthCheckController));
+router.post('/documents/:id/two-tier-sign/step1-hash', healthCheckController.getTwoTierSignStep1Hash.bind(healthCheckController));
+router.post('/documents/:id/two-tier-sign/step1-apply', healthCheckController.applyTwoTierSignStep1.bind(healthCheckController));
+router.get('/documents/:id/two-tier-sign/step2-hash', healthCheckController.getTwoTierSignStep2Hash.bind(healthCheckController));
+router.post('/documents/:id/two-tier-sign/step2-hash', healthCheckController.getTwoTierSignStep2Hash.bind(healthCheckController));
+router.post('/documents/:id/two-tier-sign/step2-apply', healthCheckController.applyTwoTierSignStep2.bind(healthCheckController));
 // Test/integration endpoint for the new VIMES Signing Server (PDF/PAdES).
 router.post('/documents/sign-pdf-vimes', async (req, res, next) => {
   try {

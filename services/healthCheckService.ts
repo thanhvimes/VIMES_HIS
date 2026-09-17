@@ -163,17 +163,80 @@ export const healthCheckService = {
     signDocuments: async (
         docIds: string[], 
         signatureType: 'USB' | 'HSM', 
-        signatures?: Record<string, string>
+        signatures?: Record<string, string>,
+        signRole?: 'DOCTOR' | 'UNIT' | 'BOTH'
     ): Promise<boolean> => {
         try {
             await apiClient.post('/health-check-sync/documents/sign', { 
                 docIds, 
                 signatureType, 
-                signatures 
+                signatures,
+                signRole
             });
             return true;
         } catch (error) {
             console.error("Error signing health check documents:", error);
+            throw error;
+        }
+    },
+
+    batchSignConclusion: async (
+        docIds: string[],
+        options?: {
+            doctorId?: string;
+            doctorName?: string;
+            defaultFitnessClass?: string;
+            signatureType?: 'USB' | 'HSM';
+        }
+    ): Promise<any> => {
+        try {
+            const response: any = await apiClient.post('/health-check-sync/documents/batch-sign-conclusion', {
+                docIds,
+                ...options
+            });
+            return response.data || response;
+        } catch (error) {
+            console.error("Error in batchSignConclusion:", error);
+            throw error;
+        }
+    },
+
+    batchSignUnit: async (
+        docIds: string[],
+        options?: {
+            signatureType?: 'USB' | 'HSM';
+            signatures?: Record<string, string>;
+        }
+    ): Promise<any> => {
+        try {
+            const response: any = await apiClient.post('/health-check-sync/documents/batch-sign-unit', {
+                docIds,
+                ...options
+            });
+            return response.data || response;
+        } catch (error) {
+            console.error("Error in batchSignUnit:", error);
+            throw error;
+        }
+    },
+
+    batchSignBoth: async (
+        docIds: string[],
+        options?: {
+            doctorId?: string;
+            doctorName?: string;
+            defaultFitnessClass?: string;
+            signatureType?: 'USB' | 'HSM';
+        }
+    ): Promise<any> => {
+        try {
+            const response: any = await apiClient.post('/health-check-sync/documents/batch-sign-both', {
+                docIds,
+                ...options
+            });
+            return response.data || response;
+        } catch (error) {
+            console.error("Error in batchSignBoth:", error);
             throw error;
         }
     },
@@ -190,6 +253,27 @@ export const healthCheckService = {
 
     completeXmlSignature: async (id: string, transactionId: string, rawSignatureBase64: string): Promise<any> => {
         const response: any = await apiClient.post(`/health-check-sync/documents/${id}/xml-signature/complete`, { transactionId, rawSignatureBase64 });
+        return response.data || response;
+    },
+
+    // Ký số 2 cấp độ (Bộ Y tế: Bác sĩ kết luận + Cơ sở khám chữa bệnh)
+    getTwoTierSignStep1Hash: async (id: string | number): Promise<{ success: boolean; step: 1; documentId: number; docNo: string; patientName: string; hashHex: string; hashBase64: string }> => {
+        const response: any = await apiClient.get(`/health-check-sync/documents/${id}/two-tier-sign/step1-hash`);
+        return response.data || response;
+    },
+
+    applyTwoTierSignStep1: async (id: string | number, signatureBase64: string, doctorName?: string, doctorCode?: string): Promise<{ success: boolean; step: 1; hasDoctorSig: boolean; hasHospitalSig: boolean; fullySigned: boolean; message: string }> => {
+        const response: any = await apiClient.post(`/health-check-sync/documents/${id}/two-tier-sign/step1-apply`, { signatureBase64, doctorName, doctorCode });
+        return response.data || response;
+    },
+
+    getTwoTierSignStep2Hash: async (id: string | number): Promise<{ success: boolean; step: 2; documentId: number; docNo: string; patientName: string; hashHex: string; hashBase64: string }> => {
+        const response: any = await apiClient.get(`/health-check-sync/documents/${id}/two-tier-sign/step2-hash`);
+        return response.data || response;
+    },
+
+    applyTwoTierSignStep2: async (id: string | number, signatureBase64: string, signatureType: 'USB' | 'HSM' = 'USB'): Promise<{ success: boolean; step: 2; hasDoctorSig: boolean; hasHospitalSig: boolean; fullySigned: boolean; message: string }> => {
+        const response: any = await apiClient.post(`/health-check-sync/documents/${id}/two-tier-sign/step2-apply`, { signatureBase64, signatureType });
         return response.data || response;
     },
 

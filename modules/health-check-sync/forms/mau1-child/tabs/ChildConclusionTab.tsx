@@ -4,9 +4,25 @@ import { useSession } from '../../../../../contexts/SessionContext';
 import Combobox from '../../../../../components/ui/Combobox';
 import { toast } from 'sonner';
 import { healthCheckService } from '../../../../../services/healthCheckService';
+import { validateMandatoryPortalFields } from '../../../utils/mandatoryFieldsValidator';
 
 const ChildConclusionTab: React.FC = () => {
     const {
+        patientName,
+        gender,
+        dob,
+        ethnic,
+        cccd,
+        guardianCccd,
+        address,
+        maTinhCuTru,
+        maXaCuTru,
+        lyDoVv,
+        targetGroup,
+        fundingSource,
+        loaiHinhKcb,
+        ngayVao,
+        setActiveTab,
         isLocked,
         fitnessClass, setFitnessClass,
         diagnosis, setDiagnosis,
@@ -45,6 +61,38 @@ const ChildConclusionTab: React.FC = () => {
             toast.warning('Vui lòng chọn Bác sĩ kết luận trước khi thực hiện ký số.');
             return;
         }
+
+        // Bắt buộc kiểm tra 17 trường theo QĐ 2062/3176/1804 (từ file Các trường bắt buộc.xlsx)
+        const mandatoryCheck = validateMandatoryPortalFields({
+            formType: '1',
+            isChild: true,
+            patientName,
+            gender,
+            dob,
+            ethnic,
+            cccd,
+            noCccd: true,
+            guardianCccd,
+            address,
+            maTinhCuTru,
+            maXaCuTru,
+            maNgheNghiep: '00',
+            lyDoVv,
+            targetGroup,
+            fundingSource,
+            loaiHinhKcb,
+            ngayVao,
+            fitnessClass
+        });
+
+        if (!mandatoryCheck.valid) {
+            toast.error(`Không thể ký số kết luận! Vui lòng hoàn thiện các trường bắt buộc:\n• ${mandatoryCheck.errors.join('\n• ')}`, { duration: 8000 });
+            if (setActiveTab && mandatoryCheck.firstErrorTab !== 'conclusion') {
+                setActiveTab(mandatoryCheck.firstErrorTab);
+            }
+            return;
+        }
+
         setIsDoctorSigning(true);
         const toastId = toast.loading('Đang chuẩn bị chữ ký số Bác sĩ kết luận...');
         try {
@@ -64,7 +112,9 @@ const ChildConclusionTab: React.FC = () => {
                 signed_at: timestamp,
                 method: 'DOCTOR_TOKEN_CA'
             });
-            const sigBase64 = Buffer.from(sigPayload, 'utf-8').toString('base64');
+            const sigBase64 = typeof window !== 'undefined' && typeof window.btoa === 'function'
+                ? window.btoa(unescape(encodeURIComponent(sigPayload)))
+                : Buffer.from(sigPayload, 'utf-8').toString('base64');
 
             const payload = {
                 ...conclusionMetadata,
@@ -99,6 +149,37 @@ const ChildConclusionTab: React.FC = () => {
             payload.doctorName = user?.name || '';
             setSpecialtyMetadata(prev => ({ ...prev, conclusion: payload }));
         } else if (action === 'DUYỆT') {
+            // Bắt buộc kiểm tra 17 trường theo QĐ 2062/3176/1804 (từ file Các trường bắt buộc.xlsx)
+            const mandatoryCheck = validateMandatoryPortalFields({
+                formType: '1',
+                isChild: true,
+                patientName,
+                gender,
+                dob,
+                ethnic,
+                cccd,
+                noCccd: true,
+                guardianCccd,
+                address,
+                maTinhCuTru,
+                maXaCuTru,
+                maNgheNghiep: '00',
+                lyDoVv,
+                targetGroup,
+                fundingSource,
+                loaiHinhKcb,
+                ngayVao,
+                fitnessClass
+            });
+
+            if (!mandatoryCheck.valid) {
+                toast.error(`Không thể duyệt kết luận! Vui lòng hoàn thiện các trường bắt buộc:\n• ${mandatoryCheck.errors.join('\n• ')}`, { duration: 8000 });
+                if (setActiveTab && mandatoryCheck.firstErrorTab !== 'conclusion') {
+                    setActiveTab(mandatoryCheck.firstErrorTab);
+                }
+                return;
+            }
+
             if (!allowUnsignedSync && !doctorSig) {
                 toast.warning('Hệ thống đang ở chế độ bắt buộc ký số liên thông. Vui lòng bấm "Ký số Bác sĩ" trước khi Duyệt kết luận!');
                 return;
