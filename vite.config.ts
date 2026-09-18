@@ -18,6 +18,10 @@ export default defineConfig(({ mode }) => {
           '**/dist/**',
           '**/*.log',
           '**/*.mp3',
+          '**/*.mp4',
+          '**/*.webm',
+          '**/docs/**',
+          '**/doc/**',
           '**/node_modules/**'
         ]
       },

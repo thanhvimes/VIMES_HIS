@@ -288,6 +288,10 @@ export const healthCheckService = {
         }
     },
 
+    sendDocuments: async (docIds: string[]): Promise<string[]> => {
+        return healthCheckService.sendDocumentsToPortal(docIds);
+    },
+
     unlockDocument: async (id: string, reason = 'Điều chỉnh hồ sơ theo yêu cầu nghiệp vụ'): Promise<boolean> => {
         await apiClient.post(`/health-check-sync/documents/${id}/unlock`, { reason });
         return true;

@@ -131,9 +131,10 @@ function Combobox<T extends Record<string, any>>({
                 const disp = getDisplayValue(matched);
                 setSearchTerm(disp);
                 
-                // Normalize parent value in parent component if there is a mismatch (e.g., "01" -> "1" or "VN" -> "190")
+                // Normalize parent value in parent component only if truly different (not numeric formatting like "01" vs "1")
                 const cleanCode = String(matched.id ?? matched.code ?? disp);
-                if (cleanCode !== String(value) && String(value) !== disp) {
+                const isNumericSame = /^\d+$/.test(cleanCode) && /^\d+$/.test(strVal) && parseInt(cleanCode, 10) === parseInt(strVal, 10);
+                if (!isNumericSame && cleanCode !== String(value) && String(value) !== disp) {
                     onChange(cleanCode, matched);
                 }
                 return;
