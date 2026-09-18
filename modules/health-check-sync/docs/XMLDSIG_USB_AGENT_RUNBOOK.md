@@ -14,7 +14,7 @@
 
 - Backend phải có `WORKSTATION_AGENT_BACKEND_PRIVATE_KEY_PEM`.
 - Agent phải cấu hình public key tương ứng tại `Security:TrustedBackendPublicKeyPem`.
-- Agent `Agent:AllowedOrigins` phải chứa đúng origin của HIS.
+- Agent `Agent:AllowedOrigins` hỗ trợ `*` hoặc chứa đúng Origin gọi từ Browser (kèm header `Access-Control-Allow-Private-Network: true` cho Chrome/Edge).
 - USB Token phải có chứng thư RSA còn hạn và được Windows Certificate Store nhận diện.
 
 ## Kiểm tra nghiệm thu

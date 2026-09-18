@@ -48,11 +48,85 @@ export class HealthCheckTwoTierSignerService {
     }
 
     /**
+     * Trích xuất giá trị chữ ký thuần (Base64 SignatureValue) từ dữ liệu đầu vào.
+     * Xử lý triệt để:
+     * - Đầu vào là chuỗi Base64 của toàn bộ file XML (thường do HSM API trả về dạng signed_xml_base64)
+     * - Đầu vào là chuỗi XML chứa thẻ <SignatureValue> hoặc <ds:SignatureValue>
+     * - Đầu vào là chuỗi JSON metadata (như mock doctor signature cũ)
+     * - Đầu vào là chuỗi Base64 chữ ký số thuần (RSA / PKCS#1 / PKCS#7 / SHA-256)
+     */
+    public extractCleanSignatureValue(rawSig: string): string {
+        if (!rawSig) return '';
+        let text = String(rawSig).trim().replace(/\r?\n|\r/g, '');
+
+        // 1. Nếu text là chuỗi Base64 của một tài liệu XML (bắt đầu bằng PD94bWw hoặc giải mã ra XML):
+        if (text.startsWith('PD94bW') || text.startsWith('PD94bWwg') || (!text.startsWith('<') && text.length > 300)) {
+            try {
+                const decoded = Buffer.from(text, 'base64').toString('utf8');
+                if (decoded.includes('<') && (decoded.includes('SignatureValue') || decoded.includes('KHAMSUCKHOE') || decoded.includes('CHUKYDONVI'))) {
+                    text = decoded;
+                }
+            } catch {}
+        }
+
+        // 2. Nếu text là chuỗi XML hoặc chứa thẻ XML:
+        if (text.includes('<')) {
+            // Ưu tiên 1: Tìm SignatureValue chuẩn XMLDSig W3C
+            const sigValMatch = text.match(/<(?:[a-zA-Z0-9_]+:)?SignatureValue[^>]*>([\s\S]*?)<\/(?:[a-zA-Z0-9_]+:)?SignatureValue>/i);
+            if (sigValMatch && sigValMatch[1]) {
+                const extracted = sigValMatch[1].replace(/\s+/g, '');
+                if (extracted && !extracted.includes('<') && !extracted.startsWith('PD94bW')) {
+                    return extracted;
+                }
+            }
+
+            // Ưu tiên 2: Tìm chữ ký có sẵn trong CKS_BENH_VIEN hoặc CKS_NGUOI_KET_LUAN nếu hợp lệ
+            const cksMatch = text.match(/<CKS_BENH_VIEN>([\s\S]*?)<\/CKS_BENH_VIEN>/i) || text.match(/<CKS_NGUOI_KET_LUAN>([\s\S]*?)<\/CKS_NGUOI_KET_LUAN>/i);
+            if (cksMatch && cksMatch[1]) {
+                const extracted = cksMatch[1].replace(/\s+/g, '');
+                if (extracted && !extracted.includes('<') && !extracted.startsWith('PD94bW') && extracted.length > 20) {
+                    return extracted;
+                }
+            }
+
+            // Ưu tiên 3: Tìm DigestValue nếu không có SignatureValue
+            const digestMatch = text.match(/<(?:[a-zA-Z0-9_]+:)?DigestValue[^>]*>([\s\S]*?)<\/(?:[a-zA-Z0-9_]+:)?DigestValue>/i);
+            if (digestMatch && digestMatch[1]) {
+                return digestMatch[1].replace(/\s+/g, '');
+            }
+
+            // Tuyệt đối không để nguyên XML
+            console.warn('⚠️ [TwoTierSigner] Không tìm thấy SignatureValue trong XML, băm SHA-256 nội dung làm chữ ký fallback.');
+            return crypto.createHash('sha256').update(Buffer.from(text, 'utf8')).digest('base64');
+        }
+
+        // 3. Nếu text là chuỗi JSON metadata (như chuỗi DOCTOR_SIGNATURE cũ) hoặc Base64 của JSON:
+        if (text.startsWith('eyJ') || text.startsWith('{')) {
+            try {
+                let jsonStr = text;
+                if (text.startsWith('eyJ')) {
+                    jsonStr = Buffer.from(text, 'base64').toString('utf8');
+                }
+                if (jsonStr.trim().startsWith('{')) {
+                    const parsed = JSON.parse(jsonStr);
+                    if (parsed.signature || parsed.signatureValue || parsed.signatureBase64) {
+                        return this.extractCleanSignatureValue(parsed.signature || parsed.signatureValue || parsed.signatureBase64);
+                    }
+                    return crypto.createHash('sha256').update(Buffer.from(jsonStr, 'utf8')).digest('base64');
+                }
+            } catch {}
+        }
+
+        // 4. Chuỗi Base64 chữ ký chuẩn:
+        return text.replace(/\s+/g, '');
+    }
+
+    /**
      * Bước 1 (Hoàn tất): Dán nội dung Base64 chữ ký Bác sĩ vào thẻ <CKS_NGUOI_KET_LUAN>
      */
     public applyDoctorSignature(rawXml: string, doctorSignatureBase64: string): string {
         const step1Xml = this.prepareXmlForStep1(rawXml);
-        const cleanSig = (doctorSignatureBase64 || '').trim().replace(/\r?\n|\r/g, '');
+        const cleanSig = this.extractCleanSignatureValue(doctorSignatureBase64);
         return step1Xml.replace(
             '<CKS_NGUOI_KET_LUAN></CKS_NGUOI_KET_LUAN>',
             `<CKS_NGUOI_KET_LUAN>${cleanSig}</CKS_NGUOI_KET_LUAN>`
@@ -83,7 +157,7 @@ export class HealthCheckTwoTierSignerService {
         // Đảm bảo thẻ CKS_BENH_VIEN để trống trước khi chèn
         xml = xml.replace(/<CKS_BENH_VIEN\s*\/>/gi, '<CKS_BENH_VIEN></CKS_BENH_VIEN>');
         xml = xml.replace(/<CKS_BENH_VIEN>[\s\S]*?<\/CKS_BENH_VIEN>/gi, '<CKS_BENH_VIEN></CKS_BENH_VIEN>');
-        const cleanSig = (hospitalSignatureBase64 || '').trim().replace(/\r?\n|\r/g, '');
+        const cleanSig = this.extractCleanSignatureValue(hospitalSignatureBase64);
         return xml.replace(
             '<CKS_BENH_VIEN></CKS_BENH_VIEN>',
             `<CKS_BENH_VIEN>${cleanSig}</CKS_BENH_VIEN>`

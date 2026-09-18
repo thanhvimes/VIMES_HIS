@@ -2,9 +2,10 @@
 // File: modules/hospital-statistics/views/DashboardOverview.tsx
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { CommonFilter, PrintReportHeader, PrintReportFooter, exportTableToExcel, formatLocalDate, getStartOfMonthLocalDate, TableEmptyState } from '../components/CommonFilter';
 import { statisticsService } from '../services/statisticsService';
-import { ChartDayItem, TopDoctorItem, HospitalActivityData } from '../types';
+import { ChartDayItem, TopDoctorItem, HospitalActivityData, ExecutiveAlertsData } from '../types';
 import { 
     ResponsiveContainer, 
     AreaChart, 
@@ -38,6 +39,7 @@ export const DashboardOverview: React.FC = () => {
     const [activity, setActivity] = useState<HospitalActivityData | null>(null);
     const [charts, setCharts] = useState<ChartDayItem[]>([]);
     const [topDoctors, setTopDoctors] = useState<TopDoctorItem[]>([]);
+    const [alertsData, setAlertsData] = useState<ExecutiveAlertsData | null>(null);
     const [donutTab, setDonutTab] = useState<'kham' | 'cls' | 'pttt'>('kham');
     const [doctorSearch, setDoctorSearch] = useState('');
 
@@ -46,14 +48,16 @@ export const DashboardOverview: React.FC = () => {
         const to = overrideTo || toDate;
         setLoading(true);
         try {
-            const [actData, chartData, docData] = await Promise.all([
+            const [actData, chartData, docData, alerts] = await Promise.all([
                 statisticsService.getHospitalActivity(from, to).catch(() => null),
                 statisticsService.getDashboardCharts(from, to).catch(() => []),
-                statisticsService.getTopDoctors(from, to).catch(() => [])
+                statisticsService.getTopDoctors(from, to).catch(() => []),
+                statisticsService.getExecutiveAlerts().catch(() => null)
             ]);
             setActivity(actData);
             setCharts(chartData);
             setTopDoctors(docData);
+            setAlertsData(alerts);
         } catch (error) {
             console.error('Error fetching dashboard statistics:', error);
         } finally {
@@ -160,7 +164,104 @@ export const DashboardOverview: React.FC = () => {
                         Trung tâm chỉ huy vận hành và phân tích số liệu lâm sàng theo thời gian thực
                     </p>
                 </div>
+
+                {/* Quick Director Navigation Links */}
+                <div className="flex items-center gap-2">
+                    <Link
+                        to="/hospital-statistics/morning-briefing"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs font-bold rounded-xl border border-blue-200 dark:border-blue-800 transition shadow-xs"
+                    >
+                        <span>📋</span> Bản Tin Giao Ban Sáng (24h)
+                    </Link>
+                    <Link
+                        to="/hospital-statistics/financial-risk"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-xs font-bold rounded-xl border border-purple-200 dark:border-purple-800 transition shadow-xs"
+                    >
+                        <span>💰</span> Giám Sát Rủi Ro & BHYT
+                    </Link>
+                </div>
             </div>
+
+            {/* EXECUTIVE TRAFFIC LIGHT LIVE ALERTS BANNER */}
+            {alertsData && (
+                <div className={`p-4 rounded-2xl border shadow-xs transition-all print:hidden ${
+                    alertsData.overall_status === 'RED'
+                        ? 'bg-rose-50/70 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/60'
+                        : alertsData.overall_status === 'YELLOW'
+                        ? 'bg-amber-50/70 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/60'
+                        : 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/60'
+                }`}>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-2.5 border-b border-black/5 dark:border-white/10">
+                        <div className="flex items-center gap-2.5">
+                            <div className={`w-3.5 h-3.5 rounded-full ${
+                                alertsData.overall_status === 'RED' ? 'bg-rose-600 animate-ping' : alertsData.overall_status === 'YELLOW' ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'
+                            }`} />
+                            <div>
+                                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                                    <span>Đèn Chỉ Huy Khẩn Cấp Giám Đốc (Traffic Light Alerts)</span>
+                                    <span className={`px-2 py-0.5 text-[10px] font-black rounded-full uppercase ${
+                                        alertsData.overall_status === 'RED'
+                                            ? 'bg-rose-600 text-white'
+                                            : alertsData.overall_status === 'YELLOW'
+                                            ? 'bg-amber-500 text-white'
+                                            : 'bg-emerald-600 text-white'
+                                    }`}>
+                                        {alertsData.overall_status === 'RED' ? 'Báo Động Đỏ' : alertsData.overall_status === 'YELLOW' ? 'Cảnh Báo Vàng' : 'An Toàn'}
+                                    </span>
+                                </h3>
+                            </div>
+                        </div>
+
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                            Tự động quét: Quá tải buồng bệnh (QĐ 49), Ca tử vong, Âm tạm ứng lớn &gt; 5 triệu
+                        </div>
+                    </div>
+
+                    {/* Alert Items */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 mt-3">
+                        {alertsData.alerts.map((alert, idx) => {
+                            const isRed = alert.type === 'RED';
+                            const isYellow = alert.type === 'YELLOW';
+                            return (
+                                <div 
+                                    key={idx} 
+                                    className={`p-3 rounded-xl border text-xs flex flex-col justify-between ${
+                                        isRed 
+                                            ? 'bg-white/95 dark:bg-slate-900/95 border-rose-300 dark:border-rose-800 shadow-xs' 
+                                            : isYellow 
+                                            ? 'bg-white/95 dark:bg-slate-900/95 border-amber-300 dark:border-amber-800 shadow-xs' 
+                                            : 'bg-white/95 dark:bg-slate-900/95 border-emerald-300 dark:border-emerald-800 shadow-xs'
+                                    }`}
+                                >
+                                    <div>
+                                        <div className="flex items-start gap-2 font-bold mb-1">
+                                            <span className="text-sm">
+                                                {isRed ? '🔴' : isYellow ? '🟡' : '🟢'}
+                                            </span>
+                                            <span className="text-slate-900 dark:text-slate-100">{alert.title}</span>
+                                        </div>
+                                        <p className="text-slate-600 dark:text-slate-300 pl-6 text-[11px] leading-relaxed">
+                                            {alert.message}
+                                        </p>
+                                    </div>
+                                    {alert.action_link && (
+                                        <div className="mt-2.5 pl-6">
+                                            <Link 
+                                                to={alert.action_link}
+                                                className={`inline-flex items-center gap-1 font-semibold text-[11px] hover:underline ${
+                                                    isRed ? 'text-rose-600 dark:text-rose-400' : isYellow ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
+                                                }`}
+                                            >
+                                                Xem chi tiết xử lý →
+                                            </Link>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             {/* Print Header */}
             <PrintReportHeader 

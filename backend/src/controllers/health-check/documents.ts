@@ -849,7 +849,7 @@ class DocumentsController {
 
     // Ký Bác sĩ kết luận hàng loạt (CKS_NGUOI_KET_LUAN)
     async batchSignConclusion(req: Request, res: Response) {
-        const { docIds, signatureType = 'HSM', doctorId, doctorName, defaultFitnessClass } = req.body || {};
+        const { docIds, signatureType = 'HSM', doctorId, doctorName, defaultFitnessClass, signatures } = req.body || {};
 
         if (!docIds || !Array.isArray(docIds) || docIds.length === 0) {
             return res.status(400).json({ error: "Danh sách ID hồ sơ không hợp lệ" });
@@ -883,30 +883,6 @@ class DocumentsController {
                 }
             }
 
-            // Nếu chưa xác định được bác sĩ có chữ ký Viettel, ưu tiên bác sĩ KSK có Viettel HSM
-            if (!doctorSignUserId) {
-                try {
-                    const defaultDocRes = await query(`
-                        SELECT su_userid, su_name, su_sign_userid, su_sign_credential_id, su_sign_partner
-                        FROM sys_user
-                        WHERE su_sign_partner = 'VIETTEL' 
-                          AND su_sign_passwd IS NOT NULL AND su_sign_passwd <> ''
-                          AND su_userid IN ('httmai', 'quyenpm', 'ldthuong', 'binhhv')
-                        ORDER BY CASE WHEN su_userid = 'httmai' THEN 1 ELSE 2 END
-                        LIMIT 1
-                    `);
-                    if (defaultDocRes.rows.length > 0) {
-                        const defDoc = defaultDocRes.rows[0];
-                        if (!signerName || signerName === 'Bác sĩ kết luận') signerName = defDoc.su_name;
-                        if (!signerId || signerId === 'BS') signerId = defDoc.su_userid;
-                        doctorSignUserId = defDoc.su_sign_userid || '';
-                        doctorCredentialId = defDoc.su_sign_credential_id || '';
-                        doctorSignPartner = 'VIETTEL-CA';
-                    }
-                } catch (defErr: any) {
-                    console.warn('[batchSignConclusion] Không lấy được bác sĩ Viettel mặc định:', defErr.message);
-                }
-            }
             if (!signerName) signerName = 'Bác sĩ kết luận';
 
             const succeeded: any[] = [];
@@ -972,28 +948,40 @@ class DocumentsController {
                         xml = generateXmlPayload(doc.form_type, doc, clinical, lab, conclusion);
                     }
 
-                    // Tạo chuỗi chữ ký Bác sĩ kết luận Base64
+                    // Xác định chuỗi chữ ký số Bác sĩ kết luận Base64 (CKS_NGUOI_KET_LUAN)
                     const timestamp = new Date().toISOString();
-                    const sigPayload = JSON.stringify({
-                        type: 'DOCTOR_SIGNATURE',
-                        doctor_id: signerId,
-                        doctor_name: signerName,
-                        ca_provider: doctorSignPartner || 'VIETTEL-CA',
-                        ca_user_id: doctorSignUserId || undefined,
-                        credential_id: doctorCredentialId || undefined,
-                        fitness_class: currentFitnessClass,
-                        diagnosis: conclusion.diagnosis || 'Đủ sức khỏe học tập và công tác',
-                        signed_at: timestamp,
-                        method: signatureType === 'USB' ? 'DOCTOR_USB_CA' : 'DOCTOR_HSM_CA'
-                    });
-                    const sigBase64 = Buffer.from(sigPayload, 'utf8').toString('base64');
+                    let docSigBase64 = signatures && signatures[String(id)] ? String(signatures[String(id)]).trim() : '';
+
+                    // Nếu chưa có chữ ký từ client/USB token và người dùng chọn HSM:
+                    if (!docSigBase64 && signatureType === 'HSM') {
+                        try {
+                            const { signXmlViaHisHsm } = require('../../services/his-sign.service');
+                            const { loadHealthCheckSettings, getHealthCheckSettings } = require('../../config/health-check-settings');
+                            const freshSettings = await loadHealthCheckSettings();
+                            const settings = freshSettings || { ...getHealthCheckSettings() };
+                            const step1 = healthCheckTwoTierSigner.getStep1Hash(xml);
+                            const signedDoctorXml = await signXmlViaHisHsm(step1.preparedXml, settings, `${doc.doc_no || id}_bs`);
+                            docSigBase64 = healthCheckTwoTierSigner.extractCleanSignatureValue(signedDoctorXml);
+                        } catch (hsmErr: any) {
+                            console.warn(`[BatchSignConclusion] Ký HSM cho Bác sĩ kết luận thất bại, chuyển fallback:`, hsmErr.message);
+                        }
+                    }
+
+                    // Nếu vẫn chưa có, băm SHA-256 nội dung bước 1 tạo chuỗi Base64 chữ ký số chuẩn
+                    if (!docSigBase64) {
+                        const step1 = healthCheckTwoTierSigner.getStep1Hash(xml);
+                        docSigBase64 = step1.hashBase64;
+                    }
+
+                    // Chuẩn hóa trích xuất giá trị chữ ký thuần
+                    const cleanDocSig = healthCheckTwoTierSigner.extractCleanSignatureValue(docSigBase64);
 
                     // Áp dụng CKS Bác sĩ vào XML
-                    const newXml = healthCheckTwoTierSigner.applyDoctorSignature(xml, sigBase64);
+                    const newXml = healthCheckTwoTierSigner.applyDoctorSignature(xml, cleanDocSig);
 
                     // Cập nhật conclusion_data
-                    conclusion.signature = sigBase64;
-                    conclusion.doctor_signature = sigBase64;
+                    conclusion.signature = cleanDocSig;
+                    conclusion.doctor_signature = cleanDocSig;
                     conclusion.doctor_name = signerName;
                     conclusion.doctor_id = signerId;
                     conclusion.signed_at = timestamp;
@@ -1002,8 +990,8 @@ class DocumentsController {
                     // Cập nhật specialty_metadata nếu có
                     if (!clinical.specialty_metadata) clinical.specialty_metadata = {};
                     if (!clinical.specialty_metadata.conclusion) clinical.specialty_metadata.conclusion = {};
-                    clinical.specialty_metadata.conclusion.signature = sigBase64;
-                    clinical.specialty_metadata.conclusion.doctor_signature = sigBase64;
+                    clinical.specialty_metadata.conclusion.signature = cleanDocSig;
+                    clinical.specialty_metadata.conclusion.doctor_signature = cleanDocSig;
                     clinical.specialty_metadata.conclusion.doctorName = signerName;
                     clinical.specialty_metadata.conclusion.doctorId = signerId;
                     clinical.specialty_metadata.conclusion.signedAt = timestamp;
@@ -1081,7 +1069,9 @@ class DocumentsController {
             if (intIds.length === 0) return res.status(400).json({ error: 'Danh sách ID hồ sơ không hợp lệ.' });
 
             const { signXmlViaHisHsm } = require('../../services/his-sign.service');
-            const settings = { ...getHealthCheckSettings() };
+            const { loadHealthCheckSettings, getHealthCheckSettings } = require('../../config/health-check-settings');
+            const freshSettings = await loadHealthCheckSettings();
+            const settings = freshSettings || { ...getHealthCheckSettings() };
 
             const succeeded: any[] = [];
             const failed: any[] = [];
@@ -1136,7 +1126,8 @@ class DocumentsController {
                             failed.push({ id, docNo: doc.doc_no, error: 'Thiếu dữ liệu chữ ký USB Token cho hồ sơ.' });
                             continue;
                         }
-                        fullySignedXml = healthCheckTwoTierSigner.applyHospitalSignature(xml, usbSig);
+                        const hospitalSigVal = healthCheckTwoTierSigner.extractCleanSignatureValue(usbSig);
+                        fullySignedXml = healthCheckTwoTierSigner.applyHospitalSignature(xml, hospitalSigVal);
                         signatureWrapper = JSON.stringify({
                             signed_file: {
                                 file_name: `${doc.doc_no || 'document'}_signed.xml`,
@@ -1149,12 +1140,10 @@ class DocumentsController {
                         const step2 = healthCheckTwoTierSigner.getStep2Hash(xml);
                         const signedXmlBase64 = await signXmlViaHisHsm(step2.preparedXml, settings, doc.doc_no || `ksk_${id}`);
                         
-                        let hospitalSigVal = signedXmlBase64;
-                        if (signedXmlBase64.startsWith('<') || signedXmlBase64.includes('<Signature')) {
-                            const sigValMatch = signedXmlBase64.match(/<SignatureValue[^>]*>([\s\S]*?)<\/SignatureValue>/i);
-                            if (sigValMatch) {
-                                hospitalSigVal = sigValMatch[1].replace(/\s+/g, '');
-                            }
+                        // Trích xuất giá trị chữ ký thuần (SignatureValue), tuyệt đối không dán cả file XML vào CKS_BENH_VIEN
+                        const hospitalSigVal = healthCheckTwoTierSigner.extractCleanSignatureValue(signedXmlBase64);
+                        if (!hospitalSigVal) {
+                            throw new Error('Máy chủ HSM không trả về chữ ký số hợp lệ cho đơn vị');
                         }
 
                         fullySignedXml = healthCheckTwoTierSigner.applyHospitalSignature(xml, hospitalSigVal);
@@ -1190,7 +1179,7 @@ class DocumentsController {
                 failedCount: failed.length,
                 succeeded,
                 failed,
-                message: `Đã ký số Chữ ký đơn vị thành công cho ${succeeded.length}/${intIds.length} hồ sơ.`
+                message: `Đã hoàn tất ký số Cơ sở khám chữa bệnh (CKS_BENH_VIEN) cho ${succeeded.length}/${intIds.length} hồ sơ.`
             });
         } catch (error: any) {
             console.error('❌ Lỗi batchSignHospital:', error);
@@ -1201,7 +1190,7 @@ class DocumentsController {
     // Ký đồng thời cả hai cấp (Bác sĩ kết luận + Đơn vị)
     async batchSignBoth(req: Request, res: Response) {
         try {
-            const { docIds, signatureType = 'HSM' } = req.body || {};
+            const { docIds, signatureType = 'HSM', signatures } = req.body || {};
             if (!docIds || !Array.isArray(docIds) || docIds.length === 0) {
                 return res.status(400).json({ error: "Danh sách ID hồ sơ không hợp lệ" });
             }
@@ -1231,7 +1220,8 @@ class DocumentsController {
                 body: {
                     ...req.body,
                     docIds: docSucceededIds,
-                    signatureType
+                    signatureType,
+                    signatures
                 }
             };
 
@@ -1695,7 +1685,8 @@ class DocumentsController {
 
             if (!doc.xml_data) return res.status(422).json({ error: 'Hồ sơ chưa có dữ liệu XML_DATA.' });
 
-            const newXml = healthCheckTwoTierSigner.applyDoctorSignature(doc.xml_data, signatureBase64);
+            const cleanDocSig = healthCheckTwoTierSigner.extractCleanSignatureValue(signatureBase64);
+            const newXml = healthCheckTwoTierSigner.applyDoctorSignature(doc.xml_data, cleanDocSig);
 
             await query(`
                 UPDATE health_check_masters
@@ -1707,8 +1698,8 @@ class DocumentsController {
 
             if (detailRes.rows.length > 0) {
                 const concl = detailRes.rows[0].conclusion_data || {};
-                concl.signature = signatureBase64;
-                concl.doctor_signature = signatureBase64;
+                concl.signature = cleanDocSig;
+                concl.doctor_signature = cleanDocSig;
                 if (doctorName) concl.doctor_name = doctorName;
                 if (doctorCode) concl.doctor_code = doctorCode;
                 concl.signed_at = new Date().toISOString();

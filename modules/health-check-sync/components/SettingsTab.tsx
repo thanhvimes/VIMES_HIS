@@ -101,8 +101,8 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
     const [isTestingSyt, setIsTestingSyt] = useState(false);
     
     // HSM Settings
-    const [hsmUrl, setHsmUrl] = useState('http://vimes.xyz:8091');
-    const [hsmProvider, setHsmProvider] = useState('VNPT-CA');
+    const [hsmUrl, setHsmUrl] = useState('');
+    const [hsmProvider, setHsmProvider] = useState('BCY');
     const [hsmUsername, setHsmUsername] = useState('');
     const [hsmPassword, setHsmPassword] = useState('');
     const [hsmClientId, setHsmClientId] = useState('');
@@ -165,8 +165,8 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                 setVneidPrivateKey(settings.vneid_private_key || '');
                 setVneidPublicKey(settings.vneid_public_key || '');
                 setSignatureType(settings.signature_type || 'HSM');
-                setHsmUrl(settings.hsm_url || 'http://vimes.xyz:8091');
-                setHsmProvider(settings.hsm_provider || 'VNPT-CA');
+                setHsmUrl(settings.hsm_url && settings.hsm_url !== 'http://vimes.xyz:8091' ? settings.hsm_url : '');
+                setHsmProvider(settings.hsm_provider && settings.hsm_provider !== 'VNPT-CA' ? settings.hsm_provider : 'BCY');
                 setHsmUsername(settings.hsm_username || '');
                 setHsmPassword(settings.hsm_password || '');
                 setHsmClientId(settings.hsm_client_id || '');
@@ -292,8 +292,8 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
             setVneidPrivateKey(settings.vneid_private_key || '');
             setVneidPublicKey(settings.vneid_public_key || '');
             setSignatureType(settings.signature_type || 'HSM');
-            setHsmUrl(settings.hsm_url || 'http://vimes.xyz:8091');
-            setHsmProvider(settings.hsm_provider || 'VNPT-CA');
+            setHsmUrl(settings.hsm_url && settings.hsm_url !== 'http://vimes.xyz:8091' ? settings.hsm_url : '');
+            setHsmProvider(settings.hsm_provider && settings.hsm_provider !== 'VNPT-CA' ? settings.hsm_provider : 'BCY');
             setHsmUsername(settings.hsm_username || '');
             setHsmPassword(settings.hsm_password || '');
             setHsmClientId(settings.hsm_client_id || '');

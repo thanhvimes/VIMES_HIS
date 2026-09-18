@@ -13,6 +13,9 @@ import { createHealthCheckChecksumSignature } from './health-check-checksum';
 import { isRetryableSyncFailure } from './health-check-sync-retry';
 import { validateHealthCheckEnvelope } from './health-check-xml-validation';
 import { resolveProvinceBhCode, resolveVillageBhCode, resolveOccupationBhCode, resolveProvinceName, resolveVillageName } from './administrative-catalog.service';
+import { signXmlViaHisHsm } from './his-sign.service';
+import { healthCheckTwoTierSigner } from './health-check-two-tier-signer.service';
+import { validateMandatoryPortalFields } from './health-check-mandatory-fields';
 
 const syncHttpsAgent = new https.Agent({
     keepAlive: true,
@@ -170,7 +173,7 @@ function sanitizeInnerXml(rawInner: string, bytCode: string, rawXmlRef: string):
         return `<DIEN_THOAI>${digits}</DIEN_THOAI>`;
     });
 
-    // Fix MA_NGHE_NGHIEP to standard 2-digit code (e.g. '120034' -> '12', '17360' -> '17', '1539' -> '00', '1471' -> '83', '4' -> '04')
+    // Fix MA_NGHE_NGHIEP to standard ss_vndesc (e.g. '1539' -> '00', '1471' -> '83', '4' -> '04')
     decoded = decoded.replace(/<MA_NGHE_NGHIEP>(.*?)<\/MA_NGHE_NGHIEP>/g, (_m, val) => {
         return `<MA_NGHE_NGHIEP>${resolveOccupationBhCode(val)}</MA_NGHE_NGHIEP>`;
     });
@@ -261,48 +264,48 @@ function sanitizeInnerXml(rawInner: string, bytCode: string, rawXmlRef: string):
     // Ensure TSGD and TSBT tags in THONG_TIN_HANH_CHINH if missing
     if (decoded.includes('<THONG_TIN_HANH_CHINH>') && !decoded.includes('<TSGD_MAC_BENH>')) {
         const medHistorySnippet = `
-							<TSGD_MAC_BENH>0</TSGD_MAC_BENH>
-							<TSGD_MA_BENH></TSGD_MA_BENH>
-							<TS_TIEP_XUC_LAO>0</TS_TIEP_XUC_LAO>
-							<SAN_KHOA>1</SAN_KHOA>
-							<SAN_KHOA_KHONG_BT></SAN_KHOA_KHONG_BT>
-							<TIEM_CHUNG_BCG>0</TIEM_CHUNG_BCG>
-							<TIEM_CHUNG_BH_HG_UV>0</TIEM_CHUNG_BH_HG_UV>
-							<TIEM_CHUNG_SOI>0</TIEM_CHUNG_SOI>
-							<TIEM_CHUNG_BAI_LIET>0</TIEM_CHUNG_BAI_LIET>
-							<TIEM_CHUNG_VNNB_B>0</TIEM_CHUNG_VNNB_B>
-							<TIEM_CHUNG_VGB>0</TIEM_CHUNG_VGB>
-							<TIEM_CHUNG_CAC_LOAI_KHAC>0</TIEM_CHUNG_CAC_LOAI_KHAC>
-							<TIEM_CHUNG_VAC_XIN_KHAC></TIEM_CHUNG_VAC_XIN_KHAC>
-							<TSBT_MAC_BENH>0</TSBT_MAC_BENH>
-							<TSBT_MA_BENH></TSBT_MA_BENH>
-							<TSBT_DANG_DIEU_TRI_BENH>0</TSBT_DANG_DIEU_TRI_BENH>
-							<TSBT_BENH_TRONG_5_NAM_QUA>0</TSBT_BENH_TRONG_5_NAM_QUA>
-							<TSBT_BENH_THAN_KINH>0</TSBT_BENH_THAN_KINH>
-							<TSBT_BENH_MAT>0</TSBT_BENH_MAT>
-							<TSBT_BENH_TAI>0</TSBT_BENH_TAI>
-							<TSBT_BENH_TIM>0</TSBT_BENH_TIM>
-							<TSBT_PHAU_THUAT_TIM>0</TSBT_PHAU_THUAT_TIM>
-							<TSBT_TANG_HUYET_AP>0</TSBT_TANG_HUYET_AP>
-							<TSBT_KHO_THO>0</TSBT_KHO_THO>
-							<TSBT_BENH_PHOI>0</TSBT_BENH_PHOI>
-							<TSBT_BENH_THAN>0</TSBT_BENH_THAN>
-							<TSBT_NGHIEN_RUOU>0</TSBT_NGHIEN_RUOU>
-							<TSBT_DAI_THAO_DUONG>0</TSBT_DAI_THAO_DUONG>
-							<TSBT_BENH_TAM_THAN>0</TSBT_BENH_TAM_THAN>
-							<TSBT_MAT_Y_THUC>0</TSBT_MAT_Y_THUC>
-							<TSBT_NGAT>0</TSBT_NGAT>
-							<TSBT_BENH_TIEU_HOA>0</TSBT_BENH_TIEU_HOA>
-							<TSBT_ROI_LOAN_GIAC_NGU>0</TSBT_ROI_LOAN_GIAC_NGU>
-							<TSBT_TAI_BIEN>0</TSBT_TAI_BIEN>
-							<TSBT_BENH_COT_SONG>0</TSBT_BENH_COT_SONG>
-							<TSBT_RUOU_THUONG_XUYEN>0</TSBT_RUOU_THUONG_XUYEN>
-							<TSBT_MA_TUY>0</TSBT_MA_TUY>
-							<TSBT_BENH_KHAC>0</TSBT_BENH_KHAC>
-							<TSBT_MA_BENH_KHAC></TSBT_MA_BENH_KHAC>
-							<TSBT_TEN_THUOC_LIEU_LUONG></TSBT_TEN_THUOC_LIEU_LUONG>
-							<TSBT_THAI_SAN>0</TSBT_THAI_SAN>
-							<TSBT_TEN_THUOC_THAI_SAN></TSBT_TEN_THUOC_THAI_SAN>`;
+						<TSGD_MAC_BENH>0</TSGD_MAC_BENH>
+						<TSGD_MA_BENH></TSGD_MA_BENH>
+						<TS_TIEP_XUC_LAO>0</TS_TIEP_XUC_LAO>
+						<SAN_KHOA>1</SAN_KHOA>
+						<SAN_KHOA_KHONG_BT></SAN_KHOA_KHONG_BT>
+						<TIEM_CHUNG_BCG>0</TIEM_CHUNG_BCG>
+						<TIEM_CHUNG_BH_HG_UV>0</TIEM_CHUNG_BH_HG_UV>
+						<TIEM_CHUNG_SOI>0</TIEM_CHUNG_SOI>
+						<TIEM_CHUNG_BAI_LIET>0</TIEM_CHUNG_BAI_LIET>
+						<TIEM_CHUNG_VNNB_B>0</TIEM_CHUNG_VNNB_B>
+						<TIEM_CHUNG_VGB>0</TIEM_CHUNG_VGB>
+						<TIEM_CHUNG_CAC_LOAI_KHAC>0</TIEM_CHUNG_CAC_LOAI_KHAC>
+						<TIEM_CHUNG_VAC_XIN_KHAC></TIEM_CHUNG_VAC_XIN_KHAC>
+						<TSBT_MAC_BENH>0</TSBT_MAC_BENH>
+						<TSBT_MA_BENH></TSBT_MA_BENH>
+						<TSBT_DANG_DIEU_TRI_BENH>0</TSBT_DANG_DIEU_TRI_BENH>
+						<TSBT_BENH_TRONG_5_NAM_QUA>0</TSBT_BENH_TRONG_5_NAM_QUA>
+						<TSBT_BENH_THAN_KINH>0</TSBT_BENH_THAN_KINH>
+						<TSBT_BENH_MAT>0</TSBT_BENH_MAT>
+						<TSBT_BENH_TAI>0</TSBT_BENH_TAI>
+						<TSBT_BENH_TIM>0</TSBT_BENH_TIM>
+						<TSBT_PHAU_THUAT_TIM>0</TSBT_PHAU_THUAT_TIM>
+						<TSBT_TANG_HUYET_AP>0</TSBT_TANG_HUYET_AP>
+						<TSBT_KHO_THO>0</TSBT_KHO_THO>
+						<TSBT_BENH_PHOI>0</TSBT_BENH_PHOI>
+						<TSBT_BENH_THAN>0</TSBT_BENH_THAN>
+						<TSBT_NGHIEN_RUOU>0</TSBT_NGHIEN_RUOU>
+						<TSBT_DAI_THAO_DUONG>0</TSBT_DAI_THAO_DUONG>
+						<TSBT_BENH_TAM_THAN>0</TSBT_BENH_TAM_THAN>
+						<TSBT_MAT_Y_THUC>0</TSBT_MAT_Y_THUC>
+						<TSBT_NGAT>0</TSBT_NGAT>
+						<TSBT_BENH_TIEU_HOA>0</TSBT_BENH_TIEU_HOA>
+						<TSBT_ROI_LOAN_GIAC_NGU>0</TSBT_ROI_LOAN_GIAC_NGU>
+						<TSBT_TAI_BIEN>0</TSBT_TAI_BIEN>
+						<TSBT_BENH_COT_SONG>0</TSBT_BENH_COT_SONG>
+						<TSBT_RUOU_THUONG_XUYEN>0</TSBT_RUOU_THUONG_XUYEN>
+						<TSBT_MA_TUY>0</TSBT_MA_TUY>
+						<TSBT_BENH_KHAC>0</TSBT_BENH_KHAC>
+						<TSBT_MA_BENH_KHAC></TSBT_MA_BENH_KHAC>
+						<TSBT_TEN_THUOC_LIEU_LUONG></TSBT_TEN_THUOC_LIEU_LUONG>
+						<TSBT_THAI_SAN>0</TSBT_THAI_SAN>
+						<TSBT_TEN_THUOC_THAI_SAN></TSBT_TEN_THUOC_THAI_SAN>`;
         decoded = decoded.replace('</THONG_TIN_HANH_CHINH>', `${medHistorySnippet}\n						</THONG_TIN_HANH_CHINH>`);
     }
 
@@ -532,7 +535,7 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
             console.log(`===============================================================`);
 
             const docQuery = await query(`
-                SELECT id, doc_no, xml_data, patient_name, signature_status, signature, send_status, syt_send_status 
+                SELECT id, doc_no, form_type, xml_data, patient_name, cccd, dob, gender, signature_status, signature, send_status, syt_send_status 
                 FROM health_check_masters WHERE id = $1
             `, [parseInt(docId, 10)]);
 
@@ -543,12 +546,6 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
             const doc = docQuery.rows[0];
 
             // 3.1 Validate nghiệp vụ trước khi đồng bộ
-            if (!settings.allow_unsigned_sync && doc.signature_status !== 'Signed') {
-                const unsignedMsg = 'Hồ sơ chưa ký số, không được gửi cổng';
-                await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [unsignedMsg, doc.id]);
-                failedIds.push(docId);
-                continue;
-            }
             if (!doc.xml_data || !doc.xml_data.trim()) {
                 const noXmlMsg = 'Hồ sơ chưa có XML dữ liệu để gửi';
                 await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [noXmlMsg, doc.id]);
@@ -556,9 +553,117 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                 continue;
             }
 
+            // Kiểm tra đủ và đúng 17 trường bắt buộc theo file đặc tả trước khi ký gửi cổng
+            const detailRes = await query(`SELECT clinical_data, lab_data, conclusion_data FROM health_check_details WHERE master_id = $1`, [doc.id]);
+            const detail = detailRes.rows[0] || {};
+            if (doc.patient_name) doc.patient_name = doc.patient_name.toUpperCase();
+            const mandatoryCheck = validateMandatoryPortalFields({
+                formType: doc.form_type,
+                master: doc,
+                clinical: detail.clinical_data || {},
+                lab: detail.lab_data || {},
+                conclusion: detail.conclusion_data || {}
+            });
+            if (!mandatoryCheck.valid) {
+                const errMsg = `Thiếu thông tin bắt buộc theo quy định cổng KSK: ${mandatoryCheck.errors.join('; ')}`;
+                console.error(`❌ [Sync] Hồ sơ ${doc.doc_no || doc.id} không đạt kiểm tra 17 trường bắt buộc:`, errMsg);
+                await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [errMsg.slice(0, 1000), doc.id]);
+                failedIds.push(docId);
+                continue;
+            }
+
             // 3.2 Chuẩn bị dữ liệu XML
             let base64Xml = '';
             let rawXmlToProcess = sanitizeXmlContent(doc.xml_data || '', glnCode, bytCode);
+
+            // Chuẩn hóa và áp dụng Bước 1 & Bước 2 theo đúng hướng dẫn kỹ thuật chữ ký số:
+            // Bước 1: Ký CKS_NGUOI_KET_LUAN (để trống cả 2 thẻ CKS_NGUOI_KET_LUAN và CKS_BENH_VIEN, băm SHA-256)
+            let doctorSig = '';
+            try {
+                const conclData = detail.conclusion_data || {};
+                doctorSig = conclData.signature || conclData.doctor_signature || conclData.signature_base64 || (doc.signature_type === 'DOCTOR' ? doc.signature : '') || '';
+                if (doctorSig) {
+                    rawXmlToProcess = healthCheckTwoTierSigner.applyDoctorSignature(rawXmlToProcess, doctorSig);
+                }
+            } catch (cErr) {
+                console.warn('Không thể nạp chữ ký bác sĩ từ conclusion_data:', cErr);
+            }
+
+            // KIỂM TRA THAM SỐ THIẾT LẬP: allow_unsigned_sync
+            if (!settings.allow_unsigned_sync) {
+                // Tier 1: Kiểm tra Bác sĩ đã ký kết luận chưa (CKS_NGUOI_KET_LUAN)
+                const sigCheck = healthCheckTwoTierSigner.isFullySigned(rawXmlToProcess);
+                if (!sigCheck.hasDoctorSig) {
+                    const noDocMsg = 'Hồ sơ chưa có chữ ký số của Bác sĩ kết luận (CKS_NGUOI_KET_LUAN)';
+                    await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [noDocMsg, doc.id]);
+                    failedIds.push(docId);
+                    continue;
+                }
+
+                // Tier 2: Ký số Cơ sở y tế (CKS_BENH_VIEN)
+                if (!sigCheck.hasHospitalSig) {
+                    const hasHsmConfig = Boolean(settings.hsm_username && settings.hsm_password);
+                    if (hasHsmConfig) {
+                        try {
+                            console.log(`🔑 [Auto-Sign HSM] Đang tự động ký số HSM đơn vị (Bước 2: CKS_BENH_VIEN) cho hồ sơ ${doc.doc_no || doc.id}...`);
+                            // Bước 2: Băm XML đã chèn CKS_NGUOI_KET_LUAN (CKS_BENH_VIEN để trống)
+                            const step2Hash = healthCheckTwoTierSigner.getStep2Hash(rawXmlToProcess);
+                            const signedXmlBase64 = await signXmlViaHisHsm(step2Hash.preparedXml, settings, doc.doc_no || `ksk_${doc.id}`);
+                            if (signedXmlBase64) {
+                                const hospitalSigVal = healthCheckTwoTierSigner.extractCleanSignatureValue(signedXmlBase64);
+                                if (!hospitalSigVal) {
+                                    throw new Error('Máy chủ HSM không trả về chữ ký số hợp lệ cho đơn vị');
+                                }
+                                rawXmlToProcess = healthCheckTwoTierSigner.applyHospitalSignature(rawXmlToProcess, hospitalSigVal);
+
+                                const signatureWrapper = JSON.stringify({
+                                    signed_file: {
+                                        file_name: `${doc.doc_no || 'document'}_signed.xml`,
+                                        mime_type: 'application/xml',
+                                        data_base64: Buffer.from(rawXmlToProcess, 'utf8').toString('base64')
+                                    }
+                                });
+                                await query(`
+                                    UPDATE health_check_masters 
+                                    SET signature = $1, 
+                                        signature_status = 'Signed', 
+                                        signature_type = 'HSM',
+                                        xml_data = $2,
+                                        updated_at = NOW() 
+                                    WHERE id = $3
+                                `, [signatureWrapper, rawXmlToProcess, doc.id]);
+                                
+                                doc.signature_status = 'Signed';
+                                doc.signature = signatureWrapper;
+                                doc.signature_type = 'HSM';
+                                console.log(`✅ [Auto-Sign HSM] Ký số HSM đơn vị (Bước 2: CKS_BENH_VIEN) thành công cho hồ sơ ${doc.doc_no || doc.id}`);
+                            }
+                        } catch (hsmErr: any) {
+                            const hsmErrMsg = `Lỗi ký số HSM đơn vị: ${hsmErr.message}`;
+                            console.error(`❌ [Auto-Sign HSM] Thất bại:`, hsmErrMsg);
+                            await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [hsmErrMsg.slice(0, 500), doc.id]);
+                            failedIds.push(docId);
+                            continue;
+                        }
+                    } else if (parsedKey) {
+                        try {
+                            const step2 = healthCheckTwoTierSigner.getStep2Hash(rawXmlToProcess);
+                            const hospitalSig = healthCheckTwoTierSigner.signContentWithPrivateKey(step2.preparedXml, parsedKey);
+                            rawXmlToProcess = healthCheckTwoTierSigner.applyHospitalSignature(rawXmlToProcess, hospitalSig);
+                            doc.signature_status = 'Signed';
+                            await query(`UPDATE health_check_masters SET signature_status='Signed', signature_type='PRIVATE_KEY', xml_data=$1, updated_at=NOW() WHERE id=$2`, [rawXmlToProcess, doc.id]);
+                            console.log(`✅ [Auto-Sign PrivateKey] Ký số CKS_BENH_VIEN thành công cho hồ sơ ${doc.doc_no || doc.id}`);
+                        } catch (kErr: any) {
+                            console.warn('Lỗi ký private key:', kErr.message);
+                        }
+                    } else {
+                        const unsignedMsg = 'Hồ sơ chưa có chữ ký số Cơ sở y tế và chưa cấu hình tài khoản HSM tự động ký';
+                        await query(`UPDATE health_check_masters SET send_status = 'Error', error_message = $1, updated_at = NOW() WHERE id = $2`, [unsignedMsg, doc.id]);
+                        failedIds.push(docId);
+                        continue;
+                    }
+                }
+            }
 
             if (doc.signature_status === 'Signed' && doc.signature) {
                 try {
@@ -822,7 +927,7 @@ async function syncUnsentDocuments() {
         }
 
         const targetMode = settings.sync_target_mode || 'BYT_ONLY';
-        const signatureFilter = settings.allow_unsigned_sync ? '' : "signature_status = 'Signed' AND ";
+        const signatureFilter = settings.allow_unsigned_sync ? '' : ((settings.hsm_username && settings.hsm_password) ? "(signature_status = 'Signed' OR status = 'ĐÃ_KẾT_LUẬN') AND " : "signature_status = 'Signed' AND ");
 
         let whereClause = "";
         if (targetMode === 'BOTH') {

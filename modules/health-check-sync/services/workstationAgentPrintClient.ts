@@ -1,12 +1,31 @@
 import { healthCheckService } from '../../../services/healthCheckService';
+import { isExtensionReady, callViaExtension, getAgentBaseUrl } from './healthCheckAgentXmlSigner';
 
-const AGENT_URL = 'http://127.0.0.1:18181';
 type AgentPrintJob = { jobId: string; status: string; errorMessage?: string };
 
 async function request<T>(path: string, init: RequestInit = {}, token = ''): Promise<T> {
+  const baseUrl = getAgentBaseUrl();
+  const fullUrl = `${baseUrl}${path}`;
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(init.headers || {})
+  };
+
+  if (isExtensionReady()) {
+    try {
+      return await callViaExtension<T>(fullUrl, { ...init, headers });
+    } catch (extError) {
+      console.warn('[VIMES PrintAgent] Extension bridge error, falling back to fetch:', extError);
+    }
+  }
+
   let response: Response;
-  try { response = await fetch(`${AGENT_URL}${path}`, { ...init, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(init.headers || {}) } }); }
-  catch { throw new Error('Không kết nối được VIMES Workstation Agent.'); }
+  try {
+    response = await fetch(fullUrl, { ...init, headers });
+  } catch {
+    throw new Error('Không kết nối được VIMES Workstation Agent.');
+  }
   const body: any = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.message || body.code || `Workstation Agent HTTP ${response.status}`);
   return (body.data || body) as T;

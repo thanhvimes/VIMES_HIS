@@ -33,4 +33,14 @@ router.get('/dashboard-charts', statisticsController.getDashboardCharts.bind(sta
 // 9. Top 10 bác sĩ khám nhiều nhất
 router.get('/top-doctors', statisticsController.getTopDoctors.bind(statisticsController));
 
+// 10. Bản tin giao ban sáng 24h
+router.get('/morning-briefing', statisticsController.getExecutiveMorningBriefing.bind(statisticsController));
+
+// 11. BHYT & Rủi ro tài chính / Âm tạm ứng
+router.get('/bhyt-financial-risk', statisticsController.getBhytFinancialRiskStatistics.bind(statisticsController));
+
+// 12. Cảnh báo chỉ huy khẩn cấp
+router.get('/executive-alerts', statisticsController.getExecutiveAlerts.bind(statisticsController));
+
 export default router;
+

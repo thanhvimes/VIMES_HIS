@@ -129,8 +129,15 @@ export async function loadHealthCheckSettings(): Promise<HealthCheckSettings | n
                 }
             }
 
+            const rawProvider = (row.hsm_provider || '').trim();
+            const normalizedProvider = (!rawProvider || rawProvider === 'VNPT-CA') ? 'BCY' : rawProvider;
+            const rawHsmUrl = (row.hsm_url || '').trim();
+            const normalizedHsmUrl = (rawHsmUrl === 'http://vimes.xyz:8091') ? '' : rawHsmUrl;
+
             globalHealthCheckSettings = {
                 ...row,
+                hsm_provider: normalizedProvider,
+                hsm_url: normalizedHsmUrl,
                 sync_target_mode: row.sync_target_mode || 'BYT_ONLY',
                 syt_url: row.syt_url || 'https://api-hssk.hanoi.gov.vn',
                 syt_receiver_id: row.syt_receiver_id || 'VTS',

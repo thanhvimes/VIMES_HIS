@@ -154,13 +154,13 @@ export const InpatientStatisticsView: React.FC = () => {
     // Aggregate totals
     const totals = useMemo(() => {
         return filteredItems.reduce((acc, curr) => ({
-            dau_ky: acc.dau_ky + Number(curr.dau_ky || 0),
-            vao_vien: acc.vao_vien + Number(curr.vao_vien || 0),
-            chuyen_den: acc.chuyen_den + Number(curr.chuyen_den || 0),
-            chuyen_di: acc.chuyen_di + Number(curr.chuyen_di || 0),
-            ra_vien: acc.ra_vien + Number(curr.ra_vien || 0),
-            tu_vong: acc.tu_vong + Number(curr.tu_vong || 0),
-            hien_dien: acc.hien_dien + Number(curr.hien_dien || 0)
+            dau_ky: acc.dau_ky + Math.max(0, Number(curr.dau_ky || 0)),
+            vao_vien: acc.vao_vien + Math.max(0, Number(curr.vao_vien || 0)),
+            chuyen_den: acc.chuyen_den + Math.max(0, Number(curr.chuyen_den || 0)),
+            chuyen_di: acc.chuyen_di + Math.max(0, Number(curr.chuyen_di || 0)),
+            ra_vien: acc.ra_vien + Math.max(0, Number(curr.ra_vien || 0)),
+            tu_vong: acc.tu_vong + Math.max(0, Number(curr.tu_vong || 0)),
+            hien_dien: acc.hien_dien + Math.max(0, Number(curr.hien_dien || 0))
         }), {
             dau_ky: 0,
             vao_vien: 0,
@@ -239,14 +239,14 @@ export const InpatientStatisticsView: React.FC = () => {
             'STT': idx + 1,
             'Mã Khoa': it.dept_id,
             'Tên Khoa Lâm Sàng': it.dept_name,
-            'Đầu Kỳ': Number(it.dau_ky || 0),
-            'Vào Viện': Number(it.vao_vien || 0),
-            'Chuyển Đến': Number(it.chuyen_den || 0),
-            'Chuyển Đi': Number(it.chuyen_di || 0),
-            'Ra Viện': Number(it.ra_vien || 0),
-            'Tỷ Lệ Ra Viện (%)': Number(it.vao_vien || 0) > 0 ? ((Number(it.ra_vien || 0) / Number(it.vao_vien)) * 100).toFixed(1) : '0.0',
-            'Tử Vong': Number(it.tu_vong || 0),
-            'Hiện Diện Cuối Kỳ': Number(it.hien_dien || 0)
+            'Đầu Kỳ': Math.max(0, Number(it.dau_ky || 0)),
+            'Vào Viện': Math.max(0, Number(it.vao_vien || 0)),
+            'Chuyển Đến': Math.max(0, Number(it.chuyen_den || 0)),
+            'Chuyển Đi': Math.max(0, Number(it.chuyen_di || 0)),
+            'Ra Viện': Math.max(0, Number(it.ra_vien || 0)),
+            'Tỷ Lệ Ra Viện (%)': Number(it.vao_vien || 0) > 0 ? ((Math.max(0, Number(it.ra_vien || 0)) / Math.max(0, Number(it.vao_vien || 0))) * 100).toFixed(1) : '0.0',
+            'Tử Vong': Math.max(0, Number(it.tu_vong || 0)),
+            'Hiện Diện Cuối Kỳ': Math.max(0, Number(it.hien_dien || 0))
         }));
         rows.push({
             'STT': 'TỔNG CỘNG',
@@ -865,7 +865,7 @@ export const InpatientStatisticsView: React.FC = () => {
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 text-right font-semibold text-slate-600 dark:text-slate-300 font-mono tabular-nums">
-                                            {Number(it.dau_ky || 0).toLocaleString('vi-VN')}
+                                            {Math.max(0, Number(it.dau_ky || 0)).toLocaleString('vi-VN')}
                                         </td>
                                         <td className="px-5 py-3 text-right font-mono tabular-nums">
                                             <div className="flex flex-col items-end gap-1">
@@ -883,10 +883,10 @@ export const InpatientStatisticsView: React.FC = () => {
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 text-right font-medium text-indigo-600 dark:text-indigo-400 font-mono tabular-nums">
-                                            {Number(it.chuyen_den || 0).toLocaleString('vi-VN')}
+                                            {Math.max(0, Number(it.chuyen_den || 0)).toLocaleString('vi-VN')}
                                         </td>
                                         <td className="px-4 py-3 text-right font-medium text-amber-600 dark:text-amber-400 font-mono tabular-nums">
-                                            {Number(it.chuyen_di || 0).toLocaleString('vi-VN')}
+                                            {Math.max(0, Number(it.chuyen_di || 0)).toLocaleString('vi-VN')}
                                         </td>
                                         <td className="px-4 py-3 text-right font-mono tabular-nums">
                                             <div className="flex items-center justify-end gap-1.5">
@@ -901,10 +901,10 @@ export const InpatientStatisticsView: React.FC = () => {
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 text-right font-bold text-rose-600 dark:text-rose-400 font-mono tabular-nums">
-                                            {Number(it.tu_vong || 0).toLocaleString('vi-VN')}
+                                            {Math.max(0, Number(it.tu_vong || 0)).toLocaleString('vi-VN')}
                                         </td>
                                         <td className="px-5 py-3 text-right font-black text-purple-600 dark:text-purple-400 text-base font-mono tabular-nums">
-                                            {Number(it.hien_dien || 0).toLocaleString('vi-VN')}
+                                            {Math.max(0, Number(it.hien_dien || 0)).toLocaleString('vi-VN')}
                                         </td>
                                     </tr>
                                 );

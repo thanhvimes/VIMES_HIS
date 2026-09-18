@@ -11,6 +11,8 @@ import { ParaclinicalStatisticsView } from './views/ParaclinicalStatisticsView';
 import { SurgeryStatisticsView } from './views/SurgeryStatisticsView';
 import { DepartmentCostView } from './views/DepartmentCostView';
 import { BedOccupancyView } from './views/BedOccupancyView';
+import { MorningBriefingView } from './views/MorningBriefingView';
+import { FinancialRiskView } from './views/FinancialRiskView';
 
 const HospitalStatisticsModule: React.FC = () => {
     return (
@@ -19,6 +21,7 @@ const HospitalStatisticsModule: React.FC = () => {
             <Routes>
                 <Route path="/" element={<Navigate to="/hospital-statistics/dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardOverview />} />
+                <Route path="morning-briefing" element={<MorningBriefingView />} />
                 <Route path="hospital-activity" element={<HospitalActivityView />} />
                 <Route path="clinics" element={<ClinicStatisticsView />} />
                 <Route path="inpatient" element={<InpatientStatisticsView />} />
@@ -26,10 +29,12 @@ const HospitalStatisticsModule: React.FC = () => {
                 <Route path="surgery" element={<SurgeryStatisticsView />} />
                 <Route path="department-costs" element={<DepartmentCostView />} />
                 <Route path="bed-occupancy" element={<BedOccupancyView />} />
+                <Route path="financial-risk" element={<FinancialRiskView />} />
                 <Route path="*" element={<Navigate to="/hospital-statistics/dashboard" replace />} />
             </Routes>
         </div>
     );
 };
+
 
 export default HospitalStatisticsModule;

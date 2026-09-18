@@ -59,8 +59,8 @@ export class HealthCheckSettings implements SettingsData {
     vneid_private_key: string = '';
     vneid_public_key: string = '';
     signature_type: 'USB' | 'HSM' = 'HSM';
-    hsm_url?: string = 'http://vimes.xyz:8091';
-    hsm_provider?: string = 'VNPT-CA';
+    hsm_url?: string = '';
+    hsm_provider?: string = 'BCY';
     hsm_username?: string = '';
     hsm_password?: string = '';
     hsm_client_id?: string = '';

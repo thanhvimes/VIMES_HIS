@@ -62,11 +62,18 @@ public sealed class AgentSessionService(AgentSecurityOptions options, TimeProvid
         return new AgentSession(token, expiresAt);
     }
 
-    public bool Validate(string token, string origin)
+    public bool Validate(string token, string? origin = null)
     {
         if (!sessions.TryGetValue(token, out var session)) return false;
         if (session.ExpiresAt <= clock.GetUtcNow()) { sessions.TryRemove(token, out _); return false; }
-        return string.Equals(session.Origin, origin, StringComparison.OrdinalIgnoreCase);
+        if (!string.IsNullOrEmpty(origin) && !string.IsNullOrEmpty(session.Origin) &&
+            !origin.StartsWith("chrome-extension://", StringComparison.OrdinalIgnoreCase) &&
+            !origin.StartsWith("edge-extension://", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(origin, session.Origin, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        return true;
     }
 
     public static string BuildSigningPayload(string challengeId, string nonce, string origin, DateTimeOffset expiresAt) =>

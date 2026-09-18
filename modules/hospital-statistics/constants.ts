@@ -10,7 +10,8 @@ import {
     HeartIcon,
     ScissorsIcon,
     CurrencyDollarIcon,
-    BeakerIcon
+    BeakerIcon,
+    AlertCircleIcon
 } from '../../components/Icons';
 import { NavItemType } from '../../types';
 
@@ -20,6 +21,12 @@ export const HOSPITAL_STATISTICS_NAV_ITEMS: NavItemType[] = [
         path: '/hospital-statistics/dashboard', 
         icon: React.createElement(Squares2X2Icon, { className: "w-5 h-5" }), 
         iconName: 'Squares2X2Icon' 
+    },
+    { 
+        name: 'Bản tin Giao ban 24h', 
+        path: '/hospital-statistics/morning-briefing', 
+        icon: React.createElement(ClipboardListIcon, { className: "w-5 h-5 text-blue-500" }), 
+        iconName: 'ClipboardListIcon' 
     },
     { 
         name: 'Hoạt động Bệnh viện', 
@@ -63,4 +70,11 @@ export const HOSPITAL_STATISTICS_NAV_ITEMS: NavItemType[] = [
         icon: React.createElement(ChartBarIcon, { className: "w-5 h-5" }), 
         iconName: 'ChartBarIcon' 
     },
+    { 
+        name: 'Giám sát Rủi ro & BHYT', 
+        path: '/hospital-statistics/financial-risk', 
+        icon: React.createElement(AlertCircleIcon, { className: "w-5 h-5 text-rose-500" }), 
+        iconName: 'AlertCircleIcon' 
+    },
 ];
+

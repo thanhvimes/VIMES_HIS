@@ -15,7 +15,7 @@ export class ContractsController {
     async getSettings(req: Request, res: Response) {
         try {
             const result = await query(
-                `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_cskcb_byt, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, reception_slip_template, use_qz_tray, vneid_private_key, vneid_public_key, signature_type, hsm_url, hsm_provider, hsm_username, hsm_password, hsm_client_id, hsm_client_secret FROM health_check_settings ORDER BY id ASC LIMIT 1`
+                `SELECT id, vneid_url, vneid_username, vneid_password, ma_cskcb, ma_cskcb_byt, ma_gtin_cskcb, auto_sync_enabled, auto_sync_interval, barcode_label_size_xn, barcode_label_size_ksk, barcode_show_hospital, barcode_show_date, barcode_show_sample_type, allow_unsigned_sync, barcode_zpl_template_xn, barcode_zpl_template_ksk, barcode_printer_name, reception_slip_template, use_qz_tray, vneid_private_key, vneid_public_key, signature_type, hsm_url, hsm_provider, hsm_username, hsm_password, hsm_client_id, hsm_client_secret, sync_target_mode, syt_url, syt_username, syt_password, syt_receiver_id, syt_enabled FROM health_check_settings ORDER BY id ASC LIMIT 1`
             );
 
             if (result.rows.length === 0) {
@@ -153,6 +153,13 @@ export class ContractsController {
                 row.syt_password = '******';
             }
 
+            if (!row.hsm_provider || row.hsm_provider === 'VNPT-CA') {
+                row.hsm_provider = 'BCY';
+            }
+            if (row.hsm_url === 'http://vimes.xyz:8091') {
+                row.hsm_url = '';
+            }
+
             return res.json(row);
         } catch (error: any) {
             console.error('❌ KSK Controller: Lỗi getSettings:', error);
@@ -164,7 +171,10 @@ export class ContractsController {
     async getSigningPartners(req: Request, res: Response) {
         try {
             const result = await query(
-                `SELECT sign_partner, sign_url FROM hms_sign_serverconf ORDER BY sign_partner`
+                `SELECT sign_partner, sign_name, sign_url, sign_url_wan 
+                 FROM hms_sign_serverconf 
+                 WHERE sign_partner != 'TOKEN' 
+                 ORDER BY sign_partner`
             );
             return res.json({
                 success: true,
@@ -175,8 +185,8 @@ export class ContractsController {
             return res.json({
                 success: true,
                 data: [
-                    { sign_partner: 'BCY', sign_url: 'http://vimes.xyz:8091' },
-                    { sign_partner: 'VNPT-CA', sign_url: 'http://vimes.xyz:8091' }
+                    { sign_partner: 'BCY', sign_name: 'Ký số HSM Ban Cơ Yếu CP', sign_url: 'http://10.1.3.200:8081/api/v1/Signature' },
+                    { sign_partner: 'VIETTEL', sign_name: 'Ký số My Sign Viettel', sign_url: 'http://10.1.3.199:8081/api/v1/Signature' }
                 ]
             });
         }
@@ -329,8 +339,8 @@ export class ContractsController {
                     finalPrivateKey,
                     vneid_public_key || '',
                     signature_type || 'HSM',
-                    hsm_url || 'http://vimes.xyz:8091',
-                    hsm_provider || 'VNPT-CA',
+                    hsm_url ? hsm_url.trim() : null,
+                    hsm_provider && hsm_provider !== 'VNPT-CA' ? hsm_provider.trim() : 'BCY',
                     hsm_username || '',
                     finalHsmPassword,
                     hsm_client_id || '',
@@ -383,8 +393,8 @@ export class ContractsController {
                     finalPrivateKey,
                     vneid_public_key || '',
                     signature_type || 'HSM',
-                    hsm_url || 'http://vimes.xyz:8091',
-                    hsm_provider || 'VNPT-CA',
+                    hsm_url ? hsm_url.trim() : null,
+                    hsm_provider && hsm_provider !== 'VNPT-CA' ? hsm_provider.trim() : 'BCY',
                     hsm_username || '',
                     finalHsmPassword,
                     hsm_client_id || '',
@@ -1150,7 +1160,7 @@ export class ContractsController {
             }
 
             // 3. Gom danh sách docNos để batch fetch từ HIS
-            const docNos = Array.from(new Set(receivedEmployees.map(r => Number(r.hee_docno)).filter(d => d > 0)));
+            const docNos: number[] = Array.from(new Set(receivedEmployees.map(r => Number(r.hee_docno)).filter(d => d > 0)));
 
             console.log(`🔬 [syncContractParaclinicalResults] Đang batch query kết quả CLS từ HIS cho ${docNos.length} hồ sơ hợp đồng ${contractId}...`);
             const hisClsMap = await hisIntegrationController.fetchBatchStructuredParaclinicalData(docNos);

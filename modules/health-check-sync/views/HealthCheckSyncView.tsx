@@ -38,6 +38,7 @@ import PatientReception from '../components/PatientReception';
 import SampleTracking from '../components/SampleTracking';
 import { HisBatchImportModal } from '../components/HisBatchImportModal';
 import BatchSignModal from '../components/BatchSignModal';
+import TokenStatusWidget from '../components/TokenStatusWidget';
 import { isDocumentConcluded } from '../utils/documentStatus';
 
 interface ErrorBoundaryProps {
@@ -372,7 +373,7 @@ const HealthCheckSyncView: React.FC = () => {
 
 
 
-    const handleSaveDocument = async (payload: any, options?: { shouldSign?: boolean; shouldUnlock?: boolean; signatureType?: 'USB' | 'HSM' }) => {
+    const handleSaveDocument = async (payload: any, options?: { shouldSign?: boolean; shouldUnlock?: boolean; signatureType?: 'USB' | 'HSM'; autoSendPortal?: boolean }) => {
         setIsLoading(true);
         try {
             let docId = activeDocument?.id || payload?.id;
@@ -418,14 +419,34 @@ const HealthCheckSyncView: React.FC = () => {
                         toast.loading("Đang yêu cầu ký số bằng USB Token. Vui lòng nhập PIN trên thiết bị...", { id: toastId });
                         await signHealthCheckXmlWithAgent(docId.toString());
                         toast.loading("Đang gửi chữ ký số lên hệ thống...", { id: toastId });
-                        toast.success("Đã khóa & ký số hồ sơ thành công bằng USB Token!", { id: toastId });
+
+                        if (options?.autoSendPortal) {
+                            toast.loading("Đang tự động đồng bộ lên Cổng VNeID / Bộ Y tế...", { id: toastId });
+                            try {
+                                await healthCheckService.sendDocuments([docId.toString()]);
+                                toast.success("Đã khóa, ký số USB Token & đồng bộ Cổng VNeID thành công!", { id: toastId });
+                            } catch (sendErr: any) {
+                                toast.success("Đã ký số thành công! (Lưu ý: Đồng bộ Cổng lỗi: " + sendErr.message + ")", { id: toastId, duration: 6000 });
+                            }
+                        } else {
+                            toast.success("Đã khóa & ký số hồ sơ thành công bằng USB Token!", { id: toastId });
+                        }
                     } catch (error: any) {
                         toast.error("Lỗi ký số USB Token: " + error.message, { id: toastId, duration: 6000 });
                         throw error;
                     }
                 } else {
                     await healthCheckService.signDocuments([docId.toString()], 'HSM');
-                    toast.success("Đã khóa & ký số hồ sơ bằng HSM Server thành công!");
+                    if (options?.autoSendPortal) {
+                        try {
+                            await healthCheckService.sendDocuments([docId.toString()]);
+                            toast.success("Đã khóa, ký số HSM & gửi Cổng VNeID thành công!");
+                        } catch (sendErr: any) {
+                            toast.success("Đã khóa & ký số bằng HSM Server thành công! (Gửi Cổng lỗi: " + sendErr.message + ")");
+                        }
+                    } else {
+                        toast.success("Đã khóa & ký số hồ sơ bằng HSM Server thành công!");
+                    }
                 }
             } else if (options?.shouldUnlock) {
                 toast.success("Đã mở khóa hồ sơ thành công!");
@@ -1409,6 +1430,10 @@ const HealthCheckSyncView: React.FC = () => {
                                         </span>
                                     </div>
 
+                                    {/* Live USB Token Status Widget */}
+                                    <div className="border-l border-slate-200 dark:border-slate-700 pl-3">
+                                        <TokenStatusWidget />
+                                    </div>
 
                                     {/* Số bản ghi/trang */}
                                     <div className="flex items-center gap-2 text-xs font-medium text-slate-500 border-l border-slate-200 dark:border-slate-700 pl-4">

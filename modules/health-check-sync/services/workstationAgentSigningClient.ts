@@ -71,6 +71,69 @@ export class WorkstationAgentError extends Error {
   }
 }
 
+export function normalizeProvider(raw: any): AgentSigningProvider {
+  if (!raw) return raw;
+  return {
+    id: raw.id || raw.Id || '',
+    displayName: raw.displayName || raw.DisplayName || '',
+    version: raw.version || raw.Version || '',
+    status: raw.status || raw.Status || '',
+    keyAlgorithms: raw.keyAlgorithms || raw.KeyAlgorithms || [],
+    hashAlgorithms: raw.hashAlgorithms || raw.HashAlgorithms || [],
+    requiresDesktopSession: Boolean(raw.requiresDesktopSession ?? raw.RequiresDesktopSession)
+  };
+}
+
+export function normalizeCertificate(raw: any): AgentSigningCertificate {
+  if (!raw) return raw;
+  return {
+    thumbprint: raw.thumbprint || raw.Thumbprint || '',
+    subject: raw.subject || raw.Subject || '',
+    issuer: raw.issuer || raw.Issuer || '',
+    serialNumber: raw.serialNumber || raw.SerialNumber || '',
+    notBefore: raw.notBefore || raw.NotBefore || '',
+    notAfter: raw.notAfter || raw.NotAfter || '',
+    keyAlgorithm: raw.keyAlgorithm || raw.KeyAlgorithm || '',
+    isValidNow: Boolean(raw.isValidNow ?? raw.IsValidNow),
+    certificateBase64: raw.certificateBase64 || raw.CertificateBase64,
+    certificateChainBase64: raw.certificateChainBase64 || raw.CertificateChainBase64
+  };
+}
+
+export function normalizeSigningJobAccepted(raw: any): AgentSigningJobAccepted {
+  if (!raw) return raw;
+  return {
+    jobId: raw.jobId || raw.JobId || '',
+    transactionId: raw.transactionId || raw.TransactionId || '',
+    status: (raw.status || raw.Status || 'queued').toLowerCase() as any,
+    duplicate: Boolean(raw.duplicate ?? raw.Duplicate)
+  };
+}
+
+export function normalizeSigningJob(raw: any): AgentSigningJob {
+  if (!raw) return raw;
+  const rawResult = raw.result || raw.Result;
+  return {
+    jobId: raw.jobId || raw.JobId || '',
+    transactionId: raw.transactionId || raw.TransactionId || '',
+    status: (raw.status || raw.Status || 'queued').toLowerCase() as any,
+    createdAt: raw.createdAt || raw.CreatedAt || '',
+    updatedAt: raw.updatedAt || raw.UpdatedAt || '',
+    expiresAt: raw.expiresAt || raw.ExpiresAt || '',
+    result: rawResult ? {
+      transactionId: rawResult.transactionId || rawResult.TransactionId || '',
+      signatureBase64: rawResult.signatureBase64 || rawResult.SignatureBase64 || '',
+      certificateBase64: rawResult.certificateBase64 || rawResult.CertificateBase64 || '',
+      certificateThumbprint: rawResult.certificateThumbprint || rawResult.CertificateThumbprint || '',
+      signatureAlgorithm: rawResult.signatureAlgorithm || rawResult.SignatureAlgorithm || '',
+      signedAt: rawResult.signedAt || rawResult.SignedAt || '',
+      certificateChainBase64: rawResult.certificateChainBase64 || rawResult.CertificateChainBase64 || []
+    } : undefined,
+    errorCode: raw.errorCode || raw.ErrorCode,
+    errorMessage: raw.errorMessage || raw.ErrorMessage
+  };
+}
+
 export class WorkstationAgentSigningClient {
   private readonly baseUrl: string;
 
@@ -83,30 +146,35 @@ export class WorkstationAgentSigningClient {
     this.baseUrl = baseUrl.replace(/\/$/, '');
   }
 
-  providers(signal?: AbortSignal) {
-    return this.request<AgentSigningProvider[]>('/api/v1/signing/providers', { signal });
+  async providers(signal?: AbortSignal): Promise<AgentSigningProvider[]> {
+    const res = await this.request<any[]>('/api/v1/signing/providers', { signal });
+    return (Array.isArray(res) ? res : []).map(normalizeProvider);
   }
 
-  certificates(sessionId?: number, signal?: AbortSignal) {
+  async certificates(sessionId?: number, signal?: AbortSignal): Promise<AgentSigningCertificate[]> {
     const query = sessionId === undefined ? '' : `?sessionId=${encodeURIComponent(sessionId)}`;
-    return this.request<AgentSigningCertificate[]>(`/api/v1/signing/certificates${query}`, { signal });
+    const res = await this.request<any[]>(`/api/v1/signing/certificates${query}`, { signal });
+    return (Array.isArray(res) ? res : []).map(normalizeCertificate);
   }
 
-  createJob(payload: AgentSignHashRequest, sessionId?: number, signal?: AbortSignal) {
+  async createJob(payload: AgentSignHashRequest, sessionId?: number, signal?: AbortSignal): Promise<AgentSigningJobAccepted> {
     const query = sessionId === undefined ? '' : `?sessionId=${encodeURIComponent(sessionId)}`;
-    return this.request<AgentSigningJobAccepted>(`/api/v1/signing/jobs${query}`, {
+    const res = await this.request<any>(`/api/v1/signing/jobs${query}`, {
       method: 'POST', body: JSON.stringify(payload), signal,
     });
+    return normalizeSigningJobAccepted(res);
   }
 
-  getJob(jobId: string, signal?: AbortSignal) {
-    return this.request<AgentSigningJob>(`/api/v1/signing/jobs/${encodeURIComponent(jobId)}`, { signal });
+  async getJob(jobId: string, signal?: AbortSignal): Promise<AgentSigningJob> {
+    const res = await this.request<any>(`/api/v1/signing/jobs/${encodeURIComponent(jobId)}`, { signal });
+    return normalizeSigningJob(res);
   }
 
-  cancelJob(jobId: string, signal?: AbortSignal) {
-    return this.request<AgentSigningJob>(`/api/v1/signing/jobs/${encodeURIComponent(jobId)}/cancel`, {
+  async cancelJob(jobId: string, signal?: AbortSignal): Promise<AgentSigningJob> {
+    const res = await this.request<any>(`/api/v1/signing/jobs/${encodeURIComponent(jobId)}/cancel`, {
       method: 'POST', signal,
     });
+    return normalizeSigningJob(res);
   }
 
   async waitForTerminalJob(
@@ -131,7 +199,11 @@ export class WorkstationAgentSigningClient {
     try {
       response = await this.fetcher(`${this.baseUrl}${path}`, {
         ...init,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.accessToken}`, ...(init.headers || {}) },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.accessToken}`,
+          ...(init.headers || {})
+        },
       });
     } catch (error) {
       if ((error as Error).name === 'AbortError') throw error;

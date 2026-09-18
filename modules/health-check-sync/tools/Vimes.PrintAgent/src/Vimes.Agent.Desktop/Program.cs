@@ -25,11 +25,20 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly DesktopPipeServer server;
     private readonly WindowsCertificateSigningProvider signingProvider = new();
     private readonly ConcurrentDictionary<string, byte> signingTransactions = new(StringComparer.Ordinal);
+    private bool autoConfirmSigning = true;
 
     public TrayApplicationContext()
     {
         var menu = new ContextMenuStrip();
         menu.Items.Add("Trạng thái: Đang hoạt động", null, (_, _) => ShowStatus());
+        var autoConfirmItem = new ToolStripMenuItem("Tự động xác nhận ký từ Web (Khuyên dùng)")
+        {
+            Checked = autoConfirmSigning,
+            CheckOnClick = true
+        };
+        autoConfirmItem.Click += (_, _) => { autoConfirmSigning = autoConfirmItem.Checked; };
+        menu.Items.Add(autoConfirmItem);
+        menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Thoát", null, (_, _) => Exit());
         trayIcon = new NotifyIcon
         {
@@ -91,17 +100,20 @@ internal sealed class TrayApplicationContext : ApplicationContext
                     return Task.FromResult(new IpcResponse(request.Id, false, "TRANSACTION_ALREADY_PROCESSED", "Giao dịch ký đang xử lý hoặc đã hoàn tất."));
                 try
                 {
-                var patientLine = string.IsNullOrWhiteSpace(signRequest.PatientCode) ? string.Empty : $"\nMã bệnh nhân: {signRequest.PatientCode}";
-                var confirmation = MessageBox.Show(
-                    $"Xác nhận ký tài liệu:\n{signRequest.DocumentLabel}{patientLine}\n\nTransaction: {signRequest.TransactionId}",
-                    "VIMES - Xác nhận ký số", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
-                if (confirmation != DialogResult.Yes)
-                {
-                    signingTransactions.TryRemove(signRequest.TransactionId, out _);
-                    return Task.FromResult(new IpcResponse(request.Id, false, "USER_CANCELLED", "Người dùng đã hủy ký số."));
-                }
-                var result = signingProvider.SignHash(signRequest);
-                return Task.FromResult(new IpcResponse(request.Id, true, "OK", "Ký hash thành công.", JsonSerializer.SerializeToElement(result)));
+                    if (!autoConfirmSigning)
+                    {
+                        var patientLine = string.IsNullOrWhiteSpace(signRequest.PatientCode) ? string.Empty : $"\nMã bệnh nhân: {signRequest.PatientCode}";
+                        var confirmation = MessageBox.Show(
+                            $"Xác nhận ký tài liệu:\n{signRequest.DocumentLabel}{patientLine}\n\nTransaction: {signRequest.TransactionId}\n\n(Vui lòng cắm USB Token để tiếp tục ký)",
+                            "VIMES - Xác nhận ký số", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1, MessageBoxOptions.DefaultDesktopOnly);
+                        if (confirmation != DialogResult.Yes)
+                        {
+                            signingTransactions.TryRemove(signRequest.TransactionId, out _);
+                            return Task.FromResult(new IpcResponse(request.Id, false, "USER_CANCELLED", "Người dùng đã hủy ký số."));
+                        }
+                    }
+                    var result = signingProvider.SignHash(signRequest);
+                    return Task.FromResult(new IpcResponse(request.Id, true, "OK", "Ký hash thành công.", JsonSerializer.SerializeToElement(result)));
                 }
                 catch
                 {

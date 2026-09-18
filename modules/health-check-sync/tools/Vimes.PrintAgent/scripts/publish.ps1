@@ -1,9 +1,15 @@
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $publishDirectory = Join-Path $projectRoot 'publish\win-x64'
+if (Test-Path $publishDirectory) {
+    # Remove old loose assemblies to avoid packaging them and triggering Smart App Control blocks
+    Get-ChildItem -Path $publishDirectory -Exclude "appsettings.json" -Recurse | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
+} else {
+    New-Item -ItemType Directory -Path $publishDirectory -Force | Out-Null
+}
 
 function Invoke-AgentPublish([string]$projectPath) {
-    dotnet publish $projectPath -c Release -r win-x64 --self-contained true -o $publishDirectory
+    dotnet publish $projectPath -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true -o $publishDirectory
     if ($LASTEXITCODE -ne 0) {
         throw "dotnet publish failed for $projectPath with exit code $LASTEXITCODE"
     }

@@ -1,6 +1,29 @@
 -- Migration 134: Sync and Backfill KSK Conclusion to hms_exm_conclusion
 -- Description: Idempotently ensures unique index on hecl_docno and backfills hecl_conclusion, hecl_phanloai, vitals, specialties from health_check_masters, health_check_details, hms_doc, and hms_exm_employee
 
+-- 0. Ensure table hms_exm_conclusion exists (Idempotent Safe Creation)
+CREATE TABLE IF NOT EXISTS hms_exm_conclusion (
+    hecl_docno INTEGER,
+    hecl_theluc VARCHAR(255),
+    hecl_tuanhoan VARCHAR(255),
+    hecl_hohap VARCHAR(255),
+    hecl_tieuhoa VARCHAR(255),
+    hecl_thantietnieu VARCHAR(255),
+    hecl_noitiet VARCHAR(255),
+    hecl_coxuongkhop VARCHAR(255),
+    hecl_thankinh VARCHAR(255),
+    hecl_tamthan VARCHAR(255),
+    hecl_ngoai VARCHAR(255),
+    hecl_dalieu VARCHAR(255),
+    hecl_mat VARCHAR(255),
+    hecl_tmh VARCHAR(255),
+    hecl_rhm VARCHAR(255),
+    hecl_phukhoa VARCHAR(255),
+    hecl_phanloai VARCHAR(255),
+    hecl_conclusion VARCHAR(255),
+    hecl_remark VARCHAR(255)
+);
+
 -- 1. Ensure duplicate cleanup and unique index on hecl_docno for fast lookup and UPSERT safety
 DELETE FROM hms_exm_conclusion a
 USING hms_exm_conclusion b

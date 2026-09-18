@@ -163,10 +163,10 @@ export const HospitalActivityView: React.FC = () => {
     const patientFlowData = useMemo(() => [
         { name: 'Tiếp nhận khám', shortName: 'Khám', value: tongKham, color: '#2563EB', sub: '100% Tiếp nhận ngoại trú' },
         { name: 'Khám BHYT', shortName: 'BHYT', value: soBhyt, color: '#10B981', sub: `${bhytRatio}% Lượt khám BHYT` },
-        { name: 'Vào nội trú', shortName: 'Vào viện', value: vaoVien, color: '#6366F1', sub: `${tongKham > 0 ? ((vaoVien / tongKham) * 100).toFixed(1) : 0}% Chỉ định nhập viện` },
+        { name: 'Vào nội trú', shortName: 'Vào viện', value: vaoVien, color: '#6366F1', sub: `${tongKham > 0 ? ((vaoVien / tongKham) * 100).toFixed(1) : 0}% Tiếp nhận nội trú` },
         { name: 'Ra viện (Khỏi, đỡ)', shortName: 'Ra viện', value: raVien, color: '#0D9488', sub: `${raVienRatio}% Tỷ lệ ra/vào` },
         { name: 'Đang điều trị', shortName: 'Nằm viện', value: dangDieuTri, color: '#8B5CF6', sub: 'Hiện diện tại buồng bệnh' },
-        { name: 'Chuyển tuyến', shortName: 'Chuyển viện', value: chuyenVienNgoaiTru + chuyenVienNoiTru, color: '#F43F5E', sub: 'Chuyển viện ngoại + nội trú' }
+        { name: 'Chuyển tuyến', shortName: 'Chuyển viện', value: chuyenVienNgoaiTru + chuyenVienNoiTru, color: '#F43F5E', sub: 'Chuyển tuyến trên (ngoại + nội trú)' }
     ], [tongKham, soBhyt, bhytRatio, vaoVien, raVien, raVienRatio, dangDieuTri, chuyenVienNgoaiTru, chuyenVienNoiTru]);
 
     // BI Chart 2 Data: Technical Services Distribution

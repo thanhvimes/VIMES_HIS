@@ -44,14 +44,26 @@ export const SignatureConfigTab: React.FC<SignatureConfigTabProps> = ({
     setShowHsmSecret,
     inputClass
 }) => {
-    const [partners, setPartners] = useState<Array<{ sign_partner: string; sign_url: string }>>([]);
+    const [partners, setPartners] = useState<Array<{ sign_partner: string; sign_name?: string; sign_url: string; sign_url_wan?: string }>>([]);
 
     useEffect(() => {
         const loadPartners = async () => {
             try {
                 const res = await healthCheckService.getSigningPartners();
-                if (res.success && res.data) {
-                    setPartners(res.data);
+                if (res.success && res.data && res.data.length > 0) {
+                    const validPartners = res.data.filter(p => p.sign_partner && p.sign_partner.toUpperCase() !== 'TOKEN');
+                    setPartners(validPartners);
+
+                    // Nếu hsmProvider chưa chọn hoặc là provider không có trong hms_sign_serverconf (như VNPT-CA cũ)
+                    const isCurrentValid = validPartners.some(p => p.sign_partner.toUpperCase() === (hsmProvider || '').toUpperCase());
+                    if (!isCurrentValid) {
+                        const defaultPartner = validPartners.find(p => p.sign_partner.toUpperCase() === 'BCY') || validPartners[0];
+                        setHsmProvider(defaultPartner.sign_partner);
+                        const targetUrl = defaultPartner.sign_url || defaultPartner.sign_url_wan || '';
+                        if (targetUrl) {
+                            setHsmUrl(targetUrl);
+                        }
+                    }
                 }
             } catch (error) {
                 console.error("Failed to load signing partners:", error);
@@ -135,37 +147,33 @@ export const SignatureConfigTab: React.FC<SignatureConfigTabProps> = ({
                                     const selected = e.target.value;
                                     setHsmProvider(selected);
                                     const found = partners.find(p => p.sign_partner === selected);
-                                    if (found && found.sign_url) {
-                                        setHsmUrl(found.sign_url);
+                                    if (found) {
+                                        const targetUrl = found.sign_url || found.sign_url_wan || '';
+                                        if (targetUrl) {
+                                            setHsmUrl(targetUrl);
+                                        }
                                     }
                                 }}
                                 className={`${inputClass} cursor-pointer`}
                             >
                                 <option value="">-- Chọn nhà cung cấp --</option>
-                                {partners.length > 0 ? (
-                                    partners.map(p => (
-                                        <option key={p.sign_partner} value={p.sign_partner}>
-                                            {p.sign_partner}
-                                        </option>
-                                    ))
-                                ) : (
-                                    <>
-                                        <option value="VNPT-CA">VNPT-CA HSM</option>
-                                        <option value="VIETTEL-CA">Viettel-CA Cloud CA</option>
-                                        <option value="MISA-ESIGN">MISA eSign HSM</option>
-                                        <option value="BKAV-CA">BKAV-CA HSM</option>
-                                    </>
-                                )}
+                                {partners.map(p => (
+                                    <option key={p.sign_partner} value={p.sign_partner}>
+                                        {p.sign_name ? `${p.sign_partner} - ${p.sign_name}` : p.sign_partner}
+                                    </option>
+                                ))}
                             </select>
                         </div>
                         <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Đường dẫn dịch vụ HSM (API Endpoint Base URL)</label>
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                                Đường dẫn dịch vụ HSM (Tự động từ cấu hình hệ thống)
+                            </label>
                             <input
                                 type="text"
                                 value={hsmUrl}
                                 onChange={e => setHsmUrl(e.target.value)}
                                 className={`${inputClass}`}
-                                placeholder="Ví dụ: http://vimes.xyz:8091"
+                                placeholder="Tự động nạp từ bảng hms_sign_serverconf"
                             />
                         </div>
                         <div className="space-y-1">

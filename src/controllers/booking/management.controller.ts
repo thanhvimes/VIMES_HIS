@@ -315,7 +315,7 @@ class BookingManagementController {
                 if (timePart.length === 5) timePart += ':00';
                 const examDate = `${datePart} ${timePart}`;
 
-                await query(`
+                const approveRes = await query(`
                 SELECT * FROM qms_register_ticket_online(
                     $1, $2, $3, $4, $5, 
                     $6, $7::date, $8, $9, $10,
@@ -331,6 +331,8 @@ class BookingManagementController {
                     examDate, bookingData.qms_specialty_code || '',
                 ]);
 
+                const actualReceptNo = parseInt(approveRes.rows[0]?.ticket_number, 10) || bookingData.qms_receptno;
+
                 // Notify user
                 const d = new Date(bookingData.qms_appointment_date);
                 const formattedDate = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
@@ -338,13 +340,13 @@ class BookingManagementController {
                 await notificationService.sendSMS(bookingData.qms_contact, 'booking_approved', {
                     name: bookingData.qms_patientname, patientName: bookingData.qms_patientname,
                     date: formattedDate, time: bookingData.qms_appointment_time,
-                    bookingId: bookingData.qms_idx, receptNo: bookingData.qms_receptno,
-                    queueNumber: bookingData.qms_receptno, specialtyName: bookingData.specialtyName || '',
+                    bookingId: bookingData.qms_idx, receptNo: actualReceptNo,
+                    queueNumber: actualReceptNo, specialtyName: bookingData.specialtyName || '',
                     roomName: bookingData.roomName || '', deptId: bookingData.qms_deptid,
                     patientType: bookingData.qms_is_insurance ? 'BH' : 'DV'
                 });
 
-                return res.json({ success: true, receptNo: bookingData.qms_receptno, message: 'Đã duyệt booking' });
+                return res.json({ success: true, receptNo: actualReceptNo, message: 'Đã duyệt booking' });
             } else {
                 return res.status(404).json({ error: 'Không tìm thấy booking' });
             }

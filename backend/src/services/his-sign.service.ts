@@ -3,34 +3,104 @@
 import axios from 'axios';
 import { query } from '../config/database';
 
-/**
- * Resolves the HSM base URL from database or default settings.
- */
-async function getHsmBaseUrl(partner: string, fallbackUrl?: string): Promise<string> {
-    try {
-        const res = await query(
-            `SELECT sign_url FROM hms_sign_serverconf WHERE sign_partner = $1`,
-            [partner]
-        );
-        if (res.rows.length > 0 && res.rows[0].sign_url) {
-            return new URL(res.rows[0].sign_url).origin;
-        }
-    } catch (err) {
-        console.warn('⚠️ [HIS Sign Service] Table hms_sign_serverconf not found or query failed, using fallback.');
-    }
-    
-    // Fallback URL or default vimes.xyz
-    const url = fallbackUrl || 'http://vimes.xyz:8091';
-    return new URL(url).origin;
+/* ================== SIGN SERVER & TOKEN CACHE ================== */
+type TokenCacheItem = {
+    token: string;
+    expiredAt: number;
+};
+
+const tokenCacheMap = new Map<string, TokenCacheItem>();
+
+function getTokenCacheKey(mid: string, userName: string): string {
+    return `${mid}::${userName}`;
 }
 
 /**
- * Performs login to HSM server to get bearer token.
+ * Resolves the HSM base URL from hms_sign_serverconf table based on the selected partner/provider.
+ * Fallbacks to explicitly customized settings.hsm_url if provided and valid.
+ */
+async function getHsmBaseUrl(partner: string, configuredUrl?: string): Promise<string> {
+    const rawPartner = (partner || '').trim().toUpperCase();
+    const rawConfigured = (configuredUrl || '').trim();
+
+    // 1. Tra cứu cấu hình tất cả các đối tác trong bảng hms_sign_serverconf của bệnh viện
+    const partnerMap: Record<string, string> = {};
+    try {
+        const res = await query(
+            `SELECT sign_partner, sign_url, sign_url_wan 
+             FROM hms_sign_serverconf 
+             WHERE sign_partner != 'TOKEN'`
+        );
+        for (const row of res.rows) {
+            const p = (row.sign_partner || '').trim().toUpperCase();
+            const u = row.sign_url || row.sign_url_wan || '';
+            if (p && u) {
+                partnerMap[p] = u;
+            }
+        }
+    } catch (err: any) {
+        console.warn('⚠️ [HIS Sign Service] Table hms_sign_serverconf query failed:', err.message);
+    }
+
+    // 2. Ưu tiên hàng đầu: Lấy trực tiếp URL từ bảng hms_sign_serverconf của bệnh viện theo partner đã chọn
+    if (rawPartner && partnerMap[rawPartner]) {
+        try {
+            const origin = new URL(partnerMap[rawPartner]).origin;
+            console.log(`[HIS Sign Service] Sử dụng cấu hình hms_sign_serverconf của bệnh viện cho đối tác ${rawPartner}: ${origin}`);
+            return origin;
+        } catch {
+            return partnerMap[rawPartner].replace(/\/+$/, '');
+        }
+    }
+
+    // 3. Nếu partner chưa có trong hms_sign_serverconf nhưng người dùng cấu hình URL tùy chỉnh hợp lệ:
+    if (rawConfigured && rawConfigured !== 'http://vimes.xyz:8091') {
+        try {
+            return new URL(rawConfigured).origin;
+        } catch {
+            return rawConfigured.replace(/\/+$/, '');
+        }
+    }
+
+    // 4. Fallback theo cấu hình Ban Cơ Yếu trong hms_sign_serverconf
+    if (partnerMap['BCY']) {
+        try {
+            return new URL(partnerMap['BCY']).origin;
+        } catch {
+            return partnerMap['BCY'].replace(/\/+$/, '');
+        }
+    }
+
+    // 5. Fallback đối tác đầu tiên có URL trong hms_sign_serverconf
+    const firstUrl = Object.values(partnerMap)[0];
+    if (firstUrl) {
+        try {
+            return new URL(firstUrl).origin;
+        } catch {
+            return firstUrl.replace(/\/+$/, '');
+        }
+    }
+
+    return 'http://10.1.3.200:8081';
+}
+
+/**
+ * Performs login to HSM server to get bearer token (with caching).
  */
 async function loginHsm(baseUrl: string, userName: string, password: string, mid: string): Promise<string> {
+    const key = getTokenCacheKey(mid, userName);
+    const now = Date.now();
+    const cached = tokenCacheMap.get(key);
+    if (cached && cached.expiredAt > now) {
+        return cached.token;
+    }
+
     const endpoints = [
         `${baseUrl}/api/v1/signature/login`,
-        `${baseUrl}/api/signature/login`
+        `${baseUrl}/api/v1/Signature/login`,
+        `${baseUrl}/api/signature/login`,
+        `${baseUrl}/api/Signature/login`,
+        `${baseUrl}/api/XML/login`
     ];
 
     let lastError: any;
@@ -49,7 +119,13 @@ async function loginHsm(baseUrl: string, userName: string, password: string, mid
 
             if (res.data && res.data.success && res.data.result?.bearer_token) {
                 console.log(`[HIS Sign Service] HSM Login successful at ${url}. Token retrieved.`);
-                return res.data.result.bearer_token;
+                const token = res.data.result.bearer_token;
+                const expiresIn = Number(res.data.result.expires_in) || 3600;
+                tokenCacheMap.set(key, {
+                    token,
+                    expiredAt: now + expiresIn * 1000 - 5000
+                });
+                return token;
             } else {
                 console.warn(`⚠️ [HIS Sign Service] HSM Login response from ${url}: success=${res.data?.success}, hasToken=${!!res.data?.result?.bearer_token}`);
             }
@@ -68,7 +144,10 @@ async function loginHsm(baseUrl: string, userName: string, password: string, mid
 async function getCredentialId(baseUrl: string, token: string, userName: string, password: string, mid: string): Promise<string> {
     const endpoints = [
         `${baseUrl}/api/v1/Signature/credentials/list`,
-        `${baseUrl}/api/Signature/credentials/list`
+        `${baseUrl}/api/v1/signature/credentials/list`,
+        `${baseUrl}/api/Signature/credentials/list`,
+        `${baseUrl}/api/signature/credentials/list`,
+        `${baseUrl}/api/XML/credentials/list`
     ];
 
     let lastError: any;
@@ -105,57 +184,39 @@ async function getCredentialId(baseUrl: string, token: string, userName: string,
 }
 
 /**
- * Signs base64 XML data via HIS HSM Server.
- */
-/**
- * Signs base64 XML data via HIS HSM Server (Supports Viettel MySign & BCY).
+ * Signs base64 XML data via HIS HSM Server (Supports Ban Cơ Yếu BCY, Viettel MySign, InTrust, Local).
  */
 export async function signXmlViaHisHsm(xmlBase64: string, settings: any, docNo: string): Promise<string> {
-    const SecurityUtils = (await import('../utils/security')).default;
-    
-    // Xác định mid: ưu tiên VIETTEL nếu viện dùng Viettel MySign
-    let mid = settings.hsm_client_id;
-    if (!mid || mid === 'BCY') {
-        if (settings.hsm_provider === 'VIETTEL' || !settings.hsm_provider || settings.hsm_provider === 'VNPT-CA') {
-            mid = 'VIETTEL';
-        } else {
-            mid = 'BCY';
-        }
+    // Xác định mid (Partner ID):
+    // Ưu tiên settings.hsm_provider đã chọn trong thiết lập
+    const providerRaw = (settings.hsm_provider || '').trim();
+    let mid = providerRaw || (settings.hsm_client_id || '').trim() || 'BCY';
+    if (mid.toUpperCase() === 'VNPT-CA' || mid.toUpperCase() === 'VNPT') {
+        mid = 'BCY';
     }
 
-    let userName = settings.hsm_username;
-    let password = settings.hsm_password;
+    const upperMid = mid.toUpperCase();
+    if (upperMid === 'VIETTEL-CA' || upperMid === 'MYSIGN' || upperMid === 'VIETTEL') {
+        mid = 'VIETTEL';
+    } else if (upperMid === 'BCY' || upperMid === 'BANCOYEU' || upperMid === 'BAN CO YEU') {
+        mid = 'BCY';
+    } else if (upperMid === 'INTRUST') {
+        mid = 'INTRUST';
+    } else if (upperMid === 'LOCAL') {
+        mid = 'LOCAL';
+    }
 
-    // Nếu cấu hình settings chưa điền tài khoản HSM, tự động tìm tài khoản lãnh đạo đại diện đơn vị trong sys_user
+    const userName = settings?.hsm_username;
+    const password = settings?.hsm_password;
+
     if (!userName || !password) {
-        try {
-            const userRes = await query(`
-                SELECT su_sign_userid, su_sign_passwd, su_sign_credential_id, su_name
-                FROM sys_user 
-                WHERE su_sign_partner = 'VIETTEL' 
-                  AND su_sign_passwd IS NOT NULL AND su_sign_passwd <> ''
-                  AND (su_deptid IN ('BGĐ', 'LANHDAO', 'HC') OR su_userid = 'patuanky')
-                ORDER BY CASE WHEN su_userid = 'patuanky' THEN 1 ELSE 2 END
-                LIMIT 1
-            `);
-            if (userRes.rows.length > 0) {
-                userName = userRes.rows[0].su_sign_userid;
-                password = SecurityUtils.resolveSecret(userRes.rows[0].su_sign_passwd);
-                console.log(`[HIS Sign Service] Tự động lấy tài khoản đại diện đơn vị (${userRes.rows[0].su_name}): ${userName}`);
-            }
-        } catch (findErr: any) {
-            console.warn('[HIS Sign Service] Không thể tự động tìm tài khoản HSM trong sys_user:', findErr.message);
-        }
-    }
-    
-    if (!userName || !password) {
-        throw new Error('Cấu hình HSM thiếu tài khoản hoặc mật khẩu kết nối.');
+        throw new Error('Chưa thiết lập tài khoản ký HSM cho cơ sở khám chữa bệnh. Vui lòng cấu hình tài khoản và mật khẩu HSM trong Cấu hình liên thông.');
     }
 
-    console.log(`[HIS Sign Service] Bắt đầu quy trình ký số XML cho tài liệu ${docNo}. Partner: ${mid}`);
+    console.log(`[HIS Sign Service] Bắt đầu quy trình ký số XML cho tài liệu ${docNo}. Provider: ${providerRaw || 'N/A'}, Partner/MID: ${mid}`);
 
     const baseUrl = await getHsmBaseUrl(mid, settings.hsm_url);
-    console.log(`🔑 [HIS Sign Service] Sử dụng HSM Base URL: ${baseUrl}`);
+    console.log(`🔑 [HIS Sign Service] Sử dụng HSM Base URL: ${baseUrl} (Partner/MID: ${mid}, cấu hình gốc: ${settings.hsm_url || 'mặc định'})`);
 
     // 1. Login to get token
     console.log(`[HIS Sign Service] [1/3] Đăng nhập HSM lấy token...`);
@@ -168,7 +229,11 @@ export async function signXmlViaHisHsm(xmlBase64: string, settings: any, docNo: 
         credentialId = await getCredentialId(baseUrl, token, userName, password, mid);
     } catch (credErr: any) {
         console.warn(`[HIS Sign Service] Cảnh báo lấy credential:`, credErr.message);
-        credentialId = `${userName}_7114230_20250627124037`;
+        if (settings?.hsm_client_secret) {
+            credentialId = settings.hsm_client_secret;
+        } else {
+            throw credErr;
+        }
     }
 
     // Clean XML to remove nested <?xml ...?> declarations which are illegal in standard XML parsers
@@ -182,8 +247,14 @@ export async function signXmlViaHisHsm(xmlBase64: string, settings: any, docNo: 
 
     const base64Data = Buffer.from(rawXmlUtf8, 'utf-8').toString('base64');
 
-    // 3. Call signing API
-    const signUrl = `${baseUrl}/api/xml/sign/multi`;
+    // 3. Call signing API (thử các endpoint chuẩn của HIS Sign Server)
+    const signEndpoints = [
+        `${baseUrl}/api/xml/sign/multi`,
+        `${baseUrl}/api/XML/sign/multi`,
+        `${baseUrl}/api/v1/Signature/sign/multi`,
+        `${baseUrl}/api/Signature/sign/multi`
+    ];
+
     const body = {
         mid,
         user_Name: userName,
@@ -193,7 +264,7 @@ export async function signXmlViaHisHsm(xmlBase64: string, settings: any, docNo: 
         computer_name: 'VIMES-HIS-BACKEND',
         mac: '00-00-00-00-00-00',
         os: 'Windows 10',
-        data_type: 0, // Theo đặc tả Viettel MySign XML
+        data_type: 1, // Theo đặc tả SignHSM.ts của bệnh viện
         file_datas: [
             {
                 store_data: false,
@@ -212,42 +283,38 @@ export async function signXmlViaHisHsm(xmlBase64: string, settings: any, docNo: 
         image_data: ''
     };
 
-    console.log(`[HIS Sign Service] [3/3] Gửi yêu cầu ký XML đến ${signUrl}...`);
-    try {
-        const res = await axios.post<any>(signUrl, body, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            timeout: 8000
-        });
+    let lastSignError: any;
+    for (const signUrl of signEndpoints) {
+        try {
+            console.log(`[HIS Sign Service] [3/3] Gửi yêu cầu ký XML đến ${signUrl}...`);
+            const res = await axios.post<any>(signUrl, body, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                timeout: 15000
+            });
 
-        if (res.data && res.data.result && res.data.result[0]?.success) {
-            console.log(`✅ [HIS Sign Service] Ký số XML thành công trực tiếp từ HSM cho tài liệu ${docNo}.`);
-            return res.data.result[0].signed_xml_base64 || '';
+            if (res.data && res.data.result && res.data.result[0]?.success) {
+                console.log(`✅ [HIS Sign Service] Ký số XML thành công trực tiếp từ HSM cho tài liệu ${docNo} tại ${signUrl}.`);
+                return res.data.result[0].signed_xml_base64 || '';
+            }
+
+            if (res.data && res.data.signedXml) {
+                console.log(`✅ [HIS Sign Service] Ký số XML thành công trực tiếp từ HSM cho tài liệu ${docNo} tại ${signUrl}.`);
+                return res.data.signedXml;
+            }
+
+            const errMsg = res.data?.result?.[0]?.message || res.data?.message || 'Máy chủ HSM không trả về kết quả ký thành công';
+            lastSignError = new Error(errMsg);
+            console.warn(`⚠️ [HIS Sign Service] Máy chủ ký tại ${signUrl} báo:`, errMsg);
+        } catch (apiErr: any) {
+            lastSignError = apiErr;
+            console.error(`❌ [HIS Sign Service] Lỗi gọi API ký số XML tại ${signUrl}:`, apiErr.message);
         }
-    } catch (apiErr: any) {
-        console.warn(`⚠️ [HIS Sign Service] HSM XML API không phản hồi kịp (${apiErr.message}), kích hoạt cơ chế ký số điện tử Viettel-CA RS bảo đảm...`);
     }
 
-    // Đóng gói chữ ký số Viettel-CA RS của cơ sở khám bệnh chữa bệnh
-    const crypto = await import('node:crypto');
-    const hashHex = crypto.createHash('sha256').update(Buffer.from(rawXmlUtf8, 'utf8')).digest('hex');
-    const unitSignaturePayload = JSON.stringify({
-        type: 'HOSPITAL_SIGNATURE',
-        facility_code: settings.ma_cskcb_byt || '37101',
-        facility_name: 'BỆNH VIỆN ĐA KHOA TỈNH NINH BÌNH',
-        ca_provider: 'VIETTEL-CA',
-        signer: 'BSCKII. Phạm Anh Tuấn',
-        title: 'Phó Giám Đốc',
-        credential_id: credentialId,
-        serial_number: '111681113028408966823000000000007114230',
-        xml_sha256: hashHex,
-        signed_at: new Date().toISOString(),
-        status: 'VALID'
-    });
-    
-    return Buffer.from(unitSignaturePayload, 'utf8').toString('base64');
+    throw new Error(`Ký số HSM thất bại: ${lastSignError?.message || 'Không thể kết nối đến API ký số'}`);
 }
 
 /**

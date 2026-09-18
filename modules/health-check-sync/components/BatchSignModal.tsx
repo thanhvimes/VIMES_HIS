@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { healthCheckService } from '../../../services/healthCheckService';
-import { signHealthCheckXmlWithAgent } from '../services/healthCheckAgentXmlSigner';
+import { signHealthCheckXmlWithAgent, batchSignHealthCheckXmlWithAgent } from '../services/healthCheckAgentXmlSigner';
 import { 
     CheckCircleIcon, 
     AlertCircleIcon, 
@@ -37,6 +37,7 @@ export const BatchSignModal: React.FC<BatchSignModalProps> = ({
     const [doctorName, setDoctorName] = useState<string>(currentUser?.name || 'Bác sĩ kết luận');
     const [defaultFitnessClass, setDefaultFitnessClass] = useState<string>('1');
     const [applyDefaultFitness, setApplyDefaultFitness] = useState<boolean>(false);
+    const [autoSendPortal, setAutoSendPortal] = useState<boolean>(true);
 
     // Progress & Execution states
     const [isSigning, setIsSigning] = useState<boolean>(false);
@@ -85,51 +86,70 @@ export const BatchSignModal: React.FC<BatchSignModalProps> = ({
 
         try {
             if (signatureType === 'USB') {
-                setProgressText('Đang kết nối thiết bị USB Token máy trạm...');
-                setProgressPercent(20);
+                setProgressText('Đang kết nối USB Token & kiểm tra chứng thư số...');
+                setProgressPercent(15);
 
-                // Ký USB Token từng hồ sơ
-                const signatures: Record<string, string> = {};
-                for (let i = 0; i < docIds.length; i++) {
-                    const id = docIds[i];
-                    const doc = selectedDocs[i];
-                    setProgressText(`Đang ký hồ sơ (${i + 1}/${docIds.length}): ${doc.patient_name || doc.doc_no}...`);
-                    setProgressPercent(20 + Math.floor((i / docIds.length) * 50));
-                    
-                    try {
-                        const sigRes: any = await signHealthCheckXmlWithAgent(id);
-                        if (sigRes?.signedXmlBase64 || sigRes?.signature) {
-                            signatures[id] = sigRes.signedXmlBase64 || sigRes.signature;
-                        }
-                    } catch (usbErr: any) {
-                        console.warn(`Lỗi ký USB Token cho hồ sơ ${doc.doc_no}:`, usbErr.message);
+                const batchResult = await batchSignHealthCheckXmlWithAgent(docIds, {
+                    docs: selectedDocs,
+                    autoSendPortal,
+                    onProgress: (info) => {
+                        setProgressText(`Đang ký (${info.current}/${info.total}): ${info.patientName}...`);
+                        setProgressPercent(15 + Math.floor((info.current / info.total) * 65));
                     }
+                });
+
+                const signatures = batchResult.signatures;
+                const failedUsbDocs = batchResult.failed.map(f => {
+                    const doc = selectedDocs.find(d => String(d.id) === String(f.id));
+                    return { id: f.id, docNo: doc?.doc_no || f.id, error: f.error };
+                });
+
+                if (failedUsbDocs.length === docIds.length) {
+                    setResultSummary({
+                        total: docIds.length,
+                        succeededCount: 0,
+                        failedCount: failedUsbDocs.length,
+                        failed: failedUsbDocs
+                    });
+                    toast.error(`Ký USB Token không thành công cho toàn bộ ${docIds.length} hồ sơ.`);
+                    return;
                 }
 
-                setProgressText('Đang gửi chữ ký USB lên hệ thống máy chủ...');
-                setProgressPercent(80);
+                setProgressText('Đang cập nhật trạng thái hồ sơ trên hệ thống...');
+                setProgressPercent(85);
 
+                const validDocIds = batchResult.succeeded;
+
+                let res: any;
                 if (signRole === 'DOCTOR') {
-                    const res = await healthCheckService.batchSignConclusion(docIds, {
+                    res = await healthCheckService.batchSignConclusion(validDocIds, {
                         doctorId,
                         doctorName,
                         defaultFitnessClass: applyDefaultFitness ? defaultFitnessClass : undefined,
-                        signatureType: 'USB'
-                    });
-                    setResultSummary(res);
-                } else if (signRole === 'UNIT') {
-                    const res = await healthCheckService.batchSignUnit(docIds, {
                         signatureType: 'USB',
                         signatures
                     });
-                    setResultSummary(res);
+                } else if (signRole === 'UNIT') {
+                    res = await healthCheckService.batchSignUnit(validDocIds, {
+                        signatureType: 'USB',
+                        signatures
+                    });
                 } else {
-                    const res = await healthCheckService.batchSignBoth(docIds, {
+                    res = await healthCheckService.batchSignBoth(validDocIds, {
                         doctorId,
                         doctorName,
                         defaultFitnessClass: applyDefaultFitness ? defaultFitnessClass : undefined,
-                        signatureType: 'USB'
+                        signatureType: 'USB',
+                        signatures
                     });
+                }
+
+                if (res) {
+                    if (failedUsbDocs.length > 0) {
+                        res.failed = [...(res.failed || []), ...failedUsbDocs];
+                        res.failedCount = (res.failedCount || 0) + failedUsbDocs.length;
+                        res.total = docIds.length;
+                    }
                     setResultSummary(res);
                 }
             } else {
@@ -391,6 +411,19 @@ export const BatchSignModal: React.FC<BatchSignModalProps> = ({
                                 )}
                             </div>
                         )}
+                        {/* Tùy chọn 1-Click Sign & Sync: Tự động gửi Cổng VNeID sau khi ký */}
+                        <div className="md:col-span-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                            <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-teal-700 dark:text-teal-300">
+                                <input 
+                                    type="checkbox"
+                                    disabled={isSigning}
+                                    checked={autoSendPortal}
+                                    onChange={(e) => setAutoSendPortal(e.target.checked)}
+                                    className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500"
+                                />
+                                <span>🚀 Tự động gửi Cổng VNeID / Bộ Y tế ngay sau khi ký thành công (1-Click Sign & Sync)</span>
+                            </label>
+                        </div>
                     </div>
 
                     {/* Step 3: Danh sách hồ sơ được ký */}

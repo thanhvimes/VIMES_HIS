@@ -102,7 +102,10 @@ export interface BedOccupancyItem {
     dept_id: string;
     dept_name: string;
     giuong_ke_hoach: number | string;
-    giuong_thuc_ke: number | string;
+    giuong_thuc_ke?: number | string;
+    bn_noi_tru_bhyt: number | string;
+    bn_noi_tru_vienphi: number | string;
+    bn_ngoai_tru: number | string;
     bn_dang_nam: number | string;
     ty_le_cong_suat: number | string;
 }
@@ -120,3 +123,110 @@ export interface TopDoctorItem {
     doctor_name: string;
     total_visits: number | string;
 }
+
+export interface SurgeryBriefingItem {
+    docno: number | string;
+    patient_name: string;
+    operation_name: string;
+    order_time: string;
+    doctor_name: string;
+    dept_name: string;
+    operation_type: 'EMERGENCY' | 'SCHEDULED';
+}
+
+export interface DeathBriefingItem {
+    docno: number | string;
+    patient_name: string;
+    dept_name: string;
+    death_time: string;
+    death_cause: string;
+    death_icd: string;
+}
+
+export interface ExecutiveMorningBriefingData {
+    briefing_date: string;
+    latest_active_date?: string;
+    examination: {
+        tong_kham: number;
+        kham_bhyt: number;
+        kham_dichvu: number;
+        cap_cuu: number;
+        chi_dinh_nhap_vien: number;
+        chuyen_vien_ngoai_tru: number;
+    };
+    inpatient: {
+        vao_vien: number;
+        ra_vien: number;
+        chuyen_tuyen_noi_tru: number;
+        tu_vong: number;
+        hien_dien_hien_tai: number;
+    };
+    surgery: {
+        tong_ca_pttt: number;
+        tong_phau_thuat: number;
+        mo_cap_cuu: number;
+        mo_phien: number;
+        thu_thuat: number;
+    };
+    bed_status: {
+        total_planned_beds: number;
+        total_patients: number;
+        occupancy_rate: number;
+        all_depts?: BedOccupancyItem[];
+        overloaded_depts: BedOccupancyItem[];
+        near_capacity_depts: BedOccupancyItem[];
+        optimal_depts?: BedOccupancyItem[];
+        available_depts: BedOccupancyItem[];
+    };
+    surgeries_list?: SurgeryBriefingItem[];
+    deaths_list?: DeathBriefingItem[];
+}
+
+export interface DepositDeficitItem {
+    docno: number | string;
+    patient_name: string;
+    dept_name: string;
+    object_name: string;
+    admit_date: string;
+    total_cost: number;
+    deposit_amount: number;
+    deficit_amount: number;
+    risk_level: 'CRITICAL' | 'HIGH' | 'WARNING' | 'SAFE';
+}
+
+export interface BhytFinancialRiskData {
+    summary: {
+        tong_chi_phi: number;
+        bhyt_chi_tra: number;
+        benh_nhan_cung_chi_tra: number;
+        ty_le_bhyt: number;
+    };
+    cost_breakdown: {
+        tien_thuoc: number;
+        tien_vtyt: number;
+        tien_giuong: number;
+        tien_xet_nghiem: number;
+        tien_cdha_tdcn: number;
+        tien_pttt: number;
+        tien_kham: number;
+        ty_le_thuoc: number;
+        ty_le_vtyt: number;
+        ty_le_giuong: number;
+        ty_le_cls: number;
+    };
+    deposit_deficits: DepositDeficitItem[];
+}
+
+export interface ExecutiveAlertItem {
+    type: 'RED' | 'YELLOW' | 'GREEN';
+    category: 'BED_OVERLOAD' | 'DEATH_INCIDENT' | 'FINANCIAL_RISK' | 'ALL_NORMAL';
+    title: string;
+    message: string;
+    action_link?: string;
+}
+
+export interface ExecutiveAlertsData {
+    overall_status: 'RED' | 'YELLOW' | 'GREEN';
+    alerts: ExecutiveAlertItem[];
+}
+

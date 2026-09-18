@@ -187,6 +187,7 @@ export const healthCheckService = {
             doctorName?: string;
             defaultFitnessClass?: string;
             signatureType?: 'USB' | 'HSM';
+            signatures?: Record<string, string>;
         }
     ): Promise<any> => {
         try {
@@ -227,6 +228,7 @@ export const healthCheckService = {
             doctorName?: string;
             defaultFitnessClass?: string;
             signatureType?: 'USB' | 'HSM';
+            signatures?: Record<string, string>;
         }
     ): Promise<any> => {
         try {
@@ -604,7 +606,7 @@ export const healthCheckService = {
         }
     },
 
-    getSigningPartners: async (): Promise<{ success: boolean; data: Array<{ sign_partner: string; sign_url: string }> }> => {
+    getSigningPartners: async (): Promise<{ success: boolean; data: Array<{ sign_partner: string; sign_name?: string; sign_url: string; sign_url_wan?: string }> }> => {
         try {
             return await apiClient.get<any>('/health-check-sync/settings/partners');
         } catch (error) {

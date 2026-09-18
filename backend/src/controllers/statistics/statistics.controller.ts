@@ -144,6 +144,48 @@ export class StatisticsController {
             res.status(500).json({ success: false, message: error.message || 'Lỗi lấy danh sách bác sĩ' });
         }
     }
+
+    /**
+     * 10. GET /api/v1/statistics/morning-briefing
+     */
+    async getExecutiveMorningBriefing(req: Request, res: Response) {
+        try {
+            const date = req.query.date as string;
+            const data = await StatisticsService.getExecutiveMorningBriefing(date);
+            res.json({ success: true, data });
+        } catch (error: any) {
+            console.error('getExecutiveMorningBriefing error:', error);
+            res.status(500).json({ success: false, message: error.message || 'Lỗi lấy bản tin giao ban sáng' });
+        }
+    }
+
+    /**
+     * 11. GET /api/v1/statistics/bhyt-financial-risk
+     */
+    async getBhytFinancialRiskStatistics(req: Request, res: Response) {
+        try {
+            const { fromDate, toDate } = normalizeDateRange(req);
+            const data = await StatisticsService.getBhytFinancialRiskStatistics(fromDate, toDate);
+            res.json({ success: true, data });
+        } catch (error: any) {
+            console.error('getBhytFinancialRiskStatistics error:', error);
+            res.status(500).json({ success: false, message: error.message || 'Lỗi lấy thống kê rủi ro tài chính BHYT' });
+        }
+    }
+
+    /**
+     * 12. GET /api/v1/statistics/executive-alerts
+     */
+    async getExecutiveAlerts(req: Request, res: Response) {
+        try {
+            const data = await StatisticsService.getExecutiveAlerts();
+            res.json({ success: true, data });
+        } catch (error: any) {
+            console.error('getExecutiveAlerts error:', error);
+            res.status(500).json({ success: false, message: error.message || 'Lỗi lấy cảnh báo chỉ huy' });
+        }
+    }
 }
 
 export const statisticsController = new StatisticsController();
+

@@ -10,10 +10,14 @@ import {
     DepartmentCostItem,
     BedOccupancyItem,
     ChartDayItem,
-    TopDoctorItem
+    TopDoctorItem,
+    ExecutiveMorningBriefingData,
+    BhytFinancialRiskData,
+    ExecutiveAlertsData
 } from '../types';
 
 const API_BASE_URL = '/api/v1/statistics';
+
 
 function getAuthHeaders(): HeadersInit {
     const headers: Record<string, string> = {
@@ -115,5 +119,35 @@ export const statisticsService = {
         const json = await res.json();
         if (!json.success) throw new Error(json.message || 'Lỗi tải danh sách bác sĩ');
         return json.data || [];
+    },
+
+    async getExecutiveMorningBriefing(date?: string): Promise<ExecutiveMorningBriefingData> {
+        let url = `${API_BASE_URL}/morning-briefing`;
+        if (date) url += `?date=${encodeURIComponent(date)}`;
+        const res = await fetch(url, {
+            headers: getAuthHeaders()
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.message || 'Lỗi tải bản tin giao ban sáng');
+        return json.data;
+    },
+
+    async getBhytFinancialRiskStatistics(fromDate: string, toDate: string): Promise<BhytFinancialRiskData> {
+        const res = await fetch(`${API_BASE_URL}/bhyt-financial-risk?fromDate=${encodeURIComponent(fromDate)}&toDate=${encodeURIComponent(toDate)}`, {
+            headers: getAuthHeaders()
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.message || 'Lỗi tải thống kê rủi ro tài chính BHYT');
+        return json.data;
+    },
+
+    async getExecutiveAlerts(): Promise<ExecutiveAlertsData> {
+        const res = await fetch(`${API_BASE_URL}/executive-alerts`, {
+            headers: getAuthHeaders()
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.message || 'Lỗi tải cảnh báo chỉ huy');
+        return json.data;
     }
 };
+

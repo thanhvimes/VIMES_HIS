@@ -14,10 +14,62 @@ using Vimes.Agent.Signing;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseWindowsService(options => options.ServiceName = "VIMES Workstation Agent");
-builder.WebHost.UseUrls("http://127.0.0.1:18181");
+var localSslCert = LocalSslCertificateHelper.GetOrCreateLocalCertificate();
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Listen(System.Net.IPAddress.Loopback, 18181); // Standard HTTP port
+    if (localSslCert != null)
+    {
+        options.Listen(System.Net.IPAddress.Loopback, 18182, listenOptions =>
+        {
+            listenOptions.UseHttps(localSslCert);
+        });
+    }
+});
+var programDataConfig = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "VIMES", "WorkstationAgent", "appsettings.json");
+if (File.Exists(programDataConfig))
+{
+    builder.Configuration.AddJsonFile(programDataConfig, optional: true, reloadOnChange: true);
+}
 builder.Services.Configure<AgentOptions>(builder.Configuration.GetSection(AgentOptions.SectionName));
 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
+const string DefaultTrustedBackendPublicKeyPem = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwV9oMwrnO/QG+PhQ2el/\nVGTnorZLgPSVcITGiyrLWUt8IlUtXxF5va/8+VR9S5PaCSEbWxobcOnOPAn3ljpU\nnktVIqPO5/18+KktD/XNZWbTRS93owEYgLfLDH+mP/xC7eO9/y17D6UW8osOKqtO\n5cziafgCWgEKR7cvqkG0Q6LoM3SfPsiwr07Wkg76glEBruUUg/LHdDdNmB35F88Y\nFdvWCV9NEQnVupuaFVMdUEPpbmmN5Rn0Tn3xLkunivOVx+21Q7YzLrOD+03A2J4x\nj5TfwMAq49Fkwo4YuxNP0yVAwadjVF0aKamnZw005Sx13RrNPz5ZpB/m9Ojjpn/W\nxQIDAQAB\n-----END PUBLIC KEY-----\n";
+
 var securityOptions = builder.Configuration.GetSection("Security").Get<AgentSecurityOptions>() ?? new AgentSecurityOptions();
+if (string.IsNullOrWhiteSpace(securityOptions.TrustedBackendPublicKeyPem))
+{
+    if (File.Exists(programDataConfig))
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(programDataConfig));
+            if (doc.RootElement.TryGetProperty("Security", out var secElem) &&
+                secElem.TryGetProperty("TrustedBackendPublicKeyPem", out var keyElem))
+            {
+                var candidate = keyElem.GetString();
+                if (!string.IsNullOrWhiteSpace(candidate))
+                {
+                    securityOptions = new AgentSecurityOptions
+                    {
+                        TrustedBackendPublicKeyPem = candidate,
+                        ChallengeLifetimeSeconds = securityOptions.ChallengeLifetimeSeconds,
+                        SessionLifetimeMinutes = securityOptions.SessionLifetimeMinutes
+                    };
+                }
+            }
+        }
+        catch { /* fallback to default */ }
+    }
+}
+if (string.IsNullOrWhiteSpace(securityOptions.TrustedBackendPublicKeyPem))
+{
+    securityOptions = new AgentSecurityOptions
+    {
+        TrustedBackendPublicKeyPem = DefaultTrustedBackendPublicKeyPem,
+        ChallengeLifetimeSeconds = securityOptions.ChallengeLifetimeSeconds,
+        SessionLifetimeMinutes = securityOptions.SessionLifetimeMinutes
+    };
+}
 builder.Services.AddSingleton(securityOptions);
 builder.Services.AddSingleton<AgentSessionService>();
 var configuredDataDirectory = builder.Configuration[$"{AgentOptions.SectionName}:DataDirectory"];
@@ -58,8 +110,17 @@ app.Use(async (context, next) =>
 app.Use(async (context, next) =>
 {
     if (!context.Request.Path.StartsWithSegments("/api/v1")) { await next(); return; }
-    var origin = context.Request.Headers.Origin.FirstOrDefault();
-    var options = context.RequestServices.GetRequiredService<IOptions<AgentOptions>>().Value;
+    var origin = context.Request.Headers.Origin.FirstOrDefault()
+        ?? context.Request.Headers["X-Agent-Origin"].FirstOrDefault();
+    var optionsMonitor = context.RequestServices.GetService<IOptionsMonitor<AgentOptions>>();
+    var options = optionsMonitor?.CurrentValue ?? context.RequestServices.GetRequiredService<IOptions<AgentOptions>>().Value;
+
+    // Support W3C Private Network Access (PNA) for Chromium browsers (Chrome/Edge)
+    if (context.Request.Headers.ContainsKey("Access-Control-Request-Private-Network"))
+    {
+        context.Response.Headers["Access-Control-Allow-Private-Network"] = "true";
+    }
+
     if (string.IsNullOrWhiteSpace(origin))
     {
         if (HttpMethods.IsGet(context.Request.Method)) { await next(); return; }
@@ -67,18 +128,24 @@ app.Use(async (context, next) =>
         await context.Response.WriteAsJsonAsync(new ApiError("ORIGIN_REQUIRED", "Request từ browser phải có Origin.", context.TraceIdentifier));
         return;
     }
-    if (!options.AllowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase))
+
+    var origins = options.AllowedOrigins ?? Array.Empty<string>();
+    var allowAny = origins.Length == 0 || origins.Contains("*");
+    if (!allowAny && !origins.Contains(origin, StringComparer.OrdinalIgnoreCase))
     {
         context.Response.StatusCode = StatusCodes.Status403Forbidden;
         await context.Response.WriteAsJsonAsync(new ApiError("ORIGIN_NOT_ALLOWED", "Nguồn gọi không được Workstation Agent cho phép.", context.TraceIdentifier));
         return;
     }
+
     context.Response.Headers.AccessControlAllowOrigin = origin;
     context.Response.Headers.Vary = "Origin";
+    context.Response.Headers["Access-Control-Allow-Private-Network"] = "true";
+
     if (HttpMethods.IsOptions(context.Request.Method))
     {
         context.Response.Headers.AccessControlAllowMethods = "GET,POST,OPTIONS";
-        context.Response.Headers.AccessControlAllowHeaders = "Authorization,Content-Type,X-Correlation-Id,X-Idempotency-Key";
+        context.Response.Headers.AccessControlAllowHeaders = "Authorization,Content-Type,X-Correlation-Id,X-Idempotency-Key,X-Agent-Origin";
         context.Response.StatusCode = StatusCodes.Status204NoContent;
         return;
     }
@@ -91,11 +158,10 @@ app.Use(async (context, next) =>
         || context.Request.Path.StartsWithSegments("/api/v1/desktop")
         || context.Request.Path.StartsWithSegments("/api/v1/signing");
     if (!protectedPath) { await next(); return; }
-    var origin = context.Request.Headers.Origin.FirstOrDefault();
     var authorization = context.Request.Headers.Authorization.FirstOrDefault();
     var token = authorization?.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) == true ? authorization[7..].Trim() : string.Empty;
     var sessionService = context.RequestServices.GetRequiredService<AgentSessionService>();
-    if (string.IsNullOrWhiteSpace(origin) || string.IsNullOrWhiteSpace(token) || !sessionService.Validate(token, origin))
+    if (string.IsNullOrWhiteSpace(token) || !sessionService.Validate(token))
     {
         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
         await context.Response.WriteAsJsonAsync(new ApiError("AGENT_SESSION_REQUIRED", "Cần phiên Workstation Agent hợp lệ.", context.TraceIdentifier));
@@ -104,8 +170,8 @@ app.Use(async (context, next) =>
     await next();
 });
 
-app.MapGet("/api/v1/health", () => Results.Ok(new AgentHealth("ok", "VIMES Workstation Agent", "1.1.0", DateTimeOffset.UtcNow)));
-app.MapGet("/api/v1/version", () => Results.Ok(new { product = "VIMES Workstation Agent", version = "1.1.0", apiVersion = "v1" }));
+app.MapGet("/api/v1/health", () => Results.Ok(new { status = "ok", product = "VIMES Workstation Agent", version = "1.2.0", sslEnabled = localSslCert != null, timestamp = DateTimeOffset.UtcNow }));
+app.MapGet("/api/v1/version", () => Results.Ok(new { product = "VIMES Workstation Agent", version = "1.2.0", apiVersion = "v1", sslEnabled = localSslCert != null, httpsPort = 18182 }));
 app.MapGet("/api/v1/capabilities", () => Results.Ok(new[]
 {
     new CapabilityInfo("printing", "1.0", "available"),

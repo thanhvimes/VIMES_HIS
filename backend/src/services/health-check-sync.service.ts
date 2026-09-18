@@ -610,12 +610,9 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
                             const step2Hash = healthCheckTwoTierSigner.getStep2Hash(rawXmlToProcess);
                             const signedXmlBase64 = await signXmlViaHisHsm(step2Hash.preparedXml, settings, doc.doc_no || `ksk_${doc.id}`);
                             if (signedXmlBase64) {
-                                let hospitalSigVal = signedXmlBase64;
-                                if (signedXmlBase64.startsWith('<') || signedXmlBase64.includes('<Signature')) {
-                                    const sigValMatch = signedXmlBase64.match(/<SignatureValue[^>]*>([\s\S]*?)<\/SignatureValue>/i);
-                                    if (sigValMatch) {
-                                        hospitalSigVal = sigValMatch[1].replace(/\s+/g, '');
-                                    }
+                                const hospitalSigVal = healthCheckTwoTierSigner.extractCleanSignatureValue(signedXmlBase64);
+                                if (!hospitalSigVal) {
+                                    throw new Error('Máy chủ HSM không trả về chữ ký số hợp lệ cho đơn vị');
                                 }
                                 rawXmlToProcess = healthCheckTwoTierSigner.applyHospitalSignature(rawXmlToProcess, hospitalSigVal);
 

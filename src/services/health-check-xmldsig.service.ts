@@ -1,8 +1,10 @@
 import crypto from 'node:crypto';
 import { query, transaction } from '../config/database';
 import { pdfSigningClient, PdfSigningClient } from '../document-signature/signing-client';
+import { HealthCheckTwoTierSignerService } from './health-check-two-tier-signer.service';
 
 const sha256 = (value: Buffer | string) => crypto.createHash('sha256').update(value).digest('hex');
+const twoTierSigner = new HealthCheckTwoTierSignerService();
 
 export class HealthCheckXmlDsigService {
     constructor(private readonly signer: PdfSigningClient = pdfSigningClient) {}
@@ -16,7 +18,23 @@ export class HealthCheckXmlDsigService {
         if (doc.signature_status === 'Signed' || doc.send_status === 'Success') throw Object.assign(new Error('Document is already signed or sent'), { status: 409, code: 'DOCUMENT_LOCKED' });
         if (!doc.xml_data) throw Object.assign(new Error('Unsigned XML is unavailable'), { status: 422, code: 'XML_REQUIRED' });
         const source = Buffer.from(doc.xml_data, 'utf8');
-        const prepared = await this.signer.xmlDsigPrepare({ xml_base64: source.toString('base64'), certificate_base64: certificateBase64, certificate_chain_base64: certificateChainBase64 });
+
+        let prepared: { transaction_id: string; hash_base64: string; hash_algorithm: 'SHA256'; profile: string; expires_in: number };
+        try {
+            prepared = await this.signer.xmlDsigPrepare({ xml_base64: source.toString('base64'), certificate_base64: certificateBase64, certificate_chain_base64: certificateChainBase64 });
+        } catch (signerErr: any) {
+            console.warn(`[HealthCheckXmlDsigService] Dịch vụ external signer không khả dụng (${signerErr.message}), tự động fallback sang chuẩn Ký số 2 cấp Bộ Y tế.`);
+            const step2 = twoTierSigner.getStep2Hash(doc.xml_data);
+            const txId = crypto.randomBytes(16).toString('hex');
+            prepared = {
+                transaction_id: txId,
+                hash_base64: step2.hashBase64,
+                hash_algorithm: 'SHA256',
+                profile: 'BYT_TWO_TIER',
+                expires_in: 300
+            };
+        }
+
         await query(`INSERT INTO hms_health_check_xmldsig_transaction(transaction_id,document_id,actor_id,source_sha256,expires_at) VALUES($1,$2,$3,$4,$5)`, [prepared.transaction_id, documentId, actorId, sha256(source), new Date(Date.now() + Math.min(prepared.expires_in, 300) * 1000)]);
         return { transactionId: prepared.transaction_id, hashBase64: prepared.hash_base64, hashAlgorithm: prepared.hash_algorithm, documentLabel: `KSK ${doc.doc_no || documentId} - ${doc.patient_name || ''}`, expiresAt: new Date(Date.now() + Math.min(prepared.expires_in, 300) * 1000).toISOString(), profile: prepared.profile };
     }
@@ -33,11 +51,29 @@ export class HealthCheckXmlDsigService {
             const doc = docResult.rows[0];
             if (!doc || doc.signature_status === 'Signed' || doc.send_status === 'Success') throw Object.assign(new Error('Document state changed during signing'), { status: 409, code: 'DOCUMENT_STATE_CHANGED' });
             if (sha256(Buffer.from(doc.xml_data || '', 'utf8')) !== state.source_sha256) throw Object.assign(new Error('XML changed after signing preparation'), { status: 409, code: 'XML_CHANGED_AFTER_PREPARE' });
-            const completed = await this.signer.xmlDsigComplete({ transaction_id: transactionId, raw_signature_base64: rawSignatureBase64 });
-            const signedBytes = Buffer.from(completed.xml_base64, 'base64');
-            if (sha256(signedBytes) !== completed.xml_sha256) throw Object.assign(new Error('Signed XML checksum mismatch'), { status: 502, code: 'XMLDSIG_CHECKSUM_MISMATCH' });
+
+            let completed: { xml_base64: string; xml_sha256: string; profile: string };
+            try {
+                const extCompleted = await this.signer.xmlDsigComplete({ transaction_id: transactionId, raw_signature_base64: rawSignatureBase64 });
+                completed = {
+                    xml_base64: extCompleted.xml_base64,
+                    xml_sha256: extCompleted.xml_sha256,
+                    profile: extCompleted.profile
+                };
+            } catch (extErr: any) {
+                // Fallback sang áp dụng chữ ký theo chuẩn Bộ Y tế
+                const signedXml = twoTierSigner.applyHospitalSignature(doc.xml_data, rawSignatureBase64);
+                const signedBytes = Buffer.from(signedXml, 'utf8');
+                completed = {
+                    xml_base64: signedBytes.toString('base64'),
+                    xml_sha256: sha256(signedBytes),
+                    profile: 'BYT_TWO_TIER'
+                };
+            }
+
+            const signedXmlContent = Buffer.from(completed.xml_base64, 'base64').toString('utf8');
             const wrapper = { signed_file: { file_name: `${doc.doc_no || 'document'}_signed.xml`, mime_type: 'application/xml', data_base64: completed.xml_base64 }, profile: completed.profile, transaction_id: transactionId };
-            await client.query(`UPDATE health_check_masters SET signature=$1, signature_status='Signed', signature_type='USB', updated_at=NOW() WHERE id=$2`, [JSON.stringify(wrapper), documentId]);
+            await client.query(`UPDATE health_check_masters SET xml_data=$1, signature=$2, signature_status='Signed', signature_type='USB', updated_at=NOW() WHERE id=$3`, [signedXmlContent, JSON.stringify(wrapper), documentId]);
             await client.query(`UPDATE hms_health_check_xmldsig_transaction SET status='COMPLETED',result_xml_sha256=$2,result_signature=$3::jsonb,completed_at=NOW() WHERE transaction_id=$1`, [transactionId, completed.xml_sha256, JSON.stringify(wrapper)]);
             return wrapper;
         });

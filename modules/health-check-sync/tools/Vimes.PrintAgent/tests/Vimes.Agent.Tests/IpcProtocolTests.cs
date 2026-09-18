@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO.Pipes;
 using System.Text.Json;
 using Vimes.Agent.Ipc;
 using Xunit;
@@ -34,8 +35,8 @@ public sealed class IpcProtocolTests
     [Fact]
     public async Task SecureNamedPipeAllowsCurrentUserRoundTrip()
     {
-        var sessionId = Process.GetCurrentProcess().SessionId;
-        await using var server = SecureDesktopPipeFactory.CreateForCurrentUser(DesktopPipeNames.ForSession(sessionId));
+        var testPipeName = $"vimes-agent-test-{Guid.NewGuid():N}";
+        await using var server = SecureDesktopPipeFactory.CreateForCurrentUser(testPipeName);
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         var serverTask = Task.Run(async () =>
         {
@@ -44,7 +45,11 @@ public sealed class IpcProtocolTests
             await IpcJsonProtocol.WriteAsync(server, new IpcResponse(request.Id, true, "OK", "pong"), timeout.Token);
         }, timeout.Token);
 
-        var response = await new DesktopAgentClient().SendAsync(sessionId, "ping", new { }, TimeSpan.FromSeconds(3), timeout.Token);
+        await using var client = new NamedPipeClientStream(".", testPipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+        await client.ConnectAsync(timeout.Token);
+        var req = new IpcRequest(Guid.NewGuid().ToString("N"), "ping", DesktopPipeNames.ProtocolVersion, JsonSerializer.SerializeToElement(new { }));
+        await IpcJsonProtocol.WriteAsync(client, req, timeout.Token);
+        var response = await IpcJsonProtocol.ReadAsync<IpcResponse>(client, timeout.Token);
         await serverTask;
 
         Assert.True(response.Success);
