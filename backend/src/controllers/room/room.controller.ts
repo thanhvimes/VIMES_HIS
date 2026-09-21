@@ -44,7 +44,7 @@ class RoomController {
                     s.created_at as "createdAt",
                     s.updated_at as "updatedAt"
                 FROM hms_schedule_exam_setup s
-                LEFT JOIN sys_dept d ON (d.sd_id = s.hses_deptid AND d.sd_isactive = 'Y')
+                LEFT JOIN sys_dept d ON (d.sd_id = s.hses_deptid AND COALESCE(d.sd_active, 'Y') = 'Y')
                 LEFT JOIN hms_roomlist r ON (r.hrl_deptid = s.hses_deptid AND r.hrl_id = s.hses_roomid)
                 WHERE 1=1
             `;
@@ -99,7 +99,7 @@ class RoomController {
                     d.sd_name as "deptName",
                     r.hrl_roomname as "roomName"
                 FROM hms_schedule_exam_setup s
-                LEFT JOIN sys_dept d ON (d.sd_id = s.hses_deptid AND d.sd_isactive = 'Y')
+                LEFT JOIN sys_dept d ON (d.sd_id = s.hses_deptid AND COALESCE(d.sd_active, 'Y') = 'Y')
                 LEFT JOIN hms_roomlist r ON (r.hrl_deptid = s.hses_deptid AND r.hrl_id = s.hses_roomid)
                 WHERE s.hses_deptid = $1 AND s.hses_roomid = $2
                 ORDER BY s.hses_type

@@ -26,6 +26,8 @@ import {
 } from '../../../components/Icons';
 import { toast } from 'sonner';
 import { formatDate } from '../../../utils/formatters';
+import { ContractReportTab } from './ContractReportTab';
+import { splitFullName, formatFullName, parseCccdInfo, validateCccd, validatePhone, parseCccdQr, formatToIsoDate } from '../utils/patientNameHelper';
 
 interface Contract {
     id: number;
@@ -101,7 +103,7 @@ const ContractManagement: React.FC = () => {
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
     const [patientObjects, setPatientObjects] = useState<CatalogItem[]>([]);
-    const [activeTab, setActiveTab] = useState<'employees' | 'services'>('employees');
+    const [activeTab, setActiveTab] = useState<'employees' | 'services' | 'reports'>('employees');
     const [services, setServices] = useState<any[]>([]);
     const [isLoadingServices, setIsLoadingServices] = useState(false);
     
@@ -167,6 +169,7 @@ const ContractManagement: React.FC = () => {
     const [employeeFormMode, setEmployeeFormMode] = useState<'ADD' | 'EDIT'>('EDIT');
     const [selectedEmployeeForEdit, setSelectedEmployeeForEdit] = useState<Employee | null>(null);
     const [employeeFormData, setEmployeeFormData] = useState({
+        fullName: '',
         surname: '',
         midname: '',
         firstname: '',
@@ -610,15 +613,17 @@ const ContractManagement: React.FC = () => {
     const handleEditEmployeeClick = (employee: Employee) => {
         setSelectedEmployeeForEdit(employee);
         setEmployeeFormMode('EDIT');
+        const fullName = formatFullName(employee.surname, employee.midname, employee.firstname);
         
         setEmployeeFormData({
+            fullName,
             surname: employee.surname || '',
             midname: employee.midname || '',
             firstname: employee.firstname || '',
-            birth_date: parseDobToInputDate(employee.birth_date),
+            birth_date: formatToIsoDate(employee.birth_date),
             sex: employee.sex === 'F' ? 'F' : 'M',
             cccd: employee.cccd || '',
-            cardIdDate: employee.card_id_date || '',
+            cardIdDate: formatToIsoDate(employee.card_id_date),
             cardIdPlace: employee.card_id_place || '',
             phone: employee.phone || '',
             ethnic: employee.ethnic ? String(employee.ethnic) : '01',
@@ -638,6 +643,7 @@ const ContractManagement: React.FC = () => {
         setEmployeeFormMode('ADD');
         setSelectedEmployeeForEdit(null);
         setEmployeeFormData({
+            fullName: '',
             surname: '',
             midname: '',
             firstname: '',
@@ -656,36 +662,148 @@ const ContractManagement: React.FC = () => {
         setIsEmployeeEditOpen(true);
     };
 
+    const handleFullNameChange = (val: string) => {
+        // Kiểm tra nếu là chuỗi quét QR từ thẻ CCCD (chứa dấu |)
+        if (val.includes('|')) {
+            const qrData = parseCccdQr(val);
+            if (qrData) {
+                const { surname, midname, firstname } = splitFullName(qrData.fullName);
+                setEmployeeFormData(prev => ({
+                    ...prev,
+                    cccd: qrData.cccd,
+                    fullName: qrData.fullName,
+                    surname,
+                    midname,
+                    firstname,
+                    sex: qrData.gender,
+                    birth_date: qrData.dob || prev.birth_date,
+                    cardIdDate: qrData.issueDate || prev.cardIdDate,
+                    address: qrData.address || prev.address
+                }));
+                toast.success("Đã tự động đọc đầy đủ thông tin từ mã QR CCCD!");
+                return;
+            }
+        }
+
+        const upper = val.toUpperCase();
+        const { surname, midname, firstname } = splitFullName(upper);
+        setEmployeeFormData(prev => ({
+            ...prev,
+            fullName: upper,
+            surname,
+            midname,
+            firstname
+        }));
+    };
+
+    const handleCccdChange = (val: string) => {
+        // Kiểm tra nếu là chuỗi quét QR từ thẻ CCCD
+        if (val.includes('|')) {
+            const qrData = parseCccdQr(val);
+            if (qrData) {
+                const { surname, midname, firstname } = splitFullName(qrData.fullName);
+                setEmployeeFormData(prev => ({
+                    ...prev,
+                    cccd: qrData.cccd,
+                    fullName: qrData.fullName,
+                    surname,
+                    midname,
+                    firstname,
+                    sex: qrData.gender,
+                    birth_date: qrData.dob || prev.birth_date,
+                    cardIdDate: qrData.issueDate || prev.cardIdDate,
+                    address: qrData.address || prev.address
+                }));
+                toast.success("Đã tự động đọc đầy đủ thông tin từ mã QR CCCD!");
+                return;
+            }
+        }
+
+        const clean = val.replace(/\D/g, '').slice(0, 12);
+        const cccdInfo = parseCccdInfo(clean);
+
+        setEmployeeFormData(prev => {
+            const updated = { ...prev, cccd: clean };
+            // Tự động gợi ý giới tính và năm sinh nếu chưa điền hoặc đang ở mặc định
+            if (cccdInfo.gender && (!prev.sex || prev.sex === 'M')) {
+                updated.sex = cccdInfo.gender;
+            }
+            if (cccdInfo.estimatedDob && !prev.birth_date) {
+                updated.birth_date = cccdInfo.estimatedDob;
+            }
+            return updated;
+        });
+    };
+
+    const handleCardIdDateChange = (val: string) => {
+        // Nếu người dùng vô tình quét/gõ nhầm số CCCD (12 chữ số) vào ô Ngày cấp
+        const cleanDigits = val.replace(/\D/g, '');
+        if (cleanDigits.length === 12 && !val.includes('-') && !val.includes('/')) {
+            handleCccdChange(cleanDigits);
+            toast.info("Đã phát hiện 12 số CCCD! Tự động chuyển vào đúng ô Số CCCD.");
+            return;
+        }
+
+        if (val.includes('|')) {
+            handleCccdChange(val);
+            return;
+        }
+
+        setEmployeeFormData(prev => ({
+            ...prev,
+            cardIdDate: val
+        }));
+    };
+
+    const handlePhoneChange = (val: string) => {
+        const clean = val.replace(/\D/g, '').slice(0, 10);
+        setEmployeeFormData(prev => ({
+            ...prev,
+            phone: clean
+        }));
+    };
+
     const handleEmployeeEditSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (employeeFormMode === 'EDIT' && !selectedEmployeeForEdit) return;
         if (employeeFormMode === 'ADD' && !selectedContract) return;
 
-        if (!employeeFormData.surname.trim() && !employeeFormData.firstname.trim()) {
-            toast.error("Vui lòng nhập Họ & Tên nhân viên");
+        const effectiveFullName = employeeFormData.fullName.trim() || 
+            formatFullName(employeeFormData.surname, employeeFormData.midname, employeeFormData.firstname);
+
+        if (!effectiveFullName) {
+            toast.error("Vui lòng nhập Họ và tên nhân viên");
             return;
         }
 
-        if (employeeFormData.cccd && !/^\d{12}$/.test(employeeFormData.cccd)) {
-            toast.error("CCCD phải có độ dài chính xác 12 chữ số");
+        const { surname, midname, firstname } = splitFullName(effectiveFullName);
+        if (!surname && !firstname) {
+            toast.error("Vui lòng nhập đầy đủ Họ và tên");
             return;
         }
 
-        if (employeeFormData.phone && !/^\d{10}$/.test(employeeFormData.phone.trim())) {
-            toast.error("Số điện thoại (nếu có) phải có độ dài chính xác 10 chữ số");
+        const cccdValidation = validateCccd(employeeFormData.cccd);
+        if (!cccdValidation.isValid) {
+            toast.error(cccdValidation.message || "Số CCCD không hợp lệ");
+            return;
+        }
+
+        const phoneValidation = validatePhone(employeeFormData.phone);
+        if (!phoneValidation.isValid) {
+            toast.error(phoneValidation.message || "Số điện thoại không hợp lệ");
             return;
         }
 
         const payload = {
-            surname: employeeFormData.surname.trim(),
-            midname: employeeFormData.midname.trim(),
-            firstname: employeeFormData.firstname.trim(),
+            surname,
+            midname,
+            firstname,
             dob: employeeFormData.birth_date || null,
             gender: employeeFormData.sex,
-            cardId: employeeFormData.cccd,
+            cardId: employeeFormData.cccd ? employeeFormData.cccd.trim() : null,
             cardIdDate: employeeFormData.cardIdDate || null,
             cardIdPlace: employeeFormData.cardIdPlace || null,
-            phone: employeeFormData.phone,
+            phone: employeeFormData.phone ? employeeFormData.phone.trim() : '',
             ethnic: employeeFormData.ethnic || null,
             provId: employeeFormData.provId || null,
             villId: employeeFormData.villId || null,
@@ -1837,6 +1955,17 @@ const ContractManagement: React.FC = () => {
                                         {services.length}
                                     </span>
                                 </button>
+
+                                <button
+                                    onClick={() => setActiveTab('reports')}
+                                    className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                                        activeTab === 'reports'
+                                            ? 'bg-white dark:bg-slate-800 text-[#9f1239] dark:text-rose-400 shadow-sm border border-slate-200/80 dark:border-slate-700'
+                                            : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                                    }`}
+                                >
+                                    <span>Báo cáo tổng kết</span>
+                                </button>
                             </div>
 
                             {/* Right: Contextual Toolbar */}
@@ -1867,11 +1996,11 @@ const ContractManagement: React.FC = () => {
                                             <div className="w-[1px] h-3.5 bg-slate-200 dark:bg-slate-700 mx-0.5" />
                                             <button
                                                 onClick={handleExportEmployeesReport}
-                                                className="px-2.5 py-1 text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg text-xs font-semibold transition flex items-center gap-1 cursor-pointer whitespace-nowrap"
-                                                title="Xuất file Excel tổng hợp kết quả khám đoàn cho doanh nghiệp"
+                                                className="px-2.5 py-1 text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg text-xs font-semibold transition flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                                                title="Xuất danh sách nhân viên khám (Excel)"
                                             >
                                                 <DownloadIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                                                Xuất báo cáo
+                                                Xuất danh sách
                                             </button>
                                         </div>
 
@@ -1972,6 +2101,12 @@ const ContractManagement: React.FC = () => {
                                 <UserGroupIcon className="w-12 h-12 mb-2 text-slate-300" />
                                 <span className="text-sm font-semibold">Vui lòng chọn một hợp đồng bên trái để xem chi tiết</span>
                             </div>
+                        ) : activeTab === 'reports' ? (
+                            <ContractReportTab
+                                contractId={selectedContract.id}
+                                contractName={selectedContract.name}
+                                contractCode={selectedContract.code}
+                            />
                         ) : activeTab === 'employees' ? (
                             isLoadingEmployees ? (
                                 <div className="flex flex-col items-center justify-center h-full py-10">
@@ -2612,70 +2747,61 @@ const ContractManagement: React.FC = () => {
             )}
             {/* Edit Employee Modal */}
             {isEmployeeEditOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-900 rounded-[2rem] max-w-lg w-full shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden transform scale-100 transition-all duration-300 animate-in zoom-in-95 duration-200">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/70 overflow-hidden animate-fade-in">
+                    <div className="bg-white dark:bg-slate-900 rounded-[2rem] max-w-2xl w-full shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden flex flex-col max-h-[90vh] animate-zoom-in">
                         {/* Header */}
-                        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/60 flex items-center gap-3 bg-slate-50/50 dark:bg-slate-900/50">
-                            <div className="h-10 w-10 rounded-full flex items-center justify-center bg-teal-50 dark:bg-teal-950/30 text-teal-600 dark:text-teal-400">
-                                <UserGroupIcon className="w-5 h-5" />
+                        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-full flex items-center justify-center bg-teal-50 dark:bg-teal-950/30 text-teal-600 dark:text-teal-400">
+                                    <UserGroupIcon className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h5 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                                        {employeeFormMode === 'ADD' ? 'Thêm mới nhân viên' : 'Sửa thông tin nhân viên'}
+                                    </h5>
+                                    <p className="text-[11px] text-slate-500">Nhập thông tin nhân viên khám sức khỏe</p>
+                                </div>
                             </div>
-                            <h5 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                                {employeeFormMode === 'ADD' ? 'Thêm mới nhân viên' : 'Sửa thông tin nhân viên'}
-                            </h5>
+                            <button
+                                type="button"
+                                onClick={() => setIsEmployeeEditOpen(false)}
+                                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-bold p-1 cursor-pointer"
+                            >
+                                ✕
+                            </button>
                         </div>
 
                         {/* Form Body */}
-                        <form onSubmit={handleEmployeeEditSubmit}>
-                            <div className="p-6 flex flex-col gap-4 max-h-[70vh] overflow-y-auto custom-scrollbar text-xs">
-                                <div className="grid grid-cols-3 gap-3">
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Họ (đệm) *</label>
+                        <form onSubmit={handleEmployeeEditSubmit} className="flex flex-col flex-1 overflow-hidden">
+                            <div className="p-6 flex flex-col gap-4 overflow-y-auto custom-scrollbar text-xs flex-1">
+                                {/* Hàng 1: Họ và tên (2/3) + Giới tính (1/3) */}
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <div className="sm:col-span-2 flex flex-col gap-1.5">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                                Họ và tên *
+                                            </label>
+                                            {employeeFormData.fullName && (
+                                                <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold font-mono">
+                                                    {employeeFormData.surname && `Họ: ${employeeFormData.surname}`} {employeeFormData.firstname && `| Tên: ${employeeFormData.firstname}`}
+                                                </span>
+                                            )}
+                                        </div>
                                         <input
                                             type="text"
                                             required
-                                            value={employeeFormData.surname}
-                                            onChange={(e) => setEmployeeFormData({ ...employeeFormData, surname: e.target.value.toUpperCase() })}
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
-                                            placeholder="ĐỖ"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Tên đệm</label>
-                                        <input
-                                            type="text"
-                                            value={employeeFormData.midname}
-                                            onChange={(e) => setEmployeeFormData({ ...employeeFormData, midname: e.target.value.toUpperCase() })}
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
-                                            placeholder="GIA"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Tên *</label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={employeeFormData.firstname}
-                                            onChange={(e) => setEmployeeFormData({ ...employeeFormData, firstname: e.target.value.toUpperCase() })}
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
-                                            placeholder="HUY"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Ngày sinh *</label>
-                                        <input
-                                            type="date"
-                                            required
-                                            value={employeeFormData.birth_date}
-                                            onChange={(e) => setEmployeeFormData({ ...employeeFormData, birth_date: e.target.value })}
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                            autoFocus
+                                            value={employeeFormData.fullName}
+                                            onChange={(e) => handleFullNameChange(e.target.value)}
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-800 dark:text-white uppercase placeholder:normal-case placeholder:font-normal"
+                                            placeholder="Ví dụ: NGUYỄN VĂN AN..."
                                         />
                                     </div>
 
                                     <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Giới tính *</label>
+                                        <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                            Giới tính *
+                                        </label>
                                         <select
                                             required
                                             value={employeeFormData.sex}
@@ -2688,32 +2814,101 @@ const ContractManagement: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-3 gap-3">
+                                {/* Hàng 2: Ngày sinh (1/2) + Số điện thoại (1/2) */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Số CCCD (12 số)</label>
+                                        <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                            Ngày sinh *
+                                        </label>
+                                        <input
+                                            type="date"
+                                            required
+                                            value={employeeFormData.birth_date}
+                                            onChange={(e) => setEmployeeFormData({ ...employeeFormData, birth_date: e.target.value })}
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-col gap-1.5">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                                Số điện thoại liên hệ
+                                            </label>
+                                            <span className={`text-[10px] font-mono font-bold ${
+                                                !employeeFormData.phone ? 'text-slate-400' :
+                                                employeeFormData.phone.length === 10 && employeeFormData.phone.startsWith('0') ? 'text-emerald-600 dark:text-emerald-400' :
+                                                'text-amber-500'
+                                            }`}>
+                                                {employeeFormData.phone ? `${employeeFormData.phone.length}/10 số` : '10 số'}
+                                            </span>
+                                        </div>
+                                        <input
+                                            type="tel"
+                                            maxLength={10}
+                                            value={employeeFormData.phone}
+                                            onChange={(e) => handlePhoneChange(e.target.value)}
+                                            className={`w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border rounded-xl focus:ring-2 focus:outline-none font-bold text-slate-700 dark:text-white font-mono ${
+                                                !employeeFormData.phone
+                                                    ? 'border-slate-200 dark:border-slate-700 focus:ring-teal-500'
+                                                    : employeeFormData.phone.length === 10 && employeeFormData.phone.startsWith('0')
+                                                    ? 'border-emerald-500 ring-1 ring-emerald-500/20 focus:ring-emerald-500'
+                                                    : 'border-amber-400 ring-1 ring-amber-400/20 focus:ring-amber-500'
+                                            }`}
+                                            placeholder="Ví dụ: 0912345678..."
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Hàng 3: CCCD (12 số) + Ngày cấp + Nơi cấp (Layout 12 cột thoáng đãng) */}
+                                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                    <div className="sm:col-span-6 flex flex-col gap-1.5">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                                Số CCCD (12 số)
+                                            </label>
+                                            <span className={`text-[10px] font-mono font-bold ${
+                                                !employeeFormData.cccd ? 'text-slate-400' :
+                                                employeeFormData.cccd.length === 12 ? 'text-emerald-600 dark:text-emerald-400' :
+                                                'text-amber-500'
+                                            }`}>
+                                                {employeeFormData.cccd ? `${employeeFormData.cccd.length}/12 số` : '12 số'}
+                                            </span>
+                                        </div>
                                         <input
                                             type="text"
+                                            maxLength={12}
                                             value={employeeFormData.cccd}
-                                            onChange={(e) => setEmployeeFormData({ ...employeeFormData, cccd: e.target.value })}
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
-                                            placeholder="007095001012"
+                                            onChange={(e) => handleCccdChange(e.target.value)}
+                                            className={`w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border rounded-xl focus:ring-2 focus:outline-none font-bold text-slate-700 dark:text-white font-mono ${
+                                                !employeeFormData.cccd
+                                                    ? 'border-slate-200 dark:border-slate-700 focus:ring-teal-500'
+                                                    : employeeFormData.cccd.length === 12
+                                                    ? 'border-emerald-500 ring-1 ring-emerald-500/20 focus:ring-emerald-500'
+                                                    : 'border-amber-400 ring-1 ring-amber-400/20 focus:ring-amber-500'
+                                            }`}
+                                            placeholder="Nhập 12 số CCCD..."
                                         />
                                     </div>
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Ngày cấp CCCD</label>
+
+                                    <div className="sm:col-span-3 flex flex-col gap-1.5">
+                                        <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                            Ngày cấp CCCD
+                                        </label>
                                         <input
-                                            type="text"
-                                            placeholder="15/12/2024"
+                                            type="date"
                                             value={employeeFormData.cardIdDate}
-                                            onChange={(e) => setEmployeeFormData({ ...employeeFormData, cardIdDate: e.target.value })}
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                            onChange={(e) => handleCardIdDateChange(e.target.value)}
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white cursor-pointer"
                                         />
                                     </div>
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Nơi cấp CCCD</label>
+
+                                    <div className="sm:col-span-3 flex flex-col gap-1.5">
+                                        <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                            Nơi cấp CCCD
+                                        </label>
                                         <input
                                             type="text"
-                                            placeholder="Cục C06"
+                                            placeholder="Cục C06 hoặc Tỉnh/TP..."
                                             value={employeeFormData.cardIdPlace}
                                             onChange={(e) => setEmployeeFormData({ ...employeeFormData, cardIdPlace: e.target.value })}
                                             className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
@@ -2721,28 +2916,16 @@ const ContractManagement: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Số điện thoại liên hệ</label>
-                                        <input
-                                            type="text"
-                                            value={employeeFormData.phone}
-                                            onChange={(e) => setEmployeeFormData({ ...employeeFormData, phone: e.target.value })}
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
-                                            placeholder="0909123456"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1.5 relative z-30">
-                                        <Combobox<CatalogItem>
-                                            label="Dân tộc"
-                                            value={employeeFormData.ethnic}
-                                            displayValue={item => item?.name || ''}
-                                            onChange={val => setEmployeeFormData(prev => ({ ...prev, ethnic: val }))}
-                                            options={ethnicities}
-                                            columns={commonColumns}
-                                            placeholder="Chọn dân tộc..."
-                                        />
-                                    </div>
+                                <div className="flex flex-col gap-1.5 relative z-30">
+                                    <Combobox<CatalogItem>
+                                        label="Dân tộc"
+                                        value={employeeFormData.ethnic}
+                                        displayValue={item => item?.name || ''}
+                                        onChange={val => setEmployeeFormData(prev => ({ ...prev, ethnic: val }))}
+                                        options={ethnicities}
+                                        columns={commonColumns}
+                                        placeholder="Chọn dân tộc..."
+                                    />
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-3">

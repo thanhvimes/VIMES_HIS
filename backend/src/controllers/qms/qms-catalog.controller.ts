@@ -84,7 +84,7 @@ export class QmsCatalogController {
     console.log('[API/Departments] Querying sys_dept...');
     try {
       const type = req.query.type as string;
-      let queryStr = `SELECT sd_id as id, sd_name as name FROM sys_dept WHERE sd_isactive ='Y'`;
+      let queryStr = `SELECT sd_id as id, sd_name as name FROM sys_dept WHERE COALESCE(sd_active, 'Y') = 'Y'`;
       const params: any[] = [];
 
       if (type) {

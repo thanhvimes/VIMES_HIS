@@ -34,8 +34,8 @@ export class ContractsController {
                     barcode_show_date: true,
                     barcode_show_sample_type: true,
                     allow_unsigned_sync: false,
-                    barcode_zpl_template_xn: '^XA\n^CF0,26\n^FO30,30^FD{hospital}^FS\n^FO30,70^FD{patient}^FS\n^FO30,105^FD{test}^FS\n^FO30,140^FD{sample_type} - {date}^FS\n^BY2,2,40\n^FO30,175^BCN,,N,N\n^FD{code}^FS\n^FO30,225^FD{code}^FS\n^XZ',
-                    barcode_zpl_template_ksk: '^XA\n^CF0,26\n^FO30,30^FD{hospital}^FS\n^FO30,70^FD{patient}^FS\n^FO30,105^FD{form_name}^FS\n^FO30,140^FD{info}^FS\n^BY2,2,40\n^FO30,175^BCN,,N,N\n^FD{code}^FS\n^FO30,225^FD{code}^FS\n^XZ',
+                    barcode_zpl_template_xn: '',
+                    barcode_zpl_template_ksk: '',
                     barcode_printer_name: 'Zebra',
                     use_qz_tray: false,
                     vneid_private_key: '',
@@ -153,13 +153,6 @@ export class ContractsController {
                 row.syt_password = '******';
             }
 
-            if (!row.hsm_provider || row.hsm_provider === 'VNPT-CA') {
-                row.hsm_provider = 'BCY';
-            }
-            if (row.hsm_url === 'http://vimes.xyz:8091') {
-                row.hsm_url = '';
-            }
-
             return res.json(row);
         } catch (error: any) {
             console.error('❌ KSK Controller: Lỗi getSettings:', error);
@@ -171,10 +164,7 @@ export class ContractsController {
     async getSigningPartners(req: Request, res: Response) {
         try {
             const result = await query(
-                `SELECT sign_partner, sign_name, sign_url, sign_url_wan 
-                 FROM hms_sign_serverconf 
-                 WHERE sign_partner != 'TOKEN' 
-                 ORDER BY sign_partner`
+                `SELECT sign_partner, sign_url FROM hms_sign_serverconf ORDER BY sign_partner`
             );
             return res.json({
                 success: true,
@@ -185,8 +175,8 @@ export class ContractsController {
             return res.json({
                 success: true,
                 data: [
-                    { sign_partner: 'BCY', sign_name: 'Ký số HSM Ban Cơ Yếu CP', sign_url: 'http://10.1.3.200:8081/api/v1/Signature' },
-                    { sign_partner: 'VIETTEL', sign_name: 'Ký số My Sign Viettel', sign_url: 'http://10.1.3.199:8081/api/v1/Signature' }
+                    { sign_partner: 'BCY', sign_url: 'http://vimes.xyz:8091' },
+                    { sign_partner: 'VNPT-CA', sign_url: 'http://vimes.xyz:8091' }
                 ]
             });
         }
@@ -893,7 +883,7 @@ export class ContractsController {
                 SELECT COUNT(*) as count 
                 FROM hms_exm_employee 
                 WHERE hee_contract_id = $1 
-                  AND (hee_docno IS NULL OR hee_docno = 0)
+                  AND (hee_docno IS NULL OR hee_docno = '' OR hee_docno = '0')
                   AND hee_isactive = 'Y'
             `, [contractId]);
             const unreceivedCount = parseInt(countRes.rows[0]?.count || '0', 10);
@@ -931,7 +921,7 @@ export class ContractsController {
                 UPDATE hms_exm_employee 
                 SET hee_isactive = 'N' 
                 WHERE hee_contract_id = $1 
-                  AND (hee_docno IS NULL OR hee_docno = 0)
+                  AND (hee_docno IS NULL OR hee_docno = '' OR hee_docno = '0')
                   AND hee_isactive = 'Y'
             `, [contractId]);
 
@@ -1005,7 +995,7 @@ export class ContractsController {
                     SELECT hee_employee_id, hee_isactive, hee_docno 
                     FROM hms_exm_employee 
                     WHERE hee_contract_id = $1 AND hee_docno = $2
-                `, [contractId, docNo]);
+                `, [contractId, String(docNo)]);
 
                 let employeeId = 0;
 
@@ -1019,7 +1009,7 @@ export class ContractsController {
                     results.push({ docNo, status: 'exists', message: 'Hồ sơ đã có trong danh sách nhân viên của gói' });
                 } else {
                     // Lấy mã lớn nhất hiện tại
-                    const maxIdRes = await query('SELECT COALESCE(MAX(hee_employee_id), 0) as max_id FROM hms_exm_employee');
+                    const maxIdRes = await query(`SELECT COALESCE(MAX(NULLIF(regexp_replace(hee_employee_id::text, '[^0-9]', '', 'g'), '')::bigint), 0) as max_id FROM hms_exm_employee`);
                     employeeId = parseInt(maxIdRes.rows[0]?.max_id || '0', 10) + 1;
 
                     // Tính toán target_group theo tuổi
@@ -1140,12 +1130,12 @@ export class ContractsController {
                     d.conclusion_data
                 FROM hms_exm_employee hee
                 LEFT JOIN health_check_masters m ON (
-                    (hee.hee_docno > 0 AND m.his_doc_no = hee.hee_docno::text)
+                    (NULLIF(regexp_replace(COALESCE(hee.hee_docno, ''), '\D', '', 'g'), '')::bigint > 0 AND m.his_doc_no = hee.hee_docno::text)
                     OR m.his_employee_id = hee.hee_employee_id::text
                 )
                 LEFT JOIN health_check_details d ON d.master_id = m.id
                 WHERE hee.hee_contract_id = $1
-                  AND hee.hee_docno > 0
+                  AND NULLIF(regexp_replace(COALESCE(hee.hee_docno, ''), '\D', '', 'g'), '')::bigint > 0
                   AND hee.hee_isactive = 'Y'
                 ORDER BY hee.hee_employee_id ASC
             `, [contractId]);
@@ -1160,7 +1150,7 @@ export class ContractsController {
             }
 
             // 3. Gom danh sách docNos để batch fetch từ HIS
-            const docNos: number[] = Array.from(new Set(receivedEmployees.map(r => Number(r.hee_docno)).filter(d => d > 0)));
+            const docNos = Array.from(new Set(receivedEmployees.map(r => Number(r.hee_docno)).filter(d => d > 0)));
 
             console.log(`🔬 [syncContractParaclinicalResults] Đang batch query kết quả CLS từ HIS cho ${docNos.length} hồ sơ hợp đồng ${contractId}...`);
             const hisClsMap = await hisIntegrationController.fetchBatchStructuredParaclinicalData(docNos);

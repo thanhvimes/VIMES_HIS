@@ -772,7 +772,7 @@ export class EmployeesController {
             }
 
             // Sinh mã nhân viên mới
-            const maxIdRes = await query(`SELECT COALESCE(MAX(hee_employee_id), 0) as max_id FROM hms_exm_employee`);
+            const maxIdRes = await query(`SELECT COALESCE(MAX(NULLIF(regexp_replace(hee_employee_id::text, '[^0-9]', '', 'g'), '')::bigint), 0) as max_id FROM hms_exm_employee`);
             const nextEmployeeId = parseInt(maxIdRes.rows[0].max_id, 10) + 1;
             const empCode = `NV${nextEmployeeId}`;
 

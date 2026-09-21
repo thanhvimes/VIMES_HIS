@@ -234,7 +234,7 @@ export class StatisticsService {
                 FROM sys_dept sd
                 LEFT JOIN hms_treatment_record htr ON (htr.htr_deptid = sd.sd_id)
                 LEFT JOIN hms_clinical_record hcr ON (hcr.hcr_docno = htr.htr_docno AND hcr.hcr_refidx = htr.htr_idx)
-                WHERE sd.sd_type = 'DT' AND (sd.sd_isactive = 'Y' OR sd.sd_isactive IS NULL)
+                WHERE sd.sd_type = 'DT' AND (COALESCE(sd.sd_active, 'Y') = 'Y')
                 GROUP BY sd.sd_id, sd.sd_name
             )
             SELECT 

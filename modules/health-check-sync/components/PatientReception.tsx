@@ -11,6 +11,7 @@ import { useCatalogs } from '../../../contexts/CatalogContext';
 import { CatalogItem } from '../../../services/catalogService';
 import { formatDateForInput, formatDate } from '../../../utils/formatters';
 import { useSystemStore } from '../../../stores/useSystemStore';
+import { splitFullName, formatFullName, parseCccdInfo, validateCccd, validatePhone, parseCccdQr, formatToIsoDate } from '../utils/patientNameHelper';
 
 interface EmployeeSearchResult {
     id: number;
@@ -65,6 +66,7 @@ const PatientReception: React.FC = () => {
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editForm, setEditForm] = useState({
+        fullName: '',
         surname: '',
         midname: '',
         firstname: '',
@@ -87,6 +89,7 @@ const PatientReception: React.FC = () => {
     const [isAddEmployeeModalOpen, setIsAddEmployeeModalOpen] = useState(false);
     const [addEmployeeContractId, setAddEmployeeContractId] = useState<string>('');
     const [addEmployeeFormData, setAddEmployeeFormData] = useState({
+        fullName: '',
         surname: '',
         midname: '',
         firstname: '',
@@ -289,6 +292,96 @@ const PatientReception: React.FC = () => {
         setIsAddEmployeeModalOpen(true);
     };
 
+    const handleAddFullNameChange = (val: string) => {
+        if (val.includes('|')) {
+            const qrData = parseCccdQr(val);
+            if (qrData) {
+                const { surname, midname, firstname } = splitFullName(qrData.fullName);
+                setAddEmployeeFormData(prev => ({
+                    ...prev,
+                    cccd: qrData.cccd,
+                    fullName: qrData.fullName,
+                    surname,
+                    midname,
+                    firstname,
+                    sex: qrData.gender,
+                    birth_date: qrData.dob || prev.birth_date,
+                    cardIdDate: qrData.issueDate || prev.cardIdDate,
+                    address: qrData.address || prev.address
+                }));
+                toast.success("Đã tự động đọc thông tin từ mã QR CCCD!");
+                return;
+            }
+        }
+
+        const upper = val.toUpperCase();
+        const { surname, midname, firstname } = splitFullName(upper);
+        setAddEmployeeFormData(prev => ({
+            ...prev,
+            fullName: upper,
+            surname,
+            midname,
+            firstname
+        }));
+    };
+
+    const handleAddCccdChange = (val: string) => {
+        if (val.includes('|')) {
+            const qrData = parseCccdQr(val);
+            if (qrData) {
+                const { surname, midname, firstname } = splitFullName(qrData.fullName);
+                setAddEmployeeFormData(prev => ({
+                    ...prev,
+                    cccd: qrData.cccd,
+                    fullName: qrData.fullName,
+                    surname,
+                    midname,
+                    firstname,
+                    sex: qrData.gender,
+                    birth_date: qrData.dob || prev.birth_date,
+                    cardIdDate: qrData.issueDate || prev.cardIdDate,
+                    address: qrData.address || prev.address
+                }));
+                toast.success("Đã tự động đọc thông tin từ mã QR CCCD!");
+                return;
+            }
+        }
+
+        const clean = val.replace(/\D/g, '').slice(0, 12);
+        const cccdInfo = parseCccdInfo(clean);
+        setAddEmployeeFormData(prev => {
+            const updated = { ...prev, cccd: clean };
+            if (cccdInfo.gender && (!prev.sex || prev.sex === 'M')) {
+                updated.sex = cccdInfo.gender;
+            }
+            if (cccdInfo.estimatedDob && !prev.birth_date) {
+                updated.birth_date = cccdInfo.estimatedDob;
+            }
+            return updated;
+        });
+    };
+
+    const handleAddCardIdDateChange = (val: string) => {
+        const cleanDigits = val.replace(/\D/g, '');
+        if (cleanDigits.length === 12 && !val.includes('-') && !val.includes('/')) {
+            handleAddCccdChange(cleanDigits);
+            toast.info("Đã phát hiện 12 số CCCD! Tự động chuyển vào ô Số CCCD.");
+            return;
+        }
+
+        if (val.includes('|')) {
+            handleAddCccdChange(val);
+            return;
+        }
+
+        setAddEmployeeFormData(prev => ({ ...prev, cardIdDate: val }));
+    };
+
+    const handleAddPhoneChange = (val: string) => {
+        const clean = val.replace(/\D/g, '').slice(0, 10);
+        setAddEmployeeFormData(prev => ({ ...prev, phone: clean }));
+    };
+
     const handleAddEmployeeSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!addEmployeeContractId) {
@@ -296,32 +389,43 @@ const PatientReception: React.FC = () => {
             return;
         }
 
-        if (!addEmployeeFormData.surname.trim() && !addEmployeeFormData.firstname.trim()) {
-            toast.error("Vui lòng nhập Họ & Tên nhân viên");
+        const effectiveFullName = addEmployeeFormData.fullName.trim() || 
+            formatFullName(addEmployeeFormData.surname, addEmployeeFormData.midname, addEmployeeFormData.firstname);
+
+        if (!effectiveFullName) {
+            toast.error("Vui lòng nhập Họ và tên nhân viên");
             return;
         }
 
-        if (addEmployeeFormData.cccd && !/^\d{12}$/.test(addEmployeeFormData.cccd.trim())) {
-            toast.error("CCCD phải có độ dài chính xác 12 chữ số");
+        const { surname, midname, firstname } = splitFullName(effectiveFullName);
+        if (!surname && !firstname) {
+            toast.error("Vui lòng nhập đầy đủ Họ và tên");
             return;
         }
 
-        if (addEmployeeFormData.phone && !/^\d{10}$/.test(addEmployeeFormData.phone.trim())) {
-            toast.error("Số điện thoại (nếu có) phải có độ dài chính xác 10 chữ số");
+        const cccdValidation = validateCccd(addEmployeeFormData.cccd);
+        if (!cccdValidation.isValid) {
+            toast.error(cccdValidation.message || "Số CCCD không hợp lệ");
+            return;
+        }
+
+        const phoneValidation = validatePhone(addEmployeeFormData.phone);
+        if (!phoneValidation.isValid) {
+            toast.error(phoneValidation.message || "Số điện thoại không hợp lệ");
             return;
         }
 
         const payload = {
             contractId: parseInt(addEmployeeContractId, 10),
-            surname: addEmployeeFormData.surname.trim(),
-            midname: addEmployeeFormData.midname.trim(),
-            firstname: addEmployeeFormData.firstname.trim(),
+            surname,
+            midname,
+            firstname,
             dob: addEmployeeFormData.birth_date || null,
             gender: addEmployeeFormData.sex,
-            cardId: addEmployeeFormData.cccd.trim(),
+            cardId: addEmployeeFormData.cccd ? addEmployeeFormData.cccd.trim() : null,
             cardIdDate: addEmployeeFormData.cardIdDate || null,
             cardIdPlace: addEmployeeFormData.cardIdPlace || null,
-            phone: addEmployeeFormData.phone.trim(),
+            phone: addEmployeeFormData.phone ? addEmployeeFormData.phone.trim() : '',
             ethnic: addEmployeeFormData.ethnic || null,
             provId: addEmployeeFormData.provId || null,
             villId: addEmployeeFormData.villId || null,
@@ -476,11 +580,13 @@ const PatientReception: React.FC = () => {
 
     const startEditing = () => {
         if (!selectedEmployee) return;
+        const fullName = formatFullName(selectedEmployee.surname, selectedEmployee.midname, selectedEmployee.firstname) || selectedEmployee.name || '';
         setEditForm({
+            fullName,
             surname: selectedEmployee.surname || '',
             midname: selectedEmployee.midname || '',
             firstname: selectedEmployee.firstname || '',
-            dob: selectedEmployee.dob ? formatDateForInput(selectedEmployee.dob) : '',
+            dob: selectedEmployee.dob ? formatToIsoDate(selectedEmployee.dob) : '',
             gender: selectedEmployee.gender || 'M',
             cardId: selectedEmployee.card_id || '',
             phone: selectedEmployee.phone || '',
@@ -489,7 +595,7 @@ const PatientReception: React.FC = () => {
             provId: selectedEmployee.prov_id || '',
             distId: selectedEmployee.dist_id || '',
             villId: selectedEmployee.vill_id || '',
-            cardIdDate: selectedEmployee.card_id_date || '',
+            cardIdDate: formatToIsoDate(selectedEmployee.card_id_date),
             cardIdPlace: selectedEmployee.card_id_place || '',
             guardianName: selectedEmployee.guardian_name || '',
             guardianCccd: selectedEmployee.guardian_cccd || ''
@@ -497,23 +603,135 @@ const PatientReception: React.FC = () => {
         setIsEditModalOpen(true);
     };
 
+    const handleEditFullNameChange = (val: string) => {
+        if (val.includes('|')) {
+            const qrData = parseCccdQr(val);
+            if (qrData) {
+                const { surname, midname, firstname } = splitFullName(qrData.fullName);
+                setEditForm(prev => ({
+                    ...prev,
+                    cardId: qrData.cccd,
+                    fullName: qrData.fullName,
+                    surname,
+                    midname,
+                    firstname,
+                    gender: qrData.gender,
+                    dob: qrData.dob || prev.dob,
+                    cardIdDate: qrData.issueDate || prev.cardIdDate,
+                    address: qrData.address || prev.address
+                }));
+                toast.success("Đã tự động đọc thông tin từ mã QR CCCD!");
+                return;
+            }
+        }
+
+        const upper = val.toUpperCase();
+        const { surname, midname, firstname } = splitFullName(upper);
+        setEditForm(prev => ({
+            ...prev,
+            fullName: upper,
+            surname,
+            midname,
+            firstname
+        }));
+    };
+
+    const handleEditCccdChange = (val: string) => {
+        if (val.includes('|')) {
+            const qrData = parseCccdQr(val);
+            if (qrData) {
+                const { surname, midname, firstname } = splitFullName(qrData.fullName);
+                setEditForm(prev => ({
+                    ...prev,
+                    cardId: qrData.cccd,
+                    fullName: qrData.fullName,
+                    surname,
+                    midname,
+                    firstname,
+                    gender: qrData.gender,
+                    dob: qrData.dob || prev.dob,
+                    cardIdDate: qrData.issueDate || prev.cardIdDate,
+                    address: qrData.address || prev.address
+                }));
+                toast.success("Đã tự động đọc thông tin từ mã QR CCCD!");
+                return;
+            }
+        }
+
+        const clean = val.replace(/\D/g, '').slice(0, 12);
+        const cccdInfo = parseCccdInfo(clean);
+        setEditForm(prev => {
+            const updated = { ...prev, cardId: clean };
+            if (cccdInfo.gender && (!prev.gender || prev.gender === 'M')) {
+                updated.gender = cccdInfo.gender;
+            }
+            if (cccdInfo.estimatedDob && !prev.dob) {
+                updated.dob = cccdInfo.estimatedDob;
+            }
+            return updated;
+        });
+    };
+
+    const handleEditCardIdDateChange = (val: string) => {
+        const cleanDigits = val.replace(/\D/g, '');
+        if (cleanDigits.length === 12 && !val.includes('-') && !val.includes('/')) {
+            handleEditCccdChange(cleanDigits);
+            toast.info("Đã phát hiện 12 số CCCD! Tự động chuyển vào ô Số CCCD.");
+            return;
+        }
+
+        if (val.includes('|')) {
+            handleEditCccdChange(val);
+            return;
+        }
+
+        setEditForm(prev => ({ ...prev, cardIdDate: val }));
+    };
+
+    const handleEditPhoneChange = (val: string) => {
+        const clean = val.replace(/\D/g, '').slice(0, 10);
+        setEditForm(prev => ({ ...prev, phone: clean }));
+    };
+
     const handleSaveEdit = async () => {
         if (!selectedEmployee) return;
         try {
-            if (!editForm.surname.trim() && !editForm.firstname.trim()) {
-                toast.error("Vui lòng nhập Họ & Tên");
-                return;
-            }
-            if (editForm.cardId && !/^\d{12}$/.test(editForm.cardId)) {
-                toast.error("CCCD phải có độ dài chính xác 12 chữ số");
-                return;
-            }
-            if (editForm.phone && !/^\d{10}$/.test(editForm.phone.trim())) {
-                toast.error("Số điện thoại (nếu có) phải có độ dài chính xác 10 chữ số");
+            const effectiveFullName = editForm.fullName.trim() || 
+                formatFullName(editForm.surname, editForm.midname, editForm.firstname);
+
+            if (!effectiveFullName) {
+                toast.error("Vui lòng nhập Họ và tên nhân viên");
                 return;
             }
 
-            const res = await healthCheckService.updateEmployee(selectedEmployee.id, editForm);
+            const { surname, midname, firstname } = splitFullName(effectiveFullName);
+            if (!surname && !firstname) {
+                toast.error("Vui lòng nhập đầy đủ Họ và tên");
+                return;
+            }
+
+            const cccdValidation = validateCccd(editForm.cardId);
+            if (!cccdValidation.isValid) {
+                toast.error(cccdValidation.message || "Số CCCD không hợp lệ");
+                return;
+            }
+
+            const phoneValidation = validatePhone(editForm.phone);
+            if (!phoneValidation.isValid) {
+                toast.error(phoneValidation.message || "Số điện thoại không hợp lệ");
+                return;
+            }
+
+            const payloadToUpdate = {
+                ...editForm,
+                surname,
+                midname,
+                firstname,
+                cardId: editForm.cardId ? editForm.cardId.trim() : '',
+                phone: editForm.phone ? editForm.phone.trim() : ''
+            };
+
+            const res = await healthCheckService.updateEmployee(selectedEmployee.id, payloadToUpdate);
             if (res.success) {
                 toast.success(res.message || "Cập nhật thành công!");
                 const selectedProv = provinces.find(p => String(p.id) === String(editForm.provId));
@@ -1571,7 +1789,7 @@ const PatientReception: React.FC = () => {
             {/* Edit modal */}
             {isEditModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/70 overflow-hidden animate-fade-in">
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden flex flex-col max-h-[90vh] animate-zoom-in">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden flex flex-col max-h-[90vh] animate-zoom-in">
                         {/* Header */}
                         <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/60 flex items-center gap-3 bg-slate-50/50 dark:bg-slate-900/50">
                             <div className="h-10 w-10 rounded-full flex items-center justify-center bg-teal-50 dark:bg-teal-950/30 text-teal-600 dark:text-teal-400">
@@ -1586,55 +1804,34 @@ const PatientReception: React.FC = () => {
 
                         {/* Form Body */}
                         <div className="p-6 flex flex-col gap-4 overflow-y-auto custom-scrollbar text-xs flex-1">
-                            <div className="grid grid-cols-3 gap-3">
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Họ (đệm) *</label>
+                            {/* Hàng 1: Họ và tên (2/3) + Giới tính (1/3) */}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div className="sm:col-span-2 flex flex-col gap-1.5">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                            Họ và tên *
+                                        </label>
+                                        {editForm.fullName && (
+                                            <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold font-mono">
+                                                {editForm.surname && `Họ: ${editForm.surname}`} {editForm.firstname && `| Tên: ${editForm.firstname}`}
+                                            </span>
+                                        )}
+                                    </div>
                                     <input
                                         type="text"
                                         required
-                                        value={editForm.surname}
-                                        onChange={e => setEditForm(prev => ({ ...prev, surname: e.target.value.toUpperCase() }))}
-                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
-                                        placeholder="ĐỖ"
-                                    />
-                                </div>
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Tên đệm</label>
-                                    <input
-                                        type="text"
-                                        value={editForm.midname}
-                                        onChange={e => setEditForm(prev => ({ ...prev, midname: e.target.value.toUpperCase() }))}
-                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
-                                        placeholder="GIA"
-                                    />
-                                </div>
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Tên *</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={editForm.firstname}
-                                        onChange={e => setEditForm(prev => ({ ...prev, firstname: e.target.value.toUpperCase() }))}
-                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
-                                        placeholder="HUY"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Ngày sinh *</label>
-                                    <input
-                                        type="date"
-                                        required
-                                        value={editForm.dob}
-                                        onChange={e => setEditForm(prev => ({ ...prev, dob: e.target.value }))}
-                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        autoFocus
+                                        value={editForm.fullName}
+                                        onChange={e => handleEditFullNameChange(e.target.value)}
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-800 dark:text-white uppercase placeholder:normal-case placeholder:font-normal"
+                                        placeholder="Ví dụ: NGUYỄN VĂN AN..."
                                     />
                                 </div>
 
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Giới tính *</label>
+                                    <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                        Giới tính *
+                                    </label>
                                     <select
                                         required
                                         value={editForm.gender}
@@ -1649,32 +1846,101 @@ const PatientReception: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-3 gap-3">
+                            {/* Hàng 2: Ngày sinh (1/2) + Số điện thoại (1/2) */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Số CCCD (12 số)</label>
+                                    <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                        Ngày sinh *
+                                    </label>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={editForm.dob}
+                                        onChange={e => setEditForm(prev => ({ ...prev, dob: e.target.value }))}
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                    />
+                                </div>
+
+                                <div className="flex flex-col gap-1.5">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                            Số điện thoại liên hệ
+                                        </label>
+                                        <span className={`text-[10px] font-mono font-bold ${
+                                            !editForm.phone ? 'text-slate-400' :
+                                            editForm.phone.length === 10 && editForm.phone.startsWith('0') ? 'text-emerald-600 dark:text-emerald-400' :
+                                            'text-amber-500'
+                                        }`}>
+                                            {editForm.phone ? `${editForm.phone.length}/10 số` : '10 số'}
+                                        </span>
+                                    </div>
+                                    <input
+                                        type="tel"
+                                        maxLength={10}
+                                        value={editForm.phone}
+                                        onChange={e => handleEditPhoneChange(e.target.value)}
+                                        className={`w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border rounded-xl focus:ring-2 focus:outline-none font-bold text-slate-700 dark:text-white font-mono ${
+                                            !editForm.phone
+                                                ? 'border-slate-200 dark:border-slate-700 focus:ring-teal-500'
+                                                : editForm.phone.length === 10 && editForm.phone.startsWith('0')
+                                                ? 'border-emerald-500 ring-1 ring-emerald-500/20 focus:ring-emerald-500'
+                                                : 'border-amber-400 ring-1 ring-amber-400/20 focus:ring-amber-500'
+                                        }`}
+                                        placeholder="Ví dụ: 0912345678..."
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Hàng 3: CCCD (12 số) + Ngày cấp + Nơi cấp (Layout 12 cột thoáng đãng) */}
+                            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                <div className="sm:col-span-6 flex flex-col gap-1.5">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                            Số CCCD (12 số)
+                                        </label>
+                                        <span className={`text-[10px] font-mono font-bold ${
+                                            !editForm.cardId ? 'text-slate-400' :
+                                            editForm.cardId.length === 12 ? 'text-emerald-600 dark:text-emerald-400' :
+                                            'text-amber-500'
+                                        }`}>
+                                            {editForm.cardId ? `${editForm.cardId.length}/12 số` : '12 số'}
+                                        </span>
+                                    </div>
                                     <input
                                         type="text"
+                                        maxLength={12}
                                         value={editForm.cardId}
-                                        onChange={e => setEditForm(prev => ({ ...prev, cardId: e.target.value }))}
-                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
-                                        placeholder="007095001012"
+                                        onChange={e => handleEditCccdChange(e.target.value)}
+                                        className={`w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border rounded-xl focus:ring-2 focus:outline-none font-bold text-slate-700 dark:text-white font-mono ${
+                                            !editForm.cardId
+                                                ? 'border-slate-200 dark:border-slate-700 focus:ring-teal-500'
+                                                : editForm.cardId.length === 12
+                                                ? 'border-emerald-500 ring-1 ring-emerald-500/20 focus:ring-emerald-500'
+                                                : 'border-amber-400 ring-1 ring-amber-400/20 focus:ring-amber-500'
+                                        }`}
+                                        placeholder="Nhập 12 số CCCD..."
                                     />
                                 </div>
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Ngày cấp CCCD</label>
+
+                                <div className="sm:col-span-3 flex flex-col gap-1.5">
+                                    <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                        Ngày cấp CCCD
+                                    </label>
                                     <input
-                                        type="text"
-                                        placeholder="15/12/2024"
+                                        type="date"
                                         value={editForm.cardIdDate}
-                                        onChange={e => setEditForm(prev => ({ ...prev, cardIdDate: e.target.value }))}
-                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        onChange={e => handleEditCardIdDateChange(e.target.value)}
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white cursor-pointer"
                                     />
                                 </div>
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Nơi cấp CCCD</label>
+
+                                <div className="sm:col-span-3 flex flex-col gap-1.5">
+                                    <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                        Nơi cấp CCCD
+                                    </label>
                                     <input
                                         type="text"
-                                        placeholder="Cục C06"
+                                        placeholder="Cục C06 hoặc Tỉnh/TP..."
                                         value={editForm.cardIdPlace}
                                         onChange={e => setEditForm(prev => ({ ...prev, cardIdPlace: e.target.value }))}
                                         className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
@@ -1682,28 +1948,16 @@ const PatientReception: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Số điện thoại liên hệ</label>
-                                    <input
-                                        type="text"
-                                        value={editForm.phone}
-                                        onChange={e => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
-                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
-                                        placeholder="0909123456"
-                                    />
-                                </div>
-                                <div className="flex flex-col gap-1.5 relative z-30">
-                                    <Combobox<CatalogItem>
-                                        label="Dân tộc"
-                                        value={editForm.ethnic}
-                                        displayValue={item => item?.name || ''}
-                                        onChange={val => setEditForm(prev => ({ ...prev, ethnic: val }))}
-                                        options={ethnicities}
-                                        columns={commonColumns}
-                                        placeholder="Chọn dân tộc..."
-                                    />
-                                </div>
+                            <div className="flex flex-col gap-1.5 relative z-30">
+                                <Combobox<CatalogItem>
+                                    label="Dân tộc"
+                                    value={editForm.ethnic}
+                                    displayValue={item => item?.name || ''}
+                                    onChange={val => setEditForm(prev => ({ ...prev, ethnic: val }))}
+                                    options={ethnicities}
+                                    columns={commonColumns}
+                                    placeholder="Chọn dân tộc..."
+                                />
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
@@ -1790,7 +2044,7 @@ const PatientReception: React.FC = () => {
             {/* Modal: Thêm mới nhân viên vào gói khám */}
             {isAddEmployeeModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/70 overflow-hidden animate-fade-in">
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden flex flex-col max-h-[90vh] animate-zoom-in">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden flex flex-col max-h-[90vh] animate-zoom-in">
                         {/* Header */}
                         <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
                             <div className="flex items-center gap-3">
@@ -1832,59 +2086,37 @@ const PatientReception: React.FC = () => {
                                     </select>
                                 </div>
 
-                                <div className="grid grid-cols-3 gap-3">
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Họ (đệm) *</label>
+                                {/* Hàng 1: Họ và tên (2/3) + Giới tính (1/3) */}
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <div className="sm:col-span-2 flex flex-col gap-1.5">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                                Họ và tên *
+                                            </label>
+                                            {addEmployeeFormData.fullName && (
+                                                <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold font-mono">
+                                                    {addEmployeeFormData.surname && `Họ: ${addEmployeeFormData.surname}`} {addEmployeeFormData.firstname && `| Tên: ${addEmployeeFormData.firstname}`}
+                                                </span>
+                                            )}
+                                        </div>
                                         <input
                                             type="text"
                                             required
-                                            value={addEmployeeFormData.surname}
-                                            onChange={e => setAddEmployeeFormData(prev => ({ ...prev, surname: e.target.value.toUpperCase() }))}
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
-                                            placeholder="NGUYỄN"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Tên đệm</label>
-                                        <input
-                                            type="text"
-                                            value={addEmployeeFormData.midname}
-                                            onChange={e => setAddEmployeeFormData(prev => ({ ...prev, midname: e.target.value.toUpperCase() }))}
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
-                                            placeholder="VĂN"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Tên *</label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={addEmployeeFormData.firstname}
-                                            onChange={e => setAddEmployeeFormData(prev => ({ ...prev, firstname: e.target.value.toUpperCase() }))}
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
-                                            placeholder="AN"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Ngày sinh *</label>
-                                        <input
-                                            type="date"
-                                            required
-                                            value={addEmployeeFormData.birth_date}
-                                            onChange={e => setAddEmployeeFormData(prev => ({ ...prev, birth_date: e.target.value }))}
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                            value={addEmployeeFormData.fullName}
+                                            onChange={(e) => handleAddFullNameChange(e.target.value)}
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-800 dark:text-white uppercase placeholder:normal-case placeholder:font-normal"
+                                            placeholder="Ví dụ: NGUYỄN VĂN AN..."
                                         />
                                     </div>
 
                                     <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Giới tính *</label>
+                                        <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                            Giới tính *
+                                        </label>
                                         <select
                                             required
                                             value={addEmployeeFormData.sex}
-                                            onChange={e => setAddEmployeeFormData(prev => ({ ...prev, sex: e.target.value }))}
+                                            onChange={(e) => setAddEmployeeFormData(prev => ({ ...prev, sex: e.target.value }))}
                                             className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white cursor-pointer"
                                         >
                                             <option value="M">Nam</option>
@@ -1893,32 +2125,101 @@ const PatientReception: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-3 gap-3">
+                                {/* Hàng 2: Ngày sinh (1/2) + Số điện thoại (1/2) */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Số CCCD (12 số)</label>
+                                        <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                            Ngày sinh *
+                                        </label>
+                                        <input
+                                            type="date"
+                                            required
+                                            value={addEmployeeFormData.birth_date}
+                                            onChange={(e) => setAddEmployeeFormData(prev => ({ ...prev, birth_date: e.target.value }))}
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                        />
+                                    </div>
+
+                                    <div className="flex flex-col gap-1.5">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                                Số điện thoại liên hệ
+                                            </label>
+                                            <span className={`text-[10px] font-mono font-bold ${
+                                                !addEmployeeFormData.phone ? 'text-slate-400' :
+                                                addEmployeeFormData.phone.length === 10 && addEmployeeFormData.phone.startsWith('0') ? 'text-emerald-600 dark:text-emerald-400' :
+                                                'text-amber-500'
+                                            }`}>
+                                                {addEmployeeFormData.phone ? `${addEmployeeFormData.phone.length}/10 số` : '10 số'}
+                                            </span>
+                                        </div>
+                                        <input
+                                            type="tel"
+                                            maxLength={10}
+                                            value={addEmployeeFormData.phone}
+                                            onChange={(e) => handleAddPhoneChange(e.target.value)}
+                                            className={`w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border rounded-xl focus:ring-2 focus:outline-none font-bold text-slate-700 dark:text-white font-mono ${
+                                                !addEmployeeFormData.phone
+                                                    ? 'border-slate-200 dark:border-slate-700 focus:ring-teal-500'
+                                                    : addEmployeeFormData.phone.length === 10 && addEmployeeFormData.phone.startsWith('0')
+                                                    ? 'border-emerald-500 ring-1 ring-emerald-500/20 focus:ring-emerald-500'
+                                                    : 'border-amber-400 ring-1 ring-amber-400/20 focus:ring-amber-500'
+                                            }`}
+                                            placeholder="Ví dụ: 0912345678..."
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Hàng 3: CCCD (12 số) + Ngày cấp + Nơi cấp (Layout 12 cột thoáng đãng) */}
+                                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                    <div className="sm:col-span-6 flex flex-col gap-1.5">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                                Số CCCD (12 số)
+                                            </label>
+                                            <span className={`text-[10px] font-mono font-bold ${
+                                                !addEmployeeFormData.cccd ? 'text-slate-400' :
+                                                addEmployeeFormData.cccd.length === 12 ? 'text-emerald-600 dark:text-emerald-400' :
+                                                'text-amber-500'
+                                            }`}>
+                                                {addEmployeeFormData.cccd ? `${addEmployeeFormData.cccd.length}/12 số` : '12 số'}
+                                            </span>
+                                        </div>
                                         <input
                                             type="text"
+                                            maxLength={12}
                                             value={addEmployeeFormData.cccd}
-                                            onChange={e => setAddEmployeeFormData(prev => ({ ...prev, cccd: e.target.value }))}
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
-                                            placeholder="037095001234"
+                                            onChange={(e) => handleAddCccdChange(e.target.value)}
+                                            className={`w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border rounded-xl focus:ring-2 focus:outline-none font-bold text-slate-700 dark:text-white font-mono ${
+                                                !addEmployeeFormData.cccd
+                                                    ? 'border-slate-200 dark:border-slate-700 focus:ring-teal-500'
+                                                    : addEmployeeFormData.cccd.length === 12
+                                                    ? 'border-emerald-500 ring-1 ring-emerald-500/20 focus:ring-emerald-500'
+                                                    : 'border-amber-400 ring-1 ring-amber-400/20 focus:ring-amber-500'
+                                            }`}
+                                            placeholder="Nhập 12 số CCCD..."
                                         />
                                     </div>
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Ngày cấp CCCD</label>
+
+                                    <div className="sm:col-span-3 flex flex-col gap-1.5">
+                                        <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                            Ngày cấp CCCD
+                                        </label>
                                         <input
-                                            type="text"
-                                            placeholder="15/12/2024"
+                                            type="date"
                                             value={addEmployeeFormData.cardIdDate}
-                                            onChange={e => setAddEmployeeFormData(prev => ({ ...prev, cardIdDate: e.target.value }))}
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
+                                            onChange={e => handleAddCardIdDateChange(e.target.value)}
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white cursor-pointer"
                                         />
                                     </div>
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Nơi cấp CCCD</label>
+
+                                    <div className="sm:col-span-3 flex flex-col gap-1.5">
+                                        <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                            Nơi cấp CCCD
+                                        </label>
                                         <input
                                             type="text"
-                                            placeholder="Cục C06"
+                                            placeholder="Cục C06 hoặc Tỉnh/TP..."
                                             value={addEmployeeFormData.cardIdPlace}
                                             onChange={e => setAddEmployeeFormData(prev => ({ ...prev, cardIdPlace: e.target.value }))}
                                             className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
@@ -1926,29 +2227,17 @@ const PatientReception: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Số điện thoại liên hệ</label>
-                                        <input
-                                            type="text"
-                                            value={addEmployeeFormData.phone}
-                                            onChange={e => setAddEmployeeFormData(prev => ({ ...prev, phone: e.target.value }))}
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
-                                            placeholder="0909123456"
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1.5 relative z-30">
-                                        <Combobox<CatalogItem>
-                                            label="Dân tộc"
-                                            value={addEmployeeFormData.ethnic}
-                                            displayValue={item => item?.name || ''}
-                                            onChange={val => setAddEmployeeFormData(prev => ({ ...prev, ethnic: val }))}
-                                            options={ethnicities}
-                                            columns={commonColumns}
-                                            placeholder="Chọn dân tộc..."
-                                        />
-                                    </div>
-                                </div>
+                            <div className="flex flex-col gap-1.5 relative z-30">
+                                <Combobox<CatalogItem>
+                                    label="Dân tộc"
+                                    value={addEmployeeFormData.ethnic}
+                                    displayValue={item => item?.name || ''}
+                                    onChange={val => setAddEmployeeFormData(prev => ({ ...prev, ethnic: val }))}
+                                    options={ethnicities}
+                                    columns={commonColumns}
+                                    placeholder="Chọn dân tộc..."
+                                />
+                            </div>
 
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="flex flex-col gap-1.5 relative z-20">
