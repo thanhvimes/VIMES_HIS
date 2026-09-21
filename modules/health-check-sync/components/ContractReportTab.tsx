@@ -1,9 +1,7 @@
-// ==================== CONTRACT REPORT & ANALYTICS COMPONENT ====================
-// File: modules/health-check-sync/components/ContractReportTab.tsx
-
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { healthCheckService } from '../../../services/healthCheckService';
+import { useSession } from '../../../contexts/SessionContext';
 import { 
     DownloadIcon, 
     RefreshIcon, 
@@ -13,17 +11,22 @@ import {
     PrinterIcon
 } from '../../../components/Icons';
 import { toast } from 'sonner';
+import { buildHealthCheckExcelReport, EmployeeReportRecord } from '../utils/healthCheckExcelReportHelper';
 
 interface Props {
     contractId: number;
     contractName: string;
     contractCode: string;
+    startDate?: string;
+    endDate?: string;
 }
 
-export const ContractReportTab: React.FC<Props> = ({ contractId, contractName, contractCode }) => {
+export const ContractReportTab: React.FC<Props> = ({ contractId, contractName, contractCode, startDate, endDate }) => {
+    const { orgInfo } = useSession();
     const [isLoading, setIsLoading] = useState(false);
     const [reportData, setReportData] = useState<any>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [filterStatus, setFilterStatus] = useState<'CONCLUDED' | 'ALL' | 'UNCONCLUDED'>('CONCLUDED');
     const [filterClassification, setFilterClassification] = useState<string>('ALL');
 
     const loadReport = async () => {
@@ -48,6 +51,11 @@ export const ContractReportTab: React.FC<Props> = ({ contractId, contractName, c
     const employees = reportData?.employees || [];
 
     const filteredEmployees = employees.filter((emp: any) => {
+        const matchesStatus = 
+            filterStatus === 'ALL' ||
+            (filterStatus === 'CONCLUDED' && emp.is_concluded) ||
+            (filterStatus === 'UNCONCLUDED' && !emp.is_concluded);
+
         const matchesSearch = searchTerm === '' || 
             emp.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             emp.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -58,76 +66,83 @@ export const ContractReportTab: React.FC<Props> = ({ contractId, contractName, c
             (filterClassification === 'UNCLASSIFIED' && (!emp.phanloai || emp.phanloai.trim() === '')) ||
             emp.phanloai === filterClassification;
 
-        return matchesSearch && matchesClassification;
+        return matchesStatus && matchesSearch && matchesClassification;
     });
 
     const exportToExcel = () => {
-        if (!employees || employees.length === 0) {
-            toast.warning("Không có dữ liệu nhân viên để xuất Excel!");
+        // Nghiệp vụ Báo cáo KSK Doanh nghiệp: Chỉ các nhân sự đã có kết luận đủ dữ kiện mới đưa vào danh sách kết quả & chi phí
+        const exportList = employees.filter((e: any) => e.is_concluded);
+        if (!exportList || exportList.length === 0) {
+            toast.warning("Chưa có nhân viên nào có kết luận đủ dữ kiện để xuất báo cáo!");
             return;
         }
 
         try {
-            // Chuẩn bị dữ liệu Excel
-            const excelRows = employees.map((e: any, idx: number) => ({
-                'STT': idx + 1,
-                'Mã NV': e.code || '',
-                'Họ và Tên': e.name || '',
-                'Ngày sinh': e.dob || '',
-                'Giới tính': e.gender === 'F' || e.gender === 'Nữ' ? 'Nữ' : 'Nam',
-                'Số CCCD': e.cccd || '',
-                'Phòng ban': e.dept || '',
-                'Chức danh': e.pos || '',
-                'Số bệnh án HIS': e.doc_no || '',
-                'Chiều cao (cm)': e.height || '',
-                'Cân nặng (kg)': e.weight || '',
-                'BMI': e.bmi || '',
-                'Huyết áp': e.blood_pressure ? `${e.blood_pressure}/${e.blood_pressure_x || ''}` : '',
-                'Khám Mắt': e.mat || '',
-                'Khám TMH': e.tmh || '',
-                'Khám RHM': e.rhm || '',
-                'Khám Nội': e.noi || '',
-                'Khám Ngoại': e.ngoai || '',
-                'Phân loại Sức khỏe': e.phanloai || 'Chưa phân loại',
-                'Kết luận': e.conclusion || '',
-                'Ghi chú / Lời dặn': e.remark || '',
-                'Trạng thái VNeID': e.send_status === 'Success' ? 'Đã liên thông' : 'Chưa gửi'
+            const mappedEmployees: EmployeeReportRecord[] = exportList.map((e: any, idx: number) => ({
+                stt: idx + 1,
+                code: e.code || '',
+                name: e.name || '',
+                dob: e.dob || '',
+                gender: e.gender === 'F' || e.gender === 'Nữ' ? 'Nữ' : 'Nam',
+                dept: e.dept || '',
+                pos: e.pos || '',
+                height: e.height,
+                weight: e.weight,
+                bmi: e.bmi,
+                blood_pressure: e.blood_pressure ? `${e.blood_pressure}${e.blood_pressure_x ? '/' + e.blood_pressure_x : ''}` : '',
+                pulse: e.pulse,
+                mat: e.mat || 'Bình thường',
+                tmh: e.tmh || 'Bình thường',
+                rhm: e.rhm || 'Bình thường',
+                noi: e.noi || 'Bình thường',
+                ngoai: e.ngoai || 'Bình thường',
+                dalieu: e.dalieu || 'Bình thường',
+                phukhoa: e.phukhoa || (e.gender === 'Nữ' || e.gender === 'F' ? 'Bình thường' : ''),
+                // Cận lâm sàng Huyết học & Hóa sinh từ lab_data
+                glucose: e.lab_data?.blood_test?.glycemia || '',
+                hgb: e.lab_data?.blood_test?.hemoglobin || '',
+                rbc: e.lab_data?.blood_test?.chi_so_hc || '',
+                wbc: e.lab_data?.blood_test?.chi_so_bach_cau || '',
+                plt: e.lab_data?.blood_test?.chi_so_tieu_cau || '',
+                cholesterol: e.lab_data?.blood_test?.cholesterol || '',
+                triglyceride: e.lab_data?.blood_test?.triglycerid || '',
+                hdl: e.lab_data?.blood_test?.hdl || '',
+                ldl: e.lab_data?.blood_test?.ldl || '',
+                urine_pro: e.lab_data?.urine_test?.protein || '',
+                us_abdomen: e.lab_data?.us?.ket_qua || '',
+                phanloai: e.phanloai || 'II',
+                conclusion: e.conclusion_name ? `${e.conclusion} - ${e.conclusion_name}` : (e.conclusion || 'Hiện tại sức khỏe bình thường.'),
+                remark: e.remark || ''
             }));
 
-            const worksheet = XLSX.utils.json_to_sheet(excelRows);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, 'Báo Cáo Đoàn KSK');
+            // Thông tin bệnh viện động (Ưu tiên từ sys_company của Backend, fallback qua session orgInfo)
+            const hospitalInfo = {
+                name: reportData?.hospital?.name || orgInfo?.hospitalName || 'BỆNH VIỆN ĐA KHOA',
+                parentOrg: reportData?.hospital?.parentOrg || orgInfo?.governingUnitName || 'SỞ Y TẾ',
+                address: reportData?.hospital?.address || orgInfo?.address || '',
+                phone: reportData?.hospital?.phone || orgInfo?.hotline || '',
+                location: reportData?.hospital?.location || (orgInfo?.address ? orgInfo.address.split(',').pop()?.trim() : '') || 'Hà Nội'
+            };
 
-            // Thiết lập độ rộng cột
-            const colWidths = [
-                { wch: 6 },  // STT
-                { wch: 12 }, // Mã NV
-                { wch: 25 }, // Họ tên
-                { wch: 12 }, // Ngày sinh
-                { wch: 10 }, // Giới tính
-                { wch: 16 }, // CCCD
-                { wch: 22 }, // Phòng ban
-                { wch: 20 }, // Chức danh
-                { wch: 14 }, // Số BA
-                { wch: 14 }, // Chiều cao
-                { wch: 14 }, // Cân nặng
-                { wch: 10 }, // BMI
-                { wch: 14 }, // Huyết áp
-                { wch: 25 }, // Mắt
-                { wch: 25 }, // TMH
-                { wch: 25 }, // RHM
-                { wch: 30 }, // Nội
-                { wch: 25 }, // Ngoại
-                { wch: 18 }, // Phân loại
-                { wch: 30 }, // Kết luận
-                { wch: 30 }, // Lời dặn
-                { wch: 18 }  // VNeID
-            ];
-            worksheet['!cols'] = colWidths;
+            const workbook = buildHealthCheckExcelReport({
+                hospital: hospitalInfo,
+                contract: {
+                    contractCode: contractCode || 'KSK-VIMES',
+                    contractName: contractName || 'Đoàn khám sức khỏe định kỳ',
+                    companyName: contractName || 'Doanh nghiệp',
+                    examDate: (startDate && endDate) 
+                        ? `${new Date(startDate).toLocaleDateString('vi-VN')} - ${new Date(endDate).toLocaleDateString('vi-VN')}` 
+                        : (reportData?.contract?.hec_examdate 
+                            ? new Date(reportData.contract.hec_examdate).toLocaleDateString('vi-VN') 
+                            : new Date().toLocaleDateString('vi-VN')),
+                    totalRegistered: reportData?.summary?.totalEmployees || employees.length
+                },
+                employees: mappedEmployees
+            });
 
             const filename = `Bao_Cao_KSK_${contractCode || 'Doan'}_${new Date().toISOString().slice(0, 10)}.xlsx`;
             XLSX.writeFile(workbook, filename);
-            toast.success(`Xuất file Excel thành công: ${filename}`);
+            toast.success(`Xuất file Báo cáo KSK 4 sheet thành công (${exportList.length} NV đã kết luận): ${filename}`);
         } catch (err: any) {
             console.error("Lỗi xuất Excel:", err);
             toast.error("Không thể xuất file Excel!");
@@ -316,17 +331,72 @@ export const ContractReportTab: React.FC<Props> = ({ contractId, contractName, c
             {/* 4. Filter & Detailed Table */}
             <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col min-h-[300px]">
                 <div className="p-3.5 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5 flex-wrap">
                         <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                             Danh Sách Chi Tiết ({filteredEmployees.length})
                         </span>
+
+                        {/* Bộ lọc trạng thái kết luận chuẩn xác */}
+                        <div className="inline-flex rounded-lg p-0.5 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs">
+                            <button
+                                onClick={() => setFilterStatus('CONCLUDED')}
+                                className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                                    filterStatus === 'CONCLUDED'
+                                        ? 'bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 shadow-xs'
+                                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                                }`}
+                                title="Chỉ hiển thị các nhân sự đã có kết luận & xếp loại đủ điều kiện đưa vào báo cáo"
+                            >
+                                <span>Đã kết luận (Báo cáo)</span>
+                                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                                    filterStatus === 'CONCLUDED'
+                                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                        : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                                }`}>
+                                    {summary?.concludedEmployees || 0}
+                                </span>
+                            </button>
+
+                            <button
+                                onClick={() => setFilterStatus('UNCONCLUDED')}
+                                className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                                    filterStatus === 'UNCONCLUDED'
+                                        ? 'bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-400 shadow-xs'
+                                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                                }`}
+                                title="Các nhân sự chưa có kết luận bác sĩ"
+                            >
+                                <span>Chờ kết luận</span>
+                                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                                    filterStatus === 'UNCONCLUDED'
+                                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                        : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                                }`}>
+                                    {summary?.unconcludedEmployees ?? Math.max(0, (summary?.totalEmployees || 0) - (summary?.concludedEmployees || 0))}
+                                </span>
+                            </button>
+
+                            <button
+                                onClick={() => setFilterStatus('ALL')}
+                                className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                                    filterStatus === 'ALL'
+                                        ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                                }`}
+                            >
+                                <span>Tất cả</span>
+                                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                                    {summary?.totalEmployees || 0}
+                                </span>
+                            </button>
+                        </div>
                     </div>
 
                     <div className="flex items-center gap-2">
                         <select
                             value={filterClassification}
                             onChange={(e) => setFilterClassification(e.target.value)}
-                            className="px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-800 dark:text-white"
+                            className="px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-800 dark:text-white cursor-pointer"
                         >
                             <option value="ALL">Tất cả phân loại</option>
                             <option value="Loại 1">Loại 1</option>
@@ -357,6 +427,7 @@ export const ContractReportTab: React.FC<Props> = ({ contractId, contractName, c
                                 <th className="py-2.5 px-3">Ngày sinh</th>
                                 <th className="py-2.5 px-3">Phòng ban</th>
                                 <th className="py-2.5 px-3">Sinh hiệu (BMI / HA)</th>
+                                <th className="py-2.5 px-3 text-center">Trạng thái</th>
                                 <th className="py-2.5 px-3 text-center">Xếp loại</th>
                                 <th className="py-2.5 px-3">Kết luận bác sĩ</th>
                                 <th className="py-2.5 px-3 text-center">VNeID</th>
@@ -365,7 +436,7 @@ export const ContractReportTab: React.FC<Props> = ({ contractId, contractName, c
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700/60">
                             {filteredEmployees.length === 0 ? (
                                 <tr>
-                                    <td colSpan={9} className="py-8 text-center text-slate-400">
+                                    <td colSpan={10} className="py-8 text-center text-slate-400">
                                         Không tìm thấy dữ liệu phù hợp
                                     </td>
                                 </tr>
@@ -384,11 +455,26 @@ export const ContractReportTab: React.FC<Props> = ({ contractId, contractName, c
                                             {e.pos && <div className="text-[10px] text-slate-400">{e.pos}</div>}
                                         </td>
                                         <td className="py-2 px-3 font-mono text-slate-600 dark:text-slate-300">
-                                            {e.bmi ? `BMI ${e.bmi}` : '—'}
-                                            {e.blood_pressure && (
-                                                <div className="text-[10px] text-slate-400 font-mono">
-                                                    HA: {e.blood_pressure}/{e.blood_pressure_x || ''}
+                                            {e.bmi || e.blood_pressure ? (
+                                                <div className="flex flex-col gap-0.5">
+                                                    {e.bmi && <span>BMI: <strong className="text-slate-800 dark:text-white">{e.bmi}</strong></span>}
+                                                    {e.blood_pressure && (
+                                                        <span className="text-[11px] text-slate-500 font-mono">
+                                                            HA: {e.blood_pressure}
+                                                        </span>
+                                                    )}
                                                 </div>
+                                            ) : '—'}
+                                        </td>
+                                        <td className="py-2 px-3 text-center">
+                                            {e.is_concluded ? (
+                                                <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                                    Đã kết luận
+                                                </span>
+                                            ) : (
+                                                <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                                    Chờ kết luận
+                                                </span>
                                             )}
                                         </td>
                                         <td className="py-2 px-3 text-center">
@@ -396,8 +482,13 @@ export const ContractReportTab: React.FC<Props> = ({ contractId, contractName, c
                                                 {e.phanloai || 'Chưa khám'}
                                             </span>
                                         </td>
-                                        <td className="py-2 px-3 text-slate-700 dark:text-slate-300 max-w-xs truncate" title={e.conclusion}>
-                                            {e.conclusion || '—'}
+                                        <td className="py-2 px-3 text-slate-700 dark:text-slate-300 max-w-sm" title={e.conclusion_name ? `${e.conclusion} - ${e.conclusion_name}` : e.conclusion}>
+                                            <div className="flex flex-col">
+                                                <span className="font-semibold text-slate-800 dark:text-slate-200 line-clamp-2">
+                                                    {e.conclusion_name ? `${e.conclusion} - ${e.conclusion_name}` : (e.conclusion || '—')}
+                                                </span>
+                                                {e.remark && <span className="text-[10px] text-slate-400 italic">{e.remark}</span>}
+                                            </div>
                                         </td>
                                         <td className="py-2 px-3 text-center">
                                             {e.send_status === 'Success' ? (

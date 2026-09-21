@@ -596,12 +596,28 @@ export class ContractsController {
             let paramIdx = 1;
 
             if (startDate) {
-                sql += ` AND c.hec_examdate >= $${paramIdx}`;
+                sql += ` AND (
+                    COALESCE(c.hec_examdate, c.hec_date)::date >= $${paramIdx}::date
+                    OR EXISTS (
+                        SELECT 1 FROM hms_exm_employee emp
+                        JOIN hms_doc d ON d.hd_docno = emp.hee_docno
+                        WHERE emp.hee_contract_id = c.hec_contract_id 
+                          AND d.hd_admitdate::date >= $${paramIdx}::date
+                    )
+                )`;
                 params.push(startDate);
                 paramIdx++;
             }
             if (endDate) {
-                sql += ` AND c.hec_examdate <= $${paramIdx}`;
+                sql += ` AND (
+                    COALESCE(c.hec_examdate, c.hec_date)::date <= $${paramIdx}::date
+                    OR EXISTS (
+                        SELECT 1 FROM hms_exm_employee emp
+                        JOIN hms_doc d ON d.hd_docno = emp.hee_docno
+                        WHERE emp.hee_contract_id = c.hec_contract_id 
+                          AND d.hd_admitdate::date <= $${paramIdx}::date
+                    )
+                )`;
                 params.push(endDate);
                 paramIdx++;
             }
@@ -1352,7 +1368,23 @@ export class ContractsController {
         }
 
         try {
-            // 1. Thông tin hợp đồng
+            // 1. Thông tin đơn vị bệnh viện động (nguồn chuẩn từ sys_company)
+            const compRes = await query(`
+                SELECT sc_id, sc_name, sc_fullname, sc_address, sc_phone, sc_website, sc_email, sc_pname 
+                FROM sys_company 
+                LIMIT 1
+            `);
+            const company = compRes.rows[0] || {};
+            const hospital = {
+                name: (company.sc_name || company.sc_fullname || 'BỆNH VIỆN ĐA KHOA').toUpperCase(),
+                parentOrg: (company.sc_pname || 'SỞ Y TẾ').toUpperCase(),
+                address: company.sc_address || '',
+                phone: company.sc_phone || '',
+                website: company.sc_website || '',
+                email: company.sc_email || ''
+            };
+
+            // 2. Thông tin hợp đồng
             const contractRes = await query(`
                 SELECT c.hec_contract_id as id, c.hec_no as code,
                        COALESCE(NULLIF(TRIM(c.hec_description), ''), c.hec_no) as name,
@@ -1367,48 +1399,97 @@ export class ContractsController {
 
             const contract = contractRes.rows[0];
 
-            // 2. Danh sách nhân viên và chi tiết kết luận khám
+            // 3. Danh sách nhân viên và chi tiết kết luận khám (Đầy đủ Sinh hiệu, Khám chuyên khoa, Cận lâm sàng & Tên ICD)
             const empRes = await query(`
                 SELECT 
                     e.hee_employee_id as id,
-                    COALESCE(e.hee_id, e.hee_employee_id) as code,
+                    COALESCE(e.hee_id, e.hee_employee_id::text) as code,
                     trim(COALESCE(e.hee_surname,'')||' '||COALESCE(e.hee_midname,'')||' '||COALESCE(e.hee_firstname, e.hee_name, '')) as name,
                     to_char(e.hee_birthdate, 'DD/MM/YYYY') as dob,
                     e.hee_sex as gender,
-                    COALESCE(e.hee_cardid, e.hee_cccd) as cccd,
+                    e.hee_cardid as cccd,
                     e.hee_phone as phone,
                     e.hee_dept as dept,
-                    e.hee_pos as pos,
+                    e.hee_position_desc as pos,
                     e.hee_docno as doc_no,
                     e.hee_status as employee_status,
-                    COALESCE(cl.hecl_phanloai, e.hee_conclusion) as phanloai,
-                    cl.hecl_conclusion as conclusion,
+                    COALESCE(NULLIF(TRIM(cl.hecl_phanloai), ''), NULLIF(TRIM(e.hee_conclusion), ''), NULLIF(TRIM(hc.conclusion_data->>'fitness_class'), '')) as phanloai,
+                    COALESCE(NULLIF(TRIM(cl.hecl_conclusion), ''), NULLIF(TRIM(hc.conclusion_data->>'diagnosis'), '')) as conclusion,
+                    icd.hi_name as conclusion_name,
                     cl.hecl_remark as remark,
-                    cl.hecl_mat as mat,
-                    cl.hecl_tmh as tmh,
-                    cl.hecl_rhm as rhm,
-                    cl.hecl_tuanhoan as noi,
-                    cl.hecl_ngoai as ngoai,
-                    e.hee_height as height,
-                    e.hee_weight as weight,
-                    e.hee_bmi as bmi,
-                    e.hee_blood_pressure as blood_pressure,
-                    m.signature_status,
-                    m.send_status
+                    COALESCE(NULLIF(TRIM(cl.hecl_mat), ''), NULLIF(TRIM(hc.clinical_data->'clinical_exam'->>'eye'), '')) as mat,
+                    COALESCE(NULLIF(TRIM(cl.hecl_tmh), ''), NULLIF(TRIM(hc.clinical_data->'clinical_exam'->>'ent'), '')) as tmh,
+                    COALESCE(NULLIF(TRIM(cl.hecl_rhm), ''), NULLIF(TRIM(hc.clinical_data->'clinical_exam'->>'dental'), '')) as rhm,
+                    COALESCE(NULLIF(TRIM(cl.hecl_noi), ''), NULLIF(TRIM(cl.hecl_tuanhoan), ''), NULLIF(TRIM(hc.clinical_data->'clinical_exam'->>'internal'), '')) as noi,
+                    COALESCE(NULLIF(TRIM(cl.hecl_ngoai), ''), NULLIF(TRIM(hc.clinical_data->'clinical_exam'->>'external'), '')) as ngoai,
+                    COALESCE(NULLIF(TRIM(cl.hecl_dalieu), ''), NULLIF(TRIM(hc.clinical_data->'clinical_exam'->>'dermatology'), '')) as dalieu,
+                    COALESCE(NULLIF(TRIM(cl.hecl_phukhoa), ''), NULLIF(TRIM(hc.clinical_data->'clinical_exam'->>'gynecology'), '')) as phukhoa,
+                    COALESCE(
+                        NULLIF(TRIM(cl.hecl_height::text), ''), 
+                        NULLIF(TRIM(e.hee_height::text), ''), 
+                        NULLIF(TRIM(hc.clinical_data->'examination'->>'height'), '')
+                    ) as height,
+                    COALESCE(
+                        NULLIF(TRIM(cl.hecl_weight::text), ''), 
+                        NULLIF(TRIM(e.hee_weight::text), ''), 
+                        NULLIF(TRIM(hc.clinical_data->'examination'->>'weight'), '')
+                    ) as weight,
+                    COALESCE(
+                        NULLIF(TRIM(cl.hecl_bmi::text), ''), 
+                        CASE WHEN e.hee_height > 0 AND e.hee_weight > 0 THEN ROUND((e.hee_weight / ((e.hee_height/100.0)*(e.hee_height/100.0)))::numeric, 2)::text ELSE NULL END,
+                        NULLIF(TRIM(hc.clinical_data->'examination'->>'bmi'), '')
+                    ) as bmi,
+                    COALESCE(
+                        CASE WHEN cl.hecl_bloodpressure > 0 THEN cl.hecl_bloodpressure::text || CASE WHEN cl.hecl_bloodpressurex > 0 THEN '/' || cl.hecl_bloodpressurex::text ELSE '' END ELSE NULL END, 
+                        NULLIF(TRIM(e.hee_bloodpressure::text), ''),
+                        NULLIF(TRIM(hc.clinical_data->'examination'->>'blood_pressure'), '')
+                    ) as blood_pressure,
+                    COALESCE(
+                        NULLIF(TRIM(cl.hecl_pulse::text), ''), 
+                        NULLIF(TRIM(e.hee_pulse::text), ''), 
+                        NULLIF(TRIM(hc.clinical_data->'examination'->>'pulse'), '')
+                    ) as pulse,
+                    hc.lab_data,
+                    hc.signature_status,
+                    hc.send_status
                 FROM hms_exm_employee e
-                LEFT JOIN hms_exm_conclusion cl ON cl.hecl_docno::text = e.hee_docno
-                LEFT JOIN health_check_masters m ON m.his_employee_id = e.hee_employee_id AND m.his_contract_id = $1
+                LEFT JOIN hms_exm_conclusion cl ON cl.hecl_docno = e.hee_docno
+                LEFT JOIN LATERAL (
+                    SELECT m.id, m.signature_status, m.send_status, cd.clinical_data, cd.lab_data, cd.conclusion_data
+                    FROM health_check_masters m
+                    LEFT JOIN health_check_details cd ON cd.master_id = m.id
+                    WHERE (m.his_doc_no = e.hee_docno::text OR m.his_employee_id = e.hee_employee_id::text)
+                    ORDER BY m.id DESC
+                    LIMIT 1
+                ) hc ON true
+                LEFT JOIN hms_icd icd ON icd.hi_icd = COALESCE(NULLIF(TRIM(cl.hecl_conclusion), ''), NULLIF(TRIM(hc.conclusion_data->>'diagnosis'), ''))
                 WHERE e.hee_contract_id = $1 AND e.hee_isactive = 'Y'
                 ORDER BY e.hee_employee_id ASC
             `, [contractId]);
 
-            const employees = empRes.rows;
+            const rawEmployees = empRes.rows;
+            // Xác định điều kiện lọc chính xác bệnh nhân ĐÃ KẾT LUẬN:
+            // - Có số tiếp đón khám (doc_no)
+            // - Có phân loại sức khỏe hợp lệ (I..V hoặc Loại 1..5) HOẶC có kết luận bác sĩ
+            const employees = rawEmployees.map((e: any) => {
+                const hasValidPhanLoai = Boolean(e.phanloai && e.phanloai.trim() !== '' && e.phanloai.trim() !== '0');
+                const hasValidConclusion = Boolean(e.conclusion && e.conclusion.trim() !== '');
+                const hasDocNo = Boolean(e.doc_no && e.doc_no !== 0 && e.doc_no !== '0');
+                const isConcluded = hasDocNo && (hasValidPhanLoai || hasValidConclusion);
+
+                return {
+                    ...e,
+                    is_concluded: isConcluded
+                };
+            });
+
             const totalEmployees = employees.length;
-            const receivedEmployees = employees.filter(e => e.doc_no && e.doc_no !== '0').length;
-            const concludedEmployees = employees.filter(e => e.phanloai && e.phanloai.trim() !== '').length;
+            const receivedEmployees = employees.filter(e => e.doc_no && e.doc_no !== 0 && e.doc_no !== '0').length;
+            const concludedList = employees.filter(e => e.is_concluded);
+            const concludedEmployees = concludedList.length;
             const syncedEmployees = employees.filter(e => e.send_status === 'Success').length;
 
-            // 3. Thống kê phân loại sức khỏe (Loại 1 -> Loại 5)
+            // 4. Thống kê phân loại sức khỏe trên nhóm ĐÃ KẾT LUẬN
             const classificationCounts: Record<string, number> = {
                 'Loại 1': 0,
                 'Loại 2': 0,
@@ -1418,43 +1499,48 @@ export class ContractsController {
                 'Chưa phân loại': 0
             };
 
-            for (const emp of employees) {
+            for (const emp of concludedList) {
                 let pl = emp.phanloai?.trim();
-                if (pl === '1') pl = 'Loại 1';
-                else if (pl === '2') pl = 'Loại 2';
-                else if (pl === '3') pl = 'Loại 3';
-                else if (pl === '4') pl = 'Loại 4';
-                else if (pl === '5') pl = 'Loại 5';
+                if (pl === '1' || pl === 'I') pl = 'Loại 1';
+                else if (pl === '2' || pl === 'II') pl = 'Loại 2';
+                else if (pl === '3' || pl === 'III') pl = 'Loại 3';
+                else if (pl === '4' || pl === 'IV') pl = 'Loại 4';
+                else if (pl === '5' || pl === 'V') pl = 'Loại 5';
 
                 if (pl && classificationCounts[pl] !== undefined) {
                     classificationCounts[pl]++;
-                } else if (emp.doc_no) {
+                } else {
                     classificationCounts['Chưa phân loại']++;
                 }
             }
 
-            // 4. Thống kê tỷ lệ bệnh lý thường gặp
+            // 5. Thống kê tỷ lệ bệnh lý thường gặp trên nhóm ĐÃ KẾT LUẬN
             const pathologyStats = {
-                refractiveError: employees.filter(e => e.mat && (e.mat.toLowerCase().includes('cận') || e.mat.toLowerCase().includes('loạn') || e.mat.toLowerCase().includes('viễn'))).length,
-                entIssue: employees.filter(e => e.tmh && (e.tmh.toLowerCase().includes('viêm') || e.tmh.toLowerCase().includes('lệch'))).length,
-                dentalIssue: employees.filter(e => e.rhm && (e.rhm.toLowerCase().includes('sâu') || e.rhm.toLowerCase().includes('viêm') || e.rhm.toLowerCase().includes('cao'))).length,
-                hypertension: employees.filter(e => e.blood_pressure && (parseInt(String(e.blood_pressure).split('/')[0], 10) >= 140 || parseInt(String(e.blood_pressure).split('/')[1] || '0', 10) >= 90)).length,
-                overweight: employees.filter(e => Number(e.bmi) >= 23).length
+                refractiveError: concludedList.filter(e => e.mat && (e.mat.toLowerCase().includes('cận') || e.mat.toLowerCase().includes('loạn') || e.mat.toLowerCase().includes('viễn'))).length,
+                entIssue: concludedList.filter(e => e.tmh && (e.tmh.toLowerCase().includes('viêm') || e.tmh.toLowerCase().includes('lệch'))).length,
+                dentalIssue: concludedList.filter(e => e.rhm && (e.rhm.toLowerCase().includes('sâu') || e.rhm.toLowerCase().includes('viêm') || e.rhm.toLowerCase().includes('cao'))).length,
+                hypertension: concludedList.filter(e => e.blood_pressure && (parseInt(String(e.blood_pressure).split('/')[0], 10) >= 140 || parseInt(String(e.blood_pressure).split('/')[1] || '0', 10) >= 90)).length,
+                overweight: concludedList.filter(e => Number(e.bmi) >= 23).length
             };
+
+            const { onlyConcluded } = req.query;
+            const returnEmployees = onlyConcluded === 'true' ? concludedList : employees;
 
             return res.json({
                 success: true,
+                hospital,
                 contract,
                 summary: {
                     totalEmployees,
                     receivedEmployees,
                     concludedEmployees,
+                    unconcludedEmployees: totalEmployees - concludedEmployees,
                     syncedEmployees,
                     concludedRate: totalEmployees > 0 ? Math.round((concludedEmployees / totalEmployees) * 100) : 0,
                     classificationCounts,
                     pathologyStats
                 },
-                employees
+                employees: returnEmployees
             });
         } catch (error: any) {
             console.error('❌ KSK Controller: Lỗi getContractReportSummary:', error);

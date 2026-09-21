@@ -34,6 +34,7 @@ import DocumentList from '../components/DocumentList';
 import PrintCodeList from '../components/PrintCodeList';
 import SyncDataList from '../components/SyncDataList';
 import ContractManagement from '../components/ContractManagement';
+import ContractReportView from '../components/ContractReportView';
 import PatientReception from '../components/PatientReception';
 import SampleTracking from '../components/SampleTracking';
 import { HisBatchImportModal } from '../components/HisBatchImportModal';
@@ -1268,6 +1269,11 @@ const HealthCheckSyncView: React.FC = () => {
                         )
                     )}
 
+                    {/* Contract Report View */}
+                    {stepParam === 'reports' && (
+                        <ContractReportView />
+                    )}
+
                     {/* Patient Reception */}
                     {stepParam === 'reception' && (
                         <PatientReception />
@@ -1301,7 +1307,7 @@ const HealthCheckSyncView: React.FC = () => {
 
                     {/* Filter toolbar and Table only shown on non-dashboard workflow steps */}
 
-                    {stepParam !== 'dashboard' && stepParam !== 'contracts' && stepParam !== 'reception' && stepParam !== 'sample-tracking' && !stepParam.startsWith('settings') && !(stepParam === 'sync' && !isAdmin) && (
+                    {stepParam !== 'dashboard' && stepParam !== 'contracts' && stepParam !== 'reports' && stepParam !== 'reception' && stepParam !== 'sample-tracking' && !stepParam.startsWith('settings') && !(stepParam === 'sync' && !isAdmin) && (
 
                         <>
                             <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
