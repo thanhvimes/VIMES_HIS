@@ -16,7 +16,9 @@ const InternalMedTab: React.FC = () => {
         kqTamThan, setKqTamThan,
         kqThanKinh, setKqThanKinh,
         kqTimMach, setKqTimMach,
+        timMach, setTimMach,
         kqHoHap, setKqHoHap,
+        hoHap, setHoHap,
         kqNoiTiet, setKqNoiTiet,
         noiKhoaTieuHoa, setNoiKhoaTieuHoa,
         kqCoXuongKhop, setKqCoXuongKhop,
@@ -88,7 +90,10 @@ const InternalMedTab: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Tim mạch</label>
-                        <textarea value={kqTimMach} onChange={e => setKqTimMach(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
+                        <textarea value={kqTimMach} onChange={e => {
+                            setKqTimMach(e.target.value);
+                            setTimMach(e.target.value);
+                        }} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
                         <select value={noiKhoaTuanHoanPl} onChange={e => setNoiKhoaTuanHoanPl(e.target.value)} className="w-full mt-1.5 p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-medium">
                             <option value="">-- Phân loại Tuần hoàn --</option>
                             <option value="1">Loại I (Rất khỏe)</option>
@@ -100,7 +105,10 @@ const InternalMedTab: React.FC = () => {
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Hô hấp</label>
-                        <textarea value={kqHoHap} onChange={e => setKqHoHap(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
+                        <textarea value={kqHoHap} onChange={e => {
+                            setKqHoHap(e.target.value);
+                            setHoHap(e.target.value);
+                        }} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-xs h-16" />
                         <select value={noiKhoaHoHapPl} onChange={e => setNoiKhoaHoHapPl(e.target.value)} className="w-full mt-1.5 p-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white font-medium">
                             <option value="">-- Phân loại Hô hấp --</option>
                             <option value="1">Loại I (Rất khỏe)</option>

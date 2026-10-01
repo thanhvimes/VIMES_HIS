@@ -39,6 +39,7 @@ export interface UserInfo {
     signUserid?: string;
     signPasswd?: string;
     signPartner?: string;
+    signCredentialId?: string;
 }
 
 class AuthController {
@@ -77,7 +78,8 @@ class AuthController {
                     su_erp_bilmodule,
                     su_sign_userid,
                     su_sign_passwd,
-                    su_sign_partner
+                    su_sign_partner,
+                    su_sign_credential_id
                 FROM sys_user
                 WHERE su_userid = $1
             `, [userId]);
@@ -187,8 +189,9 @@ class AuthController {
                 permissions: permissions,
                 isActive: user.su_isactive === 'Y',
                 signUserid: user.su_sign_userid,
-                signPasswd: user.su_sign_passwd ? '******' : '',
-                signPartner: user.su_sign_partner
+                signPasswd: SecurityUtils.isEncrypted(user.su_sign_passwd) ? SecurityUtils.resolveSecret(user.su_sign_passwd) : (user.su_sign_passwd || ''),
+                signPartner: user.su_sign_partner,
+                signCredentialId: user.su_sign_credential_id
             };
 
             const token = sign(
@@ -267,7 +270,8 @@ class AuthController {
                     su_erp_bilmodule,
                     su_sign_userid,
                     su_sign_passwd,
-                    su_sign_partner
+                    su_sign_partner,
+                    su_sign_credential_id
                 FROM sys_user
                 WHERE su_userid = $1 AND su_isactive = 'Y'
             `, [userId]);
@@ -360,8 +364,9 @@ class AuthController {
                 email: user.su_email,
                 address: user.su_address,
                 signUserid: user.su_sign_userid,
-                signPasswd: user.su_sign_passwd ? '******' : '',
-                signPartner: user.su_sign_partner
+                signPasswd: SecurityUtils.isEncrypted(user.su_sign_passwd) ? SecurityUtils.resolveSecret(user.su_sign_passwd) : (user.su_sign_passwd || ''),
+                signPartner: user.su_sign_partner,
+                signCredentialId: user.su_sign_credential_id
             };
 
             return res.json({
@@ -380,22 +385,9 @@ class AuthController {
 
     // Cập nhật hồ sơ cá nhân
     async updateProfile(req: AuthRequest, res: Response) {
+        const userId = req.userId;
+        const { name, phone, certificate, position, title, dob, gender, identityCard, email, address, signUserid, signPasswd, signPartner, signCredentialId } = (req as any).body;
         try {
-            const userId = req.userId;
-            const { name, phone, certificate, position, title, dob, gender, identityCard, email, address, signUserid, signPasswd, signPartner } = (req as any).body;
-
-            const existRes = await query(`SELECT su_sign_passwd FROM sys_user WHERE su_userid = $1`, [userId]);
-            let finalSignPasswd = '';
-            if (existRes.rows.length > 0) {
-                const existing = existRes.rows[0];
-                if (signPasswd === '******') {
-                    finalSignPasswd = existing.su_sign_passwd;
-                } else {
-                    finalSignPasswd = signPasswd ? 'enc:' + SecurityUtils.encrypt(signPasswd) : '';
-                }
-            } else {
-                finalSignPasswd = signPasswd && signPasswd !== '******' ? 'enc:' + SecurityUtils.encrypt(signPasswd) : '';
-            }
 
             const result = await query(`
                 UPDATE sys_user 
@@ -410,12 +402,20 @@ class AuthController {
                     su_identity_card = COALESCE($8, su_identity_card),
                     su_email = COALESCE($9, su_email),
                     su_address = COALESCE($10, su_address),
-                    su_sign_userid = COALESCE($11, su_sign_userid),
-                    su_sign_passwd = COALESCE($12, su_sign_passwd),
-                    su_sign_partner = COALESCE($13, su_sign_partner)
-                WHERE su_userid = $14
-                RETURNING su_userid, su_name, su_tel, su_certificate, su_sign_userid
-            `, [name, phone, certificate, position, title, dob, gender, identityCard, email, address, signUserid, finalSignPasswd, signPartner, userId]);
+                    su_sign_userid = CASE WHEN $11::text IS NOT NULL THEN (CASE WHEN $11 = '' THEN NULL ELSE $11 END) ELSE su_sign_userid END,
+                    su_sign_passwd = CASE WHEN $12::text IS NOT NULL THEN (CASE WHEN $12 = '' THEN NULL ELSE $12 END) ELSE su_sign_passwd END,
+                    su_sign_partner = CASE WHEN $13::text IS NOT NULL THEN (CASE WHEN $13 = '' THEN NULL ELSE $13 END) ELSE su_sign_partner END,
+                    su_sign_credential_id = CASE WHEN $14::text IS NOT NULL THEN (CASE WHEN $14 = '' THEN NULL ELSE $14 END) ELSE su_sign_credential_id END
+                WHERE su_userid = $15
+                RETURNING su_userid, su_name, su_tel, su_certificate, su_position, su_title, su_dob, su_gender, su_identity_card, su_email, su_address, su_sign_userid, su_sign_passwd, su_sign_partner, su_sign_credential_id
+            `, [
+                name, phone, certificate, position, title, dob, gender, identityCard, email, address, 
+                signUserid !== undefined ? String(signUserid).trim() : null, 
+                signPasswd !== undefined ? String(signPasswd).trim() : null, 
+                signPartner !== undefined ? String(signPartner).trim() : null, 
+                signCredentialId !== undefined ? String(signCredentialId).trim() : null, 
+                userId
+            ]);
 
             if (result.rows.length === 0) {
                 return res.status(404).json({
@@ -427,10 +427,147 @@ class AuthController {
             return res.json({
                 success: true,
                 message: 'Cập nhật hồ sơ thành công',
-                user: result.rows[0]
+                user: {
+                    userId: result.rows[0].su_userid,
+                    name: result.rows[0].su_name,
+                    phone: result.rows[0].su_tel,
+                    certificate: result.rows[0].su_certificate,
+                    position: result.rows[0].su_position,
+                    title: result.rows[0].su_title,
+                    dob: result.rows[0].su_dob,
+                    gender: result.rows[0].su_gender,
+                    identityCard: result.rows[0].su_identity_card,
+                    email: result.rows[0].su_email,
+                    address: result.rows[0].su_address,
+                    signUserid: result.rows[0].su_sign_userid,
+                    signPasswd: result.rows[0].su_sign_passwd || '',
+                    signPartner: result.rows[0].su_sign_partner,
+                    signCredentialId: result.rows[0].su_sign_credential_id
+                }
             });
         } catch (error: any) {
             console.error('Update profile error:', error);
+
+            // Tự động phục hồi lỗi 22001 (value too long) nếu database chưa kịp nâng cấp độ dài cột su_position/su_title
+            if (error.code === '22001') {
+                try {
+                    console.log('🔄 Đang tự động mở rộng độ dài su_position/su_title trong sys_user để phục hồi...');
+                    await query(`
+                        ALTER TABLE sys_user ALTER COLUMN su_position TYPE VARCHAR(100);
+                        ALTER TABLE sys_user ALTER COLUMN su_title TYPE VARCHAR(100);
+                    `);
+                    const retryRes = await query(`
+                        UPDATE sys_user 
+                        SET 
+                            su_name = COALESCE($1, su_name),
+                            su_tel = COALESCE($2, su_tel),
+                            su_certificate = COALESCE($3, su_certificate),
+                            su_position = COALESCE($4, su_position),
+                            su_title = COALESCE($5, su_title),
+                            su_dob = COALESCE($6, su_dob),
+                            su_gender = COALESCE($7, su_gender),
+                            su_identity_card = COALESCE($8, su_identity_card),
+                            su_email = COALESCE($9, su_email),
+                            su_address = COALESCE($10, su_address),
+                            su_sign_userid = CASE WHEN $11::text IS NOT NULL THEN (CASE WHEN $11 = '' THEN NULL ELSE $11 END) ELSE su_sign_userid END,
+                            su_sign_passwd = CASE WHEN $12::text IS NOT NULL THEN (CASE WHEN $12 = '' THEN NULL ELSE $12 END) ELSE su_sign_passwd END,
+                            su_sign_partner = CASE WHEN $13::text IS NOT NULL THEN (CASE WHEN $13 = '' THEN NULL ELSE $13 END) ELSE su_sign_partner END,
+                            su_sign_credential_id = CASE WHEN $14::text IS NOT NULL THEN (CASE WHEN $14 = '' THEN NULL ELSE $14 END) ELSE su_sign_credential_id END
+                        WHERE su_userid = $15
+                        RETURNING su_userid, su_name, su_tel, su_certificate, su_position, su_title, su_dob, su_gender, su_identity_card, su_email, su_address, su_sign_userid, su_sign_passwd, su_sign_partner, su_sign_credential_id
+                    `, [
+                        name, phone, certificate, position, title, dob, gender, identityCard, email, address, 
+                        signUserid !== undefined ? String(signUserid).trim() : null, 
+                        signPasswd !== undefined ? String(signPasswd).trim() : null, 
+                        signPartner !== undefined ? String(signPartner).trim() : null, 
+                        signCredentialId !== undefined ? String(signCredentialId).trim() : null, 
+                        userId
+                    ]);
+
+                    if (retryRes.rows.length > 0) {
+                        return res.json({
+                            success: true,
+                            message: 'Cập nhật hồ sơ thành công',
+                            user: {
+                                userId: retryRes.rows[0].su_userid,
+                                name: retryRes.rows[0].su_name,
+                                phone: retryRes.rows[0].su_tel,
+                                certificate: retryRes.rows[0].su_certificate,
+                                position: retryRes.rows[0].su_position,
+                                title: retryRes.rows[0].su_title,
+                                dob: retryRes.rows[0].su_dob,
+                                gender: retryRes.rows[0].su_gender,
+                                identityCard: retryRes.rows[0].su_identity_card,
+                                email: retryRes.rows[0].su_email,
+                                address: retryRes.rows[0].su_address,
+                                signUserid: retryRes.rows[0].su_sign_userid,
+                                signPasswd: retryRes.rows[0].su_sign_passwd || '',
+                                signPartner: retryRes.rows[0].su_sign_partner,
+                                signCredentialId: retryRes.rows[0].su_sign_credential_id
+                            }
+                        });
+                    }
+                } catch (retryErr) {
+                    console.error('Retry with expanded columns failed, fallback to safe substring:', retryErr);
+                    try {
+                        const truncatedPosition = position ? String(position).trim().substring(0, 5) : null;
+                        const fallbackRes = await query(`
+                            UPDATE sys_user 
+                            SET 
+                                su_name = COALESCE($1, su_name),
+                                su_tel = COALESCE($2, su_tel),
+                                su_certificate = COALESCE($3, su_certificate),
+                                su_position = COALESCE($4, su_position),
+                                su_title = COALESCE($5, su_title),
+                                su_dob = COALESCE($6, su_dob),
+                                su_gender = COALESCE($7, su_gender),
+                                su_identity_card = COALESCE($8, su_identity_card),
+                                su_email = COALESCE($9, su_email),
+                                su_address = COALESCE($10, su_address),
+                                su_sign_userid = CASE WHEN $11::text IS NOT NULL THEN (CASE WHEN $11 = '' THEN NULL ELSE $11 END) ELSE su_sign_userid END,
+                                su_sign_passwd = CASE WHEN $12::text IS NOT NULL THEN (CASE WHEN $12 = '' THEN NULL ELSE $12 END) ELSE su_sign_passwd END,
+                                su_sign_partner = CASE WHEN $13::text IS NOT NULL THEN (CASE WHEN $13 = '' THEN NULL ELSE $13 END) ELSE su_sign_partner END,
+                                su_sign_credential_id = CASE WHEN $14::text IS NOT NULL THEN (CASE WHEN $14 = '' THEN NULL ELSE $14 END) ELSE su_sign_credential_id END
+                            WHERE su_userid = $15
+                            RETURNING su_userid, su_name, su_tel, su_certificate, su_position, su_title, su_dob, su_gender, su_identity_card, su_email, su_address, su_sign_userid, su_sign_passwd, su_sign_partner, su_sign_credential_id
+                        `, [
+                            name, phone, certificate, truncatedPosition, title, dob, gender, identityCard, email, address, 
+                            signUserid !== undefined ? String(signUserid).trim() : null, 
+                            signPasswd !== undefined ? String(signPasswd).trim() : null, 
+                            signPartner !== undefined ? String(signPartner).trim() : null, 
+                            signCredentialId !== undefined ? String(signCredentialId).trim() : null, 
+                            userId
+                        ]);
+
+                        if (fallbackRes.rows.length > 0) {
+                            return res.json({
+                                success: true,
+                                message: 'Cập nhật hồ sơ thành công',
+                                user: {
+                                    userId: fallbackRes.rows[0].su_userid,
+                                    name: fallbackRes.rows[0].su_name,
+                                    phone: fallbackRes.rows[0].su_tel,
+                                    certificate: fallbackRes.rows[0].su_certificate,
+                                    position: fallbackRes.rows[0].su_position,
+                                    title: fallbackRes.rows[0].su_title,
+                                    dob: fallbackRes.rows[0].su_dob,
+                                    gender: fallbackRes.rows[0].su_gender,
+                                    identityCard: fallbackRes.rows[0].su_identity_card,
+                                    email: fallbackRes.rows[0].su_email,
+                                    address: fallbackRes.rows[0].su_address,
+                                    signUserid: fallbackRes.rows[0].su_sign_userid,
+                                    signPasswd: fallbackRes.rows[0].su_sign_passwd || '',
+                                    signPartner: fallbackRes.rows[0].su_sign_partner,
+                                    signCredentialId: fallbackRes.rows[0].su_sign_credential_id
+                                }
+                            });
+                        }
+                    } catch (fbErr: any) {
+                        return res.status(500).json({ success: false, message: 'Lỗi hệ thống: ' + fbErr.message });
+                    }
+                }
+            }
+
             return res.status(500).json({
                 success: false,
                 message: 'Lỗi hệ thống: ' + error.message

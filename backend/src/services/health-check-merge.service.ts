@@ -176,6 +176,38 @@ export function mergeClinicalData(
     const incomingMeta = incomingClinicalExam.specialty_metadata || incomingSafe.specialty_metadata;
     const resolvedSpecialtyMetadata = mergeSpecialtyMetadata(existingMeta, incomingMeta);
 
+    // Synchronize Tuần hoàn aliases if incoming provided any
+    const inTim = incomingClinicalExam.kq_tim_mach !== undefined ? incomingClinicalExam.kq_tim_mach : (incomingClinicalExam.tim_mach !== undefined ? incomingClinicalExam.tim_mach : incomingClinicalExam.noi_khoa_tuan_hoan);
+    if (inTim !== undefined && inTim !== null && String(inTim).trim() !== '') {
+        const valTim = String(inTim).trim();
+        mergedClinicalExam.kq_tim_mach = valTim;
+        mergedClinicalExam.tim_mach = valTim;
+        mergedClinicalExam.noi_khoa_tuan_hoan = valTim;
+        mergedClinicalExam.tuan_hoan = valTim;
+        mergedClinicalExam.circulatory = valTim;
+    }
+
+    // Synchronize Hô hấp aliases if incoming provided any
+    const inHh = incomingClinicalExam.kq_ho_hap !== undefined ? incomingClinicalExam.kq_ho_hap : (incomingClinicalExam.ho_hap !== undefined ? incomingClinicalExam.ho_hap : incomingClinicalExam.noi_khoa_ho_hap);
+    if (inHh !== undefined && inHh !== null && String(inHh).trim() !== '') {
+        const valHh = String(inHh).trim();
+        mergedClinicalExam.kq_ho_hap = valHh;
+        mergedClinicalExam.ho_hap = valHh;
+        mergedClinicalExam.noi_khoa_ho_hap = valHh;
+        mergedClinicalExam.respiratory = valHh;
+        mergedClinicalExam.kq_lam_sang_ho_hap = valHh;
+    }
+
+    // Synchronize Da liễu aliases if incoming provided any
+    const inDl = incomingClinicalExam.kq_da_lieu !== undefined ? incomingClinicalExam.kq_da_lieu : (incomingClinicalExam.dermatology !== undefined ? incomingClinicalExam.dermatology : (incomingClinicalExam.kham_da_lieu !== undefined ? incomingClinicalExam.kham_da_lieu : incomingClinicalExam.da_lieu));
+    if (inDl !== undefined && inDl !== null && String(inDl).trim() !== '') {
+        const valDl = String(inDl).trim();
+        mergedClinicalExam.kq_da_lieu = valDl;
+        mergedClinicalExam.dermatology = valDl;
+        mergedClinicalExam.kham_da_lieu = valDl;
+        mergedClinicalExam.da_lieu = valDl;
+    }
+
     mergedClinicalExam.specialty_metadata = resolvedSpecialtyMetadata;
     merged.clinical_exam = mergedClinicalExam;
     merged.specialty_metadata = resolvedSpecialtyMetadata;

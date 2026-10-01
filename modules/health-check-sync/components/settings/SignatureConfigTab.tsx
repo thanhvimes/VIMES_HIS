@@ -135,9 +135,14 @@ export const SignatureConfigTab: React.FC<SignatureConfigTabProps> = ({
             {/* HSM configuration inputs */}
             {signatureType === 'HSM' && (
                 <div className="p-4 bg-slate-50 dark:bg-slate-700/20 border border-slate-200/50 dark:border-slate-700 rounded-lg space-y-4 animate-in slide-in-from-top-2 duration-200">
-                    <h4 className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        Cấu hình ký số tập trung HSM
-                    </h4>
+                    <div>
+                        <h4 className="text-xs font-extrabold text-teal-700 dark:text-teal-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <span>🏛️ Cấu hình chữ ký số HSM Cơ sở khám chữa bệnh / Bệnh viện (CKS_BENH_VIEN)</span>
+                        </h4>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-normal">
+                            * Lưu ý: Thông tin tài khoản kết nối dưới đây là chữ ký pháp nhân của Bệnh viện (dùng để ký đóng dấu đơn vị vào thẻ <code className="text-teal-600 font-bold">&lt;CKS_BENH_VIEN&gt;</code>). Chữ ký Người kết luận (<code className="text-blue-600 font-bold">&lt;CKS_NGUOI_KET_LUAN&gt;</code>) sẽ tự động lấy theo tài khoản chữ ký số cá nhân của người dùng đăng nhập trong danh mục nhân viên (<code className="font-bold">sys_user</code>).
+                        </p>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
                             <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Nhà cung cấp HSM</label>

@@ -22,6 +22,12 @@ export interface UserInfo {
     // Module permissions (HMS modules)
     modules: ModulePermissions;
 
+    // Digital Signature (sys_user)
+    signUserid?: string;
+    signPasswd?: string;
+    signPartner?: string;
+    signCredentialId?: string;
+
     // Metadata
     isActive: boolean;           // su_isactive
 }

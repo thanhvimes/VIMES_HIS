@@ -165,7 +165,7 @@ export class ContractsController {
     async getSigningPartners(req: Request, res: Response) {
         try {
             const result = await query(
-                `SELECT sign_partner, sign_url FROM hms_sign_serverconf ORDER BY sign_partner`
+                `SELECT sign_partner, sign_name, sign_url, sign_url_wan FROM hms_sign_serverconf ORDER BY sign_partner`
             );
             return res.json({
                 success: true,
@@ -176,8 +176,13 @@ export class ContractsController {
             return res.json({
                 success: true,
                 data: [
-                    { sign_partner: 'BCY', sign_url: 'http://vimes.xyz:8091' },
-                    { sign_partner: 'VNPT-CA', sign_url: 'http://vimes.xyz:8091' }
+                    { sign_partner: 'TOKEN', sign_name: 'Ký số USB Token', sign_url: '' },
+                    { sign_partner: 'USB', sign_name: 'Ký số USB', sign_url: '' },
+                    { sign_partner: 'BCY', sign_name: 'Ký số HSM Ban Cơ Yếu CP', sign_url: 'http://vimes.xyz:8091' },
+                    { sign_partner: 'VIETTEL', sign_name: 'Ký số mysign viettel', sign_url: 'http://vimes.xyz:8091' },
+                    { sign_partner: 'LOCAL', sign_name: 'Ký điện tử nội bộ', sign_url: '' },
+                    { sign_partner: 'USB_STAMP', sign_name: 'USB Con dấu điện tử', sign_url: '' },
+                    { sign_partner: 'VNPT-CA', sign_name: 'VNPT SmartCA', sign_url: 'http://vimes.xyz:8091' }
                 ]
             });
         }

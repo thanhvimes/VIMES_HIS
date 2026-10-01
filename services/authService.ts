@@ -26,6 +26,7 @@ export interface UserInfo {
     signUserid?: string;
     signPasswd?: string;
     signPartner?: string;
+    signCredentialId?: string;
 }
 
 export interface ModulePermissions {

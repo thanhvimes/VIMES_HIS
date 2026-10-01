@@ -23,17 +23,53 @@ interface UserProfileModalProps {
     onClose: () => void;
 }
 
+interface SigningPartner {
+    sign_partner: string;
+    sign_name?: string;
+    sign_url?: string;
+    sign_url_wan?: string;
+}
+
+const DEFAULT_SIGNING_PARTNERS: SigningPartner[] = [
+    { sign_partner: 'VIETTEL', sign_name: 'MySign', sign_url: 'https://api.viettel-ca.vn' },
+    { sign_partner: 'BCY', sign_name: 'Ban Cơ yếu', sign_url: 'https://ca.gov.vn' },
+    { sign_partner: 'TOKEN', sign_name: 'USB Token', sign_url: 'http://localhost:8080' },
+    { sign_partner: 'USB', sign_name: 'USB Token', sign_url: 'http://localhost:9999' },
+    { sign_partner: 'LOCAL', sign_name: 'Local', sign_url: 'http://localhost:5000' },
+    { sign_partner: 'USB_STAMP', sign_name: 'Ký dấu', sign_url: 'http://localhost:8080' },
+    { sign_partner: 'VNPT-CA', sign_name: 'SmartCA', sign_url: 'https://smartca.vnpt.vn' }
+];
+
+const formatPartnerLabel = (partner: string, name?: string): string => {
+    if (!name || name.trim() === partner.trim()) return partner;
+    const clean = name.trim();
+    if (/mysign/i.test(clean)) return `${partner} (MySign)`;
+    if (/ban cơ yếu|vgca/i.test(clean)) return `${partner} (Ban Cơ yếu)`;
+    if (/smartca/i.test(clean)) return `${partner} (SmartCA)`;
+    if (/đóng dấu|stamp/i.test(clean)) return `${partner} (Ký dấu)`;
+    if (/usb|token/i.test(clean)) return `${partner} (USB Token)`;
+    if (/local|nội bộ/i.test(clean)) return `${partner} (Local)`;
+    const shortened = clean.replace(/^(Ký số|Dịch vụ ký số|Hệ thống ký số)\s+/i, '');
+    return shortened ? `${partner} (${shortened})` : partner;
+};
+
 const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) => {
     const { user, userInfo, updateUserInfo } = useSession();
-    const [partners, setPartners] = useState<Array<{ sign_partner: string; sign_url: string }>>([]);
+    const [partners, setPartners] = useState<SigningPartner[]>(DEFAULT_SIGNING_PARTNERS);
+    const [showHsmPassword, setShowHsmPassword] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
             const loadPartners = async () => {
                 try {
                     const res = await healthCheckService.getSigningPartners();
-                    if (res.success && res.data) {
-                        setPartners(res.data);
+                    if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+                        const partnerMap = new Map<string, SigningPartner>();
+                        DEFAULT_SIGNING_PARTNERS.forEach(p => partnerMap.set(p.sign_partner, p));
+                        res.data.forEach((p: SigningPartner) => {
+                            partnerMap.set(p.sign_partner, { ...partnerMap.get(p.sign_partner), ...p });
+                        });
+                        setPartners(Array.from(partnerMap.values()));
                     }
                 } catch (error) {
                     console.error("Failed to load signing partners:", error);
@@ -89,7 +125,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
         // HSM Signing
         hsmUsername: userInfo?.signUserid || user?.signUserid || '',
         hsmPassword: userInfo?.signPasswd || user?.signPasswd || '',
-        hsmProvider: userInfo?.signPartner || user?.signPartner || ''
+        hsmProvider: userInfo?.signPartner || user?.signPartner || '',
+        signCredentialId: userInfo?.signCredentialId || user?.signCredentialId || ''
     });
 
     // Update form when session data loads
@@ -112,7 +149,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
                 address: userInfo?.address || user?.address || prev.address,
                 hsmUsername: userInfo?.signUserid || user?.signUserid || prev.hsmUsername,
                 hsmPassword: userInfo?.signPasswd || user?.signPasswd || prev.hsmPassword,
-                hsmProvider: userInfo?.signPartner || user?.signPartner || prev.hsmProvider
+                hsmProvider: userInfo?.signPartner || user?.signPartner || prev.hsmProvider,
+                signCredentialId: userInfo?.signCredentialId || user?.signCredentialId || prev.signCredentialId
             }));
         }
     }, [isOpen, user, userInfo]);
@@ -155,7 +193,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
                 address: formData.address,
                 signUserid: formData.hsmUsername,
                 signPasswd: formData.hsmPassword,
-                signPartner: formData.hsmProvider
+                signPartner: formData.hsmProvider,
+                signCredentialId: formData.signCredentialId
             };
 
             const response = await authService.updateProfile(updateData);
@@ -368,66 +407,128 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
                                         <label className={labelClass}>Phạm vi hoạt động chuyên môn</label>
                                         <textarea name="scopeOfPractice" value={formData.scopeOfPractice} onChange={handleChange} rows={3} className={inputClass} placeholder="Mô tả phạm vi chuyên môn được cấp phép..."></textarea>
                                     </div>
-                                    <div>
-                                        <label className={labelClass}>Trạng thái Chữ ký số (Digital Signature)</label>
-                                        <div className="flex items-center gap-3 p-3 border border-slate-200 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-800">
-                                            <div className="w-3 h-3 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
-                                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{formData.digitalSignatureStatus}</span>
-                                            <button type="button" className="ml-auto text-xs text-blue-600 hover:underline">Cấu hình Token</button>
-                                        </div>
-                                    </div>
-                                    <div className="border-t border-dashed border-slate-200 dark:border-slate-700 pt-4 mt-4 space-y-4">
-                                        <h4 className="text-xs font-extrabold text-[#0f766e] dark:text-teal-400 uppercase tracking-wider">
-                                            Tài khoản ký số HSM cá nhân
-                                        </h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {/* Khung cấu hình Chữ ký số cá nhân sys_user */}
+                                    <div className="border border-slate-200 dark:border-slate-700/80 rounded-xl p-4 bg-slate-50/70 dark:bg-slate-800/40 space-y-4">
+                                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-700 pb-3">
+                                            <div className="flex items-center gap-2">
+                                                <KeyIcon className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                                                <h4 className="text-xs font-extrabold text-teal-800 dark:text-teal-300 uppercase tracking-wider">
+                                                    Tài khoản ký số cá nhân
+                                                </h4>
+                                            </div>
                                             <div>
-                                                <label className={labelClass}>Nhà cung cấp HSM</label>
+                                                {formData.hsmProvider ? (
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                                                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                                        Đã cấu hình: {formData.hsmProvider}
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                                        Chưa chọn nhà cung cấp
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className={labelClass}>
+                                                    Nhà cung cấp <span className="text-red-500">*</span>
+                                                </label>
                                                 <select
                                                     name="hsmProvider"
                                                     value={formData.hsmProvider}
                                                     onChange={handleChange}
-                                                    className={inputClass}
+                                                    className={`${inputClass} font-semibold text-teal-900 dark:text-teal-200 cursor-pointer`}
                                                 >
                                                     <option value="">-- Chọn nhà cung cấp --</option>
-                                                    {partners.length > 0 ? (
-                                                        partners.map(p => (
-                                                            <option key={p.sign_partner} value={p.sign_partner}>
-                                                                {p.sign_partner}
-                                                            </option>
-                                                        ))
-                                                    ) : (
-                                                        <>
-                                                            <option value="VNPT-CA">VNPT-CA HSM</option>
-                                                            <option value="VIETTEL-CA">Viettel-CA Cloud CA</option>
-                                                            <option value="MISA-ESIGN">MISA eSign HSM</option>
-                                                            <option value="BKAV-CA">BKAV-CA HSM</option>
-                                                        </>
+                                                    {partners.map(p => (
+                                                        <option key={p.sign_partner} value={p.sign_partner}>
+                                                            {formatPartnerLabel(p.sign_partner, p.sign_name)}
+                                                        </option>
+                                                    ))}
+                                                    {/* Fallback if user has a custom provider not currently in list */}
+                                                    {formData.hsmProvider && !partners.some(p => p.sign_partner === formData.hsmProvider) && (
+                                                        <option value={formData.hsmProvider}>{formData.hsmProvider}</option>
                                                     )}
                                                 </select>
+                                                {(() => {
+                                                    const activePartner = partners.find(p => p.sign_partner === formData.hsmProvider);
+                                                    const targetUrl = activePartner?.sign_url || activePartner?.sign_url_wan;
+                                                    return targetUrl ? (
+                                                        <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block truncate">
+                                                            Cổng kết nối: <code className="text-teal-600 dark:text-teal-400 font-mono text-[10px]">{targetUrl}</code>
+                                                        </span>
+                                                    ) : null;
+                                                })()}
                                             </div>
+
                                             <div>
-                                                <label className={labelClass}>Tài khoản HSM (Username)</label>
+                                                <label className={labelClass}>
+                                                    Tài khoản ký / CCCD
+                                                </label>
                                                 <input
                                                     type="text"
                                                     name="hsmUsername"
                                                     value={formData.hsmUsername}
                                                     onChange={handleChange}
                                                     className={inputClass}
-                                                    placeholder="Nhập tên đăng nhập ký HSM..."
+                                                    placeholder="Tên đăng nhập HSM hoặc số CCCD..."
                                                 />
                                             </div>
+
                                             <div>
-                                                <label className={labelClass}>Mật khẩu ký HSM</label>
+                                                <label className={labelClass}>
+                                                    Mật khẩu ký (PIN)
+                                                </label>
+                                                <div className="relative">
+                                                    <input
+                                                        type={showHsmPassword ? 'text' : 'password'}
+                                                        name="hsmPassword"
+                                                        value={formData.hsmPassword}
+                                                        onChange={handleChange}
+                                                        className={`${inputClass} pr-10`}
+                                                        placeholder={formData.hsmPassword ? '••••••••' : 'Nhập mã PIN hoặc mật khẩu ký...'}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowHsmPassword(!showHsmPassword)}
+                                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
+                                                        title={showHsmPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                                                    >
+                                                        {showHsmPassword ? (
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                                                            </svg>
+                                                        ) : (
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                            </svg>
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label className={labelClass}>
+                                                    Mã chứng thư (Credential ID)
+                                                </label>
                                                 <input
-                                                    type="password"
-                                                    name="hsmPassword"
-                                                    value={formData.hsmPassword}
+                                                    type="text"
+                                                    name="signCredentialId"
+                                                    value={formData.signCredentialId}
                                                     onChange={handleChange}
                                                     className={inputClass}
-                                                    placeholder={formData.hsmPassword ? '******' : 'Nhập mật khẩu ký HSM...'}
+                                                    placeholder="Mã định danh (tùy chọn)..."
                                                 />
                                             </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 p-2 rounded-lg bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200/50 dark:border-teal-800/40 text-[11px] text-teal-800 dark:text-teal-300">
+                                            <span className="font-bold shrink-0">Ghi chú:</span>
+                                            <span>Lưu vào hệ thống <code className="font-mono font-bold">sys_user</code>, tự động dùng khi ký kết luận khám.</span>
                                         </div>
                                     </div>
                                 </div>

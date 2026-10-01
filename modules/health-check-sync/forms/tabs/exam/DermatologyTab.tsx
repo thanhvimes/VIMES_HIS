@@ -6,6 +6,7 @@ const DermatologyTab: React.FC = () => {
     const {
         formType,
         kqDaLieu, setKqDaLieu,
+        dermatologyExam, setDermatologyExam,
         khamDaLieuPl, setKhamDaLieuPl,
         isLocked,
         handleAutofillTab,
@@ -32,7 +33,10 @@ const DermatologyTab: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">Kết quả Da liễu</label>
-                    <textarea value={kqDaLieu} onChange={e => setKqDaLieu(e.target.value)} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 h-24" />
+                    <textarea value={kqDaLieu} onChange={e => {
+                        setKqDaLieu(e.target.value);
+                        setDermatologyExam(e.target.value);
+                    }} className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 h-24" />
                 </div>
                 <div>
                     <label className="block text-xs font-bold text-slate-500 mb-1">Phân loại Da Liễu</label>

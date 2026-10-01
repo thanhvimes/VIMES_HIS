@@ -880,16 +880,17 @@ class DocumentsController {
             const intIds = Array.from(new Set(docIds.map((id: any) => parseInt(id, 10)))).filter((id: number) => Number.isInteger(id) && id > 0);
             if (intIds.length === 0) return res.status(400).json({ error: 'Danh sách ID hồ sơ không hợp lệ.' });
 
-            const currentUserId = (req as any).userId;
-            let signerId = doctorId || currentUserId || '';
-            let signerName = doctorName || '';
+            const currentUserId = ((req as any).userId || (req as any).user?.userId || '').trim();
+            let signerId = (doctorId || currentUserId || '').trim();
+            let signerName = (doctorName || '').trim();
             let doctorSignUserId = '';
             let doctorCredentialId = '';
-            let doctorSignPartner = 'VIETTEL-CA';
+            let doctorSignPartner = 'VIETTEL';
+            let doctorSignPasswd = '';
 
             if (signerId) {
                 const userRes = await query(`
-                    SELECT su_userid, su_name, su_sign_userid, su_sign_credential_id, su_sign_partner 
+                    SELECT su_userid, su_name, su_sign_userid, su_sign_passwd, su_sign_credential_id, su_sign_partner 
                     FROM sys_user 
                     WHERE su_userid = $1 OR su_sign_userid = $1
                     LIMIT 1
@@ -899,12 +900,27 @@ class DocumentsController {
                     signerName = signerName || u.su_name || 'Bác sĩ kết luận';
                     signerId = u.su_userid;
                     doctorSignUserId = u.su_sign_userid || '';
+                    doctorSignPasswd = u.su_sign_passwd || '';
                     doctorCredentialId = u.su_sign_credential_id || '';
-                    doctorSignPartner = u.su_sign_partner === 'VIETTEL' ? 'VIETTEL-CA' : (u.su_sign_partner || 'VIETTEL-CA');
+                    doctorSignPartner = u.su_sign_partner || 'VIETTEL';
                 }
             }
 
             if (!signerName) signerName = 'Bác sĩ kết luận';
+
+            // Quy tắc nghiệp vụ: Chữ ký người kết luận nếu chọn HSM thì BẮT BUỘC lấy thông tin của user đăng nhập vào hệ thống
+            if (signatureType === 'HSM') {
+                if (!signerId) {
+                    return res.status(400).json({
+                        error: 'Không xác định được danh tính người dùng/Bác sĩ kết luận để ký số HSM. Vui lòng đăng nhập lại.'
+                    });
+                }
+                if (!doctorSignUserId || !doctorSignPasswd) {
+                    return res.status(400).json({
+                        error: `Người dùng [${signerId} - ${signerName}] chưa được cấu hình tài khoản và mật khẩu chữ ký số HSM cá nhân trong hệ thống (sys_user). Vui lòng cập nhật thông tin chữ ký số của người dùng trước khi ký kết luận.`
+                    });
+                }
+            }
 
             const succeeded: any[] = [];
             const failed: any[] = [];
@@ -975,23 +991,32 @@ class DocumentsController {
 
                     // Nếu chưa có chữ ký từ client/USB token và người dùng chọn HSM:
                     if (!docSigBase64 && signatureType === 'HSM') {
-                        try {
-                            const { signXmlViaHisHsm } = require('../../services/his-sign.service');
-                            const { loadHealthCheckSettings, getHealthCheckSettings } = require('../../config/health-check-settings');
-                            const freshSettings = await loadHealthCheckSettings();
-                            const settings = freshSettings || { ...getHealthCheckSettings() };
-                            const step1 = healthCheckTwoTierSigner.getStep1Hash(xml);
-                            const signedDoctorXml = await signXmlViaHisHsm(step1.preparedXml, settings, `${doc.doc_no || id}_bs`);
-                            docSigBase64 = healthCheckTwoTierSigner.extractCleanSignatureValue(signedDoctorXml);
-                        } catch (hsmErr: any) {
-                            console.warn(`[BatchSignConclusion] Ký HSM cho Bác sĩ kết luận thất bại, chuyển fallback:`, hsmErr.message);
+                        const { signXmlViaHisHsm } = require('../../services/his-sign.service');
+                        const { loadHealthCheckSettings, getHealthCheckSettings } = require('../../config/health-check-settings');
+                        const freshSettings = await loadHealthCheckSettings();
+                        const hospitalSettings: any = { ...(freshSettings || getHealthCheckSettings()) };
+
+                        // Cấu hình ký số Bác sĩ kết luận: 100% từ thông tin tài khoản user đăng nhập trong sys_user
+                        const doctorHsmSettings = {
+                            hsm_url: hospitalSettings.hsm_url || 'http://192.168.0.220:8091/api/v1/Signature',
+                            hsm_provider: doctorSignPartner,
+                            hsm_username: doctorSignUserId,
+                            hsm_password: doctorSignPasswd,
+                            hsm_client_secret: doctorCredentialId,
+                            hsm_client_id: ''
+                        };
+
+                        const step1 = healthCheckTwoTierSigner.getStep1Hash(xml);
+                        const signedDoctorXml = await signXmlViaHisHsm(step1.preparedXml, doctorHsmSettings, `${doc.doc_no || id}_bs`);
+                        docSigBase64 = healthCheckTwoTierSigner.extractCleanSignatureValue(signedDoctorXml);
+
+                        if (!docSigBase64) {
+                            throw new Error(`Máy chủ HSM không trả về chữ ký số hợp lệ cho Bác sĩ kết luận [${signerId} - ${signerName}].`);
                         }
                     }
 
-                    // Nếu vẫn chưa có, băm SHA-256 nội dung bước 1 tạo chuỗi Base64 chữ ký số chuẩn
                     if (!docSigBase64) {
-                        const step1 = healthCheckTwoTierSigner.getStep1Hash(xml);
-                        docSigBase64 = step1.hashBase64;
+                        throw new Error('Chưa có dữ liệu chữ ký số hợp lệ của Bác sĩ kết luận.');
                     }
 
                     // Chuẩn hóa trích xuất giá trị chữ ký thuần
@@ -1092,7 +1117,16 @@ class DocumentsController {
             const { signXmlViaHisHsm } = require('../../services/his-sign.service');
             const { loadHealthCheckSettings, getHealthCheckSettings } = require('../../config/health-check-settings');
             const freshSettings = await loadHealthCheckSettings();
-            const settings = freshSettings || { ...getHealthCheckSettings() };
+            const hospitalSettings: any = { ...(freshSettings || getHealthCheckSettings()) };
+
+            // Quy tắc nghiệp vụ: Chữ ký CSKCB (Bệnh viện) BẮT BUỘC lấy từ thông tin trong Thiết lập chữ ký số (health_check_settings)
+            if (type === 'HSM') {
+                if (!hospitalSettings.hsm_username || !hospitalSettings.hsm_password) {
+                    return res.status(400).json({
+                        error: 'Chưa thiết lập tài khoản chữ ký số HSM của bệnh viện/CSKCB. Vui lòng cấu hình tài khoản và mật khẩu HSM trong Cấu hình liên thông -> Thiết lập chữ ký.'
+                    });
+                }
+            }
 
             const succeeded: any[] = [];
             const failed: any[] = [];
@@ -1157,14 +1191,14 @@ class DocumentsController {
                             }
                         });
                     } else {
-                        // Ký số HSM đơn vị
+                        // Ký số HSM đơn vị (CSKCB): Lấy 100% từ cấu hình bệnh viện trong Thiết lập chữ ký số (health_check_settings)
                         const step2 = healthCheckTwoTierSigner.getStep2Hash(xml);
-                        const signedXmlBase64 = await signXmlViaHisHsm(step2.preparedXml, settings, doc.doc_no || `ksk_${id}`);
+                        const signedXmlBase64 = await signXmlViaHisHsm(step2.preparedXml, hospitalSettings, doc.doc_no || `ksk_${id}`);
                         
                         // Trích xuất giá trị chữ ký thuần (SignatureValue), tuyệt đối không dán cả file XML vào CKS_BENH_VIEN
                         const hospitalSigVal = healthCheckTwoTierSigner.extractCleanSignatureValue(signedXmlBase64);
                         if (!hospitalSigVal) {
-                            throw new Error('Máy chủ HSM không trả về chữ ký số hợp lệ cho đơn vị');
+                            throw new Error('Máy chủ HSM không trả về chữ ký số hợp lệ cho đơn vị (Bệnh viện)');
                         }
 
                         fullySignedXml = healthCheckTwoTierSigner.applyHospitalSignature(xml, hospitalSigVal);

@@ -549,18 +549,63 @@ const HealthCheckSyncView: React.FC = () => {
             }
         }
 
-        const unifiedClinicalExam = {
+        const unifiedClinicalExam: Record<string, any> = {
             ...clinicalExam,
             specialty_metadata: mergedSpecMeta
         };
 
-        const unifiedClinical = {
+        const unifiedClinical: Record<string, any> = {
             ...rawClinical,
             examination: { ...examination },
             clinical_exam: unifiedClinicalExam,
             extra: { ...extra },
             specialty_metadata: mergedSpecMeta
         };
+
+        // Normalize Tuần hoàn, Hô hấp, Da liễu across all aliases for print forms
+        const effectiveTim = String(clinicalExam.kq_tim_mach || clinicalExam.tim_mach || clinicalExam.noi_khoa_tuan_hoan || clinicalExam.tuan_hoan || clinicalExam.circulatory || rawClinical.noi_khoa_tuan_hoan || rawClinical.tim_mach || rawClinical.kq_tim_mach || rawClinical.tuan_hoan || '').trim();
+        const effectiveHh = String(clinicalExam.kq_ho_hap || clinicalExam.ho_hap || clinicalExam.noi_khoa_ho_hap || clinicalExam.respiratory || clinicalExam.kq_lam_sang_ho_hap || rawClinical.noi_khoa_ho_hap || rawClinical.ho_hap || rawClinical.kq_ho_hap || rawClinical.kq_lam_sang_ho_hap || '').trim();
+        const effectiveDl = String(clinicalExam.kq_da_lieu || clinicalExam.dermatology || clinicalExam.kham_da_lieu || clinicalExam.da_lieu || rawClinical.kq_da_lieu || rawClinical.dermatology || rawClinical.kham_da_lieu || rawClinical.da_lieu || '').trim();
+
+        if (effectiveTim) {
+            unifiedClinicalExam.kq_tim_mach = effectiveTim;
+            unifiedClinicalExam.tim_mach = effectiveTim;
+            unifiedClinicalExam.noi_khoa_tuan_hoan = effectiveTim;
+            unifiedClinicalExam.tuan_hoan = effectiveTim;
+            unifiedClinicalExam.circulatory = effectiveTim;
+
+            unifiedClinical.noi_khoa_tuan_hoan = effectiveTim;
+            unifiedClinical.tim_mach = effectiveTim;
+            unifiedClinical.kq_tim_mach = effectiveTim;
+            unifiedClinical.tuan_hoan = effectiveTim;
+            unifiedClinical.circulatory = effectiveTim;
+        }
+
+        if (effectiveHh) {
+            unifiedClinicalExam.kq_ho_hap = effectiveHh;
+            unifiedClinicalExam.ho_hap = effectiveHh;
+            unifiedClinicalExam.noi_khoa_ho_hap = effectiveHh;
+            unifiedClinicalExam.respiratory = effectiveHh;
+            unifiedClinicalExam.kq_lam_sang_ho_hap = effectiveHh;
+
+            unifiedClinical.noi_khoa_ho_hap = effectiveHh;
+            unifiedClinical.ho_hap = effectiveHh;
+            unifiedClinical.kq_ho_hap = effectiveHh;
+            unifiedClinical.kq_lam_sang_ho_hap = effectiveHh;
+            unifiedClinical.respiratory = effectiveHh;
+        }
+
+        if (effectiveDl) {
+            unifiedClinicalExam.kq_da_lieu = effectiveDl;
+            unifiedClinicalExam.dermatology = effectiveDl;
+            unifiedClinicalExam.kham_da_lieu = effectiveDl;
+            unifiedClinicalExam.da_lieu = effectiveDl;
+
+            unifiedClinical.kq_da_lieu = effectiveDl;
+            unifiedClinical.dermatology = effectiveDl;
+            unifiedClinical.kham_da_lieu = effectiveDl;
+            unifiedClinical.da_lieu = effectiveDl;
+        }
 
         return {
             ...doc,

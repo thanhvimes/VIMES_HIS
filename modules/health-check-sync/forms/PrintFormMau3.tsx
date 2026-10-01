@@ -174,10 +174,10 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
             return !!(clinical.ham_tren || clinical.ham_duoi || clinical.kham_rang_ham_mat || clinical.benh_rang_ham_mat || clinical.benh_khac_rang_ham_mat || clinical.kham_rang_ham_mat_pl);
         }
         if (specKey === 'tuan_hoan' || specKey === 'circulatory') {
-            return !!(clinical.noi_khoa_tuan_hoan || clinical.tim_mach || clinical.kq_tim_mach || clinical.noi_khoa_tuan_hoan_pl);
+            return !!(clinical.kq_tim_mach || clinical.tim_mach || clinical.noi_khoa_tuan_hoan || clinical.tuan_hoan || clinical.circulatory || clinical.noi_khoa_tuan_hoan_pl);
         }
         if (specKey === 'ho_hap' || specKey === 'respiratory') {
-            return !!(clinical.noi_khoa_ho_hap || clinical.kq_lam_sang_ho_hap || clinical.ho_hap || clinical.noi_khoa_ho_hap_pl);
+            return !!(clinical.kq_ho_hap || clinical.ho_hap || clinical.noi_khoa_ho_hap || clinical.kq_lam_sang_ho_hap || clinical.respiratory || clinical.noi_khoa_ho_hap_pl);
         }
         if (specKey === 'tieu_hoa' || specKey === 'digestive') {
             return !!(clinical.noi_khoa_tieu_hoa || clinical.kq_tieu_hoa || clinical.noi_khoa_tieu_hoa_pl);
@@ -206,7 +206,7 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
             );
         }
         if (specKey === 'dermatology' || specKey === 'da_lieu') {
-            return !!(clinical.dermatology || clinical.kq_da_lieu || clinical.kham_da_lieu || clinical.kham_da_lieu_pl);
+            return !!(clinical.kq_da_lieu || clinical.dermatology || clinical.kham_da_lieu || clinical.da_lieu || clinical.kham_da_lieu_pl);
         }
         return false;
     };
@@ -1089,7 +1089,7 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                                     <tr>
                                         <td className="border border-black p-1 font-bold align-top">5. Tim mạch</td>
                                         <td className="border border-black p-1 align-top">
-                                            <div>{clinical.noi_khoa_tuan_hoan || clinical.tim_mach || clinical.kq_tim_mach || (hasSpecialtyExamined('tuan_hoan') ? 'Bình thường' : '')}</div>
+                                            <div>{clinical.kq_tim_mach || clinical.noi_khoa_tuan_hoan || clinical.tim_mach || clinical.tuan_hoan || clinical.circulatory || (hasSpecialtyExamined('tuan_hoan') ? 'Bình thường' : '')}</div>
                                         </td>
                                         {renderDoctorSignCell('tuan_hoan', 'circulatory')}
                                     </tr>
@@ -1098,7 +1098,7 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                                     <tr>
                                         <td className="border border-black p-1 font-bold align-top">6. Hô hấp</td>
                                         <td className="border border-black p-1 align-top">
-                                            <div>{clinical.noi_khoa_ho_hap || clinical.kq_lam_sang_ho_hap || clinical.ho_hap || (hasSpecialtyExamined('ho_hap') ? 'Bình thường' : '')}</div>
+                                            <div>{clinical.kq_ho_hap || clinical.noi_khoa_ho_hap || clinical.ho_hap || clinical.kq_lam_sang_ho_hap || clinical.respiratory || (hasSpecialtyExamined('ho_hap') ? 'Bình thường' : '')}</div>
                                         </td>
                                         {renderDoctorSignCell('ho_hap', 'respiratory')}
                                     </tr>
@@ -1142,13 +1142,13 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                                     </tr>
                                     <tr>
                                         <td className="border border-black p-1 pl-3 align-top font-medium">a) Tuần hoàn</td>
-                                        <td className="border border-black p-1 align-top">{clinical.noi_khoa_tuan_hoan || clinical.tim_mach || clinical.kq_tim_mach || (hasSpecialtyExamined('tuan_hoan') ? 'Bình thường' : '')}</td>
+                                        <td className="border border-black p-1 align-top">{clinical.kq_tim_mach || clinical.noi_khoa_tuan_hoan || clinical.tim_mach || clinical.tuan_hoan || clinical.circulatory || (hasSpecialtyExamined('tuan_hoan') ? 'Bình thường' : '')}</td>
                                         <td className="border border-black p-1 text-center align-top font-semibold">{formatPl(clinical.noi_khoa_tuan_hoan_pl)}</td>
                                         {renderDoctorSignCell('tuan_hoan', 'circulatory')}
                                     </tr>
                                     <tr>
                                         <td className="border border-black p-1 pl-3 align-top font-medium">b) Hô hấp</td>
-                                        <td className="border border-black p-1 align-top">{clinical.noi_khoa_ho_hap || clinical.ho_hap || clinical.kq_ho_hap || (hasSpecialtyExamined('ho_hap') ? 'Bình thường' : '')}</td>
+                                        <td className="border border-black p-1 align-top">{clinical.kq_ho_hap || clinical.noi_khoa_ho_hap || clinical.ho_hap || clinical.kq_lam_sang_ho_hap || clinical.respiratory || (hasSpecialtyExamined('ho_hap') ? 'Bình thường' : '')}</td>
                                         <td className="border border-black p-1 text-center align-top font-semibold">{formatPl(clinical.noi_khoa_ho_hap_pl)}</td>
                                         {renderDoctorSignCell('ho_hap', 'respiratory')}
                                     </tr>
@@ -1293,7 +1293,7 @@ export const PrintFormMau3: React.FC<PrintFormMau3Props> = ({
                                     {/* 7. Da liễu */}
                                     <tr>
                                         <td className="border border-black p-1 font-bold align-top">7. Da liễu</td>
-                                        <td className="border border-black p-1 align-top">{clinical.dermatology || clinical.kq_da_lieu || clinical.kham_da_lieu || (hasSpecialtyExamined('dermatology') ? 'Bình thường' : '')}</td>
+                                        <td className="border border-black p-1 align-top">{clinical.kq_da_lieu || clinical.dermatology || clinical.kham_da_lieu || clinical.da_lieu || (hasSpecialtyExamined('dermatology') ? 'Bình thường' : '')}</td>
                                         <td className="border border-black p-1 text-center align-top font-semibold">{formatPl(clinical.kham_da_lieu_pl)}</td>
                                         {renderDoctorSignCell('dermatology', 'da_lieu')}
                                     </tr>

@@ -97,7 +97,11 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
                         avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(info.name)}&background=0ea5e9&color=fff`,
                         token: authService.getToken() || '',
                         permissions: info.permissions || [],
-                        modules: info.modules || {}
+                        modules: info.modules || {},
+                        signPartner: info.signPartner,
+                        signUserid: info.signUserid,
+                        signPasswd: info.signPasswd,
+                        signCredentialId: info.signCredentialId
                     };
                     setUser(legacyUser);
                     sessionStorage.setItem('currentUser', JSON.stringify(legacyUser));
@@ -144,7 +148,11 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
                     avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(response.user.name)}&background=0ea5e9&color=fff`,
                     token: response.token,
                     permissions: response.user.permissions || [],
-                    modules: response.user.modules || {}
+                    modules: response.user.modules || {},
+                    signPartner: response.user.signPartner,
+                    signUserid: response.user.signUserid,
+                    signPasswd: response.user.signPasswd,
+                    signCredentialId: response.user.signCredentialId
                 };
 
                 setUser(legacyUser);
@@ -198,7 +206,11 @@ export const SessionProvider: React.FC<{ children: ReactNode }> = ({ children })
                 const updatedLegacy = {
                     ...user,
                     fullName: updatedInfo.name || user.fullName,
-                    title: updatedInfo.title || user.title
+                    title: updatedInfo.title || user.title,
+                    signPartner: updatedInfo.signPartner !== undefined ? updatedInfo.signPartner : user.signPartner,
+                    signUserid: updatedInfo.signUserid !== undefined ? updatedInfo.signUserid : user.signUserid,
+                    signPasswd: updatedInfo.signPasswd !== undefined ? updatedInfo.signPasswd : user.signPasswd,
+                    signCredentialId: updatedInfo.signCredentialId !== undefined ? updatedInfo.signCredentialId : user.signCredentialId
                 };
                 setUser(updatedLegacy);
                 sessionStorage.setItem('currentUser', JSON.stringify(updatedLegacy));

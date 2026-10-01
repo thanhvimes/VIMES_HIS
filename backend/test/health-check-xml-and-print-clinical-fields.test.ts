@@ -189,3 +189,56 @@ test('generateXmlPayload for Minor (Mẫu 2) embeds specialty findings instead o
     assert.doesNotMatch(xml, /<NHI_KHOA_HO_HAP>Bình thường<\/NHI_KHOA_HO_HAP>/);
     assert.doesNotMatch(xml, /<NHI_KHOA_TUAN_HOAN>Bình thường<\/NHI_KHOA_TUAN_HOAN>/);
 });
+
+test('mergeClinicalData and XML generation properly synchronize Tuần hoàn, Hô hấp, Da liễu and overwrite stale aliases', async () => {
+    const { mergeClinicalData } = await import('../src/services/health-check-merge.service');
+
+    // Existing state from HIS/DB with old/stale data in alias fields
+    const existingDbClinical = {
+        clinical_exam: {
+            noi_khoa_tuan_hoan: 'Tiếng T1 T2 mờ, nhịp chậm 55 l/p',
+            tim_mach: 'Tiếng T1 T2 mờ, nhịp chậm 55 l/p',
+            noi_khoa_ho_hap: 'Rale ẩm rải rác đáy phổi',
+            ho_hap: 'Rale ẩm rải rác đáy phổi',
+            dermatology: 'Viêm da cơ địa dị ứng',
+            kham_da_lieu: 'Viêm da cơ địa dị ứng'
+        }
+    };
+
+    // Incoming action from autofill: sets kq_tim_mach, kq_ho_hap, kq_da_lieu
+    const incomingAutofill = {
+        clinical_exam: {
+            kq_tim_mach: 'Bình thường',
+            kq_ho_hap: 'Bình thường',
+            kq_da_lieu: 'Da sạch, không sẹo lồi, không nấm ngứa'
+        }
+    };
+
+    const merged = mergeClinicalData(existingDbClinical, incomingAutofill);
+
+    // 1. Verify all Tuần hoàn aliases are synchronized to 'Bình thường'
+    assert.equal(merged.clinical_exam.kq_tim_mach, 'Bình thường');
+    assert.equal(merged.clinical_exam.tim_mach, 'Bình thường');
+    assert.equal(merged.clinical_exam.noi_khoa_tuan_hoan, 'Bình thường');
+    assert.equal(merged.clinical_exam.tuan_hoan, 'Bình thường');
+    assert.equal(merged.clinical_exam.circulatory, 'Bình thường');
+
+    // 2. Verify all Hô hấp aliases are synchronized to 'Bình thường'
+    assert.equal(merged.clinical_exam.kq_ho_hap, 'Bình thường');
+    assert.equal(merged.clinical_exam.ho_hap, 'Bình thường');
+    assert.equal(merged.clinical_exam.noi_khoa_ho_hap, 'Bình thường');
+    assert.equal(merged.clinical_exam.respiratory, 'Bình thường');
+    assert.equal(merged.clinical_exam.kq_lam_sang_ho_hap, 'Bình thường');
+
+    // 3. Verify all Da liễu aliases are synchronized to 'Da sạch, không sẹo lồi, không nấm ngứa'
+    assert.equal(merged.clinical_exam.kq_da_lieu, 'Da sạch, không sẹo lồi, không nấm ngứa');
+    assert.equal(merged.clinical_exam.dermatology, 'Da sạch, không sẹo lồi, không nấm ngứa');
+    assert.equal(merged.clinical_exam.kham_da_lieu, 'Da sạch, không sẹo lồi, không nấm ngứa');
+    assert.equal(merged.clinical_exam.da_lieu, 'Da sạch, không sẹo lồi, không nấm ngứa');
+
+    // 4. Verify findValue for XML generation produces consistent values
+    assert.equal(findValue('NOI_KHOA_TUAN_HOAN', merged), 'Bình thường');
+    assert.equal(findValue('NOI_KHOA_HO_HAP', merged), 'Bình thường');
+    assert.equal(findValue('DA_LIEU', merged), 'Da sạch, không sẹo lồi, không nấm ngứa');
+});
+
