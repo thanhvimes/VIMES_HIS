@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import FeeTab from '../tabs/FeeTab';
 import ConfirmationModal from '../../../../components/ui/ConfirmationModal';
+import { parseDateSafe } from '../../../../utils/formatters';
 
 interface ChildFormProps {
     initialData?: any;
@@ -128,7 +129,7 @@ const ChildForm: React.FC<ChildFormProps> = ({
                             {dob && (
                                 <div className="flex items-center gap-1.5">
                                     <span className="text-[11px] font-extrabold uppercase text-teal-200 tracking-wider">Năm sinh:</span>
-                                    <span className="font-bold text-white text-sm">{new Date(dob).getFullYear()}</span>
+                                    <span className="font-bold text-white text-sm">{parseDateSafe(dob)?.getFullYear() || dob?.slice(0, 4) || '---'}</span>
                                 </div>
                             )}
                             {gender && (

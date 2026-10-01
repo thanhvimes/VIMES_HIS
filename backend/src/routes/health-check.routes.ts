@@ -106,6 +106,7 @@ router.post('/contracts/:id/cleanup-unreceived', contractsController.cleanupUnre
 router.get('/contracts/:id/report-summary', contractsController.getContractReportSummary.bind(contractsController));
 router.post('/contracts/:id/import-his-docs', contractsController.importHisDocsToContract.bind(contractsController));
 router.post('/contracts/:id/sync-cls', contractsController.syncContractParaclinicalResults.bind(contractsController));
+router.post('/contracts/:id/batch-update', contractsController.batchUpdateContract.bind(contractsController));
 router.get('/contracts/:id/employees', employeesController.getContractEmployees.bind(employeesController));
 router.post('/contracts/:id/employees/import', employeesController.importEmployees.bind(employeesController));
 router.post('/contracts/:id/receive-all', receptionController.receiveAllContractEmployees.bind(receptionController));

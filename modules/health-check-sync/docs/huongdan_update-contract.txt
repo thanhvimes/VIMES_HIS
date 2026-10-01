@@ -1,0 +1,20 @@
+# Cập nhật ngày khám sang ngày 20/09/2026 cho gói #160:
+npx ts-node scripts/update-contract-address.ts --contract=160 --date="2026-09-20"
+
+# Chỉ định rõ cả giờ phút tiếp nhận (ví dụ 08:30 sáng):
+npx ts-node scripts/update-contract-address.ts --contract=160 --date="2026-09-20 08:30"
+
+# Cập nhật phòng khám bằng ID (VD: phòng 551 - Khám Sức Khỏe Toàn Dân):
+npx ts-node scripts/update-contract-address.ts --contract=160 --room=551
+
+# Hoặc tự động tìm theo tên phòng:
+npx ts-node scripts/update-contract-address.ts --contract=160 --room="Khám Hợp Đồng"
+
+# Chạy thử mô phỏng (Dry-run) để kiểm tra các bản ghi trước:
+npx ts-node scripts/update-contract-address.ts --contract=160 --date="2026-09-20" --room=551 --address="Thị trấn Nho Quan, Ninh Bình" --dry-run
+
+# Chạy lưu thật vào Database (loại bỏ cờ --dry-run):
+npx ts-node scripts/update-contract-address.ts --contract=160 --date="2026-09-20" --room=551 --address="Thị trấn Nho Quan, Ninh Bình"
+
+# Chỉ cập nhật ngày và phòng cho 2 hồ sơ cụ thể:
+npx ts-node scripts/update-contract-address.ts --contract=160 --date="2026-09-20" --room=551 --doc-nos="26292454,26292455"

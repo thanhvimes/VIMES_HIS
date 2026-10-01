@@ -147,6 +147,16 @@ export class OrderController {
                         }
                     }
                 }
+
+                // Tự động tạo/cập nhật phí dịch vụ trong hms_fee cho hồ sơ này
+                try {
+                    await client.query(`SELECT hms_fee_create($1::integer, 'ETPO', $2::varchar)`, [
+                        numericDocNo,
+                        effectiveDept || 'KB'
+                    ]);
+                } catch (feeErr: any) {
+                    console.warn('⚠️ Cảnh báo hms_fee_create sau khi kê chỉ định:', feeErr?.message || feeErr);
+                }
             });
 
             // 5. Tự động đồng bộ toàn bộ Cận lâm sàng từ HIS sang Hồ sơ Khám sức khỏe
@@ -232,6 +242,19 @@ export class OrderController {
                         DELETE FROM hms_pacsorderline 
                         WHERE hpcl_docno = $1 AND TRIM(hpcl_itemid) = $2
                     `, [numericDocNo, code]);
+                }
+
+                // Xóa chi phí tương ứng trong hms_fee nếu chưa thanh toán (status != 'P')
+                await client.query(`
+                    DELETE FROM hms_fee 
+                    WHERE hfe_docno = $1 AND TRIM(hfe_itemid) = $2 AND (hfe_status IS NULL OR hfe_status != 'P')
+                `, [numericDocNo, code]);
+
+                // Tự động cập nhật lại phí hồ sơ
+                try {
+                    await client.query(`SELECT hms_fee_create($1::integer, 'ETPO', 'KB')`, [numericDocNo]);
+                } catch (feeErr: any) {
+                    console.warn('⚠️ Cảnh báo hms_fee_create sau khi hủy chỉ định:', feeErr?.message || feeErr);
                 }
             });
 

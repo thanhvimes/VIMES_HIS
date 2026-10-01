@@ -39,6 +39,6 @@ export const env = {
     nodeEnv: process.env.NODE_ENV || 'development',
     corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173,https://localhost,capacitor://localhost')
         .split(',').map(v => v.trim().replace(/\/$/, '')).filter(Boolean),
-    bodyLimit: process.env.REQUEST_BODY_LIMIT || '2mb',
+    bodyLimit: process.env.REQUEST_BODY_LIMIT || '50mb',
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || '8h'
 };

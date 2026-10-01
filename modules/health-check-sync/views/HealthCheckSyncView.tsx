@@ -1,7 +1,7 @@
 // ==================== HEALTH CHECK SYNC VIEW ====================
 // File: modules/health-check-sync/views/HealthCheckSyncView.tsx
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useSystemStore } from '../../../stores/useSystemStore';
 import { useSession } from '../../../contexts/SessionContext';
@@ -10,14 +10,14 @@ import {
     SearchIcon, 
     RefreshIcon, 
     SignatureIcon, 
-    EyeIcon,
-    CloudUploadIcon,
-    DocumentTextIcon,
-    PlusIcon,
-    AdjustmentsHorizontalIcon,
-    DocumentArrowDownIcon,
-    PrinterIcon,
-    CheckCircleIcon
+    EyeIcon, 
+    CloudUploadIcon, 
+    DocumentTextIcon, 
+    PlusIcon, 
+    AdjustmentsHorizontalIcon, 
+    DocumentArrowDownIcon, 
+    PrinterIcon, 
+    CheckCircleIcon 
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { healthCheckService } from '../../../services/healthCheckService';
@@ -41,6 +41,7 @@ import { HisBatchImportModal } from '../components/HisBatchImportModal';
 import BatchSignModal from '../components/BatchSignModal';
 import TokenStatusWidget from '../components/TokenStatusWidget';
 import { isDocumentConcluded } from '../utils/documentStatus';
+import { TaskProgressModal, TaskProgressItem } from '../components/modals';
 
 interface ErrorBoundaryProps {
     children: React.ReactNode;
@@ -168,6 +169,32 @@ const HealthCheckSyncView: React.FC = () => {
     const [isBatchImportModalOpen, setIsBatchImportModalOpen] = useState(false);
     const [isBatchSignModalOpen, setIsBatchSignModalOpen] = useState(false);
     const [batchSignInitialRole, setBatchSignInitialRole] = useState<'DOCTOR' | 'UNIT' | 'BOTH'>('DOCTOR');
+
+    // Real-time Task Progress Modal State
+    const [progressModal, setProgressModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        description?: string;
+        currentStep?: string;
+        current: number;
+        total: number;
+        successCount: number;
+        failedCount: number;
+        isFinished: boolean;
+        items: TaskProgressItem[];
+    }>({
+        isOpen: false,
+        title: '',
+        description: '',
+        currentStep: '',
+        current: 0,
+        total: 0,
+        successCount: 0,
+        failedCount: 0,
+        isFinished: false,
+        items: []
+    });
+    const isCancelProgressRef = useRef(false);
 
     const openBatchSignModal = (role: 'DOCTOR' | 'UNIT' | 'BOTH') => {
         if (selectedIds.size === 0) {
@@ -393,14 +420,14 @@ const HealthCheckSyncView: React.FC = () => {
                 return;
             }
 
-            if (viewMode === 'CREATE' || !docId) {
+            if (!docId) {
                 const res = await healthCheckService.createDocument(payload);
                 docId = res.id;
                 setViewMode('EDIT');
                 if (!options?.shouldSign) {
                     toast.success("Tạo hồ sơ KSK thành công!");
                 }
-            } else if ((viewMode === 'EDIT' || docId) && docId) {
+            } else {
                 await healthCheckService.updateDocument(docId.toString(), payload);
                 if (!options?.shouldSign && !options?.shouldUnlock) {
                     toast.success("Cập nhật hồ sơ KSK thành công!");
@@ -634,55 +661,113 @@ const HealthCheckSyncView: React.FC = () => {
         }
 
         setIsSending(true);
+        isCancelProgressRef.current = false;
         const idsToSend = Array.from(selectedIds) as string[];
-        const toastId = toast.loading(`Bắt đầu đồng bộ liên thông ${idsToSend.length} hồ sơ lên VNeID...`);
         let failedCount = 0;
         let successCount = 0;
-        const failedIds: string[] = [];
+        const taskItems: TaskProgressItem[] = [];
+
+        setProgressModal({
+            isOpen: true,
+            title: 'Đồng bộ liên thông VNeID',
+            description: `Gửi liên thông ${idsToSend.length} hồ sơ khám sức khỏe lên Cổng tiếp nhận...`,
+            currentStep: 'Khởi tạo tiến trình...',
+            current: 0,
+            total: idsToSend.length,
+            successCount: 0,
+            failedCount: 0,
+            isFinished: false,
+            items: []
+        });
 
         try {
             for (let i = 0; i < idsToSend.length; i++) {
+                if (isCancelProgressRef.current) {
+                    toast.info("Đã dừng tiến trình theo yêu cầu của người dùng.");
+                    break;
+                }
+
                 const docId = idsToSend[i];
                 const docObj = documents.find(d => d.id.toString() === docId);
                 const patientDesc = docObj?.patient_name ? ` (BN: ${docObj.patient_name})` : '';
+                const stepText = `[${i + 1}/${idsToSend.length}] Đang gửi hồ sơ ${docObj?.doc_no || docId}${patientDesc}...`;
 
-                toast.loading(`[${i + 1}/${idsToSend.length}] Đang gửi hồ sơ ${docObj?.doc_no || docId}${patientDesc}...`, { id: toastId });
+                setProgressModal(prev => ({
+                    ...prev,
+                    current: i,
+                    currentStep: stepText
+                }));
 
                 try {
                     const resultFailed = await healthCheckService.sendDocumentsToPortal([docId]);
                     if (resultFailed && resultFailed.length > 0) {
                         failedCount++;
-                        failedIds.push(docId);
+                        taskItems.push({
+                            id: docId,
+                            title: `Hồ sơ ${docObj?.doc_no || docId}${patientDesc}`,
+                            status: 'failed',
+                            message: 'Cổng phản hồi lỗi hoặc từ chối tiếp nhận.'
+                        });
                     } else {
                         successCount++;
+                        taskItems.push({
+                            id: docId,
+                            title: `Hồ sơ ${docObj?.doc_no || docId}${patientDesc}`,
+                            status: 'success'
+                        });
                     }
                 } catch (sendErr: any) {
                     console.error(`Lỗi gửi hồ sơ ID ${docId}:`, sendErr);
                     failedCount++;
-                    failedIds.push(docId);
+                    taskItems.push({
+                        id: docId,
+                        title: `Hồ sơ ${docObj?.doc_no || docId}${patientDesc}`,
+                        status: 'failed',
+                        message: sendErr.message || 'Lỗi kết nối Cổng tiếp nhận'
+                    });
                 }
 
-                // Dừng nhẹ 500ms giữa các hồ sơ để tránh nghẽn Gateway
-                if (i < idsToSend.length - 1) {
-                    await new Promise(r => setTimeout(r, 500));
+                setProgressModal(prev => ({
+                    ...prev,
+                    current: i + 1,
+                    successCount,
+                    failedCount,
+                    items: [...taskItems]
+                }));
+
+                // Dừng nhẹ 400ms giữa các hồ sơ để tránh nghẽn Gateway
+                if (i < idsToSend.length - 1 && !isCancelProgressRef.current) {
+                    await new Promise(r => setTimeout(r, 400));
                 }
             }
 
             await loadData();
             
+            setProgressModal(prev => ({
+                ...prev,
+                isFinished: true,
+                current: idsToSend.length,
+                currentStep: `Đã hoàn tất! Thành công: ${successCount}, Lỗi: ${failedCount}`
+            }));
+
             if (failedCount > 0 && successCount > 0) {
-                toast.warning(`Đã hoàn tất: ${successCount} thành công, ${failedCount} lỗi. Vui lòng xem cột trạng thái để kiểm tra chi tiết.`, { id: toastId });
+                toast.warning(`Đã hoàn tất: ${successCount} thành công, ${failedCount} lỗi. Vui lòng xem chi tiết trên bảng tiến độ.`);
             } else if (failedCount > 0 && successCount === 0) {
-                toast.error(`Đồng bộ thất bại toàn bộ ${failedCount} hồ sơ. Vui lòng xem log chi tiết.`, { id: toastId });
+                toast.error(`Đồng bộ thất bại toàn bộ ${failedCount} hồ sơ. Vui lòng xem log chi tiết.`);
             } else {
-                toast.success(`Liên thông thành công toàn bộ ${successCount} hồ sơ khám sức khỏe lên cổng VNeID!`, { id: toastId });
+                toast.success(`Liên thông thành công toàn bộ ${successCount} hồ sơ khám sức khỏe lên cổng VNeID!`);
                 setSearchParams({ step: 'manage' }); // Redirect to manage
             }
             
             setSelectedIds(new Set());
         } catch (error: any) {
             console.error("Error sending documents", error);
-            toast.error("Có lỗi xảy ra trong quá trình đồng bộ: " + error.message, { id: toastId });
+            toast.error("Có lỗi xảy ra trong quá trình đồng bộ: " + error.message);
+            setProgressModal(prev => ({
+                ...prev,
+                isFinished: true,
+                currentStep: `Có lỗi xảy ra: ${error.message}`
+            }));
         } finally {
             setIsSending(false);
         }
@@ -1638,15 +1723,23 @@ const HealthCheckSyncView: React.FC = () => {
                                     <div className="mb-6">
                                         <h2 className="text-xl font-bold text-[#0f766e] dark:text-teal-400 mb-1 flex items-center gap-2">
                                             <AdjustmentsHorizontalIcon className="w-6 h-6" />
-                                            {stepParam === 'settings-barcode' ? 'Cấu hình in Barcode' : 'Cấu hình kết nối VNeID'}
+                                            {stepParam === 'settings-batch-update' 
+                                                ? 'Hiệu chỉnh thông tin gói KSK'
+                                                : stepParam === 'settings-barcode' 
+                                                    ? 'Cấu hình in Barcode' 
+                                                    : 'Cấu hình kết nối VNeID'}
                                         </h2>
                                         <p className="text-sm text-slate-500 dark:text-slate-400">
-                                            {stepParam === 'settings-barcode' ? 'Thiết lập kích thước và nội dung hiển thị trên tem in Barcode.' : 'Thiết lập các tham số kết nối, mã cơ sở y tế và đồng bộ tự động lên cổng sức khỏe điện tử VNeID.'}
+                                            {stepParam === 'settings-batch-update'
+                                                ? 'Công cụ quản trị viên: Cập nhật hàng loạt ngày khám, phòng khám và địa chỉ theo hợp đồng/gói khám KSK một cách an toàn và tự động đồng bộ.'
+                                                : stepParam === 'settings-barcode' 
+                                                    ? 'Thiết lập kích thước và nội dung hiển thị trên tem in Barcode.' 
+                                                    : 'Thiết lập các tham số kết nối, mã cơ sở y tế và đồng bộ tự động lên cổng sức khỏe điện tử VNeID.'}
                                         </p>
                                     </div>
                                     <SettingsTab 
                                         onSaved={loadSettings} 
-                                        defaultTab={stepParam === 'settings-barcode' ? 'BARCODE' : 'VNEID'}
+                                        defaultTab={stepParam === 'settings-batch-update' ? 'BATCH_UPDATE' : stepParam === 'settings-barcode' ? 'BARCODE' : 'VNEID'}
                                         hideTabs={false}
                                     />
                                 </>
@@ -1756,6 +1849,15 @@ const HealthCheckSyncView: React.FC = () => {
                 onSuccess={async () => {
                     await loadData();
                     setSelectedIds(new Set());
+                }}
+            />
+
+            {/* Real-time Task Progress Modal */}
+            <TaskProgressModal
+                {...progressModal}
+                onClose={() => setProgressModal(prev => ({ ...prev, isOpen: false }))}
+                onCancel={() => {
+                    isCancelProgressRef.current = true;
                 }}
             />
         </div>

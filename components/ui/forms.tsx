@@ -53,8 +53,9 @@ export const FormDateInput: React.FC<FormInputProps> = memo(({ label, required, 
     const displayValue = React.useMemo(() => {
         if (!value || typeof value !== 'string') return '';
         if (value.includes('-')) {
-            const parts = value.split('-');
-            if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            const clean = value.split('T')[0].split(' ')[0];
+            const parts = clean.split('-');
+            if (parts.length === 3) return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
         }
         return value;
     }, [value]);
@@ -64,9 +65,9 @@ export const FormDateInput: React.FC<FormInputProps> = memo(({ label, required, 
         if (!value || typeof value !== 'string') return '';
         if (value.includes('/')) {
             const parts = value.split('/');
-            if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            if (parts.length === 3) return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
         }
-        return value;
+        return value.split('T')[0].split(' ')[0];
     }, [value]);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

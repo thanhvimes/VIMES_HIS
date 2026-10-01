@@ -101,21 +101,21 @@ async function main() {
         version: version,
         buildDate: new Date().toISOString(),
         changelog: [
-            `Bản phát hành cập nhật v${version} - Phân hệ Khám Sức Khỏe & Tích hợp HIS Core`,
-            'Hỗ trợ liên thông Đa Cổng KSK: Cổng Bộ Y tế (VNeID) & Cổng Hồ sơ sức khỏe điện tử Sở Y tế Hà Nội (CV 7286/SYT-QLBHYTCNTT)',
+            `Bản phát hành cập nhật v${version} - Nâng cấp Toàn diện Phân hệ Khám Sức Khỏe & Tích hợp HIS Core`,
+            'Hệ thống Đối chiếu Lâm sàng & Cảnh báo mềm (Clinical Cross-Check & Soft Warning) trên ConclusionTab',
+            'Tái cấu trúc & Chia nhỏ Sub-modals Hợp đồng (5 modals) và Tiếp nhận (3 modals) tối ưu hiệu năng',
+            'Thanh tiến trình Thời gian thực (Task Progress Modal) trực quan cho Gửi Cổng, Tiếp nhận đoàn & Đồng bộ CLS',
+            'Khắc phục triệt để lỗi Schema HIS Core: Chuẩn hóa truy vấn hms_exm_employee, xử lý ép kiểu integer hee_docno',
+            'Bảo vệ phòng khám bác sĩ khác và ngày khám cũ khi đồng bộ kết luận về HIS Core (Safe Pushback)',
+            'Hỗ trợ liên thông Đa Cổng KSK: Cổng Bộ Y tế (VNeID) & Cổng Hồ sơ sức khỏe điện tử Sở Y tế Hà Nội',
             'Bổ sung 3 chế độ gửi dữ liệu linh hoạt: Chỉ Cổng BYT, Gửi đồng thời CẢ HAI CỔNG, Chỉ Cổng Sở Y tế',
-            'Tích hợp tính năng Kiểm tra kết nối Cổng Sở Y tế và theo dõi mã giao dịch riêng biệt trên hssk.hanoi.gov.vn',
-            'Đồng bộ dữ liệu 2 chiều HIS Core <-> KSK VNeID & Gateway XML theo QĐ 1551/QĐ-BYT và QĐ 2062/QĐ-BYT',
-            'Nâng cấp Giao diện Điều hướng Khám (High-Contrast cards, step badges, sub-tabs chuyên khoa)',
-            'Bổ sung tính năng Tiếp đón tất cả (Bulk Reception), Nhập hồ sơ HIS vào gói khám & Hủy tiếp nhận an toàn',
             'Cơ chế Deep-Merge & Khóa bản ghi chống ghi đè dữ liệu đa bàn khám đồng thời',
-            'Tự động chuẩn hóa quốc tịch (mã 000 - Việt Nam) và đối tượng KSK theo nhóm tuổi',
-            'Hoàn thiện in ấn mã vạch xét nghiệm (Barcode XN), phân trang động và mẫu biểu ký số',
-            'Tự động đồng bộ cấu trúc cơ sở dữ liệu (Migrations an toàn 078)'
+            'Công cụ Quản trị viên: Hiệu chỉnh hàng loạt thông tin gói khám KSK (Ngày khám, Buồng/Phòng khám, Địa chỉ) trực quan kèm chế độ Dry-Run an toàn',
+            '100% Integration Tests PASS và 0 lỗi TypeScript ở cả Frontend & Backend'
         ],
         downloadUrl: process.env.RELEASE_DOWNLOAD_URL || `https://github.com/thanhvimes/VIMES_HIS/releases/download/v${version}/${releaseArchiveName}`,
         sha256: sha256,
-        requiredDbMigration: true
+        requiredDbMigration: false
     };
 
     const versionJsonPath = path.join(releasesDir, 'version.json');

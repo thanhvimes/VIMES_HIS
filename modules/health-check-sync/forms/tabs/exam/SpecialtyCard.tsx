@@ -53,6 +53,11 @@ const SpecialtyCard: React.FC<SpecialtyCardProps> = ({ specialtyKey, title, chil
             }
         } else if (action === 'DUYỆT') {
             payload.status = 'ĐÃ_DUYỆT';
+            if (!payload.doctorId && user) {
+                payload.doctorId = user.userId || '';
+                const found = doctorsList.find(d => String(d.id || d.code || '').toLowerCase() === String(user.userId || '').toLowerCase());
+                payload.doctorName = found?.name || (user as any).fullName || '';
+            }
         } else if (action === 'MỞ_KHÓA') {
             payload.status = 'ĐANG_KHÁM';
         } else if (action === 'THOÁT') {
@@ -68,10 +73,15 @@ const SpecialtyCard: React.FC<SpecialtyCardProps> = ({ specialtyKey, title, chil
         }
 
         if (setSpecialtyMetadata) {
-            const updated = {
+            const updated: any = {
                 ...safeMetadata,
                 [specialtyKey]: payload
             };
+            if (specialtyKey === 'surgery') updated.external = payload;
+            if (specialtyKey === 'external') updated.surgery = payload;
+            if (specialtyKey === 'physical') updated.examination = payload;
+            if (specialtyKey === 'examination') updated.physical = payload;
+
             setSpecialtyMetadata(updated);
             if (action === 'DUYỆT' && handleSubmit) {
                 (handleSubmit as any)({ overrideMetadata: updated });

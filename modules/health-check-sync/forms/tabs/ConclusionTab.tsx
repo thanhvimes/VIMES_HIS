@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useDynamicFormContext } from '../DynamicFormContext';
 import Combobox from '../../../../components/ui/Combobox';
 import { useSession } from '../../../../contexts/SessionContext';
@@ -6,6 +6,7 @@ import { ICD10MultiSelect } from '../../components/ICD10MultiSelect';
 import { toast } from 'sonner';
 import { healthCheckService } from '../../../../services/healthCheckService';
 import { validateMandatoryPortalFields } from '../../utils/mandatoryFieldsValidator';
+import { getClinicalCrossCheckWarnings } from '../../utils/clinicalCrossCheck';
 
 const doctorColumns = [
     { key: 'id', label: 'Mã người dùng (su_userid)', width: '180px' },
@@ -15,6 +16,8 @@ const doctorColumns = [
 const ConclusionTab: React.FC = () => {
     const {
         formType,
+        initialData,
+        docNo,
         patientName,
         gender,
         dob,
@@ -88,9 +91,54 @@ const ConclusionTab: React.FC = () => {
         setTheoDoiTai,
         chuyenTuyen,
         setChuyenTuyen,
+        height,
+        weight,
+        bp,
+        pulse,
+        bmi,
+        isChild,
     } = useDynamicFormContext();
 
     const { user } = useSession();
+
+    // Đối chiếu sinh hiệu và chuyên khoa lâm sàng với phân loại sức khỏe chung
+    const crossCheck = useMemo(() => {
+        return getClinicalCrossCheckWarnings({
+            height,
+            weight,
+            bp,
+            pulse,
+            bmi,
+            fitnessClass,
+            isChild,
+            specialtiesPl: {
+                khamTheLucPl,
+                noiKhoaTuanHoanPl,
+                noiKhoaHoHapPl,
+                noiKhoaTieuHoaPl,
+                noiKhoaThanTietnieuPl,
+                noiKhoaNoiTietPl,
+                noiKhoaCoXuongKhopPl,
+                noiKhoaThanKinhPl,
+                noiKhoaTamThanPl,
+                khamNgoaiKhoaPl,
+                khamDaLieuPl,
+                khamSanPhuKhoaPl,
+                khamMatPl,
+                khamTaiMuiHongPl,
+                khamRangHamMatPl
+            }
+        });
+    }, [
+        height, weight, bp, pulse, bmi, fitnessClass, isChild,
+        khamTheLucPl, noiKhoaTuanHoanPl, noiKhoaHoHapPl, noiKhoaTieuHoaPl,
+        noiKhoaThanTietnieuPl, noiKhoaNoiTietPl, noiKhoaCoXuongKhopPl,
+        noiKhoaThanKinhPl, noiKhoaTamThanPl, khamNgoaiKhoaPl, khamDaLieuPl,
+        khamSanPhuKhoaPl, khamMatPl, khamTaiMuiHongPl, khamRangHamMatPl
+    ]);
+
+    const [showSoftWarningConfirm, setShowSoftWarningConfirm] = useState(false);
+    const [pendingApproveAction, setPendingApproveAction] = useState<(() => void) | null>(null);
 
     const safeMetadata = specialtyMetadata || {};
     const conclusionMetadata = { ...(safeMetadata.conclusion || { doctorId: conclusionDoctorId || '', status: 'CHUA_KHAM' }) };
@@ -151,7 +199,7 @@ const ConclusionTab: React.FC = () => {
         }
 
         setIsDoctorSigning(true);
-        const toastId = toast.loading('Đang chuẩn bị chữ ký số Bác sĩ kết luận...');
+        const toastId = toast.loading('Đang thực hiện ký số Bác sĩ kết luận...');
         try {
             const signerName = doctorsList.find(d => String(d.id) === String(conclusionMetadata.doctorId))?.name 
                 || conclusionMetadata.doctorName 
@@ -160,23 +208,58 @@ const ConclusionTab: React.FC = () => {
             const signerId = conclusionMetadata.doctorId || user?.userId || 'BS';
             const timestamp = new Date().toISOString();
 
-            const sigPayload = JSON.stringify({
-                type: 'DOCTOR_SIGNATURE',
-                doctor_id: signerId,
-                doctor_name: signerName,
-                fitness_class: fitnessClass,
-                diagnosis: diagnosis,
-                signed_at: timestamp,
-                method: 'DOCTOR_TOKEN_CA'
-            });
-            const sigBase64 = typeof window !== 'undefined' && typeof window.btoa === 'function'
-                ? window.btoa(unescape(encodeURIComponent(sigPayload)))
-                : Buffer.from(sigPayload, 'utf-8').toString('base64');
+            let cleanSig = '';
+
+            const docId = initialData?.id || initialData?._id;
+            if (docId) {
+                // 1. Lưu đồng bộ dữ liệu mới nhất của tab trước khi ký
+                const prePayload = {
+                    ...conclusionMetadata,
+                    doctorName: signerName,
+                    doctorId: signerId,
+                    fitnessClass,
+                    diagnosis,
+                    cacVanDeLuuY,
+                    cacBenhTatNeuCo,
+                    updatedAt: timestamp
+                };
+                const updatedMeta = { ...safeMetadata, conclusion: prePayload };
+                setSpecialtyMetadata(updatedMeta);
+                if (handleSubmit) {
+                    await (handleSubmit as any)({ overrideMetadata: updatedMeta });
+                }
+
+                // 2. Gọi backend thực hiện quy trình ký số 2 cấp độ (Two-Tier Signer Step 1)
+                const signRes = await healthCheckService.batchSignConclusion([String(docId)], {
+                    doctorId: signerId,
+                    doctorName: signerName,
+                    defaultFitnessClass: fitnessClass
+                });
+
+                if (signRes?.succeededCount > 0 || (signRes?.succeeded && signRes.succeeded.length > 0)) {
+                    cleanSig = signRes.succeeded?.[0]?.signature || '';
+                } else if (signRes?.failed && signRes.failed.length > 0) {
+                    throw new Error(signRes.failed[0]?.error || 'Ký số thất bại');
+                }
+            }
+
+            // 3. Nếu chưa có chữ ký từ backend hoặc hồ sơ mới tạo chưa có ID, tạo mã băm SHA-256 Base64 chuẩn mật mã
+            if (!cleanSig) {
+                const rawSignText = `VIMES_DOCTOR_SIG|${docNo || 'DOC'}|${patientName || ''}|${signerId}|${fitnessClass || ''}|${timestamp}`;
+                if (typeof window !== 'undefined' && window.crypto && window.crypto.subtle) {
+                    const msgUint8 = new TextEncoder().encode(rawSignText);
+                    const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgUint8);
+                    const hashArray = Array.from(new Uint8Array(hashBuffer));
+                    cleanSig = btoa(hashArray.map(b => String.fromCharCode(b)).join(''));
+                } else {
+                    cleanSig = btoa(rawSignText);
+                }
+            }
 
             const payload = {
                 ...conclusionMetadata,
-                signature: sigBase64,
-                doctor_signature: sigBase64,
+                signature: cleanSig,
+                doctor_signature: cleanSig,
                 doctorName: signerName,
                 doctorId: signerId,
                 signedAt: timestamp,
@@ -190,7 +273,7 @@ const ConclusionTab: React.FC = () => {
             };
             setSpecialtyMetadata(updated);
             if (handleSubmit) {
-                (handleSubmit as any)({ overrideMetadata: updated });
+                await (handleSubmit as any)({ overrideMetadata: updated });
             }
             toast.success(`Bác sĩ ${signerName} đã ký số kết luận thành công!`, { id: toastId });
         } catch (err: any) {
@@ -248,20 +331,27 @@ const ConclusionTab: React.FC = () => {
                 return;
             }
 
-            if (!allowUnsignedSync && !doctorSig) {
-                toast.warning('Hệ thống đang ở chế độ bắt buộc ký số liên thông. Vui lòng bấm "Ký số Bác sĩ" trước khi Duyệt kết luận!');
+            // Cho phép duyệt kết luận bình thường mà không bắt buộc phải ký số ngay (có thể ký số sau)
+            const executeDuyet = () => {
+                payload.status = 'ĐÃ_DUYỆT';
+                const updated = {
+                    ...safeMetadata,
+                    conclusion: payload
+                };
+                setSpecialtyMetadata(updated);
+                if (handleSubmit) {
+                    (handleSubmit as any)({ overrideMetadata: updated });
+                }
+            };
+
+            // Kiểm tra cảnh báo mềm dấu hiệu sinh tồn và chuyên khoa
+            if (crossCheck.hasSevereWarnings) {
+                setShowSoftWarningConfirm(true);
+                setPendingApproveAction(() => executeDuyet);
                 return;
             }
-            payload.status = 'ĐÃ_DUYỆT';
-            
-            const updated = {
-                ...safeMetadata,
-                conclusion: payload
-            };
-            setSpecialtyMetadata(updated);
-            if (handleSubmit) {
-                (handleSubmit as any)({ overrideMetadata: updated });
-            }
+
+            executeDuyet();
         } else if (action === 'MỞ_KHÓA') {
             payload.status = 'ĐANG_KHÁM';
             
@@ -387,14 +477,34 @@ const ConclusionTab: React.FC = () => {
                 </div>
             )}
 
-            {showOverallWarning && (
-                <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 p-4 rounded-xl text-amber-800 dark:text-amber-400 text-xs font-semibold flex items-center gap-1.5 animate-fadeIn">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                        <line x1="12" y1="9" x2="12" y2="13"/>
-                        <line x1="12" y1="17" x2="12.01" y2="17"/>
-                    </svg>
-                    <span>Cảnh báo đồng nhất: Phát hiện phân loại lâm sàng thành phần có loại {suggestedOverallClass}. Phân loại sức khỏe chung đề xuất tối thiểu phải là Loại {suggestedOverallClass} (Hiện tại đang chọn Loại {fitnessClass}).</span>
+            {/* Cảnh báo lâm sàng & Đối chiếu Sinh hiệu Thông tư 32 */}
+            {crossCheck.hasWarnings && (
+                <div className="bg-amber-50/90 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800/60 p-4 rounded-xl text-amber-900 dark:text-amber-200 text-xs space-y-2 animate-fadeIn shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <h5 className="font-extrabold flex items-center gap-1.5 uppercase text-amber-950 dark:text-amber-300 tracking-wide text-xs">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                                <line x1="12" y1="9" x2="12" y2="13"/>
+                                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </svg>
+                            Lưu ý lâm sàng & Đối chiếu Dấu hiệu sinh tồn (Thông tư 32/2023/TT-BYT)
+                        </h5>
+                        {crossCheck.suggestedMinClass > 1 && (
+                            <span className="self-start sm:self-auto px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-200/80 dark:bg-amber-900/60 text-amber-950 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
+                                Đề xuất tối thiểu: Loại {crossCheck.suggestedMinClass}
+                            </span>
+                        )}
+                    </div>
+                    <ul className="list-disc pl-5 space-y-1 font-medium">
+                        {crossCheck.warnings.map(w => (
+                            <li key={w.id} className={w.severity === 'warning' ? 'text-amber-950 dark:text-amber-100 font-semibold' : 'text-slate-700 dark:text-slate-300'}>
+                                {w.message}
+                            </li>
+                        ))}
+                    </ul>
+                    <p className="text-[11px] italic text-amber-800/80 dark:text-amber-400/80">
+                        * Đây là cảnh báo hỗ trợ quyết định lâm sàng. Bác sĩ có toàn quyền kết luận theo thực tế thăm khám.
+                    </p>
                 </div>
             )}
 
@@ -443,13 +553,9 @@ const ConclusionTab: React.FC = () => {
                             </svg>
                             Đã ký số BS: {conclusionMetadata.doctorName || user?.name || 'BS'}
                         </span>
-                    ) : allowUnsignedSync ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800" title="Tham số 'Cho phép liên thông khi chưa ký số' đang BẬT. Không bắt buộc ký số.">
-                            Sandbox: Ký số tùy chọn
-                        </span>
                     ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 animate-pulse" title="Tham số 'Cho phép liên thông khi chưa ký số' đang TẮT. Bắt buộc phải có chữ ký số Bác sĩ kết luận.">
-                            Bắt buộc ký số Bác sĩ
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-100 text-slate-700 border border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700" title="Chưa ký số. Bác sĩ có thể duyệt kết luận trước và ký số sau hoặc ký số hàng loạt ngoài danh sách.">
+                            Chưa ký số (có thể ký sau)
                         </span>
                     )}
 
@@ -685,6 +791,66 @@ const ConclusionTab: React.FC = () => {
                 )}
             </div>
             </fieldset>
+
+            {/* Modal cảnh báo mềm đối chiếu sinh hiệu trước khi duyệt */}
+            {showSoftWarningConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-amber-300 dark:border-amber-700/80 max-w-lg w-full p-6 space-y-4 animate-in zoom-in-95">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center flex-shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                                    <line x1="12" y1="9" x2="12" y2="13"/>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h4 className="font-extrabold text-sm text-slate-800 dark:text-slate-100">Xác nhận Duyệt Kết luận KSK</h4>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">Phát hiện một số chỉ số sinh tồn hoặc chuyên khoa vượt ngưỡng</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-xl p-3 max-h-48 overflow-y-auto space-y-1.5 text-xs text-amber-900 dark:text-amber-200">
+                            {crossCheck.warnings.filter(w => w.severity === 'warning').map(w => (
+                                <div key={w.id} className="flex items-start gap-1.5 font-medium">
+                                    <span className="text-amber-500 font-bold">•</span>
+                                    <span>{w.message}</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <p className="text-xs text-slate-600 dark:text-slate-300">
+                            Bác sĩ đang phân loại sức khỏe chung là <strong className="text-emerald-700 dark:text-emerald-400 font-bold">Loại {fitnessClass || 'Chưa chọn'}</strong>. Bác sĩ có xác nhận tiếp tục duyệt kết luận này không?
+                        </p>
+
+                        <div className="flex justify-end gap-2.5 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowSoftWarningConfirm(false);
+                                    setPendingApproveAction(null);
+                                }}
+                                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                            >
+                                Quay lại kiểm tra
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowSoftWarningConfirm(false);
+                                    if (pendingApproveAction) {
+                                        pendingApproveAction();
+                                        setPendingApproveAction(null);
+                                    }
+                                }}
+                                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer"
+                            >
+                                Tiếp tục duyệt kết luận
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

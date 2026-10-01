@@ -5,7 +5,7 @@ import Combobox from '../../../../components/ui/Combobox';
 import { FormDateInput } from '../../../../components/ui/forms';
 import { CatalogItem } from '../../../../services/catalogService';
 import { useSession } from '../../../../contexts/SessionContext';
-import { TARGET_GROUPS } from '../../constants';
+import { TARGET_GROUPS, ESCORT_RELATIONS, resolveChildRelationCode } from '../../constants';
 
 const AdminTab: React.FC = () => {
     const {
@@ -214,13 +214,7 @@ const AdminTab: React.FC = () => {
                 {hisSource === 'HEALTH_CHECK_MASTER' && (
                     <span className="px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 rounded-full flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        Hồ sơ KSK VNeID đã lưu
-                    </span>
-                )}
-                {hisSource === 'HIS_DIRECT' && (
-                    <span className="px-2.5 py-1 text-xs font-bold text-sky-700 bg-sky-100 border border-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800 rounded-full flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse"></span>
-                        Đợt khám trực tiếp từ HIS
+                        Hồ sơ KSK đã lưu
                     </span>
                 )}
                 {(() => {
@@ -295,7 +289,7 @@ const AdminTab: React.FC = () => {
                             </span>
                             <input 
                                 type="text" 
-                                placeholder="Tìm theo số thẻ CCCD, mã hồ sơ, số điện thoại..." 
+                                placeholder="Tìm hồ sơ KSK đã lưu (CCCD, mã hồ sơ, họ tên, SĐT)..." 
                                 value={hisSearchQuery}
                                 onChange={e => setHisSearchQuery(e.target.value)}
                                 className="w-full pl-9 pr-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 font-bold placeholder:text-slate-400 dark:placeholder:text-slate-500 placeholder:font-normal"
@@ -588,24 +582,19 @@ const AdminTab: React.FC = () => {
                                     placeholder="Nhập họ tên người đi cùng"
                                 />
                             </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">13. Mối quan hệ với trẻ</label>
-                                <select
-                                    value={escortRelation}
-                                    onChange={e => setEscortRelation(e.target.value)}
-                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white"
-                                >
-                                    <option value="">Chọn mối quan hệ...</option>
-                                    <option value="Bố">Bố</option>
-                                    <option value="Mẹ">Mẹ</option>
-                                    <option value="Ông">Ông</option>
-                                    <option value="Bà">Bà</option>
-                                    <option value="Anh">Anh</option>
-                                    <option value="Chị">Chị</option>
-                                    <option value="Người giám hộ">Người giám hộ</option>
-                                    <option value="Khác">Khác</option>
-                                </select>
-                            </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">13. Mối quan hệ với trẻ</label>
+                                    <select
+                                        value={resolveChildRelationCode(escortRelation)}
+                                        onChange={e => setEscortRelation(e.target.value)}
+                                        className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white"
+                                    >
+                                        <option value="">Chọn mối quan hệ...</option>
+                                        {ESCORT_RELATIONS.map(item => (
+                                            <option key={item.id} value={item.code}>{item.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">14. Điện thoại <span className="text-red-500">*</span></label>
                                 <input
@@ -946,19 +935,14 @@ const AdminTab: React.FC = () => {
                                         <div>
                                             <label className="block text-xs font-bold text-slate-500 mb-1">13. Mối quan hệ với trẻ</label>
                                             <select
-                                                value={escortRelation}
+                                                value={resolveChildRelationCode(escortRelation)}
                                                 onChange={e => setEscortRelation(e.target.value)}
                                                 className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white"
                                             >
                                                 <option value="">Chọn mối quan hệ...</option>
-                                                <option value="Bố">Bố</option>
-                                                <option value="Mẹ">Mẹ</option>
-                                                <option value="Ông">Ông</option>
-                                                <option value="Bà">Bà</option>
-                                                <option value="Anh">Anh</option>
-                                                <option value="Chị">Chị</option>
-                                                <option value="Người giám hộ">Người giám hộ</option>
-                                                <option value="Khác">Khác</option>
+                                                {ESCORT_RELATIONS.map(item => (
+                                                    <option key={item.id} value={item.code}>{item.label}</option>
+                                                ))}
                                             </select>
                                         </div>
                                         <div>

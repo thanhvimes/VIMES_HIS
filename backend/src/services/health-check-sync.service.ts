@@ -309,6 +309,20 @@ function sanitizeInnerXml(rawInner: string, bytCode: string, rawXmlRef: string):
         decoded = decoded.replace('</THONG_TIN_HANH_CHINH>', `${medHistorySnippet}\n						</THONG_TIN_HANH_CHINH>`);
     }
 
+    // Fix KET_LUAN_BENH: Cổng Sở Y tế và QĐ 2062 quy định tối đa 50 ký tự
+    decoded = decoded.replace(/<KET_LUAN_BENH>(.*?)<\/KET_LUAN_BENH>/g, (_m, val) => {
+        let v = (val || '').trim();
+        if (v.length > 50) {
+            const icdMatch = v.match(/\[([A-Z0-9.]+)\]/) || v.match(/\b([A-Z]\d{2}(?:\.\d{1,2})?)\b/);
+            if (icdMatch) {
+                v = icdMatch[1];
+            } else {
+                v = v.substring(0, 50).trim();
+            }
+        }
+        return `<KET_LUAN_BENH>${v}</KET_LUAN_BENH>`;
+    });
+
     return decoded;
 }
 
@@ -338,7 +352,7 @@ async function loginToSytGateway(settings: any): Promise<{ token: string; log: s
             },
             timeout: 10000
         });
-        const token = loginRes.data?.access_token || loginRes.data?.token || loginRes.data?.data?.token;
+        const token = loginRes.data?.data?.access_token || loginRes.data?.access_token || loginRes.data?.token || loginRes.data?.data?.token;
         if (token) {
             console.log('✅ [SYT Sync] Login success. Token length:', String(token).length);
             return { token: String(token), log: `Login Success: ${JSON.stringify(loginRes.data)}` };
@@ -415,10 +429,11 @@ async function pushSingleDocumentToSyt(
         const resData = sytRes.data || {};
         const responseLog = JSON.stringify(resData);
         const status = resData.status ?? sytRes.status;
-        const maGiaoDich = resData.maGiaoDich || resData.transaction_id || msgId;
-        const msg = resData.message || 'Thành công';
+        const maGiaoDich = resData.txn_id || resData.maGiaoDich || resData.transaction_id || msgId;
+        const msg = resData.res_msg || resData.message || 'Thành công';
+        const resCode = resData.res_code;
 
-        if (status === 200 || sytRes.status === 200) {
+        if ((status === 200 || sytRes.status === 200) && (!resCode || resCode === 'CM_SUCCESS' || resCode === 'PS_SYNC_SUCCESS')) {
             return {
                 success: true,
                 transactionId: maGiaoDich,
@@ -429,22 +444,23 @@ async function pushSingleDocumentToSyt(
             return {
                 success: false,
                 transactionId: maGiaoDich,
-                message: `[Mã ${status}] ${msg}`,
+                message: `[${resCode || status}] ${msg}`,
                 responseLog
             };
         }
     } catch (err: any) {
         const resData = err.response?.data;
         const statusCode = err.response?.status;
-        const errMsg = resData?.message || (typeof resData === 'string' ? resData : err.message);
+        const errMsg = resData?.res_msg || resData?.message || (typeof resData === 'string' ? resData : err.message);
+        const resCode = resData?.res_code ? `[${resData.res_code}] ` : '';
         let hint = '';
         if (statusCode === 403 || err.code === 'ECONNREFUSED' || err.message?.includes('timeout')) {
             hint = ' (Kiểm tra IP Whitelist với Sở Y tế)';
         }
         return {
             success: false,
-            transactionId: msgId,
-            message: `Lỗi kết nối Cổng SYT: ${statusCode || 500} - ${errMsg}${hint}`,
+            transactionId: resData?.txn_id || msgId,
+            message: `Lỗi Cổng SYT: ${statusCode || 500} - ${resCode}${errMsg}${hint}`,
             responseLog: JSON.stringify(resData || { error: err.message })
         };
     }
@@ -457,9 +473,9 @@ async function pushSingleDocumentToSyt(
 export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> {
     const failedIds: string[] = [];
     try {
-        let settings = getHealthCheckSettings();
+        let settings = await loadHealthCheckSettings();
         if (!settings) {
-            settings = await loadHealthCheckSettings();
+            settings = getHealthCheckSettings();
         }
         if (!settings) {
             console.error('❌ [Sync Portal] Settings not loaded.');
@@ -535,7 +551,7 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
             console.log(`===============================================================`);
 
             const docQuery = await query(`
-                SELECT id, doc_no, form_type, xml_data, patient_name, cccd, dob, gender, signature_status, signature, send_status, syt_send_status 
+                SELECT id, doc_no, form_type, xml_data, patient_name, cccd, dob, gender, signature_status, signature, send_status, syt_send_status, created_at 
                 FROM health_check_masters WHERE id = $1
             `, [parseInt(docId, 10)]);
 
@@ -556,11 +572,15 @@ export async function sendDocumentsToVNeID(docIds: string[]): Promise<string[]> 
             // Kiểm tra đủ và đúng 17 trường bắt buộc theo file đặc tả trước khi ký gửi cổng
             const detailRes = await query(`SELECT clinical_data, lab_data, conclusion_data FROM health_check_details WHERE master_id = $1`, [doc.id]);
             const detail = detailRes.rows[0] || {};
+            const clinical = detail.clinical_data || {};
+            if (!clinical.ly_do_vv) clinical.ly_do_vv = 'Khám sức khỏe định kỳ';
+            if (!clinical.ngay_vao) clinical.ngay_vao = doc.created_at || new Date();
+
             if (doc.patient_name) doc.patient_name = doc.patient_name.toUpperCase();
             const mandatoryCheck = validateMandatoryPortalFields({
                 formType: doc.form_type,
                 master: doc,
-                clinical: detail.clinical_data || {},
+                clinical,
                 lab: detail.lab_data || {},
                 conclusion: detail.conclusion_data || {}
             });

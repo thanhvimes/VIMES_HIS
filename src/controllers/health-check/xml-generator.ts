@@ -1,5 +1,6 @@
 import { getHealthCheckSettings } from '../../config/health-check-settings';
 import { resolveProvinceBhCode, resolveVillageBhCode, resolveOccupationBhCode, resolveProvinceName, resolveVillageName } from '../../services/administrative-catalog.service';
+import { healthCheckTwoTierSigner } from '../../services/health-check-two-tier-signer.service';
 
 // Helper: Tìm kiếm giá trị trường linh hoạt từ nhiều nguồn (case-insensitive & snake/camel-case)
 export function findValue(tag: string, ...sources: any[]): string {
@@ -28,7 +29,7 @@ export function findValue(tag: string, ...sources: any[]): string {
         'dien_thoai_ngh': ['dien_thoai_ngh', 'dienthoaingh', 'guardian_phone', 'guardianphone', 'phone_ngh'],
         'ho_ten_nguoi_di_cung': ['ho_ten_nguoi_di_cung', 'hotennguoidicung', 'escort_name', 'escortname'],
         'so_cccd_nguoi_di_cung': ['so_cccd_nguoi_di_cung', 'socccdnguoidicung', 'escort_cccd', 'escortcccd'],
-        'moi_quan_he_voi_tre': ['moi_quan_he_voi_tre', 'moiquanhevoitre', 'escort_relation', 'escortrelation'],
+        'moi_quan_he_voi_tre': ['moi_quan_he_voi_tre', 'moiquanhevoitre', 'escort_relation', 'escortrelation', 'guardian_relation', 'guardianrelation'],
         'dien_thoai_nguoi_di_cung': ['dien_thoai_nguoi_di_cung', 'dienthoainguoidicung', 'escort_phone', 'escortphone'],
         'ma_nghe_nghiep': ['ma_nghe_nghiep', 'manghenghiep', 'job_code', 'jobcode', 'occupation', 'hee_jobcode'],
         'noi_lam_viec_hoc_tap': ['noi_lam_viec_hoc_tap', 'noilamviechoctap', 'noi_cong_tac', 'noicongtac', 'workplace', 'company_name', 'work_place', 'noi_lam_viec', 'noi_cong_tac_hien_tai'],
@@ -108,23 +109,23 @@ export function findValue(tag: string, ...sources: any[]): string {
 
         // Khám chuyên khoa lâm sàng người lớn & nhi khoa (XML7)
         'noi_khoa': ['internal', 'noikhoa', 'internalexam', 'internal_exam'],
-        'noi_khoa_tuan_hoan': ['kq_tim_mach', 'kq_timmach', 'tim_mach', 'timmach', 'noi_khoa_tuan_hoan', 'noikhoatuanhoan', 'nhi_tuan_hoan', 'nhituanhoan', 'circulatory'],
-        'noi_khoa_tuan_hoan_pl': ['noi_khoa_tuan_hoan_pl', 'noikhoatuanhoanpl', 'tuan_hoan_pl', 'tuanhoanpl', 'tim_mach_pl'],
-        'ckdt_noi_khoa_tuan_hoan': ['ckdt_noi_khoa_tuan_hoan', 'ckdtnoikhoatuanhoan', 'bs_tuan_hoan', 'doctor_tuan_hoan'],
+        'noi_khoa_tuan_hoan': ['kq_tim_mach', 'kq_timmach', 'tim_mach', 'timmach', 'noi_khoa_tuan_hoan', 'noikhoatuanhoan', 'circulatory', 'nhi_khoa_tuan_hoan', 'nhi_tuan_hoan', 'nhituanhoan'],
+        'noi_khoa_tuan_hoan_pl': ['noi_khoa_tuan_hoan_pl', 'noikhoatuanhoanpl', 'tuan_hoan_pl', 'tuanhoanpl', 'tim_mach_pl', 'nhi_tuan_hoan_pl'],
+        'ckdt_noi_khoa_tuan_hoan': ['ckdt_noi_khoa_tuan_hoan', 'ckdtnoikhoatuanhoan', 'bs_tuan_hoan', 'doctor_tuan_hoan', 'ckdt_nhi_khoa_tuan_hoan'],
         
-        'noi_khoa_ho_hap': ['kq_ho_hap', 'kq_hohap', 'ho_hap', 'hohap', 'noi_khoa_ho_hap', 'noikhoahohap', 'nhi_ho_hap', 'nhihohap', 'respiratory'],
-        'noi_khoa_ho_hap_pl': ['noi_khoa_ho_hap_pl', 'noikhoahohappl', 'ho_hap_pl', 'hohappl'],
-        'ckdt_noi_khoa_ho_hap': ['ckdt_noi_khoa_ho_hap', 'ckdtnoikhoahohap', 'bs_ho_hap', 'doctor_ho_hap'],
+        'noi_khoa_ho_hap': ['kq_ho_hap', 'kq_hohap', 'ho_hap', 'hohap', 'noi_khoa_ho_hap', 'noikhoahohap', 'respiratory', 'nhi_khoa_ho_hap', 'nhi_ho_hap', 'nhihohap'],
+        'noi_khoa_ho_hap_pl': ['noi_khoa_ho_hap_pl', 'noikhoahohappl', 'ho_hap_pl', 'hohappl', 'nhi_ho_hap_pl'],
+        'ckdt_noi_khoa_ho_hap': ['ckdt_noi_khoa_ho_hap', 'ckdtnoikhoahohap', 'bs_ho_hap', 'doctor_ho_hap', 'ckdt_nhi_khoa_ho_hap'],
 
-        'noi_khoa_tieu_hoa': ['noi_khoa_tieu_hoa', 'noikhoatieuhoa', 'kq_tieu_hoa', 'tieu_hoa', 'tieuhoa', 'nhi_tieu_hoa', 'nhitieuhoa', 'digestive'],
-        'noi_khoa_tieu_hoa_pl': ['noi_khoa_tieu_hoa_pl', 'noikhoatieuhoapl', 'tieu_hoa_pl', 'tieuhoapl'],
-        'ckdt_noi_khoa_tieu_hoa': ['ckdt_noi_khoa_tieu_hoa', 'ckdtnoikhoatieuhoa', 'bs_tieu_hoa', 'doctor_tieu_hoa'],
+        'noi_khoa_tieu_hoa': ['kq_tieu_hoa', 'kqtieuhoa', 'noi_khoa_tieu_hoa', 'noikhoatieuhoa', 'tieu_hoa', 'tieuhoa', 'digestive', 'nhi_khoa_tieu_hoa', 'nhi_tieu_hoa', 'nhitieuhoa'],
+        'noi_khoa_tieu_hoa_pl': ['noi_khoa_tieu_hoa_pl', 'noikhoatieuhoapl', 'tieu_hoa_pl', 'tieuhoapl', 'nhi_tieu_hoa_pl'],
+        'ckdt_noi_khoa_tieu_hoa': ['ckdt_noi_khoa_tieu_hoa', 'ckdtnoikhoatieuhoa', 'bs_tieu_hoa', 'doctor_tieu_hoa', 'ckdt_nhi_khoa_tieu_hoa'],
 
-        'noi_khoa_than_tn_sd': ['kq_tiet_nieu', 'kq_tietnieu', 'tiet_nieu_sinh_duc', 'tietnieusinhduc', 'noi_khoa_than_tn_sd', 'noikhoathantnsd', 'nhi_tiet_nieu', 'nhitietnieu', 'kq_sinh_duc', 'urinary'],
-        'noi_khoa_than_tn_sd_pl': ['noi_khoa_than_tn_sd_pl', 'noikhoathantnsdpl', 'noi_khoa_than_tietnieu_pl', 'than_tn_sd_pl', 'than_tiet_nieu_pl'],
-        'ckdt_noi_khoa_than_tn_sd': ['ckdt_noi_khoa_than_tn_sd', 'ckdtnoikhoathantnsd', 'bs_than_tn_sd', 'doctor_than_tn_sd'],
+        'noi_khoa_than_tn_sd': ['kq_tiet_nieu', 'kq_tietnieu', 'noi_khoa_than_tn_sd', 'noikhoathantnsd', 'tiet_nieu_sinh_duc', 'tietnieusinhduc', 'kq_sinh_duc', 'urinary', 'nhi_khoa_than_tn_sd', 'nhi_tiet_nieu', 'nhitietnieu'],
+        'noi_khoa_than_tn_sd_pl': ['noi_khoa_than_tn_sd_pl', 'noikhoathantnsdpl', 'noi_khoa_than_tietnieu_pl', 'than_tn_sd_pl', 'than_tiet_nieu_pl', 'nhi_tiet_nieu_pl'],
+        'ckdt_noi_khoa_than_tn_sd': ['ckdt_noi_khoa_than_tn_sd', 'ckdtnoikhoathantnsd', 'bs_than_tn_sd', 'doctor_than_tn_sd', 'ckdt_nhi_khoa_than_tn_sd'],
 
-        'noi_khoa_noi_tiet': ['kq_noi_tiet', 'kq_noitiet', 'kq_noi_tiet_chuyen_hoa', 'noi_tiet_dinh_duong_chuyen_hoa', 'noi_tiet', 'noitiet', 'noi_khoa_noi_tiet', 'noikhoanoitiet', 'endocrine'],
+        'noi_khoa_noi_tiet': ['kq_noi_tiet', 'kq_noitiet', 'kq_noi_tiet_chuyen_hoa', 'noi_khoa_noi_tiet', 'noikhoanoitiet', 'noi_tiet_dinh_duong_chuyen_hoa', 'noi_tiet', 'noitiet', 'endocrine'],
         'noi_khoa_noi_tiet_pl': ['noi_khoa_noi_tiet_pl', 'noikhoanoitietpl', 'noi_tiet_pl', 'noitietpl'],
         'ckdt_noi_khoa_noi_tiet': ['ckdt_noi_khoa_noi_tiet', 'ckdtnoikhoanoitiet', 'bs_noi_tiet', 'doctor_noi_tiet'],
 
@@ -132,13 +133,13 @@ export function findValue(tag: string, ...sources: any[]): string {
         'noi_khoa_co_xuong_khop_pl': ['noi_khoa_co_xuong_khop_pl', 'noikhoacoxuongkhoppl', 'co_xuong_khop_pl', 'coxuongkhoppl'],
         'ckdt_noi_khoa_co_xuong_khop': ['ckdt_noi_khoa_co_xuong_khop', 'ckdtnoikhoacoxuongkhop', 'bs_co_xuong_khop', 'doctor_co_xuong_khop'],
 
-        'noi_khoa_than_kinh': ['kq_than_kinh', 'kq_thankinh', 'noi_khoa_than_kinh', 'noikhoathankinh', 'nhi_than_kinh', 'nhithankinh', 'than_kinh_m5', 'than_kinh_tam_ly', 'than_kinh', 'thankinh', 'neurology'],
-        'noi_khoa_than_kinh_pl': ['noi_khoa_than_kinh_pl', 'noikhoathankinhpl', 'than_kinh_pl', 'thankinhpl'],
-        'ckdt_noi_khoa_than_kinh': ['ckdt_noi_khoa_than_kinh', 'ckdtnoikhoathankinh', 'bs_than_kinh', 'doctor_than_kinh'],
+        'noi_khoa_than_kinh': ['kq_than_kinh', 'kq_thankinh', 'noi_khoa_than_kinh', 'noikhoathankinh', 'than_kinh', 'thankinh', 'neurology', 'than_kinh_m5', 'than_kinh_tam_ly', 'nhi_khoa_than_kinh', 'nhi_than_kinh', 'nhithankinh'],
+        'noi_khoa_than_kinh_pl': ['noi_khoa_than_kinh_pl', 'noikhoathankinhpl', 'than_kinh_pl', 'thankinhpl', 'nhi_than_kinh_pl'],
+        'ckdt_noi_khoa_than_kinh': ['ckdt_noi_khoa_than_kinh', 'ckdtnoikhoathankinh', 'bs_than_kinh', 'doctor_than_kinh', 'ckdt_nhi_khoa_than_kinh'],
 
-        'noi_khoa_tam_than': ['kq_tam_than', 'kq_tamthan', 'noi_khoa_tam_than', 'noikhoatamthan', 'nhi_tam_than', 'nhitamthan', 'roi_loan_han_vi_tam_than', 'tam_than', 'tamthan', 'psychiatry'],
-        'noi_khoa_tam_than_pl': ['noi_khoa_tam_than_pl', 'noikhoatamthanpl', 'tam_than_pl', 'tamthanpl'],
-        'ckdt_noi_khoa_tam_than': ['ckdt_noi_khoa_tam_than', 'ckdtnoikhoatamthan', 'bs_tam_than', 'doctor_tam_than'],
+        'noi_khoa_tam_than': ['kq_tam_than', 'kq_tamthan', 'noi_khoa_tam_than', 'noikhoatamthan', 'tam_than', 'tamthan', 'roi_loan_han_vi_tam_than', 'psychiatry', 'nhi_khoa_tam_than', 'nhi_tam_than', 'nhitamthan'],
+        'noi_khoa_tam_than_pl': ['noi_khoa_tam_than_pl', 'noikhoatamthanpl', 'tam_than_pl', 'tamthanpl', 'nhi_tam_than_pl'],
+        'ckdt_noi_khoa_tam_than': ['ckdt_noi_khoa_tam_than', 'ckdtnoikhoatamthan', 'bs_tam_than', 'doctor_tam_than', 'ckdt_nhi_khoa_tam_than'],
 
         'ket_qua_kham_ngoai_khoa': ['kq_ngoai_khoa', 'kq_ngoaikhoa', 'external', 'ngoai_khoa', 'ngoaikhoa', 'kham_ngoai_khoa', 'ma_benh_ngoai_khoa', 'ket_qua_kham_ngoai_khoa', 'surgery'],
         'kham_ngoai_khoa_pl': ['kham_ngoai_khoa_pl', 'khamngoaikhoapl', 'ngoai_khoa_pl', 'ngoaikhoapl'],
@@ -191,18 +192,18 @@ export function findValue(tag: string, ...sources: any[]): string {
         'ckdt_kham_rang_ham_mat': ['ckdt_kham_rang_ham_mat', 'ckdtkhamranghammat', 'bs_rang_ham_mat', 'doctor_rang_ham_mat'],
 
         // Minor (Mẫu 2) specific
-        'nhi_khoa_tuan_hoan': ['nhi_khoa_tuan_hoan', 'nhikhoatuanhoan', 'nhi_tuan_hoan', 'kq_tim_mach', 'tim_mach'],
-        'ckdt_nhi_khoa_tuan_hoan': ['ckdt_nhi_khoa_tuan_hoan', 'ckdtnhikhoatuanhoan'],
-        'nhi_khoa_ho_hap': ['nhi_khoa_ho_hap', 'nhikhoahohap', 'nhi_ho_hap', 'kq_ho_hap', 'ho_hap'],
-        'ckdt_nhi_khoa_ho_hap': ['ckdt_nhi_khoa_ho_hap', 'ckdtnhikhoahohap'],
-        'nhi_khoa_tieu_hoa': ['nhi_khoa_tieu_hoa', 'nhikhoatieuhoa', 'nhi_tieu_hoa', 'kq_tieu_hoa', 'tieu_hoa'],
-        'ckdt_nhi_khoa_tieu_hoa': ['ckdt_nhi_khoa_tieu_hoa', 'ckdtnhikhoatieuhoa'],
-        'nhi_khoa_than_tn_sd': ['nhi_khoa_than_tn_sd', 'nhikhoathantnsd', 'nhi_tiet_nieu', 'kq_tiet_nieu'],
-        'ckdt_nhi_khoa_than_tn_sd': ['ckdt_nhi_khoa_than_tn_sd', 'ckdtnhikhoathantnsd'],
-        'nhi_khoa_than_kinh': ['nhi_khoa_than_kinh', 'nhikhoathankinh', 'nhi_than_kinh', 'kq_than_kinh'],
-        'ckdt_nhi_khoa_than_kinh': ['ckdt_nhi_khoa_than_kinh', 'ckdtnhikhoathankinh'],
-        'nhi_khoa_tam_than': ['nhi_khoa_tam_than', 'nhikhoatamthan', 'nhi_tam_than', 'kq_tam_than'],
-        'ckdt_nhi_khoa_tam_than': ['ckdt_nhi_khoa_tam_than', 'ckdtnhikhoatamthan'],
+        'nhi_khoa_tuan_hoan': ['kq_tim_mach', 'kq_timmach', 'tim_mach', 'timmach', 'noi_khoa_tuan_hoan', 'noikhoatuanhoan', 'nhi_khoa_tuan_hoan', 'nhikhoatuanhoan', 'nhi_tuan_hoan', 'nhituanhoan'],
+        'ckdt_nhi_khoa_tuan_hoan': ['ckdt_nhi_khoa_tuan_hoan', 'ckdtnhikhoatuanhoan', 'ckdt_noi_khoa_tuan_hoan', 'bs_tuan_hoan', 'doctor_tuan_hoan'],
+        'nhi_khoa_ho_hap': ['kq_ho_hap', 'kq_hohap', 'ho_hap', 'hohap', 'noi_khoa_ho_hap', 'noikhoahohap', 'nhi_khoa_ho_hap', 'nhikhoahohap', 'nhi_ho_hap', 'nhihohap'],
+        'ckdt_nhi_khoa_ho_hap': ['ckdt_nhi_khoa_ho_hap', 'ckdtnhikhoahohap', 'ckdt_noi_khoa_ho_hap', 'bs_ho_hap', 'doctor_ho_hap'],
+        'nhi_khoa_tieu_hoa': ['kq_tieu_hoa', 'kqtieuhoa', 'noi_khoa_tieu_hoa', 'noikhoatieuhoa', 'tieu_hoa', 'tieuhoa', 'nhi_khoa_tieu_hoa', 'nhikhoatieuhoa', 'nhi_tieu_hoa', 'nhitieuhoa'],
+        'ckdt_nhi_khoa_tieu_hoa': ['ckdt_nhi_khoa_tieu_hoa', 'ckdtnhikhoatieuhoa', 'ckdt_noi_khoa_tieu_hoa', 'bs_tieu_hoa', 'doctor_tieu_hoa'],
+        'nhi_khoa_than_tn_sd': ['kq_tiet_nieu', 'kq_tietnieu', 'noi_khoa_than_tn_sd', 'noikhoathantnsd', 'tiet_nieu_sinh_duc', 'kq_sinh_duc', 'nhi_khoa_than_tn_sd', 'nhikhoathantnsd', 'nhi_tiet_nieu', 'nhitietnieu'],
+        'ckdt_nhi_khoa_than_tn_sd': ['ckdt_nhi_khoa_than_tn_sd', 'ckdtnhikhoathantnsd', 'ckdt_noi_khoa_than_tn_sd', 'bs_than_tn_sd', 'doctor_than_tn_sd'],
+        'nhi_khoa_than_kinh': ['kq_than_kinh', 'kq_thankinh', 'noi_khoa_than_kinh', 'noikhoathankinh', 'than_kinh', 'nhi_khoa_than_kinh', 'nhikhoathankinh', 'nhi_than_kinh', 'nhithankinh'],
+        'ckdt_nhi_khoa_than_kinh': ['ckdt_nhi_khoa_than_kinh', 'ckdtnhikhoathankinh', 'ckdt_noi_khoa_than_kinh', 'bs_than_kinh', 'doctor_than_kinh'],
+        'nhi_khoa_tam_than': ['kq_tam_than', 'kq_tamthan', 'noi_khoa_tam_than', 'noikhoatamthan', 'tam_than', 'nhi_khoa_tam_than', 'nhikhoatamthan', 'nhi_tam_than', 'nhitamthan'],
+        'ckdt_nhi_khoa_tam_than': ['ckdt_nhi_khoa_tam_than', 'ckdtnhikhoatamthan', 'ckdt_noi_khoa_tam_than', 'bs_tam_than', 'doctor_tam_than'],
 
         // Child Under 6 (Mẫu 1) XML7 specific tags & synonyms
         'mau_sac_da': ['mau_sac_da', 'mausacda'],
@@ -264,12 +265,14 @@ export function findValue(tag: string, ...sources: any[]): string {
         'ket_luan_xn_khac': ['ket_luan_xn_khac', 'ketluanxnkhac']
     };
 
-    const targetKeys = [tagLower, tagSnake];
+    const targetKeys: string[] = [];
     if (tagMap[tagLower]) {
         targetKeys.push(...tagMap[tagLower]);
     }
+    if (!targetKeys.includes(tagLower)) targetKeys.push(tagLower);
+    if (!targetKeys.includes(tagSnake)) targetKeys.push(tagSnake);
     
-    const search = (obj: any): string | null => {
+    const getValByKey = (obj: any, targetKey: string): string | null => {
         if (!obj || typeof obj !== 'object') return null;
         
         // Priority 1: Check direct keys of current object level
@@ -277,7 +280,7 @@ export function findValue(tag: string, ...sources: any[]): string {
             const keyLower = key.toLowerCase().trim();
             const keySnake = keyLower.replace(/_/g, '').replace(/-/g, '').replace(/\s+/g, '');
             
-            if (targetKeys.includes(keyLower) || targetKeys.includes(keySnake)) {
+            if (keyLower === targetKey || keySnake === targetKey) {
                 if (obj[key] !== null && obj[key] !== undefined && String(obj[key]).trim() !== '') {
                     return String(obj[key]).trim();
                 }
@@ -287,16 +290,19 @@ export function findValue(tag: string, ...sources: any[]): string {
         // Priority 2: Recurse into nested child objects
         for (const key of Object.keys(obj)) {
             if (typeof obj[key] === 'object' && obj[key] !== null) {
-                const result = search(obj[key]);
+                const result = getValByKey(obj[key], targetKey);
                 if (result !== null) return result;
             }
         }
         return null;
     };
     
-    for (const source of sources) {
-        const result = search(source);
-        if (result !== null) return result;
+    // Search targetKeys in strict priority order across all sources
+    for (const tk of targetKeys) {
+        for (const source of sources) {
+            const result = getValByKey(source, tk);
+            if (result !== null) return result;
+        }
     }
     return '';
 }
@@ -350,6 +356,71 @@ export function resolveHealthCheckAgeGroup(formType: string, dob?: string | Date
     if (formType === '1' || formType === 'mau1-child' || formType === 'child') return 'UNDER_6';
     if (formType === '2' || formType === 'mau2-minor' || formType === 'minor') return 'AGE_6_TO_UNDER_18';
     return 'ADULT_18_PLUS';
+}
+
+/**
+ * Chuẩn hóa mã mối quan hệ của người đi cùng với trẻ (MOI_QUAN_HE_VOI_TRE) 
+ * theo Quyết định 2062/QĐ-BYT (sửa đổi QĐ 1551/QĐ-BYT):
+ * 1: Cha
+ * 2: Mẹ
+ * 3: Ông/Bà
+ * 4: Anh/Chị
+ * 5: Họ hàng
+ * 9: Khác
+ */
+export function resolveChildRelationCode(val: any): string {
+    if (val === undefined || val === null) return '';
+    const s = String(val).trim();
+    if (!s || s === '0') return '';
+
+    // Nếu đã là mã định danh chuẩn: 1, 2, 3, 4, 5, 9
+    if (['1', '2', '3', '4', '5', '9'].includes(s)) {
+        return s;
+    }
+
+    const lower = s.toLowerCase();
+
+    // 1: Cha / Bố / Ba (tránh 'bà', 'bác')
+    if (lower.includes('bố') || lower.includes('cha') || /(^|[\s/_-])ba([\s/_-]|$)/i.test(lower)) {
+        return '1';
+    }
+    // 2: Mẹ / Má
+    if (lower.includes('mẹ') || lower.includes('má') || lower.includes('me') || /(^|[\s/_-])ma([\s/_-]|$)/i.test(lower)) {
+        return '2';
+    }
+    // 3: Ông / Bà
+    if (lower.includes('ông') || lower.includes('bà') || lower.includes('ong') || lower.includes('ong/ba')) {
+        return '3';
+    }
+    // 4: Anh / Chị
+    if (lower.includes('anh') || lower.includes('chị') || lower.includes('chi') || lower.includes('anh/chi')) {
+        return '4';
+    }
+    // 5: Họ hàng (bác, chú, cô, dì, cậu, mợ, họ hàng)
+    if (
+        lower.includes('họ hàng') ||
+        lower.includes('ho hang') ||
+        lower.includes('bác') ||
+        lower.includes('bac') ||
+        lower.includes('chú') ||
+        lower.includes('chu') ||
+        lower.includes('cô') ||
+        lower.includes('co') ||
+        lower.includes('dì') ||
+        lower.includes('di') ||
+        lower.includes('cậu') ||
+        lower.includes('cau') ||
+        lower.includes('mợ') ||
+        lower.includes('mo')
+    ) {
+        return '5';
+    }
+    // 9: Khác (người giám hộ, khác, nuôi...)
+    if (lower.includes('khác') || lower.includes('khac') || lower.includes('giám hộ') || lower.includes('giam ho') || lower.includes('nuôi')) {
+        return '9';
+    }
+
+    return '9';
 }
 
 export function generateXmlPayload(formType: string, master: any, clinical: any, lab: any, conclusion: any): string {
@@ -448,9 +519,12 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
 
     let soCccdNguoiDiCung = String(findValue('SO_CCCD_NGUOI_DI_CUNG', src) || '').trim();
     if (soCccdNguoiDiCung.length !== 12) soCccdNguoiDiCung = '';
-    const moiQuanHeVoiTre = findValue('MOI_QUAN_HE_VOI_TRE', src) || '0';
+    const rawMoiQuanHe = findValue('MOI_QUAN_HE_VOI_TRE', src) || findValue('guardian_relation', src);
+    const moiQuanHeVoiTre = resolveChildRelationCode(rawMoiQuanHe);
     const dienThoaiNguoiDiCung = findValue('DIEN_THOAI_NGUOI_DI_CUNG', src);
-    const maNgheNghiep = findValue('MA_NGHE_NGHIEP', src) || '04';
+
+    const rawNgheNghiep = findValue('MA_NGHE_NGHIEP', src) || findValue('occupation', src) || findValue('ma_nghe_nghiep', src) || '00';
+    const maNgheNghiep = resolveOccupationBhCode(rawNgheNghiep);
     const noiLamViec = findValue('NOI_LAM_VIEC_HOC_TAP', src) || findValue('noi_cong_tac', src);
     const lyDoVv = findValue('LY_DO_VV', src) || 'Khám sức khỏe định kỳ';
 
@@ -891,6 +965,11 @@ export function generateXmlPayload(formType: string, master: any, clinical: any,
 
     // Packaging into Envelope KHAMSUCKHOE matching sample xml.txt / data.xml exactly
     const todayYmd = formatYmd(new Date());
+    const rawDocSig = conclusionObj.signature || conclusionObj.doctor_signature || conclusionObj.signature_base64 || (master?.signature_type === 'DOCTOR' ? master.signature : '') || '';
+    const cksNguoiKetLuan = rawDocSig ? healthCheckTwoTierSigner.extractCleanSignatureValue(rawDocSig) : '';
+    const rawHospSig = (master?.signature_status === 'Signed' && master?.signature_type !== 'DOCTOR' ? (master.signature || '') : '') || master?.hospital_signature || '';
+    const cksBenhVien = rawHospSig ? healthCheckTwoTierSigner.extractCleanSignatureValue(rawHospSig) : '';
+
     const envelope = `<?xml version="1.0" encoding="utf-8"?>
 <KHAMSUCKHOE
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -949,8 +1028,8 @@ ${xml12}
 		</DANHSACHHOSO>
 	</THONGTINHOSO>
 	<CHUKYDONVI>
-		<CKS_NGUOI_KET_LUAN></CKS_NGUOI_KET_LUAN>
-		<CKS_BENH_VIEN></CKS_BENH_VIEN>
+		<CKS_NGUOI_KET_LUAN>${escapeXml(cksNguoiKetLuan)}</CKS_NGUOI_KET_LUAN>
+		<CKS_BENH_VIEN>${escapeXml(cksBenhVien)}</CKS_BENH_VIEN>
 	</CHUKYDONVI>
 </KHAMSUCKHOE>`;
 

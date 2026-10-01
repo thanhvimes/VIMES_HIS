@@ -234,7 +234,7 @@ export class StatisticsService {
                 FROM sys_dept sd
                 LEFT JOIN hms_treatment_record htr ON (htr.htr_deptid = sd.sd_id)
                 LEFT JOIN hms_clinical_record hcr ON (hcr.hcr_docno = htr.htr_docno AND hcr.hcr_refidx = htr.htr_idx)
-                WHERE sd.sd_type = 'DT' AND (sd.sd_isactive = 'Y' OR sd.sd_isactive IS NULL)
+                WHERE sd.sd_type = 'DT' AND (COALESCE(sd.sd_isactive, 'Y') = 'Y')
                 GROUP BY sd.sd_id, sd.sd_name
             )
             SELECT 
@@ -359,23 +359,24 @@ export class StatisticsService {
     }
 
     /**
-     * 7. Công suất sử dụng Giường bệnh (Khớp chuẩn QĐ 49/QĐ-BVĐKT Lai Châu 562 giường & Tách cột BN nội/ngoại trú)
+     * 7. Công suất sử dụng Giường bệnh (Lấy giường kế hoạch theo sys_dept.sd_bednumber do Sở Y tế giao & Tách cột BN nội/ngoại trú)
      */
     static async getBedOccupancyStatistics() {
         const sql = `
             SELECT 
                 sd.sd_id AS dept_id,
                 sd.sd_name AS dept_name,
-                -- Ưu tiên giường kế hoạch theo Quyết định 49/QĐ-BVĐKT trong sys_dept, fallback hms_bedlist
-                COALESCE(NULLIF(sd.sd_planned_bed, 0), b.giuong_ke_hoach, 0) AS giuong_ke_hoach,
+                -- Lấy chuẩn xác giường kế hoạch thiết lập cứng theo số giường của sở giao tại sys_dept.sd_bednumber
+                COALESCE(sd.sd_bednumber, 0) AS giuong_ke_hoach,
+                COALESCE(b.giuong_ke_hoach, 0) AS giuong_thuc_ke,
                 COALESCE(t.bn_noi_tru_bhyt, 0) AS bn_noi_tru_bhyt,
                 COALESCE(t.bn_noi_tru_vienphi, 0) AS bn_noi_tru_vienphi,
                 COALESCE(t.bn_ngoai_tru, 0) AS bn_ngoai_tru,
                 COALESCE(t.bn_dang_nam, 0) AS bn_dang_nam,
                 ROUND(
                     CASE 
-                        WHEN COALESCE(NULLIF(sd.sd_planned_bed, 0), b.giuong_ke_hoach, 0) > 0 
-                        THEN (COALESCE(t.bn_dang_nam, 0)::numeric / COALESCE(NULLIF(sd.sd_planned_bed, 0), b.giuong_ke_hoach, 0)::numeric) * 100 
+                        WHEN COALESCE(sd.sd_bednumber, 0) > 0 
+                        THEN (COALESCE(t.bn_dang_nam, 0)::numeric / COALESCE(sd.sd_bednumber, 0)::numeric) * 100 
                         ELSE 0 
                     END, 1
                 ) AS ty_le_cong_suat
@@ -402,8 +403,9 @@ export class StatisticsService {
                 GROUP BY htr.htr_deptid
             ) t ON t.htr_deptid = sd.sd_id
             WHERE sd.sd_type = 'DT' 
-              AND (COALESCE(NULLIF(sd.sd_planned_bed, 0), b.giuong_ke_hoach, 0) > 0 OR t.bn_dang_nam > 0 OR t.bn_ngoai_tru > 0)
-            ORDER BY COALESCE(NULLIF(sd.sd_planned_bed, 0), b.giuong_ke_hoach, 0) DESC, sd.sd_id
+              AND COALESCE(sd.sd_isactive, 'Y') = 'Y'
+              AND (COALESCE(sd.sd_bednumber, 0) > 0 OR COALESCE(b.giuong_ke_hoach, 0) > 0 OR t.bn_dang_nam > 0 OR t.bn_ngoai_tru > 0)
+            ORDER BY COALESCE(sd.sd_bednumber, 0) DESC, sd.sd_id
         `;
         const res = await query(sql);
         return res.rows;
@@ -521,32 +523,28 @@ export class StatisticsService {
                OR htr_status = 'I')
         `;
 
-        // 3. Giường bệnh theo 562 Giường kế hoạch QĐ 49
+        // 3. Giường bệnh theo số giường kế hoạch sys_dept.sd_bednumber
         const bedSql = `
             SELECT 
                 sd.sd_id AS dept_id,
                 sd.sd_name AS dept_name,
-                COALESCE(NULLIF(sd.sd_planned_bed, 0), b.giuong_ke_hoach, 0) AS giuong_ke_hoach,
+                COALESCE(sd.sd_bednumber, 0) AS giuong_ke_hoach,
                 COALESCE(t.bn_dang_nam, 0) AS bn_dang_nam,
                 ROUND(
                     CASE 
-                        WHEN COALESCE(NULLIF(sd.sd_planned_bed, 0), b.giuong_ke_hoach, 0) > 0 
-                        THEN (COALESCE(t.bn_dang_nam, 0)::numeric / COALESCE(NULLIF(sd.sd_planned_bed, 0), b.giuong_ke_hoach, 0)::numeric) * 100 
+                        WHEN COALESCE(sd.sd_bednumber, 0) > 0 
+                        THEN (COALESCE(t.bn_dang_nam, 0)::numeric / COALESCE(sd.sd_bednumber, 0)::numeric) * 100 
                         ELSE 0 
                     END, 1
                 ) AS ty_le_cong_suat
             FROM sys_dept sd
-            LEFT JOIN (
-                SELECT hbl_deptid, COALESCE(SUM(hbl_maxqty), COUNT(hbl_id)) AS giuong_ke_hoach
-                FROM hms_bedlist WHERE hbl_active = 'Y' GROUP BY hbl_deptid
-            ) b ON b.hbl_deptid = sd.sd_id
             LEFT JOIN (
                 SELECT htr_deptid, COUNT(DISTINCT htr_docno) AS bn_dang_nam
                 FROM hms_treatment_record
                 WHERE htr_status = 'I' AND (htr_outpatient <> 'Y' OR htr_outpatient IS NULL)
                 GROUP BY htr_deptid
             ) t ON t.htr_deptid = sd.sd_id
-            WHERE sd.sd_type = 'DT' AND (COALESCE(NULLIF(sd.sd_planned_bed, 0), b.giuong_ke_hoach, 0) > 0 OR t.bn_dang_nam > 0)
+            WHERE sd.sd_type = 'DT' AND COALESCE(sd.sd_isactive, 'Y') = 'Y' AND (COALESCE(sd.sd_bednumber, 0) > 0 OR t.bn_dang_nam > 0)
             ORDER BY ty_le_cong_suat DESC
         `;
 
@@ -690,6 +688,7 @@ export class StatisticsService {
             deaths_list: deathsList
         };
     }
+
 
 
     /**
@@ -845,17 +844,13 @@ export class StatisticsService {
             SELECT 
                 sd.sd_id, 
                 sd.sd_name, 
-                COALESCE(NULLIF(sd.sd_planned_bed, 0), b.giuong_ke_hoach, 0) AS giuong_ke_hoach,
+                COALESCE(sd.sd_bednumber, 0) AS giuong_ke_hoach,
                 COUNT(DISTINCT htr.htr_docno) AS bn_dang_nam
             FROM sys_dept sd
-            LEFT JOIN (
-                SELECT hbl_deptid, COALESCE(SUM(hbl_maxqty), COUNT(hbl_id)) AS giuong_ke_hoach
-                FROM hms_bedlist WHERE hbl_active = 'Y' GROUP BY hbl_deptid
-            ) b ON b.hbl_deptid = sd.sd_id
             JOIN hms_treatment_record htr ON (htr.htr_deptid = sd.sd_id AND htr.htr_status = 'I' AND (htr.htr_outpatient <> 'Y' OR htr.htr_outpatient IS NULL))
-            WHERE sd.sd_type = 'DT'
-            GROUP BY sd.sd_id, sd.sd_name, b.giuong_ke_hoach
-            HAVING COUNT(DISTINCT htr.htr_docno) > COALESCE(NULLIF(sd.sd_planned_bed, 0), b.giuong_ke_hoach, 0)
+            WHERE sd.sd_type = 'DT' AND COALESCE(sd.sd_isactive, 'Y') = 'Y' AND COALESCE(sd.sd_bednumber, 0) > 0
+            GROUP BY sd.sd_id, sd.sd_name, sd.sd_bednumber
+            HAVING COUNT(DISTINCT htr.htr_docno) > COALESCE(sd.sd_bednumber, 0)
         `;
 
         // 2. Quét ca tử vong hôm nay
@@ -977,4 +972,3 @@ export class StatisticsService {
         };
     }
 }
-

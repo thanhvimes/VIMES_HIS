@@ -17,7 +17,7 @@ const DermatologyTab: React.FC = () => {
                 <div className="flex justify-end mb-4">
                     <button
                         type="button"
-                        onClick={() => handleAutofillTab('exam')}
+                        onClick={() => handleAutofillTab('dermatology')}
                         className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40 text-[#0f766e] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer shadow-sm hover:shadow active:scale-95"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">

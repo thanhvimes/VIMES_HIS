@@ -58,7 +58,7 @@ class BookingCatalogController {
                     sd_name as name,
                     sd_type as type
                 FROM sys_dept
-                WHERE sd_type = 'KB' AND sd_isactive = 'Y'
+                WHERE sd_type = 'KB' AND COALESCE(sd_active, 'Y') = 'Y'
                 ORDER BY sd_name
             `);
             return res.json(result.rows);

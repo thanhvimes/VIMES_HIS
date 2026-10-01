@@ -243,7 +243,8 @@ test('Full Integration: hisIntegrationController.getHisPatient synchronizes para
     let syncedData: any = null;
     await hisIntegrationController.getHisPatient(
         {
-            params: { identifier: dummyDocNo }
+            params: { identifier: dummyDocNo },
+            query: { syncCls: '1' }
         } as any,
         {
             json(d: any) { syncedData = d; return this; },

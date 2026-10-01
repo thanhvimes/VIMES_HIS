@@ -7,6 +7,7 @@ import { healthCheckService } from '../../../services/healthCheckService';
 import { validateNewFormAge } from '../utils/healthCheckAge';
 import { formatDateForInput, parseDateSafe } from '../../../utils/formatters';
 import { validateMandatoryPortalFields } from '../utils/mandatoryFieldsValidator';
+import { resolveChildRelationCode } from '../constants';
 
 export const useDynamicFormState = (
     formType: string,
@@ -30,34 +31,7 @@ export const useDynamicFormState = (
     const [patientName, setPatientName] = useState(initialData?.patient_name || '');
     const [cccd, setCccd] = useState(initialData?.cccd || '');
     const [noCccd, setNoCccd] = useState(initialData?.clinical_data?.no_cccd || false);
-    const [dob, setDobState] = useState(initialData?.dob ? formatDateForInput(initialData.dob) : '');
-
-    // Tự động chuyển đổi mẫu biểu khi ngày sinh thay đổi
-    const setDob: React.Dispatch<React.SetStateAction<string>> = (valOrFn) => {
-        setDobState(prev => {
-            const nextVal = typeof valOrFn === 'function' ? (valOrFn as any)(prev) : valOrFn;
-            if (nextVal && onChangeFormType) {
-                const bDate = parseDateSafe(nextVal);
-                if (bDate && !isNaN(bDate.getTime())) {
-                    const today = new Date();
-                    let age = today.getFullYear() - bDate.getFullYear();
-                    if (today.getMonth() < bDate.getMonth() || (today.getMonth() === bDate.getMonth() && today.getDate() < bDate.getDate())) {
-                        age--;
-                    }
-                    let targetForm = '3';
-                    if (age < 6) targetForm = '1';
-                    else if (age < 18) targetForm = '2';
-                    else targetForm = '3';
-
-                    if (targetForm !== formType) {
-                        console.log(`🔄 [Auto-switch Form] Tự động chuyển sang Mẫu ${targetForm} theo ngày sinh: ${nextVal} (Tuổi: ${age})`);
-                        onChangeFormType(targetForm);
-                    }
-                }
-            }
-            return nextVal;
-        });
-    };
+    const [dob, setDob] = useState(initialData?.dob ? formatDateForInput(initialData.dob) : (initialData?.ngay_sinh ? formatDateForInput(initialData.ngay_sinh) : ''));
     const [gender, setGender] = useState(initialData?.gender || '');
     const [docNo, setDocNo] = useState(initialData?.doc_no || Date.now().toString());
     const [address, setAddress] = useState(initialData?.clinical_data?.address || '');
@@ -82,7 +56,7 @@ export const useDynamicFormState = (
     const [guardianCccd, setGuardianCccd] = useState(initialData?.clinical_data?.extra?.so_cccd_ngh || '');
     const [escortName, setEscortName] = useState(initialData?.clinical_data?.extra?.ho_ten_nguoi_di_cung || '');
     const [escortCccd, setEscortCccd] = useState(initialData?.clinical_data?.extra?.so_cccd_nguoi_di_cung || '');
-    const [escortRelation, setEscortRelation] = useState(initialData?.clinical_data?.extra?.moi_quan_he_voi_tre || '');
+    const [escortRelation, setEscortRelation] = useState(resolveChildRelationCode(initialData?.clinical_data?.extra?.moi_quan_he_voi_tre || ''));
     const [licenseClass, setLicenseClass] = useState(initialData?.clinical_data?.extra?.hang_lai_xe || 'B2');
     const [driverExamPurpose, setDriverExamPurpose] = useState(initialData?.clinical_data?.extra?.driver_exam_purpose || 'Cấp mới');
     const [chucDanh, setChucDanh] = useState(initialData?.clinical_data?.extra?.chuc_danh || '');
@@ -557,7 +531,7 @@ export const useDynamicFormState = (
         if (initialData.patient_id) setPatientId(initialData.patient_id);
         if (initialData.patient_name || initialData.ho_ten) setPatientName((initialData.patient_name || initialData.ho_ten).toUpperCase());
         if (initialData.cccd || initialData.so_cccd) setCccd(initialData.cccd || initialData.so_cccd);
-        if (initialData.dob || initialData.ngay_sinh) setDobState(formatDateForInput(initialData.dob || initialData.ngay_sinh));
+        if (initialData.dob || initialData.ngay_sinh) setDob(formatDateForInput(initialData.dob || initialData.ngay_sinh));
         if (initialData.gender || initialData.gioi_tinh) {
             setGender(initialData.gender || (initialData.gioi_tinh === '1' || initialData.gioi_tinh === 1 ? 'Nam' : 'Nữ'));
         }
@@ -606,7 +580,7 @@ export const useDynamicFormState = (
         if (extra.so_cccd_ngh) setGuardianCccd(extra.so_cccd_ngh);
         if (extra.ho_ten_nguoi_di_cung) setEscortName(extra.ho_ten_nguoi_di_cung);
         if (extra.so_cccd_nguoi_di_cung) setEscortCccd(extra.so_cccd_nguoi_di_cung);
-        if (extra.moi_quan_he_voi_tre) setEscortRelation(extra.moi_quan_he_voi_tre);
+        if (extra.moi_quan_he_voi_tre) setEscortRelation(resolveChildRelationCode(extra.moi_quan_he_voi_tre));
         if (extra.hang_lai_xe) setLicenseClass(extra.hang_lai_xe);
         if (extra.driver_exam_purpose) setDriverExamPurpose(extra.driver_exam_purpose);
         if (extra.chuc_danh) setChucDanh(extra.chuc_danh);
@@ -878,10 +852,11 @@ export const useDynamicFormState = (
 
     const [doctors, setDoctors] = useState<CatalogItem[]>([]);
     const [hisSource, setHisSource] = useState<'HEALTH_CHECK_MASTER' | 'HIS_DIRECT' | null>(initialData?.id ? 'HEALTH_CHECK_MASTER' : null);
+    const [loadedDocId, setLoadedDocId] = useState<string | number | null>(initialData?.id || null);
 
     const handleFetchHisData = async () => {
         if (!hisSearchQuery.trim()) {
-            setHisSyncMessage({ type: 'error', text: 'Vui lòng nhập Số CCCD, Mã hồ sơ hoặc Số điện thoại để tìm kiếm từ HIS' });
+            setHisSyncMessage({ type: 'error', text: 'Vui lòng nhập Số CCCD, Mã hồ sơ KSK hoặc Số điện thoại để tìm kiếm trong danh sách KSK' });
             return;
         }
         setIsFetchingHis(true);
@@ -889,6 +864,9 @@ export const useDynamicFormState = (
         try {
             const data = await healthCheckService.getHisPatient(hisSearchQuery.trim());
             if (data) {
+                if (data.id) {
+                    setLoadedDocId(data.id);
+                }
                 if (data.source) {
                     setHisSource(data.source);
                 }
@@ -1222,22 +1200,15 @@ export const useDynamicFormState = (
                     onChangeFormType(targetForm);
                 }
 
-                if (data.source === 'HIS_DIRECT') {
-                    setHisSyncMessage({ 
-                        type: 'success', 
-                        text: `🔵 Nạp đợt khám trực tiếp từ HIS cho BN: ${data.patient_name} (Mã lượt khám: ${data.doc_no})! Đã tự động áp dụng Mẫu ${targetForm || formType}.` 
-                    });
-                } else {
-                    setHisSyncMessage({ 
-                        type: 'success', 
-                        text: `🟢 Tải thành công hồ sơ KSK VNeID đã lưu của BN: ${data.patient_name} (Mẫu ${targetForm || formType})!` 
-                    });
-                }
+                setHisSyncMessage({ 
+                    type: 'success', 
+                    text: `🟢 Tải thành công hồ sơ KSK đã lưu trong danh sách cho BN: ${data.patient_name} (Mẫu ${targetForm || formType})!` 
+                });
             } else {
-                setHisSyncMessage({ type: 'error', text: 'Không tìm thấy hồ sơ KSK đã tiếp nhận cho bệnh nhân này.' });
+                setHisSyncMessage({ type: 'error', text: 'Không tìm thấy hồ sơ KSK trong danh sách.' });
             }
         } catch (error: any) {
-            setHisSyncMessage({ type: 'error', text: 'Lỗi khi tìm kiếm dữ liệu: ' + (error.response?.data?.error || error.message) });
+            setHisSyncMessage({ type: 'error', text: error.response?.data?.error || error.message || 'Không tìm thấy hồ sơ KSK trong danh sách.' });
         } finally {
             setIsFetchingHis(false);
         }
@@ -1255,7 +1226,7 @@ export const useDynamicFormState = (
         setIsSyncingParaclinical(true);
         setHisSyncMessage(null);
         try {
-            const data = await healthCheckService.getHisPatient(identifier);
+            const data = await healthCheckService.getHisPatient(identifier, { syncCls: '1' });
             if (data && data.lab_data) {
                 const lab = data.lab_data;
 
@@ -1316,6 +1287,123 @@ export const useDynamicFormState = (
     };
 
     const handleAutofillTab = (tabKey: string) => {
+        const fillPhysical = () => {
+            if (!height) setHeight('168');
+            if (!weight) setWeight('60');
+            if (!pulse) setPulse('75');
+            if (!bp) setBp('120/80');
+            if (!khamTheLucPl) setKhamTheLucPl('1');
+            if (isChild && !sinhNon) setSinhNon('0');
+        };
+
+        const fillInternal = () => {
+            // Ratings (Phân loại I - V)
+            if (!noiKhoaTuanHoanPl) setNoiKhoaTuanHoanPl('1');
+            if (!noiKhoaHoHapPl) setNoiKhoaHoHapPl('1');
+            if (!noiKhoaTieuHoaPl) setNoiKhoaTieuHoaPl('1');
+            if (!noiKhoaThanTietnieuPl) setNoiKhoaThanTietnieuPl('1');
+            if (!noiKhoaNoiTietPl) setNoiKhoaNoiTietPl('1');
+            if (!noiKhoaCoXuongKhopPl) setNoiKhoaCoXuongKhopPl('1');
+            if (!noiKhoaThanKinhPl) setNoiKhoaThanKinhPl('1');
+            if (!noiKhoaTamThanPl) setNoiKhoaTamThanPl('1');
+
+            // Chi tiết nội khoa người lớn / học sinh
+            if (!timMach) setTimMach('Bình thường');
+            if (!kqTimMach) setKqTimMach('Bình thường');
+            if (!hoHap) setHoHap('Bình thường');
+            if (!kqHoHap) setKqHoHap('Bình thường');
+            if (!noiKhoaTieuHoa) setNoiKhoaTieuHoa('Bình thường');
+            if (!kqNoiTiet) setKqNoiTiet('Bình thường');
+            if (!kqNoiTietChuyenHoa) setKqNoiTietChuyenHoa('Bình thường');
+            if (!kqTietNieu) setKqTietNieu('Bình thường');
+            if (!kqCoXuongKhop) setKqCoXuongKhop('Bình thường');
+            if (!kqThanKinh) setKqThanKinh('Bình thường');
+            if (!kqTamThan) setKqTamThan('Bình thường');
+            if (!internalExam) setInternalExam('Tim đều, phổi trong, các cơ quan bình thường.');
+
+            // Chi tiết trẻ em (Mẫu 1)
+            if (formType === '1' || formType === 'child' || formType === 'mau1-child') {
+                if (!nhiTuanHoan) setNhiTuanHoan('Bình thường');
+                if (!nhiHoHap) setNhiHoHap('Bình thường');
+                if (!nhiTieuHoa) setNhiTieuHoa('Bình thường');
+                if (!nhiThanKinh) setNhiThanKinh('Bình thường');
+                if (!nhiTietNieu) setNhiTietNieu('Bình thường');
+                if (!nhiTamThan) setNhiTamThan('Bình thường');
+                if (!nhiKhac) setNhiKhac('Bình thường');
+            }
+
+            // Mẫu 4/5 chuyên biệt
+            if (!ganMat) setGanMat('Bình thường');
+            if (!mauCoQuanTaoMau) setMauCoQuanTaoMau('Bình thường');
+            if (!daToChucDuoiDa) setDaToChucDuoiDa('Bình thường');
+            if (!kqCoXuongKhopM5) setKqCoXuongKhopM5('Bình thường');
+            if (!thanKinhM5) setThanKinhM5('Bình thường');
+            if (!noiTietDinhDuongChuyenHoa) setNoiTietDinhDuongChuyenHoa('Bình thường');
+            if (!roiLoanHanhViTamThan) setRoiLoanHanhViTamThan('Bình thường');
+        };
+
+        const fillSurgery = () => {
+            if (!khamNgoaiKhoaPl) setKhamNgoaiKhoaPl('1');
+            if (!kqNgoaiKhoa) setKqNgoaiKhoa('Hệ vận động, xương khớp bình thường');
+            if (!externalExam) setExternalExam('Hệ vận động, xương khớp bình thường.');
+        };
+
+        const fillDermatology = () => {
+            if (!khamDaLieuPl) setKhamDaLieuPl('1');
+            if (!kqDaLieu) setKqDaLieu('Da sạch, không sẹo lồi, không nấm ngứa');
+            if (!dermatologyExam) setDermatologyExam('Da sạch, không sẹo lồi, không nấm ngứa.');
+        };
+
+        const fillEye = () => {
+            if (!khamMatPl) setKhamMatPl('1');
+            if (!eyeExam) setEyeExam('Mắt sáng, không đỏ, kết mạc bình thường.');
+            if (!benhKhacMat) setBenhKhacMat('Mắt sáng, không đỏ, kết mạc bình thường.');
+            if (!khongKinhMatPhai) setKhongKinhMatPhai('10/10');
+            if (!khongKinhMatTrai) setKhongKinhMatTrai('10/10');
+            if (!khongKinhHaiMat) setKhongKinhHaiMat('10/10');
+            if (!sacGiac) setSacGiac('1');
+            if (!thiTruongNgangHaiMat) setThiTruongNgangHaiMat('Bình thường');
+            if (!thiTruongDungHaiMat) setThiTruongDungHaiMat('Bình thường');
+            if (!khamMatM5) setKhamMatM5('Bình thường');
+            if (!khamMatThiGiacMau) setKhamMatThiGiacMau('1');
+            if (!xaKhongKinhMatPhai) setXaKhongKinhMatPhai('10/10');
+            if (!xaKhongKinhMatTrai) setXaKhongKinhMatTrai('10/10');
+            if (!xaKhongKinhHaiMat) setXaKhongKinhHaiMat('10/10');
+            if (!ganKhongKinhMatPhai) setGanKhongKinhMatPhai('10/10');
+            if (!ganKhongKinhMatTrai) setGanKhongKinhMatTrai('10/10');
+            if (!ganKhongKinhHaiMat) setGanKhongKinhHaiMat('10/10');
+            if (!khamMatThiTruongPhai) setKhamMatThiTruongPhai('Bình thường');
+            if (!khamMatThiTruongTrai) setKhamMatThiTruongTrai('Bình thường');
+        };
+
+        const fillEnt = () => {
+            if (!khamTaiMuiHongPl) setKhamTaiMuiHongPl('1');
+            if (!entExam) setEntExam('Tai sạch, màng nhĩ hai bên bình thường.');
+            if (!kqTaiMuiHong) setKqTaiMuiHong('Tai sạch, màng nhĩ hai bên bình thường.');
+            if (!benhKhacTaiMuiHong) setBenhKhacTaiMuiHong('Không phát hiện bệnh lý.');
+            if (!taiPhaiNoiThuong) setTaiPhaiNoiThuong('5');
+            if (!taiPhaiNoiTham) setTaiPhaiNoiTham('0.5');
+            if (!taiTraiNoiThuong) setTaiTraiNoiThuong('5');
+            if (!taiTraiNoiTham) setTaiTraiNoiTham('0.5');
+            if (!khamTaiMuiHongM5) setKhamTaiMuiHongM5('Bình thường');
+        };
+
+        const fillDental = () => {
+            if (!khamRangHamMatPl) setKhamRangHamMatPl('1');
+            if (!dentalExam) setDentalExam('Răng đều, không sâu, niêm mạc sạch.');
+            if (!benhKhacRangHamMat) setBenhKhacRangHamMat('Không phát hiện bệnh lý.');
+            if (!hamTren) setHamTren('Bình thường');
+            if (!hamDuoi) setHamDuoi('Bình thường');
+        };
+
+        const fillGynecology = () => {
+            if (!khamSanPhuKhoaPl) setKhamSanPhuKhoaPl('1');
+            if (!gynExam && !kqSinhDuc) {
+                setGynExam('Cơ quan sinh dục ngoài bình thường.');
+                setKqSinhDuc('Cơ quan sinh dục ngoài bình thường.');
+            }
+        };
+
         if (tabKey === 'admin') {
             if (!gender) setGender('Nam');
             if (!bloodGroup) setBloodGroup('O');
@@ -1337,98 +1425,32 @@ export const useDynamicFormState = (
                 if (!dangApDungBpttKhong) setDangApDungBpttKhong('0');
                 if (!daTungMoSanPhuKhoaChua) setDaTungMoSanPhuKhoaChua('0');
             }
-            // Physical defaults for Tab Tiền sử & Khám thể lực
-            if (!height) setHeight('168');
-            if (!weight) setWeight('60');
-            if (!pulse) setPulse('75');
-            if (!bp) setBp('120/80');
-            if (!khamTheLucPl) setKhamTheLucPl('1');
+            fillPhysical();
+        } else if (tabKey === 'physical') {
+            fillPhysical();
+        } else if (tabKey === 'internal') {
+            fillInternal();
+        } else if (tabKey === 'surgery') {
+            fillSurgery();
+        } else if (tabKey === 'dermatology') {
+            fillDermatology();
+        } else if (tabKey === 'eye') {
+            fillEye();
+        } else if (tabKey === 'ent') {
+            fillEnt();
+        } else if (tabKey === 'dental') {
+            fillDental();
+        } else if (tabKey === 'gynecology') {
+            fillGynecology();
         } else if (tabKey === 'exam') {
-            // Physical defaults
-            if (!height) setHeight('168');
-            if (!weight) setWeight('60');
-            if (!pulse) setPulse('75');
-            if (!bp) setBp('120/80');
-            if (!khamTheLucPl) setKhamTheLucPl('1');
-            if (isChild && !sinhNon) setSinhNon('0');
-
-            // Specialty categories Pl
-            if (!noiKhoaTuanHoanPl) setNoiKhoaTuanHoanPl('1');
-            if (!noiKhoaHoHapPl) setNoiKhoaHoHapPl('1');
-            if (!noiKhoaTieuHoaPl) setNoiKhoaTieuHoaPl('1');
-            if (!noiKhoaThanTietnieuPl) setNoiKhoaThanTietnieuPl('1');
-            if (!noiKhoaNoiTietPl) setNoiKhoaNoiTietPl('1');
-            if (!noiKhoaCoXuongKhopPl) setNoiKhoaCoXuongKhopPl('1');
-            if (!noiKhoaThanKinhPl) setNoiKhoaThanKinhPl('1');
-            if (!noiKhoaTamThanPl) setNoiKhoaTamThanPl('1');
-            if (!khamNgoaiKhoaPl) setKhamNgoaiKhoaPl('1');
-            if (!khamDaLieuPl) setKhamDaLieuPl('1');
-            if (!khamSanPhuKhoaPl) setKhamSanPhuKhoaPl('1');
-            if (!khamMatPl) setKhamMatPl('1');
-            if (!khamTaiMuiHongPl) setKhamTaiMuiHongPl('1');
-            if (!khamRangHamMatPl) setKhamRangHamMatPl('1');
-
-            // Detail strings
-            if (!timMach) setTimMach('Bình thường');
-            if (!kqTimMach) setKqTimMach('Bình thường');
-            if (!hoHap) setHoHap('Bình thường');
-            if (!kqHoHap) setKqHoHap('Bình thường');
-            if (!noiKhoaTieuHoa) setNoiKhoaTieuHoa('Bình thường');
-            if (!kqNoiTiet) setKqNoiTiet('Bình thường');
-            if (!kqNoiTietChuyenHoa) setKqNoiTietChuyenHoa('Bình thường');
-            if (!kqTietNieu) setKqTietNieu('Bình thường');
-            if (!kqCoXuongKhop) setKqCoXuongKhop('Bình thường');
-            if (!kqThanKinh) setKqThanKinh('Bình thường');
-            if (!kqTamThan) setKqTamThan('Bình thường');
-            if (!kqNgoaiKhoa) setKqNgoaiKhoa('Hệ vận động, xương khớp bình thường');
-            if (!kqDaLieu) setKqDaLieu('Da sạch, không sẹo lồi, không nấm ngứa');
-
-            if (!nhiTuanHoan) setNhiTuanHoan('Bình thường');
-            if (!nhiHoHap) setNhiHoHap('Bình thường');
-            if (!nhiTieuHoa) setNhiTieuHoa('Bình thường');
-            if (!nhiThanKinh) setNhiThanKinh('Bình thường');
-            if (!nhiTietNieu) setNhiTietNieu('Bình thường');
-            if (!nhiTamThan) setNhiTamThan('Bình thường');
-            if (!nhiKhac) setNhiKhac('Bình thường');
-
-            if (!ganMat) setGanMat('Bình thường');
-            if (!mauCoQuanTaoMau) setMauCoQuanTaoMau('Bình thường');
-            if (!daToChucDuoiDa) setDaToChucDuoiDa('Bình thường');
-            if (!kqCoXuongKhopM5) setKqCoXuongKhopM5('Bình thường');
-            if (!thanKinhM5) setThanKinhM5('Bình thường');
-            if (!khamTaiMuiHongM5) setKhamTaiMuiHongM5('Bình thường');
-            if (!khamMatM5) setKhamMatM5('Bình thường');
-            if (!khamMatThiGiacMau) setKhamMatThiGiacMau('1');
-            if (!noiTietDinhDuongChuyenHoa) setNoiTietDinhDuongChuyenHoa('Bình thường');
-            if (!roiLoanHanhViTamThan) setRoiLoanHanhViTamThan('Bình thường');
-
-            // Detail texts for forms
-            if (!internalExam) setInternalExam('Tim đều, phổi trong, các cơ quan bình thường.');
-            if (!externalExam) setExternalExam('Hệ vận động, xương khớp bình thường.');
-            if (!eyeExam) setEyeExam('Mắt sáng, không đỏ, kết mạc bình thường.');
-            if (!entExam) setEntExam('Tai sạch, màng nhĩ hai bên bình thường.');
-            if (!dentalExam) setDentalExam('Răng đều, không sâu, niêm mạc sạch.');
-            if (!dermatologyExam) setDermatologyExam('Da sạch, không sẹo lồi, không nấm ngứa.');
-            if (!gynExam && !kqSinhDuc) {
-                setGynExam('Cơ quan sinh dục ngoài bình thường.');
-                setKqSinhDuc('Cơ quan sinh dục ngoài bình thường.');
-            }
-
-            // Measurements
-            if (!taiPhaiNoiThuong) setTaiPhaiNoiThuong('5');
-            if (!taiPhaiNoiTham) setTaiPhaiNoiTham('0.5');
-            if (!taiTraiNoiThuong) setTaiTraiNoiThuong('5');
-            if (!taiTraiNoiTham) setTaiTraiNoiTham('0.5');
-            if (!hamTren) setHamTren('Bình thường');
-            if (!hamDuoi) setHamDuoi('Bình thường');
-
-            // Vision
-            if (!khongKinhMatPhai) setKhongKinhMatPhai('10/10');
-            if (!khongKinhMatTrai) setKhongKinhMatTrai('10/10');
-            if (!khongKinhHaiMat) setKhongKinhHaiMat('10/10');
-            if (!sacGiac) setSacGiac('0');
-            if (!thiTruongNgangHaiMat) setThiTruongNgangHaiMat('Bình thường');
-            if (!thiTruongDungHaiMat) setThiTruongDungHaiMat('Bình thường');
+            fillPhysical();
+            fillInternal();
+            fillSurgery();
+            fillDermatology();
+            fillEye();
+            fillEnt();
+            fillDental();
+            fillGynecology();
         } else if (tabKey === 'lab') {
             if (!rpr) setRpr('0');
             if (!tpha) setTpha('0');
@@ -1444,15 +1466,63 @@ export const useDynamicFormState = (
             if (!kqXnNongDoCon) setKqXnNongDoCon('0');
             if (!nuocTieuDuong) setNuocTieuDuong('Âm tính (-)');
             if (!nuocTieuProtein) setNuocTieuProtein('Âm tính (-)');
-            if (!ketQuaChanDoanHinhAnh) setKetQuaChanDoanHinhAnh('Bình thường');
-            if (!ketQuaDienTim) setKetQuaDienTim('Nhịp xoang đều');
-            if (!chucNangHoHap) setChucNangHoHap('Bình thường');
-            if (!ketQuaSieuAmBung) setKetQuaSieuAmBung('Bình thường');
+            // Chỉ tự động điền kết quả CĐHA / Thăm dò chức năng nếu thực tế có chỉ định trong phiếu khám
+            const hasImaging = paraclinicalItems.some((x: any) => {
+                const s = String(x.service_name || x.name || '').toLowerCase();
+                return s.includes('x-quang') || s.includes('xquang') || s.includes('chụp');
+            });
+            if (hasImaging && !ketQuaChanDoanHinhAnh) setKetQuaChanDoanHinhAnh('Bình thường');
+
+            const hasUs = paraclinicalItems.some((x: any) => {
+                const s = String(x.service_name || x.name || '').toLowerCase();
+                return s.includes('siêu âm') || s.includes('sieu am');
+            });
+            if (hasUs && !ketQuaSieuAmBung) setKetQuaSieuAmBung('Bình thường');
+
+            const hasEcg = paraclinicalItems.some((x: any) => {
+                const s = String(x.service_name || x.name || '').toLowerCase();
+                return s.includes('điện tim') || s.includes('ecg');
+            });
+            if (hasEcg && !ketQuaDienTim) setKetQuaDienTim('Nhịp xoang đều');
+
+            const hasSpiro = paraclinicalItems.some((x: any) => {
+                const s = String(x.service_name || x.name || '').toLowerCase();
+                return s.includes('hô hấp') || s.includes('thông khí');
+            });
+            if (hasSpiro && !chucNangHoHap) setChucNangHoHap('Bình thường');
         } else if (tabKey === 'conclusion') {
             if (!khaNangChiuSong) setKhaNangChiuSong('1');
             if (!hanChe) setHanChe('0');
             if (!yeuCauDeoKinh) setYeuCauDeoKinh('0');
             if (!duTieuChuanDkPtgtDuongSat) setDuTieuChuanDkPtgtDuongSat('1');
+        }
+
+        // Tự động chuyển chuyên khoa này sang ĐANG_KHÁM nếu đang là CHUA_KHAM (không lưu vào CSDL)
+        const clinicalSpecialtyKeys = ['internal', 'surgery', 'dermatology', 'eye', 'ent', 'dental', 'gynecology', 'physical'];
+        if (clinicalSpecialtyKeys.includes(tabKey)) {
+            setSpecialtyMetadata(prev => {
+                const targetKey = tabKey;
+                const cur = prev?.[targetKey] || 
+                    (targetKey === 'surgery' ? prev?.['external'] : undefined) ||
+                    (targetKey === 'physical' ? prev?.['examination'] : undefined) || {};
+                if (cur.status === 'CHUA_KHAM' || !cur.status) {
+                    const nextObj = {
+                        ...cur,
+                        status: 'ĐANG_KHÁM',
+                        doctorId: cur.doctorId || user?.userId || '',
+                        doctorName: cur.doctorName || (user as any)?.fullName || '',
+                        updatedAt: new Date().toISOString()
+                    };
+                    const updated: any = {
+                        ...prev,
+                        [targetKey]: nextObj
+                    };
+                    if (targetKey === 'surgery') updated.external = nextObj;
+                    if (targetKey === 'physical') updated.examination = nextObj;
+                    return updated;
+                }
+                return prev;
+            });
         }
     };
 
@@ -1826,7 +1896,18 @@ export const useDynamicFormState = (
 
         // Khởi tạo các metadata chưa tồn tại
         const calculatedMetadata = { ...(options?.overrideMetadata || specialtyMetadataRef.current) };
-        const keysToProcess = ['admin', 'history', 'internal', 'eye', 'ent', 'dental', 'external', 'dermatology', 'gynecology', 'lab', 'conclusion'];
+        if (calculatedMetadata['surgery'] && !calculatedMetadata['external']) {
+            calculatedMetadata['external'] = { ...calculatedMetadata['surgery'] };
+        } else if (calculatedMetadata['external'] && !calculatedMetadata['surgery']) {
+            calculatedMetadata['surgery'] = { ...calculatedMetadata['external'] };
+        }
+        if (calculatedMetadata['physical'] && !calculatedMetadata['examination']) {
+            calculatedMetadata['examination'] = { ...calculatedMetadata['physical'] };
+        } else if (calculatedMetadata['examination'] && !calculatedMetadata['physical']) {
+            calculatedMetadata['physical'] = { ...calculatedMetadata['examination'] };
+        }
+
+        const keysToProcess = ['admin', 'history', 'internal', 'eye', 'ent', 'dental', 'surgery', 'external', 'dermatology', 'gynecology', 'physical', 'examination', 'lab', 'conclusion'];
         
         keysToProcess.forEach(key => {
             if (!calculatedMetadata[key]) {
@@ -1843,6 +1924,7 @@ export const useDynamicFormState = (
         setSpecialtyMetadata(calculatedMetadata);
 
         const fullPayload = {
+            id: loadedDocId || initialData?.id,
             patientId,
             patientName: patientName.toUpperCase(),
             cccd,
@@ -1998,12 +2080,12 @@ export const useDynamicFormState = (
                     kham_tai_mui_hong_pl: khamTaiMuiHongPl,
                     kham_rang_ham_mat_pl: khamRangHamMatPl,
                     
-                    nhi_tuan_hoan: nhiTuanHoan,
-                    nhi_ho_hap: nhiHoHap,
-                    nhi_tieu_hoa: nhiTieuHoa,
-                    nhi_tiet_nieu: nhiTietNieu,
-                    nhi_than_kinh: nhiThanKinh,
-                    nhi_tam_than: nhiTamThan,
+                    nhi_tuan_hoan: (formType === '1' || formType === 'child' || formType === 'mau1-child') ? nhiTuanHoan : (kqTimMach || timMach || nhiTuanHoan || ''),
+                    nhi_ho_hap: (formType === '1' || formType === 'child' || formType === 'mau1-child') ? nhiHoHap : (kqHoHap || hoHap || nhiHoHap || ''),
+                    nhi_tieu_hoa: (formType === '1' || formType === 'child' || formType === 'mau1-child') ? nhiTieuHoa : (noiKhoaTieuHoa || nhiTieuHoa || ''),
+                    nhi_tiet_nieu: (formType === '1' || formType === 'child' || formType === 'mau1-child') ? nhiTietNieu : (kqTietNieu || nhiTietNieu || ''),
+                    nhi_than_kinh: (formType === '1' || formType === 'child' || formType === 'mau1-child') ? nhiThanKinh : (kqThanKinh || nhiThanKinh || ''),
+                    nhi_tam_than: (formType === '1' || formType === 'child' || formType === 'mau1-child') ? nhiTamThan : (kqTamThan || nhiTamThan || ''),
                     nhi_khac: nhiKhac
                 },
                 extra: {
@@ -2011,7 +2093,7 @@ export const useDynamicFormState = (
                     so_cccd_ngh: guardianCccd,
                     ho_ten_nguoi_di_cung: escortName,
                     so_cccd_nguoi_di_cung: escortCccd,
-                    moi_quan_he_voi_tre: escortRelation,
+                    moi_quan_he_voi_tre: resolveChildRelationCode(escortRelation),
                     hang_lai_xe: licenseClass,
                     driver_exam_purpose: driverExamPurpose,
                     chuc_danh: chucDanh,
@@ -2264,7 +2346,7 @@ export const useDynamicFormState = (
             : [currentWardName, currentProvName].filter(Boolean).map(s => s.trim()).join(', ');
 
         const fullPayload = {
-            id: initialData?.id,
+            id: loadedDocId || initialData?.id,
             patientId,
             patientName: patientName.toUpperCase(),
             cccd,
@@ -2414,12 +2496,12 @@ export const useDynamicFormState = (
                     kham_tai_mui_hong_pl: khamTaiMuiHongPl,
                     kham_rang_ham_mat_pl: khamRangHamMatPl,
                     
-                    nhi_tuan_hoan: nhiTuanHoan,
-                    nhi_ho_hap: nhiHoHap,
-                    nhi_tieu_hoa: nhiTieuHoa,
-                    nhi_tiet_nieu: nhiTietNieu,
-                    nhi_than_kinh: nhiThanKinh,
-                    nhi_tam_than: nhiThanKinh,
+                    nhi_tuan_hoan: (formType === '1' || formType === 'child' || formType === 'mau1-child') ? nhiTuanHoan : (kqTimMach || timMach || nhiTuanHoan || ''),
+                    nhi_ho_hap: (formType === '1' || formType === 'child' || formType === 'mau1-child') ? nhiHoHap : (kqHoHap || hoHap || nhiHoHap || ''),
+                    nhi_tieu_hoa: (formType === '1' || formType === 'child' || formType === 'mau1-child') ? nhiTieuHoa : (noiKhoaTieuHoa || nhiTieuHoa || ''),
+                    nhi_tiet_nieu: (formType === '1' || formType === 'child' || formType === 'mau1-child') ? nhiTietNieu : (kqTietNieu || nhiTietNieu || ''),
+                    nhi_than_kinh: (formType === '1' || formType === 'child' || formType === 'mau1-child') ? nhiThanKinh : (kqThanKinh || nhiThanKinh || ''),
+                    nhi_tam_than: (formType === '1' || formType === 'child' || formType === 'mau1-child') ? nhiTamThan : (kqTamThan || nhiTamThan || ''),
                     nhi_khac: nhiKhac
                 },
                 extra: {
@@ -2427,7 +2509,7 @@ export const useDynamicFormState = (
                     so_cccd_ngh: guardianCccd,
                     ho_ten_nguoi_di_cung: escortName,
                     so_cccd_nguoi_di_cung: escortCccd,
-                    moi_quan_he_voi_tre: escortRelation,
+                    moi_quan_he_voi_tre: resolveChildRelationCode(escortRelation),
                     hang_lai_xe: licenseClass,
                     chuc_danh: chucDanh,
                     noi_cong_tac: noiCongTac,
@@ -2679,6 +2761,8 @@ export const useDynamicFormState = (
         setHisSyncMessage,
         hisSource,
         setHisSource,
+        loadedDocId,
+        setLoadedDocId,
         handleFetchHisData,
         patientId,
         setPatientId,

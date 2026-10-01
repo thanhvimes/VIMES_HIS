@@ -18,6 +18,7 @@ import { GeneralConfigTab } from './settings/GeneralConfigTab';
 import { SignatureConfigTab } from './settings/SignatureConfigTab';
 import { BarcodeConfigTab } from './settings/BarcodeConfigTab';
 import { ReceptionSlipTab } from './settings/ReceptionSlipTab';
+import { ContractBatchUpdateTab } from './settings/ContractBatchUpdateTab';
 
 // ─── Types & Models ──────────────────────────────────────────────────────────
 import { HealthCheckSettings, SettingsData } from '../models/HealthCheckSettings';
@@ -68,12 +69,12 @@ const BARCODE_SIZE_OPTIONS = [
 interface SettingsTabProps {
     /** Optional callback when settings are successfully saved */
     onSaved?: () => void;
-    defaultTab?: 'VNEID' | 'SIGNATURE' | 'BARCODE' | 'RECEPTION_SLIP';
+    defaultTab?: 'VNEID' | 'SIGNATURE' | 'BARCODE' | 'RECEPTION_SLIP' | 'BATCH_UPDATE';
     hideTabs?: boolean;
 }
 
 const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID', hideTabs = false }) => {
-    const [activeSubTab, setActiveSubTab] = useState<'VNEID' | 'SIGNATURE' | 'BARCODE' | 'RECEPTION_SLIP'>(
+    const [activeSubTab, setActiveSubTab] = useState<'VNEID' | 'SIGNATURE' | 'BARCODE' | 'RECEPTION_SLIP' | 'BATCH_UPDATE'>(
         defaultTab === 'VNEID' ? 'VNEID' : defaultTab
     );
 
@@ -353,7 +354,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
             {/* Tab header selectors */}
             {!hideTabs && (
                 <div className="flex border-b border-slate-200 dark:border-slate-700">
-                    {defaultTab === 'VNEID' && (
+                    {(defaultTab === 'VNEID' || defaultTab === 'BATCH_UPDATE') && (
                         <>
                             <button
                                 type="button"
@@ -378,6 +379,18 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
                             >
                                 <AdjustmentsHorizontalIcon className="w-4 h-4" />
                                 Thiết lập chữ ký
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveSubTab('BATCH_UPDATE')}
+                                className={`pb-3 px-4 font-bold text-sm border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+                                    activeSubTab === 'BATCH_UPDATE'
+                                        ? 'border-[#0f766e] text-[#0f766e]'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                }`}
+                            >
+                                <AdjustmentsHorizontalIcon className="w-4 h-4 text-teal-600" />
+                                Hiệu chỉnh gói KSK
                             </button>
                         </>
                     )}
@@ -413,7 +426,9 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
             )}
 
             {/* Tab content renders */}
-            {activeSubTab === 'VNEID' ? (
+            {activeSubTab === 'BATCH_UPDATE' ? (
+                <ContractBatchUpdateTab />
+            ) : activeSubTab === 'VNEID' ? (
                 <GeneralConfigTab
                     syncTargetMode={syncTargetMode}
                     setSyncTargetMode={setSyncTargetMode}
@@ -508,44 +523,46 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ onSaved, defaultTab = 'VNEID'
             {/* ══════════════════════════════════════════════════
                 ACTION BUTTONS
             ══════════════════════════════════════════════════ */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 dark:border-slate-700 pt-4">
-                <button
-                    type="button"
-                    disabled={isTesting || isSaving || isLoading}
-                    onClick={handleReloadSettings}
-                    className="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg font-semibold text-sm transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
-                >
-                    <RefreshIcon className="w-4 h-4 text-slate-500" />
-                    Tải lại từ CSDL
-                </button>
-                <div className="flex items-center gap-2">
-                    {activeSubTab === 'VNEID' && (
+            {activeSubTab !== 'BATCH_UPDATE' && (
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 dark:border-slate-700 pt-4">
+                    <button
+                        type="button"
+                        disabled={isTesting || isSaving || isLoading}
+                        onClick={handleReloadSettings}
+                        className="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg font-semibold text-sm transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                    >
+                        <RefreshIcon className="w-4 h-4 text-slate-500" />
+                        Tải lại từ CSDL
+                    </button>
+                    <div className="flex items-center gap-2">
+                        {activeSubTab === 'VNEID' && (
+                            <button
+                                type="button"
+                                disabled={isTesting || isSaving}
+                                onClick={handleTestConnection}
+                                className="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg font-bold text-sm transition disabled:opacity-50 cursor-pointer"
+                            >
+                                {isTesting ? 'Đang ping...' : 'Kiểm tra kết nối'}
+                            </button>
+                        )}
                         <button
                             type="button"
                             disabled={isTesting || isSaving}
-                            onClick={handleTestConnection}
-                            className="px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg font-bold text-sm transition disabled:opacity-50 cursor-pointer"
+                            onClick={handleSave}
+                            className="px-5 py-2 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-lg font-bold text-sm shadow-md transition disabled:opacity-50 active:scale-95 cursor-pointer flex items-center gap-2"
                         >
-                            {isTesting ? 'Đang ping...' : 'Kiểm tra kết nối'}
+                            {isSaving ? (
+                                <>
+                                    <RefreshIcon className="w-4 h-4 animate-spin" />
+                                    Đang lưu...
+                                </>
+                            ) : (
+                                'Cập nhật & Lưu cấu hình'
+                            )}
                         </button>
-                    )}
-                    <button
-                        type="button"
-                        disabled={isTesting || isSaving}
-                        onClick={handleSave}
-                        className="px-5 py-2 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-lg font-bold text-sm shadow-md transition disabled:opacity-50 active:scale-95 cursor-pointer flex items-center gap-2"
-                    >
-                        {isSaving ? (
-                            <>
-                                <RefreshIcon className="w-4 h-4 animate-spin" />
-                                Đang lưu...
-                            </>
-                        ) : (
-                            'Cập nhật & Lưu cấu hình'
-                        )}
-                    </button>
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

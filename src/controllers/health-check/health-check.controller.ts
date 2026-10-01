@@ -115,6 +115,34 @@ class HealthCheckController {
         }
     }
 
+    async resetSyncStatus(req: Request, res: Response) {
+        return documentsController.resetSyncStatus(req, res);
+    }
+
+    async resetSyncStatusBatch(req: Request, res: Response) {
+        return documentsController.resetSyncStatusBatch(req, res);
+    }
+
+    async createFeesForDoc(req: Request, res: Response) {
+        return documentsController.createFeesForDoc(req, res);
+    }
+
+    async getTwoTierSignStep1Hash(req: Request, res: Response) {
+        return documentsController.getTwoTierSignStep1Hash(req, res);
+    }
+
+    async applyTwoTierSignStep1(req: Request, res: Response) {
+        return documentsController.applyTwoTierSignStep1(req, res);
+    }
+
+    async getTwoTierSignStep2Hash(req: Request, res: Response) {
+        return documentsController.getTwoTierSignStep2Hash(req, res);
+    }
+
+    async applyTwoTierSignStep2(req: Request, res: Response) {
+        return documentsController.applyTwoTierSignStep2(req, res);
+    }
+
 }
 
 export default new HealthCheckController();

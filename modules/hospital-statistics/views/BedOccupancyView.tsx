@@ -214,7 +214,8 @@ export const BedOccupancyView: React.FC = () => {
                 'STT': idx + 1,
                 'Mã Khoa': it.dept_id,
                 'Khoa Lâm Sàng': it.dept_name,
-                'Giường Kế Hoạch (QĐ 49)': kh,
+                'Giường Kế Hoạch (Sở Giao)': kh,
+                'Giường Thực Kê': Number(it.giuong_thuc_ke || 0),
                 'BN Nội Trú - BHYT': bnBhyt,
                 'BN Nội Trú - Viện Phí': bnVp,
                 'BN Ngoại Trú (Ban ngày/Lưu)': bnNgoaiTru,
@@ -227,7 +228,8 @@ export const BedOccupancyView: React.FC = () => {
             'STT': 'TỔNG CỘNG',
             'Mã Khoa': '',
             'Khoa Lâm Sàng': `${filteredItems.length} khoa lâm sàng`,
-            'Giường Kế Hoạch (QĐ 49)': totals.giuong_ke_hoach,
+            'Giường Kế Hoạch (Sở Giao)': totals.giuong_ke_hoach,
+            'Giường Thực Kê': filteredItems.reduce((acc, curr) => acc + Math.max(0, Number(curr.giuong_thuc_ke || 0)), 0),
             'BN Nội Trú - BHYT': totals.bn_noi_tru_bhyt,
             'BN Nội Trú - Viện Phí': totals.bn_noi_tru_vienphi,
             'BN Ngoại Trú (Ban ngày/Lưu)': totals.bn_ngoai_tru,
@@ -248,7 +250,7 @@ export const BedOccupancyView: React.FC = () => {
                         <span>Báo cáo Công suất Sử dụng Giường bệnh</span>
                     </h1>
                     <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                        Theo dõi công suất khai thác theo 562 Giường kế hoạch (QĐ 49/QĐ-BVĐKT) và tách nguồn bệnh nhân nội trú BHYT, Viện phí, Ngoại trú
+                        Theo dõi công suất sử dụng giường bệnh theo chỉ tiêu kế hoạch giao và phân bổ bệnh nhân nội trú BHYT, Viện phí, Ngoại trú
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -288,7 +290,7 @@ export const BedOccupancyView: React.FC = () => {
                 <div className="his-kpi-card border-l-4 border-l-blue-500 p-4.5 rounded-xl bg-white dark:bg-slate-800 shadow-xs">
                     <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-                            Giường Kế Hoạch (QĐ 49)
+                            Giường Kế Hoạch (Sở Giao)
                         </span>
                         <span className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
                             <BuildingOfficeIcon className="w-5 h-5" />
@@ -298,9 +300,9 @@ export const BedOccupancyView: React.FC = () => {
                         {totals.giuong_ke_hoach.toLocaleString('vi-VN')} <span className="text-xs font-normal text-slate-400">giường KH</span>
                     </div>
                     <div className="mt-2 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                        <span>Chỉ tiêu QĐ 49: <strong className="text-blue-600 font-mono">562</strong> giường</span>
+                        <span>Chỉ tiêu Sở giao</span>
                         <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/40 px-2 py-0.5 rounded-full">
-                            14 khoa lâm sàng
+                            {filteredItems.filter(it => Number(it.giuong_ke_hoach || 0) > 0).length} khoa giao chỉ tiêu
                         </span>
                     </div>
                 </div>
@@ -869,6 +871,11 @@ export const BedOccupancyView: React.FC = () => {
                                         </td>
                                         <td className="px-4 py-3.5 text-right text-blue-700 dark:text-blue-300 font-bold font-mono tabular-nums">
                                             {kh.toLocaleString('vi-VN')}
+                                            {Number(it.giuong_thuc_ke || 0) > 0 && Number(it.giuong_thuc_ke) !== kh && (
+                                                <span className="block text-[10px] font-normal text-slate-400" title="Giường thực kê">
+                                                    TK: {Number(it.giuong_thuc_ke).toLocaleString('vi-VN')}
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="px-3 py-3.5 text-right text-emerald-600 dark:text-emerald-400 font-semibold font-mono tabular-nums">
                                             {Math.max(0, Number(it.bn_noi_tru_bhyt || 0)).toLocaleString('vi-VN')}

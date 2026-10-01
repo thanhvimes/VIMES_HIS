@@ -80,6 +80,14 @@ export const HEALTH_CHECK_NAV_ITEMS: NavItemType[] = [
         icon: React.createElement(PrinterIcon, { className: "w-5 h-5" }),
         iconName: 'PrinterIcon',
         adminOnly: true
+    },
+    {
+        name: 'Hiệu chỉnh gói KSK',
+        path: '/health-check?step=settings-batch-update',
+        section: 'CẤU HÌNH THIẾT LẬP',
+        icon: React.createElement(AdjustmentsHorizontalIcon, { className: "w-5 h-5" }),
+        iconName: 'AdjustmentsHorizontalIcon',
+        adminOnly: true
     }
 ];
 
@@ -108,5 +116,86 @@ export const TARGET_GROUPS: TargetGroupItem[] = [
     { id: '15', code: '15', name: 'Người chưa có Bảo hiểm y tế', label: '15 - Người chưa có Bảo hiểm y tế' },
     { id: '16', code: '16', name: 'Các đối tượng khác', label: '16 - Các đối tượng khác' }
 ];
+
+export interface EscortRelationItem {
+    id: string;
+    code: string;
+    name: string;
+    label: string;
+}
+
+export const ESCORT_RELATIONS: EscortRelationItem[] = [
+    { id: '1', code: '1', name: 'Cha', label: '1 - Cha (Bố)' },
+    { id: '2', code: '2', name: 'Mẹ', label: '2 - Mẹ' },
+    { id: '3', code: '3', name: 'Ông/Bà', label: '3 - Ông/Bà' },
+    { id: '4', code: '4', name: 'Anh/Chị', label: '4 - Anh/Chị' },
+    { id: '5', code: '5', name: 'Họ hàng', label: '5 - Họ hàng' },
+    { id: '9', code: '9', name: 'Khác', label: '9 - Khác (Người giám hộ)' }
+];
+
+/**
+ * Chuẩn hóa mã mối quan hệ của người đi cùng với trẻ (MOI_QUAN_HE_VOI_TRE) 
+ * theo Quyết định 2062/QĐ-BYT (sửa đổi QĐ 1551/QĐ-BYT):
+ * 1: Cha
+ * 2: Mẹ
+ * 3: Ông/Bà
+ * 4: Anh/Chị
+ * 5: Họ hàng
+ * 9: Khác
+ */
+export function resolveChildRelationCode(val: any): string {
+    if (val === undefined || val === null) return '';
+    const s = String(val).trim();
+    if (!s || s === '0') return '';
+
+    // Nếu đã là mã định danh chuẩn: 1, 2, 3, 4, 5, 9
+    if (['1', '2', '3', '4', '5', '9'].includes(s)) {
+        return s;
+    }
+
+    const lower = s.toLowerCase();
+
+    // 1: Cha / Bố / Ba (tránh 'bà', 'bác')
+    if (lower.includes('bố') || lower.includes('cha') || /(^|[\s/_-])ba([\s/_-]|$)/i.test(lower)) {
+        return '1';
+    }
+    // 2: Mẹ / Má
+    if (lower.includes('mẹ') || lower.includes('má') || lower.includes('me') || /(^|[\s/_-])ma([\s/_-]|$)/i.test(lower)) {
+        return '2';
+    }
+    // 3: Ông / Bà
+    if (lower.includes('ông') || lower.includes('bà') || lower.includes('ong') || lower.includes('ong/ba')) {
+        return '3';
+    }
+    // 4: Anh / Chị
+    if (lower.includes('anh') || lower.includes('chị') || lower.includes('chi') || lower.includes('anh/chi')) {
+        return '4';
+    }
+    // 5: Họ hàng (bác, chú, cô, dì, cậu, mợ, họ hàng)
+    if (
+        lower.includes('họ hàng') ||
+        lower.includes('ho hang') ||
+        lower.includes('bác') ||
+        lower.includes('bac') ||
+        lower.includes('chú') ||
+        lower.includes('chu') ||
+        lower.includes('cô') ||
+        lower.includes('co') ||
+        lower.includes('dì') ||
+        lower.includes('di') ||
+        lower.includes('cậu') ||
+        lower.includes('cau') ||
+        lower.includes('mợ') ||
+        lower.includes('mo')
+    ) {
+        return '5';
+    }
+    // 9: Khác (người giám hộ, khác, nuôi...)
+    if (lower.includes('khác') || lower.includes('khac') || lower.includes('giám hộ') || lower.includes('giam ho') || lower.includes('nuôi')) {
+        return '9';
+    }
+
+    return '9';
+}
 
 

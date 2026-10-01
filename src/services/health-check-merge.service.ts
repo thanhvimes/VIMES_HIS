@@ -85,11 +85,19 @@ export function mergeSpecialtyMetadata(
 
         if (isIncomingActive) {
             // Incoming is actively modified or approved by this specialty room
+            const resolvedDocId = incoming.doctorId || exist.doctorId || '';
+            let resolvedDocName = incoming.doctorName || '';
+            if (!resolvedDocName) {
+                // Chỉ fallback tên cũ nếu doctorId không đổi hoặc incoming không chỉ định doctorId mới
+                if (!incoming.doctorId || (exist.doctorId && incoming.doctorId === exist.doctorId)) {
+                    resolvedDocName = exist.doctorName || '';
+                }
+            }
             merged[key] = {
                 ...exist,
                 ...incoming,
-                doctorId: incoming.doctorId || exist.doctorId || '',
-                doctorName: incoming.doctorName || exist.doctorName || '',
+                doctorId: resolvedDocId,
+                doctorName: resolvedDocName,
                 status: incoming.status,
                 updatedAt: incoming.updatedAt || new Date().toISOString()
             };
@@ -103,11 +111,18 @@ export function mergeSpecialtyMetadata(
             };
         } else {
             // Both are CHUA_KHAM or not started
+            const resolvedDocId = incoming.doctorId || exist.doctorId || '';
+            let resolvedDocName = incoming.doctorName || '';
+            if (!resolvedDocName) {
+                if (!incoming.doctorId || (exist.doctorId && incoming.doctorId === exist.doctorId)) {
+                    resolvedDocName = exist.doctorName || '';
+                }
+            }
             merged[key] = {
                 ...exist,
                 ...incoming,
-                doctorId: incoming.doctorId || exist.doctorId || '',
-                doctorName: incoming.doctorName || exist.doctorName || '',
+                doctorId: resolvedDocId,
+                doctorName: resolvedDocName,
                 status: incoming.status || exist.status || 'CHUA_KHAM'
             };
         }
@@ -157,12 +172,13 @@ export function mergeClinicalData(
     const incomingClinicalExam = incomingSafe.clinical_exam && typeof incomingSafe.clinical_exam === 'object' ? incomingSafe.clinical_exam : {};
 
     const mergedClinicalExam = mergeObjectFields(existClinicalExam, incomingClinicalExam);
-    mergedClinicalExam.specialty_metadata = mergeSpecialtyMetadata(
-        existClinicalExam.specialty_metadata,
-        incomingClinicalExam.specialty_metadata
-    );
+    const existingMeta = existClinicalExam.specialty_metadata || existSafe.specialty_metadata;
+    const incomingMeta = incomingClinicalExam.specialty_metadata || incomingSafe.specialty_metadata;
+    const resolvedSpecialtyMetadata = mergeSpecialtyMetadata(existingMeta, incomingMeta);
 
+    mergedClinicalExam.specialty_metadata = resolvedSpecialtyMetadata;
     merged.clinical_exam = mergedClinicalExam;
+    merged.specialty_metadata = resolvedSpecialtyMetadata;
 
     // 4. Extra (occupational, driver, child, history extra fields) merge
     merged.extra = mergeObjectFields(existSafe.extra, incomingSafe.extra);

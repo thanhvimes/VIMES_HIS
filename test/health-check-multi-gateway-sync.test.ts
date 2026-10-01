@@ -62,15 +62,18 @@ test('3. Settings update: persists SYT configuration and target modes correctly'
     assert.equal(updated?.syt_receiver_id, 'VTS');
     assert.equal(updated?.syt_enabled, true);
 
-    // Revert back to BYT_ONLY to ensure production backward compatibility
+    // Restore original settings
     await query(`
         UPDATE health_check_settings 
-        SET sync_target_mode = 'BYT_ONLY',
-            syt_enabled = FALSE
+        SET sync_target_mode = 'SYT_ONLY',
+            syt_enabled = TRUE,
+            syt_username = '01010_lt_ducdv',
+            syt_url = 'https://api-hssk.hanoi.gov.vn',
+            syt_receiver_id = 'VTS'
         WHERE id = 1
     `);
     const reverted = await loadHealthCheckSettings();
-    assert.equal(reverted?.sync_target_mode, 'BYT_ONLY');
+    assert.equal(reverted?.sync_target_mode, 'SYT_ONLY');
 });
 
 test('4. Target Mode Logic: sendDocumentsToVNeID handles non-existent or empty IDs gracefully without throwing', async () => {

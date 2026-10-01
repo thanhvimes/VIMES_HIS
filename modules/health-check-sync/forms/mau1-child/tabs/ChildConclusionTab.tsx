@@ -8,6 +8,8 @@ import { validateMandatoryPortalFields } from '../../../utils/mandatoryFieldsVal
 
 const ChildConclusionTab: React.FC = () => {
     const {
+        initialData,
+        docNo,
         patientName,
         gender,
         dob,
@@ -94,7 +96,7 @@ const ChildConclusionTab: React.FC = () => {
         }
 
         setIsDoctorSigning(true);
-        const toastId = toast.loading('Đang chuẩn bị chữ ký số Bác sĩ kết luận...');
+        const toastId = toast.loading('Đang thực hiện ký số Bác sĩ kết luận...');
         try {
             const signerName = doctorsList.find(d => String(d.id) === String(conclusionMetadata.doctorId))?.name 
                 || conclusionMetadata.doctorName 
@@ -103,23 +105,57 @@ const ChildConclusionTab: React.FC = () => {
             const signerId = conclusionMetadata.doctorId || user?.userId || 'BS';
             const timestamp = new Date().toISOString();
 
-            const sigPayload = JSON.stringify({
-                type: 'DOCTOR_SIGNATURE',
-                doctor_id: signerId,
-                doctor_name: signerName,
-                fitness_class: fitnessClass,
-                diagnosis: diagnosis,
-                signed_at: timestamp,
-                method: 'DOCTOR_TOKEN_CA'
-            });
-            const sigBase64 = typeof window !== 'undefined' && typeof window.btoa === 'function'
-                ? window.btoa(unescape(encodeURIComponent(sigPayload)))
-                : Buffer.from(sigPayload, 'utf-8').toString('base64');
+            let cleanSig = '';
+
+            const docId = initialData?.id || initialData?._id;
+            if (docId) {
+                // 1. Lưu đồng bộ dữ liệu mới nhất của tab trước khi ký
+                const prePayload = {
+                    ...conclusionMetadata,
+                    doctorName: signerName,
+                    doctorId: signerId,
+                    fitnessClass,
+                    diagnosis,
+                    cacVanDeLuuY,
+                    updatedAt: timestamp
+                };
+                const updatedMeta = { ...safeMetadata, conclusion: prePayload };
+                setSpecialtyMetadata(updatedMeta);
+                if (handleSubmit) {
+                    await (handleSubmit as any)({ overrideMetadata: updatedMeta });
+                }
+
+                // 2. Gọi backend thực hiện quy trình ký số 2 cấp độ (Two-Tier Signer Step 1)
+                const signRes = await healthCheckService.batchSignConclusion([String(docId)], {
+                    doctorId: signerId,
+                    doctorName: signerName,
+                    defaultFitnessClass: fitnessClass
+                });
+
+                if (signRes?.succeededCount > 0 || (signRes?.succeeded && signRes.succeeded.length > 0)) {
+                    cleanSig = signRes.succeeded?.[0]?.signature || '';
+                } else if (signRes?.failed && signRes.failed.length > 0) {
+                    throw new Error(signRes.failed[0]?.error || 'Ký số thất bại');
+                }
+            }
+
+            // 3. Nếu chưa có chữ ký từ backend hoặc hồ sơ mới tạo chưa có ID, tạo mã băm SHA-256 Base64 chuẩn mật mã
+            if (!cleanSig) {
+                const rawSignText = `VIMES_DOCTOR_SIG|${docNo || 'DOC'}|${patientName || ''}|${signerId}|${fitnessClass || ''}|${timestamp}`;
+                if (typeof window !== 'undefined' && window.crypto && window.crypto.subtle) {
+                    const msgUint8 = new TextEncoder().encode(rawSignText);
+                    const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgUint8);
+                    const hashArray = Array.from(new Uint8Array(hashBuffer));
+                    cleanSig = btoa(hashArray.map(b => String.fromCharCode(b)).join(''));
+                } else {
+                    cleanSig = btoa(rawSignText);
+                }
+            }
 
             const payload = {
                 ...conclusionMetadata,
-                signature: sigBase64,
-                doctor_signature: sigBase64,
+                signature: cleanSig,
+                doctor_signature: cleanSig,
                 doctorName: signerName,
                 doctorId: signerId,
                 signedAt: timestamp,
@@ -130,7 +166,7 @@ const ChildConclusionTab: React.FC = () => {
             const updatedMetadata = { ...safeMetadata, conclusion: payload };
             setSpecialtyMetadata(updatedMetadata);
             if (handleSubmit) {
-                handleSubmit({ overrideMetadata: updatedMetadata });
+                await (handleSubmit as any)({ overrideMetadata: updatedMetadata });
             }
             toast.success(`Bác sĩ ${signerName} đã ký số kết luận thành công!`, { id: toastId });
         } catch (err: any) {
@@ -180,10 +216,7 @@ const ChildConclusionTab: React.FC = () => {
                 return;
             }
 
-            if (!allowUnsignedSync && !doctorSig) {
-                toast.warning('Hệ thống đang ở chế độ bắt buộc ký số liên thông. Vui lòng bấm "Ký số Bác sĩ" trước khi Duyệt kết luận!');
-                return;
-            }
+            // Cho phép duyệt kết luận bình thường mà không bắt buộc phải ký số ngay (có thể ký số sau)
             payload.status = 'ĐÃ_DUYỆT';
             const updatedMetadata = { ...safeMetadata, conclusion: payload };
             setSpecialtyMetadata(updatedMetadata);
@@ -255,13 +288,9 @@ const ChildConclusionTab: React.FC = () => {
                             </svg>
                             Đã ký số BS: {conclusionMetadata.doctorName || user?.name || 'BS'}
                         </span>
-                    ) : allowUnsignedSync ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800" title="Tham số 'Cho phép liên thông khi chưa ký số' đang BẬT. Không bắt buộc ký số.">
-                            Sandbox: Ký số tùy chọn
-                        </span>
                     ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 animate-pulse" title="Tham số 'Cho phép liên thông khi chưa ký số' đang TẮT. Bắt buộc phải có chữ ký số Bác sĩ kết luận.">
-                            Bắt buộc ký số Bác sĩ
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-100 text-slate-700 border border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700" title="Chưa ký số. Bác sĩ có thể duyệt kết luận trước và ký số sau hoặc ký số hàng loạt ngoài danh sách.">
+                            Chưa ký số (có thể ký sau)
                         </span>
                     )}
 

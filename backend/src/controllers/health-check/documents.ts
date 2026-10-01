@@ -513,6 +513,13 @@ class DocumentsController {
                         finalConclusionData = mergeConclusionData(existingConclusion, conclusionData || {});
                     }
 
+                    if (finalConclusionData.signature) {
+                        finalConclusionData.signature = healthCheckTwoTierSigner.extractCleanSignatureValue(finalConclusionData.signature);
+                    }
+                    if (finalConclusionData.doctor_signature) {
+                        finalConclusionData.doctor_signature = healthCheckTwoTierSigner.extractCleanSignatureValue(finalConclusionData.doctor_signature);
+                    }
+
                     const xmlData = generateXmlPayload(
                         formType, 
                         { patientName, cccd, dob, gender, docNo }, 
@@ -576,6 +583,13 @@ class DocumentsController {
                         );
                     }
                 } else {
+                    if (conclusionData.signature) {
+                        conclusionData.signature = healthCheckTwoTierSigner.extractCleanSignatureValue(conclusionData.signature);
+                    }
+                    if (conclusionData.doctor_signature) {
+                        conclusionData.doctor_signature = healthCheckTwoTierSigner.extractCleanSignatureValue(conclusionData.doctor_signature);
+                    }
+
                     const xmlData = generateXmlPayload(
                         formType, 
                         { patientName, cccd, dob, gender, docNo }, 
@@ -728,6 +742,13 @@ class DocumentsController {
                     finalClinicalData = mergeClinicalData(existingClinical, clinicalData || {});
                     finalLabData = mergeLabData(existingLab, labData || {});
                     finalConclusionData = mergeConclusionData(existingConclusion, conclusionData || {});
+                }
+
+                if (finalConclusionData.signature) {
+                    finalConclusionData.signature = healthCheckTwoTierSigner.extractCleanSignatureValue(finalConclusionData.signature);
+                }
+                if (finalConclusionData.doctor_signature) {
+                    finalConclusionData.doctor_signature = healthCheckTwoTierSigner.extractCleanSignatureValue(finalConclusionData.doctor_signature);
                 }
 
                 // Kiểm tra 17 trường bắt buộc theo file đặc tả nếu người dùng thực hiện Khóa & Ký kết luận
@@ -1033,7 +1054,7 @@ class DocumentsController {
                         }
                     }
 
-                    succeeded.push({ id, docNo: doc.doc_no, patientName: doc.patient_name });
+                    succeeded.push({ id, docNo: doc.doc_no, patientName: doc.patient_name, signature: cleanDocSig });
                 } catch (docErr: any) {
                     failed.push({ id, error: docErr.message });
                 }
@@ -1697,13 +1718,52 @@ class DocumentsController {
             `, [newXml, id]);
 
             if (detailRes.rows.length > 0) {
-                const concl = detailRes.rows[0].conclusion_data || {};
+                const concl = typeof detailRes.rows[0].conclusion_data === 'string' ? JSON.parse(detailRes.rows[0].conclusion_data) : (detailRes.rows[0].conclusion_data || {});
+                const clin = typeof detailRes.rows[0].clinical_data === 'string' ? JSON.parse(detailRes.rows[0].clinical_data) : (detailRes.rows[0].clinical_data || {});
+                const signedAt = new Date().toISOString();
+
                 concl.signature = cleanDocSig;
                 concl.doctor_signature = cleanDocSig;
                 if (doctorName) concl.doctor_name = doctorName;
                 if (doctorCode) concl.doctor_code = doctorCode;
-                concl.signed_at = new Date().toISOString();
-                await query('UPDATE health_check_details SET conclusion_data = $1 WHERE master_id = $2', [JSON.stringify(concl), id]);
+                concl.signed_at = signedAt;
+                concl.status = 'ĐÃ_DUYỆT';
+
+                if (!clin.specialty_metadata) clin.specialty_metadata = {};
+                if (!clin.specialty_metadata.conclusion) clin.specialty_metadata.conclusion = {};
+                clin.specialty_metadata.conclusion.signature = cleanDocSig;
+                clin.specialty_metadata.conclusion.doctor_signature = cleanDocSig;
+                if (doctorName) clin.specialty_metadata.conclusion.doctorName = doctorName;
+                if (doctorCode) clin.specialty_metadata.conclusion.doctorId = doctorCode;
+                clin.specialty_metadata.conclusion.signedAt = signedAt;
+                clin.specialty_metadata.conclusion.status = 'ĐÃ_DUYỆT';
+
+                await query(`
+                    UPDATE health_check_details 
+                    SET conclusion_data = $1,
+                        clinical_data = $2,
+                        updated_at = NOW() 
+                    WHERE master_id = $3
+                `, [JSON.stringify(concl), JSON.stringify(clin), id]);
+
+                // Đồng bộ 2 chiều về HIS Core nếu có doc_no
+                const hisDocNo = parseInt(String(doc.doc_no), 10);
+                if (!isNaN(hisDocNo) && hisDocNo > 0) {
+                    try {
+                        await transaction(async (client) => {
+                            await hisIntegrationController.pushbackClinicalAndConclusion(
+                                client,
+                                hisDocNo,
+                                clin,
+                                concl,
+                                doctorCode || '',
+                                doctorName || ''
+                            );
+                        });
+                    } catch (syncErr: any) {
+                        console.warn(`[applyTwoTierSignStep1] Đồng bộ về HIS Core cho docNo=${hisDocNo} có cảnh báo:`, syncErr.message);
+                    }
+                }
             }
 
             const check = healthCheckTwoTierSigner.isFullySigned(newXml);

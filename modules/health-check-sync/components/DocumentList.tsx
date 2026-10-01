@@ -322,11 +322,43 @@ const DocumentList: React.FC<DocumentListProps> = ({
                                                     <span className="text-slate-400">-</span>
                                                 )}
                                             </div>
+                                        ) : syncTargetMode === 'SYT_ONLY' ? (
+                                            <>
+                                                {(doc.syt_send_status === 'Error' || doc.send_status === 'Error') && (
+                                                    <div className="text-rose-800 dark:text-rose-400 font-bold uppercase mb-1">
+                                                        {doc.syt_error_message || doc.error_message || 'Lỗi gửi Cổng Sở Y tế'}
+                                                    </div>
+                                                )}
+                                                {(doc.syt_transaction_id || doc.transaction_id) && (
+                                                    <div className="text-[10px] text-teal-700 dark:text-teal-400 font-mono">
+                                                        <span className="font-semibold">Mã GD SYT:</span> {doc.syt_transaction_id || doc.transaction_id}
+                                                    </div>
+                                                )}
+                                                {(doc.syt_response_log || doc.response_log) ? (
+                                                    <div 
+                                                        className="text-[10px] text-slate-500 font-mono line-clamp-2 cursor-pointer hover:text-teal-600 hover:underline"
+                                                        title="Nhấn để xem chi tiết log"
+                                                        onClick={() => {
+                                                            alert(`CHI TIẾT LOG PHẢN HỒI TỪ CỔNG SỞ Y TẾ:\n\n${doc.syt_response_log || doc.response_log}`);
+                                                        }}
+                                                    >
+                                                        Log: {doc.syt_response_log || doc.response_log}
+                                                    </div>
+                                                ) : null}
+                                                {!doc.syt_transaction_id && !doc.transaction_id && !doc.syt_error_message && !doc.error_message && (
+                                                    <span className="text-slate-400">-</span>
+                                                )}
+                                            </>
                                         ) : (
                                             <>
                                                 {doc.send_status === 'Error' && (
                                                     <div className="text-rose-800 dark:text-rose-400 font-bold uppercase mb-1">
                                                         {doc.error_message || 'Lỗi gửi cổng'}
+                                                    </div>
+                                                )}
+                                                {doc.transaction_id && (
+                                                    <div className="text-[10px] text-slate-500 font-mono">
+                                                        <span className="font-semibold text-slate-600 dark:text-slate-400">BYT:</span> {doc.transaction_id}
                                                     </div>
                                                 )}
                                                 {doc.response_log ? (

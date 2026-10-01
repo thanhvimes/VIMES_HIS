@@ -227,13 +227,13 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
     };
 
     const hasSpecialtyData = (specialty: string) => {
-        if (specialty === 'tuan_hoan') return !!(clinicalExam.nhi_tuan_hoan || clinicalExam.internal || clinicalExam.tuan_hoan || clinical.tuan_hoan || clinical.circulatory);
-        if (specialty === 'ho_hap') return !!(clinicalExam.nhi_ho_hap || clinicalExam.internal || clinicalExam.ho_hap || clinical.ho_hap || clinical.respiratory);
-        if (specialty === 'tieu_hoa') return !!(clinicalExam.nhi_tieu_hoa || clinicalExam.internal || clinicalExam.tieu_hoa || clinical.tieu_hoa || clinical.digestive);
-        if (specialty === 'than_tiet_nieu') return !!(clinicalExam.nhi_tiet_nieu || clinicalExam.nhi_sinh_duc || clinicalExam.internal || clinicalExam.than_tiet_nieu || clinical.than_tiet_nieu || clinical.urinary);
-        if (specialty === 'than_kinh') return !!(clinicalExam.nhi_than_kinh || clinicalExam.internal || clinicalExam.than_kinh || clinical.than_kinh || clinical.neurology);
-        if (specialty === 'tam_than') return !!(clinicalExam.nhi_tam_than || clinicalExam.internal || clinicalExam.tam_than || clinical.tam_than || clinical.psychiatry);
-        if (specialty === 'lam_sang_khac') return !!(clinicalExam.nhi_khoa_lam_sang_khac || clinicalExam.nhi_khac || clinicalExam.internal || clinicalExam.ngoai_khoa || extra.nhi_khoa_lam_sang_khac);
+        if (specialty === 'tuan_hoan') return !!(clinicalExam.kq_tim_mach || clinicalExam.tim_mach || clinicalExam.noi_khoa_tuan_hoan || clinicalExam.tuan_hoan || clinicalExam.nhi_tuan_hoan || clinicalExam.internal || clinical.tuan_hoan || clinical.circulatory);
+        if (specialty === 'ho_hap') return !!(clinicalExam.kq_ho_hap || clinicalExam.ho_hap || clinicalExam.noi_khoa_ho_hap || clinicalExam.nhi_ho_hap || clinicalExam.internal || clinical.ho_hap || clinical.respiratory);
+        if (specialty === 'tieu_hoa') return !!(clinicalExam.kq_tieu_hoa || clinicalExam.noi_khoa_tieu_hoa || clinicalExam.tieu_hoa || clinicalExam.nhi_tieu_hoa || clinicalExam.internal || clinical.tieu_hoa || clinical.digestive);
+        if (specialty === 'than_tiet_nieu') return !!(clinicalExam.kq_tiet_nieu || clinicalExam.noi_khoa_than_tn_sd || clinicalExam.than_tiet_nieu || clinicalExam.tiet_nieu_sinh_duc || clinicalExam.kq_sinh_duc || clinicalExam.nhi_tiet_nieu || clinicalExam.nhi_sinh_duc || clinicalExam.internal || clinical.than_tiet_nieu || clinical.urinary);
+        if (specialty === 'than_kinh') return !!(clinicalExam.kq_than_kinh || clinicalExam.noi_khoa_than_kinh || clinicalExam.than_kinh || clinicalExam.nhi_than_kinh || clinicalExam.internal || clinical.than_kinh || clinical.neurology);
+        if (specialty === 'tam_than') return !!(clinicalExam.kq_tam_than || clinicalExam.noi_khoa_tam_than || clinicalExam.tam_than || clinicalExam.nhi_tam_than || clinicalExam.internal || clinical.tam_than || clinical.psychiatry);
+        if (specialty === 'lam_sang_khac') return !!(clinicalExam.lam_sang_khac || clinicalExam.nhi_khoa_lam_sang_khac || clinicalExam.nhi_khac || clinicalExam.internal || clinicalExam.ngoai_khoa || extra.nhi_khoa_lam_sang_khac);
         if (specialty === 'mat') return !!(clinicalExam.eye || clinicalExam.kham_mat_pl || clinicalExam.khong_kinh_mat_phai || clinicalExam.khong_kinh_mat_trai || clinical.mat);
         if (specialty === 'tai_mui_hong') return !!(clinicalExam.ent || clinicalExam.kham_tai_mui_hong_pl || clinicalExam.tai_trai_noi_thuong || clinicalExam.tai_phai_noi_thuong || clinical.tai_mui_hong);
         if (specialty === 'rang_ham_mat') return !!(clinicalExam.dental || clinicalExam.kham_rang_ham_mat_pl || clinicalExam.ham_tren || clinicalExam.ham_duoi || clinical.rang_ham_mat);
@@ -381,12 +381,12 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
     };
 
     const getPl = (specialty: string) => {
-        if (specialty === 'tuan_hoan') return clinicalExam.nhi_tuan_hoan_pl || clinicalExam.tuanHoanPl || clinicalExam.noi_khoa_tuan_hoan_pl || clinical.tuan_hoan_pl || '';
-        if (specialty === 'ho_hap') return clinicalExam.nhi_ho_hap_pl || clinicalExam.hoHapPl || clinicalExam.noi_khoa_ho_hap_pl || clinical.ho_hap_pl || '';
-        if (specialty === 'tieu_hoa') return clinicalExam.nhi_tieu_hoa_pl || clinicalExam.tieuHoaPl || clinicalExam.noi_khoa_tieu_hoa_pl || clinical.tieu_hoa_pl || '';
-        if (specialty === 'than_tiet_nieu') return clinicalExam.nhi_tiet_nieu_pl || clinicalExam.thanTietNieuPl || clinicalExam.noi_khoa_than_tietnieu_pl || clinical.than_tiet_nieu_pl || '';
-        if (specialty === 'than_kinh') return clinicalExam.nhi_than_kinh_pl || clinicalExam.thanKinhPl || clinicalExam.noi_khoa_than_kinh_pl || clinical.than_kinh_pl || '';
-        if (specialty === 'tam_than') return clinicalExam.nhi_tam_than_pl || clinicalExam.tamThanPl || clinicalExam.noi_khoa_tam_than_pl || clinical.tam_than_pl || '';
+        if (specialty === 'tuan_hoan') return clinicalExam.noi_khoa_tuan_hoan_pl || clinicalExam.nhi_tuan_hoan_pl || clinicalExam.tuanHoanPl || clinical.tuan_hoan_pl || '';
+        if (specialty === 'ho_hap') return clinicalExam.noi_khoa_ho_hap_pl || clinicalExam.nhi_ho_hap_pl || clinicalExam.hoHapPl || clinical.ho_hap_pl || '';
+        if (specialty === 'tieu_hoa') return clinicalExam.noi_khoa_tieu_hoa_pl || clinicalExam.nhi_tieu_hoa_pl || clinicalExam.tieuHoaPl || clinical.tieu_hoa_pl || '';
+        if (specialty === 'than_tiet_nieu') return clinicalExam.noi_khoa_than_tietnieu_pl || clinicalExam.nhi_tiet_nieu_pl || clinicalExam.thanTietNieuPl || clinical.than_tiet_nieu_pl || '';
+        if (specialty === 'than_kinh') return clinicalExam.noi_khoa_than_kinh_pl || clinicalExam.nhi_than_kinh_pl || clinicalExam.thanKinhPl || clinical.than_kinh_pl || '';
+        if (specialty === 'tam_than') return clinicalExam.noi_khoa_tam_than_pl || clinicalExam.nhi_tam_than_pl || clinicalExam.tamThanPl || clinical.tam_than_pl || '';
         if (specialty === 'lam_sang_khac') return clinicalExam.nhi_khac_pl || clinicalExam.surgeryPl || clinical.ngoai_khoa_pl || '';
         if (specialty === 'ngoai_khoa') return clinicalExam.kham_ngoai_khoa_pl || clinicalExam.surgeryPl || clinical.ngoai_khoa_pl || '';
         if (specialty === 'da_lieu') return clinicalExam.kham_da_lieu_pl || clinicalExam.dermatologyPl || clinical.da_lieu_pl || '';
@@ -853,7 +853,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                                 <tr>
                                     <td>
                                         <span className="font-bold">a) Tuần hoàn: </span>
-                                        <span>{clinicalExam.nhi_tuan_hoan || clinicalExam.tuan_hoan || clinicalExam.tim_mach || clinicalExam.kq_tim_mach || clinicalExam.noi_khoa_tuan_hoan || clinicalExam.internal || 'Bình thường'}</span>
+                                        <span>{clinicalExam.kq_tim_mach || clinicalExam.tim_mach || clinicalExam.noi_khoa_tuan_hoan || clinicalExam.tuan_hoan || clinicalExam.nhi_tuan_hoan || clinicalExam.internal || 'Bình thường'}</span>
                                         {renderPl('tuan_hoan')}
                                     </td>
                                     <td className="text-center">{renderDoctorCell('tuan_hoan')}</td>
@@ -861,7 +861,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                                 <tr>
                                     <td>
                                         <span className="font-bold">b) Hô hấp: </span>
-                                        <span>{clinicalExam.nhi_ho_hap || clinicalExam.ho_hap || clinicalExam.kq_ho_hap || clinicalExam.noi_khoa_ho_hap || clinicalExam.internal || 'Bình thường'}</span>
+                                        <span>{clinicalExam.kq_ho_hap || clinicalExam.ho_hap || clinicalExam.noi_khoa_ho_hap || clinicalExam.nhi_ho_hap || clinicalExam.internal || 'Bình thường'}</span>
                                         {renderPl('ho_hap')}
                                     </td>
                                     <td className="text-center">{renderDoctorCell('ho_hap')}</td>
@@ -869,7 +869,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                                 <tr>
                                     <td>
                                         <span className="font-bold">c) Tiêu hóa: </span>
-                                        <span>{clinicalExam.nhi_tieu_hoa || clinicalExam.tieu_hoa || clinicalExam.kq_tieu_hoa || clinicalExam.noi_khoa_tieu_hoa || clinicalExam.internal || 'Bình thường'}</span>
+                                        <span>{clinicalExam.kq_tieu_hoa || clinicalExam.noi_khoa_tieu_hoa || clinicalExam.tieu_hoa || clinicalExam.nhi_tieu_hoa || clinicalExam.internal || 'Bình thường'}</span>
                                         {renderPl('tieu_hoa')}
                                     </td>
                                     <td className="text-center">{renderDoctorCell('tieu_hoa')}</td>
@@ -877,7 +877,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                                 <tr>
                                     <td>
                                         <span className="font-bold">d) Thận - Tiết niệu, Sinh dục: </span>
-                                        <span>{clinicalExam.nhi_tiet_nieu || clinicalExam.nhi_sinh_duc || clinicalExam.than_tiet_nieu || clinicalExam.kq_tiet_nieu || clinicalExam.kq_sinh_duc || clinicalExam.tiet_nieu_sinh_duc || clinicalExam.noi_khoa_than_tn_sd || clinicalExam.internal || 'Bình thường'}</span>
+                                        <span>{clinicalExam.kq_tiet_nieu || clinicalExam.noi_khoa_than_tn_sd || clinicalExam.than_tiet_nieu || clinicalExam.tiet_nieu_sinh_duc || clinicalExam.kq_sinh_duc || clinicalExam.nhi_tiet_nieu || clinicalExam.nhi_sinh_duc || clinicalExam.internal || 'Bình thường'}</span>
                                         {renderPl('than_tiet_nieu')}
                                     </td>
                                     <td className="text-center">{renderDoctorCell('than_tiet_nieu')}</td>
@@ -885,7 +885,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                                 <tr>
                                     <td>
                                         <span className="font-bold">đ) Thần kinh: </span>
-                                        <span>{clinicalExam.nhi_than_kinh || clinicalExam.than_kinh || clinicalExam.kq_than_kinh || clinicalExam.noi_khoa_than_kinh || clinicalExam.internal || 'Bình thường'}</span>
+                                        <span>{clinicalExam.kq_than_kinh || clinicalExam.noi_khoa_than_kinh || clinicalExam.than_kinh || clinicalExam.nhi_than_kinh || clinicalExam.internal || 'Bình thường'}</span>
                                         {renderPl('than_kinh')}
                                     </td>
                                     <td className="text-center">{renderDoctorCell('than_kinh')}</td>
@@ -893,7 +893,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                                 <tr>
                                     <td>
                                         <span className="font-bold">e) Tâm thần: </span>
-                                        <span>{clinicalExam.nhi_tam_than || clinicalExam.tam_than || clinicalExam.kq_tam_than || clinicalExam.noi_khoa_tam_than || clinicalExam.internal || 'Bình thường'}</span>
+                                        <span>{clinicalExam.kq_tam_than || clinicalExam.noi_khoa_tam_than || clinicalExam.tam_than || clinicalExam.nhi_tam_than || clinicalExam.internal || 'Bình thường'}</span>
                                         {renderPl('tam_than')}
                                     </td>
                                     <td className="text-center">{renderDoctorCell('tam_than')}</td>
@@ -901,7 +901,7 @@ export const PrintFormMau2: React.FC<PrintFormMau2Props> = ({
                                 <tr>
                                     <td>
                                         <span className="font-bold">g) Khám lâm sàng khác: </span>
-                                        <span>{clinicalExam.nhi_khoa_lam_sang_khac || clinicalExam.nhi_khac || clinicalExam.lam_sang_khac || extra.nhi_khoa_lam_sang_khac || 'Bình thường'}</span>
+                                        <span>{clinicalExam.lam_sang_khac || clinicalExam.nhi_khoa_lam_sang_khac || clinicalExam.nhi_khac || extra.nhi_khoa_lam_sang_khac || 'Bình thường'}</span>
                                         {renderPl('lam_sang_khac')}
                                     </td>
                                     <td className="text-center">{renderDoctorCell('lam_sang_khac')}</td>

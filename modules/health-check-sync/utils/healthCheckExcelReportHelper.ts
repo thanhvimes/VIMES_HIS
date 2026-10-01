@@ -27,6 +27,14 @@ export interface ContractReportMeta {
     totalRegistered?: number;
 }
 
+export interface ServiceCatalogItem {
+    key: string;
+    itemId?: string;
+    name: string;
+    unitPrice: number;
+    gender?: 'A' | 'M' | 'F';
+}
+
 export interface EmployeeReportRecord {
     stt?: number;
     code?: string;
@@ -85,8 +93,9 @@ export interface EmployeeReportRecord {
     phanloai?: string; // 'I' | 'II' | 'III' | 'IV' | 'V' hoặc '1'..'5' hoặc 'Loại 1'..'Loại 5'
     conclusion?: string;
     remark?: string;
-    // Dịch vụ thực hiện để tính chi phí (key: serviceKey, value: boolean/number)
+    // Dịch vụ thực hiện để tính chi phí (key: serviceKey hoặc serviceCode, value: boolean/number)
     services?: Record<string, boolean | number>;
+    executedServices?: Record<string, boolean | number>;
     customFee?: number;
 }
 
@@ -577,39 +586,39 @@ export function buildHealthCheckExcelReport(options: HealthCheckReportOptions): 
             emp.tmh || 'Bình thường',
             emp.rhm || 'Bình thường',
             emp.phukhoa || (emp.gender === 'Nữ' ? 'Bình thường' : ''),
-            // Huyết học
-            emp.blood_group || '"O"',
-            emp.rbc !== undefined ? String(emp.rbc) : '4.85',
-            emp.hgb !== undefined ? String(emp.hgb) : '142.0',
-            emp.wbc !== undefined ? String(emp.wbc) : '5.60',
-            emp.plt !== undefined ? String(emp.plt) : '240.0',
-            // Hóa sinh
-            emp.hdl !== undefined ? String(emp.hdl) : '1.15',
-            emp.ure !== undefined ? String(emp.ure) : '4.80',
-            emp.cholesterol !== undefined ? String(emp.cholesterol) : '4.95',
-            emp.uric_acid !== undefined ? String(emp.uric_acid) : '380.0',
-            emp.alt !== undefined ? String(emp.alt) : '22.0',
-            emp.triglyceride !== undefined ? String(emp.triglyceride) : '1.65',
-            emp.ast !== undefined ? String(emp.ast) : '24.0',
-            emp.ldl !== undefined ? String(emp.ldl) : '2.85',
-            emp.glucose !== undefined ? String(emp.glucose) : '5.20',
-            emp.ggt !== undefined ? String(emp.ggt) : '25.0',
-            // Nước tiểu
-            emp.urine_glu || 'norm',
-            emp.urine_pro || 'neg',
-            emp.urine_ery || 'neg',
-            emp.urine_leu || 'neg',
-            // Miễn dịch
-            emp.ft4 !== undefined ? String(emp.ft4) : '1.45',
-            emp.gender === 'Nam' ? (emp.psa !== undefined ? String(emp.psa) : '0.85') : '',
-            emp.tsh !== undefined ? String(emp.tsh) : '2.10',
-            emp.ft3 !== undefined ? String(emp.ft3) : '4.90',
-            // Siêu âm & CĐHA
-            emp.us_thyroid || 'Hình ảnh siêu âm tuyến giáp bình thường.',
-            emp.us_abdomen || 'Hình ảnh siêu âm ổ bụng bình thường.',
-            emp.gender === 'Nữ' ? (emp.us_breast || 'Hình ảnh siêu âm tuyến vú bình thường.') : '',
-            emp.xray_chest || 'Hiện chưa thấy bất thường trên phim chụp X quang ngực.',
-            emp.gender === 'Nữ' ? (emp.cytology || 'Âm tính') : '',
+            // Huyết học (chỉ điền khi thực tế có kết quả, không bịa số mặc định)
+            emp.blood_group || '',
+            (emp.rbc !== undefined && emp.rbc !== null && emp.rbc !== '') ? String(emp.rbc) : '',
+            (emp.hgb !== undefined && emp.hgb !== null && emp.hgb !== '') ? String(emp.hgb) : '',
+            (emp.wbc !== undefined && emp.wbc !== null && emp.wbc !== '') ? String(emp.wbc) : '',
+            (emp.plt !== undefined && emp.plt !== null && emp.plt !== '') ? String(emp.plt) : '',
+            // Hóa sinh (chỉ điền khi thực tế có kết quả)
+            (emp.hdl !== undefined && emp.hdl !== null && emp.hdl !== '') ? String(emp.hdl) : '',
+            (emp.ure !== undefined && emp.ure !== null && emp.ure !== '') ? String(emp.ure) : '',
+            (emp.cholesterol !== undefined && emp.cholesterol !== null && emp.cholesterol !== '') ? String(emp.cholesterol) : '',
+            (emp.uric_acid !== undefined && emp.uric_acid !== null && emp.uric_acid !== '') ? String(emp.uric_acid) : '',
+            (emp.alt !== undefined && emp.alt !== null && emp.alt !== '') ? String(emp.alt) : '',
+            (emp.triglyceride !== undefined && emp.triglyceride !== null && emp.triglyceride !== '') ? String(emp.triglyceride) : '',
+            (emp.ast !== undefined && emp.ast !== null && emp.ast !== '') ? String(emp.ast) : '',
+            (emp.ldl !== undefined && emp.ldl !== null && emp.ldl !== '') ? String(emp.ldl) : '',
+            (emp.glucose !== undefined && emp.glucose !== null && emp.glucose !== '') ? String(emp.glucose) : '',
+            (emp.ggt !== undefined && emp.ggt !== null && emp.ggt !== '') ? String(emp.ggt) : '',
+            // Nước tiểu (chỉ điền khi thực tế có kết quả)
+            emp.urine_glu || '',
+            emp.urine_pro || '',
+            emp.urine_ery || '',
+            emp.urine_leu || '',
+            // Miễn dịch (chỉ điền khi thực tế có kết quả)
+            (emp.ft4 !== undefined && emp.ft4 !== null && emp.ft4 !== '') ? String(emp.ft4) : '',
+            emp.gender === 'Nam' ? ((emp.psa !== undefined && emp.psa !== null && emp.psa !== '') ? String(emp.psa) : '') : '',
+            (emp.tsh !== undefined && emp.tsh !== null && emp.tsh !== '') ? String(emp.tsh) : '',
+            (emp.ft3 !== undefined && emp.ft3 !== null && emp.ft3 !== '') ? String(emp.ft3) : '',
+            // Siêu âm & CĐHA (TUYỆT ĐỐI không tự động điền 'Bình thường' khi không thực hiện / không có trong gói)
+            emp.us_thyroid || '',
+            emp.us_abdomen || '',
+            emp.gender === 'Nữ' ? (emp.us_breast || '') : '',
+            emp.xray_chest || '',
+            emp.gender === 'Nữ' ? (emp.cytology || '') : '',
             // Phân loại & Kết luận
             normalizeGrade(emp.phanloai) === 'CHUA_PL' ? 'II' : normalizeGrade(emp.phanloai),
             emp.conclusion || 'Hiện tại sức khỏe bình thường.'
@@ -740,25 +749,75 @@ export function buildHealthCheckExcelReport(options: HealthCheckReportOptions): 
         const row: any[] = [idx + 1, emp.name, isNu ? 'Nữ' : 'Nam', birthYear];
         let personTotal = 0;
 
-        services.forEach((s, sIdx) => {
+        services.forEach((s: any, sIdx: number) => {
             // Xác định nhân viên này có làm dịch vụ không
             let isUsed = false;
-            if (emp.services && emp.services[s.key] !== undefined) {
-                isUsed = Boolean(emp.services[s.key]);
+            const sKey = String(s.key || '').trim();
+            const sItemId = String(s.itemId || '').trim();
+
+            if (emp.services && (emp.services[sKey] !== undefined || (sItemId && emp.services[sItemId] !== undefined))) {
+                isUsed = Boolean(emp.services[sKey] ?? (sItemId ? emp.services[sItemId] : false));
+            } else if (emp.executedServices && (emp.executedServices[sKey] !== undefined || (sItemId && emp.executedServices[sItemId] !== undefined))) {
+                isUsed = Boolean(emp.executedServices[sKey] ?? (sItemId ? emp.executedServices[sItemId] : false));
             } else {
-                // Tự động gán hợp lý theo giới tính
-                if (s.key === 'kham_san' || s.key === 'sa_vu' || s.key === 'tbh_nhuom') {
-                    isUsed = isNu;
-                } else if (s.key === 'psa_tp') {
-                    isUsed = !isNu;
-                } else {
+                // Kiểm tra dựa trên dữ liệu thực tế (chỉ tính khi có kết quả thực sự, KHÔNG tự động coi như đã làm)
+                if (sKey === 'kham_tong_quat' || sKey === 'kham_lam_sang') {
                     isUsed = true;
+                } else if (sKey === 'kham_san') {
+                    isUsed = isNu && Boolean(emp.phukhoa && emp.phukhoa.trim() !== '');
+                } else if (sKey === 'sa_o_bung') {
+                    isUsed = Boolean(emp.us_abdomen && emp.us_abdomen.trim() !== '');
+                } else if (sKey === 'sa_tuyen_giap') {
+                    isUsed = Boolean(emp.us_thyroid && emp.us_thyroid.trim() !== '');
+                } else if (sKey === 'sa_vu') {
+                    isUsed = isNu && Boolean(emp.us_breast && emp.us_breast.trim() !== '');
+                } else if (sKey === 'xquang_nguc') {
+                    isUsed = Boolean(emp.xray_chest && emp.xray_chest.trim() !== '');
+                } else if (sKey === 'tbh_nhuom') {
+                    isUsed = isNu && Boolean(emp.cytology && emp.cytology.trim() !== '');
+                } else if (sKey === 'glucose') {
+                    isUsed = Boolean(emp.glucose);
+                } else if (sKey === 'ure') {
+                    isUsed = Boolean(emp.ure);
+                } else if (sKey === 'ast') {
+                    isUsed = Boolean(emp.ast);
+                } else if (sKey === 'alt') {
+                    isUsed = Boolean(emp.alt);
+                } else if (sKey === 'ggt') {
+                    isUsed = Boolean(emp.ggt);
+                } else if (sKey === 'cholesterol') {
+                    isUsed = Boolean(emp.cholesterol);
+                } else if (sKey === 'triglycerid') {
+                    isUsed = Boolean(emp.triglyceride);
+                } else if (sKey === 'hdl') {
+                    isUsed = Boolean(emp.hdl);
+                } else if (sKey === 'ldl') {
+                    isUsed = Boolean(emp.ldl);
+                } else if (sKey === 'acid_uric') {
+                    isUsed = Boolean(emp.uric_acid);
+                } else if (sKey === 'ft3') {
+                    isUsed = Boolean(emp.ft3);
+                } else if (sKey === 'ft4') {
+                    isUsed = Boolean(emp.ft4);
+                } else if (sKey === 'tsh') {
+                    isUsed = Boolean(emp.tsh);
+                } else if (sKey === 'psa_tp') {
+                    isUsed = !isNu && Boolean(emp.psa);
+                } else if (sKey === 'huyet_hoc_tong_pt') {
+                    isUsed = Boolean(emp.hgb || emp.rbc || emp.wbc || emp.plt);
+                } else if (sKey === 'nuoc_tieu_tong_pt') {
+                    isUsed = Boolean(emp.urine_pro || emp.urine_glu || emp.urine_ery || emp.urine_leu);
+                } else if (sKey === 'nhom_mau_abo') {
+                    isUsed = Boolean(emp.blood_group && emp.blood_group.trim() !== '');
+                } else {
+                    // Dịch vụ khác không xác định -> mặc định không làm
+                    isUsed = false;
                 }
             }
 
             if (isUsed) {
                 row.push(1);
-                personTotal += s.unitPrice;
+                personTotal += (Number(s.unitPrice) || 0);
                 serviceUsageSums[sIdx]++;
             } else {
                 row.push(null);

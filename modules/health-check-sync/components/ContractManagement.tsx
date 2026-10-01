@@ -27,6 +27,14 @@ import {
 import { toast } from 'sonner';
 import { formatDate } from '../../../utils/formatters';
 import { ContractReportTab } from './ContractReportTab';
+import {
+    ContractFormModal,
+    ContractServicesModal,
+    EmployeeEditModal,
+    ContractImportHisDocsModal,
+    ContractSyncClsModal,
+} from './contracts/modals';
+import { TaskProgressModal, TaskProgressItem } from './modals';
 import { splitFullName, formatFullName, parseCccdInfo, validateCccd, validatePhone, parseCccdQr, formatToIsoDate } from '../utils/patientNameHelper';
 
 interface Contract {
@@ -131,6 +139,31 @@ const ContractManagement: React.FC = () => {
         title: '',
         message: '',
         onConfirm: () => {}
+    });
+
+    // Real-time Task Progress Modal State
+    const [progressModal, setProgressModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        description?: string;
+        currentStep?: string;
+        current: number;
+        total: number;
+        successCount: number;
+        failedCount: number;
+        isFinished: boolean;
+        items: TaskProgressItem[];
+    }>({
+        isOpen: false,
+        title: '',
+        description: '',
+        currentStep: '',
+        current: 0,
+        total: 0,
+        successCount: 0,
+        failedCount: 0,
+        isFinished: false,
+        items: []
     });
 
     const showConfirm = (title: string, message: string, onConfirm: () => void) => {
@@ -978,10 +1011,40 @@ const ContractManagement: React.FC = () => {
             `Bạn có chắc chắn muốn thực hiện tiếp đón và sinh số hồ sơ tự động cho toàn bộ ${unreceivedEmployees.length} nhân viên chưa tiếp đón trong gói [${selectedContract.name}]?`,
             async () => {
                 setIsReceivingAll(true);
-                const toastId = toast.loading(`Đang tiếp đón ${unreceivedEmployees.length} nhân viên...`);
+                setProgressModal({
+                    isOpen: true,
+                    title: 'Tiếp đón toàn bộ nhân viên',
+                    description: `Gói khám: ${selectedContract.name}`,
+                    currentStep: `Đang tiếp đón và sinh số hồ sơ cho ${unreceivedEmployees.length} nhân viên...`,
+                    current: 0,
+                    total: unreceivedEmployees.length,
+                    successCount: 0,
+                    failedCount: 0,
+                    isFinished: false,
+                    items: []
+                });
+
                 try {
                     const res = await healthCheckService.receiveAllContractEmployees(selectedContract.id);
-                    toast.dismiss(toastId);
+                    const successCount = res.count || 0;
+                    const failedCount = res.failed || 0;
+                    const errorItems: TaskProgressItem[] = (res.errors || []).map((err: string, i: number) => ({
+                        id: String(i),
+                        title: err,
+                        status: 'failed',
+                        message: 'Không thể tiếp đón hoặc sinh số hồ sơ.'
+                    }));
+
+                    setProgressModal(prev => ({
+                        ...prev,
+                        current: unreceivedEmployees.length,
+                        successCount,
+                        failedCount,
+                        isFinished: true,
+                        currentStep: res.message || `Đã hoàn tất tiếp đón! Thành công: ${successCount}, Lỗi: ${failedCount}`,
+                        items: errorItems
+                    }));
+
                     if (res.success) {
                         toast.success(res.message || `Đã tiếp đón thành công ${res.count} nhân viên!`);
                         await loadEmployees(selectedContract.id);
@@ -990,7 +1053,13 @@ const ContractManagement: React.FC = () => {
                         toast.error(res.message || "Tiếp đón hàng loạt thất bại!");
                     }
                 } catch (err: any) {
-                    toast.dismiss(toastId);
+                    setProgressModal(prev => ({
+                        ...prev,
+                        current: unreceivedEmployees.length,
+                        failedCount: unreceivedEmployees.length,
+                        isFinished: true,
+                        currentStep: `Lỗi tiếp đón: ${err.message || "Lỗi hệ thống"}`
+                    }));
                     toast.error("Lỗi tiếp đón: " + (err.message || "Lỗi hệ thống"));
                 } finally {
                     setIsReceivingAll(false);
@@ -1676,24 +1745,52 @@ const ContractManagement: React.FC = () => {
 
         try {
             setIsSyncingCls(true);
-            toast.loading("Đang đồng bộ kết quả CLS từ HIS sang KSK...");
+            setIsSyncClsModalOpen(false);
+
+            setProgressModal({
+                isOpen: true,
+                title: 'Đồng bộ kết quả Cận Lâm Sàng',
+                description: `Hợp đồng: ${selectedContract.name}`,
+                currentStep: `Đang quét và đồng bộ kết quả XN/CĐHA cho ${receivedCount} hồ sơ...`,
+                current: 0,
+                total: receivedCount,
+                successCount: 0,
+                failedCount: 0,
+                isFinished: false,
+                items: []
+            });
+
             const res = await healthCheckService.syncContractParaclinicalResults(selectedContract.id, { mode: syncClsMode });
-            toast.dismiss();
+            const updated = res.stats?.updatedCount || 0;
+            const skipped = res.stats?.skippedNoHisResults || 0;
+
+            setProgressModal(prev => ({
+                ...prev,
+                current: receivedCount,
+                successCount: updated,
+                failedCount: skipped,
+                isFinished: true,
+                currentStep: res.message || `Đã hoàn tất! Cập nhật: ${updated}, Bỏ qua: ${skipped}`
+            }));
 
             if (res.success) {
-                if (res.stats?.updatedCount === 0 && res.stats?.skippedNoHisResults > 0) {
+                if (updated === 0 && skipped > 0) {
                     toast.warning(res.message || "Không có kết quả CLS mới nào trên HIS để đồng bộ!");
                 } else {
                     toast.success(res.message || "Đã đồng bộ kết quả CLS thành công!");
                 }
-                setIsSyncClsModalOpen(false);
                 await loadEmployees(selectedContract.id);
                 await loadContracts();
             } else {
                 toast.error(res.message || "Đồng bộ kết quả CLS thất bại!");
             }
         } catch (err: any) {
-            toast.dismiss();
+            setProgressModal(prev => ({
+                ...prev,
+                current: receivedCount,
+                isFinished: true,
+                currentStep: `Lỗi hệ thống: ${err.message || 'Lỗi đồng bộ'}`
+            }));
             toast.error(err.message || "Lỗi hệ thống khi đồng bộ kết quả CLS từ HIS");
         } finally {
             setIsSyncingCls(false);
@@ -2349,858 +2446,85 @@ const ContractManagement: React.FC = () => {
                 </div>
             </div>
 
-            {/* Add/Edit Modal Form */}
-            {isFormOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-900 rounded-[2rem] max-w-lg w-full shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden transform scale-100 transition-all duration-300 animate-in zoom-in-95 duration-200">
-                        {/* Header */}
-                        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/60 flex items-center gap-3 bg-slate-50/50 dark:bg-slate-900/50">
-                            <div className="h-10 w-10 rounded-full flex items-center justify-center bg-teal-50 dark:bg-teal-950/30 text-teal-600 dark:text-teal-400">
-                                <CalendarIcon className="w-5 h-5" />
-                            </div>
-                            <h5 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                                {formMode === 'ADD' ? 'Thêm hợp đồng khám' : 'Sửa hợp đồng khám'}
-                            </h5>
-                        </div>
+            {/* Modal: Thêm / Sửa Hợp đồng */}
+            <ContractFormModal
+                isOpen={isFormOpen}
+                formMode={formMode}
+                formData={formData}
+                setFormData={setFormData}
+                onSubmit={handleFormSubmit}
+                onClose={() => setIsFormOpen(false)}
+                workplaces={workplaces}
+                patientObjects={patientObjects}
+                rooms={rooms}
+                examFees={examFees}
+            />
 
-                        {/* Form Body */}
-                        <form onSubmit={handleFormSubmit}>
-                            <div className="p-6 flex flex-col gap-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mã hợp đồng *</label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={formData.code}
-                                            onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                                            className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#0f766e] focus:outline-none font-semibold text-sm"
-                                            placeholder="Ví dụ: HD01/2026"
-                                        />
-                                    </div>
+            {/* Modal: Thêm dịch vụ vào hợp đồng */}
+            <ContractServicesModal
+                isOpen={isServiceModalOpen}
+                onClose={() => setIsServiceModalOpen(false)}
+                onApply={handleApplyServices}
+                serviceGroups={serviceGroups}
+                selectedGroup={selectedGroup}
+                setSelectedGroup={setSelectedGroup}
+                isLoadingGroups={isLoadingGroups}
+                groupServices={groupServices}
+                isLoadingGroupServices={isLoadingGroupServices}
+                selectedServices={selectedServices}
+                onAddServiceToSelection={handleAddServiceToSelection}
+                onRemoveServiceFromSelection={handleRemoveServiceFromSelection}
+                onUpdateSelectionQuantity={handleUpdateSelectionQuantity}
+                onUpdateSelectionGender={handleUpdateSelectionGender}
+                onUpdateSelectionMinAge={handleUpdateSelectionMinAge}
+                onUpdateSelectionMaxAge={handleUpdateSelectionMaxAge}
+                serviceSearchTerm={serviceSearchTerm}
+                onSearchServices={handleSearchServices}
+                formatPrice={formatPrice}
+            />
 
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Công ty/Đối tác</label>
-                                        <select
-                                            value={formData.company_id}
-                                            onChange={(e) => setFormData({ ...formData, company_id: e.target.value })}
-                                            className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#0f766e] focus:outline-none font-bold text-sm"
-                                        >
-                                            {workplaces.map((w) => (
-                                                <option key={w.id} value={w.id}>{w.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
+            {/* Modal: Thêm / Sửa nhân viên */}
+            <EmployeeEditModal
+                isOpen={isEmployeeEditOpen}
+                onClose={() => setIsEmployeeEditOpen(false)}
+                onSubmit={handleEmployeeEditSubmit}
+                employeeFormMode={employeeFormMode}
+                employeeFormData={employeeFormData}
+                setEmployeeFormData={setEmployeeFormData}
+                handleFullNameChange={handleFullNameChange}
+                handlePhoneChange={handlePhoneChange}
+                handleCccdChange={handleCccdChange}
+                handleCardIdDateChange={handleCardIdDateChange}
+                ethnicities={ethnicities}
+                provinces={provinces}
+                editWards={editWards}
+                commonColumns={commonColumns}
+            />
 
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Diễn giải/Mô tả *</label>
-                                    <textarea
-                                        required
-                                        value={formData.description}
-                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                        className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#0f766e] focus:outline-none font-semibold text-sm h-20 resize-none"
-                                        placeholder="Ví dụ: Khám sức khỏe toàn dân hoặc Tên đoàn khám..."
-                                    />
-                                </div>
+            {/* Modal: Nhập HS từ HIS */}
+            <ContractImportHisDocsModal
+                isOpen={isImportHisModalOpen}
+                onClose={() => setIsImportHisModalOpen(false)}
+                onSubmit={handleImportHisDocsSubmit}
+                contractName={selectedContract?.name}
+                importHisDocsText={importHisDocsText}
+                setImportHisDocsText={setImportHisDocsText}
+                importHisAutoSync={importHisAutoSync}
+                setImportHisAutoSync={setImportHisAutoSync}
+                isImportingHisDocs={isImportingHisDocs}
+            />
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ngày hợp đồng</label>
-                                        <input
-                                            type="date"
-                                            value={formData.contract_date}
-                                            onChange={(e) => setFormData({ ...formData, contract_date: e.target.value })}
-                                            className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#0f766e] focus:outline-none font-semibold text-sm"
-                                        />
-                                    </div>
+            {/* Modal: Đồng bộ kết quả CLS */}
+            <ContractSyncClsModal
+                isOpen={isSyncClsModalOpen}
+                onClose={() => setIsSyncClsModalOpen(false)}
+                onExecute={handleExecuteSyncCls}
+                isSyncing={isSyncingCls}
+                syncMode={syncClsMode}
+                setSyncMode={setSyncClsMode}
+                contractName={selectedContract?.name}
+            />
 
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ngày khám dự kiến</label>
-                                        <input
-                                            type="date"
-                                            value={formData.exam_date}
-                                            onChange={(e) => setFormData({ ...formData, exam_date: e.target.value })}
-                                            className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#0f766e] focus:outline-none font-semibold text-sm"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Phòng tiếp nhận mặc định *</label>
-                                        <select
-                                            required
-                                            value={formData.def_roomid}
-                                            onChange={(e) => setFormData({ ...formData, def_roomid: e.target.value })}
-                                            className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#0f766e] focus:outline-none font-bold text-sm"
-                                        >
-                                            <option value="">-- Chọn phòng tiếp nhận --</option>
-                                            {rooms.map((room) => (
-                                                <option key={room.id} value={room.id}>{room.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Đối tượng bệnh nhân *</label>
-                                        <select
-                                            required
-                                            value={formData.object}
-                                            onChange={(e) => setFormData({ ...formData, object: e.target.value })}
-                                            className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#0f766e] focus:outline-none font-bold text-sm"
-                                        >
-                                            <option value="3">3 - Khám sức khỏe / Miễn giảm (Mặc định)</option>
-                                            {patientObjects.filter(o => String(o.id) !== '3').map((obj) => (
-                                                <option key={obj.id} value={obj.id}>{obj.code || obj.id} - {obj.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mục phí công khám mặc định *</label>
-                                        <select
-                                            required
-                                            value={formData.def_examtype}
-                                            onChange={(e) => setFormData({ ...formData, def_examtype: e.target.value, type: e.target.value })}
-                                            className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#0f766e] focus:outline-none font-bold text-sm"
-                                        >
-                                            <option value="D0000001">D0000001 - Công khám (Mặc định)</option>
-                                            {examFees.filter(f => f.id !== 'D0000001').map((fee) => (
-                                                <option key={fee.id} value={fee.id}>{fee.id} - {fee.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mẫu khám sức khỏe mặc định *</label>
-                                        <select
-                                            required
-                                            value={formData.form_type}
-                                            onChange={(e) => setFormData({ ...formData, form_type: e.target.value })}
-                                            className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-[#0f766e] focus:outline-none font-bold text-sm w-full cursor-pointer"
-                                        >
-                                            <option value="1">Mẫu 1: Trẻ em dưới 06 tuổi</option>
-                                            <option value="2">Mẫu 2: Người từ đủ 06 tuổi đến dưới 18 tuổi</option>
-                                            <option value="3">Mẫu 3: Người từ đủ 18 tuổi trở lên</option>
-                                            <option value="driver">Giấy KSK người lái xe (Học lái xe / Nâng hạng / Đổi GPLX)</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Footer Buttons */}
-                            <div className="px-6 py-4 bg-slate-50/30 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-end gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsFormOpen(false)}
-                                    className="px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 rounded-xl text-xs font-extrabold uppercase tracking-wider transition cursor-pointer"
-                                >
-                                    Đóng
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-5 py-2.5 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition shadow-md shadow-teal-500/10 cursor-pointer"
-                                >
-                                    Lưu lại
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Service Selection Modal (Image 2) */}
-            {isServiceModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-900 rounded-[2rem] max-w-6xl w-full h-[85vh] shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden flex flex-col transform scale-100 transition-all duration-300 animate-in zoom-in-95 duration-200">
-                        {/* Header */}
-                        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
-                            <div className="flex items-center gap-3">
-                                <div className="h-9 w-9 rounded-full flex items-center justify-center bg-teal-50 dark:bg-teal-950/30 text-teal-600 dark:text-teal-400">
-                                    <PlusIcon className="w-5 h-5" />
-                                </div>
-                                <h5 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                                    Thêm chỉ định cận lâm sàng vào gói
-                                </h5>
-                            </div>
-                            <button
-                                onClick={() => {
-                                    setIsServiceModalOpen(false);
-                                    setSelectedServices([]);
-                                }}
-                                className="text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 text-lg font-bold cursor-pointer"
-                            >
-                                &times;
-                            </button>
-                        </div>
-
-                        {/* Three-Column Layout */}
-                        <div className="flex-1 flex min-h-0 overflow-hidden divide-x divide-slate-100 dark:divide-slate-800">
-                            {/* Col 1: Service Groups (Categories) */}
-                            <div className="w-3/12 overflow-y-auto bg-slate-50/40 dark:bg-slate-900/20 p-4">
-                                <h6 className="text-[11px] font-extrabold text-[#9f1239] dark:text-rose-400 uppercase tracking-wider mb-3">Nhóm dịch vụ</h6>
-                                {isLoadingGroups ? (
-                                    <div className="py-4 text-center text-xs text-slate-500">Đang tải...</div>
-                                ) : (
-                                    <div className="space-y-1">
-                                        {serviceGroups.map(g => (
-                                            <button
-                                                key={g.id}
-                                                onClick={() => setSelectedGroup(g.id)}
-                                                className={`w-full text-left px-3 py-2 rounded-xl text-xs transition cursor-pointer ${
-                                                    selectedGroup === g.id
-                                                        ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 font-bold border border-rose-100 dark:border-rose-900/30'
-                                                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                                                }`}
-                                            >
-                                                {g.name}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Col 2: Services in Group */}
-                            <div className="w-5/12 overflow-y-auto p-4 flex flex-col">
-                                <div className="flex justify-between items-center mb-3">
-                                    <h6 className="text-[11px] font-extrabold text-[#9f1239] dark:text-rose-400 uppercase tracking-wider">Danh sách dịch vụ kỹ thuật</h6>
-                                </div>
-                                <div className="flex-1 border border-slate-200 dark:border-slate-700 rounded-xl overflow-y-auto bg-white dark:bg-slate-800">
-                                    {isLoadingGroupServices ? (
-                                        <div className="py-10 text-center text-xs text-slate-500">Đang tải dịch vụ...</div>
-                                    ) : groupServices.length === 0 ? (
-                                        <div className="py-10 text-center text-xs text-slate-400">Không có dịch vụ nào</div>
-                                    ) : (
-                                        <table className="w-full text-left border-collapse text-xs">
-                                            <thead>
-                                                <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-slate-500 font-bold">
-                                                    <th className="p-2 w-12 text-center">STT</th>
-                                                    <th className="p-2">Tên dịch vụ</th>
-                                                    <th className="p-2 w-24 text-right">Đơn giá</th>
-                                                    <th className="p-2 w-12 text-center">Chọn</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                                                {groupServices.map((gs, idx) => (
-                                                    <tr 
-                                                        key={gs.item_id} 
-                                                        className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer"
-                                                        onDoubleClick={() => handleAddServiceToSelection(gs)}
-                                                    >
-                                                        <td className="p-2 text-center text-slate-400 font-mono">{idx + 1}</td>
-                                                        <td className="p-2 font-semibold text-slate-800 dark:text-slate-200">{gs.name}</td>
-                                                        <td className="p-2 text-right font-mono text-slate-600 dark:text-slate-400">{formatPrice(parseFloat(gs.price))}</td>
-                                                        <td className="p-2 text-center">
-                                                            <button
-                                                                onClick={() => handleAddServiceToSelection(gs)}
-                                                                className="px-2 py-1 bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/30 text-teal-600 rounded text-[10px] font-bold cursor-pointer"
-                                                            >
-                                                                Chọn
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Col 3: Selected Services for Package */}
-                            <div className="w-4/12 overflow-y-auto p-4 flex flex-col">
-                                <h6 className="text-[11px] font-extrabold text-[#9f1239] dark:text-rose-400 uppercase tracking-wider mb-3">Dịch vụ đã chọn cho gói</h6>
-                                <div className="flex-1 border border-slate-200 dark:border-slate-700 rounded-xl overflow-y-auto bg-white dark:bg-slate-800 mb-3">
-                                    {selectedServices.length === 0 ? (
-                                        <div className="h-full flex flex-col justify-center items-center text-slate-400 text-xs py-10">
-                                            <span>Chưa chọn dịch vụ nào</span>
-                                            <span className="text-[10px] text-slate-500 italic mt-1">(Kích đúp dịch vụ ở giữa để chọn nhanh)</span>
-                                        </div>
-                                    ) : (
-                                        <table className="w-full text-left border-collapse text-[11px]">
-                                            <thead>
-                                                <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-slate-500 font-bold">
-                                                    <th className="p-2">Tên</th>
-                                                    <th className="p-2 w-12 text-center">SL</th>
-                                                    <th className="p-2 w-16 text-center">Giới</th>
-                                                    <th className="p-2 w-12 text-center">Từ</th>
-                                                    <th className="p-2 w-12 text-center">Đến</th>
-                                                    <th className="p-2 w-10 text-center">Xóa</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                                                {selectedServices.map(ss => (
-                                                    <tr key={ss.item_id}>
-                                                        <td className="p-2 font-medium text-slate-800 dark:text-slate-200">{ss.name}</td>
-                                                        <td className="p-2 text-center">
-                                                            <input
-                                                                type="number"
-                                                                value={ss.quantity}
-                                                                onChange={(e) => handleUpdateSelectionQuantity(ss.item_id, parseInt(e.target.value, 10))}
-                                                                className="w-8 text-center border border-slate-200 dark:border-slate-700 rounded dark:bg-slate-900 dark:text-white font-mono text-[10px] p-0.5"
-                                                            />
-                                                        </td>
-                                                        <td className="p-2 text-center">
-                                                            <select
-                                                                value={ss.gender}
-                                                                onChange={(e) => handleUpdateSelectionGender(ss.item_id, e.target.value)}
-                                                                className="text-[10px] border border-slate-200 dark:border-slate-700 rounded dark:bg-slate-900 dark:text-white p-0.5 w-14"
-                                                            >
-                                                                <option value="A">Cả hai</option>
-                                                                <option value="M">Nam</option>
-                                                                <option value="F">Nữ</option>
-                                                            </select>
-                                                        </td>
-                                                        <td className="p-2 text-center">
-                                                            <input
-                                                                type="number"
-                                                                placeholder=">="
-                                                                value={ss.min_age !== undefined && ss.min_age !== null ? ss.min_age : ''}
-                                                                onChange={(e) => {
-                                                                    const val = e.target.value;
-                                                                    handleUpdateSelectionMinAge(ss.item_id, val === '' ? undefined : parseInt(val, 10));
-                                                                }}
-                                                                className="w-10 text-center border border-slate-200 dark:border-slate-700 rounded dark:bg-slate-900 dark:text-white font-mono text-[10px] p-0.5"
-                                                            />
-                                                        </td>
-                                                        <td className="p-2 text-center">
-                                                            <input
-                                                                type="number"
-                                                                placeholder="<="
-                                                                value={ss.max_age !== undefined && ss.max_age !== null ? ss.max_age : ''}
-                                                                onChange={(e) => {
-                                                                    const val = e.target.value;
-                                                                    handleUpdateSelectionMaxAge(ss.item_id, val === '' ? undefined : parseInt(val, 10));
-                                                                }}
-                                                                className="w-10 text-center border border-slate-200 dark:border-slate-700 rounded dark:bg-slate-900 dark:text-white font-mono text-[10px] p-0.5"
-                                                            />
-                                                        </td>
-                                                        <td className="p-2 text-center">
-                                                            <button
-                                                                onClick={() => handleRemoveServiceFromSelection(ss.item_id)}
-                                                                className="text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 p-0.5 rounded transition cursor-pointer"
-                                                            >
-                                                                &times;
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    )}
-                                </div>
-                                <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-350 flex justify-between items-center">
-                                    <span>Tổng số lượng dịch vụ:</span>
-                                    <span className="font-extrabold text-rose-600 dark:text-rose-400">{selectedServices.length}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Footer (Search input, action buttons) */}
-                        <div className="px-6 py-4 bg-slate-50/50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-2 max-w-sm w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 focus-within:ring-2 focus-within:ring-rose-500/20 focus-within:border-rose-600 transition">
-                                <SearchIcon className="w-4 h-4 text-slate-400" />
-                                <input
-                                    type="text"
-                                    placeholder="Tìm nhanh theo mã hoặc tên dịch vụ..."
-                                    value={serviceSearchTerm}
-                                    onChange={(e) => handleSearchServices(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && groupServices.length > 0) {
-                                            e.preventDefault();
-                                            handleAddServiceToSelection(groupServices[0]);
-                                            setServiceSearchTerm('');
-                                            handleSearchServices('');
-                                            toast.success(`Đã chọn: ${groupServices[0].name}`);
-                                        }
-                                    }}
-                                    className="border-none bg-transparent text-xs text-slate-800 dark:text-white focus:outline-none w-full p-0"
-                                />
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={() => {
-                                        setIsServiceModalOpen(false);
-                                        setSelectedServices([]);
-                                    }}
-                                    className="px-5 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50 rounded-xl text-xs font-extrabold uppercase tracking-wider transition cursor-pointer"
-                                >
-                                    Đóng
-                                </button>
-                                <button
-                                    onClick={handleApplyServices}
-                                    disabled={selectedServices.length === 0}
-                                    className={`px-5 py-2 rounded-xl text-xs font-extrabold uppercase tracking-wider transition shadow-md cursor-pointer ${
-                                        selectedServices.length === 0
-                                            ? 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed'
-                                            : 'bg-[#0f766e] hover:bg-[#0d645c] text-white shadow-teal-500/10'
-                                    }`}
-                                >
-                                    Áp dụng
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-            {/* Edit Employee Modal */}
-            {isEmployeeEditOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/70 overflow-hidden animate-fade-in">
-                    <div className="bg-white dark:bg-slate-900 rounded-[2rem] max-w-2xl w-full shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden flex flex-col max-h-[90vh] animate-zoom-in">
-                        {/* Header */}
-                        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
-                            <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-full flex items-center justify-center bg-teal-50 dark:bg-teal-950/30 text-teal-600 dark:text-teal-400">
-                                    <UserGroupIcon className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <h5 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                                        {employeeFormMode === 'ADD' ? 'Thêm mới nhân viên' : 'Sửa thông tin nhân viên'}
-                                    </h5>
-                                    <p className="text-[11px] text-slate-500">Nhập thông tin nhân viên khám sức khỏe</p>
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setIsEmployeeEditOpen(false)}
-                                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg font-bold p-1 cursor-pointer"
-                            >
-                                ✕
-                            </button>
-                        </div>
-
-                        {/* Form Body */}
-                        <form onSubmit={handleEmployeeEditSubmit} className="flex flex-col flex-1 overflow-hidden">
-                            <div className="p-6 flex flex-col gap-4 overflow-y-auto custom-scrollbar text-xs flex-1">
-                                {/* Hàng 1: Họ và tên (2/3) + Giới tính (1/3) */}
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    <div className="sm:col-span-2 flex flex-col gap-1.5">
-                                        <div className="flex items-center justify-between">
-                                            <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                                                Họ và tên *
-                                            </label>
-                                            {employeeFormData.fullName && (
-                                                <span className="text-[10px] text-teal-600 dark:text-teal-400 font-semibold font-mono">
-                                                    {employeeFormData.surname && `Họ: ${employeeFormData.surname}`} {employeeFormData.firstname && `| Tên: ${employeeFormData.firstname}`}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <input
-                                            type="text"
-                                            required
-                                            autoFocus
-                                            value={employeeFormData.fullName}
-                                            onChange={(e) => handleFullNameChange(e.target.value)}
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-800 dark:text-white uppercase placeholder:normal-case placeholder:font-normal"
-                                            placeholder="Ví dụ: NGUYỄN VĂN AN..."
-                                        />
-                                    </div>
-
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                                            Giới tính *
-                                        </label>
-                                        <select
-                                            required
-                                            value={employeeFormData.sex}
-                                            onChange={(e) => setEmployeeFormData({ ...employeeFormData, sex: e.target.value })}
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white cursor-pointer"
-                                        >
-                                            <option value="M">Nam</option>
-                                            <option value="F">Nữ</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {/* Hàng 2: Ngày sinh (1/2) + Số điện thoại (1/2) */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                                            Ngày sinh *
-                                        </label>
-                                        <input
-                                            type="date"
-                                            required
-                                            value={employeeFormData.birth_date}
-                                            onChange={(e) => setEmployeeFormData({ ...employeeFormData, birth_date: e.target.value })}
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
-                                        />
-                                    </div>
-
-                                    <div className="flex flex-col gap-1.5">
-                                        <div className="flex items-center justify-between">
-                                            <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                                                Số điện thoại liên hệ
-                                            </label>
-                                            <span className={`text-[10px] font-mono font-bold ${
-                                                !employeeFormData.phone ? 'text-slate-400' :
-                                                employeeFormData.phone.length === 10 && employeeFormData.phone.startsWith('0') ? 'text-emerald-600 dark:text-emerald-400' :
-                                                'text-amber-500'
-                                            }`}>
-                                                {employeeFormData.phone ? `${employeeFormData.phone.length}/10 số` : '10 số'}
-                                            </span>
-                                        </div>
-                                        <input
-                                            type="tel"
-                                            maxLength={10}
-                                            value={employeeFormData.phone}
-                                            onChange={(e) => handlePhoneChange(e.target.value)}
-                                            className={`w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border rounded-xl focus:ring-2 focus:outline-none font-bold text-slate-700 dark:text-white font-mono ${
-                                                !employeeFormData.phone
-                                                    ? 'border-slate-200 dark:border-slate-700 focus:ring-teal-500'
-                                                    : employeeFormData.phone.length === 10 && employeeFormData.phone.startsWith('0')
-                                                    ? 'border-emerald-500 ring-1 ring-emerald-500/20 focus:ring-emerald-500'
-                                                    : 'border-amber-400 ring-1 ring-amber-400/20 focus:ring-amber-500'
-                                            }`}
-                                            placeholder="Ví dụ: 0912345678..."
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Hàng 3: CCCD (12 số) + Ngày cấp + Nơi cấp (Layout 12 cột thoáng đãng) */}
-                                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                                    <div className="sm:col-span-6 flex flex-col gap-1.5">
-                                        <div className="flex items-center justify-between">
-                                            <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                                                Số CCCD (12 số)
-                                            </label>
-                                            <span className={`text-[10px] font-mono font-bold ${
-                                                !employeeFormData.cccd ? 'text-slate-400' :
-                                                employeeFormData.cccd.length === 12 ? 'text-emerald-600 dark:text-emerald-400' :
-                                                'text-amber-500'
-                                            }`}>
-                                                {employeeFormData.cccd ? `${employeeFormData.cccd.length}/12 số` : '12 số'}
-                                            </span>
-                                        </div>
-                                        <input
-                                            type="text"
-                                            maxLength={12}
-                                            value={employeeFormData.cccd}
-                                            onChange={(e) => handleCccdChange(e.target.value)}
-                                            className={`w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border rounded-xl focus:ring-2 focus:outline-none font-bold text-slate-700 dark:text-white font-mono ${
-                                                !employeeFormData.cccd
-                                                    ? 'border-slate-200 dark:border-slate-700 focus:ring-teal-500'
-                                                    : employeeFormData.cccd.length === 12
-                                                    ? 'border-emerald-500 ring-1 ring-emerald-500/20 focus:ring-emerald-500'
-                                                    : 'border-amber-400 ring-1 ring-amber-400/20 focus:ring-amber-500'
-                                            }`}
-                                            placeholder="Nhập 12 số CCCD..."
-                                        />
-                                    </div>
-
-                                    <div className="sm:col-span-3 flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                                            Ngày cấp CCCD
-                                        </label>
-                                        <input
-                                            type="date"
-                                            value={employeeFormData.cardIdDate}
-                                            onChange={(e) => handleCardIdDateChange(e.target.value)}
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white cursor-pointer"
-                                        />
-                                    </div>
-
-                                    <div className="sm:col-span-3 flex flex-col gap-1.5">
-                                        <label className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                                            Nơi cấp CCCD
-                                        </label>
-                                        <input
-                                            type="text"
-                                            placeholder="Cục C06 hoặc Tỉnh/TP..."
-                                            value={employeeFormData.cardIdPlace}
-                                            onChange={(e) => setEmployeeFormData({ ...employeeFormData, cardIdPlace: e.target.value })}
-                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-col gap-1.5 relative z-30">
-                                    <Combobox<CatalogItem>
-                                        label="Dân tộc"
-                                        value={employeeFormData.ethnic}
-                                        displayValue={item => item?.name || ''}
-                                        onChange={val => setEmployeeFormData(prev => ({ ...prev, ethnic: val }))}
-                                        options={ethnicities}
-                                        columns={commonColumns}
-                                        placeholder="Chọn dân tộc..."
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="flex flex-col gap-1.5 relative z-20">
-                                        <Combobox<CatalogItem>
-                                            label="Tỉnh / Thành phố"
-                                            value={employeeFormData.provId}
-                                            displayValue={item => item?.name || ''}
-                                            onChange={val => setEmployeeFormData(prev => ({ ...prev, provId: val, villId: null }))}
-                                            options={provinces}
-                                            columns={commonColumns}
-                                            placeholder="Chọn tỉnh/thành..."
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1.5 relative z-10">
-                                        <Combobox<CatalogItem>
-                                            label="Phường / Xã"
-                                            value={employeeFormData.villId}
-                                            displayValue={item => item?.name || ''}
-                                            onChange={val => setEmployeeFormData(prev => ({ ...prev, villId: val }))}
-                                            options={editWards}
-                                            columns={commonColumns}
-                                            placeholder="Chọn phường/xã..."
-                                            disabled={!employeeFormData.provId}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Địa chỉ thường trú</label>
-                                    <input
-                                        type="text"
-                                        value={employeeFormData.address}
-                                        onChange={(e) => setEmployeeFormData({ ...employeeFormData, address: e.target.value })}
-                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white"
-                                        placeholder="Nhập số nhà, tên đường, thôn/xóm..."
-                                    />
-                                </div>
-
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Ghi chú</label>
-                                    <textarea
-                                        value={employeeFormData.note}
-                                        onChange={(e) => setEmployeeFormData({ ...employeeFormData, note: e.target.value })}
-                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none font-bold text-slate-700 dark:text-white h-16 resize-none"
-                                        placeholder="Gói dịch vụ bổ sung, ghi chú sức khỏe..."
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Footer Buttons */}
-                            <div className="px-6 py-4 bg-slate-50/30 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-end gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsEmployeeEditOpen(false)}
-                                    className="px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 rounded-xl text-xs font-extrabold uppercase tracking-wider transition cursor-pointer"
-                                >
-                                    Đóng
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-5 py-2.5 bg-[#0f766e] hover:bg-[#0d645c] text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition shadow-md shadow-teal-500/10 cursor-pointer"
-                                >
-                                    Lưu lại
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Modal: Nhập HS từ HIS vào gói khám */}
-            {isImportHisModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-900 rounded-[2rem] max-w-lg w-full shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden transform scale-100 transition-all duration-300 animate-in zoom-in-95 duration-200">
-                        {/* Header */}
-                        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/60 flex items-center gap-3 bg-slate-50/50 dark:bg-slate-900/50">
-                            <div className="h-10 w-10 rounded-full flex items-center justify-center bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400">
-                                <CloudUploadIcon className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <h5 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                                    Nhập hồ sơ từ HIS vào gói khám
-                                </h5>
-                                <p className="text-xs text-slate-500 mt-0.5">
-                                    Gói khám: <strong className="text-slate-700 dark:text-slate-300">{selectedContract?.name}</strong>
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Form Body */}
-                        <form onSubmit={handleImportHisDocsSubmit}>
-                            <div className="p-6 flex flex-col gap-4">
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-                                        Danh sách số hồ sơ HIS *
-                                    </label>
-                                    <textarea
-                                        required
-                                        rows={6}
-                                        value={importHisDocsText}
-                                        onChange={(e) => setImportHisDocsText(e.target.value)}
-                                        placeholder="Nhập hoặc dán các số hồ sơ HIS (phân tách bởi dấu phẩy, dấu cách hoặc xuống dòng).&#10;Ví dụ:&#10;26036157, 26065238, 26062077"
-                                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono text-sm resize-none"
-                                    />
-                                    <span className="text-[11px] text-slate-400">
-                                        Hệ thống sẽ tự động tra cứu họ tên, ngày sinh, CCCD, phân loại đối tượng KSK và kết quả khám từ HIS.
-                                    </span>
-                                </div>
-
-                                <div className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700">
-                                    <input
-                                        type="checkbox"
-                                        id="autoSyncKsk"
-                                        checked={importHisAutoSync}
-                                        onChange={(e) => setImportHisAutoSync(e.target.checked)}
-                                        className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
-                                    />
-                                    <label htmlFor="autoSyncKsk" className="text-xs font-bold text-slate-700 dark:text-slate-300 select-none cursor-pointer">
-                                        Tự động đồng bộ và sinh hồ sơ KSK VNeID ngay sau khi nhập
-                                    </label>
-                                </div>
-                            </div>
-
-                            {/* Footer Buttons */}
-                            <div className="px-6 py-4 bg-slate-50/30 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-end gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsImportHisModalOpen(false)}
-                                    className="px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 rounded-xl text-xs font-extrabold uppercase tracking-wider transition cursor-pointer"
-                                >
-                                    Đóng
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={isImportingHisDocs}
-                                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition shadow-md shadow-blue-500/10 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-                                >
-                                    {isImportingHisDocs ? <RefreshIcon className="w-4 h-4 animate-spin" /> : <CloudUploadIcon className="w-4 h-4" />}
-                                    Thực hiện nhập
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Modal: Đồng bộ kết quả CLS từ HIS sang KSK */}
-            {isSyncClsModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-900 rounded-[2rem] max-w-lg w-full shadow-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden transform scale-100 transition-all duration-300 animate-in zoom-in-95 duration-200">
-                        {/* Header */}
-                        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/60 flex items-center gap-3 bg-gradient-to-r from-indigo-50/60 to-purple-50/40 dark:from-indigo-950/30 dark:to-purple-950/20">
-                            <div className="h-10 w-10 rounded-full flex items-center justify-center bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
-                                <SparklesIcon className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <h5 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                                    Đồng bộ kết quả Cận lâm sàng từ HIS
-                                </h5>
-                                <p className="text-xs text-slate-500 mt-0.5">
-                                    Gói khám: <strong className="text-slate-700 dark:text-slate-300">{selectedContract?.name}</strong>
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Body */}
-                        <div className="p-6 flex flex-col gap-4">
-                            {/* Summary Cards */}
-                            <div className="grid grid-cols-3 gap-3">
-                                <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700 text-center">
-                                    <div className="text-[10px] font-bold text-slate-400 uppercase">Đã tiếp đón</div>
-                                    <div className="text-lg font-black text-slate-800 dark:text-white mt-0.5">
-                                        {employees.filter(e => !!e.doc_no && e.doc_no !== '0').length}
-                                    </div>
-                                </div>
-                                <div className="p-3 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 text-center">
-                                    <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">Đã có KQ KSK</div>
-                                    <div className="text-lg font-black text-emerald-700 dark:text-emerald-300 mt-0.5">
-                                        {employees.filter(e => !!e.has_cls_result).length}
-                                    </div>
-                                </div>
-                                <div className="p-3 bg-amber-50/50 dark:bg-amber-950/20 rounded-xl border border-amber-200/60 dark:border-amber-800/40 text-center">
-                                    <div className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase">Chưa có KQ KSK</div>
-                                    <div className="text-lg font-black text-amber-700 dark:text-amber-300 mt-0.5">
-                                        {employees.filter(e => !!e.doc_no && e.doc_no !== '0' && !e.has_cls_result).length}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                                Hệ thống sẽ tự động quét kết quả Xét nghiệm (LIS), Chẩn đoán hình ảnh và Siêu âm (PACS) đã hoàn thành trên hệ thống HIS Core, tự động nạp vào hồ sơ KSK và cập nhật lại XML liên thông chuẩn QĐ 2062.
-                            </p>
-
-                            {/* Mode Selection */}
-                            <div className="flex flex-col gap-2">
-                                <label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-                                    Tùy chọn đồng bộ:
-                                </label>
-                                
-                                <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition ${
-                                    syncClsMode === 'missing_only' 
-                                        ? 'bg-indigo-50/60 dark:bg-indigo-950/20 border-indigo-300 dark:border-indigo-700 ring-1 ring-indigo-500/30' 
-                                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
-                                }`}>
-                                    <input
-                                        type="radio"
-                                        name="syncClsMode"
-                                        value="missing_only"
-                                        checked={syncClsMode === 'missing_only'}
-                                        onChange={() => setSyncClsMode('missing_only')}
-                                        className="mt-0.5 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                                    />
-                                    <div className="flex flex-col">
-                                        <span className="text-xs font-bold text-slate-800 dark:text-white">
-                                            Chỉ đồng bộ hồ sơ chưa có kết quả hoặc có chỉ số mới từ HIS (Khuyến nghị)
-                                        </span>
-                                        <span className="text-[11px] text-slate-400 mt-0.5">
-                                            Bỏ qua các hồ sơ đã có đủ kết quả CLS trong KSK, chỉ nạp cho hồ sơ đang thiếu hoặc có thêm chỉ số mới từ HIS.
-                                        </span>
-                                    </div>
-                                </label>
-
-                                <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition ${
-                                    syncClsMode === 'all_new' 
-                                        ? 'bg-indigo-50/60 dark:bg-indigo-950/20 border-indigo-300 dark:border-indigo-700 ring-1 ring-indigo-500/30' 
-                                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
-                                }`}>
-                                    <input
-                                        type="radio"
-                                        name="syncClsMode"
-                                        value="all_new"
-                                        checked={syncClsMode === 'all_new'}
-                                        onChange={() => setSyncClsMode('all_new')}
-                                        className="mt-0.5 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                                    />
-                                    <div className="flex flex-col">
-                                        <span className="text-xs font-bold text-slate-800 dark:text-white">
-                                            Cập nhật lại toàn bộ kết quả CLS mới nhất từ HIS
-                                        </span>
-                                        <span className="text-[11px] text-slate-400 mt-0.5">
-                                            Rà soát và làm mới toàn bộ kết quả xét nghiệm và hình ảnh từ HIS (vẫn bảo toàn các kết quả bác sĩ đã chỉnh sửa tay).
-                                        </span>
-                                    </div>
-                                </label>
-                            </div>
-
-                            <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-200 dark:border-amber-900/40 text-[11px] text-amber-700 dark:text-amber-300">
-                                <strong>Lưu ý:</strong> Các hồ sơ đã ký số hoặc đã gửi liên thông VNeID thành công sẽ tự động được bảo vệ và không bị thay đổi.
-                            </div>
-                        </div>
-
-                        {/* Footer Buttons */}
-                        <div className="px-6 py-4 bg-slate-50/30 dark:bg-slate-900/30 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-end gap-3">
-                            <button
-                                type="button"
-                                onClick={() => setIsSyncClsModalOpen(false)}
-                                disabled={isSyncingCls}
-                                className="px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 rounded-xl text-xs font-extrabold uppercase tracking-wider transition cursor-pointer"
-                            >
-                                Đóng
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleExecuteSyncCls}
-                                disabled={isSyncingCls}
-                                className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition shadow-md shadow-indigo-500/20 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-                            >
-                                {isSyncingCls ? <RefreshIcon className="w-4 h-4 animate-spin" /> : <SparklesIcon className="w-4 h-4" />}
-                                {isSyncingCls ? 'Đang đồng bộ...' : 'Bắt đầu đồng bộ'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Custom Confirmation Dialog */}
             {confirmDialog.isOpen && (
@@ -3239,6 +2563,12 @@ const ContractManagement: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Real-time Task Progress Modal */}
+            <TaskProgressModal
+                {...progressModal}
+                onClose={() => setProgressModal(prev => ({ ...prev, isOpen: false }))}
+            />
         </div>
     );
 };

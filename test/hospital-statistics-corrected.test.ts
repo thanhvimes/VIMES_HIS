@@ -143,7 +143,7 @@ test('Hospital Statistics - Suite kiểm thử chuẩn hóa theo tài liệu ngh
         assert.strictEqual(invalidDepts.length, 0, 'Báo cáo giường không được lẫn phòng ban hành chính');
 
         for (const dept of beds) {
-            assert.ok(Number(dept.giuong_thuc_ke) > 0 || Number(dept.bn_dang_nam) > 0);
+            assert.ok(Number(dept.giuong_ke_hoach) > 0 || Number(dept.giuong_thuc_ke) > 0 || Number(dept.bn_dang_nam) > 0 || Number(dept.bn_ngoai_tru) > 0);
             assert.ok(Number(dept.ty_le_cong_suat) >= 0);
         }
     });

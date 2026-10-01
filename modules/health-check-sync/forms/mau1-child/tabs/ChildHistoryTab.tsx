@@ -2,6 +2,7 @@ import React from 'react';
 import { useChildFormContext } from '../ChildFormContext';
 import { useSession } from '../../../../../contexts/SessionContext';
 import Combobox from '../../../../../components/ui/Combobox';
+import { FormDateInput } from '../../../../../components/ui/forms';
 import { ICD10MultiSelect } from '../../../components/ICD10MultiSelect';
 
 const ChildHistoryTab: React.FC = () => {
@@ -16,6 +17,7 @@ const ChildHistoryTab: React.FC = () => {
         gioKham, setGioKham,
         lyDoVv, setLyDoVv,
         loaiHinhKcb, setLoaiHinhKcb,
+        ngayVao, setNgayVao,
         dgDhstNhietDo, setDgDhstNhietDo,
         dgDhstMach, setDgDhstMach,
         dgDhstNhipTho, setDgDhstNhipTho,
@@ -199,11 +201,13 @@ const ChildHistoryTab: React.FC = () => {
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">2. Ngày khám sức khỏe</label>
-                                <input
-                                    type="text"
-                                    value={initialData?.created_at ? new Date(initialData.created_at).toLocaleDateString('vi-VN') : new Date().toLocaleDateString('vi-VN')}
-                                    disabled
-                                    className="w-full p-2.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-100 dark:bg-slate-700/40 text-slate-800 dark:text-white font-bold"
+                                <FormDateInput
+                                    label=""
+                                    value={ngayVao}
+                                    onChange={e => setNgayVao(e.target.value)}
+                                    disabled={isLocked}
+                                    className="w-full !p-2.5 !h-auto border border-slate-300 dark:border-slate-600 !rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white font-bold disabled:bg-slate-100 dark:disabled:bg-slate-700/40 disabled:text-slate-500"
+                                    placeholder="dd/mm/yyyy"
                                 />
                             </div>
                             <div>

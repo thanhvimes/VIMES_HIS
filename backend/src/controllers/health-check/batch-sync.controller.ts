@@ -244,7 +244,8 @@ class BatchSyncController {
                 noi_cong_tac_hien_tai: hisRow.workplace || '',
                 noi_cong_tac: hisRow.workplace || '',
                 workplace: hisRow.workplace || '',
-                ngay_vao: examRow?.exam_date || hisRow.ngay_vao || '',
+                ly_do_vv: 'Khám sức khỏe định kỳ',
+                ngay_vao: examRow?.exam_date || hisRow.ngay_vao || formatYmdString(new Date()),
                 gio_kham: examRow?.exam_time || '',
                 insurance_card: hisRow.insurance_card || '',
                 examination: {

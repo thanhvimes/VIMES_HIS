@@ -64,6 +64,14 @@ router.post('/documents/:id/xml-signature/prepare', async (req: any, res, next) 
 router.post('/documents/:id/xml-signature/complete', async (req: any, res, next) => {
   try { res.json({ success: true, data: await healthCheckXmlDsigService.complete(Number(req.params.id), String(req.userId), String(req.body?.transactionId || ''), String(req.body?.rawSignatureBase64 || '')) }); } catch (error) { next(error); }
 });
+
+// Quy trình ký số 2 cấp độ (Bước 1: Bác sĩ kết luận, Bước 2: Bệnh viện) theo chuẩn Bộ Y tế
+router.get('/documents/:id/two-tier-sign/step1-hash', healthCheckController.getTwoTierSignStep1Hash.bind(healthCheckController));
+router.post('/documents/:id/two-tier-sign/step1-hash', healthCheckController.getTwoTierSignStep1Hash.bind(healthCheckController));
+router.post('/documents/:id/two-tier-sign/step1-apply', healthCheckController.applyTwoTierSignStep1.bind(healthCheckController));
+router.get('/documents/:id/two-tier-sign/step2-hash', healthCheckController.getTwoTierSignStep2Hash.bind(healthCheckController));
+router.post('/documents/:id/two-tier-sign/step2-hash', healthCheckController.getTwoTierSignStep2Hash.bind(healthCheckController));
+router.post('/documents/:id/two-tier-sign/step2-apply', healthCheckController.applyTwoTierSignStep2.bind(healthCheckController));
 // Test/integration endpoint for the new VIMES Signing Server (PDF/PAdES).
 router.post('/documents/sign-pdf-vimes', async (req, res, next) => {
   try {
@@ -77,6 +85,9 @@ router.post('/documents/sign-pdf-vimes', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 router.post('/documents/:id/unlock', healthCheckController.unlockDocument.bind(healthCheckController));
+router.post('/documents/:id/reset-sync', healthCheckController.resetSyncStatus.bind(healthCheckController));
+router.post('/documents/reset-sync', healthCheckController.resetSyncStatusBatch.bind(healthCheckController));
+router.post('/fee/create-fees', healthCheckController.createFeesForDoc.bind(healthCheckController));
 router.post('/documents/seed-from-his', healthCheckController.seedFromHis.bind(healthCheckController));
 router.post('/documents/mark-printed', healthCheckController.markBarcodePrinted.bind(healthCheckController));
 router.get('/his-patient/:identifier', healthCheckController.getHisPatient.bind(healthCheckController));
@@ -95,6 +106,7 @@ router.post('/contracts/:id/cleanup-unreceived', contractsController.cleanupUnre
 router.get('/contracts/:id/report-summary', contractsController.getContractReportSummary.bind(contractsController));
 router.post('/contracts/:id/import-his-docs', contractsController.importHisDocsToContract.bind(contractsController));
 router.post('/contracts/:id/sync-cls', contractsController.syncContractParaclinicalResults.bind(contractsController));
+router.post('/contracts/:id/batch-update', contractsController.batchUpdateContract.bind(contractsController));
 router.get('/contracts/:id/employees', employeesController.getContractEmployees.bind(employeesController));
 router.post('/contracts/:id/employees/import', employeesController.importEmployees.bind(employeesController));
 router.post('/contracts/:id/receive-all', receptionController.receiveAllContractEmployees.bind(receptionController));

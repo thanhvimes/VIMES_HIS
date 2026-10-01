@@ -442,7 +442,7 @@ test('End-to-End: documentsController.updateDocument syncs clinical vitals, lab 
     }
 });
 
-test('Two-Way Sync (HIS -> KSK): getHisPatient reads clinical specialties, vitals and conclusion from hms_exm_conclusion', async () => {
+test('getHisPatient returns 404 when document only exists in HIS and not in health_check_masters (strictly no fallback to HIS)', async () => {
     const testDocNo = 99988804;
     const testPatientNo = 999891;
 
@@ -477,29 +477,18 @@ test('Two-Way Sync (HIS -> KSK): getHisPatient reads clinical specialties, vital
         `, [testDocNo]);
 
         // Thêm bản ghi khám vào hms_exam và cập nhật sinh hiệu
+        const nextIdxRes4 = await query(`SELECT COALESCE(MAX(he_receptidx), 9000000) + 1 AS next_idx FROM hms_exam`);
+        const testReceptIdx4 = parseInt(nextIdxRes4.rows[0].next_idx, 10);
+
         await query(`
             INSERT INTO hms_exam (
                 he_docno, he_patientno, he_receptidx, he_status, he_deptid, he_roomid
             ) VALUES (
-                $1, $2, 1, 'T', 'KKB', 1
+                $1, $2, $3, 'T', 'KKB', 1
             )
-        `, [testDocNo, testPatientNo]);
+        `, [testDocNo, testPatientNo, testReceptIdx4]);
 
-        await query(`
-            UPDATE hms_exam SET
-                he_height = 162,
-                he_weight = 52,
-                he_bmi = 19.81,
-                he_pulse = 76,
-                he_temperature = 36.5,
-                he_bloodpressure = 110,
-                he_bloodpressurex = 70,
-                he_breathinterval = 18,
-                he_examine = 'Thể lực tốt'
-            WHERE he_docno = $1
-        `, [testDocNo]);
-
-        // Gọi getHisPatient để lấy dữ liệu đồng bộ sang KSK
+        // Gọi getHisPatient để tra cứu
         let resStatus = 200;
         let resData: any = null;
 
@@ -523,34 +512,9 @@ test('Two-Way Sync (HIS -> KSK): getHisPatient reads clinical specialties, vital
 
         await hisIntegrationController.getHisPatient(mockReq, mockRes);
 
-        assert.equal(resStatus, 200);
-        assert.equal(resData.source, 'HIS_DIRECT');
-        assert.equal(resData.doc_no, String(testDocNo));
-
-        // Kiểm tra Sinh hiệu từ hms_exam / examination
-        const exam = resData.clinical_data.examination;
-        assert.equal(exam.height, '162');
-        assert.equal(exam.weight, '52');
-        assert.equal(exam.blood_pressure, '110/70');
-        assert.equal(exam.pulse, '76');
-        assert.equal(exam.temperature, '36.5');
-        assert.equal(exam.breathing_rate, '18');
-        assert.equal(exam.physical_summary, 'Thể lực tốt');
-
-        // Kiểm tra Chuyên khoa từ hms_exm_conclusion
-        const ce = resData.clinical_data.clinical_exam;
-        assert.equal(ce.eye, 'Mắt sáng 10/10');
-        assert.equal(ce.ent, 'TMH tốt');
-        assert.equal(ce.dental, 'Không sâu răng');
-        assert.equal(ce.external, 'Không dị tật');
-        assert.equal(ce.dermatology, 'Da bình thường');
-        assert.equal(ce.gynecology, 'Phụ khoa bình thường');
-
-        // Kiểm tra Kết luận & Phân loại từ hms_exm_conclusion
-        const concl = resData.conclusion_data;
-        assert.equal(concl.fitness_class, '2');
-        assert.equal(concl.diagnosis, 'Đủ sức khỏe làm việc - Lưu ý khúc xạ');
-        assert.equal(concl.cac_van_de_luu_y, 'Đeo kính khi làm việc');
+        // Quy tắc mới: Tuyệt đối không fallback sang HIS, trả về 404 khi không tìm thấy trong health_check_masters
+        assert.equal(resStatus, 404);
+        assert.ok(resData.error.includes('health_check_masters'));
     } finally {
         await query(`DELETE FROM hms_exm_conclusion WHERE hecl_docno = $1`, [testDocNo]);
         await query(`DELETE FROM hms_exam WHERE he_docno = $1`, [testDocNo]);
@@ -579,10 +543,13 @@ test('Pushback: correctly parses Roman numeral Loại IV to Loại 4, truncates 
             VALUES ($1, $2, 'O', CURRENT_TIMESTAMP, 7)
         `, [testDocNo, testPatientNo]);
 
+        const nextIdxRes5 = await query(`SELECT COALESCE(MAX(he_receptidx), 9000000) + 1 AS next_idx FROM hms_exam`);
+        const testReceptIdx5 = parseInt(nextIdxRes5.rows[0].next_idx, 10);
+
         await query(`
             INSERT INTO hms_exam (he_docno, he_patientno, he_receptidx, he_status, he_deptid, he_roomid)
-            VALUES ($1, $2, 1, 'O', 'KKB', 1)
-        `, [testDocNo, testPatientNo]);
+            VALUES ($1, $2, $3, 'O', 'KKB', 1)
+        `, [testDocNo, testPatientNo, testReceptIdx5]);
 
         // Chuỗi siêu dài vượt 254 ký tự
         const longDiagnosis = 'Tăng huyết áp độ 2, theo dõi rối loạn chuyển hóa lipid và tim mạch mạn tính. ' + 'Chi tiết điều trị và theo dõi dài hạn. '.repeat(10);
@@ -661,7 +628,7 @@ test('Pushback: correctly parses Roman numeral Loại IV to Loại 4, truncates 
     }
 });
 
-test('Two-Way Sync (HIS -> KSK): getHisPatient merges clinical specialties from hms_exm_conclusion for HEALTH_CHECK_MASTER', async () => {
+test('getHisPatient preserves stored KSK clinical and conclusion data untouched (no overwrite from hms_exm_conclusion)', async () => {
     const testDocNo = 99988806;
     const testPatientNo = 999893;
     let masterId: number | null = null;
@@ -672,7 +639,7 @@ test('Two-Way Sync (HIS -> KSK): getHisPatient merges clinical specialties from 
         await query(`DELETE FROM hms_doc WHERE hd_docno = $1`, [testDocNo]);
         await query(`DELETE FROM hms_patient WHERE hp_patientno = $1`, [testPatientNo]);
 
-        // 1. Tạo dữ liệu trên HIS
+        // 1. Tạo dữ liệu trên HIS (đã có kết luận cũ từ HIS)
         await query(`
             INSERT INTO hms_patient (hp_patientno, hp_patientid, hp_surname, hp_firstname, hp_sex, hp_birthdate)
             VALUES ($1, $2, 'TEST', 'MASTER CONCL', 'F', '1988-08-08')
@@ -695,7 +662,7 @@ test('Two-Way Sync (HIS -> KSK): getHisPatient merges clinical specialties from 
             )
         `, [testDocNo]);
 
-        // 2. Tạo bản ghi đã import sẵn trong KSK (chưa có chuyên khoa chi tiết)
+        // 2. Tạo bản ghi đã nhập dữ liệu KSK riêng (không bị HIS đè)
         const masterRes = await query(`
             INSERT INTO health_check_masters (
                 patient_id, patient_name, dob, gender, doc_no, his_doc_no, form_type
@@ -719,7 +686,7 @@ test('Two-Way Sync (HIS -> KSK): getHisPatient merges clinical specialties from 
             JSON.stringify({ fitness_class: '1', diagnosis: '[Z00.0] Khám sức khỏe tổng quát' })
         ]);
 
-        // 3. Gọi getHisPatient để lấy dữ liệu đồng bộ
+        // 3. Gọi getHisPatient để lấy dữ liệu
         let resData: any = null;
         const mockReq: any = { params: { identifier: String(testDocNo) }, query: {} };
         const mockRes: any = {
@@ -732,23 +699,19 @@ test('Two-Way Sync (HIS -> KSK): getHisPatient merges clinical specialties from 
         assert.equal(resData.source, 'HEALTH_CHECK_MASTER');
         assert.equal(resData.doc_no, String(testDocNo));
 
-        // Kiểm tra chuyên khoa đã được merge từ hms_exm_conclusion vào KSK
-        const ce = resData.clinical_data.clinical_exam;
-        assert.equal(ce.eye, 'Thị lực tốt 10/10');
-        assert.equal(ce.ent, 'TMH sạch');
-        assert.equal(ce.dental, 'Hàm răng đều');
-        assert.equal(ce.noi_khoa_tuan_hoan, 'Nhịp đều rõ');
-        assert.equal(ce.noi_khoa_ho_hap, 'Phổi sáng');
-        assert.equal(ce.noi_khoa_noi_tiet, 'Nội tiết ổn định');
-        assert.equal(ce.noi_khoa_co_xuong_khop, 'Khớp vận động tốt');
-        assert.equal(ce.noi_khoa_noi_tiet_pl, '1');
-        assert.equal(ce.noi_khoa_co_xuong_khop_pl, '1');
+        // Kiểm tra dữ liệu lâm sàng trong KSK được giữ nguyên
+        assert.equal(resData.clinical_data.examination.height, '160');
+        assert.equal(resData.clinical_data.examination.weight, '50');
 
-        // Kiểm tra kết luận đã được cập nhật từ hms_exm_conclusion
+        // Kiểm tra kết luận trong KSK KHÔNG bị HIS đè
         const concl = resData.conclusion_data;
         assert.equal(concl.fitness_class, '1');
-        assert.equal(concl.diagnosis, 'Đủ sức khỏe làm việc xuất sắc');
-        assert.equal(concl.cac_van_de_luu_y, 'Khám định kỳ hàng năm');
+        assert.equal(concl.diagnosis, '[Z00.0] Khám sức khỏe tổng quát');
+
+        // Xác nhận trong DB bảng health_check_details không bị UPDATE thay đổi
+        const detailDb = await query(`SELECT clinical_data, conclusion_data FROM health_check_details WHERE master_id = $1`, [masterId]);
+        const storedConcl = typeof detailDb.rows[0].conclusion_data === 'string' ? JSON.parse(detailDb.rows[0].conclusion_data) : detailDb.rows[0].conclusion_data;
+        assert.equal(storedConcl.diagnosis, '[Z00.0] Khám sức khỏe tổng quát');
     } finally {
         if (masterId) {
             await query(`DELETE FROM health_check_details WHERE master_id = $1`, [masterId]);
@@ -815,7 +778,7 @@ test('pushbackClinicalAndConclusion preserves hd_conclusion like "- [Z00.0] Lo�
     }
 });
 
-test('getHisPatient automatically triggers UPSERT into hms_exm_conclusion for newly queried HIS patient', async () => {
+test('getHisPatient is strictly read-only and DOES NOT trigger pushback / UPSERT into hms_exm_conclusion or hms_exam', async () => {
     const testDocNo = 99988808;
     const testPatientNo = 999895;
 
@@ -835,37 +798,126 @@ test('getHisPatient automatically triggers UPSERT into hms_exm_conclusion for ne
             VALUES ($1, $2, 'T', '[Z00.0] Khám sức khỏe', '- [Z00.0] LOẠI III\r\n', '3', 7)
         `, [testDocNo, testPatientNo]);
 
+        const nextIdxRes = await query(`SELECT COALESCE(MAX(he_receptidx), 9000000) + 1 AS next_idx FROM hms_exam`);
+        const testReceptIdx = parseInt(nextIdxRes.rows[0].next_idx, 10);
+
         await query(`
             INSERT INTO hms_exam (he_docno, he_patientno, he_deptid, he_roomid, he_receptidx, he_status, he_parts)
-            VALUES ($1, $2, 'KKB', 1, 999901, 'T', 'Mắt: 9/10; TMH: Bình thường')
-        `, [testDocNo, testPatientNo]);
+            VALUES ($1, $2, 'KKB', 1, $3, 'T', 'Mắt: 9/10; TMH: Bình thường')
+        `, [testDocNo, testPatientNo, testReceptIdx]);
 
         // Xác nhận ban đầu hms_exm_conclusion chưa hề có dòng nào cho testDocNo
         const beforeRes = await query(`SELECT 1 FROM hms_exm_conclusion WHERE hecl_docno = $1`, [testDocNo]);
         assert.equal(beforeRes.rows.length, 0);
 
-        // Gọi getHisPatient
+        // Gọi getHisPatient để tra cứu (quy tắc mới: bệnh nhân chỉ có trên HIS sẽ không tìm thấy trên KSK -> 404)
+        let resStatus = 200;
         let resData: any = null;
         const mockReq: any = { params: { identifier: String(testDocNo) }, query: {} };
         const mockRes: any = {
-            status: () => mockRes,
+            status: (code: number) => { resStatus = code; return mockRes; },
             json: (data: any) => { resData = data; return mockRes; }
         };
 
         await hisIntegrationController.getHisPatient(mockReq, mockRes);
-        assert.equal(resData.source, 'HIS_DIRECT');
-        assert.equal(resData.doc_no, String(testDocNo));
+        assert.equal(resStatus, 404);
+        assert.ok(resData.error.includes('health_check_masters'));
 
-        // Kiểm tra hms_exm_conclusion đã được tự động tạo và điền kết luận
+        // Kiểm tra hms_exm_conclusion KHÔNG bị tự động ghi đè hay tạo dòng mới (Read-only)
         const afterRes = await query(`
             SELECT hecl_docno, hecl_conclusion, hecl_phanloai
             FROM hms_exm_conclusion
             WHERE hecl_docno = $1
         `, [testDocNo]);
 
-        assert.equal(afterRes.rows.length, 1);
-        assert.equal(afterRes.rows[0].hecl_conclusion, '[Z00.0] LOẠI III');
-        assert.equal(afterRes.rows[0].hecl_phanloai, 'Loại 3');
+        assert.equal(afterRes.rows.length, 0, 'getHisPatient phải là thao tác chỉ đọc, không được tự ý ghi vào hms_exm_conclusion');
+    } finally {
+        await query(`DELETE FROM hms_exm_conclusion WHERE hecl_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_exam WHERE he_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_doc WHERE hd_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_patient WHERE hp_patientno = $1`, [testPatientNo]);
+    }
+});
+
+test('pushbackClinicalAndConclusion protects other doctors rooms and past exam dates in hms_exam', async () => {
+    const testDocNo = 99988809;
+    const testPatientNo = 999896;
+
+    try {
+        await query(`DELETE FROM hms_exm_conclusion WHERE hecl_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_exam WHERE he_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_doc WHERE hd_docno = $1`, [testDocNo]);
+        await query(`DELETE FROM hms_patient WHERE hp_patientno = $1`, [testPatientNo]);
+
+        await query(`
+            INSERT INTO hms_patient (hp_patientno, hp_patientid, hp_surname, hp_firstname, hp_sex, hp_birthdate)
+            VALUES ($1, $2, 'TEST', 'PRESERVE DOCTOR', 'M', '1985-05-05')
+        `, [testPatientNo, 'P' + testPatientNo]);
+
+        await query(`
+            INSERT INTO hms_doc (hd_docno, hd_patientno, hd_status, hd_admitdate, hd_object)
+            VALUES ($1, $2, 'O', '2026-08-16 07:00:00', 7)
+        `, [testDocNo, testPatientNo]);
+
+        // Tạo phiếu khám chuyên khoa Ngoại của BS. pxthu ngày 16/08/2026 với trạng thái 'P'
+        const pastExamDate = '2026-08-16 07:33:01';
+        const nextIdxRes2 = await query(`SELECT COALESCE(MAX(he_receptidx), 9000000) + 1 AS next_idx FROM hms_exam`);
+        const testReceptIdx2 = parseInt(nextIdxRes2.rows[0].next_idx, 10);
+
+        await query(`
+            INSERT INTO hms_exam (he_docno, he_patientno, he_deptid, he_roomid, he_receptidx, he_status, he_doctor, he_examdate, he_diagnostic, he_parts)
+            VALUES ($1, $2, 'NGOAI', 202, $4, 'P', 'pxthu', $3, 'Chấn thương phần mềm', 'Khám ngoại: Vết thương xây xát nhẹ')
+        `, [testDocNo, testPatientNo, pastExamDate, testReceptIdx2]);
+
+        // Cập nhật lại he_examdate và he_diagnostic vì trigger INSERT hms_exam_trg_proc tự động gán CURRENT_TIMESTAMP và reset he_diagnostic khi INSERT
+        await query(`
+            UPDATE hms_exam
+            SET he_examdate = $1, he_diagnostic = 'Chấn thương phần mềm'
+            WHERE he_docno = $2 AND he_receptidx = $3
+        `, [pastExamDate, testDocNo, testReceptIdx2]);
+
+        // Thực hiện pushback kết luận KSK từ bác sĩ Nội khoa pdnghiep
+        const clientWrapper = { query: (s: string, p?: any[]) => query(s, p) };
+        await hisIntegrationController.pushbackClinicalAndConclusion(
+            clientWrapper,
+            testDocNo,
+            {
+                clinical_exam: {
+                    internal: 'Nội khoa: Đau bụng thượng vị, ấn tức'
+                }
+            },
+            {
+                fitness_class: 'Loại 1',
+                diagnosis: '[K29.1] Viêm dạ dày cấp tính khác'
+            },
+            'pdnghiep',
+            'BS. Phạm Duy Nghiệp'
+        );
+
+        // Kiểm tra phiếu khám trong hms_exam:
+        // 1. he_doctor vẫn phải là 'pxthu' (không bị đè thành 'pdnghiep')
+        // 2. he_examdate vẫn là ngày cũ 2026-08-16 (không bị đè thành CURRENT_TIMESTAMP)
+        // 3. he_diagnostic vẫn là chẩn đoán Ngoại khoa gốc
+        const examRes = await query(`
+            SELECT he_doctor, he_status, to_char(he_examdate, 'YYYY-MM-DD HH24:MI:SS') as exam_date, he_diagnostic, he_parts
+            FROM hms_exam
+            WHERE he_docno = $1 AND he_receptidx = $2
+        `, [testDocNo, testReceptIdx2]);
+
+        assert.equal(examRes.rows.length, 1);
+        assert.equal(examRes.rows[0].he_doctor, 'pxthu', 'Bác sĩ gốc pxthu không được bị đè thành pdnghiep');
+        assert.equal(examRes.rows[0].exam_date, pastExamDate, 'Ngày khám gốc 2026-08-16 không được bị đè thành CURRENT_TIMESTAMP');
+        assert.equal(examRes.rows[0].he_diagnostic, 'Chấn thương phần mềm', 'Chẩn đoán khoa Ngoại không bị đè bởi KSK Nội khoa');
+
+        // Trong khi đó, kết luận KSK vẫn được lưu chuẩn vào hms_exm_conclusion
+        const conclRes = await query(`
+            SELECT hecl_docno, hecl_phanloai, hecl_conclusion
+            FROM hms_exm_conclusion
+            WHERE hecl_docno = $1
+        `, [testDocNo]);
+        assert.equal(conclRes.rows.length, 1);
+        assert.equal(conclRes.rows[0].hecl_phanloai, 'Loại 1');
+        assert.equal(conclRes.rows[0].hecl_conclusion, '[K29.1] Viêm dạ dày cấp tính khác');
     } finally {
         await query(`DELETE FROM hms_exm_conclusion WHERE hecl_docno = $1`, [testDocNo]);
         await query(`DELETE FROM hms_exam WHERE he_docno = $1`, [testDocNo]);

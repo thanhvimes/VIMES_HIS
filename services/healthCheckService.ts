@@ -380,9 +380,10 @@ export const healthCheckService = {
         }
     },
 
-    getHisPatient: async (identifier: string): Promise<any> => {
+    getHisPatient: async (identifier: string, params?: { syncCls?: string }): Promise<any> => {
         try {
-            return await apiClient.get<any>(`/health-check-sync/his-patient/${identifier}`);
+            const queryStr = params?.syncCls ? `?syncCls=${params.syncCls}` : '';
+            return await apiClient.get<any>(`/health-check-sync/his-patient/${identifier}${queryStr}`);
         } catch (error) {
             console.error("Error fetching HIS patient data:", error);
             throw error;
@@ -485,6 +486,33 @@ export const healthCheckService = {
             return await apiClient.get<any[]>(`/health-check-sync/contracts/${id}/employees`);
         } catch (error) {
             console.error("Error fetching health check contract employees:", error);
+            throw error;
+        }
+    },
+
+    batchUpdateContract: async (id: string | number, payload: {
+        examDate?: string;
+        roomId?: number;
+        roomName?: string;
+        deptId?: string;
+        address?: string;
+        provId?: string;
+        villId?: string;
+        dryRun?: boolean;
+        all?: boolean;
+        onlyMissing?: boolean;
+        docNos?: string[];
+        skipContract?: boolean;
+        skipEmployee?: boolean;
+        skipPatient?: boolean;
+        skipDoc?: boolean;
+        skipExam?: boolean;
+        skipXml?: boolean;
+    }): Promise<any> => {
+        try {
+            return await apiClient.post<any>(`/health-check-sync/contracts/${id}/batch-update`, payload);
+        } catch (error) {
+            console.error("Error in batchUpdateContract:", error);
             throw error;
         }
     },

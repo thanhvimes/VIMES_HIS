@@ -1454,31 +1454,31 @@ const PrintForm: React.FC<PrintFormProps> = ({ document: propDoc, onClose }) => 
                                     <td colSpan={2} className="bg-slate-100/50">1. Khám nhi khoa</td>
                                 </tr>
                                 <tr>
-                                    <td><span className="font-bold">a) Tuần hoàn: </span><span className="text-slate-800">{clinicalExam.nhi_tuan_hoan || ''}</span></td>
+                                    <td><span className="font-bold">a) Tuần hoàn: </span><span className="text-slate-800">{clinicalExam.kq_tim_mach || clinicalExam.tim_mach || clinicalExam.noi_khoa_tuan_hoan || clinicalExam.nhi_tuan_hoan || ''}</span></td>
                                     <td className="text-center align-middle font-medium text-slate-700">{getDoctor('tuan_hoan')}</td>
                                 </tr>
                                 <tr>
-                                    <td><span className="font-bold">b) Hô hấp: </span><span className="text-slate-800">{clinicalExam.nhi_ho_hap || ''}</span></td>
+                                    <td><span className="font-bold">b) Hô hấp: </span><span className="text-slate-800">{clinicalExam.kq_ho_hap || clinicalExam.ho_hap || clinicalExam.noi_khoa_ho_hap || clinicalExam.nhi_ho_hap || ''}</span></td>
                                     <td className="text-center align-middle font-medium text-slate-700">{getDoctor('ho_hap')}</td>
                                 </tr>
                                 <tr>
-                                    <td><span className="font-bold">c) Tiêu hóa: </span><span className="text-slate-800">{clinicalExam.nhi_tieu_hoa || ''}</span></td>
+                                    <td><span className="font-bold">c) Tiêu hóa: </span><span className="text-slate-800">{clinicalExam.kq_tieu_hoa || clinicalExam.noi_khoa_tieu_hoa || clinicalExam.nhi_tieu_hoa || ''}</span></td>
                                     <td className="text-center align-middle font-medium text-slate-700">{getDoctor('tieu_hoa')}</td>
                                 </tr>
                                 <tr>
-                                    <td><span className="font-bold">d) Thận - Tiết niệu: </span><span className="text-slate-800">{clinicalExam.nhi_tiet_nieu || ''}</span></td>
+                                    <td><span className="font-bold">d) Thận - Tiết niệu: </span><span className="text-slate-800">{clinicalExam.kq_tiet_nieu || clinicalExam.noi_khoa_than_tn_sd || clinicalExam.tiet_nieu_sinh_duc || clinicalExam.nhi_tiet_nieu || ''}</span></td>
                                     <td className="text-center align-middle font-medium text-slate-700">{getDoctor('than_tiet_nieu')}</td>
                                 </tr>
                                 <tr>
-                                    <td><span className="font-bold">đ) Thần kinh: </span><span className="text-slate-800">{clinicalExam.nhi_than_kinh || ''}</span></td>
+                                    <td><span className="font-bold">đ) Thần kinh: </span><span className="text-slate-800">{clinicalExam.kq_than_kinh || clinicalExam.noi_khoa_than_kinh || clinicalExam.nhi_than_kinh || ''}</span></td>
                                     <td className="text-center align-middle font-medium text-slate-700">{getDoctor('than_kinh')}</td>
                                 </tr>
                                 <tr>
-                                    <td><span className="font-bold">e) Tâm thần: </span><span className="text-slate-800">{clinicalExam.nhi_tam_than || ''}</span></td>
+                                    <td><span className="font-bold">e) Tâm thần: </span><span className="text-slate-800">{clinicalExam.kq_tam_than || clinicalExam.noi_khoa_tam_than || clinicalExam.nhi_tam_than || ''}</span></td>
                                     <td className="text-center align-middle font-medium text-slate-700">{getDoctor('tam_than')}</td>
                                 </tr>
                                 <tr>
-                                    <td><span className="font-bold">g) Lâm sàng khác: </span><span className="text-slate-800">{clinicalExam.nhi_khac || ''}</span></td>
+                                    <td><span className="font-bold">g) Lâm sàng khác: </span><span className="text-slate-800">{clinicalExam.lam_sang_khac || clinicalExam.nhi_khoa_lam_sang_khac || clinicalExam.nhi_khac || ''}</span></td>
                                     <td className="text-center align-middle font-medium text-slate-700"></td>
                                 </tr>
                                 <tr>

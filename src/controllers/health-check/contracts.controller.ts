@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { query } from '../../config/database';
+import { query, pool } from '../../config/database';
 import SecurityUtils from '../../utils/security';
 import { loadHealthCheckSettings } from '../../config/health-check-settings';
 import { restartHealthCheckSyncWorker } from '../../services/health-check-sync.service';
@@ -8,6 +8,7 @@ import { batchSyncController } from './batch-sync.controller';
 import { hisIntegrationController } from './his-integration';
 import { mergeLabData } from '../../services/health-check-merge.service';
 import { generateXmlPayload } from './xml-generator';
+import { executeContractBatchUpdate } from '../../services/contract-batch-update.service';
 import axios from 'axios';
 
 export class ContractsController {
@@ -34,8 +35,8 @@ export class ContractsController {
                     barcode_show_date: true,
                     barcode_show_sample_type: true,
                     allow_unsigned_sync: false,
-                    barcode_zpl_template_xn: '^XA\n^CF0,26\n^FO30,30^FD{hospital}^FS\n^FO30,70^FD{patient}^FS\n^FO30,105^FD{test}^FS\n^FO30,140^FD{sample_type} - {date}^FS\n^BY2,2,40\n^FO30,175^BCN,,N,N\n^FD{code}^FS\n^FO30,225^FD{code}^FS\n^XZ',
-                    barcode_zpl_template_ksk: '^XA\n^CF0,26\n^FO30,30^FD{hospital}^FS\n^FO30,70^FD{patient}^FS\n^FO30,105^FD{form_name}^FS\n^FO30,140^FD{info}^FS\n^BY2,2,40\n^FO30,175^BCN,,N,N\n^FD{code}^FS\n^FO30,225^FD{code}^FS\n^XZ',
+                    barcode_zpl_template_xn: '',
+                    barcode_zpl_template_ksk: '',
                     barcode_printer_name: 'Zebra',
                     use_qz_tray: false,
                     vneid_private_key: '',
@@ -153,13 +154,6 @@ export class ContractsController {
                 row.syt_password = '******';
             }
 
-            if (!row.hsm_provider || row.hsm_provider === 'VNPT-CA') {
-                row.hsm_provider = 'BCY';
-            }
-            if (row.hsm_url === 'http://vimes.xyz:8091') {
-                row.hsm_url = '';
-            }
-
             return res.json(row);
         } catch (error: any) {
             console.error('❌ KSK Controller: Lỗi getSettings:', error);
@@ -171,10 +165,7 @@ export class ContractsController {
     async getSigningPartners(req: Request, res: Response) {
         try {
             const result = await query(
-                `SELECT sign_partner, sign_name, sign_url, sign_url_wan 
-                 FROM hms_sign_serverconf 
-                 WHERE sign_partner != 'TOKEN' 
-                 ORDER BY sign_partner`
+                `SELECT sign_partner, sign_url FROM hms_sign_serverconf ORDER BY sign_partner`
             );
             return res.json({
                 success: true,
@@ -185,8 +176,8 @@ export class ContractsController {
             return res.json({
                 success: true,
                 data: [
-                    { sign_partner: 'BCY', sign_name: 'Ký số HSM Ban Cơ Yếu CP', sign_url: 'http://10.1.3.200:8081/api/v1/Signature' },
-                    { sign_partner: 'VIETTEL', sign_name: 'Ký số My Sign Viettel', sign_url: 'http://10.1.3.199:8081/api/v1/Signature' }
+                    { sign_partner: 'BCY', sign_url: 'http://vimes.xyz:8091' },
+                    { sign_partner: 'VNPT-CA', sign_url: 'http://vimes.xyz:8091' }
                 ]
             });
         }
@@ -463,10 +454,10 @@ export class ContractsController {
                 timeout: 10000
             }) as any;
 
-            const token = loginRes.data?.access_token || loginRes.data?.token || loginRes.data?.data?.token;
+            const token = loginRes.data?.data?.access_token || loginRes.data?.access_token || loginRes.data?.token || loginRes.data?.data?.token;
             const code = loginRes.data?.code;
 
-            if (code === 200 || token) {
+            if (token) {
                 const tokenStr = typeof token === 'string' ? token : '';
                 const shortToken = tokenStr.length > 20 ? `${tokenStr.substring(0, 10)}...${tokenStr.substring(tokenStr.length - 8)}` : tokenStr;
                 return res.json({
@@ -1021,7 +1012,7 @@ export class ContractsController {
                     SELECT hee_employee_id, hee_isactive, hee_docno 
                     FROM hms_exm_employee 
                     WHERE hee_contract_id = $1 AND hee_docno = $2
-                `, [contractId, docNo]);
+                `, [contractId, String(docNo)]);
 
                 let employeeId = 0;
 
@@ -1035,7 +1026,7 @@ export class ContractsController {
                     results.push({ docNo, status: 'exists', message: 'Hồ sơ đã có trong danh sách nhân viên của gói' });
                 } else {
                     // Lấy mã lớn nhất hiện tại
-                    const maxIdRes = await query('SELECT COALESCE(MAX(hee_employee_id), 0) as max_id FROM hms_exm_employee');
+                    const maxIdRes = await query(`SELECT COALESCE(MAX(NULLIF(regexp_replace(hee_employee_id::text, '[^0-9]', '', 'g'), '')::bigint), 0) as max_id FROM hms_exm_employee`);
                     employeeId = parseInt(maxIdRes.rows[0]?.max_id || '0', 10) + 1;
 
                     // Tính toán target_group theo tuổi
@@ -1052,12 +1043,12 @@ export class ContractsController {
                             hee_status, hee_isactive, hee_address,
                             hee_provid, hee_distid, hee_villid,
                             hee_cardid, hee_cardid_date, hee_cardid_place,
-                            hee_ethnic, hee_occupation, hee_target_group,
+                            hee_ethnic, hee_occupation,
                             hee_createdby, hee_createddate
                         ) VALUES (
                             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
                             'T', 'Y', $12, $13, $14, $15, $16, $17, $18,
-                            $19, $20, $21, $22, NOW()
+                            $19, $20, $21, NOW()
                         )
                     `, [
                         employeeId,
@@ -1080,7 +1071,6 @@ export class ContractsController {
                         docData.hp_noicap || '',
                         docData.hp_ethnic || 1,
                         occNum,
-                        targetGroup,
                         currentUser
                     ]);
 
@@ -1156,11 +1146,12 @@ export class ContractsController {
                     d.conclusion_data
                 FROM hms_exm_employee hee
                 LEFT JOIN health_check_masters m ON (
-                    (hee.hee_docno > 0 AND m.his_doc_no = hee.hee_docno::text)
+                    (hee.hee_docno IS NOT NULL AND hee.hee_docno > 0 AND m.his_doc_no = hee.hee_docno::text)
                     OR m.his_employee_id = hee.hee_employee_id::text
                 )
                 LEFT JOIN health_check_details d ON d.master_id = m.id
                 WHERE hee.hee_contract_id = $1
+                  AND hee.hee_docno IS NOT NULL 
                   AND hee.hee_docno > 0
                   AND hee.hee_isactive = 'Y'
                 ORDER BY hee.hee_employee_id ASC
@@ -1176,7 +1167,7 @@ export class ContractsController {
             }
 
             // 3. Gom danh sách docNos để batch fetch từ HIS
-            const docNos: number[] = Array.from(new Set(receivedEmployees.map(r => Number(r.hee_docno)).filter(d => d > 0)));
+            const docNos = Array.from(new Set(receivedEmployees.map(r => Number(r.hee_docno)).filter(d => d > 0)));
 
             console.log(`🔬 [syncContractParaclinicalResults] Đang batch query kết quả CLS từ HIS cho ${docNos.length} hồ sơ hợp đồng ${contractId}...`);
             const hisClsMap = await hisIntegrationController.fetchBatchStructuredParaclinicalData(docNos);
@@ -1399,6 +1390,89 @@ export class ContractsController {
 
             const contract = contractRes.rows[0];
 
+            // 2.1. Lấy danh mục dịch vụ trong gói khám của hợp đồng (Enterprise Service Package)
+            let packageServices: any[] = [];
+            try {
+                // Ưu tiên lấy từ cấu hình hms_exm_servicepackage nếu hợp đồng đã có gói
+                const pkgRes = await query(`
+                    SELECT 
+                        TRIM(sp.hesp_itemid) as item_id,
+                        f.hfl_name as name,
+                        COALESCE(sp.hesp_unitprice, f.hfl_servprice, 0)::numeric as unit_price,
+                        COALESCE(sp.hesp_quantity, 1) as quantity,
+                        COALESCE(sp.hesp_gender, 'A') as gender,
+                        TRIM(f.hfl_groupid) as group_id
+                    FROM hms_exm_servicepackage sp
+                    JOIN hms_fee_list f ON TRIM(f.hfl_feeid) = TRIM(sp.hesp_itemid)
+                    WHERE sp.hesp_contract_id = $1 AND sp.hesp_isactive = 'Y'
+                    ORDER BY f.hfl_groupid, sp.hesp_itemid
+                `, [contractId]);
+
+                if (pkgRes.rows.length > 0) {
+                    packageServices = pkgRes.rows.map(r => ({
+                        key: r.item_id,
+                        itemId: r.item_id,
+                        name: r.name,
+                        unitPrice: Math.round(Number(r.unit_price) || 0),
+                        quantity: Number(r.quantity) || 1,
+                        gender: r.gender || 'A',
+                        groupId: r.group_id
+                    }));
+                } else {
+                    // Nếu chưa cấu hình gói, quét toàn bộ dịch vụ CLS thực tế mà các nhân viên hợp đồng này đã được chỉ định
+                    const actualServicesRes = await query(`
+                        SELECT DISTINCT
+                            TRIM(f.hfl_feeid) as item_id,
+                            f.hfl_name as name,
+                            COALESCE(f.hfl_servprice, 0)::numeric as unit_price,
+                            1 as quantity,
+                            'A' as gender,
+                            TRIM(f.hfl_groupid) as group_id
+                        FROM (
+                            SELECT hpcl_itemid as item_id 
+                            FROM hms_pacsorderline 
+                            WHERE hpcl_docno IN (SELECT hee_docno FROM hms_exm_employee WHERE hee_contract_id = $1 AND hee_docno > 0)
+                              AND COALESCE(hpcl_status, 'O') <> 'C'
+                            UNION
+                            SELECT hpcl_itemid as item_id 
+                            FROM hms_testorderline 
+                            WHERE hpcl_docno IN (SELECT hee_docno FROM hms_exm_employee WHERE hee_contract_id = $1 AND hee_docno > 0)
+                              AND COALESCE(hpcl_status, 'O') <> 'C'
+                        ) t
+                        JOIN hms_fee_list f ON TRIM(f.hfl_feeid) = TRIM(t.item_id)
+                        ORDER BY group_id, item_id
+                    `, [contractId]);
+
+                    if (actualServicesRes.rows.length > 0) {
+                        packageServices = actualServicesRes.rows.map(r => ({
+                            key: r.item_id,
+                            itemId: r.item_id,
+                            name: r.name,
+                            unitPrice: Math.round(Number(r.unit_price) || 0),
+                            quantity: 1,
+                            gender: 'A',
+                            groupId: r.group_id
+                        }));
+                    }
+                }
+            } catch (pkgErr) {
+                console.warn('⚠️ KSK Controller: Không thể tải danh mục gói khám KSK:', pkgErr);
+            }
+
+            // Đảm bảo luôn có dịch vụ Khám sức khỏe toàn diện ở đầu
+            const hasExamGeneral = packageServices.some(s => s.name?.toLowerCase().includes('khám') && (s.name?.toLowerCase().includes('toàn diện') || s.name?.toLowerCase().includes('sức khỏe')));
+            if (!hasExamGeneral) {
+                packageServices.unshift({
+                    key: 'kham_tong_quat',
+                    itemId: 'kham_tong_quat',
+                    name: 'Khám sức khỏe toàn diện',
+                    unitPrice: 160000,
+                    quantity: 1,
+                    gender: 'A',
+                    groupId: 'KHAM'
+                });
+            }
+
             // 3. Danh sách nhân viên và chi tiết kết luận khám (Đầy đủ Sinh hiệu, Khám chuyên khoa, Cận lâm sàng & Tên ICD)
             const empRes = await query(`
                 SELECT 
@@ -1471,15 +1545,107 @@ export class ContractsController {
             // Xác định điều kiện lọc chính xác bệnh nhân ĐÃ KẾT LUẬN:
             // - Có số tiếp đón khám (doc_no)
             // - Có phân loại sức khỏe hợp lệ (I..V hoặc Loại 1..5) HOẶC có kết luận bác sĩ
+            // Kiểm tra dịch vụ CĐHA có trong gói hợp đồng hay không
+            const contractHasUsAbdomen = packageServices.some((s: any) => {
+                const sName = (s.name || '').toLowerCase();
+                return sName.includes('siêu âm') && (sName.includes('bụng') || sName.includes('ổ bụng'));
+            });
+            const contractHasUsThyroid = packageServices.some((s: any) => {
+                const sName = (s.name || '').toLowerCase();
+                return sName.includes('siêu âm') && (sName.includes('giáp') || sName.includes('tuyến giáp'));
+            });
+            const contractHasUsBreast = packageServices.some((s: any) => {
+                const sName = (s.name || '').toLowerCase();
+                return sName.includes('siêu âm') && (sName.includes('vú') || sName.includes('tuyến vú'));
+            });
+            const contractHasChestXray = packageServices.some((s: any) => {
+                const sName = (s.name || '').toLowerCase();
+                return (sName.includes('x-quang') || sName.includes('xquang')) && (sName.includes('ngực') || sName.includes('phổi'));
+            });
+
             const employees = rawEmployees.map((e: any) => {
                 const hasValidPhanLoai = Boolean(e.phanloai && e.phanloai.trim() !== '' && e.phanloai.trim() !== '0');
                 const hasValidConclusion = Boolean(e.conclusion && e.conclusion.trim() !== '');
                 const hasDocNo = Boolean(e.doc_no && e.doc_no !== 0 && e.doc_no !== '0');
                 const isConcluded = hasDocNo && (hasValidPhanLoai || hasValidConclusion);
 
+                // Trích xuất kết quả Cận lâm sàng THỰC TẾ từ e.lab_data
+                const pItems: any[] = Array.isArray(e.lab_data?.paraclinical_items) ? e.lab_data.paraclinical_items : [];
+
+                const findPacs = (keywords: string[]) => {
+                    const match = pItems.find((x: any) => {
+                        const sName = String(x.service_name || x.name || '').toLowerCase();
+                        return keywords.every(kw => sName.includes(kw));
+                    });
+                    if (!match) return '';
+                    return (match.conclusion || match.value || match.description || '').trim();
+                };
+
+                // Kiểm tra xem nhân viên có chỉ định cận lâm sàng thực tế không
+                const empHasUsAbdomen = pItems.some((x: any) => {
+                    const sName = String(x.service_name || x.name || '').toLowerCase();
+                    return sName.includes('siêu âm') && (sName.includes('bụng') || sName.includes('ổ bụng'));
+                });
+                const empHasUsThyroid = pItems.some((x: any) => {
+                    const sName = String(x.service_name || x.name || '').toLowerCase();
+                    return sName.includes('siêu âm') && (sName.includes('giáp') || sName.includes('tuyến giáp'));
+                });
+                const empHasUsBreast = pItems.some((x: any) => {
+                    const sName = String(x.service_name || x.name || '').toLowerCase();
+                    return sName.includes('siêu âm') && (sName.includes('vú') || sName.includes('tuyến vú'));
+                });
+                const empHasChestXray = pItems.some((x: any) => {
+                    const sName = String(x.service_name || x.name || '').toLowerCase();
+                    return (sName.includes('x-quang') || sName.includes('xquang')) && (sName.includes('ngực') || sName.includes('phổi'));
+                });
+
+                // Siêu âm ổ bụng: CHỈ lấy khi hợp đồng CÓ gói HOẶC nhân viên có chỉ định thực tế
+                const usAbdomen = (contractHasUsAbdomen || empHasUsAbdomen)
+                    ? (findPacs(['siêu âm', 'bụng']) || findPacs(['siêu âm', 'ổ bụng']) || e.lab_data?.us?.ket_qua || '').trim()
+                    : '';
+                // Siêu âm tuyến giáp
+                const usThyroid = (contractHasUsThyroid || empHasUsThyroid)
+                    ? (findPacs(['siêu âm', 'giáp']) || '').trim()
+                    : '';
+                // Siêu âm tuyến vú
+                const usBreast = (contractHasUsBreast || empHasUsBreast)
+                    ? (findPacs(['siêu âm', 'vú']) || '').trim()
+                    : '';
+                // X-quang ngực / phổi: CHỈ lấy khi hợp đồng CÓ gói HOẶC nhân viên có chỉ định thực tế
+                const xrayChest = (contractHasChestXray || empHasChestXray)
+                    ? (findPacs(['x-quang', 'ngực']) || findPacs(['x-quang', 'phổi']) || findPacs(['xquang', 'ngực']) || findPacs(['xquang', 'phổi']) || findPacs(['chụp x-quang']) || e.lab_data?.imaging?.ket_qua || '').trim()
+                    : '';
+
+                // Xác định dịch vụ thực tế đã thực hiện (executedServices)
+                const executedServices: Record<string, boolean> = {};
+                if (hasDocNo) {
+                    executedServices['kham_tong_quat'] = true;
+                    executedServices['kham_lam_sang'] = true;
+                }
+                const isFemale = e.gender === 'Nữ' || e.gender === 'F';
+                if (isFemale && e.phukhoa && e.phukhoa.trim() !== '') {
+                    executedServices['kham_san'] = true;
+                }
+                if (usAbdomen) executedServices['sa_o_bung'] = true;
+                if (usThyroid) executedServices['sa_tuyen_giap'] = true;
+                if (usBreast && isFemale) executedServices['sa_vu'] = true;
+                if (xrayChest) executedServices['xquang_nguc'] = true;
+
+                // Thêm tất cả mã dịch vụ thực tế có trong pItems
+                for (const it of pItems) {
+                    const sCode = String(it.service_code || it.item_id || it.code || '').trim();
+                    if (sCode) executedServices[sCode] = true;
+                    if (it.index_code) executedServices[String(it.index_code).trim()] = true;
+                }
+
                 return {
                     ...e,
-                    is_concluded: isConcluded
+                    is_concluded: isConcluded,
+                    us_abdomen: usAbdomen,
+                    us_thyroid: usThyroid,
+                    us_breast: usBreast,
+                    xray_chest: xrayChest,
+                    executedServices
                 };
             });
 
@@ -1530,6 +1696,7 @@ export class ContractsController {
                 success: true,
                 hospital,
                 contract,
+                packageServices,
                 summary: {
                     totalEmployees,
                     receivedEmployees,
@@ -1545,6 +1712,78 @@ export class ContractsController {
         } catch (error: any) {
             console.error('❌ KSK Controller: Lỗi getContractReportSummary:', error);
             return res.status(500).json({ error: error.message });
+        }
+    }
+
+    // Hiệu chỉnh hàng loạt thông tin gói khám KSK (Ngày khám, Buồng/Phòng khám, Địa chỉ) - Chỉ Admin
+    async batchUpdateContract(req: Request, res: Response) {
+        try {
+            const user = (req as any).user;
+            const isAdmin = user?.role === 'admin' || 
+                            user?.username === 'admin' || 
+                            (req as any).userId === 'admin' || 
+                            (req as any).groupId === 1 || 
+                            (req as any).groupId === '1' || 
+                            ((req as any).permissions && (req as any).permissions.includes('admin'));
+
+            if (!isAdmin) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Chức năng hiệu chỉnh gói khám hàng loạt chỉ dành riêng cho Quản trị viên (Admin)!'
+                });
+            }
+
+            const { id } = req.params;
+            const contractId = parseInt(id as string, 10);
+            if (isNaN(contractId) || contractId <= 0) {
+                return res.status(400).json({ success: false, message: 'ID gói khám không hợp lệ!' });
+            }
+
+            const {
+                examDate,
+                roomId,
+                deptId,
+                roomName,
+                address,
+                provId,
+                villId,
+                dryRun,
+                all,
+                onlyMissing,
+                docNos,
+                skipContract,
+                skipEmployee,
+                skipPatient,
+                skipDoc,
+                skipExam,
+                skipXml
+            } = req.body;
+
+            const roomInput = roomId ? String(roomId) : (roomName ? String(roomName) : undefined);
+
+            const result = await executeContractBatchUpdate(pool, {
+                contractId,
+                examDateInput: examDate,
+                roomInput,
+                deptInput: deptId,
+                customAddress: address,
+                provInput: provId,
+                villInput: villId,
+                dryRun: Boolean(dryRun),
+                onlyMissing: all ? false : Boolean(onlyMissing),
+                docNos: Array.isArray(docNos) ? docNos.map(String) : undefined,
+                skipContract: Boolean(skipContract),
+                skipEmployee: Boolean(skipEmployee),
+                skipPatient: Boolean(skipPatient),
+                skipDoc: Boolean(skipDoc),
+                skipExam: Boolean(skipExam),
+                skipXml: Boolean(skipXml)
+            });
+
+            return res.json(result);
+        } catch (error: any) {
+            console.error('❌ KSK Controller: Lỗi batchUpdateContract:', error);
+            return res.status(500).json({ success: false, message: error.message || 'Lỗi khi hiệu chỉnh gói khám!' });
         }
     }
 }

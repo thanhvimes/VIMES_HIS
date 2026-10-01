@@ -409,7 +409,7 @@ class HisIntegrationController {
                     COALESCE(NULLIF(TRIM(p.hp_workplace), ''), NULLIF(TRIM(hee.hee_dept), ''), c.hec_desc, comp.sc_name, '') as workplace,
                     COALESCE(p.hp_nationality, hee.hee_countryid, 'VIE') as nationality,
                     COALESCE(hee.hee_abo, p.hp_abo, '') as blood_group,
-                    hee.hee_target_group,
+                    '14' as hee_target_group,
                     hee.hee_height,
                     hee.hee_weight,
                     to_char(d.hd_admitdate, 'DD/MM/YYYY') as admitdate,
@@ -921,20 +921,6 @@ class HisIntegrationController {
                         byDocNo.set(docNo, recObj);
                         if (row.hee_docno) {
                             byDocNo.set(String(row.hee_docno), recObj);
-                            if (conclusionData) {
-                                try {
-                                    await this.pushbackClinicalAndConclusion(
-                                        { query },
-                                        Number(row.hee_docno),
-                                        clinicalData,
-                                        conclusionData,
-                                        'admin',
-                                        'Hệ thống KSK'
-                                    );
-                                } catch (pushErr) {
-                                    console.warn(`⚠️ [searchPatients] Lỗi đồng bộ hms_exm_conclusion cho docNo=${row.hee_docno}:`, pushErr);
-                                }
-                            }
                         }
                         fullUpdateCount++;
                     } else {
@@ -972,20 +958,6 @@ class HisIntegrationController {
                             byDocNo.set(docNo, recObj);
                             if (row.hee_docno) {
                                 byDocNo.set(String(row.hee_docno), recObj);
-                                if (conclusionData) {
-                                    try {
-                                        await this.pushbackClinicalAndConclusion(
-                                            { query },
-                                            Number(row.hee_docno),
-                                            clinicalData,
-                                            conclusionData,
-                                            'admin',
-                                            'Hệ thống KSK'
-                                        );
-                                    } catch (pushErr) {
-                                        console.warn(`⚠️ [searchPatients] Lỗi đồng bộ hms_exm_conclusion cho docNo=${row.hee_docno}:`, pushErr);
-                                    }
-                                }
                             }
 
                             if (detailSet.has(masterId)) {
@@ -1044,11 +1016,13 @@ class HisIntegrationController {
         }
     }
 
-    // 9. Lấy dữ liệu bệnh nhân từ HIS để đồng bộ KSK
-async getHisPatient(req: Request, res: Response) {
+    // 9. Tra cứu hồ sơ KSK đã tiếp nhận/tạo lập trong hệ thống (bảng health_check_masters)
+    async getHisPatient(req: Request, res: Response) {
         const identifier = String(req.params.identifier || '').trim();
         const year = new Date().getFullYear();
         const kskDocNo = identifier.startsWith('KSK-') ? identifier : `KSK-${year}-${identifier}`;
+        const syncCls = req.query.syncCls === '1' || req.query.syncCls === 'true';
+
         try {
             // 1. TRUY VẤN DỮ LIỆU TỪ HỆ THỐNG KSK NỘI BỘ (health_check_masters, health_check_details)
             const sql = `
@@ -1062,6 +1036,7 @@ async getHisPatient(req: Request, res: Response) {
                     m.doc_no,
                     m.his_doc_no,
                     m.form_type,
+                    m.signature_status,
                     d.clinical_data,
                     d.lab_data,
                     d.conclusion_data
@@ -1073,6 +1048,7 @@ async getHisPatient(req: Request, res: Response) {
                    OR m.cccd = $1
                    OR m.patient_id = $1
                    OR (d.clinical_data->>'phone' = $1)
+                   OR LOWER(m.patient_name) = LOWER($1)
                 ORDER BY m.id DESC
                 LIMIT 1
             `;
@@ -1082,317 +1058,90 @@ async getHisPatient(req: Request, res: Response) {
                 const row = result.rows[0];
                 const hisDocNoStr = row.his_doc_no || row.patient_id || (row.doc_no ? row.doc_no.split('-').pop() : '');
                 const docNoVal = hisDocNoStr ? parseInt(hisDocNoStr, 10) : 0;
-                console.log('🔍 [getHisPatient] docNoVal:', docNoVal, 'row.his_doc_no:', row.his_doc_no, 'row.patient_id:', row.patient_id);
+                
+                let labData = typeof row.lab_data === 'string' ? JSON.parse(row.lab_data) : { ...row.lab_data };
+                const clinicalData = typeof row.clinical_data === 'string' ? JSON.parse(row.clinical_data) : { ...row.clinical_data };
+                const conclusionData = typeof row.conclusion_data === 'string' ? JSON.parse(row.conclusion_data) : { ...row.conclusion_data };
 
-
-
-                // Lấy chỉ định & kết quả cận lâm sàng mới nhất trực tiếp từ HIS
-                const liveParaclinical = docNoVal ? await this.fetchStructuredParaclinicalData(docNoVal) : null;
-                if (liveParaclinical) {
-                    console.log('🔍 [getHisPatient] liveParaclinical items count:', liveParaclinical.paraclinical_items?.length);
-                }
-                const labData = typeof row.lab_data === 'string' ? JSON.parse(row.lab_data) : { ...row.lab_data };
-
-                if (liveParaclinical) {
-                    if (!labData.blood_test) labData.blood_test = {};
-                    if (!labData.urine_test) labData.urine_test = {};
-
-                    labData.blood_test.hemoglobin = liveParaclinical.hemoglobin || '';
-                    labData.blood_test.glycemia = liveParaclinical.glycemia || '';
-                    labData.urine_test.protein = liveParaclinical.protein || '';
-                    labData.kq_xn_khac = liveParaclinical.kqXnKhac || '';
-
-                    const existingItems = Array.isArray(labData.paraclinical_items) ? labData.paraclinical_items : [];
-                    const newItems = liveParaclinical.paraclinical_items || [];
-                    const mergedItems: any[] = [];
-
-                    const existingMap = new Map<string, any>();
-                    existingItems.forEach((item: any) => {
-                        const key = `${item.order_id || ''}_${item.service_code || ''}`;
-                        existingMap.set(key, item);
-                        if (item.service_code) {
-                            existingMap.set(String(item.service_code).trim(), item);
-                        }
-                    });
-
-                    newItems.forEach((newItem: any) => {
-                        const key = `${newItem.order_id || ''}_${newItem.service_code || ''}`;
-                        const existingItem = existingMap.get(key) || existingMap.get(String(newItem.service_code || '').trim());
-                        if (existingItem) {
-                            let mergedValue = '';
-                            let mergedConclusion = '';
-                            const userEdited = !!existingItem.user_edited;
-
-                            if (existingItem.user_edited && existingItem.value && !newItem.value) {
-                                // Giữ nguyên giá trị bác sĩ sửa tay nếu HIS chưa có kết quả
-                                mergedValue = existingItem.value || '';
-                                mergedConclusion = existingItem.conclusion || '';
-                            } else {
-                                // Trộn thông thường dựa trên HIS
-                                mergedValue = newItem.value ? newItem.value : (existingItem.value || '');
-                                mergedConclusion = newItem.value ? (newItem.conclusion || 'Bình thường') : (existingItem.conclusion || '');
-                            }
-
-                            mergedItems.push({
-                                ...existingItem,
-                                ...newItem,
-                                value: mergedValue,
-                                conclusion: mergedConclusion,
-                                is_his_value: !!newItem.value,
-                                user_edited: userEdited
-                            });
-                        } else {
-                            mergedItems.push({
-                                ...newItem,
-                                is_his_value: !!newItem.value,
-                                user_edited: false
-                            });
-                        }
-                    });
-
-                    labData.paraclinical_items = mergedItems;
-
-                    // Tự động lưu bản cập nhật mới nhất vào database local
+                // Chỉ khi bác sĩ chủ động yêu cầu đồng bộ Cận lâm sàng từ tab Cận lâm sàng (syncCls=1):
+                // Lấy chỉ định & kết quả cận lâm sàng mới nhất từ LIS/PACS, không đụng vào lâm sàng hay kết luận
+                if (syncCls && docNoVal) {
                     try {
-                        await query(`
-                            UPDATE health_check_details 
-                            SET lab_data = $1, updated_at = NOW() 
-                            WHERE master_id = $2
-                        `, [JSON.stringify(labData), row.id]);
-                        console.log(`✅ [getHisPatient] Tự động cập nhật lab_data vào DB cho BN: ${row.patient_name}`);
-                    } catch (dbSaveErr) {
-                        console.error('⚠️ [getHisPatient] Lỗi tự động lưu lab_data:', dbSaveErr);
-                    }
-                }
+                        const liveParaclinical = await this.fetchStructuredParaclinicalData(docNoVal);
+                        if (liveParaclinical) {
+                            if (!labData.blood_test) labData.blood_test = {};
+                            if (!labData.urine_test) labData.urine_test = {};
 
-                let clinicalData = typeof row.clinical_data === 'string' ? JSON.parse(row.clinical_data) : { ...row.clinical_data };
-                let conclusionData = typeof row.conclusion_data === 'string' ? JSON.parse(row.conclusion_data) : { ...row.conclusion_data };
+                            if (liveParaclinical.hemoglobin) labData.blood_test.hemoglobin = liveParaclinical.hemoglobin;
+                            if (liveParaclinical.glycemia) labData.blood_test.glycemia = liveParaclinical.glycemia;
+                            if (liveParaclinical.protein) labData.urine_test.protein = liveParaclinical.protein;
+                            if (liveParaclinical.kqXnKhac) labData.kq_xn_khac = liveParaclinical.kqXnKhac;
 
-                // Bổ sung sinh hiệu, địa chỉ, chẩn đoán & kết luận phân loại từ HIS nếu có đợt khám
-                if (docNoVal) {
-                    try {
-                        const [examRes, docRes, conclRes, histRes] = await Promise.all([
-                            query(`
-                                SELECT 
-                                    e.he_pulse, e.he_temperature, e.he_bloodpressure, e.he_bloodpressurex, 
-                                    e.he_breathinterval, e.he_weight, e.he_height, e.he_bmi, 
-                                    e.he_doctor, e.he_medical, e.he_examine, e.he_parts, 
-                                    e.he_prediagnostic, e.he_diagnostic, e.he_icd10, e.he_status,
-                                    to_char(e.he_examdate, 'YYYY-MM-DD') as exam_date,
-                                    to_char(e.he_examdate, 'HH24:MI') as exam_time,
-                                    to_char(e.he_examdate, 'YYYY-MM-DD HH24:MI:SS') as exam_datetime,
-                                    hms_getusername(e.he_doctor) as doctor_name
-                                FROM hms_exam e 
-                                WHERE e.he_docno = $1 
-                                ORDER BY (CASE WHEN e.he_status = 'T' THEN 1 ELSE 2 END), e.he_receptidx DESC 
-                                LIMIT 1
-                            `, [docNoVal]),
-                            query(`
-                                SELECT 
-                                    COALESCE(NULLIF(TRIM(d.hd_dtladdr), ''), NULLIF(TRIM(p.hp_dtladdr), ''), hms_getaddress(COALESCE(d.hd_provid, p.hp_provid, 0), COALESCE(d.hd_distid, p.hp_distid, 0), COALESCE(d.hd_villid, p.hp_villid, 0)), '') as address,
-                                    COALESCE(d.hd_provid, p.hp_provid, 0)::text as matinh_cu_tru,
-                                    COALESCE(d.hd_villid, p.hp_villid, 0)::text as maxa_cu_tru,
-                                    p.hp_occupation::text as occupation,
-                                    COALESCE(p.hp_workplace, '') as workplace,
-                                    d.hd_result, d.hd_conclusion, d.hd_suggestion, d.hd_treatmethod, d.hd_doctor, d.hd_status,
-                                    COALESCE(hms_getusername(d.hd_doctor), 'BS. Nguyễn Văn A') as doctor_name
-                                FROM hms_doc d
-                                JOIN hms_patient p ON d.hd_patientno = p.hp_patientno
-                                WHERE d.hd_docno = $1
-                                LIMIT 1
-                            `, [docNoVal]),
-                            query(`
-                                SELECT 
-                                    hecl_docno, hecl_theluc, hecl_tuanhoan, hecl_hohap, hecl_tieuhoa,
-                                    hecl_thantietnieu, hecl_noitiet, hecl_coxuongkhop, hecl_thankinh, hecl_tamthan,
-                                    hecl_ngoai, hecl_dalieu, hecl_mat, hecl_tmh, hecl_rhm, hecl_phukhoa,
-                                    hecl_phanloai, hecl_conclusion, hecl_remark
-                                FROM hms_exm_conclusion
-                                WHERE hecl_docno = $1
-                                LIMIT 1
-                            `, [docNoVal]),
-                            query(`
-                                SELECT hdh_owner, hdh_family, hdh_drugallergy 
-                                FROM hms_disease_hist 
-                                WHERE hdh_docno = $1 
-                                ORDER BY hdh_createddate DESC 
-                                LIMIT 1
-                            `, [docNoVal])
-                        ]);
+                            const existingItems = Array.isArray(labData.paraclinical_items) ? labData.paraclinical_items : [];
+                            const newItems = liveParaclinical.paraclinical_items || [];
+                            const mergedItems: any[] = [];
 
-                        const ex = examRes.rows[0] || null;
-                        const a = docRes.rows[0] || null;
-                        const conclRow = conclRes.rows[0] || null;
-                        const histRow = histRes.rows[0] || null;
+                            const existingMap = new Map<string, any>();
+                            existingItems.forEach((item: any) => {
+                                const key = `${item.order_id || ''}_${item.service_code || ''}`;
+                                existingMap.set(key, item);
+                                if (item.service_code) {
+                                    existingMap.set(String(item.service_code).trim(), item);
+                                }
+                            });
 
-                        const conclDocId = a?.hd_doctor || ex?.he_doctor || '';
-                        const conclDocName = a?.doctor_name || ex?.doctor_name || 'BS. Nguyễn Văn A';
-                        const examDocId = ex?.he_doctor || a?.hd_doctor || '';
-                        const examDocName = ex?.doctor_name || a?.doctor_name || 'BS. Nguyễn Văn A';
+                            newItems.forEach((newItem: any) => {
+                                const key = `${newItem.order_id || ''}_${newItem.service_code || ''}`;
+                                const existingItem = existingMap.get(key) || existingMap.get(String(newItem.service_code || '').trim());
+                                if (existingItem) {
+                                    let mergedValue = '';
+                                    let mergedConclusion = '';
+                                    const userEdited = !!existingItem.user_edited;
 
-                        if (!clinicalData.extra) clinicalData.extra = {};
-                        clinicalData.extra.doctor_id = examDocId;
-                        clinicalData.extra.doctor_name = examDocName;
-                        clinicalData.extra.concl_doctor_id = conclDocId;
-                        clinicalData.extra.concl_doctor_name = conclDocName;
+                                    if (existingItem.user_edited && existingItem.value && !newItem.value) {
+                                        mergedValue = existingItem.value;
+                                        mergedConclusion = existingItem.conclusion;
+                                    } else {
+                                        mergedValue = newItem.value || existingItem.value || '';
+                                        mergedConclusion = newItem.conclusion || existingItem.conclusion || '';
+                                    }
 
-                        if (ex) {
-                            if (!clinicalData.examination) clinicalData.examination = {};
-                            if (!clinicalData.examination.height && ex.he_height) clinicalData.examination.height = String(ex.he_height);
-                            if (!clinicalData.examination.weight && ex.he_weight) clinicalData.examination.weight = String(ex.he_weight);
-                            if (!clinicalData.examination.pulse && ex.he_pulse) clinicalData.examination.pulse = String(ex.he_pulse);
-                            if (!clinicalData.examination.temperature && ex.he_temperature) clinicalData.examination.temperature = String(ex.he_temperature);
-                            if (!clinicalData.examination.nhiet_do && ex.he_temperature) clinicalData.examination.nhiet_do = String(ex.he_temperature);
-                            if (!clinicalData.examination.breathing_rate && ex.he_breathinterval) clinicalData.examination.breathing_rate = String(ex.he_breathinterval);
-                            if (!clinicalData.examination.nhip_tho && ex.he_breathinterval) clinicalData.examination.nhip_tho = String(ex.he_breathinterval);
-                            if (!clinicalData.examination.bmi && ex.he_bmi) clinicalData.examination.bmi = Number(ex.he_bmi).toFixed(2);
-                            
-                            let bpLive = '';
-                            if (ex.he_bloodpressure && ex.he_bloodpressurex) bpLive = `${ex.he_bloodpressure}/${ex.he_bloodpressurex}`;
-                            else if (ex.he_bloodpressure) bpLive = String(ex.he_bloodpressure);
-                            if (!clinicalData.examination.blood_pressure && bpLive) clinicalData.examination.blood_pressure = bpLive;
-                            if (!clinicalData.examination.bp && bpLive) clinicalData.examination.bp = bpLive;
+                                    mergedItems.push({
+                                        ...existingItem,
+                                        ...newItem,
+                                        value: mergedValue,
+                                        conclusion: mergedConclusion,
+                                        is_his_value: !!newItem.value,
+                                        user_edited: userEdited
+                                    });
+                                } else {
+                                    mergedItems.push({
+                                        ...newItem,
+                                        is_his_value: !!newItem.value,
+                                        user_edited: false
+                                    });
+                                }
+                            });
 
-                            if (!clinicalData.ngay_vao && ex.exam_date) clinicalData.ngay_vao = ex.exam_date;
-                            if (!clinicalData.gio_kham && ex.exam_time) clinicalData.gio_kham = ex.exam_time;
-                            if (!clinicalData.extra.gio_kham && ex.exam_time) clinicalData.extra.gio_kham = ex.exam_time;
-                            if (!clinicalData.extra.ngay_kham && ex.exam_date) clinicalData.extra.ngay_kham = ex.exam_date;
+                            // Giữ lại các mục người dùng tự thêm bằng tay (không có order_id từ HIS)
+                            existingItems.forEach((item: any) => {
+                                if (!item.order_id) {
+                                    mergedItems.push(item);
+                                }
+                            });
+
+                            labData.paraclinical_items = mergedItems;
+
+                            // Cập nhật lại lab_data vào DB local
+                            await query(`
+                                UPDATE health_check_details 
+                                SET lab_data = $1, updated_at = NOW() 
+                                WHERE master_id = $2
+                            `, [JSON.stringify(labData), row.id]);
+                            console.log(`✅ [getHisPatient] Cập nhật cận lâm sàng (syncCls) cho BN: ${row.patient_name}`);
                         }
-
-                        if (conclRow) {
-                            if (!clinicalData.examination) clinicalData.examination = {};
-                            if (!clinicalData.examination.physical_summary && conclRow.hecl_theluc) {
-                                clinicalData.examination.physical_summary = conclRow.hecl_theluc;
-                            }
-                            clinicalData.clinical_exam = mapConclusionRowToClinicalExam(
-                                conclRow,
-                                {
-                                    ...(clinicalData.clinical_exam || {}),
-                                    raw_he_parts: ex?.he_parts || ''
-                                },
-                                conclRow.hecl_phanloai
-                            );
-                        }
-
-                        if (a) {
-                            if (!clinicalData.address && a.address) clinicalData.address = a.address;
-                            if (!clinicalData.matinh_cu_tru && a.matinh_cu_tru && a.matinh_cu_tru !== '0') clinicalData.matinh_cu_tru = a.matinh_cu_tru;
-                            if (!clinicalData.maxa_cu_tru && a.maxa_cu_tru && a.maxa_cu_tru !== '0') clinicalData.maxa_cu_tru = a.maxa_cu_tru;
-                            if (a.occupation) {
-                                const occStr = String(a.occupation).trim();
-                                clinicalData.ma_nghe_nghiep = occStr;
-                                clinicalData.occupation = occStr;
-                                if (!clinicalData.extra) clinicalData.extra = {};
-                                clinicalData.extra.ma_nghe_nghiep = occStr;
-                                clinicalData.extra.occupation = occStr;
-                            }
-                            if (a.workplace) {
-                                clinicalData.noi_cong_tac_hien_tai = a.workplace;
-                                clinicalData.workplace = a.workplace;
-                                if (!clinicalData.extra) clinicalData.extra = {};
-                                clinicalData.extra.noi_cong_tac_hien_tai = a.workplace;
-                                clinicalData.extra.workplace = a.workplace;
-                            }
-                        }
-
-                        if (clinicalData.cccd_date) {
-                            clinicalData.cccd_date = sanitizeHisDate(clinicalData.cccd_date);
-                            if (clinicalData.extra) clinicalData.extra.cccd_date = clinicalData.cccd_date;
-                        }
-
-                        // Đánh giá Chẩn đoán, Kết luận & Phân loại sức khỏe thông minh (Chuẩn BYT & HIS)
-                        const evalResult = evaluateFitnessClass({
-                            dob: row.dob,
-                            gender: row.gender,
-                            bloodPressure: clinicalData.examination?.blood_pressure || clinicalData.examination?.bp,
-                            systolic: ex?.he_bloodpressure ? Number(ex.he_bloodpressure) : null,
-                            diastolic: ex?.he_bloodpressurex ? Number(ex.he_bloodpressurex) : null,
-                            bmi: clinicalData.examination?.bmi ? Number(clinicalData.examination.bmi) : null,
-                            height: clinicalData.examination?.height ? Number(clinicalData.examination.height) : null,
-                            weight: clinicalData.examination?.weight ? Number(clinicalData.examination.weight) : null,
-                            icd10: ex?.he_icd10,
-                            diagnostic: ex?.he_diagnostic,
-                            hisResult: a?.hd_result,
-                            hisConclusion: a?.hd_conclusion,
-                            hisExmPhanLoai: conclRow?.hecl_phanloai,
-                            hisExmConclusion: conclRow?.hecl_conclusion,
-                            hisExmRemark: conclRow?.hecl_remark,
-                            hisTreatMethod: a?.hd_treatmethod,
-                            hisDoctorId: conclDocId,
-                            hisDoctorName: conclDocName,
-                            personalHistory: histRow?.hdh_owner,
-                            formType: row.form_type
-                        });
-
-                        const hasHisDocResult = !!(a?.hd_result && ['1', '2', '3', '4', '5'].includes(String(a.hd_result).trim()));
-                        const docConclClean = cleanConclusionText(a?.hd_conclusion);
-                        const hasHisDocConcl = !!(docConclClean && docConclClean !== '[Z00.0] Khám sức khỏe tổng quát');
-                        const hasHisExmConcl = !!(conclRow?.hecl_phanloai || conclRow?.hecl_conclusion);
-                        const hasSavedConcl = !!(
-                            (conclusionData?.fitness_class && String(conclusionData.fitness_class).trim()) ||
-                            (conclusionData?.ket_luan_loai_suc_khoe && String(conclusionData.ket_luan_loai_suc_khoe).trim()) ||
-                            (conclusionData?.diagnosis && String(conclusionData.diagnosis).trim())
-                        );
-                        const hasRealConclusion = hasHisDocResult || hasHisDocConcl || hasHisExmConcl || hasSavedConcl;
-
-                        if (hasRealConclusion) {
-                            if (!conclusionData) conclusionData = {};
-                            if (!conclusionData.fitness_class || evalResult.isAutoEvaluated || conclRow?.hecl_phanloai || a?.hd_result) {
-                                conclusionData.fitness_class = evalResult.fitnessClass;
-                            }
-                            if (!conclusionData.diagnosis || conclusionData.diagnosis === '[Z00.0] Khám sức khỏe tổng quát' || evalResult.diagnosis) {
-                                conclusionData.diagnosis = evalResult.diagnosis;
-                            }
-                            conclusionData.doctor_id = evalResult.doctorId || conclDocId;
-                            conclusionData.doctor_name = evalResult.doctorName || conclDocName;
-                            if (!conclusionData.cac_van_de_luu_y || evalResult.cacVanDeLuuY) conclusionData.cac_van_de_luu_y = evalResult.cacVanDeLuuY;
-                            if (!conclusionData.cac_benh_tat_neu_co || evalResult.cacBenhTatNeuCo) conclusionData.cac_benh_tat_neu_co = evalResult.cacBenhTatNeuCo;
-                            conclusionData.ket_luan_loai_suc_khoe = evalResult.fitnessClass;
-                        } else {
-                            conclusionData = conclusionData || {};
-                        }
-
-                        // Đồng bộ cấu trúc trạng thái ĐÃ_KHÁM / ĐÃ_KẾT_LUẬN và phân công bác sĩ vào specialty_metadata
-                        const specMetadata = buildSpecialtyMetadata({
-                            clinicalData,
-                            labData: row.lab_data,
-                            conclusionData: conclusionData || {},
-                            examDoctorId: examDocId,
-                            examDoctorName: examDocName,
-                            conclDoctorId: conclDocId,
-                            conclDoctorName: conclDocName,
-                            hasExam: !!ex,
-                            hasConclusion: hasRealConclusion
-                        });
-                        clinicalData.specialty_metadata = specMetadata;
-                        if (clinicalData.clinical_exam) {
-                            clinicalData.clinical_exam.specialty_metadata = specMetadata;
-                        }
-
-                        // Tự động lưu bản cập nhật clinical_data và conclusion_data vào database local
-                        await query(`
-                            UPDATE health_check_details 
-                            SET clinical_data = $1, conclusion_data = $2, updated_at = NOW() 
-                            WHERE master_id = $3
-                        `, [JSON.stringify(clinicalData), JSON.stringify(conclusionData), row.id]);
-                        console.log(`✅ [getHisPatient] Tự động cập nhật clinical & conclusion cho BN: ${row.patient_name}`);
-
-                        if (docNoVal && hasRealConclusion) {
-                            try {
-                                await this.pushbackClinicalAndConclusion(
-                                    { query },
-                                    docNoVal,
-                                    clinicalData,
-                                    conclusionData,
-                                    conclDocId || 'admin',
-                                    conclDocName || 'Hệ thống KSK'
-                                );
-                            } catch (pushErr) {
-                                console.warn(`⚠️ [getHisPatient] Lỗi đồng bộ hms_exm_conclusion cho docNo=${docNoVal}:`, pushErr);
-                            }
-                        }
-                    } catch (examErr) {
-                        console.error('⚠️ [getHisPatient] Lỗi tra cứu exam & conclusion cho HEALTH_CHECK_MASTER:', examErr);
+                    } catch (clsErr) {
+                        console.error('⚠️ [getHisPatient] Lỗi khi nạp cận lâm sàng (syncCls):', clsErr);
                     }
                 }
 
@@ -1400,434 +1149,23 @@ async getHisPatient(req: Request, res: Response) {
                     source: 'HEALTH_CHECK_MASTER',
                     id: row.id,
                     patient_id: row.patient_id,
-                    doc_no: hisDocNoStr,
+                    doc_no: row.doc_no || hisDocNoStr,
+                    his_doc_no: row.his_doc_no,
                     patient_name: String(row.patient_name || '').toUpperCase(),
                     cccd: row.cccd || '',
                     dob: row.dob || '',
                     gender: row.gender || 'Nam',
                     form_type: row.form_type,
+                    signature_status: row.signature_status,
                     clinical_data: clinicalData,
                     lab_data: labData,
                     conclusion_data: conclusionData
                 });
             } else {
-                // 2. DỰ PHÒNG FALLBACK (HIS DIRECT): Tra cứu đợt khám trực tiếp từ HIS (hms_doc JOIN hms_patient)
-                console.log(`ℹ️ [getHisPatient] Không tìm thấy trong health_check_masters. Đang tra cứu dự phòng từ HIS (hms_doc & hms_patient)...`);
-                
-                let hisResult: any = { rows: [] };
-                const cleanId = identifier.trim();
-                const isAllDigits = /^\d+$/.test(cleanId);
-
-                // 1. Trường hợp 1: Nhập Mã hồ sơ HIS (hms_doc.hd_docno) -> Tra cứu chính xác theo Primary Key hd_docno (<1ms)
-                if (isAllDigits) {
-                    const numId = parseInt(cleanId, 10);
-                    hisResult = await query(`
-                        SELECT 
-                            d.hd_docno as his_doc_no,
-                            p.hp_patientno as patient_id,
-                            TRIM(COALESCE(p.hp_surname, '') || ' ' || COALESCE(p.hp_midname, '') || ' ' || COALESCE(p.hp_firstname, '')) as patient_name,
-                            p.hp_sin as cccd,
-                            to_char(p.hp_ngaycap, 'YYYY-MM-DD') as cccd_date,
-                            COALESCE(p.hp_noicap, '') as cccd_place,
-                            to_char(p.hp_birthdate, 'YYYY-MM-DD') as dob,
-                            CASE 
-                                WHEN LOWER(p.hp_sex) = 'm' OR LOWER(p.hp_sex) = 'nam' THEN 'Nam'
-                                WHEN LOWER(p.hp_sex) = 'f' OR LOWER(p.hp_sex) = 'nữ' THEN 'Nữ'
-                                ELSE 'Khác'
-                            END as gender,
-                            COALESCE(d.hd_telephone, '') as phone,
-                            COALESCE(NULLIF(TRIM(d.hd_dtladdr), ''), NULLIF(TRIM(p.hp_dtladdr), ''), hms_getaddress(COALESCE(d.hd_provid, p.hp_provid, 0), COALESCE(d.hd_distid, p.hp_distid, 0), COALESCE(d.hd_villid, p.hp_villid, 0)), '') as address,
-                            COALESCE(d.hd_provid, p.hp_provid, 0)::text as matinh_cu_tru,
-                            COALESCE(d.hd_villid, p.hp_villid, 0)::text as maxa_cu_tru,
-                            p.hp_ethnic as ethnic,
-                            p.hp_occupation::text as occupation,
-                            COALESCE(p.hp_workplace, '') as workplace,
-                            to_char(d.hd_admitdate, 'YYYY-MM-DD') as ngay_vao,
-                            c.hc_cardno as insurance_card,
-                            d.hd_result, d.hd_conclusion, d.hd_suggestion, d.hd_treatmethod, d.hd_doctor, d.hd_diagnostic,
-                            COALESCE(hms_getusername(d.hd_doctor), 'BS. Nguyễn Văn A') as doctor_name
-                        FROM hms_doc d
-                        JOIN hms_patient p ON d.hd_patientno = p.hp_patientno
-                        LEFT JOIN hms_card c ON (c.hc_patientno = p.hp_patientno AND c.hc_idx = d.hd_cardidx)
-                        WHERE d.hd_docno = $1
-                        ORDER BY d.hd_docno DESC
-                        LIMIT 1
-                    `, [numId]);
-                }
-
-                // 2. Trường hợp 2: Nhập Thẻ CCCD (Chuỗi 9-12 chữ số) -> Tra cứu theo Index hp_sin (<1ms)
-                if (hisResult.rows.length === 0 && isAllDigits && cleanId.length >= 9) {
-                    hisResult = await query(`
-                        SELECT 
-                            d.hd_docno as his_doc_no,
-                            p.hp_patientno as patient_id,
-                            TRIM(COALESCE(p.hp_surname, '') || ' ' || COALESCE(p.hp_midname, '') || ' ' || COALESCE(p.hp_firstname, '')) as patient_name,
-                            p.hp_sin as cccd,
-                            to_char(p.hp_ngaycap, 'YYYY-MM-DD') as cccd_date,
-                            COALESCE(p.hp_noicap, '') as cccd_place,
-                            to_char(p.hp_birthdate, 'YYYY-MM-DD') as dob,
-                            CASE 
-                                WHEN LOWER(p.hp_sex) = 'm' OR LOWER(p.hp_sex) = 'nam' THEN 'Nam'
-                                WHEN LOWER(p.hp_sex) = 'f' OR LOWER(p.hp_sex) = 'nữ' THEN 'Nữ'
-                                ELSE 'Khác'
-                            END as gender,
-                            COALESCE(d.hd_telephone, '') as phone,
-                            COALESCE(NULLIF(TRIM(d.hd_dtladdr), ''), NULLIF(TRIM(p.hp_dtladdr), ''), hms_getaddress(COALESCE(d.hd_provid, p.hp_provid, 0), COALESCE(d.hd_distid, p.hp_distid, 0), COALESCE(d.hd_villid, p.hp_villid, 0)), '') as address,
-                            COALESCE(d.hd_provid, p.hp_provid, 0)::text as matinh_cu_tru,
-                            COALESCE(d.hd_villid, p.hp_villid, 0)::text as maxa_cu_tru,
-                            p.hp_ethnic as ethnic,
-                            p.hp_occupation::text as occupation,
-                            COALESCE(p.hp_workplace, '') as workplace,
-                            to_char(d.hd_admitdate, 'YYYY-MM-DD') as ngay_vao,
-                            c.hc_cardno as insurance_card,
-                            d.hd_result, d.hd_conclusion, d.hd_suggestion, d.hd_treatmethod, d.hd_doctor, d.hd_diagnostic,
-                            COALESCE(hms_getusername(d.hd_doctor), 'BS. Nguyễn Văn A') as doctor_name
-                        FROM hms_patient p
-                        JOIN hms_doc d ON d.hd_patientno = p.hp_patientno
-                        LEFT JOIN hms_card c ON (c.hc_patientno = p.hp_patientno AND c.hc_idx = d.hd_cardidx)
-                        WHERE p.hp_sin = $1
-                        ORDER BY d.hd_docno DESC
-                        LIMIT 1
-                    `, [cleanId]);
-                }
-
-                // 3. Trường hợp 3: Tra cứu theo SĐT (chỉ thực hiện nếu chuỗi bắt đầu bằng 0 hoặc 84 và có độ dài phù hợp)
-                if (hisResult.rows.length === 0 && (cleanId.startsWith('0') || cleanId.startsWith('84') || cleanId.startsWith('+84'))) {
-                    hisResult = await query(`
-                        SELECT 
-                            d.hd_docno as his_doc_no,
-                            p.hp_patientno as patient_id,
-                            TRIM(COALESCE(p.hp_surname, '') || ' ' || COALESCE(p.hp_midname, '') || ' ' || COALESCE(p.hp_firstname, '')) as patient_name,
-                            p.hp_sin as cccd,
-                            to_char(p.hp_ngaycap, 'YYYY-MM-DD') as cccd_date,
-                            COALESCE(p.hp_noicap, '') as cccd_place,
-                            to_char(p.hp_birthdate, 'YYYY-MM-DD') as dob,
-                            CASE 
-                                WHEN LOWER(p.hp_sex) = 'm' OR LOWER(p.hp_sex) = 'nam' THEN 'Nam'
-                                WHEN LOWER(p.hp_sex) = 'f' OR LOWER(p.hp_sex) = 'nữ' THEN 'Nữ'
-                                ELSE 'Khác'
-                            END as gender,
-                            COALESCE(d.hd_telephone, '') as phone,
-                            COALESCE(NULLIF(TRIM(d.hd_dtladdr), ''), NULLIF(TRIM(p.hp_dtladdr), ''), hms_getaddress(COALESCE(d.hd_provid, p.hp_provid, 0), COALESCE(d.hd_distid, p.hp_distid, 0), COALESCE(d.hd_villid, p.hp_villid, 0)), '') as address,
-                            COALESCE(d.hd_provid, p.hp_provid, 0)::text as matinh_cu_tru,
-                            COALESCE(d.hd_villid, p.hp_villid, 0)::text as maxa_cu_tru,
-                            p.hp_ethnic as ethnic,
-                            p.hp_occupation::text as occupation,
-                            COALESCE(p.hp_workplace, '') as workplace,
-                            to_char(d.hd_admitdate, 'YYYY-MM-DD') as ngay_vao,
-                            c.hc_cardno as insurance_card,
-                            d.hd_result, d.hd_conclusion, d.hd_suggestion, d.hd_treatmethod, d.hd_doctor, d.hd_diagnostic,
-                            COALESCE(hms_getusername(d.hd_doctor), 'BS. Nguyễn Văn A') as doctor_name
-                        FROM hms_doc d
-                        JOIN hms_patient p ON d.hd_patientno = p.hp_patientno
-                        LEFT JOIN hms_card c ON (c.hc_patientno = p.hp_patientno AND c.hc_idx = d.hd_cardidx)
-                        WHERE d.hd_telephone = $1
-                        ORDER BY d.hd_docno DESC
-                        LIMIT 1
-                    `, [cleanId]);
-                }
-
-                if (hisResult.rows.length > 0) {
-                    const hisRow = hisResult.rows[0];
-                    const docNoVal = hisRow.his_doc_no ? parseInt(hisRow.his_doc_no, 10) : 0;
-                    const patientNoVal = hisRow.patient_id ? parseInt(hisRow.patient_id, 10) : 0;
-                    console.log(`✅ [getHisPatient] Tìm thấy đợt khám trực tiếp từ HIS cho BN: ${hisRow.patient_name} (Mã HS: ${hisRow.his_doc_no})`);
-
-                    // 1. Lấy thông tin sinh hiệu & khám lâm sàng chi tiết từ hms_exam
-                    let examRow: any = null;
-                    if (docNoVal) {
-                        try {
-                            const examRes = await query(`
-                                SELECT 
-                                    e.he_pulse, 
-                                    e.he_temperature, 
-                                    e.he_bloodpressure, 
-                                    e.he_bloodpressurex, 
-                                    e.he_breathinterval, 
-                                    e.he_weight, 
-                                    e.he_height, 
-                                    e.he_bmi, 
-                                    e.he_doctor, 
-                                    e.he_medical, 
-                                    e.he_examine, 
-                                    e.he_parts, 
-                                    e.he_prediagnostic, 
-                                    e.he_diagnostic, 
-                                    e.he_icd10, 
-                                    e.he_status,
-                                    to_char(e.he_examdate, 'YYYY-MM-DD') as exam_date,
-                                    to_char(e.he_examdate, 'HH24:MI') as exam_time,
-                                    to_char(e.he_examdate, 'YYYY-MM-DD HH24:MI:SS') as exam_datetime,
-                                    hms_getusername(e.he_doctor) as doctor_name
-                                FROM hms_exam e 
-                                WHERE e.he_docno = $1 
-                                ORDER BY (CASE WHEN e.he_status = 'T' THEN 1 ELSE 2 END), e.he_receptidx DESC 
-                                LIMIT 1
-                            `, [docNoVal]);
-                            if (examRes.rows.length > 0) {
-                                examRow = examRes.rows[0];
-                            }
-                        } catch (examErr) {
-                            console.error('⚠️ [getHisPatient] Lỗi truy vấn hms_exam:', examErr);
-                        }
-                    }
-
-                    // 1.1 Lấy dữ liệu kết luận & chi tiết chuyên khoa từ hms_exm_conclusion (nếu có)
-                    let conclRow: any = null;
-                    if (docNoVal) {
-                        try {
-                            const conclRes = await query(`
-                                SELECT 
-                                    hecl_docno, hecl_theluc, hecl_tuanhoan, hecl_hohap, hecl_tieuhoa,
-                                    hecl_thantietnieu, hecl_noitiet, hecl_coxuongkhop, hecl_thankinh, hecl_tamthan,
-                                    hecl_ngoai, hecl_dalieu, hecl_mat, hecl_tmh, hecl_rhm, hecl_phukhoa,
-                                    hecl_phanloai, hecl_conclusion, hecl_remark
-                                FROM hms_exm_conclusion
-                                WHERE hecl_docno = $1
-                                LIMIT 1
-                            `, [docNoVal]);
-                            if (conclRes.rows.length > 0) {
-                                conclRow = conclRes.rows[0];
-                            }
-                        } catch (conclErr) {
-                            console.error('⚠️ [getHisPatient] Lỗi truy vấn hms_exm_conclusion:', conclErr);
-                        }
-                    }
-
-                    // 2. Lấy tiền sử bệnh tật & dị ứng từ hms_disease_hist
-                    let histRow: any = null;
-                    if (docNoVal || patientNoVal) {
-                        try {
-                            const histRes = await query(`
-                                SELECT hdh_owner, hdh_family, hdh_drugallergy 
-                                FROM hms_disease_hist 
-                                WHERE hdh_docno = $1 OR hdh_patientno = $2 
-                                ORDER BY (CASE WHEN hdh_docno = $1 THEN 1 ELSE 2 END), hdh_createddate DESC 
-                                LIMIT 1
-                            `, [docNoVal, patientNoVal]);
-                            if (histRes.rows.length > 0) {
-                                histRow = histRes.rows[0];
-                            }
-                        } catch (histErr) {
-                            console.error('⚠️ [getHisPatient] Lỗi truy vấn hms_disease_hist:', histErr);
-                        }
-                    }
-
-                    // 3. Lấy kết quả CLS mới nhất từ HIS cho đợt khám này
-                    const liveParaclinical = docNoVal ? await this.fetchStructuredParaclinicalData(docNoVal) : null;
-                    const labData: any = {
-                        blood_test: {},
-                        urine_test: {},
-                        paraclinical_items: []
-                    };
-
-                    if (liveParaclinical) {
-                        if (liveParaclinical.hemoglobin) labData.blood_test.hemoglobin = liveParaclinical.hemoglobin;
-                        if (liveParaclinical.glycemia) labData.blood_test.glycemia = liveParaclinical.glycemia;
-                        if (liveParaclinical.protein) labData.urine_test.protein = liveParaclinical.protein;
-                        if (liveParaclinical.kqXnKhac) labData.kq_xn_khac = liveParaclinical.kqXnKhac;
-                        if (Array.isArray(liveParaclinical.paraclinical_items)) {
-                            labData.paraclinical_items = liveParaclinical.paraclinical_items.map((item: any) => ({
-                                ...item,
-                                is_his_value: !!item.value,
-                                user_edited: false
-                            }));
-                        }
-                    }
-
-                    // 4. Xác định Mẫu biểu phù hợp dựa trên ngày sinh (Mẫu 1: < 6 tuổi, Mẫu 2: 6-18 tuổi, Mẫu 3: >= 18 tuổi)
-                    let resolvedFormType = '3';
-                    if (hisRow.dob) {
-                        const bDate = new Date(hisRow.dob);
-                        if (!isNaN(bDate.getTime())) {
-                            const today = new Date();
-                            let age = today.getFullYear() - bDate.getFullYear();
-                            if (today.getMonth() < bDate.getMonth() || (today.getMonth() === bDate.getMonth() && today.getDate() < bDate.getDate())) {
-                                age--;
-                            }
-                            if (age < 6) resolvedFormType = '1';
-                            else if (age < 18) resolvedFormType = '2';
-                            else resolvedFormType = '3';
-                        }
-                    }
-
-                    // Format Huyết áp
-                    let bpStr = '';
-                    if (examRow?.he_bloodpressure && examRow?.he_bloodpressurex) {
-                        bpStr = `${examRow.he_bloodpressure}/${examRow.he_bloodpressurex}`;
-                    } else if (examRow?.he_bloodpressure) {
-                        bpStr = String(examRow.he_bloodpressure);
-                    }
-
-                    const patientAge = calculateAge(hisRow.dob);
-                    const targetGroupVal = (patientAge !== null && patientAge >= 60) ? '1' : '3';
-                    let resolvedNationality = '000';
-                    if (hisRow.nationality) {
-                        const natStr = String(hisRow.nationality).trim().toUpperCase();
-                        if (natStr === '000' || natStr === 'VN' || natStr === 'VNM' || natStr === 'VIE' || natStr === '190') {
-                            resolvedNationality = '000';
-                        } else {
-                            resolvedNationality = natStr;
-                        }
-                    }
-
-                    const conclDoctorId = hisRow.hd_doctor || examRow?.he_doctor || '';
-                    const conclDoctorName = hisRow.doctor_name || examRow?.doctor_name || 'BS. Nguyễn Văn A';
-                    const examDoctorId = examRow?.he_doctor || hisRow.hd_doctor || '';
-                    const examDoctorName = examRow?.doctor_name || hisRow.doctor_name || 'BS. Nguyễn Văn A';
-
-                    // Đánh giá Chẩn đoán, Kết luận & Phân loại sức khỏe thông minh (Chuẩn BYT & HIS)
-                    const evalResult = evaluateFitnessClass({
-                        dob: hisRow.dob,
-                        gender: hisRow.gender,
-                        bloodPressure: bpStr,
-                        systolic: examRow?.he_bloodpressure ? Number(examRow.he_bloodpressure) : null,
-                        diastolic: examRow?.he_bloodpressurex ? Number(examRow.he_bloodpressurex) : null,
-                        bmi: examRow?.he_bmi ? Number(examRow.he_bmi) : null,
-                        height: examRow?.he_height ? Number(examRow.he_height) : null,
-                        weight: examRow?.he_weight ? Number(examRow.he_weight) : null,
-                        icd10: examRow?.he_icd10 || hisRow.hd_icd,
-                        diagnostic: examRow?.he_diagnostic || hisRow.hd_diagnostic || hisRow.hd_conclusion,
-                        hisResult: hisRow.hd_result,
-                        hisConclusion: hisRow.hd_conclusion,
-                        hisExmPhanLoai: conclRow?.hecl_phanloai,
-                        hisExmConclusion: conclRow?.hecl_conclusion,
-                        hisExmRemark: conclRow?.hecl_remark,
-                        hisTreatMethod: hisRow.hd_treatmethod,
-                        hisDoctorId: conclDoctorId,
-                        hisDoctorName: conclDoctorName,
-                        personalHistory: histRow?.hdh_owner,
-                        formType: resolvedFormType
-                    });
-
-                    const conclusionDataObj = {
-                        fitness_class: evalResult.fitnessClass,
-                        fitness_class_name: evalResult.fitnessClassName,
-                        diagnosis: evalResult.diagnosis,
-                        doctor_id: evalResult.doctorId || conclDoctorId,
-                        doctor_name: evalResult.doctorName || conclDoctorName,
-                        cac_van_de_luu_y: evalResult.cacVanDeLuuY,
-                        cac_benh_tat_neu_co: evalResult.cacBenhTatNeuCo,
-                        ket_luan_loai_suc_khoe: evalResult.fitnessClass
-                    };
-
-                    const cleanCccdDate = sanitizeHisDate(hisRow.cccd_date);
-                    const occCode = resolveOccupationBhCode(hisRow.occupation);
-
-                    const clinicalDataObj: any = {
-                        phone: hisRow.phone || '',
-                        address: hisRow.address || '',
-                        cccd_date: cleanCccdDate,
-                        cccd_place: hisRow.cccd_place || '',
-                        matinh_cu_tru: (hisRow.matinh_cu_tru && hisRow.matinh_cu_tru !== '0') ? String(hisRow.matinh_cu_tru) : '',
-                        maxa_cu_tru: (hisRow.maxa_cu_tru && hisRow.maxa_cu_tru !== '0') ? String(hisRow.maxa_cu_tru) : '',
-                        ethnic: hisRow.ethnic ? String(hisRow.ethnic) : '1',
-                        quoc_tich: resolvedNationality,
-                        target_group: targetGroupVal,
-                        ma_nghe_nghiep: occCode,
-                        occupation: occCode,
-                        noi_cong_tac_hien_tai: hisRow.workplace || '',
-                        noi_cong_tac: hisRow.workplace || '',
-                        workplace: hisRow.workplace || '',
-                        ngay_vao: examRow?.exam_date || hisRow.ngay_vao || '',
-                        gio_kham: examRow?.exam_time || '',
-                        insurance_card: hisRow.insurance_card || '',
-                        examination: {
-                            height: examRow?.he_height ? String(examRow.he_height) : '',
-                            weight: examRow?.he_weight ? String(examRow.he_weight) : '',
-                            pulse: examRow?.he_pulse ? String(examRow.he_pulse) : '',
-                            blood_pressure: bpStr,
-                            bp: bpStr,
-                            temperature: (examRow?.he_temperature && Number(examRow.he_temperature) > 0) ? String(examRow.he_temperature) : '',
-                            nhiet_do: (examRow?.he_temperature && Number(examRow.he_temperature) > 0) ? String(examRow.he_temperature) : '',
-                            breathing_rate: (examRow?.he_breathinterval && Number(examRow.he_breathinterval) > 0) ? String(examRow.he_breathinterval) : '',
-                            nhip_tho: (examRow?.he_breathinterval && Number(examRow.he_breathinterval) > 0) ? String(examRow.he_breathinterval) : '',
-                            bmi: examRow?.he_bmi ? Number(examRow.he_bmi).toFixed(2) : '',
-                            physical_summary: conclRow?.hecl_theluc || ''
-                        },
-                        clinical_exam: mapConclusionRowToClinicalExam(conclRow, {
-                            raw_he_parts: examRow?.he_parts || '',
-                            noi_khoa_tuan_hoan: parseHisPartsSummary(examRow?.he_parts).cleanInternalText || '',
-                            noi_khoa_ho_hap: parseHisPartsSummary(examRow?.he_parts).cleanInternalText || '',
-                            internal: parseHisPartsSummary(examRow?.he_parts).cleanInternalText || ''
-                        }, conclRow?.hecl_phanloai),
-                        extra: {
-                            gio_kham: examRow?.exam_time || '',
-                            ngay_kham: examRow?.exam_date || hisRow.ngay_vao || '',
-                            ma_nghe_nghiep: occCode,
-                            occupation: occCode,
-                            quoc_tich: resolvedNationality,
-                            target_group: targetGroupVal,
-                            noi_cong_tac_hien_tai: hisRow.workplace || '',
-                            noi_cong_tac: hisRow.workplace || '',
-                            workplace: hisRow.workplace || '',
-                            cccd_date: cleanCccdDate,
-                            tsgd_mac_benh: histRow?.hdh_family ? '1' : '0',
-                            tsgd_ma_benh: histRow?.hdh_family ? String(histRow.hdh_family).trim() : '',
-                            ts_mac_benh: histRow?.hdh_owner ? '1' : '0',
-                            tsbt_ma_benh: histRow?.hdh_owner ? String(histRow.hdh_owner).trim() : '',
-                            tsbt_dang_dieu_tri_benh: (histRow?.hdh_owner || examRow?.he_medical) ? '1' : '0',
-                            benh_dang_dieu_tri: (histRow?.hdh_owner || examRow?.he_medical) ? String(histRow?.hdh_owner || examRow?.he_medical).trim() : '',
-                            di_ung_thuoc: histRow?.hdh_drugallergy ? String(histRow.hdh_drugallergy).trim() : '',
-                            qua_trinh_benh_ly: examRow?.he_medical ? String(examRow.he_medical).trim() : '',
-                            cac_benh_tat_neu_co: evalResult.cacBenhTatNeuCo,
-                            nhiet_do: conclRow?.hecl_temperature ? String(conclRow.hecl_temperature) : (examRow?.he_temperature ? String(examRow.he_temperature) : ''),
-                            nhip_tho: conclRow?.hecl_breathinterval ? String(conclRow.hecl_breathinterval) : (examRow?.he_breathinterval ? String(examRow.he_breathinterval) : ''),
-                            bmi: conclRow?.hecl_bmi ? Number(conclRow.hecl_bmi).toFixed(2) : (examRow?.he_bmi ? Number(examRow.he_bmi).toFixed(2) : ''),
-                            doctor_id: examDoctorId,
-                            doctor_name: examDoctorName,
-                            concl_doctor_id: conclDoctorId,
-                            concl_doctor_name: conclDoctorName
-                        }
-                    };
-
-                    const specMetadata = buildSpecialtyMetadata({
-                        clinicalData: clinicalDataObj,
-                        labData,
-                        conclusionData: conclusionDataObj,
-                        examDoctorId,
-                        examDoctorName,
-                        conclDoctorId,
-                        conclDoctorName,
-                        hasExam: !!examRow,
-                        hasConclusion: !!conclRow || !!hisRow.hd_conclusion || !!examRow?.he_diagnostic
-                    });
-                    clinicalDataObj.specialty_metadata = specMetadata;
-                    clinicalDataObj.clinical_exam.specialty_metadata = specMetadata;
-
-                    if (hisRow.his_doc_no && conclusionDataObj) {
-                        try {
-                            await this.pushbackClinicalAndConclusion(
-                                { query },
-                                Number(hisRow.his_doc_no),
-                                clinicalDataObj,
-                                conclusionDataObj,
-                                conclDoctorId || 'admin',
-                                conclDoctorName || 'Hệ thống KSK'
-                            );
-                        } catch (pushErr) {
-                            console.warn(`⚠️ [getHisPatient] Lỗi đồng bộ hms_exm_conclusion cho HIS_DIRECT docNo=${hisRow.his_doc_no}:`, pushErr);
-                        }
-                    }
-
-                    return res.json({
-                        source: 'HIS_DIRECT',
-                        id: null,
-                        patient_id: hisRow.patient_id,
-                        doc_no: String(hisRow.his_doc_no),
-                        his_doc_no: String(hisRow.his_doc_no),
-                        patient_name: String(hisRow.patient_name || '').toUpperCase(),
-                        cccd: hisRow.cccd || '',
-                        dob: hisRow.dob || '',
-                        gender: hisRow.gender || 'Nam',
-                        form_type: resolvedFormType,
-                        clinical_data: clinicalDataObj,
-                        lab_data: labData,
-                        conclusion_data: conclusionDataObj
-                    });
-                }
-
-                return res.status(404).json({ error: `Không tìm thấy hồ sơ bệnh nhân trên cả hệ thống KSK và HIS với từ khóa: "${identifier}"` });
+                // Tuyệt đối không fallback sang HIS (hms_doc, hms_exam)
+                return res.status(404).json({
+                    error: `Không tìm thấy hồ sơ khám sức khỏe trong hệ thống (chỉ tra cứu danh sách trong bảng health_check_masters với từ khóa: "${identifier}").`
+                });
             }
         } catch (error: any) {
             console.error('❌ KSK Controller: Lỗi getHisPatient:', error);
@@ -1980,18 +1318,29 @@ async getHisPatient(req: Request, res: Response) {
                 history.di_ung_thuoc ? `Dị ứng: ${history.di_ung_thuoc}` : ''
             ].filter(Boolean).join('; ').substring(0, 254);
 
-            // 2. Cập nhật hms_exam (Nếu phiếu khám chưa kết thúc he_status <> 'T')
+            // 2. Cập nhật hms_exam (Chỉ áp dụng khi phiếu khám chưa kết thúc he_status <> 'T'
+            // VÀ phiếu đó thuộc về bác sĩ kết luận hoặc phòng KSK/KKB, TUYỆT ĐỐI không ghi đè phiếu của bác sĩ chuyên khoa khác)
             const examCheck = await client.query(`
-                SELECT he_docno, he_receptidx, he_status
+                SELECT he_docno, he_receptidx, he_status, he_doctor, he_deptid, he_examdate
                 FROM hms_exam
                 WHERE he_docno = $1
-                ORDER BY (CASE WHEN he_status = 'T' THEN 2 ELSE 1 END), he_receptidx DESC
+                ORDER BY 
+                    (CASE 
+                        WHEN he_doctor = $2 THEN 1
+                        WHEN he_doctor IS NULL OR TRIM(he_doctor) = '' THEN 2
+                        WHEN he_deptid IN ('KKB', 'KSK') THEN 3
+                        ELSE 4 
+                    END),
+                    (CASE WHEN he_status = 'T' THEN 2 ELSE 1 END),
+                    he_receptidx DESC
                 LIMIT 1
-            `, [hisDocNo]);
+            `, [hisDocNo, examDoctorId]);
 
             if (examCheck.rows.length > 0) {
                 const examRow = examCheck.rows[0];
-                if (examRow.he_status !== 'T') {
+                const isAnotherDoctorRoom = !!(examRow.he_doctor && examRow.he_doctor !== examDoctorId && !['KKB', 'KSK'].includes(examRow.he_deptid));
+
+                if (examRow.he_status !== 'T' && !isAnotherDoctorRoom) {
                     console.log(`🚀 [pushbackConclusion] Đồng bộ kết quả vào hms_exam cho docNo=${hisDocNo}, receptidx=${examRow.he_receptidx} (hasConclusion: ${hasExplicitConclusion})`);
                     await client.query(`
                         UPDATE hms_exam SET
@@ -2009,8 +1358,8 @@ async getHisPatient(req: Request, res: Response) {
                             he_diagnostic = CASE WHEN $18 THEN COALESCE(NULLIF($12, ''), he_diagnostic) ELSE he_diagnostic END,
                             he_icd10 = CASE WHEN $18 THEN COALESCE(NULLIF($13, ''), he_icd10) ELSE he_icd10 END,
                             he_remark = CASE WHEN $18 THEN COALESCE(NULLIF($14, ''), he_remark) ELSE he_remark END,
-                            he_doctor = COALESCE(NULLIF($15, ''), he_doctor),
-                            he_examdate = CASE WHEN $18 THEN CURRENT_TIMESTAMP ELSE he_examdate END,
+                            he_doctor = COALESCE(he_doctor, NULLIF($15, '')),
+                            he_examdate = COALESCE(he_examdate, CASE WHEN $18 THEN CURRENT_TIMESTAMP ELSE he_examdate END),
                             he_status = CASE WHEN $18 THEN 'T' ELSE he_status END,
                             he_updateddate = CURRENT_TIMESTAMP,
                             he_updatedby = $15
@@ -2020,6 +1369,8 @@ async getHisPatient(req: Request, res: Response) {
                         examineGeneral, partsSummary, valMedicalHistory, valDiagnosis, icd10,
                         valRemark, examDoctorId, hisDocNo, examRow.he_receptidx, hasExplicitConclusion
                     ]);
+                } else if (isAnotherDoctorRoom) {
+                    console.log(`ℹ️ [pushbackConclusion] docNo=${hisDocNo}: Phiếu khám receptidx=${examRow.he_receptidx} thuộc về bác sĩ chuyên khoa ${examRow.he_doctor} (${examRow.he_deptid}), bảo toàn không ghi đè vào hms_exam.`);
                 }
             }
 

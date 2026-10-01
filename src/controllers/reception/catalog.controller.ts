@@ -52,7 +52,7 @@ class ReceptionCatalogController {
             const result = await query(`
                 SELECT sd_id::text as id, sd_id::text as code, sd_name as name 
                 FROM sys_dept 
-                WHERE sd_isactive = 'Y' AND sd_type = 'KB'
+                WHERE COALESCE(sd_active, 'Y') = 'Y' AND sd_type = 'KB'
                 ORDER BY sd_name
             `);
             return res.json(result.rows);

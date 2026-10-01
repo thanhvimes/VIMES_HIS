@@ -30,15 +30,22 @@ flowchart TD
         EVAL["evaluateFitnessClass()<br/>Bảo tồn kết luận thực tế của Bác sĩ"]
     end
 
-    subgraph SYNC_TRIGGERS["Các luồng kích hoạt đồng bộ"]
-        T1["1. Tra cứu/Mở bệnh nhân: getHisPatient"]
-        T2["2. Tìm kiếm danh sách BN: searchPatients"]
-        T3["3. Đồng bộ hàng loạt: batchSyncHis"]
-        T4["4. Lưu/Cập nhật hồ sơ: createDocument & updateDocument"]
+    subgraph READ_ONLY_OPERATIONS["Các thao tác Tra cứu / Xem (Chỉ đọc - KHÔNG ghi HIS)"]
+        R1["1. Tra cứu/Mở bệnh nhân: getHisPatient (Read-Only)"]
+        R2["2. Seed/Xem dữ liệu: seedFromHis (Read-Only)"]
     end
 
-    subgraph TARGET["Bảng đích HIS KSK"]
-        HECL["hms_exm_conclusion<br/>- hecl_docno (PK/Unique)<br/>- hecl_conclusion: '[Z00.0] Loại II'<br/>- hecl_phanloai: 'Loại 2'<br/>- hecl_theluc, hecl_tuanhoan, hecl_mat..."]
+    subgraph SYNC_TRIGGERS["Các luồng kích hoạt đồng bộ chủ động (Sync / Write)"]
+        T1["1. Đồng bộ hàng loạt: batchSyncHis"]
+        T2["2. Lưu/Cập nhật hồ sơ: createDocument & updateDocument"]
+        T3["3. Ký duyệt kết luận: batchSignConclusion"]
+        T4["4. Tiếp nhận nhân viên: receiveContractEmployee"]
+    end
+
+    subgraph TARGET["Bảng đích HIS KSK & HIS Core"]
+        HECL["hms_exm_conclusion<br/>- hecl_docno (PK/Unique)<br/>- hecl_conclusion, hecl_phanloai<br/>- hecl_theluc, hecl_tuanhoan... (16 chuyên khoa)"]
+        HDOC["hms_doc<br/>- hd_conclusion, hd_diagnostic, hd_result, hd_status='T'"]
+        HEXM["hms_exam (Bảo vệ nghiêm ngặt)<br/>- Chỉ cập nhật phòng KSK/KKB hoặc đúng Bác sĩ kết luận<br/>- KHÔNG đè BS chuyên khoa khác (he_doctor)<br/>- Bảo tồn ngày khám cũ (he_examdate)"]
     end
 
     HD --> CLEAN
@@ -46,7 +53,7 @@ flowchart TD
     EVAL --> SYNC_TRIGGERS
     HE --> SYNC_TRIGGERS
     HEE --> SYNC_TRIGGERS
-    SYNC_TRIGGERS -->|pushbackClinicalAndConclusion| HECL
+    SYNC_TRIGGERS -->|pushbackClinicalAndConclusion (An toàn)| TARGET
 ```
 
 ---

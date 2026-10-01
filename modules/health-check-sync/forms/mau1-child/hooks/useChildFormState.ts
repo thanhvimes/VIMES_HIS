@@ -7,6 +7,7 @@ import { validateNewFormAge } from '../../../utils/healthCheckAge';
 import { formatDateForInput, parseDateSafe } from '../../../../../utils/formatters';
 import { toast } from 'sonner';
 import { validateMandatoryPortalFields } from '../../../utils/mandatoryFieldsValidator';
+import { resolveChildRelationCode } from '../../../constants';
 
 const DEFAULT_CHILD_CARE_NOTE = 'Theo dõi và hướng dẫn chăm sóc trẻ định kỳ theo độ tuổi.';
 
@@ -30,6 +31,7 @@ export const useChildFormState = ({
     const [hisSearchQuery, setHisSearchQuery] = useState('');
     const [isFetchingHis, setIsFetchingHis] = useState(false);
     const [hisSyncMessage, setHisSyncMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [loadedDocId, setLoadedDocId] = useState<string | number | null>(initialData?.id || initialData?._id || null);
 
     // Wards catalog state
     const [wards, setWards] = useState<CatalogItem[]>([]);
@@ -100,6 +102,7 @@ export const useChildFormState = ({
     const [maXaCuTru, setMaXaCuTru] = useState(initialData?.clinical_data?.maxa_cu_tru || '');
     const [lyDoVv, setLyDoVv] = useState(initialData?.clinical_data?.ly_do_vv || 'Khám sức khỏe định kỳ');
     const [loaiHinhKcb, setLoaiHinhKcb] = useState(initialData?.clinical_data?.loai_hinh_kcb || '01');
+    const [ngayVao, setNgayVao] = useState(initialData?.clinical_data?.ngay_vao ? formatDateForInput(initialData.clinical_data.ngay_vao) : formatDateForInput(initialData?.created_at || new Date()));
 
     // Child-specific admin extra fields
     const [guardianName, setGuardianName] = useState(
@@ -120,7 +123,7 @@ export const useChildFormState = ({
     );
     const [escortName, setEscortName] = useState(initialData?.clinical_data?.extra?.ho_ten_nguoi_di_cung || initialData?.ho_ten_nguoi_di_cung || '');
     const [escortCccd, setEscortCccd] = useState(initialData?.clinical_data?.extra?.so_cccd_nguoi_di_cung || initialData?.so_cccd_nguoi_di_cung || '');
-    const [escortRelation, setEscortRelation] = useState(initialData?.clinical_data?.extra?.moi_quan_he_voi_tre || initialData?.moi_quan_he_voi_tre || 'Bố/Mẹ');
+    const [escortRelation, setEscortRelation] = useState(resolveChildRelationCode(initialData?.clinical_data?.extra?.moi_quan_he_voi_tre || initialData?.moi_quan_he_voi_tre || '2'));
     const [conThuMay, setConThuMay] = useState(initialData?.clinical_data?.extra?.con_thu_may || '1');
     const [tongSoCon, setTongSoCon] = useState(initialData?.clinical_data?.extra?.tong_so_con || '1');
     const [maTinhCuTruNghMe, setMaTinhCuTruNghMe] = useState(initialData?.clinical_data?.extra?.matinh_cu_tru_nghme || '');
@@ -315,15 +318,16 @@ export const useChildFormState = ({
 
     // HIS Data sync
     const handleFetchHisData = async () => {
-        if (!hisSearchQuery) {
-            toast.error('Vui lòng nhập mã định danh hoặc số hồ sơ bệnh nhân');
+        if (!hisSearchQuery?.trim()) {
+            toast.error('Vui lòng nhập Số CCCD, Mã hồ sơ KSK hoặc Số điện thoại để tìm kiếm trong danh sách KSK');
             return;
         }
         setIsFetchingHis(true);
         setHisSyncMessage(null);
         try {
-            const data = await healthCheckService.getHisPatient(hisSearchQuery);
+            const data = await healthCheckService.getHisPatient(hisSearchQuery.trim());
             if (data) {
+                if (data.id) setLoadedDocId(data.id);
                 if (data.patient_name || data.patientName) setPatientName((data.patient_name || data.patientName).toUpperCase());
                 if (data.cccd) setCccd(data.cccd);
                 if (data.dob) setDob(formatDateForInput(data.dob));
@@ -367,12 +371,12 @@ export const useChildFormState = ({
                     onChangeFormType(targetForm);
                 }
 
-                setHisSyncMessage({ type: 'success', text: 'Đồng bộ dữ liệu hành chính & sinh hiệu HIS thành công!' });
+                setHisSyncMessage({ type: 'success', text: `🟢 Tải thành công hồ sơ KSK đã lưu trong danh sách cho trẻ: ${data.patient_name || data.patientName}!` });
             } else {
-                setHisSyncMessage({ type: 'error', text: 'Không tìm thấy thông tin bệnh nhân trên cổng HIS' });
+                setHisSyncMessage({ type: 'error', text: 'Không tìm thấy hồ sơ KSK trong danh sách' });
             }
         } catch (err: any) {
-            setHisSyncMessage({ type: 'error', text: err.message || 'Lỗi khi đồng bộ dữ liệu HIS' });
+            setHisSyncMessage({ type: 'error', text: err.response?.data?.error || err.message || 'Lỗi khi tìm kiếm hồ sơ KSK trong danh sách' });
         } finally {
             setIsFetchingHis(false);
         }
@@ -432,7 +436,7 @@ export const useChildFormState = ({
         if (extra.so_cccd_ngh) setGuardianCccd(extra.so_cccd_ngh);
         if (extra.ho_ten_nguoi_di_cung) setEscortName(extra.ho_ten_nguoi_di_cung);
         if (extra.so_cccd_nguoi_di_cung) setEscortCccd(extra.so_cccd_nguoi_di_cung);
-        if (extra.moi_quan_he_voi_tre) setEscortRelation(extra.moi_quan_he_voi_tre);
+        if (extra.moi_quan_he_voi_tre) setEscortRelation(resolveChildRelationCode(extra.moi_quan_he_voi_tre));
         if (extra.con_thu_may) setConThuMay(String(extra.con_thu_may));
         if (extra.tong_so_con) setTongSoCon(String(extra.tong_so_con));
         if (extra.matinh_cu_tru_nghme) setMaTinhCuTruNghMe(String(extra.matinh_cu_tru_nghme));
@@ -586,7 +590,7 @@ export const useChildFormState = ({
             : [currentWardName, currentProvName].filter(Boolean).map(s => s.trim()).join(', ');
 
         return {
-            id: initialData?.id || initialData?._id,
+            id: loadedDocId || initialData?.id || initialData?._id,
             patient_id: patientId,
             patient_name: patientName,
             cccd: cccd,
@@ -611,6 +615,7 @@ export const useChildFormState = ({
                 maxa_cu_tru: maXaCuTru,
                 ly_do_vv: lyDoVv,
                 loai_hinh_kcb: loaiHinhKcb,
+                ngay_vao: ngayVao,
                 specialty_metadata: activeMetadata,
                 examination: {
                     height,
@@ -625,7 +630,7 @@ export const useChildFormState = ({
                     so_cccd_ngh: guardianCccd,
                     ho_ten_nguoi_di_cung: escortName,
                     so_cccd_nguoi_di_cung: escortCccd,
-                    moi_quan_he_voi_tre: escortRelation,
+                    moi_quan_he_voi_tre: resolveChildRelationCode(escortRelation),
                     con_thu_may: conThuMay,
                     tong_so_con: tongSoCon,
                     matinh_cu_tru_nghme: maTinhCuTruNghMe,
@@ -793,7 +798,7 @@ export const useChildFormState = ({
                 targetGroup,
                 fundingSource,
                 loaiHinhKcb: '01',
-                ngayVao: initialData?.clinical_data?.ngay_vao || new Date().toISOString().slice(0, 10),
+                ngayVao: ngayVao || initialData?.clinical_data?.ngay_vao || new Date().toISOString().slice(0, 10),
                 fitnessClass,
                 childFitnessSummary: fitnessClass || 'Bình thường'
             });
@@ -896,6 +901,8 @@ export const useChildFormState = ({
         setLyDoVv,
         loaiHinhKcb,
         setLoaiHinhKcb,
+        ngayVao,
+        setNgayVao,
         guardianName,
         setGuardianName,
         guardianCccd,

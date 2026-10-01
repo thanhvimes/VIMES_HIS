@@ -60,6 +60,8 @@ export interface ChildFormContextType {
     setLyDoVv: React.Dispatch<React.SetStateAction<string>>;
     loaiHinhKcb: string;
     setLoaiHinhKcb: React.Dispatch<React.SetStateAction<string>>;
+    ngayVao: string;
+    setNgayVao: React.Dispatch<React.SetStateAction<string>>;
 
     // Child-specific admin fields
     guardianName: string;

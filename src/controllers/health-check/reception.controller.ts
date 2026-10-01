@@ -4,6 +4,7 @@ import { generateXmlPayload } from './xml-generator';
 import { hisIntegrationController } from './his-integration';
 import { formatYmdString } from '../../services/health-check-merge.service';
 import { evaluateFitnessClass, calculateAge, buildSpecialtyMetadata, sanitizeHisDate, parseFitnessClassFromText } from '../../services/health-check-classifier.service';
+import { resolveOccupationBhCode } from '../../services/administrative-catalog.service';
 
 export class ReceptionController {
     // Lấy danh sách phòng khám/phòng tiếp đón để chọn phòng đo sinh hiệu
@@ -122,10 +123,11 @@ export class ReceptionController {
                     e.hee_guardian_name as guardian_name,
                     e.hee_guardian_cccd as guardian_cccd,
                     e.hee_occupation::text as occupation,
-                    e.hee_occupation as ma_nghe_nghiep,
+                    COALESCE(occ.ss_vndesc, e.hee_occupation::text) as ma_nghe_nghiep,
+                    occ.ss_vndesc as occupation_code,
                     COALESCE(occ.ss_desc, '') as occupation_name,
-                    COALESCE(e.hee_target_group, '14') as target_group,
-                    COALESCE(e.hee_target_group, '14') as doi_tuong_ksk,
+                    '14' as target_group,
+                    '14' as doi_tuong_ksk,
                     p.sp_name as prov_name,
                     v.sv_name as vill_name
                 FROM hms_exm_employee e
@@ -140,14 +142,22 @@ export class ReceptionController {
             const params: any[] = [];
             let paramIndex = 1;
 
-            if (term !== '') {
+            let cleanTerm = term.trim();
+            if (cleanTerm.includes('|')) {
+                const parts = cleanTerm.split('|');
+                if (parts[0] && /^\d{9,12}$/.test(parts[0].trim())) {
+                    cleanTerm = parts[0].trim();
+                }
+            }
+
+            if (cleanTerm !== '') {
                 sql += ` AND (
                     trim(e.hee_cardid) = $${paramIndex} 
                     OR trim(e.hee_phone) = $${paramIndex} 
                     OR trim(COALESCE(e.hee_surname,'') || ' ' || COALESCE(e.hee_midname,'') || ' ' || e.hee_firstname) ILIKE $${paramIndex + 1}
                 )`;
-                params.push(term);
-                params.push(`%${term}%`);
+                params.push(cleanTerm);
+                params.push(`%${cleanTerm}%`);
                 paramIndex += 2;
             }
 
@@ -233,6 +243,11 @@ export class ReceptionController {
                     SET hee_patientno = $1 
                     WHERE hee_employee_id = $2
                 `, [existingPatientNo, employeeId]);
+                await query(`
+                    UPDATE hms_patient 
+                    SET hp_nationality = '000' 
+                    WHERE hp_patientno = $1 AND (hp_nationality IS NULL OR hp_nationality = '' OR hp_nationality = 'VIE')
+                `, [existingPatientNo]);
                 emp.hee_patientno = existingPatientNo;
             } else {
                 console.log('🔍 [Tiếp đón KSK] Bệnh nhân chưa có mã hợp lệ trong hms_patient và không trùng CCCD, tiến hành sinh mã mới...');
@@ -246,9 +261,14 @@ export class ReceptionController {
 
                 if (!newPatientNo || isNaN(newPatientNo)) {
                     try {
-                        const seqRes = await query(`SELECT nextval('hms_patient_hp_patientno_seq') AS patient_no`);
+                        const seqRes = await query(`SELECT nextval('hms_patient_hp_patientno_asq') AS patient_no`);
                         newPatientNo = parseInt(String(seqRes.rows[0].patient_no), 10);
-                    } catch {}
+                    } catch {
+                        try {
+                            const seqRes = await query(`SELECT nextval('hms_patient_hp_patientno_seq') AS patient_no`);
+                            newPatientNo = parseInt(String(seqRes.rows[0].patient_no), 10);
+                        } catch {}
+                    }
                 }
 
                 // Bảo vệ chống lệch sequence: đảm bảo newPatientNo luôn lớn hơn MAX(hp_patientno) hiện tại
@@ -256,6 +276,9 @@ export class ReceptionController {
                 const currentMax = parseInt(String(maxPatientRes.rows[0].max_no), 10);
                 if (newPatientNo <= currentMax) {
                     newPatientNo = currentMax + 1;
+                    try {
+                        await query(`SELECT setval('hms_patient_hp_patientno_asq', $1, true)`, [newPatientNo]);
+                    } catch {}
                     try {
                         await query(`SELECT setval('hms_patient_hp_patientno_seq', $1, true)`, [newPatientNo]);
                     } catch {}
@@ -279,8 +302,8 @@ export class ReceptionController {
                         hp_birthdate, hp_sex, hp_ethnic,
                         hp_provid, hp_distid, hp_villid,
                         hp_dtladdr, hp_createdby, hp_createddate,
-                        hp_occupation, hp_workplace, hp_noicap, hp_ngaycap
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, CURRENT_TIMESTAMP, $15, $16, $17, $18)
+                        hp_occupation, hp_workplace, hp_noicap, hp_ngaycap, hp_nationality
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, CURRENT_TIMESTAMP, $15, $16, $17, $18, '000')
                 `, [
                     newPatientNo,
                     emp.hee_cardid || '',
@@ -358,7 +381,8 @@ export class ReceptionController {
                 activeRoomId = defaultRoomRes.rows[0]?.hrl_id ? parseInt(String(defaultRoomRes.rows[0].hrl_id), 10) : 22;
             }
         }
-        const examType = emp.contract_def_examtype || emp.contract_exam_type || 'E01';
+        const rawExamType = emp.contract_def_examtype || emp.contract_exam_type || 'D0000001';
+        const examType = (rawExamType === 'E01' || !rawExamType.trim()) ? 'D0000001' : rawExamType.trim();
 
         console.log('🚀 Gọi hms_exm_registration_exam:', {
             employeeId,
@@ -465,10 +489,10 @@ export class ReceptionController {
             }
             const docNo = String(newDocNo);
 
-            const occCode = emp.hee_occupation ? String(emp.hee_occupation).trim() : '';
+            const occCode = resolveOccupationBhCode(emp.hee_occupation);
             const cleanCccdDate = sanitizeHisDate(emp.hee_cardid_date);
             const workplaceStr = emp.company_name || emp.hec_name || emp.hee_dept || '';
-            const targetGroupStr = String(emp.hee_target_group || '').trim() || '14';
+            const targetGroupStr = String(emp.target_group || emp.doi_tuong_ksk || '14').trim();
 
             // Đọc dữ liệu lâm sàng & kết luận đã import từ Excel (nếu có)
             const importedClinical = typeof emp.hee_clinical_data === 'string'
@@ -515,7 +539,7 @@ export class ReceptionController {
                 blood_group: '',
                 target_group: targetGroupStr,
                 doi_tuong: targetGroupStr,
-                funding_source: '9',
+                funding_source: emp.hee_funding_source || '9',
                 examination: { 
                     height: heightVal, 
                     weight: weightVal, 
@@ -655,11 +679,17 @@ export class ReceptionController {
                 clinicalData,
                 labData,
                 conclusionData,
-                doctorId: conclusionData.doctor_id || currentUser || 'admin',
-                doctorName: conclusionData.doctor_name || currentUserName || 'Bác sĩ Kết luận',
+                doctorId: conclusionData.doctor_id || '',
+                doctorName: conclusionData.doctor_name || '',
+                conclDoctorId: conclusionData.doctor_id || '',
+                conclDoctorName: conclusionData.doctor_name || '',
                 hasExam: hasExamNow,
                 hasConclusion: hasExplicitConclusion
             });
+            if (specMetadata.admin) {
+                specMetadata.admin.doctorId = currentUser || specMetadata.admin.doctorId;
+                specMetadata.admin.doctorName = currentUserName || specMetadata.admin.doctorName;
+            }
             clinicalData.specialty_metadata = specMetadata;
             if (clinicalData.clinical_exam) {
                 clinicalData.clinical_exam.specialty_metadata = specMetadata;

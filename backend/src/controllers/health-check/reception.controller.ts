@@ -126,8 +126,8 @@ export class ReceptionController {
                     COALESCE(occ.ss_vndesc, e.hee_occupation::text) as ma_nghe_nghiep,
                     occ.ss_vndesc as occupation_code,
                     COALESCE(occ.ss_desc, '') as occupation_name,
-                    COALESCE(e.hee_target_group, '14') as target_group,
-                    COALESCE(e.hee_target_group, '14') as doi_tuong_ksk,
+                    '14' as target_group,
+                    '14' as doi_tuong_ksk,
                     p.sp_name as prov_name,
                     v.sv_name as vill_name
                 FROM hms_exm_employee e
@@ -492,7 +492,7 @@ export class ReceptionController {
             const occCode = resolveOccupationBhCode(emp.hee_occupation);
             const cleanCccdDate = sanitizeHisDate(emp.hee_cardid_date);
             const workplaceStr = emp.company_name || emp.hec_name || emp.hee_dept || '';
-            const targetGroupStr = String(emp.hee_target_group || '').trim() || '14';
+            const targetGroupStr = String(emp.target_group || emp.doi_tuong_ksk || '14').trim();
 
             // Đọc dữ liệu lâm sàng & kết luận đã import từ Excel (nếu có)
             const importedClinical = typeof emp.hee_clinical_data === 'string'

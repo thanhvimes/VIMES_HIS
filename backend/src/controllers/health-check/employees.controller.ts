@@ -48,8 +48,8 @@ export class EmployeesController {
                     COALESCE(occ.ss_vndesc, e.hee_occupation::text) as ma_nghe_nghiep,
                     occ.ss_vndesc as occupation_code,
                     COALESCE(occ.ss_desc, '') as occupation_name,
-                    COALESCE(e.hee_target_group, '14') as target_group,
-                    COALESCE(e.hee_target_group, '14') as doi_tuong_ksk,
+                    '14' as target_group,
+                    '14' as doi_tuong_ksk,
                     COALESCE(e.hee_funding_source, '9') as funding_source,
                     COALESCE(e.hee_funding_source, '9') as nguon_chi_tra,
                     COALESCE(NULLIF(TRIM(e.hee_prov_code), ''), e.hee_provid::text, '') as prov_id,
@@ -513,21 +513,20 @@ export class EmployeesController {
                                     hee_prov_code = COALESCE(NULLIF($20, ''), hee_prov_code),
                                     hee_vill_code = COALESCE(NULLIF($21, ''), hee_vill_code),
                                     hee_occupation = COALESCE($22, hee_occupation),
-                                    hee_target_group = COALESCE(NULLIF($23, ''), hee_target_group),
-                                    hee_height = COALESCE($24, hee_height),
-                                    hee_weight = COALESCE($25, hee_weight),
-                                    hee_bloodpressure = COALESCE(NULLIF($26, ''), hee_bloodpressure),
-                                    hee_pulse = COALESCE($27, hee_pulse),
-                                    hee_temperature = COALESCE($28, hee_temperature),
-                                    hee_respiration = COALESCE(NULLIF($29, ''), hee_respiration),
-                                    hee_conclusion = COALESCE(NULLIF($30, ''), hee_conclusion),
-                                    hee_comment = COALESCE(NULLIF($31, ''), hee_comment),
-                                    hee_righteye = COALESCE(NULLIF($32, ''), hee_righteye),
-                                    hee_clinical_data = COALESCE($33::jsonb, hee_clinical_data),
-                                    hee_conclusion_data = COALESCE($34::jsonb, hee_conclusion_data),
-                                    hee_funding_source = COALESCE(NULLIF($35, ''), hee_funding_source),
+                                    hee_height = COALESCE($23, hee_height),
+                                    hee_weight = COALESCE($24, hee_weight),
+                                    hee_bloodpressure = COALESCE(NULLIF($25, ''), hee_bloodpressure),
+                                    hee_pulse = COALESCE($26, hee_pulse),
+                                    hee_temperature = COALESCE($27, hee_temperature),
+                                    hee_respiration = COALESCE(NULLIF($28, ''), hee_respiration),
+                                    hee_conclusion = COALESCE(NULLIF($29, ''), hee_conclusion),
+                                    hee_comment = COALESCE(NULLIF($30, ''), hee_comment),
+                                    hee_righteye = COALESCE(NULLIF($31, ''), hee_righteye),
+                                    hee_clinical_data = COALESCE($32::jsonb, hee_clinical_data),
+                                    hee_conclusion_data = COALESCE($33::jsonb, hee_conclusion_data),
+                                    hee_funding_source = COALESCE(NULLIF($34, ''), hee_funding_source),
                                     hee_updateddate = CURRENT_TIMESTAMP
-                                WHERE hee_employee_id = $36
+                                WHERE hee_employee_id = $35
                             `;
                             await query(updateSql, [
                                 surname, midname, firstname, birthDate,
@@ -536,7 +535,7 @@ export class EmployeesController {
                                 provNum, emp.district_id ? parseInt(String(emp.district_id), 10) : null, villNum,
                                 docNo, cardIdDate, cardIdPlace, guardianName, guardianCccd,
                                 emp.ethnic ? parseInt(String(emp.ethnic), 10) : null,
-                                provCode || null, villCode || null, occNum, targetGroup,
+                                provCode || null, villCode || null, occNum,
                                 heightNum, weightNum, bpStr, pulseNum, tempNum, respNum,
                                 fitnessClassNum ? String(fitnessClassNum).slice(0, 2) : null,
                                 diagStr ? diagStr.slice(0, 200) : null,
@@ -596,7 +595,6 @@ export class EmployeesController {
                                     hee_cardid, hee_cardid_date, hee_cardid_place,
                                     hee_guardian_name, hee_guardian_cccd, hee_ethnic,
                                     hee_prov_code, hee_vill_code, hee_occupation,
-                                    hee_target_group,
                                     hee_height, hee_weight, hee_bloodpressure, hee_pulse,
                                     hee_temperature, hee_respiration, hee_conclusion, hee_comment,
                                     hee_righteye, hee_clinical_data, hee_conclusion_data, hee_funding_source
@@ -604,7 +602,7 @@ export class EmployeesController {
                                     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                                     $11, $12, 'O', 'Y', $13, $14, $15, $16, $17, $18,
                                     $19, $20, $21, $22, $23, $24, $25, $26, $27,
-                                    $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40
+                                    $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39
                                 )
                             `;
                             await query(insertSql, [
@@ -635,7 +633,6 @@ export class EmployeesController {
                                 provCode || null,
                                 villCode || null,
                                 occNum,
-                                targetGroup,
                                 heightNum,
                                 weightNum,
                                 bpStr || null,
@@ -794,8 +791,8 @@ export class EmployeesController {
                     hee_note, hee_status, hee_isactive,
                     hee_address, hee_provid, hee_villid,
                     hee_cardid, hee_cardid_date, hee_cardid_place,
-                    hee_ethnic, hee_occupation, hee_target_group
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, null, $10, $11, 'O', 'Y', $12, $13, $14, $15, $16, $17, $18, $19, $20)
+                    hee_ethnic, hee_occupation
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, null, $10, $11, 'O', 'Y', $12, $13, $14, $15, $16, $17, $18, $19)
             `;
 
             await query(insertSql, [
@@ -817,8 +814,7 @@ export class EmployeesController {
                 cardIdDate || '',
                 cardIdPlace || '',
                 ethnic ? parseInt(String(ethnic), 10) : null,
-                occNum,
-                tgVal
+                occNum
             ]);
 
             return res.json({ success: true, message: 'Thêm mới nhân viên thành công!', employeeId: nextEmployeeId });

@@ -4,7 +4,7 @@ import { SearchIcon, RefreshIcon } from '../../../../../components/Icons';
 import Combobox from '../../../../../components/ui/Combobox';
 import { FormDateInput } from '../../../../../components/ui/forms';
 import { CatalogItem } from '../../../../../services/catalogService';
-import { TARGET_GROUPS } from '../../../constants';
+import { TARGET_GROUPS, ESCORT_RELATIONS, resolveChildRelationCode } from '../../../constants';
 
 import { useSession } from '../../../../../contexts/SessionContext';
 
@@ -150,7 +150,7 @@ const ChildAdminTab: React.FC = () => {
                             </span>
                             <input 
                                 type="text" 
-                                placeholder="Nhập CCCD, mã số bệnh nhân hoặc số thẻ BHYT..." 
+                                placeholder="Tìm hồ sơ KSK đã lưu (CCCD, mã hồ sơ, họ tên, SĐT)..." 
                                 value={hisSearchQuery}
                                 onChange={e => setHisSearchQuery(e.target.value)}
                                 className="w-full pl-9 pr-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 font-bold placeholder:text-slate-400 dark:placeholder:text-slate-500 placeholder:font-normal"
@@ -425,24 +425,19 @@ const ChildAdminTab: React.FC = () => {
                                     placeholder="Nhập họ tên người đi cùng"
                                 />
                             </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">13. Mối quan hệ với trẻ</label>
-                                <select
-                                    value={escortRelation}
-                                    onChange={e => setEscortRelation(e.target.value)}
-                                    className="w-full h-[38px] px-3 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white"
-                                >
-                                    <option value="">Chọn mối quan hệ...</option>
-                                    <option value="Bố">Bố</option>
-                                    <option value="Mẹ">Mẹ</option>
-                                    <option value="Ông">Ông</option>
-                                    <option value="Bà">Bà</option>
-                                    <option value="Anh">Anh</option>
-                                    <option value="Chị">Chị</option>
-                                    <option value="Người giám hộ">Người giám hộ</option>
-                                    <option value="Khác">Khác</option>
-                                </select>
-                            </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 mb-1">13. Mối quan hệ với trẻ</label>
+                                    <select
+                                        value={resolveChildRelationCode(escortRelation)}
+                                        onChange={e => setEscortRelation(e.target.value)}
+                                        className="w-full h-[38px] px-3 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white"
+                                    >
+                                        <option value="">Chọn mối quan hệ...</option>
+                                        {ESCORT_RELATIONS.map(item => (
+                                            <option key={item.id} value={item.code}>{item.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">14. Điện thoại</label>
                                 <input

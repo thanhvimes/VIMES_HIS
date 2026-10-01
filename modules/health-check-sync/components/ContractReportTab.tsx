@@ -78,42 +78,112 @@ export const ContractReportTab: React.FC<Props> = ({ contractId, contractName, c
         }
 
         try {
-            const mappedEmployees: EmployeeReportRecord[] = exportList.map((e: any, idx: number) => ({
-                stt: idx + 1,
-                code: e.code || '',
-                name: e.name || '',
-                dob: e.dob || '',
-                gender: e.gender === 'F' || e.gender === 'Nữ' ? 'Nữ' : 'Nam',
-                dept: e.dept || '',
-                pos: e.pos || '',
-                height: e.height,
-                weight: e.weight,
-                bmi: e.bmi,
-                blood_pressure: e.blood_pressure ? `${e.blood_pressure}${e.blood_pressure_x ? '/' + e.blood_pressure_x : ''}` : '',
-                pulse: e.pulse,
-                mat: e.mat || 'Bình thường',
-                tmh: e.tmh || 'Bình thường',
-                rhm: e.rhm || 'Bình thường',
-                noi: e.noi || 'Bình thường',
-                ngoai: e.ngoai || 'Bình thường',
-                dalieu: e.dalieu || 'Bình thường',
-                phukhoa: e.phukhoa || (e.gender === 'Nữ' || e.gender === 'F' ? 'Bình thường' : ''),
-                // Cận lâm sàng Huyết học & Hóa sinh từ lab_data
-                glucose: e.lab_data?.blood_test?.glycemia || '',
-                hgb: e.lab_data?.blood_test?.hemoglobin || '',
-                rbc: e.lab_data?.blood_test?.chi_so_hc || '',
-                wbc: e.lab_data?.blood_test?.chi_so_bach_cau || '',
-                plt: e.lab_data?.blood_test?.chi_so_tieu_cau || '',
-                cholesterol: e.lab_data?.blood_test?.cholesterol || '',
-                triglyceride: e.lab_data?.blood_test?.triglycerid || '',
-                hdl: e.lab_data?.blood_test?.hdl || '',
-                ldl: e.lab_data?.blood_test?.ldl || '',
-                urine_pro: e.lab_data?.urine_test?.protein || '',
-                us_abdomen: e.lab_data?.us?.ket_qua || '',
-                phanloai: e.phanloai || 'II',
-                conclusion: e.conclusion_name ? `${e.conclusion} - ${e.conclusion_name}` : (e.conclusion || 'Hiện tại sức khỏe bình thường.'),
-                remark: e.remark || ''
-            }));
+            const pkgServices = reportData?.packageServices || [];
+            const contractHasUsAbdomen = pkgServices.some((s: any) => {
+                const sName = (s.name || '').toLowerCase();
+                return sName.includes('siêu âm') && (sName.includes('bụng') || sName.includes('ổ bụng'));
+            });
+            const contractHasUsThyroid = pkgServices.some((s: any) => {
+                const sName = (s.name || '').toLowerCase();
+                return sName.includes('siêu âm') && (sName.includes('giáp') || sName.includes('tuyến giáp'));
+            });
+            const contractHasUsBreast = pkgServices.some((s: any) => {
+                const sName = (s.name || '').toLowerCase();
+                return sName.includes('siêu âm') && (sName.includes('vú') || sName.includes('tuyến vú'));
+            });
+            const contractHasChestXray = pkgServices.some((s: any) => {
+                const sName = (s.name || '').toLowerCase();
+                return (sName.includes('x-quang') || sName.includes('xquang')) && (sName.includes('ngực') || sName.includes('phổi'));
+            });
+
+            const mappedEmployees: EmployeeReportRecord[] = exportList.map((e: any, idx: number) => {
+                const pItems: any[] = Array.isArray(e.lab_data?.paraclinical_items) ? e.lab_data.paraclinical_items : [];
+                const findPacs = (keywords: string[]) => {
+                    const match = pItems.find((x: any) => {
+                        const sName = String(x.service_name || x.name || '').toLowerCase();
+                        return keywords.every(kw => sName.includes(kw));
+                    });
+                    if (!match) return '';
+                    return (match.conclusion || match.value || match.description || '').trim();
+                };
+
+                const empHasUsAbdomen = pItems.some(x => {
+                    const sName = String(x.service_name || x.name || '').toLowerCase();
+                    return sName.includes('siêu âm') && (sName.includes('bụng') || sName.includes('ổ bụng'));
+                });
+                const empHasUsThyroid = pItems.some(x => {
+                    const sName = String(x.service_name || x.name || '').toLowerCase();
+                    return sName.includes('siêu âm') && (sName.includes('giáp') || sName.includes('tuyến giáp'));
+                });
+                const empHasUsBreast = pItems.some(x => {
+                    const sName = String(x.service_name || x.name || '').toLowerCase();
+                    return sName.includes('siêu âm') && (sName.includes('vú') || sName.includes('tuyến vú'));
+                });
+                const empHasChestXray = pItems.some(x => {
+                    const sName = String(x.service_name || x.name || '').toLowerCase();
+                    return (sName.includes('x-quang') || sName.includes('xquang')) && (sName.includes('ngực') || sName.includes('phổi'));
+                });
+
+                // Ưu tiên giá trị đã được backend tính toán chuẩn xác theo gói dịch vụ
+                const usAbdomen = e.us_abdomen !== undefined 
+                    ? e.us_abdomen 
+                    : ((contractHasUsAbdomen || empHasUsAbdomen) ? (findPacs(['siêu âm', 'bụng']) || findPacs(['siêu âm', 'ổ bụng']) || e.lab_data?.us?.ket_qua || '') : '');
+
+                const usThyroid = e.us_thyroid !== undefined
+                    ? e.us_thyroid
+                    : ((contractHasUsThyroid || empHasUsThyroid) ? findPacs(['siêu âm', 'giáp']) : '');
+
+                const usBreast = e.us_breast !== undefined
+                    ? e.us_breast
+                    : ((contractHasUsBreast || empHasUsBreast) ? findPacs(['siêu âm', 'vú']) : '');
+
+                const xrayChest = e.xray_chest !== undefined 
+                    ? e.xray_chest 
+                    : ((contractHasChestXray || empHasChestXray) ? (findPacs(['x-quang', 'ngực']) || findPacs(['x-quang', 'phổi']) || findPacs(['xquang', 'ngực']) || findPacs(['xquang', 'phổi']) || findPacs(['chụp x-quang']) || e.lab_data?.imaging?.ket_qua || '') : '');
+
+                return {
+                    stt: idx + 1,
+                    code: e.code || '',
+                    name: e.name || '',
+                    dob: e.dob || '',
+                    gender: e.gender === 'F' || e.gender === 'Nữ' ? 'Nữ' : 'Nam',
+                    dept: e.dept || '',
+                    pos: e.pos || '',
+                    height: e.height,
+                    weight: e.weight,
+                    bmi: e.bmi,
+                    blood_pressure: e.blood_pressure ? `${e.blood_pressure}${e.blood_pressure_x ? '/' + e.blood_pressure_x : ''}` : '',
+                    pulse: e.pulse,
+                    mat: e.mat || 'Bình thường',
+                    tmh: e.tmh || 'Bình thường',
+                    rhm: e.rhm || 'Bình thường',
+                    noi: e.noi || 'Bình thường',
+                    ngoai: e.ngoai || 'Bình thường',
+                    dalieu: e.dalieu || 'Bình thường',
+                    phukhoa: e.phukhoa || (e.gender === 'Nữ' || e.gender === 'F' ? 'Bình thường' : ''),
+                    // Cận lâm sàng Huyết học & Hóa sinh từ lab_data (chỉ lấy khi thực tế có kết quả)
+                    glucose: e.lab_data?.blood_test?.glycemia || '',
+                    hgb: e.lab_data?.blood_test?.hemoglobin || '',
+                    rbc: e.lab_data?.blood_test?.chi_so_hc || '',
+                    wbc: e.lab_data?.blood_test?.chi_so_bach_cau || '',
+                    plt: e.lab_data?.blood_test?.chi_so_tieu_cau || '',
+                    cholesterol: e.lab_data?.blood_test?.cholesterol || '',
+                    triglyceride: e.lab_data?.blood_test?.triglycerid || '',
+                    hdl: e.lab_data?.blood_test?.hdl || '',
+                    ldl: e.lab_data?.blood_test?.ldl || '',
+                    urine_pro: e.lab_data?.urine_test?.protein || '',
+                    // CĐHA thực tế (để trống nếu không thực hiện)
+                    us_abdomen: usAbdomen,
+                    us_thyroid: usThyroid,
+                    us_breast: usBreast,
+                    xray_chest: xrayChest,
+                    phanloai: e.phanloai || 'II',
+                    conclusion: e.conclusion_name ? `${e.conclusion} - ${e.conclusion_name}` : (e.conclusion || 'Hiện tại sức khỏe bình thường.'),
+                    remark: e.remark || '',
+                    services: e.executedServices || e.services,
+                    executedServices: e.executedServices || e.services
+                };
+            });
 
             // Thông tin bệnh viện động (Ưu tiên từ sys_company của Backend, fallback qua session orgInfo)
             const hospitalInfo = {
@@ -137,6 +207,9 @@ export const ContractReportTab: React.FC<Props> = ({ contractId, contractName, c
                             : new Date().toLocaleDateString('vi-VN')),
                     totalRegistered: reportData?.summary?.totalEmployees || employees.length
                 },
+                serviceCatalog: (reportData?.packageServices && reportData.packageServices.length > 0)
+                    ? reportData.packageServices
+                    : undefined,
                 employees: mappedEmployees
             });
 
