@@ -4,6 +4,11 @@ import { hisIntegrationController } from './his-integration';
 import { batchSyncController } from './batch-sync.controller';
 
 class HealthCheckController {
+    // 0. Thống kê Dashboard KSK trực tiếp từ database
+    async getDashboardStats(req: Request, res: Response) {
+        return documentsController.getDashboardStats(req, res);
+    }
+
     // 1. Lấy danh sách hồ sơ (kèm phân trang, lọc nâng cao)
     async getDocuments(req: Request, res: Response) {
         return documentsController.getDocuments(req, res);

@@ -262,15 +262,18 @@ export function findValue(tag: string, ...sources: any[]): string {
         'kq_xn_ma_tuy': ['kq_xn_ma_tuy', 'kqxnmauy', 'kq_xn_mai_tuy', 'kqxnmaituy'],
         'ket_qua_xn_nong_do_con': ['ket_qua_xn_nong_do_con', 'ketquaxnnongdocon', 'kq_xn_nong_do_con', 'nong_do_con_mau'],
         'ket_qua_xn_khac': ['ket_qua_xn_khac', 'ketquaxnkhac', 'kq_xn_khac', 'xn_khac'],
-        'ket_luan_xn_khac': ['ket_luan_xn_khac', 'ketluanxnkhac']
+        'ket_luan_xn_khac': ['ket_luan_xn_khac', 'ketluanxnkhac'],
+        'ngay_ket_luan': ['ngay_ket_luan', 'ngayketluan', 'conclusion_date', 'conclusiondate']
     };
 
     const targetKeys: string[] = [];
-    if (tagMap[tagLower]) {
-        targetKeys.push(...tagMap[tagLower]);
-    }
     if (!targetKeys.includes(tagLower)) targetKeys.push(tagLower);
     if (!targetKeys.includes(tagSnake)) targetKeys.push(tagSnake);
+    if (tagMap[tagLower]) {
+        for (const k of tagMap[tagLower]) {
+            if (!targetKeys.includes(k)) targetKeys.push(k);
+        }
+    }
     
     const getValByKey = (obj: any, targetKey: string): string | null => {
         if (!obj || typeof obj !== 'object') return null;

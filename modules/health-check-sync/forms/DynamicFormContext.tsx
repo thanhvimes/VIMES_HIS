@@ -772,6 +772,8 @@ export interface DynamicFormContextType {
     setTheoDoiTai: React.Dispatch<React.SetStateAction<string>>;
     chuyenTuyen: string;
     setChuyenTuyen: React.Dispatch<React.SetStateAction<string>>;
+    conclusionDate: string;
+    setConclusionDate: React.Dispatch<React.SetStateAction<string>>;
 
     errors: Record<string, string>;
     setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>;
@@ -782,6 +784,7 @@ export interface DynamicFormContextType {
     isSyncingParaclinical: boolean;
     handleSyncParaclinical: () => Promise<void>;
     handleAutofillTab: (tabKey: string) => void;
+    handleSubmit?: (eOrOptions?: any, maybeOptions?: any) => Promise<boolean> | boolean;
 }
 
 export const DynamicFormContext = createContext<DynamicFormContextType | undefined>(undefined);

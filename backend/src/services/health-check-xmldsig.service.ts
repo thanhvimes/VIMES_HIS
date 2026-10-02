@@ -35,7 +35,20 @@ export class HealthCheckXmlDsigService {
             };
         }
 
-        await query(`INSERT INTO hms_health_check_xmldsig_transaction(transaction_id,document_id,actor_id,source_sha256,expires_at) VALUES($1,$2,$3,$4,$5)`, [prepared.transaction_id, documentId, actorId, sha256(source), new Date(Date.now() + Math.min(prepared.expires_in, 300) * 1000)]);
+        await query(
+            `INSERT INTO hms_health_check_xmldsig_transaction(transaction_id,document_id,actor_id,source_sha256,source_xml,expires_at) VALUES($1,$2,$3,$4,$5,$6)`,
+            [prepared.transaction_id, documentId, actorId, sha256(source), doc.xml_data, new Date(Date.now() + Math.min(prepared.expires_in, 300) * 1000)]
+        ).catch(async (insertErr: any) => {
+            // Fallback nếu CSDL cũ chưa có cột source_xml
+            if (insertErr.message?.includes('source_xml')) {
+                await query(
+                    `INSERT INTO hms_health_check_xmldsig_transaction(transaction_id,document_id,actor_id,source_sha256,expires_at) VALUES($1,$2,$3,$4,$5)`,
+                    [prepared.transaction_id, documentId, actorId, sha256(source), new Date(Date.now() + Math.min(prepared.expires_in, 300) * 1000)]
+                );
+            } else {
+                throw insertErr;
+            }
+        });
         return { transactionId: prepared.transaction_id, hashBase64: prepared.hash_base64, hashAlgorithm: prepared.hash_algorithm, documentLabel: `KSK ${doc.doc_no || documentId} - ${doc.patient_name || ''}`, expiresAt: new Date(Date.now() + Math.min(prepared.expires_in, 300) * 1000).toISOString(), profile: prepared.profile };
     }
 
@@ -50,7 +63,16 @@ export class HealthCheckXmlDsigService {
             const docResult = await client.query('SELECT * FROM health_check_masters WHERE id=$1 FOR UPDATE', [documentId]);
             const doc = docResult.rows[0];
             if (!doc || doc.signature_status === 'Signed' || doc.send_status === 'Success') throw Object.assign(new Error('Document state changed during signing'), { status: 409, code: 'DOCUMENT_STATE_CHANGED' });
-            if (sha256(Buffer.from(doc.xml_data || '', 'utf8')) !== state.source_sha256) throw Object.assign(new Error('XML changed after signing preparation'), { status: 409, code: 'XML_CHANGED_AFTER_PREPARE' });
+
+            // Xác định XML cần ký: ưu tiên XML đã chuẩn bị và băm tại thời điểm bắt đầu ký (state.source_xml)
+            const xmlToSign = state.source_xml || doc.xml_data || '';
+            const xmlToSignHash = sha256(Buffer.from(xmlToSign, 'utf8'));
+            const docXmlHash = sha256(Buffer.from(doc.xml_data || '', 'utf8'));
+
+            // Chỉ báo lỗi nếu cả source_xml lưu trong transaction lẫn doc.xml_data đều không khớp với hash chuẩn bị
+            if (xmlToSignHash !== state.source_sha256 && docXmlHash !== state.source_sha256) {
+                throw Object.assign(new Error('XML changed after signing preparation'), { status: 409, code: 'XML_CHANGED_AFTER_PREPARE' });
+            }
 
             let completed: { xml_base64: string; xml_sha256: string; profile: string };
             try {
@@ -62,7 +84,7 @@ export class HealthCheckXmlDsigService {
                 };
             } catch (extErr: any) {
                 // Fallback sang áp dụng chữ ký theo chuẩn Bộ Y tế
-                const signedXml = twoTierSigner.applyHospitalSignature(doc.xml_data, rawSignatureBase64);
+                const signedXml = twoTierSigner.applyHospitalSignature(xmlToSign, rawSignatureBase64);
                 const signedBytes = Buffer.from(signedXml, 'utf8');
                 completed = {
                     xml_base64: signedBytes.toString('base64'),

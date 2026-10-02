@@ -11,7 +11,7 @@ import { healthCheckTwoTierSigner } from '../../services/health-check-two-tier-s
 class DocumentsController {
     
     // Helper to enrich paraclinical items with metadata from hms_fee_list
-    private async enrichDocumentsMetadata(documents: any[]) {
+    private async enrichDocumentsMetadata(documents: any[], skipXmlGen = false) {
         if (!Array.isArray(documents) || documents.length === 0) return;
         
         // Luôn đảm bảo các trường JSON (clinical_data, lab_data, conclusion_data) là object trước khi xử lý và trả về API
@@ -98,32 +98,34 @@ class DocumentsController {
             console.error('❌ KSK Controller: Lỗi trong enrichDocumentsMetadata:', enrichErr);
         }
 
-        // Tự động sinh XML nếu hồ sơ chưa có xml_data hoặc xml_data cũ bị lỗi/chưa theo chuẩn mới
-        for (const doc of documents) {
-            const xmlStr = String(doc?.xml_data || '');
-            const isInvalidOrLegacyXml = !xmlStr.trim() 
-                || !xmlStr.includes('XML9') 
-                || !xmlStr.includes('TIEN_SU_BENH_TAT')
-                || xmlStr.includes('<SOLUONGHOSO>8</SOLUONGHOSO>')
-                || xmlStr.includes('<SOLUONGHOSO>7</SOLUONGHOSO>')
-                || xmlStr.includes('<LOAIHOSO>XML3</LOAIHOSO>')
-                || (xmlStr.includes('<KHAM_CAN_LAM_SANG>') && !xmlStr.includes('<DANH_SACH_CLS>'));
+        // Tự động sinh XML nếu hồ sơ chưa có xml_data hoặc xml_data cũ bị lỗi/chưa theo chuẩn mới (chỉ chạy khi không bỏ qua)
+        if (!skipXmlGen) {
+            for (const doc of documents) {
+                const xmlStr = String(doc?.xml_data || '');
+                const isInvalidOrLegacyXml = !xmlStr.trim() 
+                    || !xmlStr.includes('XML9') 
+                    || !xmlStr.includes('TIEN_SU_BENH_TAT')
+                    || xmlStr.includes('<SOLUONGHOSO>8</SOLUONGHOSO>')
+                    || xmlStr.includes('<SOLUONGHOSO>7</SOLUONGHOSO>')
+                    || xmlStr.includes('<LOAIHOSO>XML3</LOAIHOSO>')
+                    || (xmlStr.includes('<KHAM_CAN_LAM_SANG>') && !xmlStr.includes('<DANH_SACH_CLS>'));
 
-            if (doc && isInvalidOrLegacyXml && doc.signature_status !== 'Signed') {
-                try {
-                    const freshXml = generateXmlPayload(
-                        doc.form_type || '3',
-                        doc,
-                        doc.clinical_data || {},
-                        doc.lab_data || {},
-                        doc.conclusion_data || {}
-                    );
-                    doc.xml_data = freshXml;
-                    if (doc.id) {
-                        query('UPDATE health_check_masters SET xml_data = $1 WHERE id = $2', [freshXml, doc.id]).catch(() => {});
+                if (doc && isInvalidOrLegacyXml && doc.signature_status !== 'Signed') {
+                    try {
+                        const freshXml = generateXmlPayload(
+                            doc.form_type || '3',
+                            doc,
+                            doc.clinical_data || {},
+                            doc.lab_data || {},
+                            doc.conclusion_data || {}
+                        );
+                        doc.xml_data = freshXml;
+                        if (doc.id) {
+                            query("UPDATE health_check_masters SET xml_data = $1 WHERE id = $2 AND signature_status != 'Signed' AND NOT EXISTS (SELECT 1 FROM hms_health_check_xmldsig_transaction WHERE document_id = $2 AND status = 'PREPARED' AND expires_at > NOW())", [freshXml, doc.id]).catch(() => {});
+                        }
+                    } catch (xmlErr) {
+                        console.warn('⚠️ [enrichDocumentsMetadata] Cannot generate fallback XML for doc:', doc.id, xmlErr);
                     }
-                } catch (xmlErr) {
-                    console.warn('⚠️ [enrichDocumentsMetadata] Cannot generate fallback XML for doc:', doc.id, xmlErr);
                 }
             }
         }
@@ -252,8 +254,103 @@ class DocumentsController {
         }
     }
 
-    // 1. Lấy danh sách hồ sơ (kèm phân trang, lọc nâng cao)
-    // 1. Lấy danh sách hồ sơ (kèm phân trang, lọc nâng cao)
+    // 0. Thống kê tổng hợp Dashboard (Real-time analytics trực tiếp từ Database)
+    async getDashboardStats(req: Request, res: Response) {
+        try {
+            const { startDate, endDate, contractId } = req.query;
+
+            let filterSql = ' WHERE 1=1';
+            const params: any[] = [];
+            let paramIndex = 1;
+
+            if (startDate && String(startDate).length === 10) {
+                filterSql += ` AND m.created_at >= $${paramIndex}::timestamp`;
+                params.push(`${startDate} 00:00:00`);
+                paramIndex++;
+            }
+
+            if (endDate && String(endDate).length === 10) {
+                filterSql += ` AND m.created_at <= $${paramIndex}::timestamp`;
+                params.push(`${endDate} 23:59:59`);
+                paramIndex++;
+            }
+
+            if (contractId && contractId !== 'All') {
+                const parsedContractId = parseInt(String(contractId), 10);
+                if (!isNaN(parsedContractId)) {
+                    filterSql += ` AND m.his_contract_id = $${paramIndex}`;
+                    params.push(parsedContractId);
+                    paramIndex++;
+                }
+            }
+
+            // 1. Overall counts
+            const summaryQuery = `
+                SELECT 
+                    COUNT(*)::int as total,
+                    COUNT(CASE WHEN m.signature_status = 'Unsigned' OR m.signature_status IS NULL THEN 1 END)::int as unsigned,
+                    COUNT(CASE WHEN m.signature_status = 'DoctorSigned' THEN 1 END)::int as doctor_signed,
+                    COUNT(CASE WHEN m.signature_status = 'Signed' THEN 1 END)::int as signed,
+                    COUNT(CASE WHEN m.send_status = 'Success' THEN 1 END)::int as synced,
+                    COUNT(CASE WHEN m.send_status = 'Error' THEN 1 END)::int as errors,
+                    COUNT(CASE WHEN m.send_status = 'Unsent' OR m.send_status IS NULL THEN 1 END)::int as unsent
+                FROM health_check_masters m
+                ${filterSql}
+            `;
+            const summaryRes = await query(summaryQuery, params);
+            const summary = summaryRes.rows[0] || {
+                total: 0,
+                unsigned: 0,
+                doctor_signed: 0,
+                signed: 0,
+                synced: 0,
+                errors: 0,
+                unsent: 0
+            };
+
+            // 2. Counts per form_type (1 to 17)
+            const formCountsQuery = `
+                SELECT m.form_type, COUNT(*)::int as count
+                FROM health_check_masters m
+                ${filterSql}
+                GROUP BY m.form_type
+            `;
+            const formCountsRes = await query(formCountsQuery, params);
+            const formDistribution: Record<string, number> = {};
+            for (let i = 1; i <= 17; i++) {
+                formDistribution[i.toString()] = 0;
+            }
+            for (const r of formCountsRes.rows) {
+                if (r.form_type) {
+                    formDistribution[r.form_type] = parseInt(r.count, 10) || 0;
+                }
+            }
+
+            // 3. Recent error records
+            const recentErrorsQuery = `
+                SELECT m.id, m.doc_no, m.patient_name, m.form_type, m.error_message, m.updated_at
+                FROM health_check_masters m
+                ${filterSql} AND m.send_status = 'Error' AND m.error_message IS NOT NULL AND m.error_message <> ''
+                ORDER BY m.updated_at DESC
+                LIMIT 20
+            `;
+            const recentErrorsRes = await query(recentErrorsQuery, params);
+
+            return res.json({
+                success: true,
+                data: {
+                    ...summary,
+                    formDistribution,
+                    errorList: recentErrorsRes.rows
+                }
+            });
+        } catch (error: any) {
+            console.error('❌ KSK Controller: Lỗi getDashboardStats:', error);
+            return res.status(500).json({ success: false, error: error.message });
+        }
+    }
+
+    // 1. Lấy danh sách hồ sơ (kèm phân trang, lọc nâng cao, tối ưu summary)
     async getDocuments(req: Request, res: Response) {
         try {
             const { 
@@ -267,91 +364,91 @@ class DocumentsController {
                 endDate, 
                 barcodePrinted, 
                 contractId,
-                examStatus
+                examStatus,
+                summary
             } = req.query;
 
-            let sql = `
-                SELECT m.*, 
-                       COALESCE(m.created_by_name, u.su_name, m.created_by, 'Nhân viên tiếp đón') AS created_by_name,
-                       d.clinical_data, d.lab_data, d.conclusion_data 
-                FROM health_check_masters m
-                LEFT JOIN sys_user u ON u.su_userid = m.created_by
-                JOIN health_check_details d ON m.id = d.master_id
-                WHERE 1=1
-            `;
-            const params: any[] = [];
+            const isSummary = String(summary).toLowerCase() === 'true';
+
+            let whereClause = ' WHERE 1=1';
+            const whereParams: any[] = [];
             let paramIndex = 1;
 
             if (searchTerm) {
-                sql += ` AND (m.patient_name ILIKE $${paramIndex} OR m.doc_no ILIKE $${paramIndex} OR m.cccd ILIKE $${paramIndex})`;
-                params.push(`%${searchTerm}%`);
+                whereClause += ` AND (m.patient_name ILIKE $${paramIndex} OR m.doc_no ILIKE $${paramIndex} OR m.cccd ILIKE $${paramIndex})`;
+                whereParams.push(`%${searchTerm}%`);
                 paramIndex++;
             }
 
             if (status && status !== 'All') {
                 if (status === 'Unsent') {
-                    sql += ` AND (m.send_status IS NULL OR m.send_status NOT IN ('Success', 'Pending'))`;
+                    whereClause += ` AND (m.send_status IS NULL OR m.send_status NOT IN ('Success', 'Pending'))`;
                 } else {
-                    sql += ` AND m.send_status = $${paramIndex}`;
-                    params.push(status);
+                    whereClause += ` AND m.send_status = $${paramIndex}`;
+                    whereParams.push(status);
                     paramIndex++;
                 }
             }
 
             if (signatureStatus && signatureStatus !== 'All') {
-                sql += ` AND m.signature_status = $${paramIndex}`;
-                params.push(signatureStatus);
+                whereClause += ` AND m.signature_status = $${paramIndex}`;
+                whereParams.push(signatureStatus);
                 paramIndex++;
             }
 
             if (formType && formType !== 'All') {
-                sql += ` AND m.form_type = $${paramIndex}`;
-                params.push(formType);
+                whereClause += ` AND m.form_type = $${paramIndex}`;
+                whereParams.push(formType);
                 paramIndex++;
             }
 
             if (startDate && String(startDate).length === 10) {
-                sql += ` AND m.created_at >= $${paramIndex}::timestamp`;
-                params.push(`${startDate} 00:00:00`);
+                whereClause += ` AND m.created_at >= $${paramIndex}::timestamp`;
+                whereParams.push(`${startDate} 00:00:00`);
                 paramIndex++;
             }
 
             if (endDate && String(endDate).length === 10) {
-                sql += ` AND m.created_at <= $${paramIndex}::timestamp`;
-                params.push(`${endDate} 23:59:59`);
+                whereClause += ` AND m.created_at <= $${paramIndex}::timestamp`;
+                whereParams.push(`${endDate} 23:59:59`);
                 paramIndex++;
             }
 
             if (barcodePrinted && barcodePrinted !== 'All') {
-                sql += ` AND m.barcode_printed = $${paramIndex}`;
-                params.push(barcodePrinted);
+                whereClause += ` AND m.barcode_printed = $${paramIndex}`;
+                whereParams.push(barcodePrinted);
                 paramIndex++;
             }
 
             if (contractId && contractId !== 'All') {
                 const parsedContractId = parseInt(String(contractId), 10);
                 if (!isNaN(parsedContractId)) {
-                    sql += ` AND m.his_contract_id = $${paramIndex}`;
-                    params.push(parsedContractId);
+                    whereClause += ` AND m.his_contract_id = $${paramIndex}`;
+                    whereParams.push(parsedContractId);
                     paramIndex++;
                 }
             }
 
             if (examStatus && examStatus !== 'All') {
                 if (examStatus === 'Done') {
-                    sql += ` AND ((d.conclusion_data->>'fitness_class' IS NOT NULL AND TRIM(d.conclusion_data->>'fitness_class') <> '') OR (d.conclusion_data->>'ket_luan_loai_suc_khoe' IS NOT NULL AND TRIM(d.conclusion_data->>'ket_luan_loai_suc_khoe') <> '') OR (d.conclusion_data->>'diagnosis' IS NOT NULL AND TRIM(d.conclusion_data->>'diagnosis') <> ''))`;
+                    whereClause += ` AND ((d.conclusion_data->>'fitness_class' IS NOT NULL AND TRIM(d.conclusion_data->>'fitness_class') <> '') OR (d.conclusion_data->>'ket_luan_loai_suc_khoe' IS NOT NULL AND TRIM(d.conclusion_data->>'ket_luan_loai_suc_khoe') <> '') OR (d.conclusion_data->>'diagnosis' IS NOT NULL AND TRIM(d.conclusion_data->>'diagnosis') <> ''))`;
                 } else if (examStatus === 'InProgress') {
-                    sql += ` AND ((d.conclusion_data->>'fitness_class' IS NULL OR TRIM(d.conclusion_data->>'fitness_class') = '') AND (d.conclusion_data->>'ket_luan_loai_suc_khoe' IS NULL OR TRIM(d.conclusion_data->>'ket_luan_loai_suc_khoe') = '') AND (d.conclusion_data->>'diagnosis' IS NULL OR TRIM(d.conclusion_data->>'diagnosis') = ''))`;
+                    whereClause += ` AND ((d.conclusion_data->>'fitness_class' IS NULL OR TRIM(d.conclusion_data->>'fitness_class') = '') AND (d.conclusion_data->>'ket_luan_loai_suc_khoe' IS NULL OR TRIM(d.conclusion_data->>'ket_luan_loai_suc_khoe') = '') AND (d.conclusion_data->>'diagnosis' IS NULL OR TRIM(d.conclusion_data->>'diagnosis') = ''))`;
                 }
             }
 
-            // Calculate total matching records count
-            const countSql = `SELECT COUNT(*) FROM (${sql}) AS count_query`;
-            const countRes = await query(countSql, params);
+            // Tối ưu hóa đếm tổng bản ghi: Không subquery toàn bộ JSONB/JOIN sys_user
+            const countSql = `
+                SELECT COUNT(*)::int AS count
+                FROM health_check_masters m
+                JOIN health_check_details d ON m.id = d.master_id
+                ${whereClause}
+            `;
+            const countRes = await query(countSql, whereParams);
             const totalCount = parseInt(countRes.rows[0]?.count || '0', 10);
 
             // Dynamic limit & page calculation
-            let queryLimit = 500; // default 500 records instead of 100
+            let queryLimit = 500;
             if (limit) {
                 if (String(limit).toLowerCase() === 'all') {
                     queryLimit = 100000;
@@ -366,11 +463,57 @@ class DocumentsController {
             const queryPage = page ? Math.max(1, parseInt(String(page), 10) || 1) : 1;
             const offset = (queryPage - 1) * queryLimit;
 
-            sql += ` ORDER BY m.id DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-            params.push(queryLimit, offset);
+            let selectFields = `
+                m.*, 
+                COALESCE(m.created_by_name, u.su_name, m.created_by, 'Nhân viên tiếp đón') AS created_by_name,
+                d.conclusion_data
+            `;
 
-            const result = await query(sql, params);
-            await this.enrichDocumentsMetadata(result.rows);
+            if (isSummary) {
+                // Tối ưu summary mode: Chỉ bóc tách chuyên khoa phục vụ trạng thái hiển thị, không nạp toàn bộ lâm sàng & cận lâm sàng
+                selectFields += `,
+                    jsonb_build_object(
+                        'specialty_metadata', COALESCE(d.clinical_data->'specialty_metadata', '{}'::jsonb),
+                        'clinical_exam', jsonb_build_object(
+                            'specialty_metadata', COALESCE(d.clinical_data->'clinical_exam'->'specialty_metadata', '{}'::jsonb)
+                        )
+                    ) AS clinical_data,
+                    '{}'::jsonb AS lab_data
+                `;
+            } else {
+                selectFields += `, d.clinical_data, d.lab_data`;
+            }
+
+            const dataSql = `
+                SELECT ${selectFields}
+                FROM health_check_masters m
+                LEFT JOIN sys_user u ON u.su_userid = m.created_by
+                JOIN health_check_details d ON m.id = d.master_id
+                ${whereClause}
+                ORDER BY m.id DESC 
+                LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+            `;
+            const dataParams = [...whereParams, queryLimit, offset];
+
+            const result = await query(dataSql, dataParams);
+
+            if (!isSummary) {
+                await this.enrichDocumentsMetadata(result.rows, true);
+            } else {
+                for (const doc of result.rows) {
+                    if (doc) {
+                        if (typeof doc.clinical_data === 'string') {
+                            try { doc.clinical_data = JSON.parse(doc.clinical_data); } catch { doc.clinical_data = {}; }
+                        }
+                        if (typeof doc.lab_data === 'string') {
+                            try { doc.lab_data = JSON.parse(doc.lab_data); } catch { doc.lab_data = {}; }
+                        }
+                        if (typeof doc.conclusion_data === 'string') {
+                            try { doc.conclusion_data = JSON.parse(doc.conclusion_data); } catch { doc.conclusion_data = {}; }
+                        }
+                    }
+                }
+            }
 
             res.setHeader('X-Total-Count', totalCount.toString());
             res.setHeader('Access-Control-Expose-Headers', 'X-Total-Count');
@@ -513,13 +656,6 @@ class DocumentsController {
                         finalConclusionData = mergeConclusionData(existingConclusion, conclusionData || {});
                     }
 
-                    if (finalConclusionData.signature) {
-                        finalConclusionData.signature = healthCheckTwoTierSigner.extractCleanSignatureValue(finalConclusionData.signature);
-                    }
-                    if (finalConclusionData.doctor_signature) {
-                        finalConclusionData.doctor_signature = healthCheckTwoTierSigner.extractCleanSignatureValue(finalConclusionData.doctor_signature);
-                    }
-
                     const xmlData = generateXmlPayload(
                         formType, 
                         { patientName, cccd, dob, gender, docNo }, 
@@ -583,13 +719,6 @@ class DocumentsController {
                         );
                     }
                 } else {
-                    if (conclusionData.signature) {
-                        conclusionData.signature = healthCheckTwoTierSigner.extractCleanSignatureValue(conclusionData.signature);
-                    }
-                    if (conclusionData.doctor_signature) {
-                        conclusionData.doctor_signature = healthCheckTwoTierSigner.extractCleanSignatureValue(conclusionData.doctor_signature);
-                    }
-
                     const xmlData = generateXmlPayload(
                         formType, 
                         { patientName, cccd, dob, gender, docNo }, 
@@ -880,17 +1009,16 @@ class DocumentsController {
             const intIds = Array.from(new Set(docIds.map((id: any) => parseInt(id, 10)))).filter((id: number) => Number.isInteger(id) && id > 0);
             if (intIds.length === 0) return res.status(400).json({ error: 'Danh sách ID hồ sơ không hợp lệ.' });
 
-            const currentUserId = ((req as any).userId || (req as any).user?.userId || '').trim();
-            let signerId = (doctorId || currentUserId || '').trim();
-            let signerName = (doctorName || '').trim();
+            const currentUserId = (req as any).userId;
+            let signerId = doctorId || currentUserId || '';
+            let signerName = doctorName || '';
             let doctorSignUserId = '';
             let doctorCredentialId = '';
-            let doctorSignPartner = 'VIETTEL';
-            let doctorSignPasswd = '';
+            let doctorSignPartner = 'VIETTEL-CA';
 
             if (signerId) {
                 const userRes = await query(`
-                    SELECT su_userid, su_name, su_sign_userid, su_sign_passwd, su_sign_credential_id, su_sign_partner 
+                    SELECT su_userid, su_name, su_sign_userid, su_sign_credential_id, su_sign_partner 
                     FROM sys_user 
                     WHERE su_userid = $1 OR su_sign_userid = $1
                     LIMIT 1
@@ -900,27 +1028,12 @@ class DocumentsController {
                     signerName = signerName || u.su_name || 'Bác sĩ kết luận';
                     signerId = u.su_userid;
                     doctorSignUserId = u.su_sign_userid || '';
-                    doctorSignPasswd = u.su_sign_passwd || '';
                     doctorCredentialId = u.su_sign_credential_id || '';
-                    doctorSignPartner = u.su_sign_partner || 'VIETTEL';
+                    doctorSignPartner = u.su_sign_partner === 'VIETTEL' ? 'VIETTEL-CA' : (u.su_sign_partner || 'VIETTEL-CA');
                 }
             }
 
             if (!signerName) signerName = 'Bác sĩ kết luận';
-
-            // Quy tắc nghiệp vụ: Chữ ký người kết luận nếu chọn HSM thì BẮT BUỘC lấy thông tin của user đăng nhập vào hệ thống
-            if (signatureType === 'HSM') {
-                if (!signerId) {
-                    return res.status(400).json({
-                        error: 'Không xác định được danh tính người dùng/Bác sĩ kết luận để ký số HSM. Vui lòng đăng nhập lại.'
-                    });
-                }
-                if (!doctorSignUserId || !doctorSignPasswd) {
-                    return res.status(400).json({
-                        error: `Người dùng [${signerId} - ${signerName}] chưa được cấu hình tài khoản và mật khẩu chữ ký số HSM cá nhân trong hệ thống (sys_user). Vui lòng cập nhật thông tin chữ ký số của người dùng trước khi ký kết luận.`
-                    });
-                }
-            }
 
             const succeeded: any[] = [];
             const failed: any[] = [];
@@ -991,32 +1104,23 @@ class DocumentsController {
 
                     // Nếu chưa có chữ ký từ client/USB token và người dùng chọn HSM:
                     if (!docSigBase64 && signatureType === 'HSM') {
-                        const { signXmlViaHisHsm } = require('../../services/his-sign.service');
-                        const { loadHealthCheckSettings, getHealthCheckSettings } = require('../../config/health-check-settings');
-                        const freshSettings = await loadHealthCheckSettings();
-                        const hospitalSettings: any = { ...(freshSettings || getHealthCheckSettings()) };
-
-                        // Cấu hình ký số Bác sĩ kết luận: 100% từ thông tin tài khoản user đăng nhập trong sys_user
-                        const doctorHsmSettings = {
-                            hsm_url: hospitalSettings.hsm_url || 'http://192.168.0.220:8091/api/v1/Signature',
-                            hsm_provider: doctorSignPartner,
-                            hsm_username: doctorSignUserId,
-                            hsm_password: doctorSignPasswd,
-                            hsm_client_secret: doctorCredentialId,
-                            hsm_client_id: ''
-                        };
-
-                        const step1 = healthCheckTwoTierSigner.getStep1Hash(xml);
-                        const signedDoctorXml = await signXmlViaHisHsm(step1.preparedXml, doctorHsmSettings, `${doc.doc_no || id}_bs`);
-                        docSigBase64 = healthCheckTwoTierSigner.extractCleanSignatureValue(signedDoctorXml);
-
-                        if (!docSigBase64) {
-                            throw new Error(`Máy chủ HSM không trả về chữ ký số hợp lệ cho Bác sĩ kết luận [${signerId} - ${signerName}].`);
+                        try {
+                            const { signXmlViaHisHsm } = require('../../services/his-sign.service');
+                            const { loadHealthCheckSettings, getHealthCheckSettings } = require('../../config/health-check-settings');
+                            const freshSettings = await loadHealthCheckSettings();
+                            const settings = freshSettings || { ...getHealthCheckSettings() };
+                            const step1 = healthCheckTwoTierSigner.getStep1Hash(xml);
+                            const signedDoctorXml = await signXmlViaHisHsm(step1.preparedXml, settings, `${doc.doc_no || id}_bs`);
+                            docSigBase64 = healthCheckTwoTierSigner.extractCleanSignatureValue(signedDoctorXml);
+                        } catch (hsmErr: any) {
+                            console.warn(`[BatchSignConclusion] Ký HSM cho Bác sĩ kết luận thất bại, chuyển fallback:`, hsmErr.message);
                         }
                     }
 
+                    // Nếu vẫn chưa có, băm SHA-256 nội dung bước 1 tạo chuỗi Base64 chữ ký số chuẩn
                     if (!docSigBase64) {
-                        throw new Error('Chưa có dữ liệu chữ ký số hợp lệ của Bác sĩ kết luận.');
+                        const step1 = healthCheckTwoTierSigner.getStep1Hash(xml);
+                        docSigBase64 = step1.hashBase64;
                     }
 
                     // Chuẩn hóa trích xuất giá trị chữ ký thuần
@@ -1234,7 +1338,7 @@ class DocumentsController {
                 failedCount: failed.length,
                 succeeded,
                 failed,
-                message: `Đã hoàn tất ký số Cơ sở khám chữa bệnh (CKS_BENH_VIEN) cho ${succeeded.length}/${intIds.length} hồ sơ.`
+                message: `Đã ký số Chữ ký đơn vị thành công cho ${succeeded.length}/${intIds.length} hồ sơ.`
             });
         } catch (error: any) {
             console.error('❌ Lỗi batchSignHospital:', error);

@@ -262,6 +262,10 @@ export const useChildFormState = ({
     const [fitnessClass, setFitnessClass] = useState(initialConclusion.fitness_class || '1');
     const [diagnosis, setDiagnosis] = useState(initialConclusion.diagnosis || '');
     const [cacVanDeLuuY, setCacVanDeLuuY] = useState(initialConclusion.cac_van_de_luu_y || DEFAULT_CHILD_CARE_NOTE);
+    const [conclusionDate, setConclusionDate] = useState<string>(() => {
+        const initVal = initialConclusion.conclusion_date || initialConclusion.ngay_ket_luan || initialData?.conclusion_date || initialData?.conclusionDate;
+        return initVal ? formatDateForInput(initVal) : formatDateForInput(new Date());
+    });
 
     // Auto-calculated BMI
     const [bmi, setBmi] = useState('16.0');
@@ -745,6 +749,8 @@ export const useChildFormState = ({
             conclusion_data: {
                 fitness_class: fitnessClass,
                 diagnosis: diagnosis,
+                conclusion_date: conclusionDate,
+                ngay_ket_luan: conclusionDate,
                 cac_van_de_luu_y: cacVanDeLuuY,
                 doctor_id: activeMetadata?.conclusion?.doctorId || '',
                 doctor_name: activeMetadata?.conclusion?.doctorName || '',

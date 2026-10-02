@@ -10,14 +10,14 @@ import {
     SearchIcon, 
     RefreshIcon, 
     SignatureIcon, 
-    EyeIcon, 
-    CloudUploadIcon, 
-    DocumentTextIcon, 
-    PlusIcon, 
-    AdjustmentsHorizontalIcon, 
-    DocumentArrowDownIcon, 
-    PrinterIcon, 
-    CheckCircleIcon 
+    EyeIcon,
+    CloudUploadIcon,
+    DocumentTextIcon,
+    PlusIcon,
+    AdjustmentsHorizontalIcon,
+    DocumentArrowDownIcon,
+    PrinterIcon,
+    CheckCircleIcon
 } from '../../../components/Icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { healthCheckService } from '../../../services/healthCheckService';
@@ -170,12 +170,12 @@ const HealthCheckSyncView: React.FC = () => {
     const [isBatchSignModalOpen, setIsBatchSignModalOpen] = useState(false);
     const [batchSignInitialRole, setBatchSignInitialRole] = useState<'DOCTOR' | 'UNIT' | 'BOTH'>('DOCTOR');
 
-    // Real-time Task Progress Modal State
+    // Real-time task progress modal
     const [progressModal, setProgressModal] = useState<{
         isOpen: boolean;
         title: string;
         description?: string;
-        currentStep?: string;
+        currentStep: string;
         current: number;
         total: number;
         successCount: number;
@@ -185,7 +185,6 @@ const HealthCheckSyncView: React.FC = () => {
     }>({
         isOpen: false,
         title: '',
-        description: '',
         currentStep: '',
         current: 0,
         total: 0,
@@ -381,7 +380,8 @@ const HealthCheckSyncView: React.FC = () => {
                 contractId: contractFilter,
                 examStatus: examFilter,
                 limit: pageSize,
-                page: currentPage
+                page: currentPage,
+                summary: 'true'
             });
             setDocuments(data);
             setTotalCount(total);
@@ -407,27 +407,23 @@ const HealthCheckSyncView: React.FC = () => {
             let docId = activeDocument?.id || payload?.id;
             if (options?.shouldUnlock) {
                 if (!docId) throw new Error('Không tìm thấy hồ sơ cần mở khóa.');
-                const reason = window.prompt('Nhập lý do hủy chữ ký/mở khóa hồ sơ:', 'Điều chỉnh hồ sơ theo yêu cầu nghiệp vụ');
-                if (!reason?.trim()) {
-                    toast.error('Bắt buộc nhập lý do hủy chữ ký/mở khóa hồ sơ.');
-                    return;
-                }
+                const reason = (options as any)?.unlockReason || 'Điều chỉnh hồ sơ theo yêu cầu nghiệp vụ';
                 await healthCheckService.unlockDocument(docId.toString(), reason.trim());
                 const unlockedDoc = await healthCheckService.getDocument(docId.toString());
                 setActiveDocument(unlockedDoc);
                 await loadData();
-                toast.success('Đã hủy chữ ký số và mở khóa hồ sơ thành công!');
+                toast.success('Đã mở khóa hồ sơ thành công!');
                 return;
             }
 
-            if (!docId) {
+            if (viewMode === 'CREATE' || !docId) {
                 const res = await healthCheckService.createDocument(payload);
                 docId = res.id;
                 setViewMode('EDIT');
                 if (!options?.shouldSign) {
                     toast.success("Tạo hồ sơ KSK thành công!");
                 }
-            } else {
+            } else if ((viewMode === 'EDIT' || docId) && docId) {
                 await healthCheckService.updateDocument(docId.toString(), payload);
                 if (!options?.shouldSign && !options?.shouldUnlock) {
                     toast.success("Cập nhật hồ sơ KSK thành công!");
@@ -1373,7 +1369,12 @@ const HealthCheckSyncView: React.FC = () => {
                 <div className="p-4 sm:p-5 lg:p-6 flex-1 flex flex-col space-y-4 overflow-y-auto min-h-0">
                     {/* Dashboard */}
                     {stepParam === 'dashboard' && (
-                        <Dashboard documents={documents} />
+                        <Dashboard 
+                            documents={documents} 
+                            startDate={startDate}
+                            endDate={endDate}
+                            contractId={contractFilter !== 'All' ? contractFilter : undefined}
+                        />
                     )}
 
                     {/* Contract Management */}
@@ -1574,10 +1575,21 @@ const HealthCheckSyncView: React.FC = () => {
                                     {/* Số bản ghi/trang */}
                                     <div className="flex items-center gap-2 text-xs font-medium text-slate-500 border-l border-slate-200 dark:border-slate-700 pl-4">
                                         <span>Số bản ghi/trang:</span>
-                                        <select className="p-1 border border-slate-300 rounded bg-slate-50 dark:bg-slate-700 font-bold focus:outline-none">
-                                            <option>20</option>
-                                            <option>50</option>
-                                            <option>100</option>
+                                        <select 
+                                            value={pageSize}
+                                            onChange={(e) => {
+                                                const val = e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10);
+                                                setPageSize(val);
+                                                setCurrentPage(1);
+                                            }}
+                                            className="p-1 border border-slate-300 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-700 font-bold focus:outline-none cursor-pointer"
+                                        >
+                                            <option value={20}>20</option>
+                                            <option value={50}>50</option>
+                                            <option value={100}>100</option>
+                                            <option value={200}>200</option>
+                                            <option value={500}>500</option>
+                                            <option value="all">Tất cả</option>
                                         </select>
                                     </div>
                                 </div>
@@ -1703,6 +1715,11 @@ const HealthCheckSyncView: React.FC = () => {
                                     }}
                                     getFormName={getFormName}
                                     getFormColor={getFormColor}
+                                    pageSize={pageSize}
+                                    setPageSize={setPageSize}
+                                    currentPage={currentPage}
+                                    setCurrentPage={setCurrentPage}
+                                    totalCount={totalCount}
                                 />
                             ) : stepParam === 'sync' ? (
                                 <SyncDataList

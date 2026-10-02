@@ -7,6 +7,9 @@ import {
 
 const AGENT_HTTP_URL = 'http://127.0.0.1:18181';
 const AGENT_HTTPS_URL = 'https://127.0.0.1:18182';
+// Vite dev proxy: browser → localhost:5173/agent-proxy → 127.0.0.1:18181
+// Bypasses Chrome's Private Network Access (PNA) policy without Extension
+const AGENT_PROXY_URL = '/agent-proxy';
 const STORAGE_KEY_REMEMBERED_CERT = 'vimes_remembered_cert_thumbprint';
 
 export interface UsbTokenStatus {
@@ -101,45 +104,39 @@ export async function agentJson<T>(path: string, init: RequestInit = {}): Promis
   const baseUrl = getAgentBaseUrl();
   const fullUrl = `${baseUrl}${path}`;
 
+  // Priority 1: Use VIMES Extension bridge (no PNA issues)
   if (isExtensionReady()) {
     try {
       return await callViaExtension<T>(fullUrl, init);
     } catch (extError) {
-      console.warn('[VIMES Signer] Extension bridge error, falling back to direct fetch:', extError);
+      console.warn('[VIMES Signer] Extension bridge error, falling back to Vite proxy:', extError);
     }
   }
 
+  // Priority 2: Use Vite dev-server proxy (/agent-proxy → 127.0.0.1:18181)
+  // This bypasses Chrome PNA because browser calls same-origin (localhost:5173/agent-proxy)
+  // and Vite server-side forwards to 127.0.0.1:18181 (server-side has no PNA restriction)
+  const proxyUrl = `${AGENT_PROXY_URL}${path}`;
   let response: Response;
   try {
-    response = await fetch(fullUrl, {
+    response = await fetch(proxyUrl, {
       ...init,
       headers: { 'Content-Type': 'application/json', ...(init.headers || {}) }
     });
-  } catch (fetchErr) {
-    console.error('[VIMES Signer] Lỗi kết nối tới Agent trực tiếp qua fetch:', fetchErr);
-    if (baseUrl === AGENT_HTTPS_URL) {
-      try {
-        response = await fetch(`${AGENT_HTTP_URL}${path}`, {
-          ...init,
-          headers: { 'Content-Type': 'application/json', ...(init.headers || {}) }
-        });
-      } catch (fallbackErr) {
-        console.error('[VIMES Signer] Lỗi fallback HTTP:', fallbackErr);
-        throw new Error(
-          'Không thể kết nối tới VIMES Workstation Agent.\n' +
-          'Nguyên nhân: Trình duyệt đang chặn kết nối Private Network (PNA) tới 127.0.0.1.\n' +
-          'Khắc phục:\n' +
-          '1. Mở chrome://extensions, bật Developer Mode -> Bấm "Tải tiện ích đã giải nén" -> Chọn thư mục: C:\\Program Files\\VIMES Workstation Agent\\Extension\n' +
-          '2. Hoặc mở hệ thống bằng trình duyệt Microsoft Edge.'
-        );
-      }
-    } else {
+    console.debug('[VIMES Signer] Gọi qua Vite proxy:', proxyUrl, response.status);
+  } catch (proxyErr) {
+    console.warn('[VIMES Signer] Vite proxy lỗi, thử kết nối trực tiếp:', proxyErr);
+    // Priority 3: Direct fetch to 127.0.0.1 (will fail on Chrome without Extension, but ok on Edge/Firefox)
+    try {
+      response = await fetch(fullUrl, {
+        ...init,
+        headers: { 'Content-Type': 'application/json', ...(init.headers || {}) }
+      });
+    } catch (directErr) {
+      console.error('[VIMES Signer] Kết nối trực tiếp thất bại:', directErr);
       throw new Error(
-        'Không thể kết nối tới VIMES Workstation Agent (127.0.0.1:18181).\n' +
-        'Nguyên nhân: Google Chrome chặn kết nối từ web HTTP tới máy trạm do chính sách bảo mật PNA.\n' +
-        'Khắc phục:\n' +
-        '1. Mở chrome://extensions, bật Developer Mode -> Bấm "Tải tiện ích đã giải nén" -> Chọn thư mục: C:\\Program Files\\VIMES Workstation Agent\\Extension\n' +
-        '2. Hoặc sử dụng trình duyệt Microsoft Edge.'
+        'Không thể kết nối tới VIMES Workstation Agent.\n' +
+        'Vui lòng đảm bảo ứng dụng VIMES Workstation Agent đang chạy trên máy tính.'
       );
     }
   }
@@ -154,9 +151,13 @@ export function getValidCertificates(certificates: AgentSigningCertificate[]): A
   return normalized.filter(item =>
     item.isValidNow &&
     item.certificateBase64 &&
-    item.keyAlgorithm.toUpperCase().includes('RSA') &&
+    // Allow both RSA and ECDSA certs (modern HSMs use ECDSA)
+    (item.keyAlgorithm.toUpperCase().includes('RSA') || item.keyAlgorithm.toUpperCase().includes('EC')) &&
+    // Filter out VIMES Agent's own SSL cert (CN=localhost, self-signed)
     !item.subject.toLowerCase().includes('cn=localhost') &&
-    !item.issuer.toLowerCase().includes('cn=localhost')
+    !item.issuer.toLowerCase().includes('cn=localhost') &&
+    // Filter out auto-generated internal certs (UUID-style CN)
+    !/^cn=[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}/.test(item.subject.toLowerCase())
   );
 }
 
@@ -170,23 +171,54 @@ export async function createAgentSession(): Promise<string> {
 }
 
 export function createSmartAgentClient(token: string): WorkstationAgentSigningClient {
-  const baseUrl = getAgentBaseUrl();
+  // Use proxy URL as base so WorkstationAgentSigningClient constructs correct URLs
+  const effectiveBaseUrl = AGENT_PROXY_URL;
+  
   const smartFetcher: typeof fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const url = typeof input === 'string' ? input : (input instanceof Request ? input.url : input.toString());
+    let url = typeof input === 'string' ? input : (input instanceof Request ? input.url : input.toString());
+    
+    // Extract clean relative API path without proxy prefix or host
+    let apiPath = url;
+    if (apiPath.startsWith(AGENT_HTTP_URL)) {
+      apiPath = apiPath.slice(AGENT_HTTP_URL.length);
+    } else if (apiPath.startsWith(AGENT_HTTPS_URL)) {
+      apiPath = apiPath.slice(AGENT_HTTPS_URL.length);
+    } else if (apiPath.includes('127.0.0.1:18181')) {
+      apiPath = apiPath.replace(/https?:\/\/127\.0\.0\.1:18181/, '');
+    } else if (apiPath.includes('127.0.0.1:18182')) {
+      apiPath = apiPath.replace(/https?:\/\/127\.0\.0\.1:18182/, '');
+    }
+    
+    // Strip /agent-proxy prefix if present
+    if (apiPath.startsWith(AGENT_PROXY_URL)) {
+      apiPath = apiPath.slice(AGENT_PROXY_URL.length);
+    } else if (apiPath.includes(AGENT_PROXY_URL)) {
+      apiPath = apiPath.replace(AGENT_PROXY_URL, '');
+    }
+    if (!apiPath.startsWith('/')) {
+      apiPath = '/' + apiPath;
+    }
+
+    // Priority 1: Extension bridge takes direct absolute URL (e.g. http://127.0.0.1:18181/api/v1/signing/providers)
     if (isExtensionReady()) {
+      const absoluteUrl = `${getAgentBaseUrl()}${apiPath}`;
       try {
-        const data = await callViaExtension<any>(url, init || {});
+        const data = await callViaExtension<any>(absoluteUrl, init || {});
         return new Response(JSON.stringify(data), {
           status: 200,
           headers: { 'Content-Type': 'application/json' }
         });
       } catch (err: any) {
-        console.warn('[VIMES Signer] Extension fetcher fallback to window.fetch:', err);
+        console.warn('[VIMES Signer] Extension fetcher fallback to proxy fetch:', err);
       }
     }
-    return fetch(input, init);
+    
+    // Priority 2: Use Vite proxy path (/agent-proxy/api/v1/...)
+    const proxyUrl = `${AGENT_PROXY_URL}${apiPath}`;
+    return fetch(proxyUrl, init);
   };
-  return new WorkstationAgentSigningClient(token, baseUrl, smartFetcher);
+  
+  return new WorkstationAgentSigningClient(token, effectiveBaseUrl, smartFetcher);
 }
 
 export async function detectUsbTokenStatus(): Promise<UsbTokenStatus> {
@@ -316,6 +348,56 @@ export async function signHealthCheckXmlWithAgent(documentId: string): Promise<a
 
   return await healthCheckService.completeXmlSignature(documentId, prepared.transactionId, job.result.signatureBase64);
 }
+
+/**
+ * Ký số Bác sĩ kết luận (Bước 1: CKS_NGUOI_KET_LUAN) qua Workstation Agent USB Token
+ */
+export async function signDoctorConclusionXmlWithAgent(
+  documentId: string,
+  doctorName?: string,
+  doctorId?: string
+): Promise<{ signature: string; applyRes: any }> {
+  const token = await createAgentSession();
+  const agent = createSmartAgentClient(token);
+
+  const providers = await agent.providers();
+  if (!providers.some(provider => provider.id && provider.status === 'available' && provider.keyAlgorithms.some(algorithm => algorithm.toUpperCase().includes('RSA')))) {
+    throw new Error('Workstation Agent không có capability ký RSA khả dụng.');
+  }
+
+  const certificate = selectCertificate(await agent.certificates());
+  const step1 = await healthCheckService.getTwoTierSignStep1Hash(documentId);
+  if (!step1 || !step1.hashBase64) {
+    throw new Error((step1 as any)?.error || 'Không thể tạo mã băm Bước 1 cho Bác sĩ kết luận.');
+  }
+
+  const txId = 'step1_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+  const accepted = await agent.createJob({
+    transactionId: txId,
+    certificateThumbprint: certificate.thumbprint,
+    hashBase64: step1.hashBase64,
+    hashAlgorithm: 'SHA256',
+    documentLabel: `Ký Bác sĩ kết luận KSK ${step1.docNo || documentId} - ${step1.patientName || doctorName || ''}`,
+    expiresAt: new Date(Date.now() + 300000).toISOString(),
+  });
+
+  const job = await agent.waitForTerminalJob(accepted.jobId);
+  if (job.status !== 'completed' || !job.result) {
+    throw new Error(job.errorMessage || `Ký số không hoàn tất (${job.status}).`);
+  }
+
+  if (job.result.transactionId !== txId || job.result.certificateThumbprint.toUpperCase() !== certificate.thumbprint.toUpperCase()) {
+    throw new Error('Kết quả Agent không khớp giao dịch/chứng thư đã chọn.');
+  }
+
+  const cleanSig = job.result.signatureBase64;
+  const applyRes = await healthCheckService.applyTwoTierSignStep1(documentId, cleanSig, doctorName, doctorId);
+  return {
+    signature: cleanSig,
+    applyRes
+  };
+}
+
 
 export interface BatchSignProgressInfo {
   current: number;

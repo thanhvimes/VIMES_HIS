@@ -18,6 +18,7 @@ const router = express.Router();
 router.use(authMiddleware);
 
 // CRUD Endpoints (Health Check Documents)
+router.get('/dashboard-stats', healthCheckController.getDashboardStats.bind(healthCheckController));
 router.get('/documents', healthCheckController.getDocuments.bind(healthCheckController));
 router.get('/documents/:id', healthCheckController.getDocumentById.bind(healthCheckController));
 router.get('/documents/:id/fees', healthCheckController.getDocumentFees.bind(healthCheckController));
@@ -25,7 +26,37 @@ router.post('/documents', healthCheckController.createDocument.bind(healthCheckC
 router.put('/documents/:id', healthCheckController.updateDocument.bind(healthCheckController));
 router.delete('/documents/:id', healthCheckController.deleteDocument.bind(healthCheckController));
 
+const DefaultTrustedBackendPrivateKeyPem = `-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDBX2gzCuc79Ab4
++FDZ6X9UZOeitkuA9JVwhMaLKstZS3wiVS1fEXm9r/z5VH1Lk9oJIRtbGhtw6c48
+CfeWOlSeS1Uio87n/Xz4qS0P9c1lZtNFL3ejARiAt8sMf6Y//ELt473/LXsPpRby
+iw4qq07lzOJp+AJaAQpHty+qQbRDougzdJ8+yLCvTtaSDvqCUQGu5RSD8sd0N02Y
+HfkXzxgV29YJX00RCdW6m5oVUx1QQ+luaY3lGfROffEuS6eK85XH7bVDtjMus4P7
+TcDYnjGPlN/AwCrj0WTCjhi7E0/TJUDBp2NUXRopqadnDTTlLHXdGs0/PlmkH+b0
+6OOmf9bFAgMBAAECggEAErlD++NDoha+IRfcLklxapDNq//mPjGQkcFNfzaw02/f
+cGyadNDanp8eid7gNfP2QfmKbk8QFqYQ8dfOOSXjQSOOtgix9V0iX2p0Ik486eNj
+tBiFR0uJHZeOSeLHTH1G1sV9RWrYNlrYJrqHr+KABHjK+JNK2P+uSOToMN5lT8IY
+VpuIOZUD2fdKb5v4zTxcAKT/Q04tGUVE64emIeFKX45t9ihvZgUAeg2RDLhlTDBS
+VJr+r5gLvTA08j++xX5+EuNTg8lTYADCnhQ0hQrVfvhqNIeSh1OSj112qC7xAnFZ
+5mxXuLfR4OyAtylUJT1+GxNYl6Dwy0Ys1XU1ObjkSQKBgQD2H4VmFejsqsRMuj1K
+096Z8n4CbZ8hnKL16oGoSo9Lu14cuHaJ90qt9iH22qxRUqj4CZsDhXypnoD7vpXA
+mtffpK58LpUXyRXUjxmwBY85QrUtBZaPgFW5jI4CgsAR4EwPMXo2497xb0MkXkTU
+e+e1nSRktXSwLrjRUfqpL81lyQKBgQDJIff2zXg9pkbElcC0tKnD048VYg+nwrAK
+JiZMe+cbN9XR5qSAUPgB5O2ygdO6GwzRQ6xEswhBTv+GbVpYXq9cPY3QI3JzN9zb
+HAK+YsCap4FxMqTrgHHMt6slWjfxX8mT2GYhbwdbs1Cr0DtJ07cgbB5mj//DfZ0O
+xeAH24RXHQKBgERn+GSqPEXjJJIKxVRR1LHHAxzbqPnnlidxWT4UEwXCeuLSpies
+crYtDb2Vg4VKyym9SbdN15sxMbpGe0q//rXrCI/9RnUI76dXapVQxkDs+Hwd7H3P
+9oOOvD2YZ5fQVnN2lfhBl0pVWTz3cnv4QCtrFJ1lDZyWL8oF1fxGC/l5AoGBAJFr
+1fTDqmQojJImFCaTWQsVMyaqt9b7lHxCCP7TtsyfGiGhON7tq+LyukmORJ8SX7oN
+y8gACb/udiGjfubVzsRKXPZYKq/TfAOPxQwSKl+nLJfDnioHvD/frAZdrIUAVKZo
+l68kr5VFmNYgwD0orgbrJS/SfYHCmIPN3aTQumahAoGAIA1C/djFHJ4jgVHoEyAc
+UJf3Pib+i2LE9dOtRUVu0wUr5VVU0vVSuiQ7auIvVNNxtn0Pwrvs4hNNMjlu/3p8
+raGP0+CeL0Yr/9xEdIzPZeRSPWyhI7f+i7nNEYoTPWaFX+btydIqpyIYi8AmIqui
+BiRIXbcv0/nHoaTl6qnIRgQ=
+-----END PRIVATE KEY-----`;
+
 let fallbackPrivateKey: string | null = null;
+
 function getAgentPrivateKey(): string {
   const privateKey = String(process.env.WORKSTATION_AGENT_BACKEND_PRIVATE_KEY_PEM || '').replace(/\\n/g, '\n').trim();
   if (privateKey) return privateKey;

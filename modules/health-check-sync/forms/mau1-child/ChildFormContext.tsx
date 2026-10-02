@@ -314,6 +314,8 @@ export interface ChildFormContextType {
     setDiagnosis: React.Dispatch<React.SetStateAction<string>>;
     cacVanDeLuuY: string;
     setCacVanDeLuuY: React.Dispatch<React.SetStateAction<string>>;
+    conclusionDate: string;
+    setConclusionDate: React.Dispatch<React.SetStateAction<string>>;
 
     // Lists of options
     provinces: CatalogItem[];

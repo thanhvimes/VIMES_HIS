@@ -32,7 +32,13 @@ export const BatchSignModal: React.FC<BatchSignModalProps> = ({
     currentUser
 }) => {
     const [signRole, setSignRole] = useState<'DOCTOR' | 'UNIT' | 'BOTH'>(initialRole);
-    const [signatureType, setSignatureType] = useState<'HSM' | 'USB'>(signatureTypeDefault);
+    const [signatureType, setSignatureType] = useState<'HSM' | 'USB'>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('vimes_ksk_signature_method');
+            if (saved === 'USB' || saved === 'HSM') return saved;
+        }
+        return signatureTypeDefault;
+    });
     const [doctorId, setDoctorId] = useState<string>(currentUser?.userId || '');
     const [doctorName, setDoctorName] = useState<string>(currentUser?.name || 'Bác sĩ kết luận');
     const [defaultFitnessClass, setDefaultFitnessClass] = useState<string>('1');
@@ -53,7 +59,12 @@ export const BatchSignModal: React.FC<BatchSignModalProps> = ({
     useEffect(() => {
         if (isOpen) {
             setSignRole(initialRole);
-            setSignatureType(signatureTypeDefault);
+            const savedMethod = typeof window !== 'undefined' ? localStorage.getItem('vimes_ksk_signature_method') : null;
+            if (savedMethod === 'USB' || savedMethod === 'HSM') {
+                setSignatureType(savedMethod);
+            } else {
+                setSignatureType(signatureTypeDefault);
+            }
             setDoctorId(currentUser?.userId || '');
             setDoctorName(currentUser?.name || 'Bác sĩ kết luận');
             setResultSummary(null);
@@ -319,7 +330,12 @@ export const BatchSignModal: React.FC<BatchSignModalProps> = ({
                                 <button
                                     type="button"
                                     disabled={isSigning}
-                                    onClick={() => setSignatureType('HSM')}
+                                    onClick={() => {
+                                        setSignatureType('HSM');
+                                        if (typeof window !== 'undefined') {
+                                            localStorage.setItem('vimes_ksk_signature_method', 'HSM');
+                                        }
+                                    }}
                                     className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 border transition cursor-pointer ${
                                         signatureType === 'HSM'
                                             ? 'bg-teal-700 text-white border-teal-700 shadow-sm'
@@ -334,7 +350,12 @@ export const BatchSignModal: React.FC<BatchSignModalProps> = ({
                                 <button
                                     type="button"
                                     disabled={isSigning}
-                                    onClick={() => setSignatureType('USB')}
+                                    onClick={() => {
+                                        setSignatureType('USB');
+                                        if (typeof window !== 'undefined') {
+                                            localStorage.setItem('vimes_ksk_signature_method', 'USB');
+                                        }
+                                    }}
                                     className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 border transition cursor-pointer ${
                                         signatureType === 'USB'
                                             ? 'bg-teal-700 text-white border-teal-700 shadow-sm'

@@ -122,6 +122,7 @@ export const healthCheckService = {
         examStatus?: string;
         limit?: number | string;
         page?: number;
+        summary?: boolean | string;
     }): Promise<{ documents: HealthCheckDocument[]; totalCount: number }> => {
         try {
             const params: Record<string, any> = {};
@@ -137,6 +138,7 @@ export const healthCheckService = {
                 if (filters.examStatus) params.examStatus = filters.examStatus;
                 if (filters.limit) params.limit = filters.limit;
                 if (filters.page) params.page = filters.page;
+                if (filters.summary !== undefined) params.summary = String(filters.summary);
             }
             const res = await apiClient.getWithMeta<HealthCheckDocument[]>('/health-check-sync/documents', params);
             const totalCount = parseInt(res.headers.get('X-Total-Count') || '0', 10);
@@ -146,6 +148,40 @@ export const healthCheckService = {
             };
         } catch (error) {
             console.error("Failed to fetch health check documents with count:", error);
+            throw error;
+        }
+    },
+
+    getDashboardStats: async (filters?: {
+        startDate?: string;
+        endDate?: string;
+        contractId?: string;
+    }): Promise<{
+        total: number;
+        unsigned: number;
+        doctor_signed: number;
+        signed: number;
+        synced: number;
+        errors: number;
+        unsent: number;
+        formDistribution: Record<string, number>;
+        errorList: any[];
+    }> => {
+        try {
+            const res = await apiClient.get<any>('/health-check-sync/dashboard-stats', filters);
+            return res.data || {
+                total: 0,
+                unsigned: 0,
+                doctor_signed: 0,
+                signed: 0,
+                synced: 0,
+                errors: 0,
+                unsent: 0,
+                formDistribution: {},
+                errorList: []
+            };
+        } catch (error) {
+            console.error("Failed to fetch dashboard stats:", error);
             throw error;
         }
     },
@@ -289,7 +325,7 @@ export const healthCheckService = {
     },
 
     sendDocuments: async (docIds: string[]): Promise<string[]> => {
-        return healthCheckService.sendDocumentsToPortal(docIds);
+        return await healthCheckService.sendDocumentsToPortal(docIds);
     },
 
     unlockDocument: async (id: string, reason = 'Điều chỉnh hồ sơ theo yêu cầu nghiệp vụ'): Promise<boolean> => {
@@ -481,15 +517,6 @@ export const healthCheckService = {
         }
     },
 
-    getContractEmployees: async (id: string | number): Promise<any[]> => {
-        try {
-            return await apiClient.get<any[]>(`/health-check-sync/contracts/${id}/employees`);
-        } catch (error) {
-            console.error("Error fetching health check contract employees:", error);
-            throw error;
-        }
-    },
-
     batchUpdateContract: async (id: string | number, payload: {
         examDate?: string;
         roomId?: number;
@@ -510,9 +537,18 @@ export const healthCheckService = {
         skipXml?: boolean;
     }): Promise<any> => {
         try {
-            return await apiClient.post<any>(`/health-check-sync/contracts/${id}/batch-update`, payload);
+            return await apiClient.post(`/health-check-sync/contracts/${id}/batch-update`, payload);
         } catch (error) {
             console.error("Error in batchUpdateContract:", error);
+            throw error;
+        }
+    },
+
+    getContractEmployees: async (id: string | number): Promise<any[]> => {
+        try {
+            return await apiClient.get<any[]>(`/health-check-sync/contracts/${id}/employees`);
+        } catch (error) {
+            console.error("Error fetching health check contract employees:", error);
             throw error;
         }
     },

@@ -506,6 +506,13 @@ export const useDynamicFormState = (
     const [roiLoanHanhViTamThan, setRoiLoanHanhViTamThan] = useState(initialData?.clinical_data?.clinical_exam?.roi_loan_hanh_vi_tam_than || '');
     const [ketLuanLoaiSucKhoe, setKetLuanLoaiSucKhoe] = useState(initialData?.conclusion_data?.ket_luan_loai_suc_khoe || '');
     const [conclusionDoctorId, setConclusionDoctorId] = useState(initialData?.conclusion_data?.doctor_id || '');
+    const [conclusionDate, setConclusionDate] = useState<string>(() => {
+        const initVal = initialData?.conclusion_data?.conclusion_date 
+            || initialData?.conclusion_data?.ngay_ket_luan 
+            || initialData?.conclusion_date 
+            || initialData?.conclusionDate;
+        return initVal ? formatDateForInput(initVal) : formatDateForInput(new Date());
+    });
 
     // Dynamic services state (paraclinical grid)
     const [paraclinicalItems, setParaclinicalItems] = useState<any[]>(initialData?.lab_data?.paraclinical_items || []);
@@ -856,6 +863,10 @@ export const useDynamicFormState = (
         if (conclusion.yeuCauDeoKinh || conclusion.yeu_cau_deo_kinh) setYeuCauDeoKinh(conclusion.yeuCauDeoKinh || conclusion.yeu_cau_deo_kinh);
         if (conclusion.ket_luan_loai_suc_khoe) setKetLuanLoaiSucKhoe(conclusion.ket_luan_loai_suc_khoe);
         if (conclusion.doctor_id) setConclusionDoctorId(conclusion.doctor_id);
+        const incomingConclDate = conclusion.conclusion_date || conclusion.ngay_ket_luan || initialData.conclusion_date || initialData.conclusionDate;
+        if (incomingConclDate) {
+            setConclusionDate(formatDateForInput(incomingConclDate));
+        }
     }, [initialData]);
 
     const [doctors, setDoctors] = useState<CatalogItem[]>([]);
@@ -864,7 +875,7 @@ export const useDynamicFormState = (
 
     const handleFetchHisData = async () => {
         if (!hisSearchQuery.trim()) {
-            setHisSyncMessage({ type: 'error', text: 'Vui lòng nhập Số CCCD, Mã hồ sơ KSK hoặc Số điện thoại để tìm kiếm trong danh sách KSK' });
+            setHisSyncMessage({ type: 'error', text: 'Vui lòng nhập Số CCCD, Mã hồ sơ hoặc Số điện thoại để tìm kiếm từ HIS' });
             return;
         }
         setIsFetchingHis(true);
@@ -1095,6 +1106,9 @@ export const useDynamicFormState = (
 
                 const resolvedHisKqNtc = data.clinical_data?.clinical_exam?.kq_noi_tiet_chuyen_hoa || data.clinical_data?.clinical_exam?.noi_khoa_noi_tiet;
                 if (resolvedHisKqNtc) setKqNoiTietChuyenHoa(resolvedHisKqNtc);
+
+                if (data.clinical_data?.clinical_exam?.tim_mach) setTimMach(data.clinical_data.clinical_exam.tim_mach);
+                if (data.clinical_data?.clinical_exam?.ho_hap) setHoHap(data.clinical_data.clinical_exam.ho_hap);
                 if (data.clinical_data?.clinical_exam?.tiet_nieu_sinh_duc) setTietNieuSinhDuc(data.clinical_data.clinical_exam.tiet_nieu_sinh_duc);
                 const resolvedHisKqTh = data.clinical_data?.clinical_exam?.noi_khoa_tieu_hoa || data.clinical_data?.clinical_exam?.kq_tieu_hoa;
                 if (resolvedHisKqTh) setNoiKhoaTieuHoa(resolvedHisKqTh);
@@ -1188,6 +1202,9 @@ export const useDynamicFormState = (
                 if (data.conclusion_data?.quan_ly_benh) setQuanLyBenh(data.conclusion_data.quan_ly_benh);
                 if (data.conclusion_data?.theo_doi_tai) setTheoDoiTai(data.conclusion_data.theo_doi_tai);
                 if (data.conclusion_data?.chuyen_tuyen) setChuyenTuyen(data.conclusion_data.chuyen_tuyen);
+                if (data.conclusion_data?.conclusion_date || data.conclusion_data?.ngay_ket_luan) {
+                    setConclusionDate(formatDateForInput(data.conclusion_data.conclusion_date || data.conclusion_data.ngay_ket_luan));
+                }
                 
                 const initOccupation = data.clinical_data?.extra?.ma_nghe_nghiep || data.clinical_data?.ma_nghe_nghiep || data.clinical_data?.occupation || data.occupation;
                 if (initOccupation) {
@@ -1218,15 +1235,22 @@ export const useDynamicFormState = (
                     onChangeFormType(targetForm);
                 }
 
-                setHisSyncMessage({ 
-                    type: 'success', 
-                    text: `🟢 Tải thành công hồ sơ KSK đã lưu trong danh sách cho BN: ${data.patient_name} (Mẫu ${targetForm || formType})!` 
-                });
+                if (data.source === 'HIS_DIRECT') {
+                    setHisSyncMessage({ 
+                        type: 'success', 
+                        text: `🔵 Nạp đợt khám trực tiếp từ HIS cho BN: ${data.patient_name} (Mã lượt khám: ${data.doc_no})! Đã tự động áp dụng Mẫu ${targetForm || formType}.` 
+                    });
+                } else {
+                    setHisSyncMessage({ 
+                        type: 'success', 
+                        text: `🟢 Tải thành công hồ sơ KSK VNeID đã lưu của BN: ${data.patient_name} (Mẫu ${targetForm || formType})!` 
+                    });
+                }
             } else {
-                setHisSyncMessage({ type: 'error', text: 'Không tìm thấy hồ sơ KSK trong danh sách.' });
+                setHisSyncMessage({ type: 'error', text: 'Không tìm thấy hồ sơ KSK đã tiếp nhận cho bệnh nhân này.' });
             }
         } catch (error: any) {
-            setHisSyncMessage({ type: 'error', text: error.response?.data?.error || error.message || 'Không tìm thấy hồ sơ KSK trong danh sách.' });
+            setHisSyncMessage({ type: 'error', text: 'Lỗi khi tìm kiếm dữ liệu: ' + (error.response?.data?.error || error.message) });
         } finally {
             setIsFetchingHis(false);
         }
@@ -1487,7 +1511,7 @@ export const useDynamicFormState = (
             if (!kqXnNongDoCon) setKqXnNongDoCon('0');
             if (!nuocTieuDuong) setNuocTieuDuong('Âm tính (-)');
             if (!nuocTieuProtein) setNuocTieuProtein('Âm tính (-)');
-            // Chỉ tự động điền kết quả CĐHA / Thăm dò chức năng nếu thực tế có chỉ định trong phiếu khám
+            
             const hasImaging = paraclinicalItems.some((x: any) => {
                 const s = String(x.service_name || x.name || '').toLowerCase();
                 return s.includes('x-quang') || s.includes('xquang') || s.includes('chụp');
@@ -1814,7 +1838,7 @@ export const useDynamicFormState = (
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = (eOrOptions?: React.FormEvent | { shouldSign?: boolean; shouldUnlock?: boolean; signatureType?: 'USB' | 'HSM'; overrideMetadata?: any }, maybeOptions?: { shouldSign?: boolean; shouldUnlock?: boolean; signatureType?: 'USB' | 'HSM'; overrideMetadata?: any }): boolean => {
+    const handleSubmit = async (eOrOptions?: React.FormEvent | { shouldSign?: boolean; shouldUnlock?: boolean; signatureType?: 'USB' | 'HSM'; overrideMetadata?: any }, maybeOptions?: { shouldSign?: boolean; shouldUnlock?: boolean; signatureType?: 'USB' | 'HSM'; overrideMetadata?: any }): Promise<boolean> => {
         let e: React.FormEvent | undefined;
         let options: { shouldSign?: boolean; shouldUnlock?: boolean; signatureType?: 'USB' | 'HSM'; overrideMetadata?: any } | undefined;
         if (eOrOptions && typeof (eOrOptions as any).preventDefault === 'function') {
@@ -2080,7 +2104,6 @@ export const useDynamicFormState = (
 
                     kq_noi_tiet: kqNoiTiet,
                     kq_ngoai_khoa: kqNgoaiKhoa,
-
                     kq_tiet_nieu: kqTietNieu,
                     kq_sinh_duc: kqSinhDuc,
                     kq_tai_mui_hong: kqTaiMuiHong,
@@ -2351,6 +2374,8 @@ export const useDynamicFormState = (
             conclusionData: {
                 fitness_class: fitnessClass,
                 diagnosis,
+                conclusion_date: conclusionDate,
+                ngay_ket_luan: conclusionDate,
                 cac_van_de_luu_y: cacVanDeLuuY,
                 cac_benh_tat_neu_co: cacBenhTatNeuCo,
                 CAC_BENH_TAT_NEU_CO: cacBenhTatNeuCo,
@@ -2370,7 +2395,7 @@ export const useDynamicFormState = (
             }
         };
         
-        onSave(fullPayload, options);
+        await onSave(fullPayload, options);
         return true;
     };
 
@@ -2384,9 +2409,9 @@ export const useDynamicFormState = (
             ? address.trim() 
             : [currentWardName, currentProvName].filter(Boolean).map(s => s.trim()).join(', ');
 
-        const effectiveTim = kqTimMach || timMach || '';
-        const effectiveHh = kqHoHap || hoHap || '';
-        const effectiveDl = kqDaLieu || dermatologyExam || '';
+        const effectiveTim = (kqTimMach || timMach || '').trim();
+        const effectiveHh = (kqHoHap || hoHap || '').trim();
+        const effectiveDl = (kqDaLieu || dermatologyExam || '').trim();
 
         const fullPayload = {
             id: loadedDocId || initialData?.id,
@@ -2441,8 +2466,8 @@ export const useDynamicFormState = (
                     benh_rang_ham_mat: dentalExam,
                     benh_khac_rang_ham_mat: benhKhacRangHamMat || dentalExam,
                     external: externalExam,
-                    dermatology: effectiveDl,
                     kq_da_lieu: effectiveDl,
+                    dermatology: effectiveDl,
                     kham_da_lieu: effectiveDl,
                     da_lieu: effectiveDl,
                     gynecology: gynExam || kqSinhDuc,
@@ -2498,12 +2523,15 @@ export const useDynamicFormState = (
                     noi_khoa_than_kinh: noiKhoaThanKinh,
                     kq_tam_than: kqTamThan,
                     kq_than_kinh: kqThanKinh,
+
+                    // Tuần hoàn (Đồng bộ 100% tất cả alias cho UI, XML, HIS và Mẫu in)
                     kq_tim_mach: effectiveTim,
                     tim_mach: effectiveTim,
                     noi_khoa_tuan_hoan: effectiveTim,
                     tuan_hoan: effectiveTim,
                     circulatory: effectiveTim,
 
+                    // Hô hấp (Đồng bộ 100% tất cả alias cho UI, XML, HIS và Mẫu in)
                     kq_ho_hap: effectiveHh,
                     ho_hap: effectiveHh,
                     noi_khoa_ho_hap: effectiveHh,
@@ -2777,6 +2805,8 @@ export const useDynamicFormState = (
             conclusionData: {
                 fitness_class: fitnessClass,
                 diagnosis,
+                conclusion_date: conclusionDate,
+                ngay_ket_luan: conclusionDate,
                 cac_van_de_luu_y: cacVanDeLuuY,
                 cac_benh_tat_neu_co: cacBenhTatNeuCo,
                 CAC_BENH_TAT_NEU_CO: cacBenhTatNeuCo,
@@ -3527,6 +3557,8 @@ export const useDynamicFormState = (
         setTheoDoiTai,
         chuyenTuyen,
         setChuyenTuyen,
+        conclusionDate,
+        setConclusionDate,
         errors,
         setErrors,
         specialtyMetadata,
